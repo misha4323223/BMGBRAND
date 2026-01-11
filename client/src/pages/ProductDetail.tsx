@@ -58,8 +58,8 @@ export default function ProductDetail() {
     <div className="min-h-screen bg-background text-white">
       <Navbar />
       
-      <div className="pt-24 pb-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24">
+      <div className="pt-20 pb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-24">
           
           {/* Left: Image Gallery */}
           <motion.div 
@@ -67,7 +67,7 @@ export default function ProductDetail() {
             animate={{ opacity: 1, x: 0 }}
             className="space-y-4"
           >
-            <div className="aspect-[3/4] bg-zinc-900 w-full overflow-hidden">
+            <div className="aspect-[4/5] sm:aspect-[3/4] bg-zinc-900 w-full overflow-hidden max-h-[50vh] sm:max-h-none">
               <img 
                 src={product.imageUrl} 
                 alt={product.name} 
@@ -80,33 +80,33 @@ export default function ProductDetail() {
           <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex flex-col justify-center h-full pt-10 lg:pt-0"
+            className="flex flex-col justify-center pt-4 lg:pt-0"
           >
-            <div className="mb-2">
-              <span className="font-mono text-primary text-sm uppercase tracking-widest">{product.category}</span>
+            <div className="mb-1">
+              <span className="font-mono text-primary text-[10px] sm:text-sm uppercase tracking-widest">{product.category}</span>
             </div>
             
-            <h1 className="font-display text-5xl md:text-6xl uppercase tracking-tighter mb-4 leading-none">
+            <h1 className="font-display text-3xl sm:text-5xl md:text-6xl uppercase tracking-tighter mb-2 sm:mb-4 leading-none">
               {product.name}
             </h1>
             
-            <p className="font-mono text-2xl font-bold mb-8 text-zinc-300">{price}</p>
+            <p className="font-mono text-xl sm:text-2xl font-bold mb-4 sm:mb-8 text-zinc-300">{price}</p>
             
-            <div className="prose prose-invert prose-sm mb-10 text-zinc-400 font-mono leading-relaxed">
-              <p>{product.description}</p>
+            <div className="prose prose-invert prose-xs sm:prose-sm mb-6 sm:mb-10 text-zinc-400 font-mono leading-relaxed">
+              <p className="line-clamp-3 sm:line-clamp-none">{product.description}</p>
             </div>
 
             {/* Selectors */}
-            <div className="space-y-8 mb-10">
+            <div className="space-y-6 mb-8">
               {/* Color */}
               <div>
-                <label className="block font-mono text-xs uppercase text-zinc-500 mb-3">Выберите цвет</label>
-                <div className="flex flex-wrap gap-3">
+                <label className="block font-mono text-[10px] uppercase text-zinc-500 mb-2">Цвет</label>
+                <div className="flex flex-wrap gap-2">
                   {product.colors.map(color => (
                     <button
                       key={color}
                       onClick={() => setSelectedColor(color)}
-                      className={`h-12 px-6 font-mono text-sm uppercase border transition-all ${
+                      className={`h-10 px-4 font-mono text-xs uppercase border transition-all ${
                         selectedColor === color 
                           ? "border-primary bg-primary/10 text-primary" 
                           : "border-zinc-800 text-zinc-400 hover:border-zinc-600"
@@ -120,13 +120,13 @@ export default function ProductDetail() {
 
               {/* Size */}
               <div>
-                <label className="block font-mono text-xs uppercase text-zinc-500 mb-3">Выберите размер</label>
-                <div className="flex flex-wrap gap-3">
+                <label className="block font-mono text-[10px] uppercase text-zinc-500 mb-2">Размер</label>
+                <div className="flex flex-wrap gap-2">
                   {product.sizes.map(size => (
                     <button
                       key={size}
                       onClick={() => setSelectedSize(size)}
-                      className={`w-14 h-14 flex items-center justify-center font-mono text-sm uppercase border transition-all ${
+                      className={`w-10 h-10 flex items-center justify-center font-mono text-xs uppercase border transition-all ${
                         selectedSize === size 
                           ? "border-primary bg-primary/10 text-primary" 
                           : "border-zinc-800 text-zinc-400 hover:border-zinc-600"
@@ -140,20 +140,20 @@ export default function ProductDetail() {
 
               {/* Quantity */}
               <div>
-                <label className="block font-mono text-xs uppercase text-zinc-500 mb-3">Количество</label>
-                <div className="flex items-center w-32 border border-zinc-800">
+                <label className="block font-mono text-[10px] uppercase text-zinc-500 mb-2">Кол-во</label>
+                <div className="flex items-center w-28 border border-zinc-800">
                   <button 
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 flex items-center justify-center hover:text-primary transition-colors"
+                    className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors"
                   >
-                    <Minus className="w-4 h-4" />
+                    <Minus className="w-3 h-3" />
                   </button>
-                  <span className="flex-1 text-center font-mono text-sm">{quantity}</span>
+                  <span className="flex-1 text-center font-mono text-xs">{quantity}</span>
                   <button 
                     onClick={() => setQuantity(quantity + 1)}
-                    className="w-10 h-10 flex items-center justify-center hover:text-primary transition-colors"
+                    className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3 h-3" />
                   </button>
                 </div>
               </div>
@@ -163,7 +163,7 @@ export default function ProductDetail() {
             <button
               onClick={handleAddToCart}
               disabled={!selectedSize || !selectedColor || addToCart.isPending}
-              className={`w-full h-16 flex items-center justify-center gap-3 font-display text-xl uppercase tracking-widest transition-all ${
+              className={`w-full h-14 flex items-center justify-center gap-3 font-display text-lg uppercase tracking-widest transition-all ${
                 !selectedSize || !selectedColor
                   ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
                   : "bg-primary text-white hover:bg-red-600"
