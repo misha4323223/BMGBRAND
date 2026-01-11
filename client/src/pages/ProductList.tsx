@@ -37,17 +37,17 @@ export default function ProductList() {
       <Navbar />
       
       <div className="pt-32 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <h1 className="font-display text-5xl md:text-7xl text-white mb-12 uppercase tracking-tighter">
+        <h1 className="font-display text-4xl sm:text-5xl md:text-7xl text-white mb-8 sm:mb-12 uppercase tracking-tighter">
           Все товары
         </h1>
 
         {/* Filters */}
-        <div className="flex flex-nowrap overflow-x-auto pb-4 mb-12 gap-3 no-scrollbar border-b border-zinc-800 lg:flex-wrap lg:overflow-visible lg:pb-8">
+        <div className="flex flex-nowrap overflow-x-auto pb-4 mb-8 sm:mb-12 gap-2 sm:gap-3 no-scrollbar border-b border-zinc-800 lg:flex-wrap lg:overflow-visible lg:pb-8">
           {categories.map(cat => (
             <button
               key={cat}
               onClick={() => setFilter(cat)}
-              className={`font-mono text-xs sm:text-sm uppercase tracking-wider px-6 py-3 border whitespace-nowrap transition-all ${
+              className={`font-mono text-[10px] sm:text-sm uppercase tracking-wider px-4 sm:px-6 py-2 sm:py-3 border whitespace-nowrap transition-all ${
                 filter === cat 
                   ? "bg-primary border-primary text-white" 
                   : "bg-transparent border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-white"
@@ -59,7 +59,7 @@ export default function ProductList() {
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-12">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 sm:gap-x-6 gap-y-8 sm:gap-y-12">
           {filteredProducts?.length === 0 ? (
             <div className="col-span-full text-center py-20 text-zinc-500 font-mono">
               Товары в этой категории не найдены.

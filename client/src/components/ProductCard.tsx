@@ -23,7 +23,7 @@ export function ProductCard({ product }: ProductCardProps) {
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative aspect-[3/4] overflow-hidden bg-zinc-900 mb-4"
+        className="relative aspect-[4/5] sm:aspect-[3/4] overflow-hidden bg-zinc-900 mb-2 sm:mb-4"
       >
         {/* Dynamic Image from DB or Unsplash fallback */}
         <img 
@@ -49,14 +49,14 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
       </motion.div>
       
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-1">
         <div>
-          <h3 className="font-display text-xl uppercase text-white group-hover:text-primary transition-colors">
+          <h3 className="font-display text-sm sm:text-xl uppercase text-white group-hover:text-primary transition-colors leading-tight">
             {product.name}
           </h3>
-          <p className="text-zinc-500 text-sm font-mono mt-1">{product.category}</p>
+          <p className="text-zinc-500 text-[10px] sm:text-sm font-mono mt-0.5">{product.category}</p>
         </div>
-        <span className="font-mono text-white font-bold">{price}</span>
+        <span className="font-mono text-white font-bold text-xs sm:text-base">{price}</span>
       </div>
     </Link>
   );
