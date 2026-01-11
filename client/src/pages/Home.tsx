@@ -36,9 +36,9 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex flex-col items-center"
           >
-            <h1 className="font-display text-7xl md:text-9xl font-bold uppercase tracking-tighter text-white mb-6 leading-none flex flex-col items-center">
+            <h1 className="font-display text-7xl md:text-9xl font-bold uppercase tracking-tighter text-white mb-6 leading-none flex items-center justify-center">
               <span className="text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">BOOO</span>
-              <span className="text-primary -mt-4 md:-mt-8 text-stroke-white drop-shadow-[0_0_20px_rgba(239,68,68,0.3)]">MERANGS</span>
+              <span className="text-primary text-stroke-white drop-shadow-[0_0_20px_rgba(239,68,68,0.3)]">MERANGS</span>
             </h1>
             <p className="font-mono text-lg md:text-xl text-zinc-300 mb-10 max-w-xl mx-auto">
               МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ. <br/>
