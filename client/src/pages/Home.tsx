@@ -5,6 +5,7 @@ import { useProducts } from "@/hooks/use-products";
 import { ProductCard } from "@/components/ProductCard";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import heroBg from "@assets/generated_images/wet_softshell_fabric_on_asphalt_rain.png";
 
 export default function Home() {
   const { data: products, isLoading } = useProducts();
@@ -18,15 +19,13 @@ export default function Home() {
       
       {/* Hero Section */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
-        {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0">
-          {/* Unsplash image: dark moody streetwear fashion shoot */}
           <img 
-            src="https://images.unsplash.com/photo-1536766820879-059fec98ec0a?q=80&w=2000&auto=format&fit=crop" 
+            src={heroBg} 
             alt="Hero Background" 
-            className="w-full h-full object-cover grayscale opacity-40"
+            className="w-full h-full object-cover grayscale opacity-60"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
         </div>
 
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto mt-20">
