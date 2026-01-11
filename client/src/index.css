@@ -56,6 +56,11 @@
     color: transparent;
   }
   
+  .text-stroke-white {
+    -webkit-text-stroke: 1px white;
+    color: transparent;
+  }
+  
   .text-stroke-sm {
     -webkit-text-stroke: 0.5px currentColor;
     color: transparent;
