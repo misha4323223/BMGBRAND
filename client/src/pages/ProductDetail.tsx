@@ -57,93 +57,83 @@ export default function ProductDetail() {
     <div className="min-h-screen bg-background text-white">
       <Navbar />
       
-      <div className="pt-20 pb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:grid lg:grid-cols-2 gap-8 lg:gap-24">
+      <div className="pt-16 sm:pt-24 pb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 lg:gap-24">
           
-          {/* Details - Top on mobile, right on desktop */}
+          {/* Details */}
           <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex flex-col justify-center pt-4 lg:pt-0 order-1 lg:order-2"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col order-1 lg:order-2"
           >
-            <div className="mb-1">
-              <span className="font-mono text-primary text-[10px] sm:text-sm uppercase tracking-widest">{product.category}</span>
-            </div>
-            
-            <h1 className="font-display text-3xl sm:text-5xl md:text-6xl uppercase tracking-tighter mb-2 sm:mb-4 leading-none">
-              {product.name}
-            </h1>
-            
-            <p className="font-mono text-xl sm:text-2xl font-bold mb-4 sm:mb-8 text-zinc-300">{price}</p>
-            
-            <div className="prose prose-invert prose-xs sm:prose-sm mb-6 sm:mb-10 text-zinc-400 font-mono leading-relaxed">
-              <p className="line-clamp-3 sm:line-clamp-none">{product.description}</p>
-            </div>
-
-            {/* Mobile-only image between description and selectors */}
-            <div className="lg:hidden mb-8">
-              <div className="aspect-[4/5] bg-zinc-900 w-full overflow-hidden rounded-none shadow-2xl">
-                <img 
-                  src={product.imageUrl} 
-                  alt={product.name} 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </div>
-
-            {/* Selectors */}
-            <div className="space-y-6 mb-8">
-              {/* Color */}
+            <div className="flex justify-between items-start mb-2 sm:mb-4">
               <div>
-                <label className="block font-mono text-[10px] uppercase text-zinc-500 mb-2">Цвет</label>
-                <div className="flex flex-wrap gap-2">
-                  {product.colors.map(color => (
-                    <button
-                      key={color}
-                      onClick={() => setSelectedColor(color)}
-                      className={`h-10 px-4 font-mono text-xs uppercase border transition-all ${
-                        selectedColor === color 
-                          ? "border-primary bg-primary/10 text-primary" 
-                          : "border-zinc-800 text-zinc-400 hover:border-zinc-600"
-                      }`}
-                    >
-                      {color}
-                    </button>
-                  ))}
+                <span className="font-mono text-primary text-[10px] uppercase tracking-widest block mb-1">{product.category}</span>
+                <h1 className="font-display text-2xl sm:text-5xl uppercase tracking-tighter leading-tight">
+                  {product.name}
+                </h1>
+              </div>
+              <p className="font-mono text-xl sm:text-2xl font-bold text-white shrink-0 ml-4">{price}</p>
+            </div>
+            
+            <div className="prose prose-invert prose-xs sm:prose-sm mb-4 sm:mb-10 text-zinc-400 font-mono leading-relaxed">
+              <p className="line-clamp-2 sm:line-clamp-none opacity-80">{product.description}</p>
+            </div>
+
+            {/* Compact Selectors Grid */}
+            <div className="grid grid-cols-1 gap-4 mb-6 sm:mb-10 p-3 sm:p-0 bg-zinc-900/50 sm:bg-transparent border border-white/5 sm:border-0 rounded-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                {/* Color */}
+                <div className="flex-1">
+                  <label className="block font-mono text-[9px] uppercase text-zinc-500 mb-2 tracking-tighter">Цвет</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {product.colors.map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setSelectedColor(color)}
+                        className={`h-8 px-3 font-mono text-[10px] uppercase border transition-all ${
+                          selectedColor === color 
+                            ? "border-primary bg-primary text-white" 
+                            : "border-zinc-800 text-zinc-400 hover:border-zinc-600"
+                        }`}
+                      >
+                        {color}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Size */}
+                <div className="flex-1">
+                  <label className="block font-mono text-[9px] uppercase text-zinc-500 mb-2 tracking-tighter">Размер</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {product.sizes.map(size => (
+                      <button
+                        key={size}
+                        onClick={() => setSelectedSize(size)}
+                        className={`w-8 h-8 flex items-center justify-center font-mono text-[10px] uppercase border transition-all ${
+                          selectedSize === size 
+                            ? "border-primary bg-primary text-white" 
+                            : "border-zinc-800 text-zinc-400 hover:border-zinc-600"
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Size */}
-              <div>
-                <label className="block font-mono text-[10px] uppercase text-zinc-500 mb-2">Размер</label>
-                <div className="flex flex-wrap gap-2">
-                  {product.sizes.map(size => (
-                    <button
-                      key={size}
-                      onClick={() => setSelectedSize(size)}
-                      className={`w-10 h-10 flex items-center justify-center font-mono text-xs uppercase border transition-all ${
-                        selectedSize === size 
-                          ? "border-primary bg-primary/10 text-primary" 
-                          : "border-zinc-800 text-zinc-400 hover:border-zinc-600"
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Quantity */}
-              <div>
-                <label className="block font-mono text-[10px] uppercase text-zinc-500 mb-2">Кол-во</label>
-                <div className="flex items-center w-28 border border-zinc-800">
+              {/* Action Area */}
+              <div className="flex items-center gap-3 pt-2 sm:pt-0 border-t border-white/5 sm:border-0">
+                <div className="flex items-center h-10 border border-zinc-800 bg-black/20 px-1">
                   <button 
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors"
                   >
                     <Minus className="w-3 h-3" />
                   </button>
-                  <span className="flex-1 text-center font-mono text-xs">{quantity}</span>
+                  <span className="w-6 text-center font-mono text-xs">{quantity}</span>
                   <button 
                     onClick={() => setQuantity(quantity + 1)}
                     className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors"
@@ -151,47 +141,46 @@ export default function ProductDetail() {
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>
+                
+                <button
+                  onClick={handleAddToCart}
+                  disabled={!selectedSize || !selectedColor || addToCart.isPending}
+                  className={`flex-1 h-10 flex items-center justify-center gap-2 font-display text-sm uppercase tracking-widest transition-all ${
+                    !selectedSize || !selectedColor
+                      ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                      : "bg-primary text-white hover:bg-red-600 active:scale-[0.98]"
+                  }`}
+                >
+                  {addToCart.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-4 h-4" />
+                      Купить
+                    </>
+                  )}
+                </button>
               </div>
             </div>
-
-            {/* Action */}
-            <button
-              onClick={handleAddToCart}
-              disabled={!selectedSize || !selectedColor || addToCart.isPending}
-              className={`w-full h-14 flex items-center justify-center gap-3 font-display text-lg uppercase tracking-widest transition-all mb-4 ${
-                !selectedSize || !selectedColor
-                  ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
-                  : "bg-primary text-white hover:bg-red-600"
-              }`}
-            >
-              {addToCart.isPending ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <>
-                  <ShoppingBag className="w-5 h-5 mb-1" />
-                  Добавить в корзину
-                </>
-              )}
-            </button>
             
             {(!selectedSize || !selectedColor) && (
-              <p className="mt-2 text-center text-red-500 font-mono text-[10px] uppercase tracking-tighter">
-                Пожалуйста, выберите размер и цвет
+              <p className="mb-4 text-center text-primary/60 font-mono text-[8px] uppercase tracking-widest animate-pulse">
+                Выберите размер и цвет
               </p>
             )}
           </motion.div>
           
-          {/* Image Gallery - Hidden on mobile, left on desktop */}
+          {/* Image Gallery */}
           <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="hidden lg:block space-y-4 lg:order-1"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="order-2 lg:order-1"
           >
-            <div className="aspect-[3/4] bg-zinc-900 w-full overflow-hidden">
+            <div className="aspect-[4/5] sm:aspect-[3/4] bg-zinc-900/30 w-full overflow-hidden border border-white/5">
               <img 
                 src={product.imageUrl} 
                 alt={product.name} 
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover grayscale-[0.3] hover:grayscale-0 transition-all duration-700"
               />
             </div>
           </motion.div>
