@@ -114,43 +114,43 @@ export async function registerRoutes(
   // Seed data
   if ((await storage.getProducts()).length === 0) {
     await storage.createProduct({
-      name: "T-Shirt 'CHAOS'",
-      description: "Oversized t-shirt with signature CHAOS print. 100% Cotton.",
+      name: "Футболка 'CHAOS'",
+      description: "Оверсайз футболка с фирменным принтом CHAOS. 100% хлопок.",
       price: 3500,
       imageUrl: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800&q=80",
-      category: "T-Shirts",
+      category: "Футболки",
       sizes: ["S", "M", "L", "XL"],
-      colors: ["Black", "White"],
+      colors: ["Черный", "Белый"],
       isNew: true
     });
     await storage.createProduct({
-      name: "Hoodie 'NO FUTURE'",
-      description: "Heavyweight hoodie with embroidered details. Streetwear essential.",
+      name: "Худи 'NO FUTURE'",
+      description: "Плотное худи с вышитыми деталями. База уличного стиля.",
       price: 6500,
       imageUrl: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&q=80",
-      category: "Hoodies",
+      category: "Худи",
       sizes: ["M", "L", "XL"],
-      colors: ["Black"],
+      colors: ["Черный"],
       isNew: true
     });
      await storage.createProduct({
-      name: "Cargo Pants 'TACTICAL'",
-      description: "Functional cargo pants with multiple pockets and straps.",
+      name: "Брюки-карго 'TACTICAL'",
+      description: "Функциональные брюки-карго с множеством карманов и стропами.",
       price: 5500,
       imageUrl: "https://images.unsplash.com/photo-1517438476312-10d79c077509?w=800&q=80",
-      category: "Pants",
+      category: "Брюки",
       sizes: ["S", "M", "L"],
-      colors: ["Black", "Camo"],
+      colors: ["Черный", "Камуфляж"],
       isNew: false
     });
     await storage.createProduct({
-      name: "Cap 'BMG'",
-      description: "Classic snapback with 3D embroidery.",
+      name: "Кепка 'BMG'",
+      description: "Классический снэпбэк с 3D вышивкой.",
       price: 2000,
       imageUrl: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&q=80",
-      category: "Accessories",
+      category: "Аксессуары",
       sizes: ["One Size"],
-      colors: ["Black", "Red"],
+      colors: ["Черный", "Красный"],
       isNew: false
     });
   }

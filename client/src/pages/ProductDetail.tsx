@@ -29,8 +29,8 @@ export default function ProductDetail() {
   if (!product || error) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center text-white">
-        <h2 className="font-display text-2xl mb-4">Product Not Found</h2>
-        <button onClick={() => setLocation("/products")} className="text-primary underline">Back to Shop</button>
+        <h2 className="font-display text-2xl mb-4">Товар не найден</h2>
+        <button onClick={() => setLocation("/products")} className="text-primary underline">Вернуться в магазин</button>
       </div>
     );
   }
@@ -52,7 +52,7 @@ export default function ProductDetail() {
     style: 'currency',
     currency: 'RUB',
     minimumFractionDigits: 0,
-  }).format(product.price / 100);
+  }).format(product.price);
 
   return (
     <div className="min-h-screen bg-background text-white">
@@ -100,7 +100,7 @@ export default function ProductDetail() {
             <div className="space-y-8 mb-10">
               {/* Color */}
               <div>
-                <label className="block font-mono text-xs uppercase text-zinc-500 mb-3">Select Color</label>
+                <label className="block font-mono text-xs uppercase text-zinc-500 mb-3">Выберите цвет</label>
                 <div className="flex gap-3">
                   {product.colors.map(color => (
                     <button
@@ -120,7 +120,7 @@ export default function ProductDetail() {
 
               {/* Size */}
               <div>
-                <label className="block font-mono text-xs uppercase text-zinc-500 mb-3">Select Size</label>
+                <label className="block font-mono text-xs uppercase text-zinc-500 mb-3">Выберите размер</label>
                 <div className="flex gap-3">
                   {product.sizes.map(size => (
                     <button
@@ -140,7 +140,7 @@ export default function ProductDetail() {
 
               {/* Quantity */}
               <div>
-                <label className="block font-mono text-xs uppercase text-zinc-500 mb-3">Quantity</label>
+                <label className="block font-mono text-xs uppercase text-zinc-500 mb-3">Количество</label>
                 <div className="flex items-center w-32 border border-zinc-800">
                   <button 
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -174,14 +174,14 @@ export default function ProductDetail() {
               ) : (
                 <>
                   <ShoppingBag className="w-5 h-5 mb-1" />
-                  Add to Cart
+                  Добавить в корзину
                 </>
               )}
             </button>
             
             {(!selectedSize || !selectedColor) && (
               <p className="mt-4 text-center text-red-500 font-mono text-xs uppercase">
-                Please select size and color
+                Пожалуйста, выберите размер и цвет
               </p>
             )}
 

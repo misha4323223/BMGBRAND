@@ -12,10 +12,10 @@ import { insertOrderSchema } from "@shared/schema";
 
 // Form schema based on insertOrderSchema but simplified for frontend validation
 const checkoutSchema = z.object({
-  customerName: z.string().min(2, "Name is required"),
-  customerEmail: z.string().email("Invalid email"),
-  customerPhone: z.string().min(10, "Phone required"),
-  address: z.string().min(10, "Full address required"),
+  customerName: z.string().min(2, "Имя обязательно"),
+  customerEmail: z.string().email("Некорректный email"),
+  customerPhone: z.string().min(10, "Номер телефона обязателен"),
+  address: z.string().min(10, "Полный адрес обязателен"),
 });
 
 type CheckoutForm = z.infer<typeof checkoutSchema>;
@@ -46,7 +46,7 @@ export default function Checkout() {
       style: 'currency',
       currency: 'RUB',
       minimumFractionDigits: 0,
-    }).format(cents / 100);
+    }).format(cents);
   };
 
   if (success) {
@@ -54,11 +54,11 @@ export default function Checkout() {
       <div className="min-h-screen bg-background flex flex-col items-center justify-center text-white px-4">
         <CheckCircle2 className="w-24 h-24 text-primary mb-8" />
         <h1 className="font-display text-4xl md:text-6xl uppercase tracking-tighter mb-4 text-center">
-          Order Confirmed
+          Заказ подтвержден
         </h1>
         <p className="font-mono text-zinc-400 mb-12 text-center max-w-md">
-          Thank you for your order. We've sent a confirmation to your email.
-          Get ready for the drop.
+          Спасибо за ваш заказ. Мы отправили подтверждение на вашу почту.
+          Готовьтесь к дропу.
         </p>
         <button 
           onClick={() => {
@@ -66,7 +66,7 @@ export default function Checkout() {
           }}
           className="bg-white text-black px-10 py-4 font-display uppercase tracking-widest hover:bg-primary hover:text-white transition-colors"
         >
-          Back to Home
+          На главную
         </button>
       </div>
     );
@@ -87,16 +87,16 @@ export default function Checkout() {
           
           {/* Left: Form */}
           <div>
-            <h1 className="font-display text-4xl mb-12 uppercase tracking-tighter">Checkout Details</h1>
+            <h1 className="font-display text-4xl mb-12 uppercase tracking-tighter">Оформление заказа</h1>
             
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-xs uppercase font-mono text-zinc-500">Full Name</label>
+                  <label className="text-xs uppercase font-mono text-zinc-500">Полное имя</label>
                   <input
                     {...register("customerName")}
                     className="w-full bg-zinc-950 border border-zinc-800 p-4 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary font-mono transition-colors"
-                    placeholder="IVAN IVANOV"
+                    placeholder="ИВАН ИВАНОВ"
                   />
                   {errors.customerName && <p className="text-red-500 text-xs font-mono">{errors.customerName.message}</p>}
                 </div>
@@ -113,7 +113,7 @@ export default function Checkout() {
                   </div>
                   
                   <div className="space-y-2">
-                    <label className="text-xs uppercase font-mono text-zinc-500">Phone</label>
+                    <label className="text-xs uppercase font-mono text-zinc-500">Телефон</label>
                     <input
                       {...register("customerPhone")}
                       className="w-full bg-zinc-950 border border-zinc-800 p-4 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary font-mono transition-colors"
@@ -124,12 +124,12 @@ export default function Checkout() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs uppercase font-mono text-zinc-500">Shipping Address</label>
+                  <label className="text-xs uppercase font-mono text-zinc-500">Адрес доставки</label>
                   <textarea
                     {...register("address")}
                     rows={4}
                     className="w-full bg-zinc-950 border border-zinc-800 p-4 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary font-mono transition-colors"
-                    placeholder="CITY, STREET, APARTMENT"
+                    placeholder="ГОРОД, УЛИЦА, КВАРТИРА"
                   />
                   {errors.address && <p className="text-red-500 text-xs font-mono">{errors.address.message}</p>}
                 </div>
@@ -140,14 +140,14 @@ export default function Checkout() {
                 disabled={createOrder.isPending}
                 className="w-full bg-primary text-white h-16 font-display text-xl uppercase tracking-widest hover:bg-red-600 transition-colors flex items-center justify-center"
               >
-                {createOrder.isPending ? <Loader2 className="animate-spin" /> : `Place Order • ${formatPrice(subtotal)}`}
+                {createOrder.isPending ? <Loader2 className="animate-spin" /> : `Разместить заказ • ${formatPrice(subtotal)}`}
               </button>
             </form>
           </div>
 
           {/* Right: Order Summary */}
           <div className="bg-zinc-950 border border-zinc-900 p-8 h-fit">
-            <h3 className="font-display text-2xl uppercase mb-8">Order Summary</h3>
+            <h3 className="font-display text-2xl uppercase mb-8">Ваш заказ</h3>
             
             <div className="space-y-6 mb-8 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
               {cartItems.map((item) => (
@@ -166,15 +166,15 @@ export default function Checkout() {
 
             <div className="border-t border-zinc-800 pt-6 font-mono text-sm space-y-3">
               <div className="flex justify-between text-zinc-400">
-                <span>Subtotal</span>
+                <span>Сумма</span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
               <div className="flex justify-between text-zinc-400">
-                <span>Shipping</span>
-                <span>Free</span>
+                <span>Доставка</span>
+                <span>Бесплатно</span>
               </div>
               <div className="flex justify-between text-white font-bold text-lg pt-2">
-                <span>Total</span>
+                <span>Всего</span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
             </div>

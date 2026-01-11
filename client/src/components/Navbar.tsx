@@ -12,9 +12,9 @@ export function Navbar() {
   const cartCount = cartItems?.reduce((acc, item) => acc + item.quantity, 0) || 0;
 
   const links = [
-    { href: "/", label: "Home" },
-    { href: "/products", label: "Shop" },
-    { href: "/about", label: "About" },
+    { href: "/", label: "Главная" },
+    { href: "/products", label: "Магазин" },
+    { href: "/about", label: "О нас" },
   ];
 
   return (

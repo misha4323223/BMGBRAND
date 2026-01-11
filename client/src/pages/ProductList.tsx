@@ -26,8 +26,8 @@ export default function ProductList() {
   if (error) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center text-white">
-        <h2 className="font-display text-2xl mb-4">Connection Failed</h2>
-        <button onClick={() => window.location.reload()} className="text-primary underline">Retry</button>
+        <h2 className="font-display text-2xl mb-4">Ошибка подключения</h2>
+        <button onClick={() => window.location.reload()} className="text-primary underline">Повторить</button>
       </div>
     );
   }
@@ -38,7 +38,7 @@ export default function ProductList() {
       
       <div className="pt-32 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <h1 className="font-display text-5xl md:text-7xl text-white mb-12 uppercase tracking-tighter">
-          All Products
+          Все товары
         </h1>
 
         {/* Filters */}
@@ -53,7 +53,7 @@ export default function ProductList() {
                   : "bg-transparent border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-white"
               }`}
             >
-              {cat}
+              {cat === 'all' ? 'Все' : cat}
             </button>
           ))}
         </div>
@@ -62,7 +62,7 @@ export default function ProductList() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-12">
           {filteredProducts?.length === 0 ? (
             <div className="col-span-full text-center py-20 text-zinc-500 font-mono">
-              No products found in this category.
+              Товары в этой категории не найдены.
             </div>
           ) : (
             filteredProducts?.map(product => (

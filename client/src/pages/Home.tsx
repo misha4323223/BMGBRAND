@@ -39,12 +39,12 @@ export default function Home() {
               Boom<span className="text-primary text-stroke">erangs</span>
             </h1>
             <p className="font-mono text-lg md:text-xl text-zinc-300 mb-10 max-w-xl mx-auto">
-              WE MAKE THINGS WE WEAR OURSELVES. <br/>
-              RUSSIAN STREETWEAR ORIGINALS.
+              МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ. <br/>
+              ОРИГИНАЛЬНЫЙ РОССИЙСКИЙ СТРИТВИР.
             </p>
             <Link href="/products">
               <button className="bg-primary hover:bg-red-600 text-white px-8 py-4 font-display text-xl uppercase tracking-widest transition-all hover:scale-105 active:scale-95">
-                Shop Collection
+                Смотреть коллекцию
               </button>
             </Link>
           </motion.div>
@@ -57,7 +57,7 @@ export default function Home() {
           transition={{ delay: 1, duration: 1 }}
           className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
         >
-          <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.2em] -rotate-90 origin-center mb-8">Scroll</span>
+          <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.2em] -rotate-90 origin-center mb-8">Листайте</span>
           <div className="w-[1px] h-16 bg-gradient-to-b from-primary to-transparent" />
         </motion.div>
       </section>
@@ -68,15 +68,15 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="font-display text-5xl md:text-6xl text-white mb-8 leading-tight">
-                NOT JUST <br/><span className="text-stroke">CLOTHING</span>. <br/>IDENTITY.
+                НЕ ПРОСТО <br/><span className="text-stroke">ОДЕЖДА</span>. <br/>ИДЕНТИЧНОСТЬ.
               </h2>
               <p className="font-mono text-zinc-400 mb-8 leading-relaxed">
-                Born in the streets of Russia, BMGBRAND represents the raw energy of youth culture. 
-                We don't follow trends; we document our reality through fabric and print.
-                Every piece tells a story of the concrete jungle.
+                Рожденный на улицах России, BMGBRAND олицетворяет сырую энергию молодежной культуры. 
+                Мы не следуем трендам; мы документируем нашу реальность через ткань и принты.
+                Каждая вещь рассказывает историю бетонных джунглей.
               </p>
               <Link href="/about" className="inline-flex items-center text-primary font-bold hover:text-white transition-colors group">
-                READ MANIFESTO <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-2 transition-transform" />
+                ЧИТАТЬ МАНИФЕСТ <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-2 transition-transform" />
               </Link>
             </div>
             <div className="relative">
@@ -96,9 +96,9 @@ export default function Home() {
       <section className="py-24 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-end mb-12">
-            <h2 className="font-display text-4xl text-white">Latest Drops</h2>
+            <h2 className="font-display text-4xl text-white">Новинки</h2>
             <Link href="/products" className="hidden md:block font-mono text-zinc-500 hover:text-white text-sm">
-              VIEW ALL PRODUCTS
+              СМОТРЕТЬ ВСЕ ТОВАРЫ
             </Link>
           </div>
 
@@ -131,7 +131,7 @@ export default function Home() {
         <div className="animate-marquee inline-block">
           {[...Array(10)].map((_, i) => (
             <span key={i} className="text-black font-display text-2xl font-bold mx-8 uppercase tracking-widest">
-              New Collection Available Now • Free Shipping on Orders Over 5000₽ • 
+              Новая коллекция уже в продаже • Бесплатная доставка при заказе от 5000₽ • 
             </span>
           ))}
         </div>

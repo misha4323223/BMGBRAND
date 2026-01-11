@@ -12,7 +12,7 @@ export function ProductCard({ product }: ProductCardProps) {
     style: 'currency',
     currency: 'RUB',
     minimumFractionDigits: 0,
-  }).format(product.price / 100);
+  }).format(product.price);
 
   return (
     <Link href={`/products/${product.id}`} className="group cursor-pointer block">
@@ -33,7 +33,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="absolute top-4 left-4 flex flex-col gap-2">
           {product.isNew && (
             <span className="bg-primary text-white px-2 py-1 text-xs font-bold uppercase tracking-wider">
-              New Drop
+              Новинка
             </span>
           )}
         </div>
@@ -41,7 +41,7 @@ export function ProductCard({ product }: ProductCardProps) {
         {/* Hover Quick View Overlay */}
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
           <span className="border border-white text-white px-6 py-3 font-mono text-sm uppercase tracking-widest hover:bg-white hover:text-black transition-colors">
-            View Item
+            Смотреть
           </span>
         </div>
       </motion.div>
