@@ -151,7 +151,7 @@ export default function Checkout() {
             <h3 className="font-display text-2xl uppercase mb-8">Ваш заказ</h3>
             
             <div className="space-y-6 mb-8 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-              {cartItems.map((item) => (
+              {cartItems?.map((item) => (
                 <div key={item.id} className="flex gap-4">
                   <div className="w-16 h-20 bg-zinc-900 flex-shrink-0">
                     <img src={item.product.imageUrl} className="w-full h-full object-cover" />
