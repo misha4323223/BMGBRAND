@@ -109,12 +109,18 @@ export default function Cart() {
                   </div>
                 </div>
                 
-                <div className="relative z-[60]">
+                <div className="relative z-[100]">
                   <button 
-                    onClick={() => setLocation("/checkout")}
-                    className="w-full bg-white text-black hover:bg-primary hover:text-white h-14 font-display text-xl uppercase tracking-widest transition-all flex items-center justify-center gap-2 group pointer-events-auto"
+                    id="checkout-button-main"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      window.location.href = "/checkout";
+                    }}
+                    className="w-full bg-white text-black hover:bg-primary hover:text-white h-16 font-display text-2xl uppercase tracking-widest transition-all flex items-center justify-center gap-2 group cursor-pointer active:scale-95"
+                    style={{ position: 'relative', visibility: 'visible', opacity: 1, pointerEvents: 'auto' }}
                   >
-                    Оформить заказ <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    Оформить заказ <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
                 
