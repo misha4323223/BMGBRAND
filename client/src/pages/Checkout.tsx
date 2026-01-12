@@ -90,58 +90,58 @@ export default function Checkout() {
           <div>
             <h1 className="font-display text-4xl mb-12 uppercase tracking-tighter">Оформление заказа</h1>
             
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-xs uppercase font-mono text-zinc-500">Полное имя</label>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-8">
+              <div className="space-y-4 md:space-y-6">
+                <div className="space-y-1 md:space-y-2">
+                  <label className="text-[10px] md:text-xs uppercase font-mono text-zinc-500">Полное имя</label>
                   <input
                     {...register("customerName")}
-                    className="w-full bg-zinc-950 border border-zinc-800 p-4 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary font-mono transition-colors"
+                    className="w-full bg-zinc-950 border border-zinc-800 p-3 md:p-4 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary font-mono transition-colors text-sm md:text-base"
                     placeholder="ИВАН ИВАНОВ"
                   />
-                  {errors.customerName && <p className="text-red-500 text-xs font-mono">{errors.customerName.message}</p>}
+                  {errors.customerName && <p className="text-red-500 text-[10px] md:text-xs font-mono">{errors.customerName.message}</p>}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs uppercase font-mono text-zinc-500">Email</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                  <div className="space-y-1 md:space-y-2">
+                    <label className="text-[10px] md:text-xs uppercase font-mono text-zinc-500">Email</label>
                     <input
                       {...register("customerEmail")}
-                      className="w-full bg-zinc-950 border border-zinc-800 p-4 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary font-mono transition-colors"
+                      className="w-full bg-zinc-950 border border-zinc-800 p-3 md:p-4 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary font-mono transition-colors text-sm md:text-base"
                       placeholder="EMAIL@EXAMPLE.COM"
                     />
-                    {errors.customerEmail && <p className="text-red-500 text-xs font-mono">{errors.customerEmail.message}</p>}
+                    {errors.customerEmail && <p className="text-red-500 text-[10px] md:text-xs font-mono">{errors.customerEmail.message}</p>}
                   </div>
                   
-                  <div className="space-y-2">
-                    <label className="text-xs uppercase font-mono text-zinc-500">Телефон</label>
+                  <div className="space-y-1 md:space-y-2">
+                    <label className="text-[10px] md:text-xs uppercase font-mono text-zinc-500">Телефон</label>
                     <input
                       {...register("customerPhone")}
-                      className="w-full bg-zinc-950 border border-zinc-800 p-4 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary font-mono transition-colors"
+                      className="w-full bg-zinc-950 border border-zinc-800 p-3 md:p-4 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary font-mono transition-colors text-sm md:text-base"
                       placeholder="+7 (999) 000-00-00"
                     />
-                    {errors.customerPhone && <p className="text-red-500 text-xs font-mono">{errors.customerPhone.message}</p>}
+                    {errors.customerPhone && <p className="text-red-500 text-[10px] md:text-xs font-mono">{errors.customerPhone.message}</p>}
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs uppercase font-mono text-zinc-500">Адрес доставки</label>
+                <div className="space-y-1 md:space-y-2">
+                  <label className="text-[10px] md:text-xs uppercase font-mono text-zinc-500">Адрес доставки</label>
                   <textarea
                     {...register("address")}
-                    rows={4}
-                    className="w-full bg-zinc-950 border border-zinc-800 p-4 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary font-mono transition-colors"
+                    rows={3}
+                    className="w-full bg-zinc-950 border border-zinc-800 p-3 md:p-4 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary font-mono transition-colors text-sm md:text-base"
                     placeholder="ГОРОД, УЛИЦА, КВАРТИРА"
                   />
-                  {errors.address && <p className="text-red-500 text-xs font-mono">{errors.address.message}</p>}
+                  {errors.address && <p className="text-red-500 text-[10px] md:text-xs font-mono">{errors.address.message}</p>}
                 </div>
               </div>
 
               <button 
                 type="submit"
                 disabled={createOrder.isPending}
-                className="w-full bg-primary text-white h-16 font-display text-xl uppercase tracking-widest hover:bg-red-600 transition-colors flex items-center justify-center"
+                className="w-full bg-primary text-white h-14 md:h-16 font-display text-lg md:text-xl uppercase tracking-widest hover:bg-red-600 transition-colors flex items-center justify-center"
               >
-                {createOrder.isPending ? <Loader2 className="animate-spin" /> : `Разместить заказ • ${formatPrice(subtotal)}`}
+                {createOrder.isPending ? <Loader2 className="animate-spin" /> : `Заказать • ${formatPrice(subtotal)}`}
               </button>
             </form>
           </div>
