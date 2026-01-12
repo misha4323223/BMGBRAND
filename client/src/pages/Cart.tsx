@@ -115,10 +115,10 @@ export default function Cart() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      window.location.href = "/checkout";
+                      console.log("Navigating to checkout...");
+                      setLocation("/checkout");
                     }}
                     className="w-full bg-white text-black hover:bg-primary hover:text-white h-16 font-display text-2xl uppercase tracking-widest transition-all flex items-center justify-center gap-2 group cursor-pointer active:scale-95"
-                    style={{ position: 'relative', visibility: 'visible', opacity: 1, pointerEvents: 'auto' }}
                   >
                     Оформить заказ <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                   </button>

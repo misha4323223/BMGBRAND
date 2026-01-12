@@ -73,9 +73,10 @@ export default function Checkout() {
   }
 
   if (!cartItems || cartItems.length === 0) {
-    // If somehow reached checkout empty
-    setLocation("/cart");
-    return null;
+    console.log("Cart is empty, staying on checkout or redirecting to cart?");
+    // For debugging, let's not redirect immediately or at least log it
+    // setLocation("/cart");
+    // return null;
   }
 
   return (
