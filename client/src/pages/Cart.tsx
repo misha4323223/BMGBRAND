@@ -91,7 +91,7 @@ export default function Cart() {
 
             {/* Summary */}
             <div className="lg:col-span-1">
-              <div className="bg-zinc-950 border border-zinc-900 p-8 relative">
+              <div className="bg-zinc-950 border border-zinc-900 p-8 relative z-[50]">
                 <h3 className="font-display text-2xl uppercase mb-8">Итого</h3>
                 
                 <div className="space-y-4 mb-8 font-mono text-sm">
@@ -109,13 +109,15 @@ export default function Cart() {
                   </div>
                 </div>
                 
-                <Link href="/checkout">
-                  <button className="w-full bg-white text-black hover:bg-primary hover:text-white h-14 font-display text-xl uppercase tracking-widest transition-all flex items-center justify-center gap-2 group">
-                    Оформить заказ <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </Link>
+                <div className="relative z-[60]">
+                  <Link href="/checkout">
+                    <button className="w-full bg-white text-black hover:bg-primary hover:text-white h-14 font-display text-xl uppercase tracking-widest transition-all flex items-center justify-center gap-2 group pointer-events-auto">
+                      Оформить заказ <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </Link>
+                </div>
                 
-                <Link href="/products" className="block text-center mt-6 font-mono text-xs text-zinc-500 hover:text-white">
+                <Link href="/products" className="block text-center mt-6 font-mono text-xs text-zinc-500 hover:text-white relative z-[60]">
                   Продолжить покупки
                 </Link>
               </div>
