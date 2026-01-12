@@ -73,10 +73,19 @@ export default function Checkout() {
   }
 
   if (!cartItems || cartItems.length === 0) {
-    console.log("Cart is empty, staying on checkout or redirecting to cart?");
-    // For debugging, let's not redirect immediately or at least log it
-    // setLocation("/cart");
-    // return null;
+    console.log("Cart is empty, redirecting to cart...");
+    return (
+      <div className="min-h-screen bg-background text-white flex flex-col items-center justify-center p-4">
+        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+        <p className="font-mono text-zinc-500">Загрузка корзины...</p>
+        <button 
+          onClick={() => setLocation("/cart")}
+          className="mt-8 text-primary underline font-mono text-sm"
+        >
+          Вернуться в корзину
+        </button>
+      </div>
+    );
   }
 
   return (
