@@ -13,31 +13,38 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   // 1C CommerceML Exchange (Standard Protocol)
-  app.get("/api/1c-exchange", async (req, res) => {
+  app.all("/api/1c-exchange", async (req, res, next) => {
+    console.log(`[1C DEBUG] Request: ${req.method} ${req.url}`);
+    console.log(`[1C DEBUG] Headers: ${JSON.stringify(req.headers)}`);
+    console.log(`[1C DEBUG] Query: ${JSON.stringify(req.query)}`);
+    
     const { type, mode, filename } = req.query;
     const auth = req.headers.authorization;
     const expectedAuth = "Basic " + Buffer.from("admin:bmg-secret-123").toString("base64");
 
     if (auth !== expectedAuth) {
+      console.log("[1C DEBUG] Auth failed or missing");
       res.set("WWW-Authenticate", 'Basic realm="1C Exchange"');
       return res.status(401).send("failure\nUnauthorized");
     }
-
-    if (type === "catalog" && mode === "checkauth") {
-      return res.send("success\nPHPSESSID\nreplit-session-id");
-    }
-    if (type === "catalog" && mode === "init") {
-      return res.send("zip=no\nfile_limit=104857600");
+    
+    // Continue to specific handlers or handle simple GETs here
+    if (req.method === "GET") {
+      if (type === "catalog" && mode === "checkauth") {
+        return res.send("success\nPHPSESSID\nreplit-session-id");
+      }
+      if (type === "catalog" && mode === "init") {
+        return res.send("zip=no\nfile_limit=104857600");
+      }
+      if (type === "catalog" && mode === "import") {
+        console.log(`[1C] GET Import command received. Filename: ${filename || "not specified"}`);
+        return res.send("success");
+      }
     }
     
-    if (type === "catalog" && mode === "import") {
-      // 1C UNF and some other versions send mode=import as a GET request to trigger the process
-      // The actual filename might be in the query params
-      console.log(`[1C] GET Import command received. Filename: ${filename || "not specified"}`);
-      
-      // If we have a filename, we could potentially trigger a background processing of the last uploaded file
-      // for now we return success to let 1C think we've started/finished
-      return res.send("success");
+    // For POST requests with body, let the next handler take over or handle here
+    if (req.method === "POST" && type === "catalog" && (mode === "file" || mode === "import")) {
+       return next();
     }
 
     res.send("success");
