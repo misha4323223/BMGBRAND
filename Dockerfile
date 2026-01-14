@@ -34,4 +34,4 @@ ENV PORT=5000
 EXPOSE 5000
 
 # Run the server
-CMD ["node", "server/index.js"]
+CMD ["node", "dist/index.cjs"]
