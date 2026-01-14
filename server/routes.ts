@@ -113,7 +113,8 @@ export async function registerRoutes(
                 if (externalId && priceVal) {
                   const existing = await storage.getProductByExternalId(externalId);
                   if (existing) {
-                    const price = Math.round(parseFloat(priceVal.toString().replace(',', '.')) * 100);
+                    const priceString = String(priceVal).replace(',', '.');
+                    const price = Math.round(parseFloat(priceString) * 100);
                     await storage.updateProduct(existing.id, { price });
                   }
                 }
@@ -310,7 +311,8 @@ export async function registerRoutes(
             if (externalId && priceVal) {
               const existing = await storage.getProductByExternalId(externalId);
               if (existing) {
-                const price = Math.round(parseFloat(priceVal.toString().replace(',', '.')) * 100);
+                const priceString = String(priceVal).replace(',', '.');
+                const price = Math.round(parseFloat(priceString) * 100);
                 await storage.updateProduct(existing.id, { price });
               }
             }

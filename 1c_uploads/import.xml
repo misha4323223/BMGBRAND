@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
-<КоммерческаяИнформация xmlns="urn:1C.ru:commerceml_210" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ВерсияСхемы="2.08" ДатаФормирования="2026-01-14T17:18:05">
+<КоммерческаяИнформация xmlns="urn:1C.ru:commerceml_210" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ВерсияСхемы="2.08" ДатаФормирования="2026-01-14T17:53:15">
 	<Классификатор>
 		<Ид>c737b1da-5073-4b71-ac2d-013359a2eac6</Ид>
 		<Наименование>Классификатор (Каталог 2026.01.14 12:56:50)</Наименование>
