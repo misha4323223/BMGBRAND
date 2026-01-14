@@ -38,20 +38,77 @@ export async function registerRoutes(
         return res.send("zip=no\nfile_limit=104857600");
       }
       if (type === "catalog" && mode === "import") {
+        // According to CommerceML, import success should return "success"
+        // but some 1C versions expect it on the first line.
+        // We already return "success", but let's ensure it's clean.
         console.log(`[1C] GET Import command received. Filename: ${filename || "not specified"}`);
-        
-        // If filename is provided in GET request, it means 1C wants us to process it now
-        if (filename && (filename.includes("import.xml") || filename.includes("offers.xml"))) {
-           console.log(`[1C] Triggering background processing for ${filename}`);
-           // In a real app we'd use a worker, here we handle it or simulate
-        }
         return res.send("success");
+      }
+      if (type === "sale" && mode === "checkauth") {
+        return res.send("success\nPHPSESSID\nreplit-session-id");
+      }
+      if (type === "sale" && mode === "init") {
+        return res.send("zip=no\nfile_limit=104857600");
+      }
+      if (type === "sale" && mode === "query") {
+        console.log("[1C] Sale query received. Fetching pending orders...");
+        const orders = await storage.getOrdersByStatus("pending");
+        
+        // Generate CommerceML XML for orders
+        let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        xml += '<КоммерческаяИнформация ВерсияСхемы="2.04" ДатаФормирования="' + new Date().toISOString() + '">\n';
+        
+        for (const order of orders) {
+          xml += '  <Документ>\n';
+          xml += `    <Ид>${order.id}</Ид>\n`;
+          xml += `    <Номер>${order.id}</Номер>\n`;
+          xml += `    <Дата>${new Date(order.createdAt || Date.now()).toISOString().split('T')[0]}</Дата>\n`;
+          xml += `    <ХозОперация>Заказ товара</ХозОперация>\n`;
+          xml += `    <Роль>Продавец</Роль>\n`;
+          xml += `    <Валюта>RUB</Валюта>\n`;
+          xml += `    <Курс>1</Курс>\n`;
+          xml += `    <Сумма>${order.total / 100}</Сумма>\n`;
+          xml += `    <Контрагенты>\n`;
+          xml += `      <Контрагент>\n`;
+          xml += `        <Ид>${order.email}</Ид>\n`;
+          xml += `        <Наименование>${order.customerName}</Наименование>\n`;
+          xml += `        <Роль>Покупатель</Роль>\n`;
+          xml += `        <ПолноеНаименование>${order.customerName}</ПолноеНаименование>\n`;
+          xml += `      </Контрагент>\n`;
+          xml += `    </Контрагенты>\n`;
+          xml += `    <Товары>\n`;
+          
+          const items = order.items as any[];
+          for (const item of items) {
+            xml += `      <Товар>\n`;
+            xml += `        <Ид>${item.productId}</Ид>\n`;
+            xml += `        <Наименование>${item.name}</Наименование>\n`;
+            xml += `        <ЦенаЗаЕдиницу>${item.price / 100}</ЦенаЗаЕдиницу>\n`;
+            xml += `        <Количество>${item.quantity}</Количество>\n`;
+            xml += `        <Сумма>${(item.price * item.quantity) / 100}</Сумма>\n`;
+            xml += `      </Товар>\n`;
+          }
+          
+          xml += `    </Товары>\n`;
+          xml += '  </Документ>\n';
+        }
+        
+        xml += '</КоммерческаяИнформация>';
+        
+        res.set("Content-Type", "application/xml; charset=utf-8");
+        return res.send(xml);
       }
     }
     
     // For POST requests with body, let the next handler take over or handle here
-    if (req.method === "POST" && type === "catalog" && (mode === "file" || mode === "import")) {
-       return next();
+    if (req.method === "POST") {
+      if (type === "catalog" && (mode === "file" || mode === "import")) {
+        return next();
+      }
+      if (type === "sale" && mode === "success") {
+        console.log("[1C] Sale exchange finished successfully");
+        return res.send("success");
+      }
     }
 
     res.send("success");
