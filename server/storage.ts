@@ -50,16 +50,15 @@ export class DatabaseStorage implements IStorage {
     return product;
   }
 
-  async updateProduct(id: number, update: any): Promise<Product> {
-    const [product] = await db.update(products).set(update as any).where(eq(products.id, id)).returning();
+  async updateProduct(id: number, update: Partial<InsertProduct>): Promise<Product> {
+    const [product] = await db.update(products).set(update).where(eq(products.id, id)).returning();
     return product;
   }
 
   // Cart
   async getCartItems(sessionId: string): Promise<(CartItem & { product: Product })[]> {
     const items = await db.select().from(cartItems).where(eq(cartItems.sessionId, sessionId));
-    // Join manually or fetch products
-    const result = [];
+    const result: (CartItem & { product: Product })[] = [];
     for (const item of items) {
       const product = await this.getProduct(item.productId);
       if (product) {
