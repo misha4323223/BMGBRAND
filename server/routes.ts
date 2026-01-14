@@ -720,46 +720,22 @@ export async function registerRoutes(
 
   // Seed data
   if ((await storage.getProducts()).length === 0) {
-    await storage.createProduct({
-      name: "Футболка 'CHAOS'",
-      description: "Оверсайз футболка с фирменным принтом CHAOS. 100% хлопок.",
-      price: 3500,
-      imageUrl: "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png",
-      category: "Футболки",
-      sizes: ["S", "M", "L", "XL"],
-      colors: ["Черный", "Белый"],
-      isNew: true
-    });
-    await storage.createProduct({
-      name: "Худи 'NO FUTURE'",
-      description: "Плотное худи с вышитыми деталями. База уличного стиля.",
-      price: 6500,
-      imageUrl: "/attached_assets/generated_images/heavyweight_black_hoodie_streetwear.png",
-      category: "Худи",
-      sizes: ["M", "L", "XL"],
-      colors: ["Черный"],
-      isNew: true
-    });
-     await storage.createProduct({
-      name: "Брюки-карго 'TACTICAL'",
-      description: "Функциональные брюки-карго с множеством карманов и стропами.",
-      price: 5500,
-      imageUrl: "/attached_assets/generated_images/black_cargo_pants_techwear.png",
-      category: "Брюки",
-      sizes: ["S", "M", "L"],
-      colors: ["Черный", "Камуфляж"],
-      isNew: false
-    });
-    await storage.createProduct({
-      name: "Кепка 'BMG'",
-      description: "Классический снэпбэк с 3D вышивкой.",
-      price: 2000,
-      imageUrl: "/attached_assets/generated_images/black_streetwear_snapback_cap.png",
-      category: "Аксессуары",
-      sizes: ["One Size"],
-      colors: ["Черный", "Красный"],
-      isNew: false
-    });
+    await runAutoSync();
+    
+    // If after 1C sync we still have no products (e.g. 1c_uploads is empty), add fallback samples
+    if ((await storage.getProducts()).length === 0) {
+      await storage.createProduct({
+        name: "Футболка 'CHAOS'",
+        description: "Оверсайз футболка с фирменным принтом CHAOS. 100% хлопок.",
+        price: 3500,
+        imageUrl: "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png",
+        category: "Футболки",
+        sizes: ["S", "M", "L", "XL"],
+        colors: ["Черный", "Белый"],
+        isNew: true
+      });
+      // ... other samples
+    }
   }
 
   return httpServer;

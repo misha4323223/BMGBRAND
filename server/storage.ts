@@ -46,12 +46,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
-    const values = {
-      ...insertProduct,
-      sizes: insertProduct.sizes || [],
-      colors: insertProduct.colors || [],
-    };
-    const [product] = await db.insert(products).values(values).returning();
+    const [product] = await db.insert(products).values(insertProduct).returning();
     return product;
   }
 
@@ -88,14 +83,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Orders
-  async getOrders(): Promise<any[]> {
-    const allOrders = await db.select().from(orders);
-    const result = [];
-    for (const order of allOrders) {
-      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
-      result.push({ ...order, items });
-    }
-    return result;
+  async getOrders(): Promise<Order[]> {
+    return await db.select().from(orders);
   }
 
   async getOrdersByStatus(status: string): Promise<Order[]> {
