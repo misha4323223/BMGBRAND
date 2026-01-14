@@ -38,12 +38,61 @@ export async function registerRoutes(
     if (type === "catalog" && mode === "file") {
       // In a real app, we'd save the file and parse it
       // For now, let's simulate success to allow 1C to continue
+      console.log(`[1C] Received file: ${filename}`);
       return res.send("success");
     }
     
     if (type === "catalog" && mode === "import") {
-      // Trigger parsing of the uploaded file
-      return res.send("success");
+      const xmlData = req.body.toString();
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "@_"
+      });
+      
+      try {
+        const result = parser.parse(xmlData);
+        // Basic CommerceML parsing logic
+        // This is a simplified version to demonstrate the integration
+        const catalog = result?.["КоммерческаяИнформация"]?.["Классификатор"] || result?.["КоммерческаяИнформация"]?.["ПакетПредложений"];
+        
+        if (result?.["КоммерческаяИнформация"]?.["Каталог"]?.["Товары"]?.["Товар"]) {
+          const items = result["КоммерческаяИнформация"]["Каталог"]["Товары"]["Товар"];
+          const productsArray = Array.isArray(items) ? items : [items];
+          
+          for (const item of productsArray) {
+            const externalId = item["Ид"];
+            const name = item["Наименование"];
+            const description = item["Описание"] || "";
+            const sku = item["Артикул"] || "";
+            
+            // In a real sync, we'd find the price in a separate offers.xml file
+            // For now, we use a placeholder or check if product exists
+            const existing = await storage.getProductByExternalId(externalId);
+            if (!existing) {
+              await storage.createProduct({
+                externalId,
+                sku,
+                name,
+                description,
+                price: 0, // Will be updated by offers.xml
+                imageUrl: "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png",
+                category: "1C Import",
+                sizes: [],
+                colors: [],
+                isNew: true
+              });
+            } else {
+              await storage.updateProduct(existing.id, { name, description, sku });
+            }
+          }
+        }
+        
+        console.log("[1C] Import successful");
+        return res.send("success");
+      } catch (err) {
+        console.error("[1C] Import failed:", err);
+        return res.send("failure\nError parsing XML");
+      }
     }
     
     res.send("success");
