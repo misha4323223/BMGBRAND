@@ -31,8 +31,12 @@ export async function registerRoutes(
     }
     
     if (type === "catalog" && mode === "import") {
-      // In some 1C versions, import is a GET request
-      console.log(`[1C] Import command received for: ${filename}`);
+      // 1C UNF and some other versions send mode=import as a GET request to trigger the process
+      // The actual filename might be in the query params
+      console.log(`[1C] GET Import command received. Filename: ${filename || "not specified"}`);
+      
+      // If we have a filename, we could potentially trigger a background processing of the last uploaded file
+      // for now we return success to let 1C think we've started/finished
       return res.send("success");
     }
 
