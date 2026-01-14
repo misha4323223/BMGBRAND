@@ -1,0 +1,30 @@
+[+] Building 100.7s (18/18) FINISHED                                                               docker:desktop-linux
+ => [internal] load build definition from Dockerfile                                                               0.1s
+ => => transferring dockerfile: 763B                                                                               0.0s
+ => [internal] load metadata for docker.io/library/node:20-slim                                                    1.6s
+ => [auth] library/node:pull token for registry-1.docker.io                                                        0.0s
+ => [internal] load .dockerignore                                                                                  0.0s
+ => => transferring context: 2B                                                                                    0.0s
+ => [builder 1/6] FROM docker.io/library/node:20-slim@sha256:8a8c4dbd5ba0ceb160b79c27b38ef1243a61d19bf3ee60d711bc  0.1s
+ => => resolve docker.io/library/node:20-slim@sha256:8a8c4dbd5ba0ceb160b79c27b38ef1243a61d19bf3ee60d711bc78c7740b  0.0s
+ => [internal] load build context                                                                                  0.4s
+ => => transferring context: 54.70kB                                                                               0.3s
+ => CACHED [builder 2/6] WORKDIR /app                                                                              0.0s
+ => CACHED [builder 3/6] COPY package*.json ./                                                                     0.0s
+ => CACHED [builder 4/6] RUN npm install                                                                           0.0s
+ => [builder 5/6] COPY . .                                                                                        54.4s
+ => [builder 6/6] RUN npm run build                                                                               17.1s
+ => CACHED [stage-1 3/8] COPY --from=builder /app/dist ./dist                                                      0.0s
+ => CACHED [stage-1 4/8] COPY --from=builder /app/node_modules ./node_modules                                      0.0s
+ => CACHED [stage-1 5/8] COPY --from=builder /app/package.json ./package.json                                      0.0s
+ => CACHED [stage-1 6/8] COPY --from=builder /app/server ./server                                                  0.0s
+ => CACHED [stage-1 7/8] COPY --from=builder /app/shared ./shared                                                  0.0s
+ => CACHED [stage-1 8/8] COPY --from=builder /app/1c_uploads ./1c_uploads                                          0.0s
+ => exporting to image                                                                                             0.4s
+ => => exporting layers                                                                                            0.0s
+ => => exporting manifest sha256:93f759c02ea71a1c5284b6917de12fa6ef36d5643cff0ace3b32228c8f2978c3                  0.1s
+ => => exporting config sha256:6c86e850f66723975f71d5c3f7142cfb17452b195daa5a1bbc2388a417834480                    0.0s
+ => => exporting attestation manifest sha256:9975991a69a1028f24123bd7d2e726c696f9112d17fc1349202366a51d26e606      0.1s
+ => => exporting manifest list sha256:755efb72c9dd1d4e2bc1d2cf0157eee3cc77b86174d272d2e2fea143438eba38             0.0s
+ => => naming to docker.io/library/booomerangs-app:latest                                                          0.0s
+ => => unpacking to docker.io/library/booomerangs-app:latest
