@@ -88,8 +88,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Orders
-  async getOrders(): Promise<Order[]> {
-    return await db.select().from(orders);
+  async getOrders(): Promise<any[]> {
+    const allOrders = await db.select().from(orders);
+    const result = [];
+    for (const order of allOrders) {
+      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
+      result.push({ ...order, items });
+    }
+    return result;
   }
 
   async getOrdersByStatus(status: string): Promise<Order[]> {
