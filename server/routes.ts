@@ -38,10 +38,60 @@ export async function registerRoutes(
         return res.send("zip=no\nfile_limit=104857600");
       }
       if (type === "catalog" && mode === "import") {
-        // According to CommerceML, import success should return "success"
-        // but some 1C versions expect it on the first line.
-        // We already return "success", but let's ensure it's clean.
-        console.log(`[1C] GET Import command received. Filename: ${filename || "not specified"}`);
+        const uploadPath = path.resolve(import.meta.dirname, "..", "1c_uploads", filename as string);
+        console.log(`[1C] GET Import command received. Filename: ${filename}. Reading from: ${uploadPath}`);
+        
+        if (fs.existsSync(uploadPath)) {
+          const xmlData = fs.readFileSync(uploadPath, "utf-8");
+          const parser = new XMLParser({
+            ignoreAttributes: false,
+            attributeNamePrefix: "@_"
+          });
+          
+          try {
+            const result = parser.parse(xmlData);
+            console.log(`[1C] Manually triggering parse for ${filename}`);
+            
+            // Handle Products
+            if (result?.["КоммерческаяИнформация"]?.["Каталог"]?.["Товары"]?.["Товар"]) {
+              const items = result["КоммерческаяИнформация"]["Каталог"]["Товары"]["Товар"];
+              const productsArray = Array.isArray(items) ? items : [items];
+              for (const item of productsArray) {
+                const externalId = item["Ид"];
+                const name = item["Наименование"];
+                const description = item["Описание"] || "";
+                const sku = item["Артикул"] || "";
+                let imageUrl = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
+                if (item["Картинка"]) {
+                  const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : item["Картинка"];
+                  if (imgPath) imageUrl = `/api/1c-images/${imgPath}`;
+                }
+                const existing = await storage.getProductByExternalId(externalId);
+                if (!existing) {
+                  await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, category: "1C Import", sizes: [], colors: [], isNew: true });
+                } else {
+                  await storage.updateProduct(existing.id, { name, description, sku, imageUrl });
+                }
+              }
+            }
+
+            // Handle Offers (Prices)
+            if (result?.["КоммерческаяИнформация"]?.["ПакетПредложений"]?.["Предложения"]?.["Предложение"]) {
+              const offers = result["КоммерческаяИнформация"]["ПакетПредложений"]["Предложения"]["Предложение"];
+              const offersArray = Array.isArray(offers) ? offers : [offers];
+              for (const offer of offersArray) {
+                const externalId = offer["Ид"];
+                const priceVal = offer["Цены"]?.["Цена"]?.["ЦенаЗаЕдиницу"];
+                if (externalId && priceVal) {
+                  const existing = await storage.getProductByExternalId(externalId);
+                  if (existing) await storage.updateProduct(existing.id, { price: Math.round(parseFloat(priceVal) * 100) });
+                }
+              }
+            }
+          } catch (e) {
+            console.error(`[1C] Manual parse error for ${filename}:`, e);
+          }
+        }
         return res.send("success");
       }
       if (type === "sale" && mode === "checkauth") {
@@ -158,23 +208,36 @@ export async function registerRoutes(
             const name = item["Наименование"];
             const description = item["Описание"] || "";
             const sku = item["Артикул"] || "";
+            const categoryName = "1C Import"; // We can refine this if we parse groups
+            
+            // Image parsing
+            let imageUrl = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
+            if (item["Картинка"]) {
+              const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : item["Картинка"];
+              if (imgPath) {
+                // 1C typically sends paths like "import_files/xx/uuid.jpg"
+                imageUrl = `/api/1c-images/${imgPath}`;
+              }
+            }
             
             const existing = await storage.getProductByExternalId(externalId);
             if (!existing) {
+              console.log(`[1C] Creating new product: ${name} (${externalId})`);
               await storage.createProduct({
                 externalId,
                 sku,
                 name,
                 description,
                 price: 0,
-                imageUrl: "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png",
-                category: "1C Import",
+                imageUrl,
+                category: categoryName,
                 sizes: [],
                 colors: [],
                 isNew: true
               });
             } else {
-              await storage.updateProduct(existing.id, { name, description, sku });
+              console.log(`[1C] Updating existing product: ${name} (${externalId})`);
+              await storage.updateProduct(existing.id, { name, description, sku, imageUrl });
             }
           }
         }
@@ -206,6 +269,17 @@ export async function registerRoutes(
     }
     
     res.send("success");
+  });
+
+  // Serve 1C images
+  app.get("/api/1c-images/*", (req, res) => {
+    const filePath = req.params[0];
+    const fullPath = path.resolve(import.meta.dirname, "..", "1c_uploads", filePath);
+    if (fs.existsSync(fullPath)) {
+      res.sendFile(fullPath);
+    } else {
+      res.status(404).send("Image not found");
+    }
   });
 
   // Serve attached assets
