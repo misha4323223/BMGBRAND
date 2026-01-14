@@ -6,8 +6,83 @@ import { z } from "zod";
 import express from "express";
 import path from "path";
 import fs from "fs";
+import { XMLParser, XMLBuilder } from "fast-xml-parser";
 
-import { XMLParser } from "fast-xml-parser";
+// Background sync every 30 minutes
+const SYNC_INTERVAL = 30 * 60 * 1000;
+let isSyncing = false;
+
+async function runAutoSync() {
+  if (isSyncing) return;
+  isSyncing = true;
+  console.log("[1C] Background auto-sync check...");
+  try {
+    const uploadDir = path.resolve(process.cwd(), "1c_uploads");
+    if (!fs.existsSync(uploadDir)) return;
+
+    const files = fs.readdirSync(uploadDir);
+    const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
+
+    for (const filename of files) {
+      if (filename === "import.xml" || filename === "offers.xml") {
+        const filePath = path.join(uploadDir, filename);
+        const xmlData = fs.readFileSync(filePath, "utf-8");
+        const result = parser.parse(xmlData);
+        
+        if (filename === "import.xml") {
+          const items = result?.["КоммерческаяИнформация"]?.["Каталог"]?.["Товары"]?.["Товар"];
+          if (items) {
+            const productsArray = Array.isArray(items) ? items : [items];
+            for (const item of productsArray) {
+              const externalId = item["Ид"];
+              const name = item["Наименование"];
+              if (externalId && name) {
+                await storage.upsertProduct({
+                  externalId,
+                  name,
+                  sku: item["Артикул"] || "",
+                  description: item["Описание"] || "",
+                  price: 0,
+                  imageUrl: item["Картинка"] ? `/api/1c-images/${item["Картинка"]}` : "",
+                  category: "1C Import",
+                  sizes: [],
+                  colors: [],
+                  isNew: true
+                });
+              }
+            }
+          }
+        } else if (filename === "offers.xml") {
+          const offers = result?.["КоммерческаяИнформация"]?.["ПакетПредложений"]?.["Предложения"]?.["Предложение"];
+          if (offers) {
+            const offerList = Array.isArray(offers) ? offers : [offers];
+            for (const offer of offerList) {
+              const externalId = offer["Ид"];
+              let priceVal = offer["Цены"]?.["Цена"]?.["ЦенаЗаЕдиницу"];
+              if (!priceVal && Array.isArray(offer["Цены"]?.["Цена"])) {
+                priceVal = offer["Цены"]["Цена"][0]["ЦенаЗаЕдиницу"];
+              }
+              if (externalId && priceVal) {
+                const existing = await storage.getProductByExternalId(externalId);
+                if (existing) {
+                  const price = Math.round(parseFloat(String(priceVal).replace(',', '.')) * 100);
+                  await storage.updateProduct(existing.id, { price });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error("[1C] Background sync error:", e);
+  } finally {
+    isSyncing = false;
+  }
+}
+
+// Start auto-sync interval
+setInterval(runAutoSync, SYNC_INTERVAL);
 
 export async function registerRoutes(
   httpServer: Server,
@@ -36,6 +111,68 @@ export async function registerRoutes(
       }
       if (type === "catalog" && mode === "init") {
         return res.send("zip=no\nfile_limit=104857600");
+      }
+      if (type === "sale" && mode === "checkauth") {
+        return res.send("success\nPHPSESSID\nreplit-session-id");
+      }
+      if (type === "sale" && mode === "init") {
+        return res.send("zip=no\nfile_limit=104857600");
+      }
+      if (type === "sale" && mode === "query") {
+        try {
+          const orders = await storage.getOrders(); // You'll need to implement this in storage
+          const builder = new XMLBuilder({ ignoreAttributes: false, attributeNamePrefix: "@_" });
+          
+          const xmlObj = {
+            "КоммерческаяИнформация": {
+              "@_ВерсияСхемы": "2.03",
+              "@_ДатаФормирования": new Date().toISOString().split('T')[0],
+              "Документ": orders.map(order => ({
+                "Ид": order.id.toString(),
+                "Номер": `SITE-${order.id}`,
+                "Дата": new Date(order.createdAt || Date.now()).toISOString().split('T')[0],
+                "ХозОперация": "Заказ товара",
+                "Роль": "Продавец",
+                "Валюта": "руб",
+                "Курс": "1",
+                "Сумма": (order.total / 100).toString(),
+                "Контрагенты": {
+                  "Контрагент": {
+                    "Наименование": order.customerName,
+                    "Роль": "Покупатель",
+                    "ПолноеНаименование": order.customerName,
+                    "Адрес": { "Представление": order.address },
+                    "Контакты": {
+                      "Контакт": [
+                        { "Тип": "ТелефонРабочий", "Значение": order.customerPhone },
+                        { "Тип": "Почта", "Значение": order.customerEmail }
+                      ]
+                    }
+                  }
+                },
+                "Товары": {
+                  "Товар": order.items.map((item: any) => ({
+                    "Ид": item.productExternalId,
+                    "Наименование": item.productName,
+                    "ЦенаЗаЕдиницу": (item.price / 100).toString(),
+                    "Количество": item.quantity.toString(),
+                    "Сумма": ((item.price * item.quantity) / 100).toString()
+                  }))
+                }
+              }))
+            }
+          };
+          
+          const xmlData = builder.build(xmlObj);
+          res.set("Content-Type", "application/xml");
+          return res.send(xmlData);
+        } catch (e) {
+          console.error("[1C] Order export error:", e);
+          return res.status(500).send("failure");
+        }
+      }
+      if (type === "sale" && mode === "success") {
+        return res.send("success");
       }
       if (type === "catalog" && mode === "import") {
         const uploadPath = path.resolve(import.meta.dirname, "..", "1c_uploads", filename as string);
