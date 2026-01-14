@@ -4,9 +4,10 @@ import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
   // Products
+  getProductByExternalId(externalId: string): Promise<Product | undefined>;
+  getProductBySku(sku: string): Promise<Product | undefined>;
   getProducts(): Promise<Product[]>;
   getProduct(id: number): Promise<Product | undefined>;
-  getProductByExternalId(externalId: string): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product>;
   
@@ -39,12 +40,17 @@ export class DatabaseStorage implements IStorage {
     return product;
   }
 
+  async getProductBySku(sku: string): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.sku, sku));
+    return product;
+  }
+
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const [product] = await db.insert(products).values(insertProduct).returning();
     return product;
   }
 
-  async updateProduct(id: number, update: Partial<InsertProduct>): Promise<Product> {
+  async updateProduct(id: number, update: any): Promise<Product> {
     const [product] = await db.update(products).set(update as any).where(eq(products.id, id)).returning();
     return product;
   }

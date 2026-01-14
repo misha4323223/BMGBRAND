@@ -63,12 +63,19 @@ export async function registerRoutes(
                 const sku = item["Артикул"] || "";
                 let imageUrl = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
                 if (item["Картинка"]) {
-                  const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : item["Картинка"];
+                  const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
                   if (imgPath) imageUrl = `/api/1c-images/${imgPath}`;
                 }
                 const existing = await storage.getProductByExternalId(externalId);
                 if (!existing) {
-                  await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, category: "1C Import", sizes: [], colors: [], isNew: true });
+                  // Check if SKU exists to avoid duplicate key error
+                  const existingBySku = sku ? await storage.getProductBySku(sku) : null;
+                  if (existingBySku) {
+                    console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead`);
+                    await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl });
+                  } else {
+                    await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, category: "1C Import", sizes: [], colors: [], isNew: true });
+                  }
                 } else {
                   await storage.updateProduct(existing.id, { name, description, sku, imageUrl });
                 }
@@ -120,7 +127,7 @@ export async function registerRoutes(
           xml += `    <Сумма>${order.total / 100}</Сумма>\n`;
           xml += `    <Контрагенты>\n`;
           xml += `      <Контрагент>\n`;
-          xml += `        <Ид>${order.email}</Ид>\n`;
+          xml += `        <Ид>${order.customerEmail}</Ид>\n`;
           xml += `        <Наименование>${order.customerName}</Наименование>\n`;
           xml += `        <Роль>Покупатель</Роль>\n`;
           xml += `        <ПолноеНаименование>${order.customerName}</ПолноеНаименование>\n`;
@@ -222,19 +229,26 @@ export async function registerRoutes(
             
             const existing = await storage.getProductByExternalId(externalId);
             if (!existing) {
-              console.log(`[1C] Creating new product: ${name} (${externalId})`);
-              await storage.createProduct({
-                externalId,
-                sku,
-                name,
-                description,
-                price: 0,
-                imageUrl,
-                category: categoryName,
-                sizes: [],
-                colors: [],
-                isNew: true
-              });
+              // Check if SKU exists to avoid duplicate key error
+              const existingBySku = sku ? await storage.getProductBySku(sku) : null;
+              if (existingBySku) {
+                console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead`);
+                await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl });
+              } else {
+                console.log(`[1C] Creating new product: ${name} (${externalId})`);
+                await storage.createProduct({
+                  externalId,
+                  sku,
+                  name,
+                  description,
+                  price: 0,
+                  imageUrl,
+                  category: categoryName,
+                  sizes: [],
+                  colors: [],
+                  isNew: true
+                });
+              }
             } else {
               console.log(`[1C] Updating existing product: ${name} (${externalId})`);
               await storage.updateProduct(existing.id, { name, description, sku, imageUrl });
