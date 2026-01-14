@@ -14,7 +14,7 @@ export async function registerRoutes(
 ): Promise<Server> {
   // 1C CommerceML Exchange (Standard Protocol)
   app.get("/api/1c-exchange", async (req, res) => {
-    const { type, mode } = req.query;
+    const { type, mode, filename } = req.query;
     const auth = req.headers.authorization;
     const expectedAuth = "Basic " + Buffer.from("admin:bmg-secret-123").toString("base64");
 
@@ -27,8 +27,15 @@ export async function registerRoutes(
       return res.send("success\nPHPSESSID\nreplit-session-id");
     }
     if (type === "catalog" && mode === "init") {
-      return res.send("zip=no\nfile_limit=10485760");
+      return res.send("zip=no\nfile_limit=104857600");
     }
+    
+    if (type === "catalog" && mode === "import") {
+      // In some 1C versions, import is a GET request
+      console.log(`[1C] Import command received for: ${filename}`);
+      return res.send("success");
+    }
+
     res.send("success");
   });
 
