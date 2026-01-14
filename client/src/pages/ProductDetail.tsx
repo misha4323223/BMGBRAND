@@ -36,14 +36,19 @@ export default function ProductDetail() {
   }
 
   const handleAddToCart = () => {
-    if (!selectedSize || !selectedColor) {
+    // If product has sizes/colors but none are selected, we might want to allow it if the arrays are empty
+    const hasSizes = product.sizes && product.sizes.length > 0;
+    const hasColors = product.colors && product.colors.length > 0;
+
+    if ((hasSizes && !selectedSize) || (hasColors && !selectedColor)) {
       return;
     }
+    
     addToCart.mutate({
       productId: product.id,
       quantity,
-      size: selectedSize,
-      color: selectedColor,
+      size: selectedSize || "One Size",
+      color: selectedColor || "Default",
     });
   };
 
@@ -159,9 +164,9 @@ export default function ProductDetail() {
                 
                 <button
                   onClick={handleAddToCart}
-                  disabled={!selectedSize || !selectedColor || addToCart.isPending}
+                  disabled={((product.sizes?.length > 0 && !selectedSize) || (product.colors?.length > 0 && !selectedColor)) || addToCart.isPending}
                   className={`flex-1 h-10 flex items-center justify-center gap-2 font-display text-sm uppercase tracking-widest transition-all ${
-                    !selectedSize || !selectedColor
+                    ((product.sizes?.length > 0 && !selectedSize) || (product.colors?.length > 0 && !selectedColor))
                       ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
                       : "bg-primary text-white hover:bg-red-600 active:scale-[0.98]"
                   }`}
@@ -178,9 +183,9 @@ export default function ProductDetail() {
               </div>
             </div>
             
-            {(!selectedSize || !selectedColor) && (
+            {((product.sizes?.length > 0 && !selectedSize) || (product.colors?.length > 0 && !selectedColor)) && (
               <p className="mb-4 text-center text-primary/60 font-mono text-[8px] uppercase tracking-widest animate-pulse">
-                Выберите размер и цвет
+                Выберите {product.sizes?.length > 0 && !selectedSize ? "размер" : ""}{product.sizes?.length > 0 && !selectedSize && product.colors?.length > 0 && !selectedColor ? " и " : ""}{product.colors?.length > 0 && !selectedColor ? "цвет" : ""}
               </p>
             )}
           </motion.div>

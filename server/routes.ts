@@ -61,6 +61,20 @@ export async function registerRoutes(
                 const name = item["Наименование"];
                 const description = item["Описание"] || "";
                 const sku = item["Артикул"] || "";
+                
+                // Extract sizes and colors from properties if available
+                let sizes: string[] = [];
+                let colors: string[] = [];
+                if (item["ЗначенияРеквизитов"]?.["ЗначениеРеквизита"]) {
+                   const props = Array.isArray(item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]) 
+                     ? item["ЗначенияРеквизитов"]["ЗначениеРеквизита"] 
+                     : [item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]];
+                   for (const prop of props) {
+                     if (prop["Наименование"] === "Размер") sizes.push(prop["Значение"]);
+                     if (prop["Наименование"] === "Цвет") colors.push(prop["Значение"]);
+                   }
+                }
+
                 let imageUrl = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
                 if (item["Картинка"]) {
                   const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
@@ -72,12 +86,12 @@ export async function registerRoutes(
                   const existingBySku = sku ? await storage.getProductBySku(sku) : null;
                   if (existingBySku) {
                     console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead`);
-                    await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl });
+                    await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, sizes, colors });
                   } else {
-                    await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, category: "1C Import", sizes: [], colors: [], isNew: true });
+                    await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, category: "1C Import", sizes, colors, isNew: true });
                   }
                 } else {
-                  await storage.updateProduct(existing.id, { name, description, sku, imageUrl });
+                  await storage.updateProduct(existing.id, { name, description, sku, imageUrl, sizes, colors });
                 }
               }
             }
@@ -88,10 +102,20 @@ export async function registerRoutes(
               const offersArray = Array.isArray(offers) ? offers : [offers];
               for (const offer of offersArray) {
                 const externalId = offer["Ид"];
-                const priceVal = offer["Цены"]?.["Цена"]?.["ЦенаЗаЕдиницу"];
+                // 1C often uses Price structure: Цены -> Цена -> ЦенаЗаЕдиницу
+                let priceVal = offer["Цены"]?.["Цена"]?.["ЦенаЗаЕдиницу"];
+                
+                // If nested differently
+                if (!priceVal && Array.isArray(offer["Цены"]?.["Цена"])) {
+                  priceVal = offer["Цены"]["Цена"][0]["ЦенаЗаЕдиницу"];
+                }
+
                 if (externalId && priceVal) {
                   const existing = await storage.getProductByExternalId(externalId);
-                  if (existing) await storage.updateProduct(existing.id, { price: Math.round(parseFloat(priceVal) * 100) });
+                  if (existing) {
+                    const price = Math.round(parseFloat(priceVal.toString().replace(',', '.')) * 100);
+                    await storage.updateProduct(existing.id, { price });
+                  }
                 }
               }
             }
@@ -217,6 +241,19 @@ export async function registerRoutes(
             const sku = item["Артикул"] || "";
             const categoryName = "1C Import"; // We can refine this if we parse groups
             
+            // Extract sizes and colors from properties if available
+            let sizes: string[] = [];
+            let colors: string[] = [];
+            if (item["ЗначенияРеквизитов"]?.["ЗначениеРеквизита"]) {
+               const props = Array.isArray(item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]) 
+                 ? item["ЗначенияРеквизитов"]["ЗначениеРеквизита"] 
+                 : [item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]];
+               for (const prop of props) {
+                 if (prop["Наименование"] === "Размер") sizes.push(prop["Значение"]);
+                 if (prop["Наименование"] === "Цвет") colors.push(prop["Значение"]);
+               }
+            }
+
             // Image parsing
             let imageUrl = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
             if (item["Картинка"]) {
@@ -233,7 +270,7 @@ export async function registerRoutes(
               const existingBySku = sku ? await storage.getProductBySku(sku) : null;
               if (existingBySku) {
                 console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead`);
-                await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl });
+                await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, sizes, colors });
               } else {
                 console.log(`[1C] Creating new product: ${name} (${externalId})`);
                 await storage.createProduct({
@@ -244,14 +281,14 @@ export async function registerRoutes(
                   price: 0,
                   imageUrl,
                   category: categoryName,
-                  sizes: [],
-                  colors: [],
+                  sizes,
+                  colors,
                   isNew: true
                 });
               }
             } else {
               console.log(`[1C] Updating existing product: ${name} (${externalId})`);
-              await storage.updateProduct(existing.id, { name, description, sku, imageUrl });
+              await storage.updateProduct(existing.id, { name, description, sku, imageUrl, sizes, colors });
             }
           }
         }
@@ -263,12 +300,18 @@ export async function registerRoutes(
           
           for (const offer of offersArray) {
             const externalId = offer["Ид"];
-            const priceVal = offer["Цены"]?.["Цена"]?.["ЦенаЗаЕдиницу"];
+            let priceVal = offer["Цены"]?.["Цена"]?.["ЦенаЗаЕдиницу"];
             
+            // If nested differently
+            if (!priceVal && Array.isArray(offer["Цены"]?.["Цена"])) {
+              priceVal = offer["Цены"]["Цена"][0]["ЦенаЗаЕдиницу"];
+            }
+
             if (externalId && priceVal) {
               const existing = await storage.getProductByExternalId(externalId);
               if (existing) {
-                await storage.updateProduct(existing.id, { price: Math.round(parseFloat(priceVal) * 100) });
+                const price = Math.round(parseFloat(priceVal.toString().replace(',', '.')) * 100);
+                await storage.updateProduct(existing.id, { price });
               }
             }
           }
