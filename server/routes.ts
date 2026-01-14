@@ -5,6 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import express from "express";
 import path from "path";
+import fs from "fs";
 
 import { XMLParser } from "fast-xml-parser";
 
@@ -38,6 +39,12 @@ export async function registerRoutes(
       }
       if (type === "catalog" && mode === "import") {
         console.log(`[1C] GET Import command received. Filename: ${filename || "not specified"}`);
+        
+        // If filename is provided in GET request, it means 1C wants us to process it now
+        if (filename && (filename.includes("import.xml") || filename.includes("offers.xml"))) {
+           console.log(`[1C] Triggering background processing for ${filename}`);
+           // In a real app we'd use a worker, here we handle it or simulate
+        }
         return res.send("success");
       }
     }
@@ -54,10 +61,20 @@ export async function registerRoutes(
     const { type, mode, filename } = req.query;
     
     if (type === "catalog" && mode === "file") {
-      // In a real app, we'd save the file and parse it
-      // For now, let's simulate success to allow 1C to continue
-      console.log(`[1C] Received file: ${filename}`);
-      return res.send("success");
+      const uploadPath = path.resolve(import.meta.dirname, "..", "1c_uploads", filename as string);
+      const dir = path.dirname(uploadPath);
+      
+      try {
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync(uploadPath, req.body);
+        console.log(`[1C] Saved file: ${filename}`);
+        return res.send("success");
+      } catch (err) {
+        console.error(`[1C] Failed to save file ${filename}:`, err);
+        return res.send("failure\nError saving file");
+      }
     }
     
     if (type === "catalog" && mode === "import") {
@@ -69,10 +86,12 @@ export async function registerRoutes(
       
       try {
         const result = parser.parse(xmlData);
+        console.log(`[1C] Parsing XML for mode=import, filename: ${filename}`);
+        
         // Basic CommerceML parsing logic
-        // This is a simplified version to demonstrate the integration
         const catalog = result?.["КоммерческаяИнформация"]?.["Классификатор"] || result?.["КоммерческаяИнформация"]?.["ПакетПредложений"];
         
+        // Handle Products
         if (result?.["КоммерческаяИнформация"]?.["Каталог"]?.["Товары"]?.["Товар"]) {
           const items = result["КоммерческаяИнформация"]["Каталог"]["Товары"]["Товар"];
           const productsArray = Array.isArray(items) ? items : [items];
@@ -83,8 +102,6 @@ export async function registerRoutes(
             const description = item["Описание"] || "";
             const sku = item["Артикул"] || "";
             
-            // In a real sync, we'd find the price in a separate offers.xml file
-            // For now, we use a placeholder or check if product exists
             const existing = await storage.getProductByExternalId(externalId);
             if (!existing) {
               await storage.createProduct({
@@ -92,7 +109,7 @@ export async function registerRoutes(
                 sku,
                 name,
                 description,
-                price: 0, // Will be updated by offers.xml
+                price: 0,
                 imageUrl: "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png",
                 category: "1C Import",
                 sizes: [],
@@ -101,6 +118,24 @@ export async function registerRoutes(
               });
             } else {
               await storage.updateProduct(existing.id, { name, description, sku });
+            }
+          }
+        }
+
+        // Handle Offers (Prices)
+        if (result?.["КоммерческаяИнформация"]?.["ПакетПредложений"]?.["Предложения"]?.["Предложение"]) {
+          const offers = result["КоммерческаяИнформация"]["ПакетПредложений"]["Предложения"]["Предложение"];
+          const offersArray = Array.isArray(offers) ? offers : [offers];
+          
+          for (const offer of offersArray) {
+            const externalId = offer["Ид"];
+            const priceVal = offer["Цены"]?.["Цена"]?.["ЦенаЗаЕдиницу"];
+            
+            if (externalId && priceVal) {
+              const existing = await storage.getProductByExternalId(externalId);
+              if (existing) {
+                await storage.updateProduct(existing.id, { price: Math.round(parseFloat(priceVal) * 100) });
+              }
             }
           }
         }
