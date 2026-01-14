@@ -56,7 +56,7 @@ export default function ProductDetail() {
     style: 'currency',
     currency: 'RUB',
     minimumFractionDigits: 0,
-  }).format(product.price);
+  }).format(product.price / 100);
 
   return (
     <div className="min-h-screen bg-background text-white">

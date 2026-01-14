@@ -22,11 +22,14 @@ export default function Cart() {
   const subtotal = cartItems?.reduce((acc, item) => acc + (item.product.price * item.quantity), 0) || 0;
   
   const formatPrice = (cents: number) => {
+    // The price is stored in cents (multiplied by 100 during import)
+    // To display correctly, we use it as is if it was already in rubles or divide if it was truly cents
+    // Given the current log showing 35000, it's likely 350 rubles.
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
       currency: 'RUB',
       minimumFractionDigits: 0,
-    }).format(cents);
+    }).format(cents / 100);
   };
 
   return (

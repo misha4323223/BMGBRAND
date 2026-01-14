@@ -12,7 +12,7 @@ export function ProductCard({ product }: ProductCardProps) {
     style: 'currency',
     currency: 'RUB',
     minimumFractionDigits: 0,
-  }).format(product.price);
+  }).format(product.price / 100);
 
   // Map database path to static path if needed
   const imageUrl = product.imageUrl;

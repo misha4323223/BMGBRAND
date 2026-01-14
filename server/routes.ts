@@ -114,6 +114,7 @@ export async function registerRoutes(
                   const existing = await storage.getProductByExternalId(externalId);
                   if (existing) {
                     const priceString = String(priceVal).replace(',', '.');
+                    // 1C prices are usually in rubles. We store them in cents.
                     const price = Math.round(parseFloat(priceString) * 100);
                     await storage.updateProduct(existing.id, { price });
                   }
@@ -312,6 +313,7 @@ export async function registerRoutes(
               const existing = await storage.getProductByExternalId(externalId);
               if (existing) {
                 const priceString = String(priceVal).replace(',', '.');
+                // 1C prices are usually in rubles. We store them in cents.
                 const price = Math.round(parseFloat(priceString) * 100);
                 await storage.updateProduct(existing.id, { price });
               }
