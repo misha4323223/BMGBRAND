@@ -36,19 +36,48 @@ async function runAutoSync() {
             for (const item of productsArray) {
               const externalId = item["Ид"];
               const name = item["Наименование"];
-              if (externalId && name) {
-                await storage.upsertProduct({
-                  externalId,
-                  name,
-                  sku: item["Артикул"] || "",
-                  description: item["Описание"] || "",
-                  price: 0,
-                  imageUrl: item["Картинка"] ? `/api/1c-images/${item["Картинка"]}` : "",
-                  category: "1C Import",
-                  sizes: [],
-                  colors: [],
-                  isNew: true
-                });
+              const description = item["Описание"] || "";
+              const sku = item["Артикул"] || "";
+              
+              let sizes: string[] = [];
+              let colors: string[] = [];
+              if (item["ЗначенияРеквизитов"]?.["ЗначениеРеквизита"]) {
+                 const props = Array.isArray(item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]) 
+                   ? item["ЗначенияРеквизитов"]["ЗначениеРеквизита"] 
+                   : [item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]];
+                 for (const prop of props) {
+                   if (prop["Наименование"] === "Размер") sizes.push(prop["Значение"]);
+                   if (prop["Наименование"] === "Цвет") colors.push(prop["Значение"]);
+                 }
+              }
+
+              let imageUrl = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
+              if (item["Картинка"]) {
+                const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
+                if (imgPath) imageUrl = `/api/1c-images/${imgPath}`;
+              }
+
+              const existing = await storage.getProductByExternalId(externalId);
+              if (!existing) {
+                const existingBySku = sku ? await storage.getProductBySku(sku) : null;
+                if (existingBySku) {
+                  await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, sizes, colors });
+                } else {
+                  await storage.createProduct({
+                    externalId,
+                    name,
+                    sku,
+                    description,
+                    price: 0,
+                    imageUrl,
+                    category: "1C Import",
+                    sizes,
+                    colors,
+                    isNew: true
+                  });
+                }
+              } else {
+                await storage.updateProduct(existing.id, { name, description, sku, imageUrl, sizes, colors });
               }
             }
           }
@@ -175,95 +204,95 @@ export async function registerRoutes(
         return res.send("success");
       }
       if (type === "catalog" && mode === "import") {
-        const uploadPath = path.resolve(import.meta.dirname, "..", "1c_uploads", filename as string);
-        console.log(`[1C] GET Import command received. Filename: ${filename}. Reading from: ${uploadPath}`);
+      const uploadPath = path.resolve(process.cwd(), "1c_uploads", filename as string);
+      console.log(`[1C] GET Import command received. Filename: ${filename}. Reading from: ${uploadPath}`);
+      
+      if (fs.existsSync(uploadPath)) {
+        const xmlData = fs.readFileSync(uploadPath, "utf-8");
+        const parser = new XMLParser({
+          ignoreAttributes: false,
+          attributeNamePrefix: "@_"
+        });
         
-        if (fs.existsSync(uploadPath)) {
-          const xmlData = fs.readFileSync(uploadPath, "utf-8");
-          const parser = new XMLParser({
-            ignoreAttributes: false,
-            attributeNamePrefix: "@_"
-          });
+        try {
+          const result = parser.parse(xmlData);
+          console.log(`[1C] Manually triggering parse for ${filename}`);
           
-          try {
-            const result = parser.parse(xmlData);
-            console.log(`[1C] Manually triggering parse for ${filename}`);
-            
-            // Handle Products
-            if (result?.["КоммерческаяИнформация"]?.["Каталог"]?.["Товары"]?.["Товар"]) {
-              const items = result["КоммерческаяИнформация"]["Каталог"]["Товары"]["Товар"];
-              const productsArray = Array.isArray(items) ? items : [items];
-              for (const item of productsArray) {
-                const externalId = item["Ид"];
-                const name = item["Наименование"];
-                const description = item["Описание"] || "";
-                const sku = item["Артикул"] || "";
-                
-                // Extract sizes and colors from properties if available
-                let sizes: string[] = [];
-                let colors: string[] = [];
-                if (item["ЗначенияРеквизитов"]?.["ЗначениеРеквизита"]) {
-                   const props = Array.isArray(item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]) 
-                     ? item["ЗначенияРеквизитов"]["ЗначениеРеквизита"] 
-                     : [item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]];
-                   for (const prop of props) {
-                     if (prop["Наименование"] === "Размер") sizes.push(prop["Значение"]);
-                     if (prop["Наименование"] === "Цвет") colors.push(prop["Значение"]);
-                   }
-                }
+          // Handle Products
+          if (result?.["КоммерческаяИнформация"]?.["Каталог"]?.["Товары"]?.["Товар"]) {
+            const items = result["КоммерческаяИнформация"]["Каталог"]["Товары"]["Товар"];
+            const productsArray = Array.isArray(items) ? items : [items];
+            for (const item of productsArray) {
+              const externalId = item["Ид"];
+              const name = item["Наименование"];
+              const description = item["Описание"] || "";
+              const sku = item["Артикул"] || "";
+              
+              // Extract sizes and colors from properties if available
+              let sizes: string[] = [];
+              let colors: string[] = [];
+              if (item["ЗначенияРеквизитов"]?.["ЗначениеРеквизита"]) {
+                 const props = Array.isArray(item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]) 
+                   ? item["ЗначенияРеквизитов"]["ЗначениеРеквизита"] 
+                   : [item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]];
+                 for (const prop of props) {
+                   if (prop["Наименование"] === "Размер") sizes.push(prop["Значение"]);
+                   if (prop["Наименование"] === "Цвет") colors.push(prop["Значение"]);
+                 }
+              }
 
-                let imageUrl = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
-                if (item["Картинка"]) {
-                  const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
-                  if (imgPath) imageUrl = `/api/1c-images/${imgPath}`;
-                }
-                const existing = await storage.getProductByExternalId(externalId);
-                if (!existing) {
-                  // Check if SKU exists to avoid duplicate key error
-                  const existingBySku = sku ? await storage.getProductBySku(sku) : null;
-                  if (existingBySku) {
-                    console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead`);
-                    await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, sizes, colors });
-                  } else {
-                    await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, category: "1C Import", sizes, colors, isNew: true });
-                  }
+              let imageUrl = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
+              if (item["Картинка"]) {
+                const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
+                if (imgPath) imageUrl = `/api/1c-images/${imgPath}`;
+              }
+              const existing = await storage.getProductByExternalId(externalId);
+              if (!existing) {
+                // Check if SKU exists to avoid duplicate key error
+                const existingBySku = sku ? await storage.getProductBySku(sku) : null;
+                if (existingBySku) {
+                  console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead`);
+                  await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, sizes, colors });
                 } else {
-                  await storage.updateProduct(existing.id, { name, description, sku, imageUrl, sizes, colors });
+                  await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, category: "1C Import", sizes, colors, isNew: true });
                 }
+              } else {
+                await storage.updateProduct(existing.id, { name, description, sku, imageUrl, sizes, colors });
               }
             }
-
-            // Handle Offers (Prices)
-            if (result?.["КоммерческаяИнформация"]?.["ПакетПредложений"]?.["Предложения"]?.["Предложение"]) {
-              const offers = result["КоммерческаяИнформация"]["ПакетПредложений"]["Предложения"]["Предложение"];
-              const offersArray = Array.isArray(offers) ? offers : [offers];
-              for (const offer of offersArray) {
-                const externalId = offer["Ид"];
-                // 1C often uses Price structure: Цены -> Цена -> ЦенаЗаЕдиницу
-                let priceVal = offer["Цены"]?.["Цена"]?.["ЦенаЗаЕдиницу"];
-                
-                // If nested differently
-                if (!priceVal && Array.isArray(offer["Цены"]?.["Цена"])) {
-                  priceVal = offer["Цены"]["Цена"][0]["ЦенаЗаЕдиницу"];
-                }
-
-                if (externalId && priceVal) {
-                  const existing = await storage.getProductByExternalId(externalId);
-                  if (existing) {
-                    const priceString = String(priceVal).replace(',', '.');
-                    // 1C prices are usually in rubles. We store them in cents.
-                    const price = Math.round(parseFloat(priceString) * 100);
-                    await storage.updateProduct(existing.id, { price });
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            console.error(`[1C] Manual parse error for ${filename}:`, e);
           }
+
+          // Handle Offers (Prices)
+          if (result?.["КоммерческаяИнформация"]?.["ПакетПредложений"]?.["Предложения"]?.["Предложение"]) {
+            const offers = result["КоммерческаяИнформация"]["ПакетПредложений"]["Предложения"]["Предложение"];
+            const offersArray = Array.isArray(offers) ? offers : [offers];
+            for (const offer of offersArray) {
+              const externalId = offer["Ид"];
+              // 1C often uses Price structure: Цены -> Цена -> ЦенаЗаЕдиницу
+              let priceVal = offer["Цены"]?.["Цена"]?.["ЦенаЗаЕдиницу"];
+              
+              // If nested differently
+              if (!priceVal && Array.isArray(offer["Цены"]?.["Цена"])) {
+                priceVal = offer["Цены"]["Цена"][0]["ЦенаЗаЕдиницу"];
+              }
+
+              if (externalId && priceVal) {
+                const existing = await storage.getProductByExternalId(externalId);
+                if (existing) {
+                  const priceString = String(priceVal).replace(',', '.');
+                  // 1C prices are usually in rubles. We store them in cents.
+                  const price = Math.round(parseFloat(priceString) * 100);
+                  await storage.updateProduct(existing.id, { price });
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`[1C] Manual parse error for ${filename}:`, e);
         }
-        return res.send("success");
       }
+      return res.send("success");
+    }
       if (type === "sale" && mode === "checkauth") {
         return res.send("success\nPHPSESSID\nreplit-session-id");
       }
@@ -338,7 +367,7 @@ export async function registerRoutes(
     const { type, mode, filename } = req.query;
     
     if (type === "catalog" && mode === "file") {
-      const uploadPath = path.resolve(import.meta.dirname, "..", "1c_uploads", filename as string);
+      const uploadPath = path.resolve(process.cwd(), "1c_uploads", filename as string);
       const dir = path.dirname(uploadPath);
       
       try {
@@ -472,7 +501,7 @@ export async function registerRoutes(
   // Serve 1C images
   app.get("/api/1c-images/*", (req, res) => {
     const filePath = req.params[0];
-    const fullPath = path.resolve(import.meta.dirname, "..", "1c_uploads", filePath);
+    const fullPath = path.resolve(process.cwd(), "1c_uploads", filePath);
     if (fs.existsSync(fullPath)) {
       res.sendFile(fullPath);
     } else {
@@ -481,7 +510,7 @@ export async function registerRoutes(
   });
 
   // Serve attached assets
-  app.use("/attached_assets", express.static(path.resolve(import.meta.dirname, "..", "attached_assets")));
+  app.use("/attached_assets", express.static(path.resolve(process.cwd(), "attached_assets")));
 
   // Products
   app.get(api.products.list.path, async (req, res) => {
