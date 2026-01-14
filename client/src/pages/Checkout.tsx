@@ -46,7 +46,7 @@ export default function Checkout() {
       style: 'currency',
       currency: 'RUB',
       minimumFractionDigits: 0,
-    }).format(cents);
+    }).format(cents / 100);
   };
 
   if (success) {
