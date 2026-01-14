@@ -32,7 +32,7 @@ export async function registerRoutes(
     res.send("success");
   });
 
-  app.post("/api/1c-exchange", express.raw({ type: "*/*", limit: "10mb" }), async (req, res) => {
+  app.post("/api/1c-exchange", express.raw({ type: "*/*", limit: "50mb" }), async (req, res) => {
     const { type, mode, filename } = req.query;
     
     if (type === "catalog" && mode === "file") {
