@@ -1,0 +1,36 @@
+PS C:\Users\POSITIVE> cd "C:\Users\POSITIVE\OneDrive\Рабочий стол\Boomerangs-Web"
+PS C:\Users\POSITIVE\OneDrive\Рабочий стол\Boomerangs-Web> docker build -t bmg-brand:v4 .
+[+] Building 1684.3s (17/17) FINISHED                                                                    docker:default
+ => [internal] load build definition from Dockerfile                                                               0.2s
+ => => transferring dockerfile: 763B                                                                               0.1s
+ => [internal] load metadata for docker.io/library/node:20-slim                                                    1.8s
+ => [internal] load .dockerignore                                                                                  0.0s
+ => => transferring context: 2B                                                                                    0.0s
+ => [builder 1/6] FROM docker.io/library/node:20-slim@sha256:6c51af7dc83f4708aaac35991306bca8f478351cfd2bda35750a  0.1s
+ => => resolve docker.io/library/node:20-slim@sha256:6c51af7dc83f4708aaac35991306bca8f478351cfd2bda35750a62d7efcf  0.1s
+ => [internal] load build context                                                                               1167.6s
+ => => transferring context: 1.12GB                                                                             1167.2s
+ => CACHED [builder 2/6] WORKDIR /app                                                                              0.0s
+ => CACHED [builder 3/6] COPY package*.json ./                                                                     0.0s
+ => CACHED [builder 4/6] RUN npm install                                                                           0.0s
+ => [builder 5/6] COPY . .                                                                                       183.8s
+ => [builder 6/6] RUN npm run build                                                                               44.9s
+ => [stage-1 3/8] COPY --from=builder /app/dist ./dist                                                             0.3s
+ => [stage-1 4/8] COPY --from=builder /app/node_modules ./node_modules                                            30.8s
+ => [stage-1 5/8] COPY --from=builder /app/package.json ./package.json                                             0.9s
+ => [stage-1 6/8] COPY --from=builder /app/server ./server                                                         0.2s
+ => [stage-1 7/8] COPY --from=builder /app/shared ./shared                                                         0.2s
+ => [stage-1 8/8] COPY --from=builder /app/1c_uploads ./1c_uploads                                                12.2s
+ => exporting to image                                                                                           209.6s
+ => => exporting layers                                                                                          139.7s
+ => => exporting manifest sha256:af77c7f3ace5b41c4374b7a362de57b28805a38abb16f5139ddefc99ccd1d65d                  0.1s
+ => => exporting config sha256:2ad1b942ce1792b0c5f5bf21e9f75188d4a9c435cc12f9148acb36379aeac117                    0.0s
+ => => exporting attestation manifest sha256:d82aede8a1e982f6feeec4695250624443ec0a0c0b7b36a1090453afa3a579db      0.1s
+ => => exporting manifest list sha256:461c650b869bae10567ccb0180398fb5e00122b4bda6f024e485494cac2d0c52             0.1s
+ => => naming to docker.io/library/bmg-brand:v4                                                                    0.0s
+ => => unpacking to docker.io/library/bmg-brand:v4                                                                69.2s
+PS C:\Users\POSITIVE\OneDrive\Рабочий стол\Boomerangs-Web> docker tag bmg-brand:v4 cr.yandex/crpp1bes63avh83rbvte/bmg-app:v4
+PS C:\Users\POSITIVE\OneDrive\Рабочий стол\Boomerangs-Web> yc iam create-token | docker login --username iam --password-stdin cr.yandex
+ERROR: docker login is not supported with yc credential helper. Use 'yc container registry configure-docker --profile <PROFILE>' to set another profile or disable credential helper for given endpoint: https://yandex.cloud/ru/docs/container-registry/operations/authentication#ch-not-use
+error saving credentials: error storing credentials - err: exit status 1, out: ``
+PS C:\Users\POSITIVE\OneDrive\Рабочий стол\Boomerangs-Web>
