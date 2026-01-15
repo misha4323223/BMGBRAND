@@ -1,0 +1,12 @@
+cloudshell-user:~$ yc container registry list                                                                                                                                                       
++----------------------+---------------+----------------------+                                                                                                                                     
+|          ID          |     NAME      |      FOLDER ID       |                                                                                                                                     
++----------------------+---------------+----------------------+                                                                                                                                     
+| crp4fuhedvide0ii1nkd | test-registry | b1gevfo6mo9lq93octgd |                                                                                                                                     
+| crpppbdntigd0vs1ejri | bmg-registry  | b1gevfo6mo9lq93octgd |                                                                                                                                     
++----------------------+---------------+----------------------+                                                                                                                                     
+                                                                                                                                                                                                    
+There is a new yc version '0.186.0' available. Current version: '0.183.0'.                                                                                                                          
+See release notes at https://yandex.cloud/ru/docs/cli/release-notes                                                                                                                                 
+You can install it by running the following command in your shell:                                                                                                                                  
+        $ yc components update 
