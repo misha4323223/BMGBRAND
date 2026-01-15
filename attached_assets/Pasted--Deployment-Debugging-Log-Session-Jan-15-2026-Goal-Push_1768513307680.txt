@@ -1,0 +1,105 @@
+## Deployment Debugging Log (Session Jan 15, 2026)
+- **Goal:** Push Docker image to Yandex Container Registry (`cr.yandex/crpppbdntigd0vs1ejri/bmg-brand:v1`).
+- **Infrastructure:** 
+  - Registry ID: `crpppbdntigd0vs1ejri`
+  - Cloud ID: `b1goj9s83gvmkqk28gtg`, Folder ID: `b1gevfo6mo9lq93octgd`
+  - Service Account: `bmg-brand` (key in `key.json`).
+- **Attempted & Failed:**
+  1. `yc container registry configure-docker` + `docker push` -> **Permission Denied**.
+  2. Manual `docker login` with IAM token (`iam` username) -> **Permission Denied**.
+  3. Role assignment: User confirmed `container-registry.images.pusher` and `admin` roles were assigned via UI, but push still fails.
+  4. `yc container image push` -> Command not available in user's `yc` version.
+- **Hypothesis:** 
+  - Roles might be assigned to the wrong entity or not propagated.
+  - Potential conflict with existing `config.json` on Windows.
+  - Registry repository `bmg-brand` might need manual creation if "auto-create" is failing due to permissions.
+- **Next Steps:** Verify active access bindings using `yc resource-manager folder list-access-bindings`.
+- **Infrastructure:** 
+  - Registry ID: `crpppbdntigd0vs1ejri`
+  - Cloud ID: `b1goj9s83gvmkqk28gtg`, Folder ID: `b1gevfo6mo9lq93octgd`
+  - Service Account: `bmg-brand` (key in `key.json`).
+  - Service Account: `bmg-brand` (ID: `ajetaipveiog9r1t9gud`, key in `key.json`).
+- **Diagnostics:**
+  - `yc config list` confirms active SA is `ajetaipveiog9r1t9gud`.
+  - `yc container registry list-access-bindings` confirms `ajetaipveiog9r1t9gud` has:
+    - `container-registry.images.pusher`
+    - `container-registry.admin`
+    - `admin`
+    - `container-registry.editor`
+  - **Crucial Error:** `yc resource-manager folder list-access-bindings` returns `PermissionDenied`. This suggests the Service Account has permissions on the *Registry* object but **NOT on the Folder/Catalog** itself.
+- **Attempted & Failed:**
+  1. `yc container registry configure-docker` + `docker push` -> **Permission Denied**.
+  2. Manual `docker login` with IAM token (`iam` username) -> **Permission Denied**.
+  3. Role assignment: User confirmed `container-registry.images.pusher` and `admin` roles were assigned via UI, but push still fails.
+  4. `yc container image push` -> Command not available in user's `yc` version.
+  3. `yc container image push` -> Command not available in user's `yc` version.
+- **Hypothesis:** 
+  - Roles might be assigned to the wrong entity or not propagated.
+  - Potential conflict with existing `config.json` on Windows.
+  - Registry repository `bmg-brand` might need manual creation if "auto-create" is failing due to permissions.
+- **Next Steps:** Verify active access bindings using `yc resource-manager folder list-access-bindings`.
+  - The registry repository `bmg-brand` cannot be auto-created because the SA lacks `container-registry.admin` OR `admin` permissions **at the Folder level**. Even though it has them on the Registry, Yandex often requires Folder-level permissions to create new resources (like the repository inside the registry).
+- **Next Steps:**
+  1. Assign `container-registry.admin` to SA `ajetaipveiog9r1t9gud` at the **Folder** level (`b1gevfo6mo9lq93octgd`).
+  2. Manually create the repository `bmg-brand` in the UI if possible, or try push again after Folder-level roles are fixed.
+я вроде всё сделал как ты сказал но всё равно ошибка! .
+
+Проверь ещё раз и напиши что мы сделали для чего мы делали и что не получилось
+PS C:\Boomerangs-Web> yc config list
+service-account-key:
+  id: aje01ulk159bn7uait9j
+  service_account_id: ajetaipveiog9r1t9gud
+  created_at: "2026-01-15T18:58:42.110349341Z"
+  key_algorithm: RSA_2048
+  public_key: |
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApSGzpud+zExoxninBabC
+    C1XEpEFQ+xrktKDtc0gPrx8wc1H7VJ1FIPM5nYReKx6MHIcGOExMHJOrxs+hZ5V8
+    +KQxMOt/mCg9r+ErRE2Si+GESEllVHDwGZw60HWDjujzdEU6qMz9vLrJBXsafAdD
+    xhjv+9WZpzk/TBKNCphmOPsuEt3ARxuZHvIEqSt6RnkM2s0nR5l71klLzBDTQfvB
+    bUzWA8VREOf/fUGvPY9Wy7z7HgRh+xaDGVjaDFV2jnjxSNZgomv4E7lMLw6eMdMq
+    d3P2OaIgZfDogpxutHSB8POe5MLidye4B3cRMxalBbXceBWfr7Bl+/gDA1MCm17e
+    wwIDAQAB
+    -----END PUBLIC KEY-----
+  private_key: |
+    PLEASE DO NOT REMOVE THIS LINE! Yandex.Cloud SA Key ID <aje01ulk159bn7uait9j>
+    -----BEGIN PRIVATE KEY-----
+    MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQClIbOm537MTGjG
+    eKcFpsILVcSkQVD7GuS0oO1zSA+vHzBzUftUnUUg8zmdhF4rHowchwY4TEwck6vG
+    z6FnlXz4pDEw63+YKD2v4StETZKL4YRISWVUcPAZnDrQdYOO6PN0RTqozP28uskF
+    exp8B0PGGO/71ZmnOT9MEo0KmGY4+y4S3cBHG5ke8gSpK3pGeQzazSdHmXvWSUvM
+    ENNB+8FtTNYDxVEQ5/99Qa89j1bLvPseBGH7FoMZWNoMVXaOePFI1mCia/gTuUwv
+    Dp4x0yp3c/Y5oiBl8OiCnG60dIHw857kwuJ3J7gHdxEzFqUFtdx4FZ+vsGX7+AMD
+    UwKbXt7DAgMBAAECggEAGX4l83bakuSa6kT3F/7CByjzBh6VR2bD9wS/E6SE01a/
+    zpXR9KKg6PDTrLciKIr7O2427hsNRv4fLz6fntOrquECPRimJpHT0CK1YMKPBKxI
+    lTZLf+k9j96YD9WMfVQGPaVwZF3dMDUv0npKQOqIMn1oExtLMM88L9zPTFrxsQsK
+    emEUDMjiUSa1FoE+VSVVTZQI4YicEOyqT/ELEeEgh0Ra5mHtS+ZmBLvrUqeSHbvt
+    FqVApDpLm69eg7LV4GqELouWeNNGIigHuBPGrsQLlXcV39gz3BOFTf1xqwEhHFlL
+    z6/z0/gUalngLhmS0z1aqMwWMBiDxGy33iO6dTxWeQKBgQDO2c6F/UDJoNazreMf
+    Mny4GIwQbde0O32PouW049Oh21gYa3P/yhoi/81WraV+w4qtOeuAuidCTjflVFjE
+    LsIx1A2WKxwQREygdOZ+fv7DvqIA5BoskceoPUgeV19DmHsZ5nhM1Bbikyb+dH4r
+    s18jOCmEP+UIYNLdS37fseJnKwKBgQDMXjpLbz26lDu5GMb2P+gtxQQvzB55Pco5
+    N3fWCsEK4A5ETO7CS6HMeFhL5XOvpCYJdUNEbZUxO5mLJDkhXtS6pamN5MPumxTs
+    mb59vCXhNkd+T9+8J+DMwEgQPDhMKVJSL5mA09bK13Q64A1PnWhGCu6mhV9aFyqn
+    6qwHdaSayQKBgH1tDtCqZu2b7HRZPT3+hCexIsUXhdNQu2ssUHMmLn6XnUx5Y4Y3
+    yy9rwtwLQS2jbmRpmYad2g5XlYcmZQjYfYJvXamwDD1E3N3y5IzRfrO81UkLB1/9
+    KX63YhKb0jUPsZ1b5ZhYhmPu7Jcglhzzj/2wIWSCxeMVqubqz0ze9TSvAoGAXaAt
+    hLGJzhhq4/l97QKKE63WpS8WJuUv59aJh/2VQq4y2weDum97yHi5ust7nFPPOTYH
+    gynQ16U+Sohlw+v1+Sw76U2MlZtmkp48rs2rbOm5Bx0AmuqKCkNswENWZ03m8M/t
+    ux9Rn8vk67QJZRfv1Wbcvl0LufIzEIpqFWDH8EECgYB7YkyXNvuD9vHm4rU/mkKk
+    AX520QLS78s5W+w6tqRFBSRk2xf+dJxUBmkTmaAiKeWKS7dHk8HI/rjVfJRn9fkJ
+    Hiq2TNakIbmYfmpArRMpuwIInUd2We7bUJuN7m5EhVFe8N7cBfg00CKkDsZt1nQD
+    475FQQ2AZEudl2FYZy4ZOw==
+    -----END PRIVATE KEY-----
+cloud-id: b1goj9s83gvmkqk28gtg
+folder-id: b1gevfo6mo9lq93octgd
+PS C:\Boomerangs-Web> yc resource-manager folder list-access-bindings b1gevfo6mo9lq93octgd
++----------------------------------+----------------+-----------------------------------------------+
+|             ROLE ID              |  SUBJECT TYPE  |                  SUBJECT ID                   |
++----------------------------------+----------------+-----------------------------------------------+
+| admin                            | serviceAccount | ajet4fv18e97mojtkmpt                          |
+| admin                            | system         | group:organization:bpffb4p4pssnbi7fungr:users |
+| container-registry.images.pusher | serviceAccount | ajetaipveiog9r1t9gud                          |
+| ydb.admin                        | serviceAccount | ajetaipveiog9r1t9gud                          |
+| admin                            | serviceAccount | ajetaipveiog9r1t9gud                          |
+| serverless-containers.editor     | serviceAccount | ajetaipveiog9r1t9gud
