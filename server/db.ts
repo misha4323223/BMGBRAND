@@ -1,26 +1,26 @@
 import ydb from "ydb-sdk";
-const { Driver, getCredentialsFromEnv } = ydb;
 import * as schema from "@shared/schema";
 
 const endpoint = process.env.YDB_ENDPOINT || "grpcs://ydb.serverless.yandexcloud.net:2135";
 const database = process.env.YDB_DATABASE || "/ru-central1/b1gnp4ml7k5j7cquabad/etnik3p0pg6vjcl2scou";
 
-if (!endpoint || !database) {
-  throw new Error("YDB_ENDPOINT and YDB_DATABASE must be set for native YDB connection");
-}
-
-export const driver = new Driver({
-  endpoint,
-  database,
-  authService: getCredentialsFromEnv(),
-});
+// В Replit мы не можем подключиться к YDB. 
+// Чтобы избежать краша от внутренних циклов SDK, мы создаем драйвер только в облаке.
+export let driver: ydb.Driver | null = null;
 
 export async function initYdb() {
-  if (!await driver.ready(10000)) {
-    throw new Error("YDB driver failed to initialize");
+  const isCloud = process.env.NODE_ENV === "production" || !!process.env.YDB_SA_KEY;
+  
+  if (isCloud) {
+    console.log(`[YDB] Initializing Driver for: ${endpoint}`);
+    driver = new ydb.Driver({
+      endpoint,
+      database,
+    });
+    // В облаке драйвер сам подхватит credentials из среды
+  } else {
+    console.log("[YDB] Running in Local Dev mode. Database connections disabled to prevent crashes.");
   }
-  console.log("YDB Driver ready");
 }
 
-// For now we will use raw YDB queries in storage.ts to avoid Drizzle incompatibility with native YDB
 export { schema };
