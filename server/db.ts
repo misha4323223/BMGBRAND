@@ -13,11 +13,18 @@ export async function initYdb() {
   
   if (isCloud) {
     console.log(`[YDB] Initializing Driver for: ${endpoint}`);
+    
+    // Для Serverless Containers используем MetadataAuthService
+    // который получает токен из metadata service контейнера
+    const authService = new ydb.MetadataAuthService();
+    
     driver = new ydb.Driver({
       endpoint,
       database,
+      authService,
     });
-    // В облаке драйвер сам подхватит credentials из среды
+    
+    console.log("[YDB] Using MetadataAuthService for authentication");
   } else {
     console.log("[YDB] Running in Local Dev mode. Database connections disabled to prevent crashes.");
   }
