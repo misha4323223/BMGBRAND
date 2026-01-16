@@ -1,0 +1,776 @@
+17 янв. 01:46:19.581
+[YDB] Updated product id 1768597833424
+
+17 янв. 01:46:19.526
+[Sync] Updating price: &Носки BOOOMERANGS (Спутник N088) Тёмно-синий O/S -> 350 RUB (id: 1768597833424, extId: e96d5730-5f9f-11ea-9e2a-00155d467501)
+
+17 янв. 01:46:19.526
+[Product] &Носки BOOOMERANGS (Спутник N088) Тёмно-синий O/S: raw price=null, parsed=0
+
+17 янв. 01:46:19.477
+[YDB] Updated product id 1768597829375
+
+17 янв. 01:46:19.420
+[Sync] Updating price: Носки BOOOMERANGS (ЪУЪ №017) Белый (40/45) -> 350 RUB (id: 1768597829375, extId: c8e1cf79-4768-11ea-9e26-00155d466406)
+
+17 янв. 01:46:19.420
+[Product] Носки BOOOMERANGS (ЪУЪ №017) Белый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:19.372
+[YDB] Updated product id 1768597833085
+
+17 янв. 01:46:19.319
+[Sync] Updating price: Носки BOOOMERANGS (Хокейная Маска №001) Черный О/S -> 350 RUB (id: 1768597833085, extId: c8e1cf77-4768-11ea-9e26-00155d466406)
+
+17 янв. 01:46:19.319
+[Product] Носки BOOOMERANGS (Хокейная Маска №001) Черный О/S: raw price=null, parsed=0
+
+17 янв. 01:46:19.269
+[YDB] Updated product id 1768597832901
+
+17 янв. 01:46:19.217
+[Sync] Updating price: Носки BOOOMERANGS (Тред №018) Белый (40/45) -> 350 RUB (id: 1768597832901, extId: c8e1cf71-4768-11ea-9e26-00155d466406)
+
+17 янв. 01:46:19.217
+[Product] Носки BOOOMERANGS (Тред №018) Белый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:19.168
+[YDB] Updated product id 1768597832730
+
+17 янв. 01:46:19.115
+[Sync] Updating price: &Носки BOOOMERANGS (Сквидвард N057) Фиолетовый O/S -> 350 RUB (id: 1768597832730, extId: d976c7bd-473c-11ea-9e26-00155d466406)
+
+17 янв. 01:46:19.115
+[Product] &Носки BOOOMERANGS (Сквидвард N057) Фиолетовый O/S: raw price=null, parsed=0
+
+17 янв. 01:46:19.063
+[YDB] Updated product id 1768597832550
+
+17 янв. 01:46:19.008
+[Sync] Updating price: &Носки BOOOMERANGS (Раста волны №021) Черный О/S -> 350 RUB (id: 1768597832550, extId: d976c7b9-473c-11ea-9e26-00155d466406)
+
+17 янв. 01:46:19.008
+[Product] &Носки BOOOMERANGS (Раста волны №021) Черный О/S: raw price=null, parsed=0
+
+17 янв. 01:46:18.956
+[YDB] Updated product id 1768597832375
+
+17 янв. 01:46:18.898
+[Sync] Updating price: Носки BOOOMERANGS (ПикаРот №015) Желтый (40/45) -> 350 RUB (id: 1768597832375, extId: d976c7b5-473c-11ea-9e26-00155d466406)
+
+17 янв. 01:46:18.898
+[Product] Носки BOOOMERANGS (ПикаРот №015) Желтый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:18.838
+[YDB] Updated product id 1768597832205
+
+17 янв. 01:46:18.765
+[Sync] Updating price: &Носки BOOOMERANGS (Перчик №044) Красный (40/45) -> 350 RUB (id: 1768597832205, extId: d976c7b3-473c-11ea-9e26-00155d466406)
+
+17 янв. 01:46:18.765
+[Product] &Носки BOOOMERANGS (Перчик №044) Красный (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:18.699
+[YDB] Updated product id 1768597832036
+
+17 янв. 01:46:18.612
+[Sync] Updating price: Носки BOOOMERANGS (Огурчик N054) Зеленый (40/45) -> 350 RUB (id: 1768597832036, extId: d976c7b0-473c-11ea-9e26-00155d466406)
+
+17 янв. 01:46:18.612
+[Product] Носки BOOOMERANGS (Огурчик N054) Зеленый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:13.569
+[YDB] Updated product id 1768597836557
+
+17 янв. 01:46:13.511
+[Product] &Носки BOOOMERANGS (Пепе v.03 №129) Салатовый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:13.462
+[YDB] Updated product id 1768597833623
+
+17 янв. 01:46:13.403
+[Product] &Носки BOOOMERANGS (Динозавры N090) Белый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:13.310
+[YDB] Updated product id 1768597836230
+
+17 янв. 01:46:13.248
+[Product] Носки BOOOMERANGS (Попей №118) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:13.199
+[YDB] Updated product id 1768597836053
+
+17 янв. 01:46:13.137
+[Product] Носки BOOOMERANGS (Утро №131) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:13.083
+[YDB] Updated product id 1768597835873
+
+17 янв. 01:46:13.017
+[Product] Носки BOOOMERANGS (Чувак №145) Белый О/S: raw price=null, parsed=0
+
+17 янв. 01:46:12.964
+[YDB] Updated product id 1768597835702
+
+17 янв. 01:46:12.902
+[Product] Носки BOOOMERANGS (Белиcсимо N115) Белый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:12.844
+[YDB] Updated product id 1768597835513
+
+17 янв. 01:46:12.777
+[Product] Носки BOOOMERANGS (Директор N159) Черный 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:12.729
+[YDB] Updated product id 1768597835333
+
+17 янв. 01:46:12.666
+[Product] Носки BOOOMERANGS (Шизоид) №164 Черный (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:12.612
+[YDB] Updated product id 1768597835155
+
+17 янв. 01:46:11.546
+[YDB] Updated product id 1768597829191
+
+17 янв. 01:46:11.481
+[Product] Носки BOOOMERANGS (Доктор N109) Черный 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:11.374
+[YDB] Updated product id 1768597833623
+
+17 янв. 01:46:11.312
+[Product] &Носки BOOOMERANGS (Динозавры N090) Черный (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:11.216
+[YDB] Updated product id 1768597833424
+
+17 янв. 01:46:11.150
+[Product] &Носки BOOOMERANGS (Спутник N088) Тёмно-синий O/S: raw price=null, parsed=0
+
+17 янв. 01:46:11.097
+[YDB] Updated product id 1768597829375
+
+17 янв. 01:46:11.034
+[Product] Носки BOOOMERANGS (ЪУЪ N017) Черный (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:10.935
+[YDB] Updated product id 1768597833085
+
+17 янв. 01:46:10.874
+[Product] Носки BOOOMERANGS (Хокейная Маска №001) Черный О/S: raw price=null, parsed=0
+
+17 янв. 01:46:10.821
+[YDB] Updated product id 1768597832901
+
+17 янв. 01:46:10.756
+[Product] Носки BOOOMERANGS (Тред №018) Белый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:10.701
+[YDB] Updated product id 1768597832730
+
+17 янв. 01:46:10.642
+[Product] &Носки BOOOMERANGS (Сквидвард N057) Фиолетовый O/S: raw price=null, parsed=0
+
+17 янв. 01:46:10.591
+[YDB] Updated product id 1768597832550
+
+17 янв. 01:46:10.523
+[Product] &Носки BOOOMERANGS (Раста волны №021) Черный О/S: raw price=null, parsed=0
+
+17 янв. 01:46:10.470
+[YDB] Updated product id 1768597832375
+
+17 янв. 01:46:10.412
+[Product] Носки BOOOMERANGS (ПикаРот №015) Желтый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:10.366
+[YDB] Updated product id 1768597832205
+
+17 янв. 01:46:10.306
+[Product] &Носки BOOOMERANGS (Перчик №044) Красный (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:10.254
+[YDB] Updated product id 1768597832036
+
+17 янв. 01:46:10.193
+[Product] Носки BOOOMERANGS (Огурчик N054) Зеленый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:10.141
+[YDB] Updated product id 1768597831855
+
+17 янв. 01:46:10.083
+[Product] Носки BOOOMERANGS (Новогодние № 070) красные 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:10.029
+[YDB] Updated product id 1768597831679
+
+17 янв. 01:46:09.965
+[Product] &Носки BOOOMERANGS (Молнии №068) Желтый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:09.915
+[YDB] Updated product id 1768597831502
+
+17 янв. 01:46:09.850
+[Product] Носки BOOOMERANGS (Пепе v.2 №129) Желтый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:09.740
+[YDB] Updated product id 1768597831325
+
+17 янв. 01:46:09.674
+[Product] Носки BOOOMERANGS (Курлык №003) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:09.621
+[YDB] Updated product id 1768597831159
+
+17 янв. 01:46:09.555
+[Product] &Носки BOOOMERANGS (Котики №062) Голубой O/S: raw price=null, parsed=0
+
+17 янв. 01:46:09.504
+[YDB] Updated product id 1768597830986
+
+17 янв. 01:46:09.446
+[Product] Носки BOOOMERANGS (Кот Том N043) Серый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:09.383
+[YDB] Updated product id 1768597830811
+
+17 янв. 01:46:09.324
+[Product] Носки BOOOMERANGS (Звезда №064) Черный (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:09.266
+[YDB] Updated product id 1768597830633
+
+17 янв. 01:46:09.203
+[Product] Носки BOOOMERANGS (Гусь №007) Белый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:09.151
+[YDB] Updated product id 1768597830457
+
+17 янв. 01:46:09.090
+[Product] &Носки BOOOMERANGS (Банан №008) Салатовый О/S: raw price=null, parsed=0
+
+17 янв. 01:46:09.031
+[YDB] Updated product id 1768597830281
+
+17 янв. 01:46:08.961
+[Product] Носки BOOOMERANGS (Ба-дум-тцц №012) Бордовый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:08.906
+[YDB] Updated product id 1768597830104
+
+17 янв. 01:46:08.842
+[Product] &Носки BOOOMERANGS (АвоЗадо N076) Салатовый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:08.791
+[YDB] Updated product id 1768597829898
+
+17 янв. 01:46:08.730
+[Product] Носки BOOOMERANGS (Уточки №080 ) Голубой О/S: raw price=null, parsed=0
+
+17 янв. 01:46:08.673
+[YDB] Updated product id 1768597829722
+
+17 янв. 01:46:08.603
+[Product] Носки BOOOMERANGS (АК-47№081) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:08.552
+[YDB] Updated product id 1768597829549
+
+17 янв. 01:46:08.473
+[Product] &Носки BOOOMERANGS ("Танк" №095) Т.Зеленый O/S: raw price=null, parsed=0
+
+17 янв. 01:46:08.399
+[YDB] Updated product id 1768597829375
+
+17 янв. 01:46:08.303
+[Product] Носки BOOOMERANGS (ЪУЪ №017) Белый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:08.189
+[YDB] Updated product id 1768597829191
+
+17 янв. 01:46:08.128
+[Product] Носки BOOOMERANGS (Доктор N109) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:08.025
+[YDB] Updated product id 1768597829012
+
+17 янв. 01:46:07.954
+[Product] Носки BOOOMERANGS (На Чиле N177 ) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:07.898
+[YDB] Updated product id 1768597828847
+
+17 янв. 01:46:07.843
+[Product] &Носки BOOOMERANGS (Полосы №091 ) Разноцветные 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:07.789
+[YDB] Updated product id 1768597828648
+
+17 янв. 01:46:07.725
+[Product] %Носки BOOOMERANGS (Птица №089 ) Черный 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:07.674
+[YDB] Updated product id 1768597828459
+
+17 янв. 01:46:07.606
+[Product] Носки BOOOMERANGS (Осень №0138) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:07.482
+[YDB] Updated product id 1768597828286
+
+17 янв. 01:46:07.415
+[Product] Носки BOOOMERANGS (WD-40) N140 Синий (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:07.364
+[YDB] Updated product id 1768597828113
+
+17 янв. 01:46:07.300
+[Product] Носки BOOOMERANGS (Клей №0191) Черный 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:07.211
+[YDB] Updated product id 1768597827582
+
+17 янв. 01:46:07.132
+[Product] Носки BOOOMERANGS (Туалетная Бумага N024) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:06.968
+[Sync] Found 71 products in import.xml
+
+17 янв. 01:46:06.863
+[Sync] Downloaded import.xml, parsing...
+
+17 янв. 01:46:06.795
+[Sync] Starting sync from Object Storage...
+
+17 янв. 01:46:05.644
+10:46:05 PM [express] serving on port 8080
+
+17 янв. 01:46:05.592
+[Product] &Носки BOOOMERANGS (Like № 175 ) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.592
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"46ae245f-2d98-11ec-9e94-00155d464702","id":"1768597840271","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/46/46ae245f2d9811ec9e9400155d464702_666383d6acca11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Like № 175 ) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№ 175","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.592
+[Product] Носки BOOOMERANGS (Мыслитель № 174 ) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.592
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"46ae245e-2d98-11ec-9e94-00155d464702","id":"1768597840102","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/46/46ae245e2d9811ec9e9400155d464702_5689100aacbd11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Мыслитель № 174 ) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№ 174","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.592
+[Product] Носки BOOOMERANGS (Скептик № 173 ) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"46ae245d-2d98-11ec-9e94-00155d464702","id":"1768597839911","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/46/46ae245d2d9811ec9e9400155d464702_8673313aacca11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Скептик № 173 ) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№ 173","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (Рабица № 172 ) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"46ae245c-2d98-11ec-9e94-00155d464702","id":"1768597839744","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/46/46ae245c2d9811ec9e9400155d464702_9f83eeeeacca11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Рабица № 172 ) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№ 172","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (Череп №167) Чёрный 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"f6b693d8-1c45-11ec-9e81-00155d469900","id":"1768597839577","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/f6/f6b693d81c4511ec9e8100155d469900_ded905f0acc711ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Череп №167) Чёрный 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№167","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (БОСС №160) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"1d55afca-8b04-11eb-9e75-00155d469b03","id":"1768597839405","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/1d/1d55afca8b0411eb9e7500155d469b03_2930420adfb111ef9d1100155d46f877.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (БОСС №160) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№160","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (Череп № 167) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"a8108444-1d15-11ec-9e74-00155d46ac01","id":"1768597839234","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/a8/a81084441d1511ec9e7400155d46ac01_fbc2cf02acc711ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Череп № 167) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№ 167","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (Резня № 168) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"a8108440-1d15-11ec-9e74-00155d46ac01","id":"1768597839058","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/a8/a81084401d1511ec9e7400155d46ac01_ae5a0be0acc211ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Резня № 168) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№ 168","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (Dark Pepe) №161 Черный (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"3d876da6-1532-11ec-9e73-00155d46ac02","id":"1768597838882","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/3d/3d876da6153211ec9e7300155d46ac02_b79f730eacca11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Dark Pepe) №161 Черный (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"№161","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] &Носки BOOOMERANGS (Носферату) №166 Черный (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"3d876da5-1532-11ec-9e73-00155d46ac02","id":"1768597838701","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/3d/3d876da5153211ec9e7300155d46ac02_db4e49a2acc911ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Носферату) №166 Черный (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"№166","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (Курица N158) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"2a4760f4-7033-11eb-9e72-00155d469500","id":"1768597838513","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/2a/2a4760f4703311eb9e7200155d469500_686ac230acbf11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Курица N158) Белый (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"N158","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (Гоп-стоп N032 ) Белый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"fbcf1648-a349-11eb-9e6d-00155d46ac00","id":"1768597838333","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/fb/fbcf1648a34911eb9e6d00155d46ac00_49ce8d56acbb11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Гоп-стоп N032 ) Белый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N032","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (Лимонадик N136 ) Желтый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"fbcf1647-a349-11eb-9e6d-00155d46ac00","id":"1768597838163","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/fb/fbcf1647a34911eb9e6d00155d46ac00_8b40abbaacc111ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Лимонадик N136 ) Желтый (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"N136","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (Лимончик N009 ) Салатовый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"fbcf1646-a349-11eb-9e6d-00155d46ac00","id":"1768597837988","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/fb/fbcf1646a34911eb9e6d00155d46ac00_b9204c70acc111ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Лимончик N009 ) Салатовый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N009","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (Сигнальные N013 ) Желто-Черный О/S: raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"fbcf1645-a349-11eb-9e6d-00155d46ac00","id":"1768597837798","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/fb/fbcf1645a34911eb9e6d00155d46ac00_dad5e254acca11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Сигнальные N013 ) Желто-Черный О/S","old_price":null,"price":null,"sizes":"[]","sku":"N013","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (Хрущевка №124) Бежевый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.591
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"e2efa16a-2401-11eb-9e6c-00155d469501","id":"1768597837624","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/e2/e2efa16a240111eb9e6c00155d469501_be1e6a3cd5d211f09abf00155daa8342.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Хрущевка №124) Бежевый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N124","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.591
+[Product] Носки BOOOMERANGS (Мопсы №022) Желтый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"dd7d9d37-a8ff-11eb-9e6c-00155d469302","id":"1768597837432","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/dd/dd7d9d37a8ff11eb9e6c00155d469302_86fbf946acc211ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Мопсы №022) Желтый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№022","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.590
+[Product] Носки BOOOMERANGS (Угроза N156) Черный 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"7d3593a9-6ded-11eb-9e63-00155d468e02","id":"1768597837260","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/7d/7d3593a96ded11eb9e6300155d468e02_11f080c8accb11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Угроза N156) Черный 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N156","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.590
+[Product] &Носки BOOOMERANGS (Яйцо N155) Зеленый O/S: raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"7d3593a8-6ded-11eb-9e63-00155d468e02","id":"1768597837073","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/7d/7d3593a86ded11eb9e6300155d468e02_9d95980eacbf11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Яйцо N155) Зеленый O/S","old_price":null,"price":null,"sizes":"[]","sku":"N155","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.590
+[Product] &Носки BOOOMERANGS (Су-57 N154) Хаки O/S: raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"7d3593a7-6ded-11eb-9e63-00155d468e02","id":"1768597836895","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/7d/7d3593a76ded11eb9e6300155d468e02_09959a86acca11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Су-57 N154) Хаки O/S","old_price":null,"price":null,"sizes":"[]","sku":"N154","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.590
+[Product] Носки BOOOMERANGS (Бакс N153) Желтый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"7d3593a6-6ded-11eb-9e63-00155d468e02","id":"1768597836729","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/7d/7d3593a66ded11eb9e6300155d468e02_eb1a3722acc111ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Бакс N153) Желтый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N153","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.590
+[Product] &Носки BOOOMERANGS (Пепе v.03 №129) Салатовый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"48b11cb4-4d41-11ec-9e62-00155d467409","id":"1768597836557","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/48/48b11cb44d4111ec9e6200155d467409_994e0a40acd511ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Пепе v.03 №129) Салатовый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№129","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.590
+[Product] Носки BOOOMERANGS (Попей №118) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"31b7379a-2764-11eb-9e61-00155d467602","id":"1768597836230","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/31/31b7379a276411eb9e6100155d467602_14a01936acc211ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Попей №118) Белый (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"N118","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.590
+[Product] Носки BOOOMERANGS (Утро №131) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"31b73799-2764-11eb-9e61-00155d467602","id":"1768597836053","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/31/31b73799276411eb9e6100155d467602_e3d504c6acbf11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Утро №131) Белый (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"N131","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.590
+[Product] Носки BOOOMERANGS (Чувак №145) Белый О/S: raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"31b73798-2764-11eb-9e61-00155d467602","id":"1768597835873","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/31/31b73798276411eb9e6100155d467602_ac1b60e8acba11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Чувак №145) Белый О/S","old_price":null,"price":null,"sizes":"[]","sku":"N145","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.590
+[Product] Носки BOOOMERANGS (Белиcсимо N115) Белый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"fe4a55bd-17a0-11eb-9e60-00155d469600","id":"1768597835702","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/fe/fe4a55bd17a011eb9e6000155d469600_c2da2ab2acbf11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Белиcсимо N115) Белый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N115","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.590
+[Product] Носки BOOOMERANGS (Директор N159) Черный 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d4fc75d5-71f4-11eb-9e60-00155d467e04","id":"1768597835513","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d4/d4fc75d571f411eb9e6000155d467e04_a20c1e82acbd11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Директор N159) Черный 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N159","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.590
+[Product] Носки BOOOMERANGS (Шизоид) №164 Черный (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"ccb08a1c-1956-11ec-9e60-00155d467409","id":"1768597835333","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/cc/ccb08a1c195611ec9e6000155d467409_5ba069a4accb11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Шизоид) №164 Черный (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"№164","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.590
+[Product] Носки BOOOMERANGS (Дед) №162 Черный (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.590
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"ccb08a1a-1956-11ec-9e60-00155d467409","id":"1768597835155","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/cc/ccb08a1a195611ec9e6000155d467409_7e674f5caccb11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Дед) №162 Черный (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"№162","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.589
+[Product] Носки BOOOMERANGS (Осень №0138) Черный (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.589
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"3829fadc-7753-11eb-9e5e-00155d467d07","id":"1768597834980","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/38/3829fadc775311eb9e5e00155d467d07_cccc32c4acc211ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Осень №0138) Черный (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"№0138","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.589
+[Product] Носки BOOOMERANGS (Думер №147) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.589
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"51e91c02-151d-11eb-9e51-00155d46740c","id":"1768597834807","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/51/51e91c02151d11eb9e5100155d46740c_22436fceacbe11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Думер №147) Белый (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"N147","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.589
+[Product] Носки BOOOMERANGS (Б52 N111) Салатовый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.589
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"1771cb35-145d-11eb-9e4f-00155d468102","id":"1768597834635","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/17/1771cb35145d11eb9e4f00155d468102_f4217d10acbe11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Б52 N111) Салатовый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N111","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.589
+[Product] Носки BOOOMERANGS (Новый год N150) Красный 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.589
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"322a6737-34b8-11eb-9e4a-00155d468001","id":"1768597834447","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/32/322a673734b811eb9e4a00155d468001_a7428b26accb11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Новый год N150) Красный 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N150","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.589
+[Product] Носки BOOOMERANGS (Чипсеки №135) Желтый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.589
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"285c3739-dc7a-11ea-9e44-00155d46630b","id":"1768597834113","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/28/285c3739dc7a11ea9e4400155d46630b_3964260eb94711ef811d00155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Чипсеки №135) Желтый (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"N135","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.589
+[Product] &Носки BOOOMERANGS (Динозавры N090) Черный (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.589
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"ef0233fb-80bd-11eb-9e62-00155d46630e","id":"1768597833623","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/ef/ef0233fb80bd11eb9e6200155d46630e_39f0ad1eaccb11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Динозавры N090) Черный (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N090","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.589
+[Product] &Носки BOOOMERANGS (Спутник N088) Тёмно-синий O/S: raw price=null, parsed=0
+
+17 янв. 01:46:05.589
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"e96d5730-5f9f-11ea-9e2a-00155d467501","id":"1768597833424","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/e9/e96d57305f9f11ea9e2a00155d467501_ba1940d6acc711ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Спутник N088) Тёмно-синий O/S","old_price":null,"price":null,"sizes":"[]","sku":"N088","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.589
+[Product] Носки BOOOMERANGS (Хокейная Маска №001) Черный О/S: raw price=null, parsed=0
+
+17 янв. 01:46:05.589
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"c8e1cf77-4768-11ea-9e26-00155d466406","id":"1768597833085","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/c8/c8e1cf77476811ea9e2600155d466406_168a1afcacc811ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Хокейная Маска №001) Черный О/S","old_price":null,"price":null,"sizes":"[]","sku":"N001","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.589
+[Product] Носки BOOOMERANGS (Тред №018) Белый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.589
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"c8e1cf71-4768-11ea-9e26-00155d466406","id":"1768597832901","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/c8/c8e1cf71476811ea9e2600155d466406_67625e5cacc411ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Тред №018) Белый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N018","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.589
+[Product] &Носки BOOOMERANGS (Сквидвард N057) Фиолетовый O/S: raw price=null, parsed=0
+
+17 янв. 01:46:05.589
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c7bd-473c-11ea-9e26-00155d466406","id":"1768597832730","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7bd473c11ea9e2600155d466406_8be1edeeaccc11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Сквидвард N057) Фиолетовый O/S","old_price":null,"price":null,"sizes":"[]","sku":"N057","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.589
+[Product] &Носки BOOOMERANGS (Раста волны №021) Черный О/S: raw price=null, parsed=0
+
+17 янв. 01:46:05.589
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c7b9-473c-11ea-9e26-00155d466406","id":"1768597832550","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7b9473c11ea9e2600155d466406_ee9e97ecacc811ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Раста волны №021) Черный О/S","old_price":null,"price":null,"sizes":"[]","sku":"N021","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.589
+[Product] Носки BOOOMERANGS (ПикаРот №015) Желтый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.589
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c7b5-473c-11ea-9e26-00155d466406","id":"1768597832375","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7b5473c11ea9e2600155d466406_732421e8acbb11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (ПикаРот №015) Желтый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N015","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.588
+[Product] &Носки BOOOMERANGS (Перчик №044) Красный (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.588
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c7b3-473c-11ea-9e26-00155d466406","id":"1768597832205","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7b3473c11ea9e2600155d466406_a0e2444cacbc11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Перчик №044) Красный (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N044","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.588
+[Product] Носки BOOOMERANGS (Огурчик N054) Зеленый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.588
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c7b0-473c-11ea-9e26-00155d466406","id":"1768597832036","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7b0473c11ea9e2600155d466406_e393eee8acbd11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Огурчик N054) Зеленый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N054","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.588
+[Product] Носки BOOOMERANGS (Новогодние № 070) красные 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.588
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c7af-473c-11ea-9e26-00155d466406","id":"1768597831855","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7af473c11ea9e2600155d466406_e7437aa0acbc11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Новогодние № 070) красные 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N070","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.588
+[Product] &Носки BOOOMERANGS (Молнии №068) Желтый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.588
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c7ad-473c-11ea-9e26-00155d466406","id":"1768597831679","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7ad473c11ea9e2600155d466406_108e464aacc911ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Молнии №068) Желтый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N068","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.588
+[Product] Носки BOOOMERANGS (Пепе v.2 №129) Желтый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.588
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"285c373b-dc7a-11ea-9e44-00155d46630b","id":"1768597831502","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/28/285c373bdc7a11ea9e4400155d46630b_f7691354accb11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Пепе v.2 №129) Желтый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N129","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.588
+[Product] Носки BOOOMERANGS (Курлык №003) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.588
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c7a5-473c-11ea-9e26-00155d466406","id":"1768597831325","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7a5473c11ea9e2600155d466406_8c11242aaca811ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Курлык №003) Белый (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"N003","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.588
+[Product] &Носки BOOOMERANGS (Котики №062) Голубой O/S: raw price=null, parsed=0
+
+17 янв. 01:46:05.588
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c7a1-473c-11ea-9e26-00155d466406","id":"1768597831159","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7a1473c11ea9e2600155d466406_46535ef0acbf11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Котики №062) Голубой O/S","old_price":null,"price":null,"sizes":"[]","sku":"N062","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.588
+[Product] Носки BOOOMERANGS (Кот Том N043) Серый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.588
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c7a0-473c-11ea-9e26-00155d466406","id":"1768597830986","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7a0473c11ea9e2600155d466406_7f195b82acbe11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Кот Том N043) Серый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N043","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.586
+[Product] Носки BOOOMERANGS (Звезда №064) Черный (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.586
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c79b-473c-11ea-9e26-00155d466406","id":"1768597830811","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c79b473c11ea9e2600155d466406_ac31ed40acc411ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Звезда №064) Черный (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"N064","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.586
+[Product] Носки BOOOMERANGS (Гусь №007) Белый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.586
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c79a-473c-11ea-9e26-00155d466406","id":"1768597830633","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c79a473c11ea9e2600155d466406_de6ae24eacba11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Гусь №007) Белый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N007","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.586
+[Product] &Носки BOOOMERANGS (Банан №008) Салатовый О/S: raw price=null, parsed=0
+
+17 янв. 01:46:05.586
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c795-473c-11ea-9e26-00155d466406","id":"1768597830457","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c795473c11ea9e2600155d466406_ab18d9ceacb911ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Банан №008) Салатовый О/S","old_price":null,"price":null,"sizes":"[]","sku":"N008","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.586
+[Product] Носки BOOOMERANGS (Ба-дум-тцц №012) Бордовый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.586
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c794-473c-11ea-9e26-00155d466406","id":"1768597830281","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c794473c11ea9e2600155d466406_819d3266acc311ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Ба-дум-тцц №012) Бордовый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N012","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.586
+[Product] &Носки BOOOMERANGS (АвоЗадо N076) Салатовый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.586
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"d976c790-473c-11ea-9e26-00155d466406","id":"1768597830104","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c790473c11ea9e2600155d466406_1a7554a4acbb11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (АвоЗадо N076) Салатовый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N076","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.586
+[Product] Носки BOOOMERANGS (Уточки №080 ) Голубой О/S: raw price=null, parsed=0
+
+17 янв. 01:46:05.586
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"811a3fb6-6ebf-11ea-9e24-00155d46630a","id":"1768597829898","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/81/811a3fb66ebf11ea9e2400155d46630a_670474c0acbc11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Уточки №080 ) Голубой О/S","old_price":null,"price":null,"sizes":"[]","sku":"N080","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.585
+[Product] Носки BOOOMERANGS (АК-47№081) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.585
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"600b0eae-4dc1-11ea-9e23-00155d466404","id":"1768597829722","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/60/600b0eae4dc111ea9e2300155d466404_392244a6acc111ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (АК-47№081) Белый (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"N081","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.585
+[Product] &Носки BOOOMERANGS ("Танк" №095) Т.Зеленый O/S: raw price=null, parsed=0
+
+17 янв. 01:46:05.585
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"600b0ead-4dc1-11ea-9e23-00155d466404","id":"1768597829549","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/60/600b0ead4dc111ea9e2300155d466404_79188e70acbd11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (\"Танк\" №095) Т.Зеленый O/S","old_price":null,"price":null,"sizes":"[]","sku":"N095","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.585
+[Product] Носки BOOOMERANGS (ЪУЪ №017) Белый (40/45): raw price=null, parsed=0
+
+17 янв. 01:46:05.585
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"c8e1cf79-4768-11ea-9e26-00155d466406","id":"1768597829375","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/c8/c8e1cf79476811ea9e2600155d466406_5ec9e3c0acc211ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (ЪУЪ №017) Белый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N017","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.585
+[Product] Носки BOOOMERANGS (Доктор N109) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.585
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"e96d5734-5f9f-11ea-9e2a-00155d467501","id":"1768597829191","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/e9/e96d57345f9f11ea9e2a00155d467501_fcc44062b94611ef811d00155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Доктор N109) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N109","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.585
+[Product] Носки BOOOMERANGS (На Чиле N177 ) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.585
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"8070cf1d-3d73-11ec-9d5d-00155d463406","id":"1768597829012","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/80/8070cf1d3d7311ec9d5d00155d463406_f3ef0fe2acc311ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (На Чиле N177 ) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N177","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.585
+[Product] &Носки BOOOMERANGS (Полосы №091 ) Разноцветные 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.585
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"b5105338-43a1-11ec-9d5c-00155d46610f","id":"1768597828847","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/b5/b510533843a111ec9d5c00155d46610f_3084c464acca11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Полосы №091 ) Разноцветные 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№091","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.585
+[Product] %Носки BOOOMERANGS (Птица №089 ) Черный 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.585
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"b5105337-43a1-11ec-9d5c-00155d46610f","id":"1768597828648","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/b5/b510533743a111ec9d5c00155d46610f_139f0e0aacc411ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"%Носки BOOOMERANGS (Птица №089 ) Черный 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№089","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.585
+[Product] Носки BOOOMERANGS (Осень №0138) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.584
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"c27f1842-d897-11ea-9e42-00155d466409","id":"1768597828459","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/c2/c27f1842d89711ea9e4200155d466409_6240bd20acc311ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Осень №0138) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N138","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.584
+[Product] Носки BOOOMERANGS (WD-40) N140 Синий (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.584
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"c88180dc-70b7-11ed-8e2b-aa5507aeb675","id":"1768597828286","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/c8/c88180dc70b711ed8e2baa5507aeb675_0c022a6cb94711ef811d00155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (WD-40) N140 Синий (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"N140","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.584
+[Product] Носки BOOOMERANGS (Клей №0191) Черный 40-45: raw price=null, parsed=0
+
+17 янв. 01:46:05.584
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"29ec5a1c-35cc-11ed-8bf1-aa5507aeb675","id":"1768597828113","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/29/29ec5a1c35cc11ed8bf1aa5507aeb675_c1a648e6acc511ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Клей №0191) Черный 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N191","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.584
+[Product] Носки BOOOMERANGS (Туалетная Бумага N024) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 01:46:05.584
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"4df9bf6e-4054-11ef-8324-00155d46f6c0","id":"1768597827582","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/4d/4df9bf6e405411ef832400155d46f6c0_d6b8a2b6acc411ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Туалетная Бумага N024) Белый (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"R024","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.584
+[Product] Худи BOOOMERANGS Classic: raw price=null, parsed=0
+
+17 янв. 01:46:05.584
+[YDB] Parsed data: {"article":"ART-001","category":"hoodies","colors":"[\"black\", \"white\"]","created_at":null,"description":"Стильное худи из плотного хлопка","external_id":"test-001","id":"1","images":"[\"https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Худи BOOOMERANGS Classic","old_price":null,"price":null,"sizes":"[\"S\", \"M\", \"L\", \"XL\"]","sku":"BMG-HOODIE-001","subcategory":null,"updated_at":null}
+
+17 янв. 01:46:05.583
+[YDB] First row items count: 18
+
+17 янв. 01:46:05.583
+[YDB] Columns: article, category, colors, created_at, description, external_id, id, images, in_stock, is_new, is_sale, name, old_price, price, sizes, sku, subcategory, updated_at
+
+17 янв. 01:46:05.433
+[YDB] Driver is ready!
+
+17 янв. 01:46:05.243
+[YDB] Driver created, waiting for ready...
+
+17 янв. 01:46:05.155
+[YDB] Created MetadataAuthService
+
+17 янв. 01:46:05.155
+[YDB] NODE_ENV: production
+
+17 янв. 01:46:05.155
+[YDB] Database: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
+
+17 янв. 01:46:05.154
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+17 янв. 01:46:04.231
+START RequestID: e8215bfa-63ab-499d-a25c-0fe877910452
