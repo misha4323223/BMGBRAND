@@ -8,7 +8,7 @@ env:
   CR_REGISTRY: crpp1bes63avh83rbvte
   CR_REPOSITORY: bmg
   CONTAINER_NAME: bmg-app
-  SERVICE_ACCOUNT_ID: b1g54bhp2g3klqsgpsbp
+  SERVICE_ACCOUNT_ID: ajemoq00jglva97nqi47
 
 jobs:
   deploy:
