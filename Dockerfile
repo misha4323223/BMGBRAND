@@ -24,7 +24,6 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/server ./server
 COPY --from=builder /app/shared ./shared
-COPY --from=builder /app/1c_uploads ./1c_uploads
 COPY --from=builder /app/attached_assets ./attached_assets
 
 # Set environment variables

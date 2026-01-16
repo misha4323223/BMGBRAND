@@ -10,3 +10,6 @@ sa-key*.json
 *authorized_key*.json
 *.pem
 *.key
+
+# 1C uploads - store images in Object Storage, not Git
+1c_uploads/

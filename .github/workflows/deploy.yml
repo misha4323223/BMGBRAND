@@ -44,8 +44,8 @@ jobs:
           revision-core-fraction: 100
           revision-concurrency: 4
           revision-image-url: cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ github.sha }}
-          revision-execution-timeout: 30
-          revision-environment: |
+          revision-execution-timeout: 30s
+          revision-env: |
             YDB_ENDPOINT=grpcs://ydb.serverless.yandexcloud.net:2135
             YDB_DATABASE=/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
             NODE_ENV=production
