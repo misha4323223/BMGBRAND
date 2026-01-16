@@ -62,6 +62,10 @@ export class DatabaseStorage implements IStorage {
     if (row.items && Array.isArray(row.items)) {
       for (let i = 0; i < row.items.length && i < columns.length; i++) {
         const colName = columns[i].name;
+        // Debug: log raw structure for price column
+        if (colName === 'price' && i < 5) {
+          console.log(`[YDB DEBUG] Raw price item[${i}]:`, JSON.stringify(row.items[i]));
+        }
         result[colName] = this.extractTypedValue(row.items[i], colName);
       }
     }
