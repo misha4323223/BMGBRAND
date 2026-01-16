@@ -161,8 +161,143 @@ export class DatabaseStorage implements IStorage {
     return result || undefined;
   }
 
-  async createProduct(p: InsertProduct): Promise<Product> { return { ...p, id: Math.floor(Math.random() * 1000) } as any; }
-  async updateProduct(id: number, p: Partial<InsertProduct>): Promise<Product> { return { ...p, id } as any; }
+  async createProduct(p: InsertProduct): Promise<Product> {
+    const newId = String(Date.now());
+    const result = await this.safeQuery(async (session) => {
+      const { TypedValues, Types } = await import("ydb-sdk");
+      const query = `
+        DECLARE $id AS Utf8;
+        DECLARE $external_id AS Utf8;
+        DECLARE $sku AS Utf8;
+        DECLARE $name AS Utf8;
+        DECLARE $description AS Utf8;
+        DECLARE $price AS Uint64;
+        DECLARE $images AS Utf8;
+        DECLARE $category AS Utf8;
+        DECLARE $sizes AS Utf8;
+        DECLARE $colors AS Utf8;
+        DECLARE $is_new AS Bool;
+        DECLARE $is_active AS Bool;
+        DECLARE $in_stock AS Bool;
+        DECLARE $created_at AS Uint64;
+        
+        UPSERT INTO products (id, external_id, sku, name, description, price, images, category, sizes, colors, is_new, is_active, in_stock, created_at)
+        VALUES ($id, $external_id, $sku, $name, $description, $price, $images, $category, $sizes, $colors, $is_new, $is_active, $in_stock, $created_at);
+      `;
+      
+      await session.executeQuery(query, {
+        $id: TypedValues.fromNative(Types.UTF8, newId),
+        $external_id: TypedValues.fromNative(Types.UTF8, p.externalId || ''),
+        $sku: TypedValues.fromNative(Types.UTF8, p.sku || ''),
+        $name: TypedValues.fromNative(Types.UTF8, p.name || ''),
+        $description: TypedValues.fromNative(Types.UTF8, p.description || ''),
+        $price: TypedValues.fromNative(Types.UINT64, BigInt(p.price || 0)),
+        $images: TypedValues.fromNative(Types.UTF8, JSON.stringify([p.imageUrl || ''])),
+        $category: TypedValues.fromNative(Types.UTF8, p.category || ''),
+        $sizes: TypedValues.fromNative(Types.UTF8, JSON.stringify(p.sizes || [])),
+        $colors: TypedValues.fromNative(Types.UTF8, JSON.stringify(p.colors || [])),
+        $is_new: TypedValues.fromNative(Types.BOOL, p.isNew || false),
+        $is_active: TypedValues.fromNative(Types.BOOL, true),
+        $in_stock: TypedValues.fromNative(Types.BOOL, true),
+        $created_at: TypedValues.fromNative(Types.UINT64, BigInt(Date.now() * 1000)),
+      });
+      
+      console.log(`[YDB] Created product: ${p.name} with id ${newId}`);
+      return true;
+    });
+    
+    return {
+      id: parseInt(newId) || 0,
+      externalId: p.externalId || null,
+      sku: p.sku || null,
+      name: p.name || '',
+      description: p.description || '',
+      price: p.price || 0,
+      imageUrl: p.imageUrl || '',
+      category: p.category || '',
+      sizes: p.sizes || [],
+      colors: p.colors || [],
+      isNew: p.isNew || false,
+      createdAt: new Date(),
+    } as Product;
+  }
+
+  async updateProduct(id: number, p: Partial<InsertProduct>): Promise<Product> {
+    const result = await this.safeQuery(async (session) => {
+      const { TypedValues, Types } = await import("ydb-sdk");
+      
+      const setClauses: string[] = [];
+      const params: Record<string, any> = {
+        $id: TypedValues.fromNative(Types.UTF8, String(id)),
+      };
+      
+      let declareStatements = 'DECLARE $id AS Utf8;\n';
+      
+      if (p.name !== undefined) {
+        declareStatements += 'DECLARE $name AS Utf8;\n';
+        setClauses.push('name = $name');
+        params.$name = TypedValues.fromNative(Types.UTF8, p.name);
+      }
+      if (p.description !== undefined) {
+        declareStatements += 'DECLARE $description AS Utf8;\n';
+        setClauses.push('description = $description');
+        params.$description = TypedValues.fromNative(Types.UTF8, p.description);
+      }
+      if (p.price !== undefined) {
+        declareStatements += 'DECLARE $price AS Uint64;\n';
+        setClauses.push('price = $price');
+        params.$price = TypedValues.fromNative(Types.UINT64, BigInt(p.price));
+      }
+      if (p.imageUrl !== undefined) {
+        declareStatements += 'DECLARE $images AS Utf8;\n';
+        setClauses.push('images = $images');
+        params.$images = TypedValues.fromNative(Types.UTF8, JSON.stringify([p.imageUrl]));
+      }
+      if (p.category !== undefined) {
+        declareStatements += 'DECLARE $category AS Utf8;\n';
+        setClauses.push('category = $category');
+        params.$category = TypedValues.fromNative(Types.UTF8, p.category);
+      }
+      if (p.sizes !== undefined) {
+        declareStatements += 'DECLARE $sizes AS Utf8;\n';
+        setClauses.push('sizes = $sizes');
+        params.$sizes = TypedValues.fromNative(Types.UTF8, JSON.stringify(p.sizes));
+      }
+      if (p.colors !== undefined) {
+        declareStatements += 'DECLARE $colors AS Utf8;\n';
+        setClauses.push('colors = $colors');
+        params.$colors = TypedValues.fromNative(Types.UTF8, JSON.stringify(p.colors));
+      }
+      if (p.externalId !== undefined) {
+        declareStatements += 'DECLARE $external_id AS Utf8;\n';
+        setClauses.push('external_id = $external_id');
+        params.$external_id = TypedValues.fromNative(Types.UTF8, p.externalId);
+      }
+      if (p.sku !== undefined) {
+        declareStatements += 'DECLARE $sku AS Utf8;\n';
+        setClauses.push('sku = $sku');
+        params.$sku = TypedValues.fromNative(Types.UTF8, p.sku);
+      }
+      if (p.isNew !== undefined) {
+        declareStatements += 'DECLARE $is_new AS Bool;\n';
+        setClauses.push('is_new = $is_new');
+        params.$is_new = TypedValues.fromNative(Types.BOOL, p.isNew);
+      }
+      
+      if (setClauses.length === 0) return null;
+      
+      const query = `
+        ${declareStatements}
+        UPDATE products SET ${setClauses.join(', ')} WHERE id = $id;
+      `;
+      
+      await session.executeQuery(query, params);
+      console.log(`[YDB] Updated product id ${id}`);
+      return true;
+    });
+    
+    return { ...p, id } as Product;
+  }
   async getCartItems(sessionId: string): Promise<(CartItem & { product: Product })[]> { return []; }
   async addToCart(item: InsertCartItem): Promise<CartItem> { return { ...item, id: Math.floor(Math.random() * 1000) } as any; }
   async removeFromCart(id: number): Promise<void> {}
