@@ -57,13 +57,28 @@ export function useAddToCart() {
   });
 }
 
+interface RemoveCartItemParams {
+  id: number;
+  sessionId: string;
+  productId: number;
+  size: string | null;
+  color: string | null;
+}
+
 export function useRemoveFromCart() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (id: number) => {
-      const url = buildUrl(api.cart.removeItem.path, { id });
+    mutationFn: async (item: RemoveCartItemParams) => {
+      const baseUrl = buildUrl(api.cart.removeItem.path, { id: item.id });
+      const params = new URLSearchParams({
+        sessionId: item.sessionId,
+        productId: String(item.productId),
+        size: item.size || "One Size",
+        color: item.color || "Default",
+      });
+      const url = `${baseUrl}?${params.toString()}`;
       const res = await fetch(url, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to remove item");
     },

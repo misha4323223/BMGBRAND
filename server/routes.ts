@@ -916,7 +916,15 @@ export async function registerRoutes(
   });
 
   app.delete(api.cart.removeItem.path, async (req, res) => {
-    await storage.removeFromCart(Number(req.params.id));
+    // For YDB we need composite key: sessionId, productId, size, color
+    const { sessionId, productId, size, color } = req.query;
+    await storage.removeFromCart(
+      Number(req.params.id),
+      sessionId as string,
+      Number(productId),
+      size as string,
+      color as string
+    );
     res.status(200).send();
   });
   

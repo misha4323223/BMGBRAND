@@ -74,7 +74,13 @@ export default function Cart() {
                     <div className="flex justify-between items-end">
                       <p className="font-mono text-sm text-zinc-500">Кол-во: {item.quantity}</p>
                       <button 
-                        onClick={() => removeFromCart.mutate(item.id)}
+                        onClick={() => removeFromCart.mutate({
+                          id: item.id,
+                          sessionId: item.sessionId,
+                          productId: item.productId,
+                          size: item.size,
+                          color: item.color,
+                        })}
                         className="text-zinc-600 hover:text-red-500 transition-colors"
                       >
                         <Trash2 className="w-5 h-5" />

@@ -11,7 +11,7 @@ export interface IStorage {
   updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product>;
   getCartItems(sessionId: string): Promise<(CartItem & { product: Product })[]>;
   addToCart(item: InsertCartItem): Promise<CartItem>;
-  removeFromCart(id: number): Promise<void>;
+  removeFromCart(id: number, sessionId?: string, productId?: number, size?: string, color?: string): Promise<void>;
   clearCart(sessionId: string): Promise<void>;
   getOrders(): Promise<Order[]>;
   getOrdersByStatus(status: string): Promise<Order[]>;
@@ -301,70 +301,150 @@ export class DatabaseStorage implements IStorage {
     
     return { ...p, id } as Product;
   }
-  // In-memory cart storage (until YDB cart table is created)
-  private cartItems: Map<string, CartItem[]> = new Map();
-  private cartIdCounter = 1;
-
+  // YDB cart storage
   async getCartItems(sessionId: string): Promise<(CartItem & { product: Product })[]> {
-    const items = this.cartItems.get(sessionId) || [];
-    const result: (CartItem & { product: Product })[] = [];
-    
-    for (const item of items) {
-      const product = await this.getProduct(item.productId);
-      if (product) {
-        result.push({ ...item, product });
-      }
+    if (!driver) {
+      console.log("[Cart] No YDB driver, returning empty cart");
+      return [];
     }
     
+    const result: (CartItem & { product: Product })[] = [];
+    
+    await driver.tableClient.withSession(async (session) => {
+      const { TypedValues, Types } = await import("ydb-sdk");
+      const query = `
+        DECLARE $session_id AS Utf8;
+        SELECT session_id, product_id, size, color, quantity, created_at
+        FROM cart_items
+        WHERE session_id = $session_id;
+      `;
+      
+      const params = {
+        $session_id: TypedValues.fromNative(Types.UTF8, sessionId),
+      };
+      
+      const res = await session.executeQuery(query, params);
+      const rows = res.resultSets[0]?.rows || [];
+      
+      for (const row of rows) {
+        const items = row.items || [];
+        const productId = items[1]?.textValue || "";
+        const product = await this.getProduct(Number(productId));
+        
+        if (product) {
+          result.push({
+            id: 0, // YDB cart uses composite key, no single id
+            sessionId: items[0]?.textValue || "",
+            productId: Number(productId),
+            size: items[2]?.textValue || null,
+            color: items[3]?.textValue || null,
+            quantity: items[4]?.uint32Value || 1,
+            product,
+          });
+        }
+      }
+    });
+    
+    console.log(`[Cart] Found ${result.length} items for session ${sessionId}`);
     return result;
   }
 
   async addToCart(item: InsertCartItem): Promise<CartItem> {
-    const sessionItems = this.cartItems.get(item.sessionId) || [];
-    
-    // Check if product already in cart with same size/color
-    const existingIndex = sessionItems.findIndex(
-      i => i.productId === item.productId && i.size === item.size && i.color === item.color
-    );
-    
-    if (existingIndex >= 0) {
-      // Update quantity
-      sessionItems[existingIndex].quantity += item.quantity;
-      this.cartItems.set(item.sessionId, sessionItems);
-      return sessionItems[existingIndex];
+    if (!driver) {
+      console.log("[Cart] No YDB driver, returning mock cart item");
+      return { ...item, id: 0 } as CartItem;
     }
     
-    // Add new item
-    const newItem: CartItem = {
-      id: this.cartIdCounter++,
-      sessionId: item.sessionId,
-      productId: item.productId,
-      quantity: item.quantity,
-      size: item.size || null,
-      color: item.color || null,
-    };
+    await driver.tableClient.withSession(async (session) => {
+      const { TypedValues, Types } = await import("ydb-sdk");
+      // UPSERT - will insert or update if exists
+      const query = `
+        DECLARE $session_id AS Utf8;
+        DECLARE $product_id AS Utf8;
+        DECLARE $size AS Utf8;
+        DECLARE $color AS Utf8;
+        DECLARE $quantity AS Uint32;
+        DECLARE $created_at AS Timestamp;
+        
+        UPSERT INTO cart_items (session_id, product_id, size, color, quantity, created_at)
+        VALUES ($session_id, $product_id, $size, $color, $quantity, $created_at);
+      `;
+      
+      const params = {
+        $session_id: TypedValues.fromNative(Types.UTF8, item.sessionId),
+        $product_id: TypedValues.fromNative(Types.UTF8, String(item.productId)),
+        $size: TypedValues.fromNative(Types.UTF8, item.size || "One Size"),
+        $color: TypedValues.fromNative(Types.UTF8, item.color || "Default"),
+        $quantity: TypedValues.fromNative(Types.UINT32, item.quantity),
+        $created_at: TypedValues.fromNative(Types.TIMESTAMP, new Date()),
+      };
+      
+      await session.executeQuery(query, params);
+      console.log(`[Cart] Added/updated item in YDB: session=${item.sessionId}, product=${item.productId}`);
+    });
     
-    sessionItems.push(newItem);
-    this.cartItems.set(item.sessionId, sessionItems);
-    console.log(`[Cart] Added item to cart for session ${item.sessionId}: productId=${item.productId}`);
-    return newItem;
+    return { ...item, id: 0 } as CartItem;
   }
 
-  async removeFromCart(id: number): Promise<void> {
-    for (const [sessionId, items] of this.cartItems.entries()) {
-      const index = items.findIndex(item => item.id === id);
-      if (index >= 0) {
-        items.splice(index, 1);
-        this.cartItems.set(sessionId, items);
-        console.log(`[Cart] Removed item ${id} from cart`);
-        return;
-      }
+  async removeFromCart(id: number, sessionId?: string, productId?: number, size?: string, color?: string): Promise<void> {
+    if (!driver) {
+      console.log("[Cart] No YDB driver");
+      return;
     }
+    
+    // For YDB we need the composite key (sessionId, productId, size, color)
+    if (!sessionId || !productId) {
+      console.log("[Cart] Missing sessionId or productId for removal");
+      return;
+    }
+    
+    await driver.tableClient.withSession(async (session) => {
+      const { TypedValues, Types } = await import("ydb-sdk");
+      const query = `
+        DECLARE $session_id AS Utf8;
+        DECLARE $product_id AS Utf8;
+        DECLARE $size AS Utf8;
+        DECLARE $color AS Utf8;
+        
+        DELETE FROM cart_items
+        WHERE session_id = $session_id 
+          AND product_id = $product_id
+          AND size = $size
+          AND color = $color;
+      `;
+      
+      const params = {
+        $session_id: TypedValues.fromNative(Types.UTF8, sessionId),
+        $product_id: TypedValues.fromNative(Types.UTF8, String(productId)),
+        $size: TypedValues.fromNative(Types.UTF8, size || "One Size"),
+        $color: TypedValues.fromNative(Types.UTF8, color || "Default"),
+      };
+      
+      await session.executeQuery(query, params);
+      console.log(`[Cart] Removed item from YDB: session=${sessionId}, product=${productId}`);
+    });
   }
 
   async clearCart(sessionId: string): Promise<void> {
-    this.cartItems.delete(sessionId);
-    console.log(`[Cart] Cleared cart for session ${sessionId}`);
+    if (!driver) {
+      console.log("[Cart] No YDB driver");
+      return;
+    }
+    
+    await driver.tableClient.withSession(async (session) => {
+      const { TypedValues, Types } = await import("ydb-sdk");
+      const query = `
+        DECLARE $session_id AS Utf8;
+        DELETE FROM cart_items WHERE session_id = $session_id;
+      `;
+      
+      const params = {
+        $session_id: TypedValues.fromNative(Types.UTF8, sessionId),
+      };
+      
+      await session.executeQuery(query, params);
+      console.log(`[Cart] Cleared cart in YDB for session ${sessionId}`);
+    });
   }
 
   async getOrders(): Promise<Order[]> { return []; }
