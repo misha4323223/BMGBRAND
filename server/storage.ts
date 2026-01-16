@@ -26,6 +26,9 @@ export class DatabaseStorage implements IStorage {
       return await driver.tableClient.withSession(fn);
     } catch (err: any) {
       console.error("[YDB Query Error]:", err.message || err);
+      if (err.issues) {
+        console.error("[YDB Issues]:", JSON.stringify(err.issues, null, 2));
+      }
       return null;
     }
   }

@@ -475,6 +475,8 @@ export async function registerRoutes(
           const offersArray = Array.isArray(offers) ? offers : [offers];
           console.log(`[Sync] Found ${offersArray.length} price offers`);
           
+          let pricesUpdated = 0;
+          let notFound = 0;
           for (const offer of offersArray) {
             const offerId = offer["Ид"];
             const externalId = offerId?.split("#")[0] || offerId;
@@ -490,15 +492,20 @@ export async function registerRoutes(
             if (externalId && price > 0) {
               const product = await storage.getProductByExternalId(externalId);
               if (product) {
-                console.log(`[Sync] Updating price for ${product.name}: ${price / 100} RUB (id: ${product.id})`);
+                console.log(`[Sync] Updating price: ${product.name} -> ${price / 100} RUB (id: ${product.id}, extId: ${externalId})`);
                 try {
                   await storage.updateProduct(product.id, { price });
+                  pricesUpdated++;
                 } catch (err: any) {
                   console.error(`[Sync] Failed to update price for ${product.name}:`, err.message);
                 }
+              } else {
+                notFound++;
+                if (notFound <= 5) console.log(`[Sync] Product not found for offer: ${externalId}`);
               }
             }
           }
+          console.log(`[Sync] Prices: ${pricesUpdated} updated, ${notFound} not found`);
         }
       }
       
