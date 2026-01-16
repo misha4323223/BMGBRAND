@@ -177,12 +177,11 @@ export class DatabaseStorage implements IStorage {
         DECLARE $sizes AS Utf8;
         DECLARE $colors AS Utf8;
         DECLARE $is_new AS Bool;
-        DECLARE $is_active AS Bool;
         DECLARE $in_stock AS Bool;
         DECLARE $created_at AS Uint64;
         
-        UPSERT INTO products (id, external_id, sku, name, description, price, images, category, sizes, colors, is_new, is_active, in_stock, created_at)
-        VALUES ($id, $external_id, $sku, $name, $description, $price, $images, $category, $sizes, $colors, $is_new, $is_active, $in_stock, $created_at);
+        UPSERT INTO products (id, external_id, sku, name, description, price, images, category, sizes, colors, is_new, in_stock, created_at)
+        VALUES ($id, $external_id, $sku, $name, $description, $price, $images, $category, $sizes, $colors, $is_new, $in_stock, $created_at);
       `;
       
       await session.executeQuery(query, {
@@ -197,7 +196,6 @@ export class DatabaseStorage implements IStorage {
         $sizes: TypedValues.fromNative(Types.UTF8, JSON.stringify(p.sizes || [])),
         $colors: TypedValues.fromNative(Types.UTF8, JSON.stringify(p.colors || [])),
         $is_new: TypedValues.fromNative(Types.BOOL, p.isNew || false),
-        $is_active: TypedValues.fromNative(Types.BOOL, true),
         $in_stock: TypedValues.fromNative(Types.BOOL, true),
         $created_at: TypedValues.fromNative(Types.UINT64, BigInt(Date.now() * 1000)),
       });
