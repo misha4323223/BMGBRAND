@@ -33,17 +33,54 @@ export class DatabaseStorage implements IStorage {
   async getProducts(): Promise<Product[]> {
     const result = await this.safeQuery(async (session) => {
       const { resultSets } = await session.executeQuery("SELECT * FROM products");
-      return resultSets[0].rows ? resultSets[0].rows.map(row => row as unknown as Product) : [];
+      if (!resultSets[0].rows) return [];
+      return resultSets[0].rows.map((row: any) => {
+        const images = row.images ? (typeof row.images === 'string' ? JSON.parse(row.images) : row.images) : [];
+        const sizes = row.sizes ? (typeof row.sizes === 'string' ? JSON.parse(row.sizes) : row.sizes) : [];
+        const colors = row.colors ? (typeof row.colors === 'string' ? JSON.parse(row.colors) : row.colors) : [];
+        return {
+          id: typeof row.id === 'string' ? parseInt(row.id) || 0 : row.id,
+          externalId: row.external_id || null,
+          sku: row.sku || null,
+          name: row.name || '',
+          description: row.description || '',
+          price: typeof row.price === 'number' ? row.price : parseInt(row.price) || 0,
+          imageUrl: Array.isArray(images) && images.length > 0 ? images[0] : (row.image_url || ''),
+          category: row.category || '',
+          sizes: Array.isArray(sizes) ? sizes : [],
+          colors: Array.isArray(colors) ? colors : [],
+          isNew: row.is_new === true || row.is_new === 'true',
+          createdAt: row.created_at || new Date(),
+        } as Product;
+      });
     });
     return result || [];
   }
 
   async getProduct(id: number): Promise<Product | undefined> {
     const result = await this.safeQuery(async (session) => {
-      const query = "DECLARE $id AS Int32; SELECT * FROM products WHERE id = $id";
+      const query = "DECLARE $id AS Utf8; SELECT * FROM products WHERE id = $id";
       const { TypedValues, Types } = await import("ydb-sdk");
-      const { resultSets } = await session.executeQuery(query, { $id: TypedValues.fromNative(Types.INT32, id) });
-      return resultSets[0].rows?.[0] as unknown as Product;
+      const { resultSets } = await session.executeQuery(query, { $id: TypedValues.fromNative(Types.UTF8, String(id)) });
+      const row: any = resultSets[0].rows?.[0];
+      if (!row) return undefined;
+      const images = row.images ? (typeof row.images === 'string' ? JSON.parse(row.images) : row.images) : [];
+      const sizes = row.sizes ? (typeof row.sizes === 'string' ? JSON.parse(row.sizes) : row.sizes) : [];
+      const colors = row.colors ? (typeof row.colors === 'string' ? JSON.parse(row.colors) : row.colors) : [];
+      return {
+        id: typeof row.id === 'string' ? parseInt(row.id) || 0 : row.id,
+        externalId: row.external_id || null,
+        sku: row.sku || null,
+        name: row.name || '',
+        description: row.description || '',
+        price: typeof row.price === 'number' ? row.price : parseInt(row.price) || 0,
+        imageUrl: Array.isArray(images) && images.length > 0 ? images[0] : (row.image_url || ''),
+        category: row.category || '',
+        sizes: Array.isArray(sizes) ? sizes : [],
+        colors: Array.isArray(colors) ? colors : [],
+        isNew: row.is_new === true || row.is_new === 'true',
+        createdAt: row.created_at || new Date(),
+      } as Product;
     });
     return result || undefined;
   }
