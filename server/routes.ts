@@ -13,7 +13,7 @@ import sharp from "sharp";
 // Cache for Object Storage URLs (local path -> Object Storage URL)
 const imageUrlCache: Map<string, string> = new Map();
 
-// Helper to get image URL (Object Storage or fallback) - prefers WebP format
+// Helper to get image URL (Object Storage or fallback) - uses original format
 function getImageUrl(imgPath: string | null): string {
   const fallback = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
   if (!imgPath) return fallback;
@@ -25,11 +25,9 @@ function getImageUrl(imgPath: string | null): string {
   // Construct Object Storage URL if bucket is configured
   const bucket = process.env.YANDEX_STORAGE_BUCKET_NAME;
   if (bucket) {
-    // Keep original path structure (import_files/XX/file.jpg) but use WebP extension
+    // Keep original path structure and extension (import_files/XX/file.jpg)
     const cleanPath = imgPath.replace(/\\/g, '/');
-    // Convert to WebP extension for optimized images
-    const webpPath = cleanPath.replace(/\.(jpg|jpeg|png)$/i, '.webp');
-    return `https://storage.yandexcloud.net/${bucket}/products/${webpPath}`;
+    return `https://storage.yandexcloud.net/${bucket}/products/${cleanPath}`;
   }
   
   // Fallback to local path (won't work in production)
