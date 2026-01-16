@@ -515,23 +515,37 @@ export async function registerRoutes(
   });
 
   // Convert existing images in Object Storage to WebP format
+  // Use ?limit=20 to process in batches (default 20, max 50)
   app.post("/api/convert-images-to-webp", async (req, res) => {
     try {
-      console.log("[WebP] Starting image conversion...");
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+      console.log(`[WebP] Starting image conversion (limit: ${limit})...`);
       
       // List all images in products folder
       const allKeys = await listObjectsFromYandexStorage("products/import_files/");
-      const imageKeys = allKeys.filter(key => /\.(jpg|jpeg|png)$/i.test(key));
+      const allWebpKeys = new Set(allKeys.filter(key => /\.webp$/i.test(key)));
       
-      console.log(`[WebP] Found ${imageKeys.length} images to convert`);
+      // Only process images that don't have a WebP version yet
+      const imageKeys = allKeys
+        .filter(key => /\.(jpg|jpeg|png)$/i.test(key))
+        .filter(key => {
+          const webpKey = key.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+          return !allWebpKeys.has(webpKey);
+        })
+        .slice(0, limit);
+      
+      const totalRemaining = allKeys.filter(key => /\.(jpg|jpeg|png)$/i.test(key)).filter(key => {
+        const webpKey = key.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+        return !allWebpKeys.has(webpKey);
+      }).length;
+      
+      console.log(`[WebP] Found ${totalRemaining} images needing conversion, processing ${imageKeys.length}`);
       
       let converted = 0;
-      let skipped = 0;
       let failed = 0;
       
       for (const key of imageKeys) {
         try {
-          // Check if WebP version already exists
           const webpKey = key.replace(/\.(jpg|jpeg|png)$/i, '.webp');
           
           // Download original image
@@ -547,15 +561,12 @@ export async function registerRoutes(
             .webp({ quality: 85 })
             .toBuffer();
           
-          // Upload WebP version (extract filename from key)
+          // Upload WebP version
           const webpFilename = webpKey.replace('products/', '');
           await uploadToYandexStorage(webpBuffer, webpFilename, 'image/webp');
           
           console.log(`[WebP] Converted: ${key} -> ${webpKey}`);
           converted++;
-          
-          // Optional: delete original after conversion (commented out for safety)
-          // await deleteFromYandexStorage(key);
           
         } catch (err: any) {
           console.error(`[WebP] Failed to convert ${key}:`, err.message);
@@ -563,11 +574,12 @@ export async function registerRoutes(
         }
       }
       
-      console.log(`[WebP] Complete: ${converted} converted, ${skipped} skipped, ${failed} failed`);
+      const remaining = totalRemaining - converted;
+      console.log(`[WebP] Batch complete: ${converted} converted, ${failed} failed, ${remaining} remaining`);
       res.json({
         success: true,
         message: `Converted ${converted} images to WebP`,
-        details: { converted, skipped, failed, total: imageKeys.length }
+        details: { converted, failed, remaining, hint: remaining > 0 ? "Run again to convert more" : "All done!" }
       });
       
     } catch (error) {
