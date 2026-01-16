@@ -1,0 +1,301 @@
+
+
+16 янв. 19:53:34.062
+{"errorMessage":"exit status 1","errorType":"UserCodeError"}
+
+16 янв. 19:53:34.061
+error running user code: exit status 1
+
+16 янв. 19:53:34.061
+unexpected error (running container) exit status 1
+
+16 янв. 19:53:34.057
+Node.js v20.20.0
+
+16 янв. 19:53:34.057
+at async descriptor.value (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:137:20)
+
+16 янв. 19:53:34.057
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+16 янв. 19:53:34.057
+at RetryStrategy.retry (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:90:49)
+
+16 янв. 19:53:34.057
+at TransportError.convertToYdbError (/app/node_modules/ydb-sdk/build/cjs/src/errors.js:334:20)
+
+16 янв. 19:53:34.057
+Error: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,51,57,56,97,102,102,49,52,45,48,55,49,50,45,52,55,56,56,45,56,98,50,98,45,48,56,49,102,101,99,52,48,97,49,52,51]}],"x-request-id":["398aff14-0712-4788-8b2b-081fec40a143"]}}
+
+16 янв. 19:53:34.056
+^
+
+16 янв. 19:53:34.056
+triggerUncaughtException(err, true /* fromPromise */);
+
+16 янв. 19:53:34.056
+node:internal/process/promises:391
+
+16 янв. 19:53:34.056
+4:53:34 PM [express] serving on port 8080
+
+16 янв. 19:53:34.013
+[YDB Query Error]: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,51,57,56,97,102,102,49,52,45,48,55,49,50,45,52,55,56,56,45,56,98,50,98,45,48,56,49,102,101,99,52,48,97,49,52,51]}],"x-request-id":["398aff14-0712-4788-8b2b-081fec40a143"]}}
+
+16 янв. 19:53:34.013
+[YDB Query Error]: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,51,57,56,97,102,102,49,52,45,48,55,49,50,45,52,55,56,56,45,56,98,50,98,45,48,56,49,102,101,99,52,48,97,49,52,51]}],"x-request-id":["398aff14-0712-4788-8b2b-081fec40a143"]}}
+
+16 янв. 19:53:34.013
+[1C] Background auto-sync check...
+
+16 янв. 19:53:34.012
+[YDB Query Error]: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,51,57,56,97,102,102,49,52,45,48,55,49,50,45,52,55,56,56,45,56,98,50,98,45,48,56,49,102,101,99,52,48,97,49,52,51]}],"x-request-id":["398aff14-0712-4788-8b2b-081fec40a143"]}}
+
+16 янв. 19:53:34.010
+at async descriptor.value (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:137:20)
+
+16 янв. 19:53:34.010
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+16 янв. 19:53:34.010
+at RetryStrategy.retry (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:90:49)
+
+16 янв. 19:53:34.010
+at TransportError.convertToYdbError (/app/node_modules/ydb-sdk/build/cjs/src/errors.js:334:20)
+
+16 янв. 19:53:34.010
+[YDB] Failed to initialize driver: Error: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,51,57,56,97,102,102,49,52,45,48,55,49,50,45,52,55,56,56,45,56,98,50,98,45,48,56,49,102,101,99,52,48,97,49,52,51]}],"x-request-id":["398aff14-0712-4788-8b2b-081fec40a143"]}}
+
+16 янв. 19:53:33.834
+[YDB] Driver created, waiting for ready...
+
+16 янв. 19:53:33.782
+[YDB] Created MetadataAuthService
+
+16 янв. 19:53:33.782
+[YDB] NODE_ENV: production
+
+16 янв. 19:53:33.782
+[YDB] Database: /ru-central1/b1g54bhp2g3klqsgpsbp/etnkqb19271sftrt0113
+
+16 янв. 19:53:33.782
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+16 янв. 19:52:54.732
+runtime pid 96: exited with 1
+
+16 янв. 19:52:54.730
+REPORT RequestID: e4c9e85e-25d4-4c93-aebd-f521808c0565 Duration: 708.661 ms Billed Duration: 800 ms Memory Size: 512 MB Max Memory Used: 164 MB Queuing Duration: 94.842 ms Function Init Duration: 626.780 ms CPU Usage: 12.109 %
+
+16 янв. 19:52:54.730
+ERROR RequestID: e4c9e85e-25d4-4c93-aebd-f521808c0565 Code: 502 Message: Error during function invocation
+
+16 янв. 19:52:54.730
+END RequestID: e4c9e85e-25d4-4c93-aebd-f521808c0565
+
+16 янв. 19:52:54.730
+error running user code: exit status 1
+
+16 янв. 19:52:54.730
+unexpected error (running container) exit status 1
+
+16 янв. 19:52:54.730
+{"errorMessage":"container's server prematurely closed connection","errorType":"errorString"}
+
+16 янв. 19:52:54.725
+Node.js v20.20.0
+
+16 янв. 19:52:54.725
+at async descriptor.value (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:137:20)
+
+16 янв. 19:52:54.725
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+16 янв. 19:52:54.725
+at RetryStrategy.retry (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:90:49)
+
+16 янв. 19:52:54.725
+at TransportError.convertToYdbError (/app/node_modules/ydb-sdk/build/cjs/src/errors.js:334:20)
+
+16 янв. 19:52:54.725
+Error: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,98,55,52,102,97,101,98,99,45,97,49,97,101,45,52,100,53,97,45,57,102,51,98,45,49,102,99,54,50,101,56,56,100,102,102,97]}],"x-request-id":["b74faebc-a1ae-4d5a-9f3b-1fc62e88dffa"]}}
+
+16 янв. 19:52:54.725
+^
+
+16 янв. 19:52:54.725
+triggerUncaughtException(err, true /* fromPromise */);
+
+16 янв. 19:52:54.725
+node:internal/process/promises:391
+
+16 янв. 19:52:54.725
+4:52:54 PM [express] serving on port 8080
+
+16 янв. 19:52:54.690
+[YDB Query Error]: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,98,55,52,102,97,101,98,99,45,97,49,97,101,45,52,100,53,97,45,57,102,51,98,45,49,102,99,54,50,101,56,56,100,102,102,97]}],"x-request-id":["b74faebc-a1ae-4d5a-9f3b-1fc62e88dffa"]}}
+
+16 янв. 19:52:54.690
+[YDB Query Error]: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,98,55,52,102,97,101,98,99,45,97,49,97,101,45,52,100,53,97,45,57,102,51,98,45,49,102,99,54,50,101,56,56,100,102,102,97]}],"x-request-id":["b74faebc-a1ae-4d5a-9f3b-1fc62e88dffa"]}}
+
+16 янв. 19:52:54.689
+[1C] Background auto-sync check...
+
+16 янв. 19:52:54.689
+[YDB Query Error]: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,98,55,52,102,97,101,98,99,45,97,49,97,101,45,52,100,53,97,45,57,102,51,98,45,49,102,99,54,50,101,56,56,100,102,102,97]}],"x-request-id":["b74faebc-a1ae-4d5a-9f3b-1fc62e88dffa"]}}
+
+16 янв. 19:52:54.687
+at async descriptor.value (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:137:20)
+
+16 янв. 19:52:54.687
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+16 янв. 19:52:54.687
+at RetryStrategy.retry (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:90:49)
+
+16 янв. 19:52:54.687
+at TransportError.convertToYdbError (/app/node_modules/ydb-sdk/build/cjs/src/errors.js:334:20)
+
+16 янв. 19:52:54.687
+[YDB] Failed to initialize driver: Error: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,98,55,52,102,97,101,98,99,45,97,49,97,101,45,52,100,53,97,45,57,102,51,98,45,49,102,99,54,50,101,56,56,100,102,102,97]}],"x-request-id":["b74faebc-a1ae-4d5a-9f3b-1fc62e88dffa"]}}
+
+16 янв. 19:52:54.533
+[YDB] Driver created, waiting for ready...
+
+16 янв. 19:52:54.482
+[YDB] Created MetadataAuthService
+
+16 янв. 19:52:54.482
+[YDB] NODE_ENV: production
+
+16 янв. 19:52:54.482
+[YDB] Database: /ru-central1/b1g54bhp2g3klqsgpsbp/etnkqb19271sftrt0113
+
+16 янв. 19:52:54.481
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+16 янв. 19:52:53.918
+START RequestID: e4c9e85e-25d4-4c93-aebd-f521808c0565
+
+16 янв. 19:52:53.763
+runtime pid 96: exited with 1
+
+16 янв. 19:52:53.762
+REPORT RequestID: a1f00d11-9e45-4142-b3dd-a47f5e3d6bcd Duration: 770.066 ms Billed Duration: 800 ms Memory Size: 512 MB Max Memory Used: 164 MB Queuing Duration: 0.048 ms Function Init Duration: 698.851 ms CPU Usage: 11.914 %
+
+16 янв. 19:52:53.762
+ERROR RequestID: a1f00d11-9e45-4142-b3dd-a47f5e3d6bcd Code: 502 Message: Error during function invocation
+
+16 янв. 19:52:53.762
+END RequestID: a1f00d11-9e45-4142-b3dd-a47f5e3d6bcd
+
+16 янв. 19:52:53.761
+error running user code: exit status 1
+
+16 янв. 19:52:53.761
+{"errorMessage":"container's server prematurely closed connection","errorType":"errorString"}
+
+16 янв. 19:52:53.761
+unexpected error (running container) exit status 1
+
+16 янв. 19:52:53.757
+Node.js v20.20.0
+
+16 янв. 19:52:53.756
+at async descriptor.value (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:137:20)
+
+16 янв. 19:52:53.756
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+16 янв. 19:52:53.756
+at RetryStrategy.retry (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:90:49)
+
+16 янв. 19:52:53.756
+at TransportError.convertToYdbError (/app/node_modules/ydb-sdk/build/cjs/src/errors.js:334:20)
+
+16 янв. 19:52:53.756
+Error: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,100,100,50,50,99,50,99,100,45,102,48,99,99,45,52,51,50,57,45,57,100,98,53,45,55,54,54,48,101,57,101,99,52,52,52,55]}],"x-request-id":["dd22c2cd-f0cc-4329-9db5-7660e9ec4447"]}}
+
+16 янв. 19:52:53.756
+^
+
+16 янв. 19:52:53.756
+triggerUncaughtException(err, true /* fromPromise */);
+
+16 янв. 19:52:53.756
+node:internal/process/promises:391
+
+16 янв. 19:52:53.756
+4:52:53 PM [express] serving on port 8080
+
+16 янв. 19:52:53.721
+[YDB Query Error]: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,100,100,50,50,99,50,99,100,45,102,48,99,99,45,52,51,50,57,45,57,100,98,53,45,55,54,54,48,101,57,101,99,52,52,52,55]}],"x-request-id":["dd22c2cd-f0cc-4329-9db5-7660e9ec4447"]}}
+
+16 янв. 19:52:53.721
+[YDB Query Error]: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,100,100,50,50,99,50,99,100,45,102,48,99,99,45,52,51,50,57,45,57,100,98,53,45,55,54,54,48,101,57,101,99,52,52,52,55]}],"x-request-id":["dd22c2cd-f0cc-4329-9db5-7660e9ec4447"]}}
+
+16 янв. 19:52:53.721
+[1C] Background auto-sync check...
+
+16 янв. 19:52:53.721
+[YDB Query Error]: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,100,100,50,50,99,50,99,100,45,102,48,99,99,45,52,51,50,57,45,57,100,98,53,45,55,54,54,48,101,57,101,99,52,52,52,55]}],"x-request-id":["dd22c2cd-f0cc-4329-9db5-7660e9ec4447"]}}
+
+16 янв. 19:52:53.719
+at async descriptor.value (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:137:20)
+
+16 янв. 19:52:53.719
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+16 янв. 19:52:53.719
+at RetryStrategy.retry (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:90:49)
+
+16 янв. 19:52:53.719
+at TransportError.convertToYdbError (/app/node_modules/ydb-sdk/build/cjs/src/errors.js:334:20)
+
+16 янв. 19:52:53.719
+[YDB] Failed to initialize driver: Error: Unexpected transport error code 5! Error itself: {"code":5,"details":"Database not found","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,5,18,18,68,97,116,97,98,97,115,101,32,110,111,116,32,102,111,117,110,100,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,100,100,50,50,99,50,99,100,45,102,48,99,99,45,52,51,50,57,45,57,100,98,53,45,55,54,54,48,101,57,101,99,52,52,52,55]}],"x-request-id":["dd22c2cd-f0cc-4329-9db5-7660e9ec4447"]}}
+
+16 янв. 19:52:53.508
+[YDB] Driver created, waiting for ready...
+
+16 янв. 19:52:53.456
+[YDB] Created MetadataAuthService
+
+16 янв. 19:52:53.456
+[YDB] NODE_ENV: production
+
+16 янв. 19:52:53.456
+[YDB] Database: /ru-central1/b1g54bhp2g3klqsgpsbp/etnkqb19271sftrt0113
+
+16 янв. 19:52:53.455
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+16 янв. 19:52:52.988
+START RequestID: a1f00d11-9e45-4142-b3dd-a47f5e3d6bcd
+
+16 янв. 19:52:49.221
+REPORT RequestID: 533f4955-c78b-49fd-be2c-36fdd9489b5a Duration: 760.816 ms Billed Duration: 800 ms Memory Size: 512 MB Max Memory Used: 163 MB Queuing Duration: 0.019 ms CPU Usage: 99.805 %
+
+16 янв. 19:52:49.221
+ERROR RequestID: 533f4955-c78b-49fd-be2c-36fdd9489b5a Code: 502 Message: Error during function invocation
+
+16 янв. 19:52:49.221
+END RequestID: 533f4955-c78b-49fd-be2c-36fdd9489b5a
+
+16 янв. 19:52:49.220
+{"errorMessage":"exit status 1","errorType":"UserCodeError"}
+
+16 янв. 19:52:49.220
+error running user code: exit status 1
+
+16 янв. 19:52:49.220
+unexpected error (running container) exit status 1
+
+16 янв. 19:52:49.216
+Node.js v20.20.0
+
+16 янв. 19:52:49.216
+at async descriptor.value (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:137:20)
+
+16 янв. 19:52:49.216
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
