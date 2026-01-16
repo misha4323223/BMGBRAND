@@ -37,7 +37,7 @@ jobs:
         with:
           yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
           container-name: ${{ env.CONTAINER_NAME }}
-          folder-id: b1ginq9tlm42kl6f220g
+          folder-id: b1g54bhp2g3klqsgpsbp
           revision-service-account-id: ${{ env.SERVICE_ACCOUNT_ID }}
           revision-cores: 1
           revision-memory: 512Mb
@@ -47,5 +47,5 @@ jobs:
           revision-execution-timeout: 30s
           revision-env: |
             YDB_ENDPOINT=grpcs://ydb.serverless.yandexcloud.net:2135
-            YDB_DATABASE=/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
+            YDB_DATABASE=/ru-central1/b1g54bhp2g3klqsgpsbp/etnkqb19271sftrt0113
             NODE_ENV=production
