@@ -492,7 +492,12 @@ export async function registerRoutes(
             if (externalId && price > 0) {
               const product = await storage.getProductByExternalId(externalId);
               if (product) {
-                await storage.updateProduct(product.id, { price });
+                console.log(`[Sync] Updating price for ${product.name}: ${price / 100} RUB (id: ${product.id})`);
+                try {
+                  await storage.updateProduct(product.id, { price });
+                } catch (err: any) {
+                  console.error(`[Sync] Failed to update price for ${product.name}:`, err.message);
+                }
               }
             }
           }

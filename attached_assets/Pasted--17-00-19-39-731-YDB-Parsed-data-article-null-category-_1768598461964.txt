@@ -1,0 +1,118 @@
+
+
+17 янв. 00:19:39.731
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"811a3fb6-6ebf-11ea-9e24-00155d46630a","id":"1768597829898","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/81/811a3fb66ebf11ea9e2400155d46630a_670474c0acbc11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Уточки №080 ) Голубой О/S","old_price":null,"price":null,"sizes":"[]","sku":"N080","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"600b0eae-4dc1-11ea-9e23-00155d466404","id":"1768597829722","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/60/600b0eae4dc111ea9e2300155d466404_392244a6acc111ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (АК-47№081) Белый (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"N081","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"600b0ead-4dc1-11ea-9e23-00155d466404","id":"1768597829549","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/60/600b0ead4dc111ea9e2300155d466404_79188e70acbd11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (\"Танк\" №095) Т.Зеленый O/S","old_price":null,"price":null,"sizes":"[]","sku":"N095","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"c8e1cf79-4768-11ea-9e26-00155d466406","id":"1768597829375","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/c8/c8e1cf79476811ea9e2600155d466406_5ec9e3c0acc211ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (ЪУЪ №017) Белый (40/45)","old_price":null,"price":null,"sizes":"[]","sku":"N017","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"e96d5734-5f9f-11ea-9e2a-00155d467501","id":"1768597829191","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/e9/e96d57345f9f11ea9e2a00155d467501_fcc44062b94611ef811d00155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Доктор N109) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N109","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"8070cf1d-3d73-11ec-9d5d-00155d463406","id":"1768597829012","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/80/8070cf1d3d7311ec9d5d00155d463406_f3ef0fe2acc311ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (На Чиле N177 ) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N177","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"b5105338-43a1-11ec-9d5c-00155d46610f","id":"1768597828847","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/b5/b510533843a111ec9d5c00155d46610f_3084c464acca11ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"&Носки BOOOMERANGS (Полосы №091 ) Разноцветные 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№091","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"b5105337-43a1-11ec-9d5c-00155d46610f","id":"1768597828648","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/b5/b510533743a111ec9d5c00155d46610f_139f0e0aacc411ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"%Носки BOOOMERANGS (Птица №089 ) Черный 40-45","old_price":null,"price":null,"sizes":"[]","sku":"№089","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"c27f1842-d897-11ea-9e42-00155d466409","id":"1768597828459","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/c2/c27f1842d89711ea9e4200155d466409_6240bd20acc311ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Осень №0138) Белый 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N138","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"c88180dc-70b7-11ed-8e2b-aa5507aeb675","id":"1768597828286","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/c8/c88180dc70b711ed8e2baa5507aeb675_0c022a6cb94711ef811d00155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (WD-40) N140 Синий (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"N140","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"29ec5a1c-35cc-11ed-8bf1-aa5507aeb675","id":"1768597828113","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/29/29ec5a1c35cc11ed8bf1aa5507aeb675_c1a648e6acc511ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Клей №0191) Черный 40-45","old_price":null,"price":null,"sizes":"[]","sku":"N191","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] Parsed data: {"article":null,"category":"1C Import","colors":"[]","created_at":null,"description":"Хлопок 75%, Полиамид 17%, Эластан 8%","external_id":"4df9bf6e-4054-11ef-8324-00155d46f6c0","id":"1768597827582","images":"[\"https://storage.yandexcloud.net/bmg/products/import_files/4d/4df9bf6e405411ef832400155d46f6c0_d6b8a2b6acc411ef90f200155d46f61a.jpg\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Носки BOOOMERANGS (Туалетная Бумага N024) Белый (40-45)","old_price":null,"price":null,"sizes":"[]","sku":"R024","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] Parsed data: {"article":"ART-001","category":"hoodies","colors":"[\"black\", \"white\"]","created_at":null,"description":"Стильное худи из плотного хлопка","external_id":"test-001","id":"1","images":"[\"https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Худи BOOOMERANGS Classic","old_price":null,"price":null,"sizes":"[\"S\", \"M\", \"L\", \"XL\"]","sku":"BMG-HOODIE-001","subcategory":null,"updated_at":null}
+
+17 янв. 00:19:39.730
+[YDB] First row items count: 18
+
+17 янв. 00:19:39.730
+[YDB] Columns: article, category, colors, created_at, description, external_id, id, images, in_stock, is_new, is_sale, name, old_price, price, sizes, sku, subcategory, updated_at
+
+17 янв. 00:19:39.717
+REPORT RequestID: ce6b849f-7e98-418a-b965-686e99d53ff6 Duration: 26.431 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 189 MB Queuing Duration: 0.079 ms
+
+17 янв. 00:19:39.717
+END RequestID: ce6b849f-7e98-418a-b965-686e99d53ff6
+
+17 янв. 00:19:39.653
+START RequestID: ce6b849f-7e98-418a-b965-686e99d53ff6
+
+17 янв. 00:19:39.648
+START RequestID: 4cfd236c-13ce-418a-a98a-47d8b49522ce
+
+17 янв. 00:18:40.818
+REPORT RequestID: a1b8f4ba-8316-4137-be7c-565fb8f6fed5 Duration: 2.194 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 185 MB Queuing Duration: 0.073 ms CPU Usage: 0.391 %
+
+17 янв. 00:18:40.818
+END RequestID: a1b8f4ba-8316-4137-be7c-565fb8f6fed5
+
+17 янв. 00:18:40.818
+9:18:40 PM [express] GET /api/cart/b0tHr4FoW9d1zG1tLvnoK 304 in 1ms :: []
+
+17 янв. 00:18:40.812
+START RequestID: a1b8f4ba-8316-4137-be7c-565fb8f6fed5
+
+17 янв. 00:18:40.754
+REPORT RequestID: 5959f51f-e955-497f-bcd3-a9ffed30ade6 Duration: 4.624 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 185 MB Queuing Duration: 0.082 ms CPU Usage: 0.391 %
+
+17 янв. 00:18:40.754
+9:18:40 PM [express] POST /api/cart 200 in 1ms :: {"sessionId":"b0tHr4FoW9d1zG1tLvnoK","productId":1768597834635,"quantity":2,"size":"One Size","color":"Default","id":100}
+
+17 янв. 00:18:40.754
+END RequestID: 5959f51f-e955-497f-bcd3-a9ffed30ade6
+
+17 янв. 00:18:40.746
+START RequestID: 5959f51f-e955-497f-bcd3-a9ffed30ade6
+
+17 янв. 00:18:32.781
+REPORT RequestID: e22ac1b7-499a-4a59-a582-9b28c38a6bcb Duration: 4.330 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 193 MB Queuing Duration: 0.085 ms
+
+17 янв. 00:18:32.781
+END RequestID: e22ac1b7-499a-4a59-a582-9b28c38a6bcb
+
+17 янв. 00:18:32.772
+START RequestID: e22ac1b7-499a-4a59-a582-9b28c38a6bcb
+
+17 янв. 00:18:26.957
+REPORT RequestID: 3fc4fcfb-c9cf-4fec-b8d3-00475b58f4c3 Duration: 2.093 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 192 MB Queuing Duration: 0.079 ms
+
+17 янв. 00:18:26.957
+END RequestID: 3fc4fcfb-c9cf-4fec-b8d3-00475b58f4c3
+
+17 янв. 00:18:26.957
+9:18:26 PM [express] GET /api/cart/b0tHr4FoW9d1zG1tLvnoK 304 in 1ms :: []
+
+17 янв. 00:18:26.951
+START RequestID: 3fc4fcfb-c9cf-4fec-b8d3-00475b58f4c3
+
+17 янв. 00:18:26.841
+REPORT RequestID: 56628b40-19c1-4c60-9984-8b969eef830c Duration: 7.961 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 192 MB Queuing Duration: 0.103 ms
+
+17 янв. 00:18:26.841
+END RequestID: 56628b40-19c1-4c60-9984-8b969eef830c
+
+17 янв. 00:18:26.841
+9:18:26 PM [express] POST /api/cart 200 in 2ms :: {"sessionId":"b0tHr4FoW9d1zG1tLvnoK","productId":1768597834635,"quantity":2,"size":"One Size","color":"Default","id":952}
+
+17 янв. 00:18:26.827
+START RequestID: 56628b40-19c1-4c60-9984-8b969eef830c
+
+17 янв. 00:18:24.008
+REPORT RequestID: 7e690961-d995-4c28-91a5-ddc2667f07f5 Duration: 2.196 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 178 MB Queuing Duration: 0.109 ms CPU Usage: 82.910 %

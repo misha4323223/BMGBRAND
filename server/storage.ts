@@ -301,10 +301,72 @@ export class DatabaseStorage implements IStorage {
     
     return { ...p, id } as Product;
   }
-  async getCartItems(sessionId: string): Promise<(CartItem & { product: Product })[]> { return []; }
-  async addToCart(item: InsertCartItem): Promise<CartItem> { return { ...item, id: Math.floor(Math.random() * 1000) } as any; }
-  async removeFromCart(id: number): Promise<void> {}
-  async clearCart(sessionId: string): Promise<void> {}
+  // In-memory cart storage (until YDB cart table is created)
+  private cartItems: Map<string, CartItem[]> = new Map();
+  private cartIdCounter = 1;
+
+  async getCartItems(sessionId: string): Promise<(CartItem & { product: Product })[]> {
+    const items = this.cartItems.get(sessionId) || [];
+    const result: (CartItem & { product: Product })[] = [];
+    
+    for (const item of items) {
+      const product = await this.getProduct(item.productId);
+      if (product) {
+        result.push({ ...item, product });
+      }
+    }
+    
+    return result;
+  }
+
+  async addToCart(item: InsertCartItem): Promise<CartItem> {
+    const sessionItems = this.cartItems.get(item.sessionId) || [];
+    
+    // Check if product already in cart with same size/color
+    const existingIndex = sessionItems.findIndex(
+      i => i.productId === item.productId && i.size === item.size && i.color === item.color
+    );
+    
+    if (existingIndex >= 0) {
+      // Update quantity
+      sessionItems[existingIndex].quantity += item.quantity;
+      this.cartItems.set(item.sessionId, sessionItems);
+      return sessionItems[existingIndex];
+    }
+    
+    // Add new item
+    const newItem: CartItem = {
+      id: this.cartIdCounter++,
+      sessionId: item.sessionId,
+      productId: item.productId,
+      quantity: item.quantity,
+      size: item.size || null,
+      color: item.color || null,
+    };
+    
+    sessionItems.push(newItem);
+    this.cartItems.set(item.sessionId, sessionItems);
+    console.log(`[Cart] Added item to cart for session ${item.sessionId}: productId=${item.productId}`);
+    return newItem;
+  }
+
+  async removeFromCart(id: number): Promise<void> {
+    for (const [sessionId, items] of this.cartItems.entries()) {
+      const index = items.findIndex(item => item.id === id);
+      if (index >= 0) {
+        items.splice(index, 1);
+        this.cartItems.set(sessionId, items);
+        console.log(`[Cart] Removed item ${id} from cart`);
+        return;
+      }
+    }
+  }
+
+  async clearCart(sessionId: string): Promise<void> {
+    this.cartItems.delete(sessionId);
+    console.log(`[Cart] Cleared cart for session ${sessionId}`);
+  }
+
   async getOrders(): Promise<Order[]> { return []; }
   async getOrdersByStatus(status: string): Promise<Order[]> { return []; }
   async updateOrderStatus(id: number, status: string): Promise<Order> { return { id, status } as any; }
