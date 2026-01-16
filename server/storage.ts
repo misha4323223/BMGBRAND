@@ -111,7 +111,7 @@ export class DatabaseStorage implements IStorage {
       console.log("[YDB] Columns:", rs.columns.map((c: any) => c.name).join(', '));
       console.log("[YDB] First row items count:", rs.rows[0]?.items?.length);
       return rs.rows.map((row: any) => {
-        const data = this.parseRowWithColumns(row, rs.columns);
+        const data = this.parseRowWithColumns(row, rs.columns || []);
         console.log("[YDB] Parsed data:", JSON.stringify(data));
         return this.parseProduct(data);
       });
