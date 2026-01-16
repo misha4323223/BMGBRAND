@@ -89,6 +89,11 @@ export class DatabaseStorage implements IStorage {
     }
     
     const priceVal = data.price;
+    const parsedPrice = typeof priceVal === 'number' ? priceVal : parseFloat(priceVal) || 0;
+    
+    if (data.name) {
+      console.log(`[Product] ${data.name}: raw price=${priceVal}, parsed=${parsedPrice}`);
+    }
     
     return {
       id: typeof data.id === 'string' ? parseInt(data.id) || 0 : (data.id || 0),
@@ -96,7 +101,7 @@ export class DatabaseStorage implements IStorage {
       sku: data.sku || null,
       name: data.name || '',
       description: data.description || '',
-      price: typeof priceVal === 'number' ? priceVal : parseInt(priceVal) || 0,
+      price: parsedPrice,
       imageUrl: images.length > 0 ? images[0] : (data.image_url || ''),
       category: data.category || '',
       sizes,
