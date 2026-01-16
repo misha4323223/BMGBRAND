@@ -35,12 +35,14 @@ export class DatabaseStorage implements IStorage {
 
   private extractTypedValue(item: any, colName?: string): any {
     if (!item) return null;
+    
+    // Debug: log what keys the item has for price column
+    if (colName === 'price') {
+      console.log(`[PRICE DEBUG] Keys:`, Object.keys(item), `Full:`, JSON.stringify(item));
+    }
+    
     // Handle YDB Optional wrapper for nullable columns
     if ('optionalValue' in item) {
-      // Debug log for price column
-      if (colName === 'price') {
-        console.log(`[YDB] Price optionalValue structure:`, JSON.stringify(item));
-      }
       return this.extractTypedValue(item.optionalValue, colName);
     }
     if ('textValue' in item) return item.textValue;
@@ -54,6 +56,11 @@ export class DatabaseStorage implements IStorage {
     if ('bytesValue' in item) return item.bytesValue;
     if ('nullFlagValue' in item) return null;
     if ('value' in item) return item.value;
+    
+    // Fallback: log unknown structure
+    if (colName === 'price') {
+      console.log(`[PRICE DEBUG] No match, returning null for:`, JSON.stringify(item));
+    }
     return null;
   }
 
