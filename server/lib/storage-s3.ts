@@ -16,11 +16,14 @@ export async function uploadToYandexStorage(fileBuffer: Buffer, fileName: string
     return null;
   }
 
+  // Keep original path structure (convert backslashes to forward slashes)
+  const cleanPath = fileName.replace(/\\/g, '/');
+
   const upload = new Upload({
     client: s3Client,
     params: {
       Bucket: process.env.YANDEX_STORAGE_BUCKET_NAME,
-      Key: `products/${fileName}`,
+      Key: `products/${cleanPath}`,
       Body: fileBuffer,
       ContentType: contentType,
       ACL: "public-read",
@@ -28,5 +31,5 @@ export async function uploadToYandexStorage(fileBuffer: Buffer, fileName: string
   });
 
   await upload.done();
-  return `https://storage.yandexcloud.net/${process.env.YANDEX_STORAGE_BUCKET_NAME}/products/${fileName}`;
+  return `https://storage.yandexcloud.net/${process.env.YANDEX_STORAGE_BUCKET_NAME}/products/${cleanPath}`;
 }

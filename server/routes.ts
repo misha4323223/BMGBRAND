@@ -24,7 +24,9 @@ function getImageUrl(imgPath: string | null): string {
   // Construct Object Storage URL if bucket is configured
   const bucket = process.env.YANDEX_STORAGE_BUCKET_NAME;
   if (bucket) {
-    return `https://storage.yandexcloud.net/${bucket}/products/${imgPath.replace(/[\/\\]/g, '_')}`;
+    // Keep original path structure (import_files/XX/file.jpg)
+    const cleanPath = imgPath.replace(/\\/g, '/');
+    return `https://storage.yandexcloud.net/${bucket}/products/${cleanPath}`;
   }
   
   // Fallback to local path (won't work in production)
