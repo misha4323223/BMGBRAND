@@ -30,29 +30,70 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  private extractValue(val: any): any {
+    if (val === null || val === undefined) return null;
+    if (typeof val === 'object' && 'value' in val) return val.value;
+    return val;
+  }
+
+  private parseRow(row: any): Product {
+    const getValue = (key: string) => this.extractValue(row[key]);
+    
+    let imagesRaw = getValue('images');
+    let images: string[] = [];
+    if (imagesRaw) {
+      if (typeof imagesRaw === 'string') {
+        try { images = JSON.parse(imagesRaw); } catch { images = []; }
+      } else if (Array.isArray(imagesRaw)) {
+        images = imagesRaw;
+      }
+    }
+    
+    let sizesRaw = getValue('sizes');
+    let sizes: string[] = [];
+    if (sizesRaw) {
+      if (typeof sizesRaw === 'string') {
+        try { sizes = JSON.parse(sizesRaw); } catch { sizes = []; }
+      } else if (Array.isArray(sizesRaw)) {
+        sizes = sizesRaw;
+      }
+    }
+    
+    let colorsRaw = getValue('colors');
+    let colors: string[] = [];
+    if (colorsRaw) {
+      if (typeof colorsRaw === 'string') {
+        try { colors = JSON.parse(colorsRaw); } catch { colors = []; }
+      } else if (Array.isArray(colorsRaw)) {
+        colors = colorsRaw;
+      }
+    }
+    
+    const idVal = getValue('id');
+    const priceVal = getValue('price');
+    
+    return {
+      id: typeof idVal === 'string' ? parseInt(idVal) || 0 : (idVal || 0),
+      externalId: getValue('external_id') || null,
+      sku: getValue('sku') || null,
+      name: getValue('name') || '',
+      description: getValue('description') || '',
+      price: typeof priceVal === 'number' ? priceVal : parseInt(priceVal) || 0,
+      imageUrl: images.length > 0 ? images[0] : (getValue('image_url') || ''),
+      category: getValue('category') || '',
+      sizes,
+      colors,
+      isNew: getValue('is_new') === true || getValue('is_new') === 'true',
+      createdAt: getValue('created_at') || new Date(),
+    } as Product;
+  }
+
   async getProducts(): Promise<Product[]> {
     const result = await this.safeQuery(async (session) => {
       const { resultSets } = await session.executeQuery("SELECT * FROM products");
       if (!resultSets[0].rows) return [];
-      return resultSets[0].rows.map((row: any) => {
-        const images = row.images ? (typeof row.images === 'string' ? JSON.parse(row.images) : row.images) : [];
-        const sizes = row.sizes ? (typeof row.sizes === 'string' ? JSON.parse(row.sizes) : row.sizes) : [];
-        const colors = row.colors ? (typeof row.colors === 'string' ? JSON.parse(row.colors) : row.colors) : [];
-        return {
-          id: typeof row.id === 'string' ? parseInt(row.id) || 0 : row.id,
-          externalId: row.external_id || null,
-          sku: row.sku || null,
-          name: row.name || '',
-          description: row.description || '',
-          price: typeof row.price === 'number' ? row.price : parseInt(row.price) || 0,
-          imageUrl: Array.isArray(images) && images.length > 0 ? images[0] : (row.image_url || ''),
-          category: row.category || '',
-          sizes: Array.isArray(sizes) ? sizes : [],
-          colors: Array.isArray(colors) ? colors : [],
-          isNew: row.is_new === true || row.is_new === 'true',
-          createdAt: row.created_at || new Date(),
-        } as Product;
-      });
+      console.log("[YDB] Raw row sample:", JSON.stringify(resultSets[0].rows[0]));
+      return resultSets[0].rows.map((row: any) => this.parseRow(row));
     });
     return result || [];
   }
@@ -64,23 +105,7 @@ export class DatabaseStorage implements IStorage {
       const { resultSets } = await session.executeQuery(query, { $id: TypedValues.fromNative(Types.UTF8, String(id)) });
       const row: any = resultSets[0].rows?.[0];
       if (!row) return undefined;
-      const images = row.images ? (typeof row.images === 'string' ? JSON.parse(row.images) : row.images) : [];
-      const sizes = row.sizes ? (typeof row.sizes === 'string' ? JSON.parse(row.sizes) : row.sizes) : [];
-      const colors = row.colors ? (typeof row.colors === 'string' ? JSON.parse(row.colors) : row.colors) : [];
-      return {
-        id: typeof row.id === 'string' ? parseInt(row.id) || 0 : row.id,
-        externalId: row.external_id || null,
-        sku: row.sku || null,
-        name: row.name || '',
-        description: row.description || '',
-        price: typeof row.price === 'number' ? row.price : parseInt(row.price) || 0,
-        imageUrl: Array.isArray(images) && images.length > 0 ? images[0] : (row.image_url || ''),
-        category: row.category || '',
-        sizes: Array.isArray(sizes) ? sizes : [],
-        colors: Array.isArray(colors) ? colors : [],
-        isNew: row.is_new === true || row.is_new === 'true',
-        createdAt: row.created_at || new Date(),
-      } as Product;
+      return this.parseRow(row);
     });
     return result || undefined;
   }
@@ -90,7 +115,9 @@ export class DatabaseStorage implements IStorage {
       const query = "DECLARE $externalId AS Utf8; SELECT * FROM products WHERE external_id = $externalId";
       const { TypedValues, Types } = await import("ydb-sdk");
       const { resultSets } = await session.executeQuery(query, { $externalId: TypedValues.fromNative(Types.UTF8, externalId) });
-      return resultSets[0].rows?.[0] as unknown as Product;
+      const row = resultSets[0].rows?.[0];
+      if (!row) return undefined;
+      return this.parseRow(row);
     });
     return result || undefined;
   }
@@ -100,7 +127,9 @@ export class DatabaseStorage implements IStorage {
       const query = "DECLARE $sku AS Utf8; SELECT * FROM products WHERE sku = $sku";
       const { TypedValues, Types } = await import("ydb-sdk");
       const { resultSets } = await session.executeQuery(query, { $sku: TypedValues.fromNative(Types.UTF8, sku) });
-      return resultSets[0].rows?.[0] as unknown as Product;
+      const row = resultSets[0].rows?.[0];
+      if (!row) return undefined;
+      return this.parseRow(row);
     });
     return result || undefined;
   }
