@@ -13,18 +13,34 @@ export async function initYdb() {
   
   if (isCloud) {
     console.log(`[YDB] Initializing Driver for: ${endpoint}`);
+    console.log(`[YDB] Database: ${database}`);
+    console.log(`[YDB] NODE_ENV: ${process.env.NODE_ENV}`);
     
-    // Для Serverless Containers используем MetadataAuthService
-    // который получает токен из metadata service контейнера
-    const authService = new ydb.MetadataAuthService();
-    
-    driver = new ydb.Driver({
-      endpoint,
-      database,
-      authService,
-    });
-    
-    console.log("[YDB] Using MetadataAuthService for authentication");
+    try {
+      // Для Serverless Containers используем MetadataAuthService
+      const authService = new ydb.MetadataAuthService();
+      console.log("[YDB] Created MetadataAuthService");
+      
+      driver = new ydb.Driver({
+        endpoint,
+        database,
+        authService,
+      });
+      
+      console.log("[YDB] Driver created, waiting for ready...");
+      
+      // Ждём готовности драйвера (таймаут 10 секунд)
+      const timeout = 10000;
+      const ready = await driver.ready(timeout);
+      
+      if (ready) {
+        console.log("[YDB] Driver is ready!");
+      } else {
+        console.error(`[YDB] Driver not ready after ${timeout}ms`);
+      }
+    } catch (error) {
+      console.error("[YDB] Failed to initialize driver:", error);
+    }
   } else {
     console.log("[YDB] Running in Local Dev mode. Database connections disabled to prevent crashes.");
   }

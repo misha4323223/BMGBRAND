@@ -1,0 +1,64 @@
+
+
+16 янв. 10:32:10.697
+{"errorMessage":"exit status 1","errorType":"UserCodeError"}
+
+16 янв. 10:32:10.697
+REPORT RequestID: d3dfd8f4-f770-463f-8572-5bdc8918b306 Duration: 1070.994 ms Billed Duration: 1100 ms Memory Size: 512 MB Max Memory Used: 153 MB Queuing Duration: 0.082 ms CPU Usage: 99.707 %
+
+16 янв. 10:32:10.697
+ERROR RequestID: d3dfd8f4-f770-463f-8572-5bdc8918b306 Code: 502 Message: Error during function invocation
+
+16 янв. 10:32:10.697
+END RequestID: d3dfd8f4-f770-463f-8572-5bdc8918b306
+
+16 янв. 10:32:10.697
+error running user code: exit status 1
+
+16 янв. 10:32:10.697
+unexpected error (running container) exit status 1
+
+16 янв. 10:32:10.692
+Node.js v20.20.0
+
+16 янв. 10:32:10.692
+at async descriptor.value (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:137:20)
+
+16 янв. 10:32:10.692
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+16 янв. 10:32:10.692
+at RetryStrategy.retry (/app/node_modules/ydb-sdk/build/cjs/src/retries_obsoleted.js:90:49)
+
+16 янв. 10:32:10.692
+at TransportError.convertToYdbError (/app/node_modules/ydb-sdk/build/cjs/src/errors.js:334:20)
+
+16 янв. 10:32:10.692
+Error: Unexpected transport error code 16! Error itself: {"code":16,"details":"authentication header is missing","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,16,18,32,97,117,116,104,101,110,116,105,99,97,116,105,111,110,32,104,101,97,100,101,114,32,105,115,32,109,105,115,115,105,110,103,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,54,97,102,48,51,51,51,54,45,101,101,56,100,45,52,97,57,100,45,98,55,57,98,45,101,49,55,102,100,53,97,101,49,97,97,55]}],"x-request-id":["6af03336-ee8d-4a9d-b79b-e17fd5ae1aa7"]}}
+
+16 янв. 10:32:10.692
+^
+
+16 янв. 10:32:10.692
+return new Error(`Unexpected transport error code ${e.code}! Error itself: ${errStr}`);
+
+16 янв. 10:32:10.692
+/app/node_modules/ydb-sdk/build/cjs/src/errors.js:334
+
+16 янв. 10:32:10.690
+7:32:10 AM [express] serving on port 5000
+
+16 янв. 10:32:10.629
+[YDB Query Error]: Unexpected transport error code 16! Error itself: {"code":16,"details":"authentication header is missing","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,16,18,32,97,117,116,104,101,110,116,105,99,97,116,105,111,110,32,104,101,97,100,101,114,32,105,115,32,109,105,115,115,105,110,103,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,54,97,102,48,51,51,51,54,45,101,101,56,100,45,52,97,57,100,45,98,55,57,98,45,101,49,55,102,100,53,97,101,49,97,97,55]}],"x-request-id":["6af03336-ee8d-4a9d-b79b-e17fd5ae1aa7"]}}
+
+16 янв. 10:32:10.629
+[YDB Query Error]: Unexpected transport error code 16! Error itself: {"code":16,"details":"authentication header is missing","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,16,18,32,97,117,116,104,101,110,116,105,99,97,116,105,111,110,32,104,101,97,100,101,114,32,105,115,32,109,105,115,115,105,110,103,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,54,97,102,48,51,51,51,54,45,101,101,56,100,45,52,97,57,100,45,98,55,57,98,45,101,49,55,102,100,53,97,101,49,97,97,55]}],"x-request-id":["6af03336-ee8d-4a9d-b79b-e17fd5ae1aa7"]}}
+
+16 янв. 10:32:10.629
+[YDB Query Error]: Unexpected transport error code 16! Error itself: {"code":16,"details":"authentication header is missing","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,16,18,32,97,117,116,104,101,110,116,105,99,97,116,105,111,110,32,104,101,97,100,101,114,32,105,115,32,109,105,115,115,105,110,103,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,54,97,102,48,51,51,51,54,45,101,101,56,100,45,52,97,57,100,45,98,55,57,98,45,101,49,55,102,100,53,97,101,49,97,97,55]}],"x-request-id":["6af03336-ee8d-4a9d-b79b-e17fd5ae1aa7"]}}
+
+16 янв. 10:32:10.629
+[YDB Query Error]: Unexpected transport error code 16! Error itself: {"code":16,"details":"authentication header is missing","metadata":{"content-type":["application/grpc"],"grpc-status-details-bin":[{"type":"Buffer","data":[8,16,18,32,97,117,116,104,101,110,116,105,99,97,116,105,111,110,32,104,101,97,100,101,114,32,105,115,32,109,105,115,115,105,110,103,26,84,10,42,116,121,112,101,46,103,111,111,103,108,101,97,112,105,115,46,99,111,109,47,103,111,111,103,108,101,46,114,112,99,46,82,101,113,117,101,115,116,73,110,102,111,18,38,10,36,54,97,102,48,51,51,51,54,45,101,101,56,100,45,52,97,57,100,45,98,55,57,98,45,101,49,55,102,100,53,97,101,49,97,97,55]}],"x-request-id":["6af03336-ee8d-4a9d-b79b-e17fd5ae1aa7"]}}
+
+16 янв. 10:32:10.628
+[YDB Query Error]: Unexpected transport error code 16! Error itself: {"code":16,"details":"authentication head
