@@ -1,0 +1,301 @@
+
+
+17 янв. 01:38:52.281
+REPORT RequestID: effcebe6-bdd9-4a9d-977f-2ea29eade72f Duration: 51.260 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 222 MB Queuing Duration: 0.044 ms CPU Usage: 1.562 %
+
+17 янв. 01:38:52.281
+ERROR RequestID: effcebe6-bdd9-4a9d-977f-2ea29eade72f Code: 502 Message: Error during function invocation
+
+17 янв. 01:38:52.281
+END RequestID: effcebe6-bdd9-4a9d-977f-2ea29eade72f
+
+17 янв. 01:38:52.281
+error running user code: exit status 1
+
+17 янв. 01:38:52.281
+unexpected error (running container) exit status 1
+
+17 янв. 01:38:52.281
+{"errorMessage":"Post \"http://127.0.0.1:8080/api/cart\": EOF","errorType":"Error"}
+
+17 янв. 01:38:52.274
+Node.js v20.20.0
+
+17 янв. 01:38:52.274
+}
+
+17 янв. 01:38:52.274
+}
+
+17 янв. 01:38:52.274
+nonIdempotent: false
+
+17 янв. 01:38:52.274
+idempotent: false,
+
+17 янв. 01:38:52.274
+deleteSession: false,
+
+17 янв. 01:38:52.274
+backoff: 0,
+
+17 янв. 01:38:52.274
+[Symbol(retryPolicy)]: {
+
+17 янв. 01:38:52.274
+],
+
+17 янв. 01:38:52.274
+}
+
+17 янв. 01:38:52.274
+severity: 1
+
+17 янв. 01:38:52.274
+endPosition: Position { row: 8, column: 23 },
+
+17 янв. 01:38:52.274
+position: Position { row: 8, column: 23 },
+
+17 янв. 01:38:52.274
+issueCode: 2029,
+
+17 янв. 01:38:52.274
+message: 'Missing key column in input: id for table: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/cart_items',
+
+17 янв. 01:38:52.274
+IssueMessage {
+
+17 янв. 01:38:52.274
+},
+
+17 янв. 01:38:52.274
+severity: 1
+
+17 янв. 01:38:52.274
+endPosition: Position { row: 8, column: 23 },
+
+17 янв. 01:38:52.274
+position: Position { row: 8, column: 23 },
+
+17 янв. 01:38:52.274
+message: 'At function: KiWriteTable!',
+
+17 янв. 01:38:52.274
+IssueMessage {
+
+17 янв. 01:38:52.274
+},
+
+17 янв. 01:38:52.274
+severity: 1
+
+17 янв. 01:38:52.274
+issueCode: 1030,
+
+17 янв. 01:38:52.274
+message: 'Type annotation',
+
+17 янв. 01:38:52.274
+IssueMessage {
+
+17 янв. 01:38:52.274
+issues: [
+
+17 янв. 01:38:52.273
+at async /app/dist/index.cjs:163:2994 {
+
+17 янв. 01:38:52.273
+at async Up.addToCart (/app/dist/index.cjs:98:572)
+
+17 янв. 01:38:52.273
+at async TableSessionPool._withSession (/app/node_modules/ydb-sdk/build/cjs/src/table/table-session-pool.js:183:28)
+
+17 янв. 01:38:52.273
+at async /app/dist/index.cjs:107:378
+
+17 янв. 01:38:52.273
+at async descriptor.value (/app/node_modules/ydb-sdk/build/cjs/src/utils/pessimizable.js:13:20)
+
+17 янв. 01:38:52.273
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+17 янв. 01:38:52.273
+at TableSession.executeQuery (/app/node_modules/ydb-sdk/build/cjs/src/table/table-session.js:394:80)
+
+17 янв. 01:38:52.273
+at getOperationPayload (/app/node_modules/ydb-sdk/build/cjs/src/utils/process-ydb-operation-result.js:11:27)
+
+17 янв. 01:38:52.273
+at YdbError.checkStatus (/app/node_modules/ydb-sdk/build/cjs/src/errors.js:69:23)
+
+17 янв. 01:38:52.273
+]
+
+17 янв. 01:38:52.273
+}
+
+17 янв. 01:38:52.273
+"severity": 1
+
+17 янв. 01:38:52.273
+"issueCode": 2029,
+
+17 янв. 01:38:52.273
+},
+
+17 янв. 01:38:52.273
+"column": 23
+
+17 янв. 01:38:52.273
+"row": 8,
+
+17 янв. 01:38:52.273
+"endPosition": {
+
+17 янв. 01:38:52.273
+"message": "Missing key column in input: id for table: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/cart_items",
+
+17 янв. 01:38:52.273
+},
+
+17 янв. 01:38:52.273
+"column": 23
+
+17 янв. 01:38:52.273
+"row": 8,
+
+17 янв. 01:38:52.273
+"position": {
+
+17 янв. 01:38:52.273
+{
+
+17 янв. 01:38:52.273
+},
+
+17 янв. 01:38:52.273
+"severity": 1
+
+17 янв. 01:38:52.273
+},
+
+17 янв. 01:38:52.273
+"column": 23
+
+17 янв. 01:38:52.273
+"row": 8,
+
+17 янв. 01:38:52.273
+"endPosition": {
+
+17 янв. 01:38:52.273
+"message": "At function: KiWriteTable!",
+
+17 янв. 01:38:52.273
+},
+
+17 янв. 01:38:52.273
+"column": 23
+
+17 янв. 01:38:52.273
+"row": 8,
+
+17 янв. 01:38:52.273
+"position": {
+
+17 янв. 01:38:52.273
+{
+
+17 янв. 01:38:52.273
+},
+
+17 янв. 01:38:52.273
+"severity": 1
+
+17 янв. 01:38:52.273
+"issueCode": 1030,
+
+17 янв. 01:38:52.273
+"message": "Type annotation",
+
+17 янв. 01:38:52.273
+{
+
+17 янв. 01:38:52.273
+PreconditionFailed [Error]: PreconditionFailed (code 400120): [
+
+17 янв. 01:38:52.273
+^
+
+17 янв. 01:38:52.273
+throw new ErrCls(`${ErrCls.name} (code ${status}): ${YdbError.formatIssues(operation.issues)}`, operation.issues);
+
+17 янв. 01:38:52.273
+/app/node_modules/ydb-sdk/build/cjs/src/errors.js:69
+
+17 янв. 01:38:52.270
+]
+
+17 янв. 01:38:52.270
+}
+
+17 янв. 01:38:52.270
+"severity": 1
+
+17 янв. 01:38:52.270
+"issueCode": 2029,
+
+17 янв. 01:38:52.270
+},
+
+17 янв. 01:38:52.270
+"column": 23
+
+17 янв. 01:38:52.270
+"row": 8,
+
+17 янв. 01:38:52.270
+"endPosition": {
+
+17 янв. 01:38:52.270
+"message": "Missing key column in input: id for table: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/cart_items",
+
+17 янв. 01:38:52.270
+},
+
+17 янв. 01:38:52.270
+"column": 23
+
+17 янв. 01:38:52.270
+"row": 8,
+
+17 янв. 01:38:52.270
+"position": {
+
+17 янв. 01:38:52.270
+{
+
+17 янв. 01:38:52.270
+},
+
+17 янв. 01:38:52.270
+"severity": 1
+
+17 янв. 01:38:52.270
+},
+
+17 янв. 01:38:52.270
+"column": 23
+
+17 янв. 01:38:52.270
+"row": 8,
+
+17 янв. 01:38:52.270
+"endPosition": {
+
+17 янв. 01:38:52.270
+"message": "At function: KiWriteTable!",
+
+17 янв. 01:38:52.270
+},

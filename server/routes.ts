@@ -465,7 +465,10 @@ export async function registerRoutes(
       }
       
       // Download and parse offers.xml for prices
+      console.log("[Sync] Attempting to download offers.xml from products/offers.xml...");
       const offersXml = await downloadFromYandexStorage("products/offers.xml");
+      console.log(`[Sync] offers.xml download result: ${offersXml ? `${offersXml.length} bytes` : 'NOT FOUND'}`);
+      
       if (offersXml) {
         console.log("[Sync] Downloaded offers.xml, parsing prices...");
         const offersResult = parser.parse(offersXml);
@@ -506,7 +509,12 @@ export async function registerRoutes(
             }
           }
           console.log(`[Sync] Prices: ${pricesUpdated} updated, ${notFound} not found`);
+        } else {
+          console.log("[Sync] WARNING: offers.xml parsed but no Предложение entries found");
         }
+      } else {
+        console.log("[Sync] WARNING: offers.xml NOT FOUND in Object Storage at products/offers.xml");
+        console.log("[Sync] Prices will NOT be updated. Please upload offers.xml to Object Storage.");
       }
       
       console.log(`[Sync] Complete: ${productsCreated} created, ${productsUpdated} updated`);

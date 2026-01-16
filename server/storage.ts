@@ -368,25 +368,29 @@ export class DatabaseStorage implements IStorage {
       return { ...item, id: 0 } as CartItem;
     }
     
+    const cartItemId = Date.now();
+    
     try {
       await driver.tableClient.withSession(async (session) => {
         const { TypedValues, Types } = await import("ydb-sdk");
         const query = `
+          DECLARE $id AS Uint64;
           DECLARE $session_id AS Utf8;
           DECLARE $product_id AS Uint64;
           DECLARE $size AS Utf8;
           DECLARE $color AS Utf8;
           DECLARE $quantity AS Int32;
           
-          UPSERT INTO cart_items (session_id, product_id, size, color, quantity, created_at)
-          VALUES ($session_id, $product_id, $size, $color, $quantity, CurrentUtcTimestamp());
+          UPSERT INTO cart_items (id, session_id, product_id, size, color, quantity, created_at)
+          VALUES ($id, $session_id, $product_id, $size, $color, $quantity, CurrentUtcTimestamp());
         `;
         
         const qty = Number(item.quantity) || 1;
         const productIdNum = Number(item.productId);
-        console.log(`[Cart] Inserting: session=${item.sessionId}, product=${productIdNum}, qty=${qty}`);
+        console.log(`[Cart] Inserting: id=${cartItemId}, session=${item.sessionId}, product=${productIdNum}, qty=${qty}`);
         
         const params = {
+          $id: TypedValues.fromNative(Types.UINT64, cartItemId),
           $session_id: TypedValues.fromNative(Types.UTF8, String(item.sessionId)),
           $product_id: TypedValues.fromNative(Types.UINT64, productIdNum),
           $size: TypedValues.fromNative(Types.UTF8, String(item.size || "One Size")),
@@ -395,7 +399,7 @@ export class DatabaseStorage implements IStorage {
         };
         
         await session.executeQuery(query, params);
-        console.log(`[Cart] Added/updated item in YDB: session=${item.sessionId}, product=${productIdNum}`);
+        console.log(`[Cart] Added/updated item in YDB: id=${cartItemId}, session=${item.sessionId}, product=${productIdNum}`);
       });
     } catch (err: any) {
       console.error(`[Cart] Error adding to cart:`, err.message || err);
@@ -405,7 +409,7 @@ export class DatabaseStorage implements IStorage {
       throw err;
     }
     
-    return { ...item, id: 0 } as CartItem;
+    return { ...item, id: cartItemId } as CartItem;
   }
 
   async removeFromCart(id: number, sessionId?: string, productId?: number, size?: string, color?: string): Promise<void> {
