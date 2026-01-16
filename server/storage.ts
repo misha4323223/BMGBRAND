@@ -314,7 +314,7 @@ export class DatabaseStorage implements IStorage {
       const { TypedValues, Types } = await import("ydb-sdk");
       const query = `
         DECLARE $session_id AS Utf8;
-        SELECT session_id, product_id, size, color, quantity
+        SELECT session_id, product_id, size, color, quantity, created_at
         FROM cart_items
         WHERE session_id = $session_id;
       `;
