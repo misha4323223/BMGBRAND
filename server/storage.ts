@@ -36,22 +36,26 @@ export class DatabaseStorage implements IStorage {
   private extractTypedValue(item: any): any {
     if (!item) return null;
     
-    // Handle YDB Optional wrapper for nullable columns
-    if (item.optionalValue !== undefined) {
+    // Check concrete typed values FIRST (protobuf has all getters defined)
+    if (item.textValue !== undefined && item.textValue !== null) return item.textValue;
+    if (item.doubleValue !== undefined && item.doubleValue !== null) return item.doubleValue;
+    if (item.floatValue !== undefined && item.floatValue !== null) return item.floatValue;
+    if (item.uint64Value !== undefined && item.uint64Value !== null) return item.uint64Value;
+    if (item.int64Value !== undefined && item.int64Value !== null) return item.int64Value;
+    if (item.uint32Value !== undefined && item.uint32Value !== null) return item.uint32Value;
+    if (item.int32Value !== undefined && item.int32Value !== null) return item.int32Value;
+    if (item.boolValue !== undefined && item.boolValue !== null) return item.boolValue;
+    if (item.bytesValue !== undefined && item.bytesValue !== null) return item.bytesValue;
+    
+    // Handle YDB Optional wrapper AFTER checking concrete types
+    if (item.optionalValue !== undefined && item.optionalValue !== null) {
       return this.extractTypedValue(item.optionalValue);
     }
     
-    // Direct value access (protobuf objects don't work with 'in' operator)
-    if (item.textValue !== undefined) return item.textValue;
-    if (item.uint64Value !== undefined) return item.uint64Value;
-    if (item.int64Value !== undefined) return item.int64Value;
-    if (item.uint32Value !== undefined) return item.uint32Value;
-    if (item.int32Value !== undefined) return item.int32Value;
-    if (item.doubleValue !== undefined) return item.doubleValue;
-    if (item.floatValue !== undefined) return item.floatValue;
-    if (item.boolValue !== undefined) return item.boolValue;
-    if (item.bytesValue !== undefined) return item.bytesValue;
+    // Null flag check
     if (item.nullFlagValue !== undefined) return null;
+    
+    // Fallback
     if (item.value !== undefined) return item.value;
     
     return null;

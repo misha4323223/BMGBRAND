@@ -1,0 +1,88 @@
+
+
+17 янв. 02:22:26.379
+[YDB] First parsed data: {"article":"ART-001","category":"hoodies","colors":"[\"black\", \"white\"]","created_at":null,"description":"Стильное худи из плотного хлопка","external_id":"test-001","id":"1","images":"[\"https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Худи BOOOMERANGS Classic","old_price":null,"price":null,"sizes":"[\"S\", \"M\", \"L\", \"XL\"]","sku":"BMG-HOODIE-001","subcategory":null,"updated_at":null}
+
+17 янв. 02:22:26.378
+[PRICE DEBUG] Keys: [ 'items', 'pairs', 'doubleValue' ] Full: {"doubleValue":599000}
+
+17 янв. 02:22:26.378
+[YDB DEBUG] Price at column index 13, raw: {"doubleValue":599000}
+
+17 янв. 02:22:26.378
+[YDB RAW] First row full structure: [{"textValue":"ART-001"},{"textValue":"hoodies"},{"textValue":"[\"black\", \"white\"]"},{"uint64Value":"1768562951137053"},{"textValue":"Стильное худи из плотного хлопка"},{"textValue":"test-001"},{"textValue":"1"},{"textValue":"[\"https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400\"]"},{"boolValue":true},{"boolValue":true}]
+
+17 янв. 02:22:26.378
+[YDB] First row items count: 18
+
+17 янв. 02:22:26.378
+[YDB] Columns: article, category, colors, created_at, description, external_id, id, images, in_stock, is_new, is_sale, name, old_price, price, sizes, sku, subcategory, updated_at
+
+17 янв. 02:22:26.290
+START RequestID: 7d445fff-8cb3-4567-b233-61c877b23d6f
+
+17 янв. 02:22:16.251
+REPORT RequestID: 99f240d1-b81b-48c9-ba98-03bd8efeff17 Duration: 158.436 ms Billed Duration: 200 ms Memory Size: 512 MB Max Memory Used: 212 MB Queuing Duration: 0.081 ms CPU Usage: 5.664 %
+
+17 янв. 02:22:16.251
+END RequestID: 99f240d1-b81b-48c9-ba98-03bd8efeff17
+
+17 янв. 02:22:16.251
+11:22:16 PM [express] GET /api/cart/b0tHr4FoW9d1zG1tLvnoK 200 in 157ms :: [{"id":0,"sessionId":"b0tHr4FoW9d1zG1tLvnoK","productId":1768597827582,"size":"One Size","color":"Default","quantity":1,"product":{"id":1768597827582,"externalId":"4df9bf6e-4054-11ef-8324-00155d46f6c0","sku":"R024","name":"Носки BOOOMERANGS (Туалетная Бумага N024) Белый (40-45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":0,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/4d/4df9bf6e405411ef832400155d46f6c0_d6b8a2b6acc411ef90f200155d46f61a.jpg","category":"1C Import","sizes":[],"colors":[],"isNew":false,"createdAt":"2026-01-16T23:22:16.206Z"}},{"id":0,"sessionId":"b0tHr4FoW9d1zG1tLvnoK","productId":1768597828113,"size":"One Size","color":"Default","quantity":1,"product":{"id":1768597828113,"externalId":"29ec5a1c-35cc-11ed-8bf1-aa5507aeb675","sku":"N191","name":"Носки BOOOMERANGS (Клей №0191) Черный 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":0,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/29/29ec5a1c35cc11ed8bf1aa5507aeb675_c1a648e6acc511ef90f200155d46f61a.jpg","category":"1C Import","sizes":[],"colors":[],"isNew":false,"createdAt":"2026-01-16T23:22:16.247Z"}}]
+
+17 янв. 02:22:16.248
+[Cart] Found 2 items for session b0tHr4FoW9d1zG1tLvnoK
+
+17 янв. 02:22:16.248
+[Product] Носки BOOOMERANGS (Клей №0191) Черный 40-45: raw price=null, parsed=0
+
+17 янв. 02:22:16.248
+[PRICE DEBUG] Keys: [ 'items', 'pairs', 'doubleValue' ] Full: {"doubleValue":35000}
+
+17 янв. 02:22:16.207
+[Product] Носки BOOOMERANGS (Туалетная Бумага N024) Белый (40-45): raw price=null, parsed=0
+
+17 янв. 02:22:16.207
+[PRICE DEBUG] Keys: [ 'items', 'pairs', 'doubleValue' ] Full: {"doubleValue":35000}
+
+17 янв. 02:22:16.089
+START RequestID: 99f240d1-b81b-48c9-ba98-03bd8efeff17
+
+17 янв. 02:22:15.760
+REPORT RequestID: eff98574-a30d-4bb1-a05f-f89f751d19a0 Duration: 137.902 ms Billed Duration: 200 ms Memory Size: 512 MB Max Memory Used: 212 MB Queuing Duration: 0.063 ms CPU Usage: 5.664 %
+
+17 янв. 02:22:15.759
+END RequestID: eff98574-a30d-4bb1-a05f-f89f751d19a0
+
+17 янв. 02:22:15.759
+11:22:15 PM [express] GET /api/products/1768597829012 200 in 136ms :: {"id":1768597829012,"externalId":"8070cf1d-3d73-11ec-9d5d-00155d463406","sku":"N177","name":"Носки BOOOMERANGS (На Чиле N177 ) Белый 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":0,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/80/8070cf1d3d7311ec9d5d00155d463406_f3ef0fe2acc311ef90f200155d46f61a.jpg","category":"1C Import","sizes":[],"colors":[],"isNew":false,"createdAt":"2026-01-16T23:22:15.755Z"}
+
+17 янв. 02:22:15.756
+[Product] Носки BOOOMERANGS (На Чиле N177 ) Белый 40-45: raw price=null, parsed=0
+
+17 янв. 02:22:15.756
+[PRICE DEBUG] Keys: [ 'items', 'pairs', 'doubleValue' ] Full: {"doubleValue":35000}
+
+17 янв. 02:22:15.642
+REPORT RequestID: 504e810e-79c3-452a-bdda-c915a1f21f7e Duration: 2.903 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 222 MB Queuing Duration: 0.108 ms CPU Usage: 1.953 %
+
+17 янв. 02:22:15.642
+END RequestID: 504e810e-79c3-452a-bdda-c915a1f21f7e
+
+17 янв. 02:22:15.636
+START RequestID: 504e810e-79c3-452a-bdda-c915a1f21f7e
+
+17 янв. 02:22:15.617
+START RequestID: eff98574-a30d-4bb1-a05f-f89f751d19a0
+
+17 янв. 02:22:14.874
+REPORT RequestID: dbef8f31-0da9-425d-a369-a1ff6a42fa97 Duration: 12.927 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 222 MB Queuing Duration: 0.089 ms CPU Usage: 1.953 %
+
+17 янв. 02:22:14.874
+END RequestID: dbef8f31-0da9-425d-a369-a1ff6a42fa97
+
+17 янв. 02:22:14.855
+START RequestID: dbef8f31-0da9-425d-a369-a1ff6a42fa97
+
+17 янв. 02:22:14.852
+REPORT RequestID: 56f9ae68-e59e-4b76-9551-9a34bd70dedb Duration: 15.913 ms Billed Duration: 100 ms M
