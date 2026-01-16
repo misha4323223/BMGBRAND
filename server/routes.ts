@@ -7,7 +7,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { XMLParser, XMLBuilder } from "fast-xml-parser";
-import { uploadToYandexStorage } from "./lib/storage-s3";
+import { uploadToYandexStorage, downloadFromYandexStorage } from "./lib/storage-s3";
 
 // Cache for Object Storage URLs (local path -> Object Storage URL)
 const imageUrlCache: Map<string, string> = new Map();
@@ -381,6 +381,127 @@ export async function registerRoutes(
     }
 
     res.send("success");
+  });
+
+  // Sync products from Object Storage (for production where 1c_uploads is not available)
+  app.post("/api/sync-from-storage", async (req, res) => {
+    console.log("[Sync] Starting sync from Object Storage...");
+    
+    try {
+      const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
+      
+      // Download import.xml from Object Storage
+      const importXml = await downloadFromYandexStorage("products/import.xml");
+      if (!importXml) {
+        return res.status(404).json({ error: "import.xml not found in Object Storage" });
+      }
+      
+      console.log("[Sync] Downloaded import.xml, parsing...");
+      const importResult = parser.parse(importXml);
+      
+      let productsCreated = 0;
+      let productsUpdated = 0;
+      
+      // Parse products from import.xml
+      const items = importResult?.["КоммерческаяИнформация"]?.["Каталог"]?.["Товары"]?.["Товар"];
+      if (items) {
+        const productsArray = Array.isArray(items) ? items : [items];
+        console.log(`[Sync] Found ${productsArray.length} products in import.xml`);
+        
+        for (const item of productsArray) {
+          const externalId = item["Ид"];
+          const name = item["Наименование"];
+          const description = item["Описание"] || "";
+          const sku = item["Артикул"] || "";
+          
+          let sizes: string[] = [];
+          let colors: string[] = [];
+          if (item["ЗначенияРеквизитов"]?.["ЗначениеРеквизита"]) {
+            const props = Array.isArray(item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]) 
+              ? item["ЗначенияРеквизитов"]["ЗначениеРеквизита"] 
+              : [item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]];
+            for (const prop of props) {
+              const propName = prop["Наименование"];
+              const propValue = prop["Значение"];
+              if (propName === "Размер" && propValue) sizes.push(propValue);
+              if (propName === "Цвет" && propValue) colors.push(propValue);
+            }
+          }
+          
+          const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
+          const imageUrl = getImageUrl(imgPath);
+          
+          const existing = await storage.getProductByExternalId(externalId);
+          if (!existing) {
+            const existingBySku = sku ? await storage.getProductBySku(sku) : null;
+            if (existingBySku) {
+              await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, sizes, colors });
+              productsUpdated++;
+            } else {
+              await storage.createProduct({
+                externalId,
+                sku,
+                name,
+                description,
+                price: 0,
+                imageUrl,
+                category: "1C Import",
+                sizes,
+                colors,
+                isNew: true
+              });
+              productsCreated++;
+            }
+          } else {
+            await storage.updateProduct(existing.id, { name, description, sku, imageUrl, sizes, colors });
+            productsUpdated++;
+          }
+        }
+      }
+      
+      // Download and parse offers.xml for prices
+      const offersXml = await downloadFromYandexStorage("products/offers.xml");
+      if (offersXml) {
+        console.log("[Sync] Downloaded offers.xml, parsing prices...");
+        const offersResult = parser.parse(offersXml);
+        
+        const offers = offersResult?.["КоммерческаяИнформация"]?.["ПакетПредложений"]?.["Предложения"]?.["Предложение"];
+        if (offers) {
+          const offersArray = Array.isArray(offers) ? offers : [offers];
+          console.log(`[Sync] Found ${offersArray.length} price offers`);
+          
+          for (const offer of offersArray) {
+            const offerId = offer["Ид"];
+            const externalId = offerId?.split("#")[0] || offerId;
+            
+            const prices = offer["Цены"]?.["Цена"];
+            let price = 0;
+            if (prices) {
+              const priceArr = Array.isArray(prices) ? prices : [prices];
+              const mainPrice = priceArr[0];
+              price = Math.round(parseFloat(mainPrice["ЦенаЗаЕдиницу"] || 0) * 100);
+            }
+            
+            if (externalId && price > 0) {
+              const product = await storage.getProductByExternalId(externalId);
+              if (product) {
+                await storage.updateProduct(product.id, { price });
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`[Sync] Complete: ${productsCreated} created, ${productsUpdated} updated`);
+      res.json({ 
+        success: true, 
+        message: `Synced from Object Storage: ${productsCreated} created, ${productsUpdated} updated` 
+      });
+      
+    } catch (error) {
+      console.error("[Sync] Error:", error);
+      res.status(500).json({ error: "Sync failed", details: String(error) });
+    }
   });
 
   app.post("/api/1c-exchange", express.raw({ type: "*/*", limit: "500mb" }), async (req, res) => {
