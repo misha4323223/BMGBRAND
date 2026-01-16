@@ -130,9 +130,13 @@ export class DatabaseStorage implements IStorage {
       if (!rs.rows || !rs.columns) return [];
       console.log("[YDB] Columns:", rs.columns.map((c: any) => c.name).join(', '));
       console.log("[YDB] First row items count:", rs.rows[0]?.items?.length);
+      // DEBUG: Log full first row structure to see price format
+      if (rs.rows[0]?.items) {
+        console.log("[YDB RAW] First row full structure:", JSON.stringify(rs.rows[0].items.slice(0, 10)));
+      }
       return rs.rows.map((row: any, idx: number) => {
         const data = this.parseRowWithColumns(row, rs.columns || [], idx === 0);
-        console.log("[YDB] Parsed data:", JSON.stringify(data));
+        if (idx === 0) console.log("[YDB] First parsed data:", JSON.stringify(data));
         return this.parseProduct(data);
       });
     });
