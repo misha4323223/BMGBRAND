@@ -1,0 +1,706 @@
+
+
+16 янв. 12:09:19.241
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:19.132
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:18.830
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:18.722
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:18.407
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:18.302
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:17.997
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:17.877
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:17.586
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:17.467
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:17.169
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:17.055
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:16.752
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:16.646
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:16.343
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:16.235
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:15.933
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:15.588
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:15.519
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:15.178
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:15.106
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:14.769
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:14.694
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:14.631
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 12:09:14.504
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 12:09:14.358
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:14.284
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:13.948
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:13.873
+]
+
+16 янв. 12:09:13.873
+}
+
+16 янв. 12:09:13.873
+"severity": 1
+
+16 янв. 12:09:13.873
+"issueCode": 2003,
+
+16 янв. 12:09:13.873
+},
+
+16 янв. 12:09:13.873
+"column": 30
+
+16 янв. 12:09:13.873
+"row": 1,
+
+16 янв. 12:09:13.873
+"endPosition": {
+
+16 янв. 12:09:13.873
+"message": "Cannot find table 'db.[/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/products]' because it does not exist or you do not have access permissions. Please check correctness of table path and user permissions.",
+
+16 янв. 12:09:13.873
+},
+
+16 янв. 12:09:13.873
+"column": 30
+
+16 янв. 12:09:13.873
+"row": 1,
+
+16 янв. 12:09:13.873
+"position": {
+
+16 янв. 12:09:13.873
+{
+
+16 янв. 12:09:13.873
+},
+
+16 янв. 12:09:13.873
+"severity": 1
+
+16 янв. 12:09:13.873
+},
+
+16 янв. 12:09:13.873
+"column": 30
+
+16 янв. 12:09:13.873
+"row": 1,
+
+16 янв. 12:09:13.873
+"endPosition": {
+
+16 янв. 12:09:13.873
+"message": "At function: KiReadTable!",
+
+16 янв. 12:09:13.873
+},
+
+16 янв. 12:09:13.873
+"column": 30
+
+16 янв. 12:09:13.873
+"row": 1,
+
+16 янв. 12:09:13.873
+"position": {
+
+16 янв. 12:09:13.873
+{
+
+16 янв. 12:09:13.873
+},
+
+16 янв. 12:09:13.873
+"severity": 1
+
+16 янв. 12:09:13.873
+"issueCode": 1030,
+
+16 янв. 12:09:13.873
+"message": "Type annotation",
+
+16 янв. 12:09:13.873
+{
+
+16 янв. 12:09:13.873
+[YDB Query Error]: SchemeError (code 400070): [
+
+16 янв. 12:09:13.790
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:13.538
+]
+
+16 янв. 12:09:13.538
+}
+
+16 янв. 12:09:13.538
+"severity": 1
+
+16 янв. 12:09:13.538
+"issueCode": 2003,
+
+16 янв. 12:09:13.538
+},
+
+16 янв. 12:09:13.538
+"column": 30
+
+16 янв. 12:09:13.538
+"row": 1,
+
+16 янв. 12:09:13.538
+"endPosition": {
+
+16 янв. 12:09:13.538
+"message": "Cannot find table 'db.[/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/products]' because it does not exist or you do not have access permissions. Please check correctness of table path and user permissions.",
+
+16 янв. 12:09:13.538
+},
+
+16 янв. 12:09:13.538
+"column": 30
+
+16 янв. 12:09:13.538
+"row": 1,
+
+16 янв. 12:09:13.538
+"position": {
+
+16 янв. 12:09:13.538
+{
+
+16 янв. 12:09:13.538
+},
+
+16 янв. 12:09:13.538
+"severity": 1
+
+16 янв. 12:09:13.538
+},
+
+16 янв. 12:09:13.538
+"column": 30
+
+16 янв. 12:09:13.538
+"row": 1,
+
+16 янв. 12:09:13.538
+"endPosition": {
+
+16 янв. 12:09:13.538
+"message": "At function: KiReadTable!",
+
+16 янв. 12:09:13.538
+},
+
+16 янв. 12:09:13.538
+"column": 30
+
+16 янв. 12:09:13.538
+"row": 1,
+
+16 янв. 12:09:13.538
+"position": {
+
+16 янв. 12:09:13.538
+{
+
+16 янв. 12:09:13.538
+},
+
+16 янв. 12:09:13.538
+"severity": 1
+
+16 янв. 12:09:13.538
+"issueCode": 1030,
+
+16 янв. 12:09:13.538
+"message": "Type annotation",
+
+16 янв. 12:09:13.538
+{
+
+16 янв. 12:09:13.538
+[YDB Query Error]: SchemeError (code 400070): [
+
+16 янв. 12:09:13.507
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:13.374
+]
+
+16 янв. 12:09:13.374
+}
+
+16 янв. 12:09:13.374
+"severity": 1
+
+16 янв. 12:09:13.374
+"issueCode": 2003,
+
+16 янв. 12:09:13.374
+},
+
+16 янв. 12:09:13.374
+"column": 30
+
+16 янв. 12:09:13.373
+"row": 1,
+
+16 янв. 12:09:13.373
+"endPosition": {
+
+16 янв. 12:09:13.373
+"message": "Cannot find table 'db.[/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/products]' because it does not exist or you do not have access permissions. Please check correctness of table path and user permissions.",
+
+16 янв. 12:09:13.373
+},
+
+16 янв. 12:09:13.373
+"column": 30
+
+16 янв. 12:09:13.373
+"row": 1,
+
+16 янв. 12:09:13.373
+"position": {
+
+16 янв. 12:09:13.373
+{
+
+16 янв. 12:09:13.373
+},
+
+16 янв. 12:09:13.373
+"severity": 1
+
+16 янв. 12:09:13.373
+},
+
+16 янв. 12:09:13.373
+"column": 30
+
+16 янв. 12:09:13.373
+"row": 1,
+
+16 янв. 12:09:13.373
+"endPosition": {
+
+16 янв. 12:09:13.373
+"message": "At function: KiReadTable!",
+
+16 янв. 12:09:13.373
+},
+
+16 янв. 12:09:13.373
+"column": 30
+
+16 янв. 12:09:13.373
+"row": 1,
+
+16 янв. 12:09:13.373
+"position": {
+
+16 янв. 12:09:13.373
+{
+
+16 янв. 12:09:13.373
+},
+
+16 янв. 12:09:13.373
+"severity": 1
+
+16 янв. 12:09:13.373
+"issueCode": 1030,
+
+16 янв. 12:09:13.373
+"message": "Type annotation",
+
+16 янв. 12:09:13.373
+{
+
+16 янв. 12:09:13.373
+[YDB Query Error]: SchemeError (code 400070): [
+
+16 янв. 12:09:13.347
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:09:13.097
+]
+
+16 янв. 12:09:13.097
+}
+
+16 янв. 12:09:13.097
+"severity": 1
+
+16 янв. 12:09:13.097
+"issueCode": 2003,
+
+16 янв. 12:09:13.097
+},
+
+16 янв. 12:09:13.097
+"column": 30
+
+16 янв. 12:09:13.097
+"row": 1,
+
+16 янв. 12:09:13.097
+"endPosition": {
+
+16 янв. 12:09:13.097
+"message": "Cannot find table 'db.[/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/products]' because it does not exist or you do not have access permissions. Please check correctness of table path and user permissions.",
+
+16 янв. 12:09:13.097
+},
+
+16 янв. 12:09:13.097
+"column": 30
+
+16 янв. 12:09:13.097
+"row": 1,
+
+16 янв. 12:09:13.097
+"position": {
+
+16 янв. 12:09:13.097
+{
+
+16 янв. 12:09:13.097
+},
+
+16 янв. 12:09:13.097
+"severity": 1
+
+16 янв. 12:09:13.097
+},
+
+16 янв. 12:09:13.097
+"column": 30
+
+16 янв. 12:09:13.097
+"row": 1,
+
+16 янв. 12:09:13.097
+"endPosition": {
+
+16 янв. 12:09:13.097
+"message": "At function: KiReadTable!",
+
+16 янв. 12:09:13.097
+},
+
+16 янв. 12:09:13.097
+"column": 30
+
+16 янв. 12:09:13.097
+"row": 1,
+
+16 янв. 12:09:13.097
+"position": {
+
+16 янв. 12:09:13.097
+{
+
+16 янв. 12:09:13.097
+},
+
+16 янв. 12:09:13.097
+"severity": 1
+
+16 янв. 12:09:13.097
+"issueCode": 1030,
+
+16 янв. 12:09:13.097
+"message": "Type annotation",
+
+16 янв. 12:09:13.097
+{
+
+16 янв. 12:09:13.097
+[YDB Query Error]: SchemeError (code 400070): [
+
+16 янв. 12:09:13.070
+]
+
+16 янв. 12:09:13.070
+}
+
+16 янв. 12:09:13.070
+"severity": 1
+
+16 янв. 12:09:13.070
+"issueCode": 2003,
+
+16 янв. 12:09:13.070
+},
+
+16 янв. 12:09:13.070
+"column": 30
+
+16 янв. 12:09:13.070
+"row": 1,
+
+16 янв. 12:09:13.070
+"endPosition": {
+
+16 янв. 12:09:13.070
+"message": "Cannot find table 'db.[/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/products]' because it does not exist or you do not have access permissions. Please check correctness of table path and user permissions.",
+
+16 янв. 12:09:13.070
+},
+
+16 янв. 12:09:13.070
+"column": 30
+
+16 янв. 12:09:13.070
+"row": 1,
+
+16 янв. 12:09:13.070
+"position": {
+
+16 янв. 12:09:13.070
+{
+
+16 янв. 12:09:13.070
+},
+
+16 янв. 12:09:13.070
+"severity": 1
+
+16 янв. 12:09:13.070
+},
+
+16 янв. 12:09:13.070
+"column": 30
+
+16 янв. 12:09:13.070
+"row": 1,
+
+16 янв. 12:09:13.070
+"endPosition": {
+
+16 янв. 12:09:13.070
+"message": "At function: KiReadTable!",
+
+16 янв. 12:09:13.070
+},
+
+16 янв. 12:09:13.070
+"column": 30
+
+16 янв. 12:09:13.070
+"row": 1,
+
+16 янв. 12:09:13.070
+"position": {
+
+16 янв. 12:09:13.070
+{
+
+16 янв. 12:09:13.070
+},
+
+16 янв. 12:09:13.070
+"severity": 1
+
+16 янв. 12:09:13.070
+"issueCode": 1030,
+
+16 янв. 12:09:13.070
+"message": "Type annotation",
+
+16 янв. 12:09:13.070
+{
+
+16 янв. 12:09:13.070
+[YDB Query Error]: SchemeError (code 400070): [
+
+16 янв. 12:09:13.044
+]
+
+16 янв. 12:09:13.044
+}
+
+16 янв. 12:09:13.044
+"severity": 1
+
+16 янв. 12:09:13.044
+"issueCode": 2003,
+
+16 янв. 12:09:13.044
+},
+
+16 янв. 12:09:13.044
+"column": 30
+
+16 янв. 12:09:13.044
+"row": 1,
+
+16 янв. 12:09:13.044
+"endPosition": {
+
+16 янв. 12:09:13.044
+"message": "Cannot find table 'db.[/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/products]' because it does not exist or you do not have access permissions. Please check correctness of table path and user permissions.",
+
+16 янв. 12:09:13.044
+},
+
+16 янв. 12:09:13.044
+"column": 30
+
+16 янв. 12:09:13.044
+"row": 1,
+
+16 янв. 12:09:13.044
+"position": {
+
+16 янв. 12:09:13.044
+{
+
+16 янв. 12:09:13.044
+},
+
+16 янв. 12:09:13.044
+"severity": 1
+
+16 янв. 12:09:13.044
+},
+
+16 янв. 12:09:13.044
+"column": 30
+
+16 янв. 12:09:13.044
+"row": 1,
+
+16 янв. 12:09:13.044
+"endPosition": {
+
+16 янв. 12:09:13.044
+"message": "At function: KiReadTable!",
+
+16 янв. 12:09:13.044
+},
+
+16 янв. 12:09:13.044
+"column": 30
+
+16 янв. 12:09:13.044
+"row": 1,
+
+16 янв. 12:09:13.044
+"position": {
+
+16 янв. 12:09:13.044
+{
+
+16 янв. 12:09:13.044
+},
+
+16 янв. 12:09:13.044
+"severity": 1
+
+16 янв. 12:09:13.044
+"issueCode": 1030,
+
+16 янв. 12:09:13.044
+"message": "Type annotation",
+
+16 янв. 12:09:13.044
+{
+
+16 янв. 12:09:13.044
+[YDB Query Error]: SchemeError (code 400070): [
+
+16 янв. 12:09:13.018
+]
+
+16 янв. 12:09:13.018
+}
+
+16 янв. 12:09:13.018
+"severity": 1
+
+16 янв. 12:09:13.018
+"issueCode": 2003,
+
+16 янв. 12:09:13.018
+},
+
+16 янв. 12:09:13.018
+"column": 30
+
+16 янв. 12:09:13.018
+"row": 1,
+
+16 янв. 12:09:13.018
+"endPosition": {
+
+16 янв. 12:09:13.018
+"message": "Cannot find table 'db.[/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/products]' because it does not exist or you do not have access permissions. Please check correctness of table path and user permissions.",
+
+16 янв. 12:09:13.018
+},
+
+16 янв. 12:09:13.018
+"column": 30
+
+16 янв. 12:09:13.018
+"row": 1,

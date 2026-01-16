@@ -1,0 +1,349 @@
+
+
+16 янв. 12:09:29.815
+"issueCode": 1030,
+
+16 янв. 12:09:29.815
+"message": "Type annotation",
+
+16 янв. 12:09:29.815
+{
+
+16 янв. 12:09:29.815
+[YDB Query Error]: SchemeError (code 400070): [
+
+16 янв. 12:09:29.788
+]
+
+16 янв. 12:09:29.788
+}
+
+16 янв. 12:09:29.788
+"severity": 1
+
+16 янв. 12:09:29.787
+"issueCode": 2003,
+
+16 янв. 12:09:29.787
+},
+
+16 янв. 12:09:29.787
+"column": 30
+
+16 янв. 12:09:29.787
+"row": 1,
+
+16 янв. 12:09:29.787
+"endPosition": {
+
+16 янв. 12:09:29.787
+"message": "Cannot find table 'db.[/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/products]' because it does not exist or you do not have access permissions. Please check correctness of table path and user permissions.",
+
+16 янв. 12:09:29.787
+},
+
+16 янв. 12:09:29.787
+"column": 30
+
+16 янв. 12:09:29.787
+"row": 1,
+
+16 янв. 12:09:29.787
+"position": {
+
+16 янв. 12:09:29.787
+{
+
+16 янв. 12:09:29.787
+},
+
+16 янв. 12:09:29.787
+"severity": 1
+
+16 янв. 12:09:29.787
+},
+
+16 янв. 12:09:29.787
+"column": 30
+
+16 янв. 12:09:29.787
+"row": 1,
+
+16 янв. 12:09:29.787
+"endPosition": {
+
+16 янв. 12:09:29.787
+"message": "At function: KiReadTable!",
+
+16 янв. 12:09:29.787
+},
+
+16 янв. 12:09:29.787
+"column": 30
+
+16 янв. 12:09:29.787
+"row": 1,
+
+16 янв. 12:09:29.787
+"position": {
+
+16 янв. 12:09:29.787
+{
+
+16 янв. 12:09:29.787
+},
+
+16 янв. 12:09:29.787
+"severity": 1
+
+16 янв. 12:09:29.787
+"issueCode": 1030,
+
+16 янв. 12:09:29.787
+"message": "Type annotation",
+
+16 янв. 12:09:29.787
+{
+
+16 янв. 12:09:29.787
+[YDB Query Error]: SchemeError (code 400070): [
+
+16 янв. 12:09:29.752
+]
+
+16 янв. 12:09:29.752
+}
+
+16 янв. 12:09:29.752
+"severity": 1
+
+16 янв. 12:09:29.752
+"issueCode": 2003,
+
+16 янв. 12:09:29.752
+},
+
+16 янв. 12:09:29.752
+"column": 30
+
+16 янв. 12:09:29.752
+"row": 1,
+
+16 янв. 12:09:29.752
+"endPosition": {
+
+16 янв. 12:09:29.752
+"message": "Cannot find table 'db.[/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/products]' because it does not exist or you do not have access permissions. Please check correctness of table path and user permissions.",
+
+16 янв. 12:09:29.752
+},
+
+16 янв. 12:09:29.752
+"column": 30
+
+16 янв. 12:09:29.752
+"row": 1,
+
+16 янв. 12:09:29.752
+"position": {
+
+16 янв. 12:09:29.752
+{
+
+16 янв. 12:09:29.752
+},
+
+16 янв. 12:09:29.752
+"severity": 1
+
+16 янв. 12:09:29.752
+},
+
+16 янв. 12:09:29.752
+"column": 30
+
+16 янв. 12:09:29.752
+"row": 1,
+
+16 янв. 12:09:29.752
+"endPosition": {
+
+16 янв. 12:09:29.752
+"message": "At function: KiReadTable!",
+
+16 янв. 12:09:29.752
+},
+
+16 янв. 12:09:29.752
+"column": 30
+
+16 янв. 12:09:29.752
+"row": 1,
+
+16 янв. 12:09:29.752
+"position": {
+
+16 янв. 12:09:29.752
+{
+
+16 янв. 12:09:29.751
+},
+
+16 янв. 12:09:29.751
+"severity": 1
+
+16 янв. 12:09:29.751
+"issueCode": 1030,
+
+16 янв. 12:09:29.751
+"message": "Type annotation",
+
+16 янв. 12:09:29.751
+{
+
+16 янв. 12:09:29.751
+[YDB Query Error]: SchemeError (code 400070): [
+
+16 янв. 12:09:29.721
+]
+
+16 янв. 12:09:29.721
+}
+
+16 янв. 12:09:29.721
+"severity": 1
+
+16 янв. 12:09:29.721
+"issueCode": 2003,
+
+16 янв. 12:09:29.721
+},
+
+16 янв. 12:09:29.721
+"column": 30
+
+16 янв. 12:09:29.721
+"row": 1,
+
+16 янв. 12:09:29.721
+"endPosition": {
+
+16 янв. 12:09:29.721
+"message": "Cannot find table 'db.[/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/products]' because it does not exist or you do not have access permissions. Please check correctness of table path and user permissions.",
+
+16 янв. 12:09:29.721
+},
+
+16 янв. 12:09:29.721
+"column": 30
+
+16 янв. 12:09:29.721
+"row": 1,
+
+16 янв. 12:09:29.721
+"position": {
+
+16 янв. 12:09:29.721
+{
+
+16 янв. 12:09:29.721
+},
+
+16 янв. 12:09:29.721
+"severity": 1
+
+16 янв. 12:09:29.721
+},
+
+16 янв. 12:09:29.721
+"column": 30
+
+16 янв. 12:09:29.721
+"row": 1,
+
+16 янв. 12:09:29.721
+"endPosition": {
+
+16 янв. 12:09:29.721
+"message": "At function: KiReadTable!",
+
+16 янв. 12:09:29.721
+},
+
+16 янв. 12:09:29.721
+"column": 30
+
+16 янв. 12:09:29.721
+"row": 1,
+
+16 янв. 12:09:29.721
+"position": {
+
+16 янв. 12:09:29.721
+{
+
+16 янв. 12:09:29.721
+},
+
+16 янв. 12:09:29.721
+"severity": 1
+
+16 янв. 12:09:29.721
+"issueCode": 1030,
+
+16 янв. 12:09:29.721
+"message": "Type annotation",
+
+16 янв. 12:09:29.721
+{
+
+16 янв. 12:09:29.721
+[YDB Query Error]: SchemeError (code 400070): [
+
+16 янв. 12:09:29.394
+]
+
+16 янв. 12:09:29.394
+}
+
+16 янв. 12:09:29.394
+"severity": 1
+
+16 янв. 12:09:29.394
+"issueCode": 2003,
+
+16 янв. 12:09:29.394
+},
+
+16 янв. 12:09:29.394
+"column": 30
+
+16 янв. 12:09:29.394
+"row": 1,
+
+16 янв. 12:09:29.394
+"endPosition": {
+
+16 янв. 12:09:29.394
+"message": "Cannot find table 'db.[/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113/products]' because it does not exist or you do not have access permissions. Please check correctness of table path and user permissions.",
+
+16 янв. 12:09:29.394
+},
+
+16 янв. 12:09:29.394
+"column": 30
+
+16 янв. 12:09:29.394
+"row": 1,
+
+16 янв. 12:09:29.394
+"position": {
+
+16 янв. 12:09:29.394
+{
+
+16 янв. 12:09:29.394
+},
+
+16 янв. 12:09:29.394
+"severity": 1
