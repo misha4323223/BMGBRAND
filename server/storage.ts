@@ -245,14 +245,14 @@ export class DatabaseStorage implements IStorage {
         params.$description = TypedValues.fromNative(Types.UTF8, p.description);
       }
       if (p.price !== undefined) {
-        declareStatements += 'DECLARE $price AS Uint64;\n';
+        declareStatements += 'DECLARE $price AS Double;\n';
         setClauses.push('price = $price');
-        params.$price = TypedValues.fromNative(Types.UINT64, BigInt(p.price));
+        params.$price = TypedValues.fromNative(Types.DOUBLE, p.price);
       }
       if (p.imageUrl !== undefined) {
-        declareStatements += 'DECLARE $images AS Utf8;\n';
+        declareStatements += 'DECLARE $images AS Json;\n';
         setClauses.push('images = $images');
-        params.$images = TypedValues.fromNative(Types.UTF8, JSON.stringify([p.imageUrl]));
+        params.$images = TypedValues.fromNative(Types.JSON, JSON.stringify([p.imageUrl]));
       }
       if (p.category !== undefined) {
         declareStatements += 'DECLARE $category AS Utf8;\n';
@@ -260,14 +260,14 @@ export class DatabaseStorage implements IStorage {
         params.$category = TypedValues.fromNative(Types.UTF8, p.category);
       }
       if (p.sizes !== undefined) {
-        declareStatements += 'DECLARE $sizes AS Utf8;\n';
+        declareStatements += 'DECLARE $sizes AS Json;\n';
         setClauses.push('sizes = $sizes');
-        params.$sizes = TypedValues.fromNative(Types.UTF8, JSON.stringify(p.sizes));
+        params.$sizes = TypedValues.fromNative(Types.JSON, JSON.stringify(p.sizes));
       }
       if (p.colors !== undefined) {
-        declareStatements += 'DECLARE $colors AS Utf8;\n';
+        declareStatements += 'DECLARE $colors AS Json;\n';
         setClauses.push('colors = $colors');
-        params.$colors = TypedValues.fromNative(Types.UTF8, JSON.stringify(p.colors));
+        params.$colors = TypedValues.fromNative(Types.JSON, JSON.stringify(p.colors));
       }
       if (p.externalId !== undefined) {
         declareStatements += 'DECLARE $external_id AS Utf8;\n';
