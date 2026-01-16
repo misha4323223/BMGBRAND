@@ -165,18 +165,18 @@ export class DatabaseStorage implements IStorage {
     const newId = String(Date.now());
     const result = await this.safeQuery(async (session) => {
       const { TypedValues, Types } = await import("ydb-sdk");
-      // Match actual YDB table schema: id, external_id, sku, name, description, price, images, category, sizes, colors, is_new, in_stock
+      // Match actual YDB table schema with correct types: price=Double, images/sizes/colors=Json
       const query = `
         DECLARE $id AS Utf8;
         DECLARE $external_id AS Utf8;
         DECLARE $sku AS Utf8;
         DECLARE $name AS Utf8;
         DECLARE $description AS Utf8;
-        DECLARE $price AS Uint64;
-        DECLARE $images AS Utf8;
+        DECLARE $price AS Double;
+        DECLARE $images AS Json;
         DECLARE $category AS Utf8;
-        DECLARE $sizes AS Utf8;
-        DECLARE $colors AS Utf8;
+        DECLARE $sizes AS Json;
+        DECLARE $colors AS Json;
         DECLARE $is_new AS Bool;
         DECLARE $in_stock AS Bool;
         
@@ -190,11 +190,11 @@ export class DatabaseStorage implements IStorage {
         $sku: TypedValues.fromNative(Types.UTF8, p.sku || ''),
         $name: TypedValues.fromNative(Types.UTF8, p.name || ''),
         $description: TypedValues.fromNative(Types.UTF8, p.description || ''),
-        $price: TypedValues.fromNative(Types.UINT64, BigInt(p.price || 0)),
-        $images: TypedValues.fromNative(Types.UTF8, JSON.stringify([p.imageUrl || ''])),
+        $price: TypedValues.fromNative(Types.DOUBLE, p.price || 0),
+        $images: TypedValues.fromNative(Types.JSON, JSON.stringify([p.imageUrl || ''])),
         $category: TypedValues.fromNative(Types.UTF8, p.category || ''),
-        $sizes: TypedValues.fromNative(Types.UTF8, JSON.stringify(p.sizes || [])),
-        $colors: TypedValues.fromNative(Types.UTF8, JSON.stringify(p.colors || [])),
+        $sizes: TypedValues.fromNative(Types.JSON, JSON.stringify(p.sizes || [])),
+        $colors: TypedValues.fromNative(Types.JSON, JSON.stringify(p.colors || [])),
         $is_new: TypedValues.fromNative(Types.BOOL, p.isNew || false),
         $in_stock: TypedValues.fromNative(Types.BOOL, true),
       });
