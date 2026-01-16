@@ -1,0 +1,281 @@
+
+
+16 янв. 12:15:11.340
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+"request_id""759ec910-2f11-4c24-a620-c9d9f58b882b"
+"revision_id""bba2qs7vohajie133mid"
+"source""user"
+
+16 янв. 12:15:10.923
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:10.511
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:10.099
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:09.672
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:08.384
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:07.966
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:07.555
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:06.313
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:05.880
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:04.217
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:03.790
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:03.377
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:02.890
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:02.437
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:02.023
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:01.605
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:01.190
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:00.773
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:15:00.362
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:14:59.939
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:14:59.499
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:14:59.081
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:14:58.640
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:14:58.134
+[YDB Query Error]: 8 RESOURCE_EXHAUSTED: ResourceExhausted
+
+16 янв. 12:14:55.629
+]
+
+16 янв. 12:14:55.629
+}
+
+16 янв. 12:14:55.629
+"severity": 1
+
+16 янв. 12:14:55.629
+},
+
+16 янв. 12:14:55.629
+"column": 52
+
+16 янв. 12:14:55.629
+"row": 1,
+
+16 янв. 12:14:55.629
+"endPosition": {
+
+16 янв. 12:14:55.629
+"message": "Member not found: sku",
+
+16 янв. 12:14:55.629
+},
+
+16 янв. 12:14:55.629
+"column": 52
+
+16 янв. 12:14:55.629
+"row": 1,
+
+16 янв. 12:14:55.629
+"position": {
+
+16 янв. 12:14:55.629
+{
+
+16 янв. 12:14:55.629
+},
+
+16 янв. 12:14:55.629
+"severity": 1
+
+16 янв. 12:14:55.629
+},
+
+16 янв. 12:14:55.629
+"column": 52
+
+16 янв. 12:14:55.629
+"row": 1,
+
+16 янв. 12:14:55.629
+"endPosition": {
+
+16 янв. 12:14:55.629
+"message": "At function: Member",
+
+16 янв. 12:14:55.629
+},
+
+16 янв. 12:14:55.629
+"column": 52
+
+16 янв. 12:14:55.629
+"row": 1,
+
+16 янв. 12:14:55.629
+"position": {
+
+16 янв. 12:14:55.629
+{
+
+16 янв. 12:14:55.629
+},
+
+16 янв. 12:14:55.629
+"severity": 1
+
+16 янв. 12:14:55.629
+},
+
+16 янв. 12:14:55.629
+"column": 56
+
+16 янв. 12:14:55.629
+"row": 1,
+
+16 янв. 12:14:55.629
+"endPosition": {
+
+16 янв. 12:14:55.629
+"message": "At function: ==",
+
+16 янв. 12:14:55.629
+},
+
+16 янв. 12:14:55.629
+"column": 56
+
+16 янв. 12:14:55.629
+"row": 1,
+
+16 янв. 12:14:55.629
+"position": {
+
+16 янв. 12:14:55.629
+{
+
+16 янв. 12:14:55.629
+},
+
+16 янв. 12:14:55.629
+"severity": 1
+
+16 янв. 12:14:55.629
+},
+
+16 янв. 12:14:55.629
+"column": 37
+
+16 янв. 12:14:55.628
+"row": 1,
+
+16 янв. 12:14:55.628
+"endPosition": {
+
+16 янв. 12:14:55.628
+"message": "At function: Filter, At lambda, At function: Coalesce",
+
+16 янв. 12:14:55.628
+},
+
+16 янв. 12:14:55.628
+"column": 37
+
+16 янв. 12:14:55.628
+"row": 1,
+
+16 янв. 12:14:55.628
+"position": {
+
+16 янв. 12:14:55.628
+{
+
+16 янв. 12:14:55.628
+},
+
+16 янв. 12:14:55.628
+"severity": 1
+
+16 янв. 12:14:55.628
+},
+
+16 янв. 12:14:55.628
+"column": 23
+
+16 янв. 12:14:55.628
+"row": 1,
+
+16 янв. 12:14:55.628
+"endPosition": {
+
+16 янв. 12:14:55.628
+"message": "At function: RemovePrefixMembers, At function: RemoveSystemMembers, At function: PersistableRepr, At function: SqlProject",
+
+16 янв. 12:14:55.628
+},
+
+16 янв. 12:14:55.628
+"column": 23
+
+16 янв. 12:14:55.628
+"row": 1,
+
+16 янв. 12:14:55.628
+"position": {
+
+16 янв. 12:14:55.628
+{
+
+16 янв. 12:14:55.628
+},
+
+16 янв. 12:14:55.628
+"severity": 1
+
+16 янв. 12:14:55.628
+"issueCode": 1030,
+
+16 янв. 12:14:55.628
+"message": "Type annotation",
+
+16 янв. 12:14:55.628
+{
+
+16 янв. 12:14:55.628
+[YDB Query Error]: GenericError (code 400080): [
