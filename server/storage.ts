@@ -33,47 +33,36 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  private extractTypedValue(item: any, colName?: string): any {
+  private extractTypedValue(item: any): any {
     if (!item) return null;
     
-    // Debug: log what keys the item has for price column
-    if (colName === 'price') {
-      console.log(`[PRICE DEBUG] Keys:`, Object.keys(item), `Full:`, JSON.stringify(item));
-    }
-    
     // Handle YDB Optional wrapper for nullable columns
-    if ('optionalValue' in item) {
-      return this.extractTypedValue(item.optionalValue, colName);
+    if (item.optionalValue !== undefined) {
+      return this.extractTypedValue(item.optionalValue);
     }
-    if ('textValue' in item) return item.textValue;
-    if ('uint64Value' in item) return item.uint64Value;
-    if ('int64Value' in item) return item.int64Value;
-    if ('uint32Value' in item) return item.uint32Value;
-    if ('int32Value' in item) return item.int32Value;
-    if ('doubleValue' in item) return item.doubleValue;
-    if ('floatValue' in item) return item.floatValue;
-    if ('boolValue' in item) return item.boolValue;
-    if ('bytesValue' in item) return item.bytesValue;
-    if ('nullFlagValue' in item) return null;
-    if ('value' in item) return item.value;
     
-    // Fallback: log unknown structure
-    if (colName === 'price') {
-      console.log(`[PRICE DEBUG] No match, returning null for:`, JSON.stringify(item));
-    }
+    // Direct value access (protobuf objects don't work with 'in' operator)
+    if (item.textValue !== undefined) return item.textValue;
+    if (item.uint64Value !== undefined) return item.uint64Value;
+    if (item.int64Value !== undefined) return item.int64Value;
+    if (item.uint32Value !== undefined) return item.uint32Value;
+    if (item.int32Value !== undefined) return item.int32Value;
+    if (item.doubleValue !== undefined) return item.doubleValue;
+    if (item.floatValue !== undefined) return item.floatValue;
+    if (item.boolValue !== undefined) return item.boolValue;
+    if (item.bytesValue !== undefined) return item.bytesValue;
+    if (item.nullFlagValue !== undefined) return null;
+    if (item.value !== undefined) return item.value;
+    
     return null;
   }
 
-  private parseRowWithColumns(row: any, columns: any[], logOnce: boolean = false): Record<string, any> {
+  private parseRowWithColumns(row: any, columns: any[]): Record<string, any> {
     const result: Record<string, any> = {};
     if (row.items && Array.isArray(row.items)) {
       for (let i = 0; i < row.items.length && i < columns.length; i++) {
         const colName = columns[i].name;
-        // Debug: log raw structure for price column (only first row)
-        if (colName === 'price' && logOnce) {
-          console.log(`[YDB DEBUG] Price at column index ${i}, raw:`, JSON.stringify(row.items[i]));
-        }
-        result[colName] = this.extractTypedValue(row.items[i], colName);
+        result[colName] = this.extractTypedValue(row.items[i]);
       }
     }
     return result;
@@ -110,10 +99,6 @@ export class DatabaseStorage implements IStorage {
     const priceVal = data.price;
     const parsedPrice = typeof priceVal === 'number' ? priceVal : parseFloat(priceVal) || 0;
     
-    if (data.name) {
-      console.log(`[Product] ${data.name}: raw price=${priceVal}, parsed=${parsedPrice}`);
-    }
-    
     return {
       id: typeof data.id === 'string' ? parseInt(data.id) || 0 : (data.id || 0),
       externalId: data.external_id || null,
@@ -135,15 +120,8 @@ export class DatabaseStorage implements IStorage {
       const { resultSets } = await session.executeQuery("SELECT * FROM products");
       const rs = resultSets[0];
       if (!rs.rows || !rs.columns) return [];
-      console.log("[YDB] Columns:", rs.columns.map((c: any) => c.name).join(', '));
-      console.log("[YDB] First row items count:", rs.rows[0]?.items?.length);
-      // DEBUG: Log full first row structure to see price format
-      if (rs.rows[0]?.items) {
-        console.log("[YDB RAW] First row full structure:", JSON.stringify(rs.rows[0].items.slice(0, 10)));
-      }
-      return rs.rows.map((row: any, idx: number) => {
-        const data = this.parseRowWithColumns(row, rs.columns || [], idx === 0);
-        if (idx === 0) console.log("[YDB] First parsed data:", JSON.stringify(data));
+      return rs.rows.map((row: any) => {
+        const data = this.parseRowWithColumns(row, rs.columns || []);
         return this.parseProduct(data);
       });
     });
