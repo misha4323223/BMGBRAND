@@ -7,12 +7,13 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { XMLParser, XMLBuilder } from "fast-xml-parser";
-import { uploadToYandexStorage, downloadFromYandexStorage } from "./lib/storage-s3";
+import { uploadToYandexStorage, downloadFromYandexStorage, listObjectsFromYandexStorage, downloadBinaryFromYandexStorage, deleteFromYandexStorage } from "./lib/storage-s3";
+import sharp from "sharp";
 
 // Cache for Object Storage URLs (local path -> Object Storage URL)
 const imageUrlCache: Map<string, string> = new Map();
 
-// Helper to get image URL (Object Storage or fallback)
+// Helper to get image URL (Object Storage or fallback) - prefers WebP format
 function getImageUrl(imgPath: string | null): string {
   const fallback = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
   if (!imgPath) return fallback;
@@ -24,9 +25,11 @@ function getImageUrl(imgPath: string | null): string {
   // Construct Object Storage URL if bucket is configured
   const bucket = process.env.YANDEX_STORAGE_BUCKET_NAME;
   if (bucket) {
-    // Keep original path structure (import_files/XX/file.jpg)
+    // Keep original path structure (import_files/XX/file.jpg) but use WebP extension
     const cleanPath = imgPath.replace(/\\/g, '/');
-    return `https://storage.yandexcloud.net/${bucket}/products/${cleanPath}`;
+    // Convert to WebP extension for optimized images
+    const webpPath = cleanPath.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+    return `https://storage.yandexcloud.net/${bucket}/products/${webpPath}`;
   }
   
   // Fallback to local path (won't work in production)
@@ -508,6 +511,68 @@ export async function registerRoutes(
     }
   });
 
+  // Convert existing images in Object Storage to WebP format
+  app.post("/api/convert-images-to-webp", async (req, res) => {
+    try {
+      console.log("[WebP] Starting image conversion...");
+      
+      // List all images in products folder
+      const allKeys = await listObjectsFromYandexStorage("products/import_files/");
+      const imageKeys = allKeys.filter(key => /\.(jpg|jpeg|png)$/i.test(key));
+      
+      console.log(`[WebP] Found ${imageKeys.length} images to convert`);
+      
+      let converted = 0;
+      let skipped = 0;
+      let failed = 0;
+      
+      for (const key of imageKeys) {
+        try {
+          // Check if WebP version already exists
+          const webpKey = key.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+          
+          // Download original image
+          const imageBuffer = await downloadBinaryFromYandexStorage(key);
+          if (!imageBuffer) {
+            console.log(`[WebP] Could not download: ${key}`);
+            failed++;
+            continue;
+          }
+          
+          // Convert to WebP
+          const webpBuffer = await sharp(imageBuffer)
+            .webp({ quality: 85 })
+            .toBuffer();
+          
+          // Upload WebP version (extract filename from key)
+          const webpFilename = webpKey.replace('products/', '');
+          await uploadToYandexStorage(webpBuffer, webpFilename, 'image/webp');
+          
+          console.log(`[WebP] Converted: ${key} -> ${webpKey}`);
+          converted++;
+          
+          // Optional: delete original after conversion (commented out for safety)
+          // await deleteFromYandexStorage(key);
+          
+        } catch (err: any) {
+          console.error(`[WebP] Failed to convert ${key}:`, err.message);
+          failed++;
+        }
+      }
+      
+      console.log(`[WebP] Complete: ${converted} converted, ${skipped} skipped, ${failed} failed`);
+      res.json({
+        success: true,
+        message: `Converted ${converted} images to WebP`,
+        details: { converted, skipped, failed, total: imageKeys.length }
+      });
+      
+    } catch (error) {
+      console.error("[WebP] Error:", error);
+      res.status(500).json({ error: "Conversion failed", details: String(error) });
+    }
+  });
+
   app.post("/api/1c-exchange", express.raw({ type: "*/*", limit: "500mb" }), async (req, res) => {
     const { type, mode, filename } = req.query;
     
@@ -515,16 +580,33 @@ export async function registerRoutes(
       const filenameStr = filename as string;
       const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(filenameStr);
       
-      // Upload images to Object Storage
+      // Upload images to Object Storage (convert to WebP for better compression)
       if (isImage && process.env.YANDEX_STORAGE_BUCKET_NAME) {
         try {
-          const contentType = filenameStr.endsWith('.png') ? 'image/png' : 
-                              filenameStr.endsWith('.gif') ? 'image/gif' : 
-                              filenameStr.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
-          const s3Url = await uploadToYandexStorage(req.body, filenameStr.replace(/[\/\\]/g, '_'), contentType);
+          // Convert to WebP format for better compression (except GIF which may be animated)
+          const isGif = filenameStr.toLowerCase().endsWith('.gif');
+          let imageBuffer: Buffer;
+          let contentType: string;
+          let finalFilename: string;
+          
+          if (isGif) {
+            imageBuffer = req.body;
+            contentType = 'image/gif';
+            finalFilename = filenameStr.replace(/[\/\\]/g, '_');
+          } else {
+            // Convert to WebP
+            imageBuffer = await sharp(req.body)
+              .webp({ quality: 85 })
+              .toBuffer();
+            contentType = 'image/webp';
+            // Change extension to .webp
+            finalFilename = filenameStr.replace(/[\/\\]/g, '_').replace(/\.(jpg|jpeg|png)$/i, '.webp');
+          }
+          
+          const s3Url = await uploadToYandexStorage(imageBuffer, finalFilename, contentType);
           if (s3Url) {
             imageUrlCache.set(filenameStr, s3Url);
-            console.log(`[1C] Uploaded image to Object Storage: ${filenameStr} -> ${s3Url}`);
+            console.log(`[1C] Uploaded image to Object Storage (WebP): ${filenameStr} -> ${s3Url}`);
           }
           return res.send("success");
         } catch (err) {

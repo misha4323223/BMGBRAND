@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 
 const s3Client = new S3Client({
@@ -52,5 +52,73 @@ export async function downloadFromYandexStorage(key: string): Promise<string | n
   } catch (error) {
     console.error(`Failed to download ${key} from Object Storage:`, error);
     return null;
+  }
+}
+
+export async function downloadBinaryFromYandexStorage(key: string): Promise<Buffer | null> {
+  if (!process.env.YANDEX_STORAGE_BUCKET_NAME) {
+    return null;
+  }
+
+  try {
+    const command = new GetObjectCommand({
+      Bucket: process.env.YANDEX_STORAGE_BUCKET_NAME,
+      Key: key,
+    });
+
+    const response = await s3Client.send(command);
+    const byteArray = await response.Body?.transformToByteArray();
+    return byteArray ? Buffer.from(byteArray) : null;
+  } catch (error) {
+    console.error(`Failed to download binary ${key}:`, error);
+    return null;
+  }
+}
+
+export async function listObjectsFromYandexStorage(prefix: string): Promise<string[]> {
+  if (!process.env.YANDEX_STORAGE_BUCKET_NAME) {
+    return [];
+  }
+
+  const keys: string[] = [];
+  let continuationToken: string | undefined;
+
+  try {
+    do {
+      const command = new ListObjectsV2Command({
+        Bucket: process.env.YANDEX_STORAGE_BUCKET_NAME,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      });
+
+      const response = await s3Client.send(command);
+      if (response.Contents) {
+        keys.push(...response.Contents.map(obj => obj.Key!).filter(Boolean));
+      }
+      continuationToken = response.NextContinuationToken;
+    } while (continuationToken);
+
+    return keys;
+  } catch (error) {
+    console.error(`Failed to list objects with prefix ${prefix}:`, error);
+    return [];
+  }
+}
+
+export async function deleteFromYandexStorage(key: string): Promise<boolean> {
+  if (!process.env.YANDEX_STORAGE_BUCKET_NAME) {
+    return false;
+  }
+
+  try {
+    const command = new DeleteObjectCommand({
+      Bucket: process.env.YANDEX_STORAGE_BUCKET_NAME,
+      Key: key,
+    });
+    await s3Client.send(command);
+    return true;
+  } catch (error) {
+    console.error(`Failed to delete ${key}:`, error);
+    return false;
   }
 }

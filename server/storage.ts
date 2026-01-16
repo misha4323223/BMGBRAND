@@ -203,7 +203,9 @@ export class DatabaseStorage implements IStorage {
       return true;
     });
     
-    if (result === null) {
+    // In dev mode (no driver), result will be null - that's expected
+    // Only throw error if we're in production and the query actually failed
+    if (result === null && driver !== null) {
       throw new Error(`Failed to create product: ${p.name}`);
     }
     
