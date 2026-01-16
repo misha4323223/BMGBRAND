@@ -1,0 +1,109 @@
+
+
+16 янв. 21:08:26.262
+REPORT RequestID: 6e1b341d-212f-46cb-bfe3-9f8458650307 Duration: 63.224 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 189 MB Queuing Duration: 0.070 ms CPU Usage: 87.793 %
+
+16 янв. 21:08:26.262
+ERROR RequestID: 6e1b341d-212f-46cb-bfe3-9f8458650307 Code: 502 Message: Error during function invocation
+
+16 янв. 21:08:26.262
+END RequestID: 6e1b341d-212f-46cb-bfe3-9f8458650307
+
+16 янв. 21:08:26.178
+START RequestID: 6e1b341d-212f-46cb-bfe3-9f8458650307
+
+16 янв. 21:08:26.165
+6:08:26 PM [express] GET /api/cart/b0tHr4FoW9d1zG1tLvnoK 304 in 1ms :: []
+
+16 янв. 21:08:26.164
+REPORT RequestID: b604a727-e6d5-463f-8bce-c76af96df75b Duration: 1.822 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 189 MB Queuing Duration: 0.039 ms CPU Usage: 87.793 %
+
+16 янв. 21:08:26.164
+END RequestID: b604a727-e6d5-463f-8bce-c76af96df75b
+
+16 янв. 21:08:26.159
+START RequestID: b604a727-e6d5-463f-8bce-c76af96df75b
+
+16 янв. 21:08:26.129
+REPORT RequestID: 613eb96f-fc3d-4bd1-aaf0-c85589485a70 Duration: 2.154 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 189 MB Queuing Duration: 0.096 ms CPU Usage: 87.793 %
+
+16 янв. 21:08:26.129
+END RequestID: 613eb96f-fc3d-4bd1-aaf0-c85589485a70
+
+16 янв. 21:08:26.120
+START RequestID: 613eb96f-fc3d-4bd1-aaf0-c85589485a70
+
+16 янв. 21:08:26.080
+6:08:26 PM [express] GET /api/products 200 in 57ms :: [{"id":1,"externalId":"test-001","sku":"BMG-HOODIE-001","name":"Худи BOOOMERANGS Classic","description":"Стильное худи из плотного хлопка","price":0,"imageUrl":"https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400","category":"hoodies","sizes":["S","M","L","XL"],"colors":["black","white"],"isNew":false,"createdAt":"2026-01-16T18:08:26.077Z"}]
+
+16 янв. 21:08:26.080
+REPORT RequestID: e273301d-f626-4881-9310-f478fa5fb2b4 Duration: 58.841 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 189 MB Queuing Duration: 0.104 ms CPU Usage: 87.793 %
+
+16 янв. 21:08:26.080
+END RequestID: e273301d-f626-4881-9310-f478fa5fb2b4
+
+16 янв. 21:08:26.077
+[YDB] Parsed data: {"article":"ART-001","category":"hoodies","colors":"[\"black\", \"white\"]","created_at":null,"description":"Стильное худи из плотного хлопка","external_id":"test-001","id":"1","images":"[\"https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Худи BOOOMERANGS Classic","old_price":null,"price":null,"sizes":"[\"S\", \"M\", \"L\", \"XL\"]","sku":"BMG-HOODIE-001","subcategory":null,"updated_at":null}
+
+16 янв. 21:08:26.077
+[YDB] First row items count: 18
+
+16 янв. 21:08:26.077
+[YDB] Columns: article, category, colors, created_at, description, external_id, id, images, in_stock, is_new, is_sale, name, old_price, price, sizes, sku, subcategory, updated_at
+
+16 янв. 21:08:26.016
+START RequestID: e273301d-f626-4881-9310-f478fa5fb2b4
+
+16 янв. 21:08:25.962
+REPORT RequestID: 11d4714e-b198-458d-a18f-0959cab00c8e Duration: 2.735 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 189 MB Queuing Duration: 0.073 ms CPU Usage: 87.793 %
+
+16 янв. 21:08:25.962
+END RequestID: 11d4714e-b198-458d-a18f-0959cab00c8e
+
+16 янв. 21:08:25.955
+START RequestID: 11d4714e-b198-458d-a18f-0959cab00c8e
+
+16 янв. 21:08:25.772
+REPORT RequestID: c602fd67-0f10-44fa-88d3-9521e215b452 Duration: 1384.808 ms Billed Duration: 1400 ms Memory Size: 512 MB Max Memory Used: 189 MB Queuing Duration: 0.025 ms Function Init Duration: 1378.178 ms CPU Usage: 87.793 %
+
+16 янв. 21:08:25.772
+END RequestID: c602fd67-0f10-44fa-88d3-9521e215b452
+
+16 янв. 21:08:25.686
+6:08:25 PM [express] serving on port 8080
+
+16 янв. 21:08:25.634
+[YDB] Parsed data: {"article":"ART-001","category":"hoodies","colors":"[\"black\", \"white\"]","created_at":null,"description":"Стильное худи из плотного хлопка","external_id":"test-001","id":"1","images":"[\"https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400\"]","in_stock":null,"is_new":null,"is_sale":null,"name":"Худи BOOOMERANGS Classic","old_price":null,"price":null,"sizes":"[\"S\", \"M\", \"L\", \"XL\"]","sku":"BMG-HOODIE-001","subcategory":null,"updated_at":null}
+
+16 янв. 21:08:25.634
+[YDB] First row items count: 18
+
+16 янв. 21:08:25.633
+[YDB] Columns: article, category, colors, created_at, description, external_id, id, images, in_stock, is_new, is_sale, name, old_price, price, sizes, sku, subcategory, updated_at
+
+16 янв. 21:08:25.497
+[YDB] Driver is ready!
+
+16 янв. 21:08:25.232
+[YDB] Driver created, waiting for ready...
+
+16 янв. 21:08:25.167
+[YDB] Created MetadataAuthService
+
+16 янв. 21:08:25.167
+[YDB] NODE_ENV: production
+
+16 янв. 21:08:25.167
+[YDB] Database: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
+
+16 янв. 21:08:25.166
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+16 янв. 21:08:24.291
+START RequestID: c602fd67-0f10-44fa-88d3-9521e215b452
+
+16 янв. 21:08:24.271
+REPORT RequestID: 8ddc0fa4-bbd1-49af-98e2-5c5561ff64c1 Duration: 1.989 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 189 MB Queuing Duration: 0.058 ms CPU Usage: 32.812 %
+
+16 янв. 21:08:24.271
+END RequestID: 8ddc0fa4-bbd1-49af-98e2-5c5561ff64c1
