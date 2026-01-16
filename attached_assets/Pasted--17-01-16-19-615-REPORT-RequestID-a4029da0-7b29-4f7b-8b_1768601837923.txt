@@ -1,0 +1,301 @@
+
+
+17 янв. 01:16:19.615
+REPORT RequestID: a4029da0-7b29-4f7b-8bee-043aa69d88ea Duration: 41.311 ms Billed Duration: 100 ms Memory Size: 512 MB Max Memory Used: 214 MB Queuing Duration: 0.074 ms
+
+17 янв. 01:16:19.615
+ERROR RequestID: a4029da0-7b29-4f7b-8bee-043aa69d88ea Code: 502 Message: Error during function invocation
+
+17 янв. 01:16:19.615
+END RequestID: a4029da0-7b29-4f7b-8bee-043aa69d88ea
+
+17 янв. 01:16:19.614
+{"errorMessage":"Post \"http://127.0.0.1:8080/api/cart\": EOF","errorType":"Error"}
+
+17 янв. 01:16:19.614
+error running user code: exit status 1
+
+17 янв. 01:16:19.614
+unexpected error (running container) exit status 1
+
+17 янв. 01:16:19.608
+Node.js v20.20.0
+
+17 янв. 01:16:19.608
+}
+
+17 янв. 01:16:19.608
+}
+
+17 янв. 01:16:19.608
+nonIdempotent: false
+
+17 янв. 01:16:19.608
+idempotent: false,
+
+17 янв. 01:16:19.608
+deleteSession: false,
+
+17 янв. 01:16:19.608
+backoff: 0,
+
+17 янв. 01:16:19.608
+[Symbol(retryPolicy)]: {
+
+17 янв. 01:16:19.608
+],
+
+17 янв. 01:16:19.608
+}
+
+17 янв. 01:16:19.608
+severity: 1
+
+17 янв. 01:16:19.608
+endPosition: Position { row: 8, column: 82 },
+
+17 янв. 01:16:19.608
+position: Position { row: 8, column: 82 },
+
+17 янв. 01:16:19.608
+issueCode: 2031,
+
+17 янв. 01:16:19.608
+message: 'Failed to convert input columns types to scheme types',
+
+17 янв. 01:16:19.608
+IssueMessage {
+
+17 янв. 01:16:19.608
+},
+
+17 янв. 01:16:19.608
+severity: 1
+
+17 янв. 01:16:19.608
+endPosition: Position { row: 8, column: 82 },
+
+17 янв. 01:16:19.608
+position: Position { row: 8, column: 82 },
+
+17 янв. 01:16:19.608
+message: "Failed to convert 'product_id': Utf8 to Optional<Uint64>",
+
+17 янв. 01:16:19.608
+IssueMessage {
+
+17 янв. 01:16:19.608
+},
+
+17 янв. 01:16:19.608
+severity: 1
+
+17 янв. 01:16:19.608
+endPosition: Position { row: 8, column: 82 },
+
+17 янв. 01:16:19.608
+position: Position { row: 8, column: 82 },
+
+17 янв. 01:16:19.608
+message: "Failed to convert type: Struct<'color':Utf8,'created_at':Timestamp,'product_id':Utf8,'quantity':Uint32,'session_id':Utf8,'size':Utf8> to Struct<'color':Utf8?,'created_at':Timestamp?,'product_id':Uint64?,'quantity':Int32?,'session_id':Utf8?,'size':Utf8?>",
+
+17 янв. 01:16:19.608
+IssueMessage {
+
+17 янв. 01:16:19.608
+},
+
+17 янв. 01:16:19.608
+severity: 1
+
+17 янв. 01:16:19.608
+endPosition: Position { row: 8, column: 23 },
+
+17 янв. 01:16:19.607
+position: Position { row: 8, column: 23 },
+
+17 янв. 01:16:19.607
+message: 'At function: KiWriteTable!',
+
+17 янв. 01:16:19.607
+IssueMessage {
+
+17 янв. 01:16:19.607
+},
+
+17 янв. 01:16:19.607
+severity: 1
+
+17 янв. 01:16:19.607
+issueCode: 1030,
+
+17 янв. 01:16:19.607
+message: 'Type annotation',
+
+17 янв. 01:16:19.607
+IssueMessage {
+
+17 янв. 01:16:19.607
+issues: [
+
+17 янв. 01:16:19.607
+at async /app/dist/index.cjs:163:2994 {
+
+17 янв. 01:16:19.607
+at async Up.addToCart (/app/dist/index.cjs:98:535)
+
+17 янв. 01:16:19.607
+at async TableSessionPool._withSession (/app/node_modules/ydb-sdk/build/cjs/src/table/table-session-pool.js:183:28)
+
+17 янв. 01:16:19.607
+at async /app/dist/index.cjs:107:383
+
+17 янв. 01:16:19.607
+at async descriptor.value (/app/node_modules/ydb-sdk/build/cjs/src/utils/pessimizable.js:13:20)
+
+17 янв. 01:16:19.607
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+17 янв. 01:16:19.607
+at TableSession.executeQuery (/app/node_modules/ydb-sdk/build/cjs/src/table/table-session.js:394:80)
+
+17 янв. 01:16:19.607
+at getOperationPayload (/app/node_modules/ydb-sdk/build/cjs/src/utils/process-ydb-operation-result.js:11:27)
+
+17 янв. 01:16:19.607
+at YdbError.checkStatus (/app/node_modules/ydb-sdk/build/cjs/src/errors.js:69:23)
+
+17 янв. 01:16:19.607
+]
+
+17 янв. 01:16:19.607
+}
+
+17 янв. 01:16:19.607
+"severity": 1
+
+17 янв. 01:16:19.607
+"issueCode": 2031,
+
+17 янв. 01:16:19.607
+},
+
+17 янв. 01:16:19.607
+"column": 82
+
+17 янв. 01:16:19.607
+"row": 8,
+
+17 янв. 01:16:19.607
+"endPosition": {
+
+17 янв. 01:16:19.607
+"message": "Failed to convert input columns types to scheme types",
+
+17 янв. 01:16:19.607
+},
+
+17 янв. 01:16:19.607
+"column": 82
+
+17 янв. 01:16:19.607
+"row": 8,
+
+17 янв. 01:16:19.607
+"position": {
+
+17 янв. 01:16:19.607
+{
+
+17 янв. 01:16:19.607
+},
+
+17 янв. 01:16:19.607
+"severity": 1
+
+17 янв. 01:16:19.607
+},
+
+17 янв. 01:16:19.607
+"column": 82
+
+17 янв. 01:16:19.607
+"row": 8,
+
+17 янв. 01:16:19.607
+"endPosition": {
+
+17 янв. 01:16:19.607
+"message": "Failed to convert 'product_id': Utf8 to Optional<Uint64>",
+
+17 янв. 01:16:19.607
+},
+
+17 янв. 01:16:19.607
+"column": 82
+
+17 янв. 01:16:19.607
+"row": 8,
+
+17 янв. 01:16:19.607
+"position": {
+
+17 янв. 01:16:19.607
+{
+
+17 янв. 01:16:19.607
+},
+
+17 янв. 01:16:19.607
+"severity": 1
+
+17 янв. 01:16:19.607
+},
+
+17 янв. 01:16:19.607
+"column": 82
+
+17 янв. 01:16:19.607
+"row": 8,
+
+17 янв. 01:16:19.607
+"endPosition": {
+
+17 янв. 01:16:19.607
+"message": "Failed to convert type: Struct<'color':Utf8,'created_at':Timestamp,'product_id':Utf8,'quantity':Uint32,'session_id':Utf8,'size':Utf8> to Struct<'color':Utf8?,'created_at':Timestamp?,'product_id':Uint64?,'quantity':Int32?,'session_id':Utf8?,'size':Utf8?>",
+
+17 янв. 01:16:19.607
+},
+
+17 янв. 01:16:19.607
+"column": 82
+
+17 янв. 01:16:19.607
+"row": 8,
+
+17 янв. 01:16:19.607
+"position": {
+
+17 янв. 01:16:19.607
+{
+
+17 янв. 01:16:19.607
+},
+
+17 янв. 01:16:19.607
+"severity": 1
+
+17 янв. 01:16:19.607
+},
+
+17 янв. 01:16:19.607
+"column": 23
+
+17 янв. 01:16:19.607
+"row": 8,
+
+17 янв. 01:16:19.607
+"endPosition": {
+
+17 янв. 01:16:19.607
+"message": "At function: KiWriteTable!",

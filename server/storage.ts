@@ -331,7 +331,8 @@ export class DatabaseStorage implements IStorage {
       
       for (const row of rows) {
         const items = row.items || [];
-        const productId = items[1]?.textValue || "";
+        // product_id is Uint64, quantity is Int32
+        const productId = items[1]?.uint64Value || items[1]?.int64Value || 0;
         const product = await this.getProduct(Number(productId));
         
         if (product) {
@@ -341,7 +342,7 @@ export class DatabaseStorage implements IStorage {
             productId: Number(productId),
             size: items[2]?.textValue || null,
             color: items[3]?.textValue || null,
-            quantity: items[4]?.uint32Value || 1,
+            quantity: items[4]?.int32Value || items[4]?.uint32Value || 1,
             product,
           });
         }
@@ -363,28 +364,29 @@ export class DatabaseStorage implements IStorage {
         const { TypedValues, Types } = await import("ydb-sdk");
         const query = `
           DECLARE $session_id AS Utf8;
-          DECLARE $product_id AS Utf8;
+          DECLARE $product_id AS Uint64;
           DECLARE $size AS Utf8;
           DECLARE $color AS Utf8;
-          DECLARE $quantity AS Uint32;
+          DECLARE $quantity AS Int32;
           
           UPSERT INTO cart_items (session_id, product_id, size, color, quantity, created_at)
           VALUES ($session_id, $product_id, $size, $color, $quantity, CurrentUtcTimestamp());
         `;
         
         const qty = Number(item.quantity) || 1;
-        console.log(`[Cart] Inserting: session=${item.sessionId}, product=${item.productId}, qty=${qty}`);
+        const productIdNum = Number(item.productId);
+        console.log(`[Cart] Inserting: session=${item.sessionId}, product=${productIdNum}, qty=${qty}`);
         
         const params = {
           $session_id: TypedValues.fromNative(Types.UTF8, String(item.sessionId)),
-          $product_id: TypedValues.fromNative(Types.UTF8, String(item.productId)),
+          $product_id: TypedValues.fromNative(Types.UINT64, productIdNum),
           $size: TypedValues.fromNative(Types.UTF8, String(item.size || "One Size")),
           $color: TypedValues.fromNative(Types.UTF8, String(item.color || "Default")),
-          $quantity: TypedValues.fromNative(Types.UINT32, qty),
+          $quantity: TypedValues.fromNative(Types.INT32, qty),
         };
         
         await session.executeQuery(query, params);
-        console.log(`[Cart] Added/updated item in YDB: session=${item.sessionId}, product=${item.productId}`);
+        console.log(`[Cart] Added/updated item in YDB: session=${item.sessionId}, product=${productIdNum}`);
       });
     } catch (err: any) {
       console.error(`[Cart] Error adding to cart:`, err.message || err);
@@ -409,31 +411,35 @@ export class DatabaseStorage implements IStorage {
       return;
     }
     
-    await driver.tableClient.withSession(async (session) => {
-      const { TypedValues, Types } = await import("ydb-sdk");
-      const query = `
-        DECLARE $session_id AS Utf8;
-        DECLARE $product_id AS Utf8;
-        DECLARE $size AS Utf8;
-        DECLARE $color AS Utf8;
+    try {
+      await driver.tableClient.withSession(async (session) => {
+        const { TypedValues, Types } = await import("ydb-sdk");
+        const query = `
+          DECLARE $session_id AS Utf8;
+          DECLARE $product_id AS Uint64;
+          DECLARE $size AS Utf8;
+          DECLARE $color AS Utf8;
+          
+          DELETE FROM cart_items
+          WHERE session_id = $session_id 
+            AND product_id = $product_id
+            AND size = $size
+            AND color = $color;
+        `;
         
-        DELETE FROM cart_items
-        WHERE session_id = $session_id 
-          AND product_id = $product_id
-          AND size = $size
-          AND color = $color;
-      `;
-      
-      const params = {
-        $session_id: TypedValues.fromNative(Types.UTF8, sessionId),
-        $product_id: TypedValues.fromNative(Types.UTF8, String(productId)),
-        $size: TypedValues.fromNative(Types.UTF8, size || "One Size"),
-        $color: TypedValues.fromNative(Types.UTF8, color || "Default"),
-      };
-      
-      await session.executeQuery(query, params);
-      console.log(`[Cart] Removed item from YDB: session=${sessionId}, product=${productId}`);
-    });
+        const params = {
+          $session_id: TypedValues.fromNative(Types.UTF8, sessionId),
+          $product_id: TypedValues.fromNative(Types.UINT64, Number(productId)),
+          $size: TypedValues.fromNative(Types.UTF8, size || "One Size"),
+          $color: TypedValues.fromNative(Types.UTF8, color || "Default"),
+        };
+        
+        await session.executeQuery(query, params);
+        console.log(`[Cart] Removed item from YDB: session=${sessionId}, product=${productId}`);
+      });
+    } catch (err: any) {
+      console.error(`[Cart] Error removing from cart:`, err.message || err);
+    }
   }
 
   async clearCart(sessionId: string): Promise<void> {
