@@ -33,11 +33,15 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  private extractTypedValue(item: any): any {
+  private extractTypedValue(item: any, colName?: string): any {
     if (!item) return null;
     // Handle YDB Optional wrapper for nullable columns
-    if ('optionalValue' in item && item.optionalValue) {
-      return this.extractTypedValue(item.optionalValue);
+    if ('optionalValue' in item) {
+      // Debug log for price column
+      if (colName === 'price') {
+        console.log(`[YDB] Price optionalValue structure:`, JSON.stringify(item));
+      }
+      return this.extractTypedValue(item.optionalValue, colName);
     }
     if ('textValue' in item) return item.textValue;
     if ('uint64Value' in item) return item.uint64Value;
@@ -58,7 +62,7 @@ export class DatabaseStorage implements IStorage {
     if (row.items && Array.isArray(row.items)) {
       for (let i = 0; i < row.items.length && i < columns.length; i++) {
         const colName = columns[i].name;
-        result[colName] = this.extractTypedValue(row.items[i]);
+        result[colName] = this.extractTypedValue(row.items[i], colName);
       }
     }
     return result;
