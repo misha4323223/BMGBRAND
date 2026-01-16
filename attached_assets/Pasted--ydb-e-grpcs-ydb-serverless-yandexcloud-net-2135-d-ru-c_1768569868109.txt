@@ -1,0 +1,21 @@
+>> ydb -e grpcs://ydb.serverless.yandexcloud.net:2135 -d /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113 scripting yql -f query.yql
+PS C:\Users\POSITIVE\OneDrive\Рабочий стол\Boomerangs-Web> ydb -e grpcs://ydb.serverless.yandexcloud.net:2135 -d /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113 scripting yql -s "SELECT images FROM products WHERE id = '1'"
+тФМтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФР
+тФВ images                                                                  тФВ
+тФЬтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФд
+тФВ "[\"https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400\"]" тФВ
+тФФтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФШ
+PS C:\Users\POSITIVE\OneDrive\Рабочий стол\Boomerangs-Web> yc serverless container revision list --container-name bmg-app
++----------------------+----------------------+-------------------------------------------+---------------------+
+|          ID          |     CONTAINER ID     |                   IMAGE                   |     CREATED AT      |
++----------------------+----------------------+-------------------------------------------+---------------------+
+| bbar48jn9jtk0ggk8h9j | bba6fol2jvub7mr2uahi | cr.yandex/crpp1bes63avh83rbvte/bmg:v9     | 2026-01-16 12:16:16 |
+| bbaqalad8plgqji1hv0e | bba6fol2jvub7mr2uahi | cr.yandex/crpp1bes63avh83rbvte/bmg:v8     | 2026-01-16 11:24:03 |
+| bba2qs7vohajie133mid | bba6fol2jvub7mr2uahi | cr.yandex/crpp1bes63avh83rbvte/bmg-app:v7 | 2026-01-16 08:59:14 |
+| bbakskj7r4a33d9rqdj1 | bba6fol2jvub7mr2uahi | cr.yandex/crpp1bes63avh83rbvte/bmg-app:v4 | 2026-01-15 23:48:01 |
+| bbalan5ogdomgrl2hqdn | bba6fol2jvub7mr2uahi | cr.yandex/crpp1bes63avh83rbvte/bmg-app:v3 | 2026-01-14 23:26:38 |
+| bba6ajivdscf4nvrc0q7 | bba6fol2jvub7mr2uahi | cr.yandex/crpp1bes63avh83rbvte/bmg-app:v3 | 2026-01-14 23:02:40 |
+| bba2rbpvieqnt78mfb6a | bba6fol2jvub7mr2uahi | cr.yandex/crpp1bes63avh83rbvte/bmg-app:v2 | 2026-01-14 22:55:57 |
+| bbabqc44fuabhii5dlo6 | bba6fol2jvub7mr2uahi | cr.yandex/crpp1bes63avh83rbvte/bmg-app:v1 | 2026-01-14 22:29:26 |
+| bbajtodi9mumk56k6gk4 | bba6fol2jvub7mr2uahi | cr.yandex/crpp1bes63avh83rbvte/bmg-app:v1 | 2026-01-14 22:04:06 |
++----------------------+----------------------+-------------------------------------------+---------------------+
