@@ -431,30 +431,34 @@ export async function registerRoutes(
           const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
           const imageUrl = getImageUrl(imgPath);
           
-          const existing = await storage.getProductByExternalId(externalId);
-          if (!existing) {
-            const existingBySku = sku ? await storage.getProductBySku(sku) : null;
-            if (existingBySku) {
-              await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, sizes, colors });
-              productsUpdated++;
+          try {
+            const existing = await storage.getProductByExternalId(externalId);
+            if (!existing) {
+              const existingBySku = sku ? await storage.getProductBySku(sku) : null;
+              if (existingBySku) {
+                await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, sizes, colors });
+                productsUpdated++;
+              } else {
+                await storage.createProduct({
+                  externalId,
+                  sku,
+                  name,
+                  description,
+                  price: 0,
+                  imageUrl,
+                  category: "1C Import",
+                  sizes,
+                  colors,
+                  isNew: true
+                });
+                productsCreated++;
+              }
             } else {
-              await storage.createProduct({
-                externalId,
-                sku,
-                name,
-                description,
-                price: 0,
-                imageUrl,
-                category: "1C Import",
-                sizes,
-                colors,
-                isNew: true
-              });
-              productsCreated++;
+              await storage.updateProduct(existing.id, { name, description, sku, imageUrl, sizes, colors });
+              productsUpdated++;
             }
-          } else {
-            await storage.updateProduct(existing.id, { name, description, sku, imageUrl, sizes, colors });
-            productsUpdated++;
+          } catch (err: any) {
+            console.error(`[Sync] Failed to save product ${name}:`, err.message);
           }
         }
       }

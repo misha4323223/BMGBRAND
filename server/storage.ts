@@ -165,6 +165,7 @@ export class DatabaseStorage implements IStorage {
     const newId = String(Date.now());
     const result = await this.safeQuery(async (session) => {
       const { TypedValues, Types } = await import("ydb-sdk");
+      // Match actual YDB table schema: id, external_id, sku, name, description, price, images, category, sizes, colors, is_new, in_stock
       const query = `
         DECLARE $id AS Utf8;
         DECLARE $external_id AS Utf8;
@@ -178,10 +179,9 @@ export class DatabaseStorage implements IStorage {
         DECLARE $colors AS Utf8;
         DECLARE $is_new AS Bool;
         DECLARE $in_stock AS Bool;
-        DECLARE $created_at AS Uint64;
         
-        UPSERT INTO products (id, external_id, sku, name, description, price, images, category, sizes, colors, is_new, in_stock, created_at)
-        VALUES ($id, $external_id, $sku, $name, $description, $price, $images, $category, $sizes, $colors, $is_new, $in_stock, $created_at);
+        UPSERT INTO products (id, external_id, sku, name, description, price, images, category, sizes, colors, is_new, in_stock)
+        VALUES ($id, $external_id, $sku, $name, $description, $price, $images, $category, $sizes, $colors, $is_new, $in_stock);
       `;
       
       await session.executeQuery(query, {
@@ -197,12 +197,15 @@ export class DatabaseStorage implements IStorage {
         $colors: TypedValues.fromNative(Types.UTF8, JSON.stringify(p.colors || [])),
         $is_new: TypedValues.fromNative(Types.BOOL, p.isNew || false),
         $in_stock: TypedValues.fromNative(Types.BOOL, true),
-        $created_at: TypedValues.fromNative(Types.UINT64, BigInt(Date.now() * 1000)),
       });
       
       console.log(`[YDB] Created product: ${p.name} with id ${newId}`);
       return true;
     });
+    
+    if (result === null) {
+      throw new Error(`Failed to create product: ${p.name}`);
+    }
     
     return {
       id: parseInt(newId) || 0,
