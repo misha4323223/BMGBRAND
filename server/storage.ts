@@ -57,14 +57,14 @@ export class DatabaseStorage implements IStorage {
     return null;
   }
 
-  private parseRowWithColumns(row: any, columns: any[]): Record<string, any> {
+  private parseRowWithColumns(row: any, columns: any[], logOnce: boolean = false): Record<string, any> {
     const result: Record<string, any> = {};
     if (row.items && Array.isArray(row.items)) {
       for (let i = 0; i < row.items.length && i < columns.length; i++) {
         const colName = columns[i].name;
-        // Debug: log raw structure for price column
-        if (colName === 'price' && i < 5) {
-          console.log(`[YDB DEBUG] Raw price item[${i}]:`, JSON.stringify(row.items[i]));
+        // Debug: log raw structure for price column (only first row)
+        if (colName === 'price' && logOnce) {
+          console.log(`[YDB DEBUG] Price at column index ${i}, raw:`, JSON.stringify(row.items[i]));
         }
         result[colName] = this.extractTypedValue(row.items[i], colName);
       }
@@ -130,8 +130,8 @@ export class DatabaseStorage implements IStorage {
       if (!rs.rows || !rs.columns) return [];
       console.log("[YDB] Columns:", rs.columns.map((c: any) => c.name).join(', '));
       console.log("[YDB] First row items count:", rs.rows[0]?.items?.length);
-      return rs.rows.map((row: any) => {
-        const data = this.parseRowWithColumns(row, rs.columns || []);
+      return rs.rows.map((row: any, idx: number) => {
+        const data = this.parseRowWithColumns(row, rs.columns || [], idx === 0);
         console.log("[YDB] Parsed data:", JSON.stringify(data));
         return this.parseProduct(data);
       });
