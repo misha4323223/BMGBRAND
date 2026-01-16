@@ -28,10 +28,10 @@ COPY --from=builder /app/1c_uploads ./1c_uploads
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=5000
+ENV PORT=8080
 
 # Expose port
-EXPOSE 5000
+EXPOSE 8080
 
 # Run the server
 CMD ["node", "dist/index.cjs"]
