@@ -7,6 +7,29 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { XMLParser, XMLBuilder } from "fast-xml-parser";
+import { uploadToYandexStorage } from "./lib/storage-s3";
+
+// Cache for Object Storage URLs (local path -> Object Storage URL)
+const imageUrlCache: Map<string, string> = new Map();
+
+// Helper to get image URL (Object Storage or fallback)
+function getImageUrl(imgPath: string | null): string {
+  const fallback = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
+  if (!imgPath) return fallback;
+  
+  // Check cache first
+  const cachedUrl = imageUrlCache.get(imgPath);
+  if (cachedUrl) return cachedUrl;
+  
+  // Construct Object Storage URL if bucket is configured
+  const bucket = process.env.YANDEX_STORAGE_BUCKET_NAME;
+  if (bucket) {
+    return `https://storage.yandexcloud.net/${bucket}/products/${imgPath.replace(/[\/\\]/g, '_')}`;
+  }
+  
+  // Fallback to local path (won't work in production)
+  return `/api/1c-images/${imgPath}`;
+}
 
 // Background sync every 30 minutes
 const SYNC_INTERVAL = 30 * 60 * 1000;
@@ -51,11 +74,8 @@ async function runAutoSync() {
                  }
               }
 
-              let imageUrl = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
-              if (item["Картинка"]) {
-                const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
-                if (imgPath) imageUrl = `/api/1c-images/${imgPath}`;
-              }
+              const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
+              const imageUrl = getImageUrl(imgPath);
 
               const existing = await storage.getProductByExternalId(externalId);
               if (!existing) {
@@ -241,11 +261,9 @@ export async function registerRoutes(
                  }
               }
 
-              let imageUrl = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
-              if (item["Картинка"]) {
-                const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
-                if (imgPath) imageUrl = `/api/1c-images/${imgPath}`;
-              }
+              const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
+              const imageUrl = getImageUrl(imgPath);
+              
               const existing = await storage.getProductByExternalId(externalId);
               if (!existing) {
                 // Check if SKU exists to avoid duplicate key error
@@ -367,7 +385,29 @@ export async function registerRoutes(
     const { type, mode, filename } = req.query;
     
     if (type === "catalog" && mode === "file") {
-      const uploadPath = path.resolve(process.cwd(), "1c_uploads", filename as string);
+      const filenameStr = filename as string;
+      const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(filenameStr);
+      
+      // Upload images to Object Storage
+      if (isImage && process.env.YANDEX_STORAGE_BUCKET_NAME) {
+        try {
+          const contentType = filenameStr.endsWith('.png') ? 'image/png' : 
+                              filenameStr.endsWith('.gif') ? 'image/gif' : 
+                              filenameStr.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
+          const s3Url = await uploadToYandexStorage(req.body, filenameStr.replace(/[\/\\]/g, '_'), contentType);
+          if (s3Url) {
+            imageUrlCache.set(filenameStr, s3Url);
+            console.log(`[1C] Uploaded image to Object Storage: ${filenameStr} -> ${s3Url}`);
+          }
+          return res.send("success");
+        } catch (err) {
+          console.error(`[1C] Failed to upload to Object Storage ${filenameStr}:`, err);
+          return res.send("failure\nError uploading to storage");
+        }
+      }
+      
+      // For XML files, save locally temporarily for parsing
+      const uploadPath = path.resolve(process.cwd(), "1c_uploads", filenameStr);
       const dir = path.dirname(uploadPath);
       
       try {
@@ -375,10 +415,10 @@ export async function registerRoutes(
           fs.mkdirSync(dir, { recursive: true });
         }
         fs.writeFileSync(uploadPath, req.body);
-        console.log(`[1C] Saved file: ${filename}`);
+        console.log(`[1C] Saved file: ${filenameStr}`);
         return res.send("success");
       } catch (err) {
-        console.error(`[1C] Failed to save file ${filename}:`, err);
+        console.error(`[1C] Failed to save file ${filenameStr}:`, err);
         return res.send("failure\nError saving file");
       }
     }
@@ -422,15 +462,9 @@ export async function registerRoutes(
                }
             }
 
-            // Image parsing
-            let imageUrl = "/attached_assets/generated_images/oversized_black_t-shirt_streetwear.png";
-            if (item["Картинка"]) {
-              const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : item["Картинка"];
-              if (imgPath) {
-                // 1C typically sends paths like "import_files/xx/uuid.jpg"
-                imageUrl = `/api/1c-images/${imgPath}`;
-              }
-            }
+            // Image parsing - use Object Storage URL
+            const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : item["Картинка"];
+            const imageUrl = getImageUrl(imgPath);
             
             const existing = await storage.getProductByExternalId(externalId);
             if (!existing) {
