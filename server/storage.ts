@@ -30,70 +30,91 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  private extractValue(val: any): any {
-    if (val === null || val === undefined) return null;
-    if (typeof val === 'object' && 'value' in val) return val.value;
-    return val;
+  private extractTypedValue(item: any): any {
+    if (!item) return null;
+    if ('textValue' in item) return item.textValue;
+    if ('uint64Value' in item) return item.uint64Value;
+    if ('int64Value' in item) return item.int64Value;
+    if ('uint32Value' in item) return item.uint32Value;
+    if ('int32Value' in item) return item.int32Value;
+    if ('doubleValue' in item) return item.doubleValue;
+    if ('floatValue' in item) return item.floatValue;
+    if ('boolValue' in item) return item.boolValue;
+    if ('bytesValue' in item) return item.bytesValue;
+    if ('nullFlagValue' in item) return null;
+    if ('value' in item) return item.value;
+    return null;
   }
 
-  private parseRow(row: any): Product {
-    const getValue = (key: string) => this.extractValue(row[key]);
-    
-    let imagesRaw = getValue('images');
+  private parseRowWithColumns(row: any, columns: any[]): Record<string, any> {
+    const result: Record<string, any> = {};
+    if (row.items && Array.isArray(row.items)) {
+      for (let i = 0; i < row.items.length && i < columns.length; i++) {
+        const colName = columns[i].name;
+        result[colName] = this.extractTypedValue(row.items[i]);
+      }
+    }
+    return result;
+  }
+
+  private parseProduct(data: Record<string, any>): Product {
     let images: string[] = [];
-    if (imagesRaw) {
-      if (typeof imagesRaw === 'string') {
-        try { images = JSON.parse(imagesRaw); } catch { images = []; }
-      } else if (Array.isArray(imagesRaw)) {
-        images = imagesRaw;
+    if (data.images) {
+      if (typeof data.images === 'string') {
+        try { images = JSON.parse(data.images); } catch { images = []; }
+      } else if (Array.isArray(data.images)) {
+        images = data.images;
       }
     }
     
-    let sizesRaw = getValue('sizes');
     let sizes: string[] = [];
-    if (sizesRaw) {
-      if (typeof sizesRaw === 'string') {
-        try { sizes = JSON.parse(sizesRaw); } catch { sizes = []; }
-      } else if (Array.isArray(sizesRaw)) {
-        sizes = sizesRaw;
+    if (data.sizes) {
+      if (typeof data.sizes === 'string') {
+        try { sizes = JSON.parse(data.sizes); } catch { sizes = []; }
+      } else if (Array.isArray(data.sizes)) {
+        sizes = data.sizes;
       }
     }
     
-    let colorsRaw = getValue('colors');
     let colors: string[] = [];
-    if (colorsRaw) {
-      if (typeof colorsRaw === 'string') {
-        try { colors = JSON.parse(colorsRaw); } catch { colors = []; }
-      } else if (Array.isArray(colorsRaw)) {
-        colors = colorsRaw;
+    if (data.colors) {
+      if (typeof data.colors === 'string') {
+        try { colors = JSON.parse(data.colors); } catch { colors = []; }
+      } else if (Array.isArray(data.colors)) {
+        colors = data.colors;
       }
     }
     
-    const idVal = getValue('id');
-    const priceVal = getValue('price');
+    const priceVal = data.price;
     
     return {
-      id: typeof idVal === 'string' ? parseInt(idVal) || 0 : (idVal || 0),
-      externalId: getValue('external_id') || null,
-      sku: getValue('sku') || null,
-      name: getValue('name') || '',
-      description: getValue('description') || '',
+      id: typeof data.id === 'string' ? parseInt(data.id) || 0 : (data.id || 0),
+      externalId: data.external_id || null,
+      sku: data.sku || null,
+      name: data.name || '',
+      description: data.description || '',
       price: typeof priceVal === 'number' ? priceVal : parseInt(priceVal) || 0,
-      imageUrl: images.length > 0 ? images[0] : (getValue('image_url') || ''),
-      category: getValue('category') || '',
+      imageUrl: images.length > 0 ? images[0] : (data.image_url || ''),
+      category: data.category || '',
       sizes,
       colors,
-      isNew: getValue('is_new') === true || getValue('is_new') === 'true',
-      createdAt: getValue('created_at') || new Date(),
+      isNew: data.is_new === true,
+      createdAt: data.created_at ? new Date(Number(data.created_at) / 1000) : new Date(),
     } as Product;
   }
 
   async getProducts(): Promise<Product[]> {
     const result = await this.safeQuery(async (session) => {
       const { resultSets } = await session.executeQuery("SELECT * FROM products");
-      if (!resultSets[0].rows) return [];
-      console.log("[YDB] Raw row sample:", JSON.stringify(resultSets[0].rows[0]));
-      return resultSets[0].rows.map((row: any) => this.parseRow(row));
+      const rs = resultSets[0];
+      if (!rs.rows || !rs.columns) return [];
+      console.log("[YDB] Columns:", rs.columns.map((c: any) => c.name).join(', '));
+      console.log("[YDB] First row items count:", rs.rows[0]?.items?.length);
+      return rs.rows.map((row: any) => {
+        const data = this.parseRowWithColumns(row, rs.columns);
+        console.log("[YDB] Parsed data:", JSON.stringify(data));
+        return this.parseProduct(data);
+      });
     });
     return result || [];
   }
@@ -103,9 +124,11 @@ export class DatabaseStorage implements IStorage {
       const query = "DECLARE $id AS Utf8; SELECT * FROM products WHERE id = $id";
       const { TypedValues, Types } = await import("ydb-sdk");
       const { resultSets } = await session.executeQuery(query, { $id: TypedValues.fromNative(Types.UTF8, String(id)) });
-      const row: any = resultSets[0].rows?.[0];
-      if (!row) return undefined;
-      return this.parseRow(row);
+      const rs = resultSets[0];
+      const row = rs.rows?.[0];
+      if (!row || !rs.columns) return undefined;
+      const data = this.parseRowWithColumns(row, rs.columns);
+      return this.parseProduct(data);
     });
     return result || undefined;
   }
@@ -115,9 +138,11 @@ export class DatabaseStorage implements IStorage {
       const query = "DECLARE $externalId AS Utf8; SELECT * FROM products WHERE external_id = $externalId";
       const { TypedValues, Types } = await import("ydb-sdk");
       const { resultSets } = await session.executeQuery(query, { $externalId: TypedValues.fromNative(Types.UTF8, externalId) });
-      const row = resultSets[0].rows?.[0];
-      if (!row) return undefined;
-      return this.parseRow(row);
+      const rs = resultSets[0];
+      const row = rs.rows?.[0];
+      if (!row || !rs.columns) return undefined;
+      const data = this.parseRowWithColumns(row, rs.columns);
+      return this.parseProduct(data);
     });
     return result || undefined;
   }
@@ -127,9 +152,11 @@ export class DatabaseStorage implements IStorage {
       const query = "DECLARE $sku AS Utf8; SELECT * FROM products WHERE sku = $sku";
       const { TypedValues, Types } = await import("ydb-sdk");
       const { resultSets } = await session.executeQuery(query, { $sku: TypedValues.fromNative(Types.UTF8, sku) });
-      const row = resultSets[0].rows?.[0];
-      if (!row) return undefined;
-      return this.parseRow(row);
+      const rs = resultSets[0];
+      const row = rs.rows?.[0];
+      if (!row || !rs.columns) return undefined;
+      const data = this.parseRowWithColumns(row, rs.columns);
+      return this.parseProduct(data);
     });
     return result || undefined;
   }
