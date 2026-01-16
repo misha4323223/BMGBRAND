@@ -358,33 +358,41 @@ export class DatabaseStorage implements IStorage {
       return { ...item, id: 0 } as CartItem;
     }
     
-    await driver.tableClient.withSession(async (session) => {
-      const { TypedValues, Types } = await import("ydb-sdk");
-      // UPSERT - will insert or update if exists
-      const query = `
-        DECLARE $session_id AS Utf8;
-        DECLARE $product_id AS Utf8;
-        DECLARE $size AS Utf8;
-        DECLARE $color AS Utf8;
-        DECLARE $quantity AS Uint32;
-        DECLARE $created_at AS Timestamp;
+    try {
+      await driver.tableClient.withSession(async (session) => {
+        const { TypedValues, Types } = await import("ydb-sdk");
+        const query = `
+          DECLARE $session_id AS Utf8;
+          DECLARE $product_id AS Utf8;
+          DECLARE $size AS Utf8;
+          DECLARE $color AS Utf8;
+          DECLARE $quantity AS Uint32;
+          
+          UPSERT INTO cart_items (session_id, product_id, size, color, quantity, created_at)
+          VALUES ($session_id, $product_id, $size, $color, $quantity, CurrentUtcTimestamp());
+        `;
         
-        UPSERT INTO cart_items (session_id, product_id, size, color, quantity, created_at)
-        VALUES ($session_id, $product_id, $size, $color, $quantity, $created_at);
-      `;
-      
-      const params = {
-        $session_id: TypedValues.fromNative(Types.UTF8, item.sessionId),
-        $product_id: TypedValues.fromNative(Types.UTF8, String(item.productId)),
-        $size: TypedValues.fromNative(Types.UTF8, item.size || "One Size"),
-        $color: TypedValues.fromNative(Types.UTF8, item.color || "Default"),
-        $quantity: TypedValues.fromNative(Types.UINT32, item.quantity),
-        $created_at: TypedValues.fromNative(Types.TIMESTAMP, new Date()),
-      };
-      
-      await session.executeQuery(query, params);
-      console.log(`[Cart] Added/updated item in YDB: session=${item.sessionId}, product=${item.productId}`);
-    });
+        const qty = Number(item.quantity) || 1;
+        console.log(`[Cart] Inserting: session=${item.sessionId}, product=${item.productId}, qty=${qty}`);
+        
+        const params = {
+          $session_id: TypedValues.fromNative(Types.UTF8, String(item.sessionId)),
+          $product_id: TypedValues.fromNative(Types.UTF8, String(item.productId)),
+          $size: TypedValues.fromNative(Types.UTF8, String(item.size || "One Size")),
+          $color: TypedValues.fromNative(Types.UTF8, String(item.color || "Default")),
+          $quantity: TypedValues.fromNative(Types.UINT32, qty),
+        };
+        
+        await session.executeQuery(query, params);
+        console.log(`[Cart] Added/updated item in YDB: session=${item.sessionId}, product=${item.productId}`);
+      });
+    } catch (err: any) {
+      console.error(`[Cart] Error adding to cart:`, err.message || err);
+      if (err.issues) {
+        console.error(`[Cart] YDB Issues:`, JSON.stringify(err.issues, null, 2));
+      }
+      throw err;
+    }
     
     return { ...item, id: 0 } as CartItem;
   }
