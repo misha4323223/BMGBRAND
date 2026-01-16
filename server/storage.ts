@@ -35,6 +35,10 @@ export class DatabaseStorage implements IStorage {
 
   private extractTypedValue(item: any): any {
     if (!item) return null;
+    // Handle YDB Optional wrapper for nullable columns
+    if ('optionalValue' in item && item.optionalValue) {
+      return this.extractTypedValue(item.optionalValue);
+    }
     if ('textValue' in item) return item.textValue;
     if ('uint64Value' in item) return item.uint64Value;
     if ('int64Value' in item) return item.int64Value;
