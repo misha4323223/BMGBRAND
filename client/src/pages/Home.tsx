@@ -7,7 +7,8 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import heroBg from "@assets/generated_images/wet_softshell_fabric_on_asphalt_rain.png";
 
-import identityVideo from "@assets/generated_videos/cinematic_dark_urban_streetwear_video.mp4";
+// Video served from Yandex Object Storage CDN
+const identityVideo = "https://storage.yandexcloud.net/bmg/media/identity/cinematic_dark_urban_streetwear_video.mp4";
 
 export default function Home() {
   const { data: products, isLoading } = useProducts();
