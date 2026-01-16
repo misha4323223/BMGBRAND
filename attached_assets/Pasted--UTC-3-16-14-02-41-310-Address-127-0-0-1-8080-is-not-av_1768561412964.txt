@@ -1,0 +1,246 @@
+Время (UTC +3)
+Сообщение
+
+16 янв. 14:02:41.310
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:02:38.755
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:02:38.619
+START RequestID: f74fe08f-932f-4f55-abf3-dac055cc6bbb
+
+16 янв. 14:02:38.109
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:02:36.747
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:02:35.998
+REPORT RequestID: 1b73db9c-1ef6-4e57-be45-04fd3d398116 Duration: 29456.173 ms Billed Duration: 29500 ms Memory Size: 512 MB Queuing Duration: 0.000 ms
+
+16 янв. 14:02:35.998
+ERROR RequestID: 1b73db9c-1ef6-4e57-be45-04fd3d398116 Code: 499 Message: Request cancelled
+ERROR RequestID: 1b73db9c-1ef6-4e57-be45-04fd3d398116 Code: 499 Message: Request cancelled
+"request_id""1b73db9c-1ef6-4e57-be45-04fd3d398116"
+"revision_id""bba2qs7vohajie133mid"
+"source""system"
+
+16 янв. 14:02:35.998
+END RequestID: 1b73db9c-1ef6-4e57-be45-04fd3d398116
+
+16 янв. 14:02:25.727
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:02:22.582
+11:02:22 AM [express] serving on port 5000
+
+16 янв. 14:02:17.110
+11:02:17 AM [express] serving on port 5000
+
+16 янв. 14:02:16.505
+11:02:16 AM [express] serving on port 5000
+
+16 янв. 14:02:09.746
+11:02:09 AM [express] serving on port 5000
+
+16 янв. 14:02:08.103
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:02:07.535
+[1C] Background auto-sync check...
+
+16 янв. 14:02:07.351
+[YDB] Driver is ready!
+
+16 янв. 14:02:07.135
+[YDB] Driver created, waiting for ready...
+
+16 янв. 14:02:07.072
+[YDB] Created MetadataAuthService
+
+16 янв. 14:02:07.072
+[YDB] NODE_ENV: production
+
+16 янв. 14:02:07.072
+[YDB] Database: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
+
+16 янв. 14:02:07.072
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+16 янв. 14:02:06.542
+START RequestID: 1b73db9c-1ef6-4e57-be45-04fd3d398116
+
+16 янв. 14:02:05.212
+[1C] Background auto-sync check...
+
+16 янв. 14:02:05.058
+[YDB] Driver is ready!
+
+16 янв. 14:02:04.845
+[YDB] Driver created, waiting for ready...
+
+16 янв. 14:02:04.783
+[YDB] Created MetadataAuthService
+
+16 янв. 14:02:04.782
+[YDB] NODE_ENV: production
+
+16 янв. 14:02:04.782
+[YDB] Database: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
+
+16 янв. 14:02:04.782
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+16 янв. 14:02:03.021
+[1C] Background auto-sync check...
+
+16 янв. 14:02:02.893
+[YDB] Driver is ready!
+
+16 янв. 14:02:02.620
+[YDB] Driver created, waiting for ready...
+
+16 янв. 14:02:02.556
+[YDB] Created MetadataAuthService
+
+16 янв. 14:02:02.556
+[YDB] NODE_ENV: production
+
+16 янв. 14:02:02.556
+[YDB] Database: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
+
+16 янв. 14:02:02.556
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+16 янв. 14:01:53.804
+[1C] Background auto-sync check...
+
+16 янв. 14:01:53.636
+[YDB] Driver is ready!
+
+16 янв. 14:01:53.443
+[YDB] Driver created, waiting for ready...
+
+16 янв. 14:01:53.378
+[YDB] Created MetadataAuthService
+
+16 янв. 14:01:53.378
+[YDB] NODE_ENV: production
+
+16 янв. 14:01:53.378
+[YDB] Database: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
+
+16 янв. 14:01:53.378
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+16 янв. 14:01:51.955
+11:01:51 AM [express] serving on port 5000
+
+16 янв. 14:01:48.781
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:01:36.135
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:01:34.536
+[1C] Background auto-sync check...
+
+16 янв. 14:01:34.326
+[YDB] Driver is ready!
+
+16 янв. 14:01:34.092
+[YDB] Driver created, waiting for ready...
+
+16 янв. 14:01:34.029
+[YDB] Created MetadataAuthService
+
+16 янв. 14:01:34.029
+[YDB] NODE_ENV: production
+
+16 янв. 14:01:34.029
+[YDB] Database: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
+
+16 янв. 14:01:34.028
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+16 янв. 14:01:30.942
+START RequestID: ab9e8ecb-bda1-4bb3-9b67-9f738954c351
+
+16 янв. 14:01:18.775
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:01:06.133
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:00:48.769
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:00:36.526
+11:00:36 AM [express] serving on port 5000
+
+16 янв. 14:00:36.131
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:00:20.413
+[1C] Background auto-sync check...
+
+16 янв. 14:00:18.763
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 14:00:17.604
+11:00:17 AM [express] serving on port 5000
+
+16 янв. 14:00:03.283
+[1C] Background auto-sync check...
+
+16 янв. 14:00:03.133
+[YDB] Driver is ready!
+
+16 янв. 14:00:02.915
+[YDB] Driver created, waiting for ready...
+
+16 янв. 14:00:02.851
+[YDB] Created MetadataAuthService
+
+16 янв. 14:00:02.851
+[YDB] NODE_ENV: production
+
+16 янв. 14:00:02.851
+[YDB] Database: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
+
+16 янв. 14:00:02.850
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+16 янв. 13:59:54.831
+[YDB] Driver not ready after 10000ms
+
+16 янв. 13:59:44.829
+[YDB] Driver created, waiting for ready...
+
+16 янв. 13:59:44.769
+[YDB] Created MetadataAuthService
+
+16 янв. 13:59:44.768
+[YDB] NODE_ENV: production
+
+16 янв. 13:59:44.768
+[YDB] Database: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
+
+16 янв. 13:59:44.768
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+16 янв. 13:59:37.163
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 13:59:07.157
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 13:58:37.152
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 13:58:07.146
+Address 127.0.0.1:8080 is not available (dial tcp 127.0.0.1:8080: connect: connection refused), retrying...
+
+16 янв. 13:57:48.161
+10:57:48 AM [express] serving on port 5000
