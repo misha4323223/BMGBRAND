@@ -87,7 +87,7 @@ export default function Home() {
             alt="Hero Logo Background" 
             className="w-full h-full object-cover opacity-50 transition-all duration-700 translate-y-[55px]"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-background/20 to-background/10" />
         </div>
 
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
