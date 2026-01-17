@@ -81,11 +81,11 @@ export default function Home() {
       
       {/* Hero Section */}
       <section className="relative h-[80vh] sm:h-screen flex flex-col items-center justify-center overflow-hidden bg-black">
-        <div className="absolute inset-0 z-0 flex items-center justify-center">
+        <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden">
           <img 
             src={heroLogo} 
             alt="Hero Logo Background" 
-            className="w-full h-full object-cover opacity-60 transition-all duration-700 max-w-[75%]"
+            className="w-full h-auto object-contain opacity-60 transition-all duration-700 max-w-[90%] sm:max-w-[75%]"
           />
         </div>
 
