@@ -139,12 +139,12 @@ export default function Home() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {categories.map((cat) => (
               <div key={cat.slug} className="relative group">
-                {/* "Backlight" Spotlight effect - Increased intensity */}
-                <div className="absolute -inset-16 bg-primary/40 blur-[80px] opacity-0 group-hover:opacity-100 transition-all duration-500 rounded-full z-0" />
+                {/* "Backlight" Spotlight effect - Changed to natural white light */}
+                <div className="absolute -inset-16 bg-white/10 blur-[80px] opacity-0 group-hover:opacity-100 transition-all duration-700 rounded-full z-0" />
                 
                 <Link 
                   href={`/products?category=${cat.slug}`}
-                  className="relative block aspect-[4/5] overflow-hidden bg-zinc-900 z-10 border border-white/10 transition-all duration-500 group-hover:-translate-y-2 group-hover:border-primary/50 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.8)]"
+                  className="relative block aspect-[4/5] overflow-hidden bg-zinc-900 z-10 border border-white/10 transition-all duration-500 group-hover:-translate-y-2 group-hover:border-white/20 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.8)]"
                   data-testid={`link-category-${cat.slug}`}
                 >
                   <img 
