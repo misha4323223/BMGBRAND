@@ -267,7 +267,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-10">
             {blogPosts.map((post, index) => (
               <motion.article 
                 key={index}
@@ -275,22 +275,59 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="group cursor-pointer"
+                className="group cursor-pointer relative"
               >
-                <div className="aspect-[16/10] overflow-hidden bg-zinc-900 mb-4">
-                  <img 
-                    src={post.image} 
-                    alt={post.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+                {/* Modern Streetwear Card Shape */}
+                <div className="relative overflow-hidden bg-zinc-950 border border-zinc-900 transition-all duration-500 group-hover:border-primary/50"
+                     style={{
+                       clipPath: "polygon(0 0, 100% 0, 100% 90%, 90% 100%, 0 100%)"
+                     }}>
+                  
+                  {/* Image Container */}
+                  <div className="aspect-[16/11] overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-700">
+                    <img 
+                      src={post.image} 
+                      alt={post.title}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    {/* Dark overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-6 relative">
+                    {/* Tag element */}
+                    <div className="absolute -top-3 left-6 bg-primary text-white text-[8px] font-mono px-2 py-0.5 uppercase tracking-[0.2em]">
+                      BMG_JOURNAL
+                    </div>
+
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest">{post.date}</span>
+                      <div className="w-8 h-[1px] bg-zinc-800" />
+                    </div>
+
+                    <h3 className="font-display text-xl text-white mb-3 group-hover:text-primary transition-colors leading-tight uppercase tracking-tight">
+                      {post.title}
+                    </h3>
+                    
+                    <p className="font-mono text-xs text-zinc-400 line-clamp-2 mb-4 leading-relaxed opacity-80 group-hover:opacity-100 transition-opacity">
+                      {post.excerpt}
+                    </p>
+
+                    <div className="flex items-center gap-2 text-primary font-mono text-[10px] uppercase tracking-[0.2em] group/link">
+                      <span>ЧИТАТЬ ПОЛНОСТЬЮ</span>
+                      <ArrowRight className="w-3 h-3 transition-transform group-hover/link:translate-x-1" />
+                    </div>
+                  </div>
+
+                  {/* Decorative corner detail */}
+                  <div className="absolute bottom-0 right-0 w-8 h-8 bg-primary/10 pointer-events-none" 
+                       style={{ clipPath: "polygon(100% 0, 100% 100%, 0 100%)" }} />
                 </div>
-                <span className="font-mono text-xs text-zinc-500">{post.date}</span>
-                <h3 className="font-display text-lg sm:text-xl text-white mt-1 mb-2 group-hover:text-primary transition-colors">
-                  {post.title}
-                </h3>
-                <p className="font-mono text-xs sm:text-sm text-zinc-400 line-clamp-2">
-                  {post.excerpt}
-                </p>
+                
+                {/* Background offset shape for depth */}
+                <div className="absolute -inset-2 border border-primary/5 -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                     style={{ clipPath: "polygon(0 0, 100% 0, 100% 90%, 90% 100%, 0 100%)" }} />
               </motion.article>
             ))}
           </div>
