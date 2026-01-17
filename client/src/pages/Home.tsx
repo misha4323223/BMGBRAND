@@ -98,7 +98,10 @@ export default function Home() {
             className="flex flex-col items-center"
           >
             <Link href="/products">
-              <button className="bg-primary hover:bg-red-600 text-white px-5 py-2 sm:px-6 sm:py-3 font-display text-base sm:text-lg uppercase tracking-widest transition-all hover:scale-105 active:scale-95 border border-primary/20 shadow-[0_0_20px_rgba(239,68,68,0.2)]" data-testid="button-hero-cta">
+              <button 
+                className="bg-white/10 backdrop-blur-md hover:bg-white/20 text-white px-6 py-2.5 sm:px-8 sm:py-3.5 font-display text-sm sm:text-base uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 border border-white/20 shadow-xl rounded-sm" 
+                data-testid="button-hero-cta"
+              >
                 Смотреть коллекцию
               </button>
             </Link>
