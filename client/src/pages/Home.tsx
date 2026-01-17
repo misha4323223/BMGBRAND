@@ -190,9 +190,9 @@ export default function Home() {
       </section>
 
       {/* Benefits Section */}
-      <section className="py-12 sm:py-20 bg-background">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12">
+      <section className="py-8 sm:py-20 bg-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-3 gap-2 sm:gap-12">
             {benefits.map((benefit, index) => (
               <motion.div 
                 key={index}
@@ -200,15 +200,15 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="text-center group"
+                className="text-center group flex flex-col items-center"
               >
-                <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 border border-zinc-800 mb-4 sm:mb-6 group-hover:border-primary transition-colors">
-                  <benefit.icon className="w-7 h-7 sm:w-8 sm:h-8 text-zinc-400 group-hover:text-primary transition-colors" />
+                <div className="inline-flex items-center justify-center w-10 h-10 sm:w-20 sm:h-20 border border-zinc-800 mb-2 sm:mb-6 group-hover:border-primary transition-colors">
+                  <benefit.icon className="w-4 h-4 sm:w-8 sm:h-8 text-zinc-400 group-hover:text-primary transition-colors" />
                 </div>
-                <h3 className="font-display text-lg sm:text-xl text-white mb-2 uppercase tracking-wide">
+                <h3 className="font-display text-[8px] sm:text-xl text-white mb-1 uppercase tracking-wide leading-tight">
                   {benefit.title}
                 </h3>
-                <p className="font-mono text-xs sm:text-sm text-zinc-500">
+                <p className="font-mono text-[7px] sm:text-sm text-zinc-500 leading-tight hidden xs:block">
                   {benefit.desc}
                 </p>
               </motion.div>
