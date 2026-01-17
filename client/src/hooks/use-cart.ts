@@ -42,16 +42,16 @@ export function useAddToCart() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.cart.list.path] });
       toast({
-        title: "ADDED TO CART",
-        description: "Item successfully added.",
+        title: "ДОБАВЛЕНО В КОРЗИНУ",
+        description: "Товар успешно добавлен.",
         className: "bg-black text-white border-primary",
       });
     },
     onError: () => {
       toast({
         variant: "destructive",
-        title: "ERROR",
-        description: "Could not add item.",
+        title: "ОШИБКА",
+        description: "Не удалось добавить товар.",
       });
     }
   });
@@ -85,8 +85,8 @@ export function useRemoveFromCart() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.cart.list.path] });
       toast({
-        title: "REMOVED",
-        description: "Item removed from cart.",
+        title: "УДАЛЕНО",
+        description: "Товар удален из корзины.",
         className: "bg-black text-white border-primary",
       });
     },
