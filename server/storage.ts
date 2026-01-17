@@ -35,9 +35,9 @@ class SimpleCache<T> {
   }
 }
 
-// Global cache instances (60 second TTL)
-const productsCache = new SimpleCache<Product[]>(60);
-const productCache = new SimpleCache<Product>(60);
+// Global cache instances (5 minute TTL for better performance with large catalogs)
+const productsCache = new SimpleCache<Product[]>(300);
+const productCache = new SimpleCache<Product>(300);
 
 export interface IStorage {
   getProductByExternalId(externalId: string): Promise<Product | undefined>;

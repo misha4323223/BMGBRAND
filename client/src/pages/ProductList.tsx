@@ -1,19 +1,38 @@
-import { useProducts } from "@/hooks/use-products";
+import { usePaginatedProducts } from "@/hooks/use-products";
 import { ProductCard } from "@/components/ProductCard";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function ProductList() {
-  const { data: products, isLoading, error } = useProducts();
+  const { 
+    data, 
+    isLoading, 
+    error, 
+    fetchNextPage, 
+    hasNextPage, 
+    isFetchingNextPage 
+  } = usePaginatedProducts(24);
+  
   const [filter, setFilter] = useState<string>("all");
 
-  const categories = ["all", ...Array.from(new Set(products?.map(p => p.category) || []))];
+  const allProducts = useMemo(() => {
+    if (!data?.pages) return [];
+    return data.pages.flatMap(page => page.products);
+  }, [data]);
+
+  const categories = useMemo(() => {
+    const cats = new Set(allProducts.map(p => p.category));
+    return ["all", ...Array.from(cats)];
+  }, [allProducts]);
 
   const filteredProducts = filter === "all" 
-    ? products 
-    : products?.filter(p => p.category === filter);
+    ? allProducts 
+    : allProducts.filter(p => p.category === filter);
+
+  const pagination = data?.pages[0]?.pagination;
 
   if (isLoading) {
     return (
@@ -37,9 +56,16 @@ export default function ProductList() {
       <Navbar />
       
       <div className="pt-32 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <h1 className="font-display text-4xl sm:text-5xl md:text-7xl text-white mb-8 sm:mb-12 uppercase tracking-tighter">
-          Все товары
-        </h1>
+        <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between mb-8 sm:mb-12 gap-2">
+          <h1 className="font-display text-4xl sm:text-5xl md:text-7xl text-white uppercase tracking-tighter">
+            Все товары
+          </h1>
+          {pagination && (
+            <span className="text-zinc-500 font-mono text-sm">
+              {filteredProducts.length} из {pagination.total}
+            </span>
+          )}
+        </div>
 
         {/* Filters */}
         <div className="flex flex-nowrap overflow-x-auto pb-4 mb-8 sm:mb-12 gap-2 sm:gap-3 no-scrollbar border-b border-zinc-800 lg:flex-wrap lg:overflow-visible lg:pb-8">
@@ -60,16 +86,38 @@ export default function ProductList() {
 
         {/* Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 sm:gap-x-6 gap-y-8 sm:gap-y-12">
-          {filteredProducts?.length === 0 ? (
+          {filteredProducts.length === 0 ? (
             <div className="col-span-full text-center py-20 text-zinc-500 font-mono">
               Товары в этой категории не найдены.
             </div>
           ) : (
-            filteredProducts?.map(product => (
+            filteredProducts.map(product => (
               <ProductCard key={product.id} product={product} />
             ))
           )}
         </div>
+
+        {/* Load More Button */}
+        {hasNextPage && filter === "all" && (
+          <div className="flex justify-center mt-12">
+            <Button
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+              variant="outline"
+              size="lg"
+              className="font-mono uppercase tracking-wider"
+            >
+              {isFetchingNextPage ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Загрузка...
+                </>
+              ) : (
+                "Показать ещё"
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
       <Footer />

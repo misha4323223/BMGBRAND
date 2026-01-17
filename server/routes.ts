@@ -829,10 +829,34 @@ export async function registerRoutes(
   // Serve attached assets
   app.use("/attached_assets", express.static(path.resolve(process.cwd(), "attached_assets")));
 
-  // Products
+  // Products with pagination support
   app.get(api.products.list.path, async (req, res) => {
-    const products = await storage.getProducts();
-    res.json(products);
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 24));
+    const category = req.query.category as string | undefined;
+    
+    const allProducts = await storage.getProducts();
+    
+    // Filter by category if provided
+    let filtered = category 
+      ? allProducts.filter(p => p.category?.toLowerCase() === category.toLowerCase())
+      : allProducts;
+    
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / limit);
+    const offset = (page - 1) * limit;
+    const products = filtered.slice(offset, offset + limit);
+    
+    res.json({
+      products,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasMore: page < totalPages
+      }
+    });
   });
 
   app.get(api.products.get.path, async (req, res) => {

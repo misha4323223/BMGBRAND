@@ -1,6 +1,17 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
-import { InsertProduct } from "@shared/schema";
+import { InsertProduct, Product } from "@shared/schema";
+
+interface PaginatedResponse {
+  products: Product[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}
 
 export function useProducts() {
   return useQuery({
@@ -8,8 +19,23 @@ export function useProducts() {
     queryFn: async () => {
       const res = await fetch(api.products.list.path);
       if (!res.ok) throw new Error("Failed to fetch products");
-      return api.products.list.responses[200].parse(await res.json());
+      const data: PaginatedResponse = await res.json();
+      return data.products;
     },
+  });
+}
+
+export function usePaginatedProducts(limit: number = 24) {
+  return useInfiniteQuery({
+    queryKey: [api.products.list.path, 'paginated', limit],
+    queryFn: async ({ pageParam = 1 }) => {
+      const res = await fetch(`${api.products.list.path}?page=${pageParam}&limit=${limit}`);
+      if (!res.ok) throw new Error("Failed to fetch products");
+      return res.json() as Promise<PaginatedResponse>;
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => 
+      lastPage.pagination.hasMore ? lastPage.pagination.page + 1 : undefined,
   });
 }
 
