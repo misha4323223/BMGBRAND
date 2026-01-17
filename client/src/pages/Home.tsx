@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
-import heroLogo from "@assets/hero-logo.webp";
+import heroLogo from "@assets/generated_images/hero-logo-new.png";
 import heroBg from "@assets/generated_images/wet_softshell_fabric_on_asphalt_rain.webp";
 import clothingImg from "@assets/generated_images/streetwear_clothing_category.webp";
 import socksImg from "@assets/generated_images/designer_socks_category.webp";
