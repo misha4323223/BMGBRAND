@@ -124,34 +124,45 @@ export default function Home() {
       </section>
 
       {/* Categories Section */}
-      <section className="py-12 sm:py-20 bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-12 sm:py-20 bg-background relative overflow-hidden">
+        {/* Background depth effect: "Wall" at 7 meters distance */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <div className="absolute inset-0 bg-zinc-950" />
+          {/* Subtle "Wall" texture/shading to imply distance */}
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800 via-transparent to-transparent scale-150" />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <h2 className="font-display text-3xl sm:text-5xl text-white mb-8 sm:mb-12 text-center">
             Категории
           </h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {categories.map((cat) => (
-              <Link 
-                key={cat.slug} 
-                href={`/products?category=${cat.slug}`}
-                className="group relative aspect-[4/5] overflow-hidden bg-zinc-900"
-                data-testid={`link-category-${cat.slug}`}
-              >
-                <img 
-                  src={cat.image} 
-                  alt={cat.name}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
-                  <h3 className="font-display text-xl sm:text-2xl text-white uppercase tracking-wider group-hover:text-primary transition-colors">
-                    {cat.name}
-                  </h3>
-                  <span className="font-mono text-xs text-zinc-400 group-hover:text-zinc-300 transition-colors flex items-center mt-2">
-                    Смотреть <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
-                  </span>
-                </div>
-              </Link>
+              <div key={cat.slug} className="relative group">
+                {/* "Backlight" Spotlight effect */}
+                <div className="absolute -inset-12 bg-primary/20 blur-[60px] opacity-0 group-hover:opacity-100 transition-all duration-700 rounded-full z-0" />
+                
+                <Link 
+                  href={`/products?category=${cat.slug}`}
+                  className="relative block aspect-[4/5] overflow-hidden bg-zinc-900 z-10 border border-white/5 transition-transform duration-500 group-hover:-translate-y-1 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)]"
+                  data-testid={`link-category-${cat.slug}`}
+                >
+                  <img 
+                    src={cat.image} 
+                    alt={cat.name}
+                    className="w-full h-full object-cover transition-transform duration-700 grayscale-[0.5] group-hover:grayscale-0 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
+                    <h3 className="font-display text-xl sm:text-2xl text-white uppercase tracking-wider group-hover:text-primary transition-colors">
+                      {cat.name}
+                    </h3>
+                    <span className="font-mono text-xs text-zinc-400 group-hover:text-zinc-300 transition-colors flex items-center mt-2">
+                      Смотреть <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                  </div>
+                </Link>
+              </div>
             ))}
           </div>
         </div>
