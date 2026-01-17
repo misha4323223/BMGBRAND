@@ -92,11 +92,6 @@
     scrollbar-width: none;
   }
 
-  /* Performance: skip rendering off-screen cards */
-  .content-auto {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 400px;
-  }
 }
 
 @layer utilities {
