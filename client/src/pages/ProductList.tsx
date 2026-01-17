@@ -3,7 +3,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Loader2 } from "lucide-react";
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { CATEGORIES, CategorySlug } from "@shared/schema";
 
@@ -45,6 +45,28 @@ export default function ProductList() {
   const subcategories = currentCategory?.subcategories || [];
 
   const pagination = data?.pages[0]?.pagination;
+  
+  // Auto-load next page when approaching end of list
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (!hasNextPage || isFetchingNextPage) return;
+    
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: "400px" }
+    );
+    
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+    
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleCategoryChange = (cat: CategorySlug | "all") => {
     if (cat === "all") {
@@ -179,25 +201,27 @@ export default function ProductList() {
           )}
         </div>
 
-        {/* Load More Button */}
-        {hasNextPage && (
+        {/* Auto-load trigger */}
+        <div ref={loadMoreRef} className="h-1" />
+        
+        {/* Loading indicator */}
+        {isFetchingNextPage && (
+          <div className="flex justify-center mt-8">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          </div>
+        )}
+        
+        {/* Manual load button as fallback */}
+        {hasNextPage && !isFetchingNextPage && (
           <div className="flex justify-center mt-12">
             <Button
               onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
               variant="outline"
               size="lg"
               className="font-mono uppercase tracking-wider border-zinc-700 hover:bg-zinc-800"
               data-testid="button-load-more"
             >
-              {isFetchingNextPage ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Загрузка...
-                </>
-              ) : (
-                "Показать ещё"
-              )}
+              Показать ещё
             </Button>
           </div>
         )}

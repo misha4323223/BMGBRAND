@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Product } from "@shared/schema";
 
 interface ProductCardProps {
@@ -10,6 +10,8 @@ interface ProductCardProps {
 export function ProductCard({ product, priority = false }: ProductCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [shouldLoad, setShouldLoad] = useState(priority);
+  const cardRef = useRef<HTMLAnchorElement>(null);
   
   const price = new Intl.NumberFormat('ru-RU', {
     style: 'currency',
@@ -20,13 +22,34 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
   // Use thumbnail for catalog, fallback to full image
   const imageUrl = product.thumbnailUrl || product.imageUrl;
 
+  // Preload image when card is about to enter viewport (with large margin)
+  useEffect(() => {
+    if (priority || shouldLoad) return;
+    
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "500px" } // Start loading 500px before visible
+    );
+    
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+    
+    return () => observer.disconnect();
+  }, [priority, shouldLoad]);
+
   return (
-    <Link href={`/products/${product.id}`} className="group cursor-pointer block content-auto">
-      <div className="relative aspect-[4/5] sm:aspect-[3/4] overflow-hidden bg-zinc-900 mb-2 sm:mb-4">
-        {/* Skeleton loader */}
+    <Link ref={cardRef} href={`/products/${product.id}`} className="group cursor-pointer block">
+      <div className="relative aspect-[4/5] sm:aspect-[3/4] overflow-hidden bg-zinc-800 mb-2 sm:mb-4">
+        {/* Placeholder with subtle pattern */}
         {!imageLoaded && !imageError && (
-          <div className="absolute inset-0 bg-zinc-800 animate-pulse flex items-center justify-center">
-            <div className="w-12 h-12 border-2 border-zinc-700 border-t-zinc-500 rounded-full animate-spin" />
+          <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-zinc-700 border-t-zinc-500 rounded-full animate-spin" />
           </div>
         )}
         
@@ -37,19 +60,22 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
           </div>
         )}
         
-        <img 
-          src={imageUrl} 
-          srcSet={product.thumbnailUrl && product.imageUrl ? `${product.thumbnailUrl} 300w, ${product.imageUrl} 800w` : undefined}
-          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          alt={product.name}
-          loading={priority ? "eager" : "lazy"}
-          decoding="async"
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImageError(true)}
-          className={`w-full h-full object-cover transition-opacity duration-300 ${
-            imageLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
-        />
+        {shouldLoad && (
+          <img 
+            src={imageUrl} 
+            srcSet={product.thumbnailUrl && product.imageUrl ? `${product.thumbnailUrl} 300w, ${product.imageUrl} 800w` : undefined}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            alt={product.name}
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
+            fetchPriority={priority ? "high" : "auto"}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
+            className={`w-full h-full object-cover transition-opacity duration-200 ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+        )}
         
         {/* Overlay Tags */}
         <div className="absolute top-4 left-4 flex flex-col gap-2">
