@@ -97,14 +97,6 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex flex-col items-center"
           >
-            <Link href="/products">
-              <button 
-                className="bg-white/5 backdrop-blur-md hover:bg-white/10 text-primary px-6 py-2.5 sm:px-8 sm:py-3.5 font-display text-sm sm:text-base uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 border border-white/10 shadow-xl rounded-sm font-bold" 
-                data-testid="button-hero-cta"
-              >
-                Смотреть коллекцию
-              </button>
-            </Link>
           </motion.div>
         </div>
       </section>
