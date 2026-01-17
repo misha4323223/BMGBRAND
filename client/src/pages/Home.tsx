@@ -96,7 +96,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pb-12 sm:pb-20">
+        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pb-24 sm:pb-32">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -106,10 +106,17 @@ export default function Home() {
             <Link href="/products">
               <Button 
                 size="lg"
-                className="bg-[#FFFFF0] text-black hover:bg-[#F5F5DC] px-8 py-6 text-lg font-display uppercase tracking-widest rounded-none transition-all duration-300 hover:scale-105 active:scale-95"
+                className="bg-[#FFFFF0] text-black hover:bg-primary hover:text-white px-10 py-7 text-xl font-display uppercase tracking-[0.3em] rounded-none transition-all duration-500 hover:scale-110 active:scale-95 relative group overflow-visible"
                 data-testid="button-hero-catalog"
               >
-                Смотреть каталог
+                {/* Corner Accents for Streetwear style */}
+                <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                <span className="relative z-10">Смотреть каталог</span>
+                
+                {/* Glitch/Offset effect background on hover */}
+                <div className="absolute inset-0 bg-primary -z-10 translate-x-0 translate-y-0 group-hover:translate-x-1 group-hover:translate-y-1 transition-transform duration-300 opacity-0 group-hover:opacity-100" />
               </Button>
             </Link>
           </motion.div>
