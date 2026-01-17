@@ -106,7 +106,7 @@ export default function Home() {
             <Link href="/products">
               <Button 
                 size="lg"
-                className="bg-white text-black hover:bg-zinc-200 px-8 py-6 text-lg font-display uppercase tracking-widest rounded-none transition-all duration-300 hover:scale-105 active:scale-95"
+                className="bg-[#FFFFF0] text-black hover:bg-[#F5F5DC] px-8 py-6 text-lg font-display uppercase tracking-widest rounded-none transition-all duration-300 hover:scale-105 active:scale-95"
                 data-testid="button-hero-catalog"
               >
                 Смотреть каталог
