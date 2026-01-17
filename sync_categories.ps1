@@ -3,37 +3,42 @@
 
 # Configuration
 $BaseUrl = "https://booomerangs-bmgbrand.replit.app" # Replace with your actual domain if different
-$ApiKey = "bmg-secret-123" # Must match SYNC_API_KEY if configured, or use basic auth for 1c-exchange
+$ApiKey = "bmg-secret-123" # Must match SYNC_API_KEY if configured
 
-Write-Host "Starting Category Synchronization for Booomerangs..." -ForegroundColor Cyan
+Write-Host "--- Booomerangs Category Sync ---" -ForegroundColor Cyan
 
 # 1. Trigger Category Backfill
 $BackfillUrl = "$BaseUrl/api/backfill-categories"
-Write-Host "Sending request to $BackfillUrl..."
+Write-Host "Sending request to backfill categories: $BackfillUrl"
 
 try {
-    $Response = Invoke-RestMethod -Uri $BackfillUrl -Method Post -ContentType "application/json"
+    # If the endpoint requires an API key, it should be sent in the headers
+    $Headers = @{
+        "x-api-key" = $ApiKey
+    }
+    
+    $Response = Invoke-RestMethod -Uri $BackfillUrl -Method Post -ContentType "application/json" -Headers $Headers
     Write-Host "Success: $($Response.message)" -ForegroundColor Green
     if ($Response.count) {
         Write-Host "Updated $($Response.count) products." -ForegroundColor Green
     }
 } catch {
-    Write-Error "Failed to synchronize categories: $_"
+    Write-Host "Failed to synchronize categories. Error: $_" -ForegroundColor Red
 }
 
-# 2. Trigger Sync from Storage (Optional, if using Yandex Storage)
+# 2. Optional: Trigger Sync from Storage
 $SyncUrl = "$BaseUrl/api/sync-from-storage"
-Write-Host "`nDo you want to sync products from Yandex Storage? (Y/N)"
+Write-Host "`nDo you want to sync products from Yandex Storage first? (Y/N)" -ForegroundColor Yellow
 $choice = Read-Host
 if ($choice -eq 'Y' -or $choice -eq 'y') {
-    Write-Host "Triggering sync from storage..."
+    Write-Host "Triggering sync from storage..." -ForegroundColor Cyan
     try {
-        $SyncResponse = Invoke-RestMethod -Uri $SyncUrl -Method Post -ContentType "application/json"
-        Write-Host "Sync completed successfully." -ForegroundColor Green
+        $SyncResponse = Invoke-RestMethod -Uri $SyncUrl -Method Post -ContentType "application/json" -Headers $Headers
+        Write-Host "Sync from storage completed." -ForegroundColor Green
     } catch {
-        Write-Error "Failed to sync from storage: $_"
+        Write-Host "Failed to sync from storage. Error: $_" -ForegroundColor Red
     }
 }
 
-Write-Host "`nSynchronization process finished." -ForegroundColor Cyan
-pause
+Write-Host "`n--- Process Finished ---" -ForegroundColor Cyan
+Read-Host "Press Enter to exit"
