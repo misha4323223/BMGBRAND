@@ -39,9 +39,10 @@ export function CookieConsent() {
                 <Shirt className="w-6 h-6 text-primary" />
               </div>
               
-              <h3 className="font-display text-white uppercase tracking-wider text-[10px] mb-2">COOKIES POLICY</h3>
+              <h3 className="font-display text-white uppercase tracking-wider text-[10px] mb-2">МЫ ИСПОЛЬЗУЕМ COOKIES</h3>
               <p className="font-mono text-[9px] text-zinc-500 leading-tight mb-4 px-2">
-                ИСПОЛЬЗУЕМ КУКИ ДЛЯ ВАШЕГО УДОБСТВА
+                СОБИРАЕМ ДАННЫЕ, ЧТОБЫ УЛУЧШИТЬ ВАШ ОПЫТ. <br/>
+                ПРОДОЛЖАЯ, ВЫ СОГЛАСНЫ С ПОЛИТИКОЙ.
               </p>
               
               <Button 
