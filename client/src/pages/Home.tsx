@@ -87,10 +87,9 @@ export default function Home() {
             alt="Hero Logo Background" 
             className="w-full h-full object-cover opacity-60 transition-all duration-700 max-w-[75%]"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
         </div>
 
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto flex flex-col items-center mt-auto pb-12 sm:pb-20">
+        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto flex flex-col items-center mt-auto pb-6 sm:pb-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
