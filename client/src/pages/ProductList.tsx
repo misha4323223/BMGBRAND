@@ -3,18 +3,25 @@ import { ProductCard } from "@/components/ProductCard";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Loader2 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { useLocation } from "wouter";
 import { CATEGORIES, CategorySlug } from "@shared/schema";
 
 export default function ProductList() {
-  const [location, setLocation] = useLocation();
+  const [search, setSearch] = useState(window.location.search);
   
-  const params = useMemo(() => {
-    const queryString = location.split('?')[1] || '';
-    return new URLSearchParams(queryString);
-  }, [location]);
+  useEffect(() => {
+    const handleLocationChange = () => setSearch(window.location.search);
+    window.addEventListener("popstate", handleLocationChange);
+    return () => window.removeEventListener("popstate", handleLocationChange);
+  }, []);
+  
+  const navigate = useCallback((path: string) => {
+    window.history.pushState(null, "", path);
+    setSearch(new URL(path, window.location.origin).search);
+  }, []);
+  
+  const params = useMemo(() => new URLSearchParams(search), [search]);
   
   const categoryParam = params.get("category") as CategorySlug | null;
   const subcategoryParam = params.get("subcategory");
@@ -41,19 +48,19 @@ export default function ProductList() {
 
   const handleCategoryChange = (cat: CategorySlug | "all") => {
     if (cat === "all") {
-      setLocation("/products");
+      navigate("/products");
     } else if (cat === "sale") {
-      setLocation("/products?sale=true");
+      navigate("/products?sale=true");
     } else {
-      setLocation(`/products?category=${cat}`);
+      navigate(`/products?category=${cat}`);
     }
   };
 
   const handleSubcategoryChange = (sub: string | null) => {
     if (sub) {
-      setLocation(`/products?category=${categoryParam}&subcategory=${encodeURIComponent(sub)}`);
+      navigate(`/products?category=${categoryParam}&subcategory=${encodeURIComponent(sub)}`);
     } else {
-      setLocation(`/products?category=${categoryParam}`);
+      navigate(`/products?category=${categoryParam}`);
     }
   };
 
