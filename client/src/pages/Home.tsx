@@ -8,6 +8,7 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
+import heroLogo from "/assets/hero-logo.webp";
 import heroBg from "@assets/generated_images/wet_softshell_fabric_on_asphalt_rain.webp";
 import clothingImg from "@assets/generated_images/streetwear_clothing_category.webp";
 import socksImg from "@assets/generated_images/designer_socks_category.webp";
@@ -96,10 +97,13 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex flex-col items-center"
           >
-            <h1 className="font-display text-4xl sm:text-7xl md:text-9xl font-bold uppercase tracking-tighter text-white mb-4 sm:mb-6 leading-none flex flex-wrap items-center justify-center">
-              <span className="text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">BOOO</span>
-              <span className="text-primary text-stroke-white drop-shadow-[0_0_20px_rgba(239,68,68,0.3)]">MERANGS</span>
-            </h1>
+            <div className="relative mb-8 sm:mb-12">
+              <img 
+                src={heroLogo} 
+                alt="BMGBRAND Logo" 
+                className="w-full max-w-[320px] sm:max-w-[500px] md:max-w-[650px] h-auto drop-shadow-[0_0_30px_rgba(239,68,68,0.4)]"
+              />
+            </div>
             <p className="font-mono text-sm sm:text-lg md:text-xl text-zinc-300 mb-8 sm:mb-10 max-w-xl mx-auto">
               МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ. <br/>
               ОРИГИНАЛЬНЫЙ РОССИЙСКИЙ СТРИТВИР.
