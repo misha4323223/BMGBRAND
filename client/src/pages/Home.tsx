@@ -85,7 +85,7 @@ export default function Home() {
           <img 
             src={heroLogo} 
             alt="Hero Logo Background" 
-            className="w-full h-full object-cover opacity-60 transition-all duration-700 max-w-[50%]"
+            className="w-full h-full object-cover opacity-60 transition-all duration-700 max-w-[75%]"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
         </div>
