@@ -71,14 +71,14 @@ function determineSocksSubcategory(sku: string, name: string): string {
   if (nameLower.includes("детск")) return "Детские";
 
   // 2. Логика на основе артикула (SKU)
-  // GR - на Спорт Резинке 34-39р
-  if (skuUpper.startsWith("GR")) return "На спорт Резинке (34-39)";
+  // GR - Спортивные 34-39р
+  if (skuUpper.startsWith("GR")) return "Спортивные (34-39)";
   // GK - короткие 34-39р
   if (skuUpper.startsWith("GK")) return "Короткие (34-39)";
   // NK - короткие 40-45р
   if (skuUpper.startsWith("NK")) return "Короткие (40-45)";
-  // R - На спорт Резинке 40-45р
-  if (skuUpper.startsWith("R")) return "На спорт Резинке (40-45)";
+  // R - Спортивные 40-45р
+  if (skuUpper.startsWith("R")) return "Спортивные (40-45)";
   // G - Классические 34-39р
   if (skuUpper.startsWith("G")) return "Классические (34-39)";
   // N - Классические 40-45р
@@ -86,7 +86,7 @@ function determineSocksSubcategory(sku: string, name: string): string {
 
   // 3. Резервная логика по ключевым словам в названии (если SKU не подошел)
   let type = "";
-  if (nameLower.includes("спортивн") || nameLower.includes("резинк")) type = "На спорт Резинке";
+  if (nameLower.includes("спортивн") || nameLower.includes("резинк")) type = "Спортивные";
   else if (nameLower.includes("классическ")) type = "Классические";
   else if (nameLower.includes("коротк")) type = "Короткие";
   
