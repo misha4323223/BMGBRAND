@@ -151,9 +151,11 @@ export class DatabaseStorage implements IStorage {
       imageUrl: images.length > 0 ? images[0] : (data.image_url || ''),
       thumbnailUrl: data.thumbnail_url || null,
       category: data.category || '',
+      subcategory: data.subcategory || null,
       sizes,
       colors,
       isNew: data.is_new === true,
+      onSale: data.on_sale === true,
       createdAt: data.created_at ? new Date(Number(data.created_at) / 1000) : new Date(),
     } as Product;
   }

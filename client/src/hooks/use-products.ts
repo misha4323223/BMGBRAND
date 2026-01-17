@@ -25,11 +25,29 @@ export function useProducts() {
   });
 }
 
-export function usePaginatedProducts(limit: number = 24) {
+export function usePaginatedProducts(
+  limit: number = 24, 
+  category?: string, 
+  subcategory?: string,
+  sale?: boolean
+) {
+  const queryParams = new URLSearchParams();
+  if (category) queryParams.set("category", category);
+  if (subcategory) queryParams.set("subcategory", subcategory);
+  if (sale) queryParams.set("sale", "true");
+  const filterKey = queryParams.toString();
+  
   return useInfiniteQuery({
-    queryKey: [api.products.list.path, 'paginated', limit],
+    queryKey: [api.products.list.path, 'paginated', limit, filterKey],
     queryFn: async ({ pageParam = 1 }) => {
-      const res = await fetch(`${api.products.list.path}?page=${pageParam}&limit=${limit}`);
+      const params = new URLSearchParams();
+      params.set("page", String(pageParam));
+      params.set("limit", String(limit));
+      if (category) params.set("category", category);
+      if (subcategory) params.set("subcategory", subcategory);
+      if (sale) params.set("sale", "true");
+      
+      const res = await fetch(`${api.products.list.path}?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch products");
       return res.json() as Promise<PaginatedResponse>;
     },

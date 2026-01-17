@@ -9,6 +9,8 @@ import fs from "fs";
 import { XMLParser, XMLBuilder } from "fast-xml-parser";
 import { uploadToYandexStorage, downloadFromYandexStorage, listObjectsFromYandexStorage, downloadBinaryFromYandexStorage, deleteFromYandexStorage } from "./lib/storage-s3";
 import sharp from "sharp";
+import { mapProductCategory, isOnSale } from "./categoryMapper";
+import { CATEGORIES } from "@shared/schema";
 
 // Cache for Object Storage URLs (local path -> Object Storage URL)
 const imageUrlCache: Map<string, string> = new Map();
@@ -95,11 +97,14 @@ async function runAutoSync() {
               const imageUrl = getImageUrl(imgPath);
               const thumbnailUrl = getThumbnailUrl(imageUrl);
 
+              const { category, subcategory } = mapProductCategory(sku, name);
+              const onSale = isOnSale(name, 0);
+
               const existing = await storage.getProductByExternalId(externalId);
               if (!existing) {
                 const existingBySku = sku ? await storage.getProductBySku(sku) : null;
                 if (existingBySku) {
-                  await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, sizes, colors } as any);
+                  await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors } as any);
                 } else {
                   await storage.createProduct({
                     externalId,
@@ -109,14 +114,16 @@ async function runAutoSync() {
                     price: 0,
                     imageUrl,
                     thumbnailUrl,
-                    category: "1C Import",
+                    category,
+                    subcategory,
+                    onSale,
                     sizes,
                     colors,
                     isNew: true
                   } as any);
                 }
               } else {
-                await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, sizes, colors } as any);
+                await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors } as any);
               }
             }
           }
@@ -134,7 +141,8 @@ async function runAutoSync() {
                 const existing = await storage.getProductByExternalId(externalId);
                 if (existing) {
                   const price = Math.round(parseFloat(String(priceVal).replace(',', '.')) * 100);
-                  await storage.updateProduct(existing.id, { price });
+                  const onSale = isOnSale(existing.name, price);
+                  await storage.updateProduct(existing.id, { price, onSale });
                 }
               }
             }
@@ -283,6 +291,8 @@ export async function registerRoutes(
               const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
               const imageUrl = getImageUrl(imgPath);
               const thumbnailUrl = getThumbnailUrl(imageUrl);
+              const { category, subcategory } = mapProductCategory(sku, name);
+              const onSale = isOnSale(name, 0);
               
               const existing = await storage.getProductByExternalId(externalId);
               if (!existing) {
@@ -290,12 +300,12 @@ export async function registerRoutes(
                 const existingBySku = sku ? await storage.getProductBySku(sku) : null;
                 if (existingBySku) {
                   console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead`);
-                  await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, sizes, colors } as any);
+                  await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors } as any);
                 } else {
-                  await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, thumbnailUrl, category: "1C Import", sizes, colors, isNew: true } as any);
+                  await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors, isNew: true } as any);
                 }
               } else {
-                await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, sizes, colors } as any);
+                await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors } as any);
               }
             }
           }
@@ -320,7 +330,8 @@ export async function registerRoutes(
                   const priceString = String(priceVal).replace(',', '.');
                   // 1C prices are usually in rubles. We store them in cents.
                   const price = Math.round(parseFloat(priceString) * 100);
-                  await storage.updateProduct(existing.id, { price });
+                  const onSale = isOnSale(existing.name, price);
+                  await storage.updateProduct(existing.id, { price, onSale });
                 }
               }
             }
@@ -449,13 +460,15 @@ export async function registerRoutes(
           const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
           const imageUrl = getImageUrl(imgPath);
           const thumbnailUrl = getThumbnailUrl(imageUrl);
+          const { category, subcategory } = mapProductCategory(sku, name);
+          const onSale = isOnSale(name, 0);
           
           try {
             const existing = await storage.getProductByExternalId(externalId);
             if (!existing) {
               const existingBySku = sku ? await storage.getProductBySku(sku) : null;
               if (existingBySku) {
-                await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, sizes, colors } as any);
+                await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors } as any);
                 productsUpdated++;
               } else {
                 await storage.createProduct({
@@ -466,7 +479,9 @@ export async function registerRoutes(
                   price: 0,
                   imageUrl,
                   thumbnailUrl,
-                  category: "1C Import",
+                  category,
+                  subcategory,
+                  onSale,
                   sizes,
                   colors,
                   isNew: true
@@ -474,7 +489,7 @@ export async function registerRoutes(
                 productsCreated++;
               }
             } else {
-              await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, sizes, colors } as any);
+              await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors } as any);
               productsUpdated++;
             }
           } catch (err: any) {
@@ -514,9 +529,10 @@ export async function registerRoutes(
             if (externalId && price > 0) {
               const product = await storage.getProductByExternalId(externalId);
               if (product) {
-                console.log(`[Sync] Updating price: ${product.name} -> ${price / 100} RUB (id: ${product.id}, extId: ${externalId})`);
+                const onSale = isOnSale(product.name, price);
+                console.log(`[Sync] Updating price: ${product.name} -> ${price / 100} RUB (id: ${product.id}, extId: ${externalId}, onSale: ${onSale})`);
                 try {
-                  await storage.updateProduct(product.id, { price });
+                  await storage.updateProduct(product.id, { price, onSale });
                   pricesUpdated++;
                 } catch (err: any) {
                   console.error(`[Sync] Failed to update price for ${product.name}:`, err.message);
@@ -824,6 +840,70 @@ export async function registerRoutes(
     }
   });
 
+  // Backfill product categories based on SKU and name (protected)
+  app.post("/api/backfill-categories", async (req, res) => {
+    const expectedKey = process.env.SYNC_API_KEY;
+    if (!expectedKey) {
+      console.error("[Categories] SYNC_API_KEY not configured");
+      return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
+    }
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (apiKey !== expectedKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      console.log("[Categories] Starting category backfill...");
+      
+      const products = await storage.getProducts();
+      let updated = 0;
+      const categoryStats: Record<string, number> = {};
+      
+      for (const product of products) {
+        const sku = product.sku || "";
+        const name = product.name || "";
+        
+        const { category, subcategory } = mapProductCategory(sku, name);
+        const onSale = isOnSale(name, product.price);
+        
+        // Only update if category changed
+        if (product.category !== category || product.subcategory !== subcategory || product.onSale !== onSale) {
+          await storage.updateProduct(product.id, { 
+            category,
+            subcategory,
+            onSale
+          } as any);
+          
+          console.log(`[Categories] ${product.name} -> ${category}/${subcategory}`);
+          updated++;
+        }
+        
+        // Stats
+        const key = `${category}/${subcategory || "none"}`;
+        categoryStats[key] = (categoryStats[key] || 0) + 1;
+      }
+      
+      console.log(`[Categories] Complete: ${updated} products updated`);
+      storage.clearCache();
+      
+      res.json({
+        success: true,
+        message: `Updated ${updated} product categories`,
+        details: { updated, total: products.length, stats: categoryStats }
+      });
+      
+    } catch (error) {
+      console.error("[Categories] Error:", error);
+      res.status(500).json({ error: "Backfill failed", details: String(error) });
+    }
+  });
+
+  // Get categories list for navigation
+  app.get("/api/categories", (req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.json(CATEGORIES);
+  });
+
   app.post("/api/1c-exchange", express.raw({ type: "*/*", limit: "500mb" }), async (req, res) => {
     const { type, mode, filename } = req.query;
     
@@ -907,7 +987,6 @@ export async function registerRoutes(
             const name = item["Наименование"];
             const description = item["Описание"] || "";
             const sku = item["Артикул"] || "";
-            const categoryName = "1C Import"; // We can refine this if we parse groups
             
             // Extract sizes and colors from properties if available
             let sizes: string[] = [];
@@ -926,6 +1005,8 @@ export async function registerRoutes(
             const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : item["Картинка"];
             const imageUrl = getImageUrl(imgPath);
             const thumbnailUrl = getThumbnailUrl(imageUrl);
+            const { category, subcategory } = mapProductCategory(sku, name);
+            const onSale = isOnSale(name, 0);
             
             const existing = await storage.getProductByExternalId(externalId);
             if (!existing) {
@@ -933,7 +1014,7 @@ export async function registerRoutes(
               const existingBySku = sku ? await storage.getProductBySku(sku) : null;
               if (existingBySku) {
                 console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead`);
-                await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, sizes, colors } as any);
+                await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors } as any);
               } else {
                 console.log(`[1C] Creating new product: ${name} (${externalId})`);
                 await storage.createProduct({
@@ -944,7 +1025,9 @@ export async function registerRoutes(
                   price: 0,
                   imageUrl,
                   thumbnailUrl,
-                  category: categoryName,
+                  category,
+                  subcategory,
+                  onSale,
                   sizes,
                   colors,
                   isNew: true
@@ -952,7 +1035,7 @@ export async function registerRoutes(
               }
             } else {
               console.log(`[1C] Updating existing product: ${name} (${externalId})`);
-              await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, sizes, colors } as any);
+              await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors } as any);
             }
           }
         }
@@ -977,7 +1060,8 @@ export async function registerRoutes(
                 const priceString = String(priceVal).replace(',', '.');
                 // 1C prices are usually in rubles. We store them in cents.
                 const price = Math.round(parseFloat(priceString) * 100);
-                await storage.updateProduct(existing.id, { price });
+                const onSale = isOnSale(existing.name, price);
+                await storage.updateProduct(existing.id, { price, onSale });
               }
             }
           }
@@ -997,7 +1081,7 @@ export async function registerRoutes(
 
   // Serve 1C images
   app.get("/api/1c-images/*", (req, res) => {
-    const filePath = req.params[0];
+    const filePath = (req.params as any)[0] || "";
     const fullPath = path.resolve(process.cwd(), "1c_uploads", filePath);
     if (fs.existsSync(fullPath)) {
       res.sendFile(fullPath);
@@ -1014,13 +1098,22 @@ export async function registerRoutes(
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 24));
     const category = req.query.category as string | undefined;
+    const subcategory = req.query.subcategory as string | undefined;
+    const onSale = req.query.sale === "true";
     
     const allProducts = await storage.getProducts();
     
-    // Filter by category if provided
-    let filtered = category 
-      ? allProducts.filter(p => p.category?.toLowerCase() === category.toLowerCase())
-      : allProducts;
+    // Filter by category/subcategory/sale
+    let filtered = allProducts;
+    
+    if (onSale) {
+      filtered = filtered.filter(p => p.onSale === true);
+    } else if (category) {
+      filtered = filtered.filter(p => p.category?.toLowerCase() === category.toLowerCase());
+      if (subcategory) {
+        filtered = filtered.filter(p => p.subcategory === subcategory);
+      }
+    }
     
     const total = filtered.length;
     const totalPages = Math.ceil(total / limit);
