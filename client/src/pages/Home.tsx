@@ -99,7 +99,7 @@ export default function Home() {
           >
             <Link href="/products">
               <button 
-                className="bg-white/10 backdrop-blur-md hover:bg-white/20 text-white px-6 py-2.5 sm:px-8 sm:py-3.5 font-display text-sm sm:text-base uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 border border-white/20 shadow-xl rounded-sm" 
+                className="bg-white/5 backdrop-blur-md hover:bg-white/10 text-primary px-6 py-2.5 sm:px-8 sm:py-3.5 font-display text-sm sm:text-base uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 border border-white/10 shadow-xl rounded-sm font-bold" 
                 data-testid="button-hero-cta"
               >
                 Смотреть коллекцию
