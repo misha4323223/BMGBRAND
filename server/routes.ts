@@ -603,6 +603,41 @@ export async function registerRoutes(
     }
   });
 
+  // Update product image URLs to use WebP versions
+  app.post("/api/update-images-to-webp", async (req, res) => {
+    try {
+      console.log("[WebP URLs] Updating product image URLs to WebP...");
+      
+      const products = await storage.getProducts();
+      let updated = 0;
+      
+      for (const product of products) {
+        // Check if image URL ends with jpg/jpeg/png
+        if (product.imageUrl && /\.(jpg|jpeg|png)$/i.test(product.imageUrl)) {
+          const webpUrl = product.imageUrl.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+          
+          await storage.updateProduct(product.id, { 
+            imageUrl: webpUrl 
+          } as any);
+          
+          console.log(`[WebP URLs] Updated: ${product.name} -> ${webpUrl}`);
+          updated++;
+        }
+      }
+      
+      console.log(`[WebP URLs] Complete: ${updated} products updated`);
+      res.json({
+        success: true,
+        message: `Updated ${updated} product image URLs to WebP`,
+        details: { updated, total: products.length }
+      });
+      
+    } catch (error) {
+      console.error("[WebP URLs] Error:", error);
+      res.status(500).json({ error: "Update failed", details: String(error) });
+    }
+  });
+
   app.post("/api/1c-exchange", express.raw({ type: "*/*", limit: "500mb" }), async (req, res) => {
     const { type, mode, filename } = req.query;
     
