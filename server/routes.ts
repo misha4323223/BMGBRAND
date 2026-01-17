@@ -647,8 +647,18 @@ export async function registerRoutes(
     }
   });
 
-  // Update product image URLs to use WebP versions
+  // Update product image URLs to use WebP versions (protected)
   app.post("/api/update-images-to-webp", async (req, res) => {
+    const expectedKey = process.env.SYNC_API_KEY;
+    if (!expectedKey) {
+      console.error("[WebP URLs] SYNC_API_KEY not configured");
+      return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
+    }
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (apiKey !== expectedKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
     try {
       console.log("[WebP URLs] Updating product image URLs to WebP...");
       
