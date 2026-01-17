@@ -72,7 +72,7 @@ function determineSocksSubcategory(sku: string, name: string): string {
 
   // 2. Логика на основе артикула (SKU)
   // GR - Спортивные 34-39р
-  if (skuUpper.startsWith("GR")) return "Спортивные (34-39)";
+  if (skuUpper.startsWith("GR")) return "Классические (34-39)";
   // GK - короткие 34-39р
   if (skuUpper.startsWith("GK")) return "Короткие (34-39)";
   // NK - короткие 40-45р
@@ -82,12 +82,12 @@ function determineSocksSubcategory(sku: string, name: string): string {
   // G - Классические 34-39р
   if (skuUpper.startsWith("G")) return "Классические (34-39)";
   // № - Классические 40-45р
-  if (skuUpper.startsWith("№") || skuUpper.startsWith("N")) return "Классические (40-45)";
+  if (skuUpper.startsWith("№") || skuUpper.startsWith("N") || nameLower.includes("№")) return "Классические (40-45)";
 
   // 3. Резервная логика по ключевым словам в названии (если SKU не подошел)
   let type = "";
   if (nameLower.includes("спортивн") || nameLower.includes("резинк")) type = "Спортивные";
-  else if (nameLower.includes("классическ")) type = "Классические";
+  else if (nameLower.includes("классическ") || nameLower.includes("№")) type = "Классические";
   else if (nameLower.includes("коротк")) type = "Короткие";
   
   // Определение размера по названию
@@ -109,7 +109,7 @@ export function mapProductCategory(sku: string, name: string): CategoryMapping {
   // Special handling for socks
   if (skuUpper.startsWith("N") || skuUpper.startsWith("№") || skuUpper.startsWith("R") || skuUpper.startsWith("G") || 
       skuUpper.startsWith("GR") || skuUpper.startsWith("NK") || skuUpper.startsWith("GK") ||
-      nameLower.includes("носк") || nameLower.includes("sock")) {
+      nameLower.includes("носк") || nameLower.includes("sock") || nameLower.includes("№")) {
     return {
       category: "socks",
       subcategory: determineSocksSubcategory(sku, name)
