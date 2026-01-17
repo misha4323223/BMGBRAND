@@ -40,11 +40,11 @@ jobs:
           folder-id: b1g54bhp2g3klqsgpsbp
           revision-service-account-id: ${{ env.SERVICE_ACCOUNT_ID }}
           revision-cores: 1
-          revision-memory: 512Mb
+          revision-memory: 2Gb
           revision-core-fraction: 100
           revision-concurrency: 4
           revision-image-url: cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ github.sha }}
-          revision-execution-timeout: 30s
+          revision-execution-timeout: 120s
           revision-env: |
             YDB_ENDPOINT=grpcs://ydb.serverless.yandexcloud.net:2135
             YDB_DATABASE=/ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
