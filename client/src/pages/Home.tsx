@@ -97,10 +97,6 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex flex-col items-center"
           >
-            <p className="font-mono text-xs sm:text-base md:text-lg text-zinc-300 mb-6 sm:mb-8 max-w-xl mx-auto uppercase tracking-widest drop-shadow-lg">
-              МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ. <br/>
-              ОРИГИНАЛЬНЫЙ РОССИЙСКИЙ СТРИТВИР.
-            </p>
             <Link href="/products">
               <button className="bg-primary hover:bg-red-600 text-white px-5 py-2 sm:px-6 sm:py-3 font-display text-base sm:text-lg uppercase tracking-widest transition-all hover:scale-105 active:scale-95 border border-primary/20 shadow-[0_0_20px_rgba(239,68,68,0.2)]" data-testid="button-hero-cta">
                 Смотреть коллекцию
@@ -113,9 +109,15 @@ export default function Home() {
       {/* Categories Section */}
       <section className="py-12 sm:py-20 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="font-display text-3xl sm:text-5xl text-white mb-8 sm:mb-12 text-center">
-            Категории
-          </h2>
+          <div className="text-center mb-8 sm:mb-12">
+            <p className="font-mono text-xs sm:text-base md:text-lg text-zinc-400 uppercase tracking-widest mb-4">
+              МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ. <br className="hidden sm:block"/>
+              ОРИГИНАЛЬНЫЙ РОССИЙСКИЙ СТРИТВИР.
+            </p>
+            <h2 className="font-display text-3xl sm:text-5xl text-white">
+              Категории
+            </h2>
+          </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {categories.map((cat) => (
               <Link 
