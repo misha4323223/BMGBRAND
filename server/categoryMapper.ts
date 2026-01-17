@@ -9,7 +9,7 @@ interface CategoryMapping {
 // SKU prefix mappings
 const SKU_PREFIXES: Record<string, CategoryMapping> = {
   // Носки
-  "N": { category: "socks", subcategory: null }, // Will be refined by name
+  "N": { category: "socks", subcategory: "Классические (40-45)" }, // Default for N prefix
   
   // Одежда
   "H": { category: "clothing", subcategory: "Толстовки" }, // Hoodies
@@ -91,14 +91,17 @@ function determineSocksSubcategory(sku: string, name: string): string {
   else if (nameLower.includes("коротк")) type = "Короткие";
   
   // Определение размера по названию
-  if (nameLower.includes("40-45") || nameLower.includes("40/45") || nameLower.includes("o/s") || nameLower.includes("one size")) {
+  const is4045 = nameLower.includes("40-45") || nameLower.includes("40/45") || nameLower.includes("o/s") || nameLower.includes("one size");
+  const is3439 = nameLower.includes("34-39") || nameLower.includes("34/39");
+
+  if (is4045) {
     return type ? `${type} (40-45)` : "Классические (40-45)";
   }
-  if (nameLower.includes("34-39") || nameLower.includes("34/39")) {
+  if (is3439) {
     return type ? `${type} (34-39)` : "Классические (34-39)";
   }
   
-  // Default
+  // Default fallback if no size in name but it's clearly a sock
   return type ? `${type} (40-45)` : "Классические (40-45)";
 }
 
