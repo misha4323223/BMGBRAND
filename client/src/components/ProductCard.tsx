@@ -20,7 +20,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
   const imageUrl = product.imageUrl;
 
   return (
-    <Link href={`/products/${product.id}`} className="group cursor-pointer block">
+    <Link href={`/products/${product.id}`} className="group cursor-pointer block content-auto">
       <div className="relative aspect-[4/5] sm:aspect-[3/4] overflow-hidden bg-zinc-900 mb-2 sm:mb-4">
         {/* Skeleton loader */}
         {!imageLoaded && !imageError && (
