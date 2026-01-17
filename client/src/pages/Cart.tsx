@@ -40,11 +40,11 @@ export default function Cart() {
         <h1 className="font-display text-5xl md:text-6xl mb-12 uppercase tracking-tighter">Корзина</h1>
 
         {!cartItems || cartItems.length === 0 ? (
-          <div className="text-center py-24 border border-zinc-900 bg-zinc-950/50">
+          <div className="text-center py-24 border border-zinc-900 bg-zinc-950/50" data-testid="status-cart-empty">
             <ShoppingBag className="w-16 h-16 mx-auto mb-6 text-zinc-700" />
             <p className="font-mono text-zinc-500 mb-8 text-lg">Ваша корзина пуста.</p>
             <Link href="/products">
-              <button className="bg-primary text-white px-8 py-3 font-display uppercase tracking-widest hover:bg-red-600 transition-colors">
+              <button className="bg-primary text-white px-8 py-3 font-display uppercase tracking-widest hover:bg-red-600 transition-colors" data-testid="button-go-shopping">
                 Перейти к покупкам
               </button>
             </Link>
@@ -55,24 +55,24 @@ export default function Cart() {
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-8">
               {cartItems.map((item) => (
-                <div key={item.id} className="flex gap-6 p-4 border border-zinc-900 bg-zinc-950 hover:border-zinc-800 transition-colors">
+                <div key={item.id} className="flex gap-6 p-4 border border-zinc-900 bg-zinc-950 hover:border-zinc-800 transition-colors" data-testid={`card-cart-item-${item.id}`}>
                   <div className="w-24 h-32 flex-shrink-0 bg-zinc-900 overflow-hidden">
-                    <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover" />
+                    <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover" data-testid={`img-cart-item-${item.id}`} />
                   </div>
                   
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-display text-xl uppercase tracking-wide">{item.product.name}</h3>
-                        <p className="font-mono font-bold text-lg">{formatPrice(item.product.price * item.quantity)}</p>
+                        <h3 className="font-display text-xl uppercase tracking-wide" data-testid={`text-cart-item-name-${item.id}`}>{item.product.name}</h3>
+                        <p className="font-mono font-bold text-lg" data-testid={`text-cart-item-total-${item.id}`}>{formatPrice(item.product.price * item.quantity)}</p>
                       </div>
-                      <p className="font-mono text-zinc-500 text-sm">
+                      <p className="font-mono text-zinc-500 text-sm" data-testid={`text-cart-item-variants-${item.id}`}>
                         {item.size} / {item.color}
                       </p>
                     </div>
                     
                     <div className="flex justify-between items-end">
-                      <p className="font-mono text-sm text-zinc-500">Кол-во: {item.quantity}</p>
+                      <p className="font-mono text-sm text-zinc-500" data-testid={`text-cart-item-quantity-${item.id}`}>Кол-во: {item.quantity}</p>
                       <button 
                         onClick={() => removeFromCart.mutate({
                           id: item.id,
@@ -81,6 +81,7 @@ export default function Cart() {
                           size: item.size,
                           color: item.color,
                         })}
+                        data-testid={`button-remove-cart-item-${item.id}`}
                         className="text-zinc-600 hover:text-red-500 transition-colors"
                       >
                         <Trash2 className="w-5 h-5" />
@@ -92,6 +93,7 @@ export default function Cart() {
               
               <button 
                 onClick={() => clearCart.mutate()}
+                data-testid="button-clear-cart"
                 className="text-xs font-mono uppercase text-zinc-500 hover:text-white underline"
               >
                 Очистить корзину
@@ -106,21 +108,22 @@ export default function Cart() {
                 <div className="space-y-4 mb-8 font-mono text-sm">
                   <div className="flex justify-between text-zinc-400">
                     <span>Сумма</span>
-                    <span>{formatPrice(subtotal)}</span>
+                    <span data-testid="text-cart-subtotal">{formatPrice(subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-zinc-400">
                     <span>Доставка</span>
-                    <span>Бесплатно</span>
+                    <span data-testid="text-shipping-cost">Бесплатно</span>
                   </div>
                   <div className="border-t border-zinc-800 pt-4 flex justify-between text-white text-lg font-bold">
                     <span>Всего</span>
-                    <span>{formatPrice(subtotal)}</span>
+                    <span data-testid="text-cart-total">{formatPrice(subtotal)}</span>
                   </div>
                 </div>
                 
                 <div className="relative z-[100]">
                   <button 
                     id="checkout-button-main"
+                    data-testid="button-checkout"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();

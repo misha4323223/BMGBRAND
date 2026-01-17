@@ -73,16 +73,16 @@ export default function ProductDetail() {
           >
             <div className="flex justify-between items-start mb-2 sm:mb-4">
               <div>
-                <span className="font-mono text-primary text-[10px] uppercase tracking-widest block mb-1">{product.category}</span>
-                <h1 className="font-display text-2xl sm:text-5xl uppercase tracking-tighter leading-tight">
+                <span className="font-mono text-primary text-[10px] uppercase tracking-widest block mb-1" data-testid={`text-category-${product.id}`}>{product.category}</span>
+                <h1 className="font-display text-2xl sm:text-5xl uppercase tracking-tighter leading-tight" data-testid={`text-product-name-${product.id}`}>
                   {product.name}
                 </h1>
               </div>
-              <p className="font-mono text-xl sm:text-2xl font-bold text-white shrink-0 ml-4">{price}</p>
+              <p className="font-mono text-xl sm:text-2xl font-bold text-white shrink-0 ml-4" data-testid={`text-product-price-${product.id}`}>{price}</p>
             </div>
             
             <div className="prose prose-invert prose-xs sm:prose-sm mb-4 sm:mb-10 text-zinc-400 font-mono leading-relaxed">
-              <p className="line-clamp-2 sm:line-clamp-none opacity-80">{product.description}</p>
+              <p className="line-clamp-2 sm:line-clamp-none opacity-80" data-testid={`text-product-description-${product.id}`}>{product.description}</p>
             </div>
 
             {/* Mobile Image Gallery - inserted between description and selectors */}
@@ -111,6 +111,7 @@ export default function ProductDetail() {
                       <button
                         key={color}
                         onClick={() => setSelectedColor(color)}
+                        data-testid={`button-select-color-${color}`}
                         className={`h-8 px-3 font-mono text-[10px] uppercase border transition-all ${
                           selectedColor === color 
                             ? "border-primary bg-primary text-white" 
@@ -131,6 +132,7 @@ export default function ProductDetail() {
                       <button
                         key={size}
                         onClick={() => setSelectedSize(size)}
+                        data-testid={`button-select-size-${size}`}
                         className={`w-8 h-8 flex items-center justify-center font-mono text-[10px] uppercase border transition-all ${
                           selectedSize === size 
                             ? "border-primary bg-primary text-white" 
@@ -149,13 +151,15 @@ export default function ProductDetail() {
                 <div className="flex items-center h-10 border border-zinc-800 bg-black/20 px-1">
                   <button 
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    data-testid="button-quantity-decrease"
                     className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors"
                   >
                     <Minus className="w-3 h-3" />
                   </button>
-                  <span className="w-6 text-center font-mono text-xs">{quantity}</span>
+                  <span className="w-6 text-center font-mono text-xs" data-testid="text-quantity-value">{quantity}</span>
                   <button 
                     onClick={() => setQuantity(quantity + 1)}
+                    data-testid="button-quantity-increase"
                     className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors"
                   >
                     <Plus className="w-3 h-3" />
@@ -164,6 +168,7 @@ export default function ProductDetail() {
                 
                 <button
                   onClick={handleAddToCart}
+                  data-testid="button-add-to-cart"
                   disabled={((product.sizes?.length > 0 && !selectedSize) || (product.colors?.length > 0 && !selectedColor)) || addToCart.isPending}
                   className={`flex-1 h-10 flex items-center justify-center gap-2 font-display text-sm uppercase tracking-widest transition-all ${
                     ((product.sizes?.length > 0 && !selectedSize) || (product.colors?.length > 0 && !selectedColor))

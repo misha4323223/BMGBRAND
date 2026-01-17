@@ -53,18 +53,18 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
   }, [priority, shouldLoad]);
 
   return (
-    <Link ref={cardRef} href={`/products/${product.id}`} className="group cursor-pointer block">
+    <Link ref={cardRef} href={`/products/${product.id}`} className="group cursor-pointer block" data-testid={`link-product-${product.id}`}>
       <div className="relative aspect-[4/5] sm:aspect-[3/4] overflow-hidden bg-zinc-800 mb-2 sm:mb-4">
         {/* Placeholder with subtle pattern */}
         {!imageLoaded && !imageError && (
-          <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
+          <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center" data-testid={`status-loading-img-${product.id}`}>
             <div className="w-8 h-8 border-2 border-zinc-700 border-t-zinc-500 rounded-full animate-spin" />
           </div>
         )}
         
         {/* Error state */}
         {imageError && (
-          <div className="absolute inset-0 bg-zinc-800 flex items-center justify-center">
+          <div className="absolute inset-0 bg-zinc-800 flex items-center justify-center" data-testid={`status-error-img-${product.id}`}>
             <span className="text-zinc-600 font-mono text-xs">Нет фото</span>
           </div>
         )}
@@ -80,6 +80,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
             fetchPriority={priority ? "high" : "auto"}
             onLoad={() => setImageLoaded(true)}
             onError={() => setImageError(true)}
+            data-testid={`img-product-${product.id}`}
             className={`w-full h-full object-cover transition-opacity duration-200 ${
               imageLoaded ? 'opacity-100' : 'opacity-0'
             }`}
@@ -89,7 +90,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
         {/* Overlay Tags */}
         <div className="absolute top-4 left-4 flex flex-col gap-2">
           {product.isNew && (
-            <span className="bg-primary text-white px-2 py-1 text-xs font-bold uppercase tracking-wider">
+            <span className="bg-primary text-white px-2 py-1 text-xs font-bold uppercase tracking-wider" data-testid={`badge-new-${product.id}`}>
               Новинка
             </span>
           )}
@@ -97,7 +98,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
         
         {/* Hover Quick View Overlay */}
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <span className="border border-white text-white px-6 py-3 font-mono text-sm uppercase tracking-widest hover:bg-white hover:text-black transition-colors">
+          <span className="border border-white text-white px-6 py-3 font-mono text-sm uppercase tracking-widest hover:bg-white hover:text-black transition-colors" data-testid={`text-quick-view-${product.id}`}>
             Смотреть
           </span>
         </div>
@@ -105,12 +106,12 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
       
       <div className="flex flex-col sm:flex-row justify-between items-start gap-1">
         <div>
-          <h3 className="font-display text-sm sm:text-xl uppercase text-white group-hover:text-primary transition-colors leading-tight">
+          <h3 className="font-display text-sm sm:text-xl uppercase text-white group-hover:text-primary transition-colors leading-tight" data-testid={`text-product-name-${product.id}`}>
             {product.name}
           </h3>
-          <p className="text-zinc-500 text-[10px] sm:text-sm font-mono mt-0.5">{product.category}</p>
+          <p className="text-zinc-500 text-[10px] sm:text-sm font-mono mt-0.5" data-testid={`text-product-category-${product.id}`}>{product.category}</p>
         </div>
-        <span className="font-mono text-white font-bold text-xs sm:text-base">{price}</span>
+        <span className="font-mono text-white font-bold text-xs sm:text-base" data-testid={`text-product-price-${product.id}`}>{price}</span>
       </div>
     </Link>
   );
