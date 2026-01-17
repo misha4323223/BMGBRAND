@@ -85,13 +85,22 @@ export default function Home() {
             </div>
             <div className="relative aspect-square overflow-hidden bg-black">
               <div className="absolute -inset-4 border-2 border-primary/20 z-0" />
+              {/* Video hidden on mobile (< 768px) for performance */}
               <video 
                 src={identityVideo} 
                 autoPlay 
                 loop 
                 muted 
                 playsInline
-                className="relative z-10 w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
+                preload="none"
+                className="hidden md:block relative z-10 w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
+              />
+              {/* Static image fallback on mobile */}
+              <img 
+                src={heroBg} 
+                alt="BMGBRAND Identity"
+                loading="lazy"
+                className="md:hidden relative z-10 w-full h-full object-cover grayscale"
               />
             </div>
           </div>

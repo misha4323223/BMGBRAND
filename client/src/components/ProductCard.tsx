@@ -17,7 +17,8 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
     minimumFractionDigits: 0,
   }).format(product.price / 100);
 
-  const imageUrl = product.imageUrl;
+  // Use thumbnail for catalog, fallback to full image
+  const imageUrl = product.thumbnailUrl || product.imageUrl;
 
   return (
     <Link href={`/products/${product.id}`} className="group cursor-pointer block content-auto">
@@ -38,6 +39,8 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
         
         <img 
           src={imageUrl} 
+          srcSet={product.thumbnailUrl && product.imageUrl ? `${product.thumbnailUrl} 300w, ${product.imageUrl} 800w` : undefined}
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           alt={product.name}
           loading={priority ? "eager" : "lazy"}
           decoding="async"

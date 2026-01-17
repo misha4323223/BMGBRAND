@@ -34,6 +34,20 @@ function getImageUrl(imgPath: string | null): string {
   return `/api/1c-images/${imgPath}`;
 }
 
+// Helper to get thumbnail URL from image URL
+function getThumbnailUrl(imageUrl: string): string | null {
+  if (!imageUrl) return null;
+  // If WebP, generate thumbnail URL
+  if (imageUrl.endsWith('.webp')) {
+    return imageUrl.replace(/\.webp$/i, '_thumb.webp');
+  }
+  // For jpg/png, assume WebP thumbnail exists
+  if (/\.(jpg|jpeg|png)$/i.test(imageUrl)) {
+    return imageUrl.replace(/\.(jpg|jpeg|png)$/i, '_thumb.webp');
+  }
+  return null;
+}
+
 // Background sync every 30 minutes
 const SYNC_INTERVAL = 30 * 60 * 1000;
 let isSyncing = false;
@@ -79,12 +93,13 @@ async function runAutoSync() {
 
               const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
               const imageUrl = getImageUrl(imgPath);
+              const thumbnailUrl = getThumbnailUrl(imageUrl);
 
               const existing = await storage.getProductByExternalId(externalId);
               if (!existing) {
                 const existingBySku = sku ? await storage.getProductBySku(sku) : null;
                 if (existingBySku) {
-                  await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, sizes, colors });
+                  await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, sizes, colors } as any);
                 } else {
                   await storage.createProduct({
                     externalId,
@@ -93,14 +108,15 @@ async function runAutoSync() {
                     description,
                     price: 0,
                     imageUrl,
+                    thumbnailUrl,
                     category: "1C Import",
                     sizes,
                     colors,
                     isNew: true
-                  });
+                  } as any);
                 }
               } else {
-                await storage.updateProduct(existing.id, { name, description, sku, imageUrl, sizes, colors });
+                await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, sizes, colors } as any);
               }
             }
           }
@@ -266,6 +282,7 @@ export async function registerRoutes(
 
               const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
               const imageUrl = getImageUrl(imgPath);
+              const thumbnailUrl = getThumbnailUrl(imageUrl);
               
               const existing = await storage.getProductByExternalId(externalId);
               if (!existing) {
@@ -273,12 +290,12 @@ export async function registerRoutes(
                 const existingBySku = sku ? await storage.getProductBySku(sku) : null;
                 if (existingBySku) {
                   console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead`);
-                  await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, sizes, colors });
+                  await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, sizes, colors } as any);
                 } else {
-                  await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, category: "1C Import", sizes, colors, isNew: true });
+                  await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, thumbnailUrl, category: "1C Import", sizes, colors, isNew: true } as any);
                 }
               } else {
-                await storage.updateProduct(existing.id, { name, description, sku, imageUrl, sizes, colors });
+                await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, sizes, colors } as any);
               }
             }
           }
@@ -431,13 +448,14 @@ export async function registerRoutes(
           
           const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
           const imageUrl = getImageUrl(imgPath);
+          const thumbnailUrl = getThumbnailUrl(imageUrl);
           
           try {
             const existing = await storage.getProductByExternalId(externalId);
             if (!existing) {
               const existingBySku = sku ? await storage.getProductBySku(sku) : null;
               if (existingBySku) {
-                await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, sizes, colors });
+                await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, sizes, colors } as any);
                 productsUpdated++;
               } else {
                 await storage.createProduct({
@@ -447,15 +465,16 @@ export async function registerRoutes(
                   description,
                   price: 0,
                   imageUrl,
+                  thumbnailUrl,
                   category: "1C Import",
                   sizes,
                   colors,
                   isNew: true
-                });
+                } as any);
                 productsCreated++;
               }
             } else {
-              await storage.updateProduct(existing.id, { name, description, sku, imageUrl, sizes, colors });
+              await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, sizes, colors } as any);
               productsUpdated++;
             }
           } catch (err: any) {
@@ -533,9 +552,19 @@ export async function registerRoutes(
     }
   });
 
-  // Convert existing images in Object Storage to WebP format
+  // Convert existing images in Object Storage to WebP format (protected)
   // Use ?limit=20 to process in batches (default 20, max 50)
   app.post("/api/convert-images-to-webp", async (req, res) => {
+    const expectedKey = process.env.SYNC_API_KEY;
+    if (!expectedKey) {
+      console.error("[WebP] SYNC_API_KEY not configured");
+      return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
+    }
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (apiKey !== expectedKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
     try {
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
       console.log(`[WebP] Starting image conversion (limit: ${limit})...`);
@@ -566,6 +595,7 @@ export async function registerRoutes(
       for (const key of imageKeys) {
         try {
           const webpKey = key.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+          const thumbKey = key.replace(/\.(jpg|jpeg|png)$/i, '_thumb.webp');
           
           // Download original image
           const imageBuffer = await downloadBinaryFromYandexStorage(key);
@@ -575,16 +605,26 @@ export async function registerRoutes(
             continue;
           }
           
-          // Convert to WebP
+          // Convert to WebP (full size)
           const webpBuffer = await sharp(imageBuffer)
             .webp({ quality: 85 })
+            .toBuffer();
+          
+          // Create thumbnail (300px width for catalog)
+          const thumbBuffer = await sharp(imageBuffer)
+            .resize(300, null, { withoutEnlargement: true })
+            .webp({ quality: 80 })
             .toBuffer();
           
           // Upload WebP version
           const webpFilename = webpKey.replace('products/', '');
           await uploadToYandexStorage(webpBuffer, webpFilename, 'image/webp');
           
-          console.log(`[WebP] Converted: ${key} -> ${webpKey}`);
+          // Upload thumbnail
+          const thumbFilename = thumbKey.replace('products/', '');
+          await uploadToYandexStorage(thumbBuffer, thumbFilename, 'image/webp');
+          
+          console.log(`[WebP] Converted: ${key} -> ${webpKey} + thumbnail`);
           converted++;
           
         } catch (err: any) {
@@ -642,6 +682,134 @@ export async function registerRoutes(
       
     } catch (error) {
       console.error("[WebP URLs] Error:", error);
+      res.status(500).json({ error: "Update failed", details: String(error) });
+    }
+  });
+
+  // Generate thumbnails from existing WebP images (protected)
+  app.post("/api/generate-thumbnails", async (req, res) => {
+    const expectedKey = process.env.SYNC_API_KEY;
+    if (!expectedKey) {
+      console.error("[Thumbnails] SYNC_API_KEY not configured");
+      return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
+    }
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (apiKey !== expectedKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string) || 10, 30);
+      console.log(`[Thumbnails] Starting thumbnail generation (limit: ${limit})...`);
+      
+      // List all WebP images
+      const allKeys = await listObjectsFromYandexStorage("products/import_files/");
+      const webpKeys = allKeys.filter(key => /\.webp$/i.test(key) && !/_thumb\.webp$/i.test(key));
+      const existingThumbs = new Set(allKeys.filter(key => /_thumb\.webp$/i.test(key)));
+      
+      // Find WebP images without thumbnails
+      const needsThumbnail = webpKeys.filter(key => {
+        const thumbKey = key.replace(/\.webp$/i, '_thumb.webp');
+        return !existingThumbs.has(thumbKey);
+      }).slice(0, limit);
+      
+      const totalRemaining = webpKeys.filter(key => {
+        const thumbKey = key.replace(/\.webp$/i, '_thumb.webp');
+        return !existingThumbs.has(thumbKey);
+      }).length;
+      
+      console.log(`[Thumbnails] Found ${totalRemaining} WebP images needing thumbnails, processing ${needsThumbnail.length}`);
+      
+      let generated = 0;
+      let failed = 0;
+      
+      for (const key of needsThumbnail) {
+        try {
+          const thumbKey = key.replace(/\.webp$/i, '_thumb.webp');
+          
+          // Download WebP image
+          const imageBuffer = await downloadBinaryFromYandexStorage(key);
+          if (!imageBuffer) {
+            console.log(`[Thumbnails] Could not download: ${key}`);
+            failed++;
+            continue;
+          }
+          
+          // Create thumbnail (300px width)
+          const thumbBuffer = await sharp(imageBuffer)
+            .resize(300, null, { withoutEnlargement: true })
+            .webp({ quality: 80 })
+            .toBuffer();
+          
+          // Upload thumbnail
+          const thumbFilename = thumbKey.replace('products/', '');
+          await uploadToYandexStorage(thumbBuffer, thumbFilename, 'image/webp');
+          
+          console.log(`[Thumbnails] Generated: ${thumbKey}`);
+          generated++;
+          
+        } catch (err: any) {
+          console.error(`[Thumbnails] Failed for ${key}:`, err.message);
+          failed++;
+        }
+      }
+      
+      const remaining = totalRemaining - generated;
+      console.log(`[Thumbnails] Batch complete: ${generated} generated, ${failed} failed, ${remaining} remaining`);
+      res.json({
+        success: true,
+        message: `Generated ${generated} thumbnails`,
+        details: { generated, failed, remaining, hint: remaining > 0 ? "Run again to generate more" : "All done!" }
+      });
+      
+    } catch (error) {
+      console.error("[Thumbnails] Error:", error);
+      res.status(500).json({ error: "Generation failed", details: String(error) });
+    }
+  });
+
+  // Update product thumbnail URLs in database (protected)
+  app.post("/api/update-thumbnail-urls", async (req, res) => {
+    const expectedKey = process.env.SYNC_API_KEY;
+    if (!expectedKey) {
+      console.error("[Thumbnails] SYNC_API_KEY not configured");
+      return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
+    }
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (apiKey !== expectedKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      console.log("[Thumbnails] Updating product thumbnail URLs...");
+      
+      const products = await storage.getProducts();
+      let updated = 0;
+      
+      for (const product of products) {
+        if (product.imageUrl && product.imageUrl.endsWith('.webp') && !product.thumbnailUrl) {
+          const thumbnailUrl = product.imageUrl.replace(/\.webp$/i, '_thumb.webp');
+          
+          await storage.updateProduct(product.id, { 
+            thumbnailUrl 
+          } as any);
+          
+          console.log(`[Thumbnails] Updated: ${product.name}`);
+          updated++;
+        }
+      }
+      
+      console.log(`[Thumbnails] Complete: ${updated} products updated`);
+      storage.clearCache();
+      
+      res.json({
+        success: true,
+        message: `Updated ${updated} product thumbnail URLs`,
+        details: { updated, total: products.length }
+      });
+      
+    } catch (error) {
+      console.error("[Thumbnails] Error:", error);
       res.status(500).json({ error: "Update failed", details: String(error) });
     }
   });
@@ -747,6 +915,7 @@ export async function registerRoutes(
             // Image parsing - use Object Storage URL
             const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : item["Картинка"];
             const imageUrl = getImageUrl(imgPath);
+            const thumbnailUrl = getThumbnailUrl(imageUrl);
             
             const existing = await storage.getProductByExternalId(externalId);
             if (!existing) {
@@ -754,7 +923,7 @@ export async function registerRoutes(
               const existingBySku = sku ? await storage.getProductBySku(sku) : null;
               if (existingBySku) {
                 console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead`);
-                await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, sizes, colors });
+                await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, sizes, colors } as any);
               } else {
                 console.log(`[1C] Creating new product: ${name} (${externalId})`);
                 await storage.createProduct({
@@ -764,15 +933,16 @@ export async function registerRoutes(
                   description,
                   price: 0,
                   imageUrl,
+                  thumbnailUrl,
                   category: categoryName,
                   sizes,
                   colors,
                   isNew: true
-                });
+                } as any);
               }
             } else {
               console.log(`[1C] Updating existing product: ${name} (${externalId})`);
-              await storage.updateProduct(existing.id, { name, description, sku, imageUrl, sizes, colors });
+              await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, sizes, colors } as any);
             }
           }
         }
@@ -829,7 +999,7 @@ export async function registerRoutes(
   // Serve attached assets
   app.use("/attached_assets", express.static(path.resolve(process.cwd(), "attached_assets")));
 
-  // Products with pagination support
+  // Products with pagination support + Cache-Control
   app.get(api.products.list.path, async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 24));
@@ -846,6 +1016,9 @@ export async function registerRoutes(
     const totalPages = Math.ceil(total / limit);
     const offset = (page - 1) * limit;
     const products = filtered.slice(offset, offset + limit);
+    
+    // Cache-Control: cache for 5 minutes on browser, 10 minutes on CDN
+    res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
     
     res.json({
       products,
@@ -864,6 +1037,8 @@ export async function registerRoutes(
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
+    // Cache single product for 5 minutes
+    res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
     res.json(product);
   });
 

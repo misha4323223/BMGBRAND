@@ -149,6 +149,7 @@ export class DatabaseStorage implements IStorage {
       description: data.description || '',
       price: parsedPrice,
       imageUrl: images.length > 0 ? images[0] : (data.image_url || ''),
+      thumbnailUrl: data.thumbnail_url || null,
       category: data.category || '',
       sizes,
       colors,

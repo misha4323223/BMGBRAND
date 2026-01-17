@@ -12,6 +12,7 @@ export const products = pgTable("products", {
   description: text("description").notNull(),
   price: integer("price").notNull(), // stored in cents/kopeks
   imageUrl: text("image_url").notNull(),
+  thumbnailUrl: text("thumbnail_url"), // 300px thumbnail for catalog
   category: text("category").notNull(),
   sizes: jsonb("sizes").$type<string[]>().notNull(), // e.g. ["S", "M", "L", "XL"]
   colors: jsonb("colors").$type<string[]>().notNull(), // e.g. ["Black", "White"]
