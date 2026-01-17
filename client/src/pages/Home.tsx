@@ -80,7 +80,7 @@ export default function Home() {
       <Navbar />
       
       {/* Hero Section */}
-      <section className="relative h-[80vh] sm:h-screen flex flex-col items-center justify-end overflow-hidden pb-12 sm:pb-24">
+      <section className="relative h-[80vh] sm:h-screen flex flex-col items-center justify-end overflow-hidden pb-6 sm:pb-12">
         <div className="absolute inset-0 z-0">
           <img 
             src={heroLogo} 
@@ -97,27 +97,17 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex flex-col items-center"
           >
-            <p className="font-mono text-sm sm:text-lg md:text-xl text-zinc-300 mb-8 sm:mb-10 max-w-xl mx-auto uppercase tracking-widest drop-shadow-lg">
+            <p className="font-mono text-xs sm:text-base md:text-lg text-zinc-300 mb-6 sm:mb-8 max-w-xl mx-auto uppercase tracking-widest drop-shadow-lg">
               МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ. <br/>
               ОРИГИНАЛЬНЫЙ РОССИЙСКИЙ СТРИТВИР.
             </p>
             <Link href="/products">
-              <button className="bg-primary hover:bg-red-600 text-white px-6 py-3 sm:px-8 sm:py-4 font-display text-lg sm:text-xl uppercase tracking-widest transition-all hover:scale-105 active:scale-95 border border-primary/20 shadow-[0_0_20px_rgba(239,68,68,0.2)]" data-testid="button-hero-cta">
+              <button className="bg-primary hover:bg-red-600 text-white px-5 py-2 sm:px-6 sm:py-3 font-display text-base sm:text-lg uppercase tracking-widest transition-all hover:scale-105 active:scale-95 border border-primary/20 shadow-[0_0_20px_rgba(239,68,68,0.2)]" data-testid="button-hero-cta">
                 Смотреть коллекцию
               </button>
             </Link>
           </motion.div>
         </div>
-
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1, duration: 1 }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
-        >
-          <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.2em] -rotate-90 origin-center mb-8">Листайте</span>
-          <div className="w-[1px] h-16 bg-gradient-to-b from-primary to-transparent" />
-        </motion.div>
       </section>
 
       {/* Categories Section */}
