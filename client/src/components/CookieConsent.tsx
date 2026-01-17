@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Shirt } from "lucide-react";
 import { Button } from "./ui/button";
+import { Link } from "wouter";
 
 export function CookieConsent() {
   const [isVisible, setIsVisible] = useState(false);
@@ -40,10 +41,10 @@ export function CookieConsent() {
               </div>
               
               <h3 className="font-display text-white uppercase tracking-wider text-[10px] mb-2">COOKIES</h3>
-              <p className="font-mono text-[9px] text-zinc-500 leading-tight mb-4 px-2">
-                ИСПОЛЬЗУЕМ КУКИ ДЛЯ КОРРЕКТНОЙ РАБОТЫ САЙТА. <br/>
-                ОСТАВАЯСЬ ЗДЕСЬ, ВЫ ПРИНИМАЕТЕ УСЛОВИЯ.
-              </p>
+              <div className="font-mono text-[9px] text-zinc-500 leading-tight mb-4 px-2">
+                <p className="mb-1">ИСПОЛЬЗУЕМ ФАЙЛЫ COOKIE ДЛЯ УЛУЧШЕНИЯ РАБОТЫ МАГАЗИНА.</p>
+                <Link href="/privacy" className="text-primary hover:underline block uppercase">ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ</Link>
+              </div>
               
               <Button 
                 onClick={handleAccept}

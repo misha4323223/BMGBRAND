@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Link, Switch, Route, useLocation } from "wouter";
 import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -32,6 +32,14 @@ function Router() {
       <Route path="/cart" component={Cart} />
       <Route path="/checkout" component={Checkout} />
       <Route path="/about" component={About} />
+      <Route path="/privacy">
+        <div className="min-h-screen bg-background text-white p-8 pt-32 max-w-3xl mx-auto font-mono text-sm leading-relaxed">
+          <h1 className="font-display text-4xl mb-8 uppercase">Политика конфиденциальности</h1>
+          <p className="mb-4">Мы собираем минимальный набор данных (cookie), необходимый для работы корзины и авторизации.</p>
+          <p className="mb-4">Ваши данные не передаются третьим лицам и используются исключительно для обеспечения функциональности магазина BMGBRAND.</p>
+          <Link href="/" className="text-primary hover:underline uppercase block mt-8">Вернуться на главную</Link>
+        </div>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
