@@ -77,10 +77,18 @@ export const orders = pgTable("orders", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Newsletter Subscribers
+export const subscribers = pgTable("subscribers", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Schemas
 export const insertProductSchema = createInsertSchema(products).omit({ id: true, createdAt: true });
 export const insertCartItemSchema = createInsertSchema(cartItems).omit({ id: true });
 export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true, status: true, items: true, total: true });
+export const insertSubscriberSchema = createInsertSchema(subscribers).omit({ id: true, createdAt: true });
 
 // Types
 export type Product = typeof products.$inferSelect;
@@ -89,3 +97,5 @@ export type CartItem = typeof cartItems.$inferSelect;
 export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type Subscriber = typeof subscribers.$inferSelect;
+export type InsertSubscriber = z.infer<typeof insertSubscriberSchema>;

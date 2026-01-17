@@ -1345,6 +1345,44 @@ export async function registerRoutes(
     }
   });
 
+  // Newsletter subscription (in-memory storage for now)
+  const newsletterSubscribers: Set<string> = new Set();
+  
+  app.post("/api/newsletter/subscribe", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ success: false, message: "Email обязателен" });
+      }
+      
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ success: false, message: "Некорректный email" });
+      }
+      
+      if (newsletterSubscribers.has(email.toLowerCase())) {
+        return res.status(200).json({ 
+          success: true, 
+          message: "Вы уже подписаны", 
+          promoCode: "WELCOME7" 
+        });
+      }
+      
+      newsletterSubscribers.add(email.toLowerCase());
+      console.log(`[Newsletter] New subscriber: ${email}. Total: ${newsletterSubscribers.size}`);
+      
+      res.status(201).json({ 
+        success: true, 
+        message: "Спасибо за подписку!", 
+        promoCode: "WELCOME7" 
+      });
+    } catch (err) {
+      console.error("[Newsletter] Error:", err);
+      res.status(500).json({ success: false, message: "Ошибка сервера" });
+    }
+  });
+
   // Seed data
   if ((await storage.getProducts()).length === 0) {
     await runAutoSync();

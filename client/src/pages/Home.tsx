@@ -1,20 +1,78 @@
 import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Truck, Palette, Flag, Mail } from "lucide-react";
 import { Link } from "wouter";
 import { useProducts } from "@/hooks/use-products";
 import { ProductCard } from "@/components/ProductCard";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { apiRequest } from "@/lib/queryClient";
 import heroBg from "@assets/generated_images/wet_softshell_fabric_on_asphalt_rain.png";
+import clothingImg from "@assets/generated_images/streetwear_clothing_category.png";
+import socksImg from "@assets/generated_images/designer_socks_category.png";
+import accessoriesImg from "@assets/generated_images/accessories_category.png";
+import merchImg from "@assets/generated_images/merch_category.png";
 
-// Video served from Yandex Object Storage CDN
 const identityVideo = "https://storage.yandexcloud.net/bmg/media/identity/cinematic_dark_urban_streetwear_video.mp4";
+
+const categories = [
+  { name: "Одежда", slug: "clothing", image: clothingImg },
+  { name: "Носки", slug: "socks", image: socksImg },
+  { name: "Аксессуары", slug: "accessories", image: accessoriesImg },
+  { name: "Мерч", slug: "merch", image: merchImg },
+];
+
+const benefits = [
+  { icon: Truck, title: "Доставка по всей РФ", desc: "Отправляем в любой город" },
+  { icon: Flag, title: "Сделано в России", desc: "Собственное производство" },
+  { icon: Palette, title: "Уникальные принты", desc: "Авторский дизайн" },
+];
+
+const blogPosts = [
+  { 
+    title: "Новая коллекция SS'26", 
+    date: "15 января 2026",
+    excerpt: "Встречайте свежие дропы весенне-летнего сезона...",
+    image: clothingImg 
+  },
+  { 
+    title: "Лукбук: Urban Vibes", 
+    date: "10 января 2026",
+    excerpt: "Смотрите как носить наши вещи в городе...",
+    image: socksImg 
+  },
+  { 
+    title: "Коллаборация с художником", 
+    date: "5 января 2026",
+    excerpt: "Специальный дроп с уникальными принтами...",
+    image: accessoriesImg 
+  },
+];
 
 export default function Home() {
   const { data: products, isLoading } = useProducts();
+  const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Featured products (take first 3)
-  const featuredProducts = products?.slice(0, 3);
+  const featuredProducts = products?.slice(0, 8);
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      await apiRequest("POST", "/api/newsletter/subscribe", { email });
+      setSubscribed(true);
+      setEmail("");
+    } catch (err) {
+      console.error("Subscribe error:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-white">
@@ -47,14 +105,13 @@ export default function Home() {
               ОРИГИНАЛЬНЫЙ РОССИЙСКИЙ СТРИТВИР.
             </p>
             <Link href="/products">
-              <button className="bg-primary hover:bg-red-600 text-white px-6 py-3 sm:px-8 sm:py-4 font-display text-lg sm:text-xl uppercase tracking-widest transition-all hover:scale-105 active:scale-95">
+              <button className="bg-primary hover:bg-red-600 text-white px-6 py-3 sm:px-8 sm:py-4 font-display text-lg sm:text-xl uppercase tracking-widest transition-all hover:scale-105 active:scale-95" data-testid="button-hero-cta">
                 Смотреть коллекцию
               </button>
             </Link>
           </motion.div>
         </div>
 
-        {/* Scroll Indicator */}
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -64,6 +121,101 @@ export default function Home() {
           <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.2em] -rotate-90 origin-center mb-8">Листайте</span>
           <div className="w-[1px] h-16 bg-gradient-to-b from-primary to-transparent" />
         </motion.div>
+      </section>
+
+      {/* Categories Section */}
+      <section className="py-12 sm:py-20 bg-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="font-display text-3xl sm:text-5xl text-white mb-8 sm:mb-12 text-center">
+            Категории
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {categories.map((cat) => (
+              <Link 
+                key={cat.slug} 
+                href={`/products?category=${cat.slug}`}
+                className="group relative aspect-[4/5] overflow-hidden bg-zinc-900"
+                data-testid={`link-category-${cat.slug}`}
+              >
+                <img 
+                  src={cat.image} 
+                  alt={cat.name}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
+                  <h3 className="font-display text-xl sm:text-2xl text-white uppercase tracking-wider group-hover:text-primary transition-colors">
+                    {cat.name}
+                  </h3>
+                  <span className="font-mono text-xs text-zinc-400 group-hover:text-zinc-300 transition-colors flex items-center mt-2">
+                    Смотреть <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Products */}
+      <section className="py-12 sm:py-24 bg-zinc-950 border-y border-zinc-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 sm:mb-12 gap-4">
+            <div>
+              <span className="font-mono text-xs text-primary uppercase tracking-widest">Хиты продаж</span>
+              <h2 className="font-display text-3xl sm:text-5xl text-white mt-2">Популярное</h2>
+            </div>
+            <Link href="/products" className="font-mono text-zinc-500 hover:text-white text-sm flex items-center gap-2 group" data-testid="link-all-products">
+              ВСЕ ТОВАРЫ <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+
+          {isLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                <div key={i} className="animate-pulse">
+                  <div className="bg-zinc-800 aspect-[4/5] mb-2" />
+                  <div className="h-4 bg-zinc-800 w-2/3 mb-1" />
+                  <div className="h-3 bg-zinc-800 w-1/4" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-10">
+              {featuredProducts?.map((product, index) => (
+                <ProductCard key={product.id} product={product} priority={index < 4} />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section className="py-12 sm:py-20 bg-background">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12">
+            {benefits.map((benefit, index) => (
+              <motion.div 
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="text-center group"
+              >
+                <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 border border-zinc-800 mb-4 sm:mb-6 group-hover:border-primary transition-colors">
+                  <benefit.icon className="w-7 h-7 sm:w-8 sm:h-8 text-zinc-400 group-hover:text-primary transition-colors" />
+                </div>
+                <h3 className="font-display text-lg sm:text-xl text-white mb-2 uppercase tracking-wide">
+                  {benefit.title}
+                </h3>
+                <p className="font-mono text-xs sm:text-sm text-zinc-500">
+                  {benefit.desc}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Philosophy Section */}
@@ -79,13 +231,12 @@ export default function Home() {
                 Мы не следуем трендам; мы документируем нашу реальность через ткань и принты.
                 Каждая вещь рассказывает историю бетонных джунглей.
               </p>
-              <Link href="/about" className="inline-flex items-center text-primary font-bold hover:text-white transition-colors group text-sm sm:text-base">
+              <Link href="/about" className="inline-flex items-center text-primary font-bold hover:text-white transition-colors group text-sm sm:text-base" data-testid="link-manifesto">
                 ЧИТАТЬ МАНИФЕСТ <ArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-2 transition-transform" />
               </Link>
             </div>
             <div className="relative aspect-square overflow-hidden bg-black">
               <div className="absolute -inset-4 border-2 border-primary/20 z-0" />
-              {/* Video hidden on mobile (< 768px) for performance */}
               <video 
                 src={identityVideo} 
                 autoPlay 
@@ -95,7 +246,6 @@ export default function Home() {
                 preload="none"
                 className="hidden md:block relative z-10 w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
               />
-              {/* Static image fallback on mobile */}
               <img 
                 src={heroBg} 
                 alt="BMGBRAND Identity"
@@ -107,37 +257,91 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Products */}
-      <section className="py-12 sm:py-24 bg-background">
+      {/* Blog/News Section */}
+      <section className="py-12 sm:py-20 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-end mb-8 sm:mb-12">
-            <h2 className="font-display text-3xl sm:text-4xl text-white">Новинки</h2>
-            <Link href="/products" className="hidden md:block font-mono text-zinc-500 hover:text-white text-sm">
-              СМОТРЕТЬ ВСЕ ТОВАРЫ
-            </Link>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 sm:mb-12 gap-4">
+            <div>
+              <span className="font-mono text-xs text-primary uppercase tracking-widest">Новости</span>
+              <h2 className="font-display text-3xl sm:text-5xl text-white mt-2">Блог</h2>
+            </div>
           </div>
 
-          {isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="animate-pulse">
-                  <div className="bg-zinc-900 aspect-[4/5] mb-2" />
-                  <div className="h-4 bg-zinc-900 w-2/3 mb-1" />
-                  <div className="h-3 bg-zinc-900 w-1/4" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+            {blogPosts.map((post, index) => (
+              <motion.article 
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="group cursor-pointer"
+              >
+                <div className="aspect-[16/10] overflow-hidden bg-zinc-900 mb-4">
+                  <img 
+                    src={post.image} 
+                    alt={post.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 sm:gap-x-8 gap-y-8 sm:gap-y-12">
-              {featuredProducts?.map(product => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          )}
-          
-          <div className="mt-12 text-center md:hidden">
-            <Link href="/products" className="btn-outline">VIEW ALL</Link>
+                <span className="font-mono text-xs text-zinc-500">{post.date}</span>
+                <h3 className="font-display text-lg sm:text-xl text-white mt-1 mb-2 group-hover:text-primary transition-colors">
+                  {post.title}
+                </h3>
+                <p className="font-mono text-xs sm:text-sm text-zinc-400 line-clamp-2">
+                  {post.excerpt}
+                </p>
+              </motion.article>
+            ))}
           </div>
+        </div>
+      </section>
+
+      {/* Newsletter Section */}
+      <section className="py-12 sm:py-20 bg-zinc-950 border-y border-zinc-900">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <Mail className="w-10 h-10 sm:w-12 sm:h-12 text-primary mx-auto mb-4" />
+          <h2 className="font-display text-2xl sm:text-4xl text-white mb-3">
+            Подпишитесь на рассылку
+          </h2>
+          <p className="font-mono text-sm text-zinc-400 mb-6 sm:mb-8">
+            Получайте первыми информацию о новых дропах и эксклюзивных акциях.<br/>
+            <span className="text-primary font-bold">Скидка 7% на первый заказ!</span>
+          </p>
+          
+          {subscribed ? (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-primary/10 border border-primary/30 p-6 rounded-none"
+            >
+              <p className="font-display text-xl text-white mb-2">Спасибо за подписку!</p>
+              <p className="font-mono text-sm text-zinc-400">
+                Ваш промокод: <span className="text-primary font-bold">WELCOME7</span>
+              </p>
+            </motion.div>
+          ) : (
+            <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+              <input 
+                type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Ваш email"
+                required
+                disabled={isSubmitting}
+                className="flex-1 bg-zinc-900 border border-zinc-800 px-4 py-3 font-mono text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-primary transition-colors disabled:opacity-50"
+                data-testid="input-newsletter-email"
+              />
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="bg-primary hover:bg-red-600 text-white px-6 py-3 font-display uppercase tracking-wider"
+                data-testid="button-newsletter-submit"
+              >
+                {isSubmitting ? "..." : "Подписаться"}
+              </Button>
+            </form>
+          )}
         </div>
       </section>
 

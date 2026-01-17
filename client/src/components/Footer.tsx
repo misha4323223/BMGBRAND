@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { SiVk, SiTelegram } from "react-icons/si";
 
 export function Footer() {
   return (
@@ -15,27 +16,48 @@ export function Footer() {
               Аутентичный российский стритвир. Смелые дизайны. Качественные материалы. 
               Мы создаем то, что носим сами.
             </p>
+            <div className="flex space-x-4">
+              <a 
+                href="https://vk.com/bmgbrand" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-10 h-10 flex items-center justify-center border border-zinc-800 text-zinc-400 hover:text-primary hover:border-primary transition-colors"
+                data-testid="link-social-vk"
+              >
+                <SiVk className="w-5 h-5" />
+              </a>
+              <a 
+                href="https://t.me/bmg_booomerangs" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-10 h-10 flex items-center justify-center border border-zinc-800 text-zinc-400 hover:text-primary hover:border-primary transition-colors"
+                data-testid="link-social-telegram"
+              >
+                <SiTelegram className="w-5 h-5" />
+              </a>
+            </div>
           </div>
           
           <div>
-            <h4 className="font-display text-lg text-white mb-6">Исследовать</h4>
+            <h4 className="font-display text-lg text-white mb-6">Каталог</h4>
             <ul className="space-y-4 font-mono text-sm text-zinc-500">
-              <li><Link href="/products" className="hover:text-primary transition-colors">Все товары</Link></li>
-              <li><Link href="/products?category=new" className="hover:text-primary transition-colors">Новинки</Link></li>
-              <li><Link href="/about" className="hover:text-primary transition-colors">Философия</Link></li>
+              <li><Link href="/products" className="hover:text-primary transition-colors" data-testid="link-footer-all">Все товары</Link></li>
+              <li><Link href="/products?category=clothing" className="hover:text-primary transition-colors" data-testid="link-footer-clothing">Одежда</Link></li>
+              <li><Link href="/products?category=socks" className="hover:text-primary transition-colors" data-testid="link-footer-socks">Носки</Link></li>
+              <li><Link href="/products?category=accessories" className="hover:text-primary transition-colors" data-testid="link-footer-accessories">Аксессуары</Link></li>
             </ul>
           </div>
           
           <div>
             <h4 className="font-display text-lg text-white mb-6">Контакты</h4>
             <ul className="space-y-4 font-mono text-sm text-zinc-500">
-              <li>Москва, Россия</li>
-              <li>support@booomerangs.ru</li>
-              <li className="flex space-x-4 mt-4">
-                <a href="#" className="text-white hover:text-primary text-xl">VK</a>
-                <a href="#" className="text-white hover:text-primary text-xl">TG</a>
-                <a href="#" className="text-white hover:text-primary text-xl">IG</a>
+              <li>Россия</li>
+              <li>
+                <a href="mailto:support@booomerangs.ru" className="hover:text-primary transition-colors">
+                  support@booomerangs.ru
+                </a>
               </li>
+              <li><Link href="/about" className="hover:text-primary transition-colors" data-testid="link-footer-about">О нас</Link></li>
             </ul>
           </div>
         </div>
