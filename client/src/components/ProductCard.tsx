@@ -10,8 +10,17 @@ interface ProductCardProps {
 export function ProductCard({ product, priority = false }: ProductCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  // Priority cards load immediately, others wait for IntersectionObserver
   const [shouldLoad, setShouldLoad] = useState(priority);
   const cardRef = useRef<HTMLAnchorElement>(null);
+  
+  // Preload priority images immediately via Image object
+  useEffect(() => {
+    if (priority && product.thumbnailUrl) {
+      const img = new Image();
+      img.src = product.thumbnailUrl;
+    }
+  }, [priority, product.thumbnailUrl]);
   
   const price = new Intl.NumberFormat('ru-RU', {
     style: 'currency',
@@ -33,7 +42,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
           observer.disconnect();
         }
       },
-      { rootMargin: "500px" } // Start loading 500px before visible
+      { rootMargin: "800px" } // Start loading 800px before visible
     );
     
     if (cardRef.current) {

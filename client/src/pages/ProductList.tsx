@@ -196,7 +196,7 @@ export default function ProductList() {
             </div>
           ) : (
             allProducts.map((product, index) => (
-              <ProductCard key={product.id} product={product} priority={index < 8} />
+              <ProductCard key={product.id} product={product} priority={index < 12} />
             ))
           )}
         </div>
