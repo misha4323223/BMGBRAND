@@ -10,6 +10,7 @@ interface CategoryMapping {
 const SKU_PREFIXES: Record<string, CategoryMapping> = {
   // Носки
   "N": { category: "socks", subcategory: "Классические (40-45)" }, // Default for N prefix
+  "№": { category: "socks", subcategory: "Классические (40-45)" }, // Default for № prefix
   
   // Одежда
   "H": { category: "clothing", subcategory: "Толстовки" }, // Hoodies
