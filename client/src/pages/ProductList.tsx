@@ -91,8 +91,8 @@ export default function ProductList() {
               Товары в этой категории не найдены.
             </div>
           ) : (
-            filteredProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
+            filteredProducts.map((product, index) => (
+              <ProductCard key={product.id} product={product} priority={index < 8} />
             ))
           )}
         </div>

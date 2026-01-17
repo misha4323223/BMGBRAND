@@ -1,11 +1,16 @@
 import { Link } from "wouter";
+import { useState } from "react";
 import { Product } from "@shared/schema";
 
 interface ProductCardProps {
   product: Product;
+  priority?: boolean;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, priority = false }: ProductCardProps) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  
   const price = new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: 'RUB',
@@ -17,12 +22,30 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <Link href={`/products/${product.id}`} className="group cursor-pointer block">
       <div className="relative aspect-[4/5] sm:aspect-[3/4] overflow-hidden bg-zinc-900 mb-2 sm:mb-4">
+        {/* Skeleton loader */}
+        {!imageLoaded && !imageError && (
+          <div className="absolute inset-0 bg-zinc-800 animate-pulse flex items-center justify-center">
+            <div className="w-12 h-12 border-2 border-zinc-700 border-t-zinc-500 rounded-full animate-spin" />
+          </div>
+        )}
+        
+        {/* Error state */}
+        {imageError && (
+          <div className="absolute inset-0 bg-zinc-800 flex items-center justify-center">
+            <span className="text-zinc-600 font-mono text-xs">Нет фото</span>
+          </div>
+        )}
+        
         <img 
           src={imageUrl} 
           alt={product.name}
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
           decoding="async"
-          className="w-full h-full object-cover"
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setImageError(true)}
+          className={`w-full h-full object-cover transition-opacity duration-300 ${
+            imageLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
         />
         
         {/* Overlay Tags */}
