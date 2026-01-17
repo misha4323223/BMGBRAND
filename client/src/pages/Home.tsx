@@ -96,22 +96,26 @@ export default function Home() {
           />
         </div>
 
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pb-24 sm:pb-32">
+        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pb-40 sm:pb-52">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex flex-col items-center"
           >
+            <p className="font-mono text-[10px] sm:text-xs text-zinc-400 uppercase tracking-[0.3em] mb-8 text-center leading-relaxed">
+              МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ. <br className="hidden sm:block"/>
+              ОРИГИНАЛЬНЫЙ РОССИЙСКИЙ СТРИТВИР.
+            </p>
             <Link href="/products">
               <Button 
                 size="lg"
-                className="bg-[#FFFFF0] text-black hover:bg-primary hover:text-white px-10 py-7 text-xl font-display uppercase tracking-[0.3em] rounded-none transition-all duration-500 hover:scale-110 active:scale-95 relative group overflow-visible"
+                className="bg-[#FFFFF0] text-black hover:bg-primary hover:text-white px-6 py-4 text-sm font-display uppercase tracking-[0.3em] rounded-none transition-all duration-500 hover:scale-110 active:scale-95 relative group overflow-visible h-auto min-h-0"
                 data-testid="button-hero-catalog"
               >
                 {/* Corner Accents for Streetwear style */}
-                <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute -top-1 -left-1 w-2 h-2 border-t border-l border-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute -bottom-1 -right-1 w-2 h-2 border-b border-r border-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                 
                 <span className="relative z-10">Смотреть каталог</span>
                 
@@ -127,10 +131,6 @@ export default function Home() {
       <section className="py-12 sm:py-20 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-12">
-            <p className="font-mono text-xs sm:text-base md:text-lg text-zinc-400 uppercase tracking-widest mb-4">
-              МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ. <br className="hidden sm:block"/>
-              ОРИГИНАЛЬНЫЙ РОССИЙСКИЙ СТРИТВИР.
-            </p>
             <h2 className="font-display text-3xl sm:text-5xl text-white">
               Категории
             </h2>
