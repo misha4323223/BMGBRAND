@@ -80,30 +80,24 @@ export default function Home() {
       <Navbar />
       
       {/* Hero Section */}
-      <section className="relative h-[80vh] sm:h-screen flex flex-col items-center justify-start overflow-hidden bg-black pt-20">
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-        </div>
-
-        <div className="relative z-10 text-center px-4 w-full max-w-lg mx-auto mb-12">
-          <motion.img
-            src={heroLogo}
-            alt="BMGBRAND"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="w-full h-auto"
+      <section className="relative h-[80vh] sm:h-screen flex flex-col items-center justify-center overflow-hidden bg-black">
+        <div className="absolute inset-0 z-0 flex items-center justify-center">
+          <img 
+            src={heroLogo} 
+            alt="Hero Logo Background" 
+            className="w-full h-full object-cover opacity-60 transition-all duration-700"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
         </div>
 
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto mt-auto pb-12 sm:pb-20">
+        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto flex flex-col items-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex flex-col items-center"
           >
-            <p className="font-mono text-[10px] sm:text-xs text-zinc-400 uppercase tracking-[0.3em] mb-8 text-center leading-relaxed">
+            <p className="font-mono text-[10px] sm:text-xs text-white uppercase tracking-[0.3em] mb-8 text-center leading-relaxed drop-shadow-lg">
               МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ. <br className="hidden sm:block"/>
               ОРИГИНАЛЬНЫЙ РОССИЙСКИЙ СТРИТВИР.
             </p>
