@@ -103,7 +103,7 @@ export default function Home() {
             <Link href="/products">
               <Button 
                 size="lg"
-                className="bg-[#FFFFF0] text-black hover:bg-primary hover:text-white px-6 py-4 text-sm font-display uppercase tracking-[0.3em] rounded-none transition-all duration-500 hover:scale-110 active:scale-95 relative group overflow-visible h-auto min-h-0"
+                className="bg-[#FFFFF0] text-black hover:bg-primary hover:text-white px-6 py-4 text-sm font-display uppercase tracking-[0.3em] rounded-full transition-all duration-500 hover:scale-110 active:scale-95 relative group overflow-visible h-auto min-h-0"
                 data-testid="button-hero-catalog"
               >
                 {/* Corner Accents for Streetwear style */}
@@ -113,7 +113,7 @@ export default function Home() {
                 <span className="relative z-10">Смотреть каталог</span>
                 
                 {/* Glitch/Offset effect background on hover */}
-                <div className="absolute inset-0 bg-primary -z-10 translate-x-0 translate-y-0 group-hover:translate-x-1 group-hover:translate-y-1 transition-transform duration-300 opacity-0 group-hover:opacity-100" />
+                <div className="absolute inset-0 bg-primary -z-10 translate-x-0 translate-y-0 group-hover:translate-x-1 group-hover:translate-y-1 transition-transform duration-300 opacity-0 group-hover:opacity-100 rounded-full" />
               </Button>
             </Link>
           </motion.div>
