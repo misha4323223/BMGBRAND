@@ -3,6 +3,37 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
+// Category structure for navigation
+export const CATEGORIES = {
+  clothing: {
+    name: "Одежда",
+    slug: "clothing",
+    subcategories: ["Толстовки", "Свитшоты", "Свитера", "Шорты", "Футболки", "Куртки", "Брюки"]
+  },
+  socks: {
+    name: "Носки",
+    slug: "socks",
+    subcategories: ["Спортивные (40-45)", "Спортивные (34-39)", "Классические (40-45)", "Классические (34-39)", "Короткие (40-45)", "Короткие (34-39)", "Детские"]
+  },
+  accessories: {
+    name: "Аксессуары",
+    slug: "accessories",
+    subcategories: ["Кружки", "Ремни", "Сумки", "Шапки"]
+  },
+  merch: {
+    name: "Мерч",
+    slug: "merch",
+    subcategories: ["JDM", "Тульские Дизайнеры", "ДИКАЯ МЯТА", "ГУДТАЙМС"]
+  },
+  sale: {
+    name: "Распродажа",
+    slug: "sale",
+    subcategories: []
+  }
+} as const;
+
+export type CategorySlug = keyof typeof CATEGORIES;
+
 // Products
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
@@ -13,10 +44,12 @@ export const products = pgTable("products", {
   price: integer("price").notNull(), // stored in cents/kopeks
   imageUrl: text("image_url").notNull(),
   thumbnailUrl: text("thumbnail_url"), // 300px thumbnail for catalog
-  category: text("category").notNull(),
+  category: text("category").notNull(), // Main category slug: clothing, socks, accessories, merch, sale
+  subcategory: text("subcategory"), // Subcategory name
   sizes: jsonb("sizes").$type<string[]>().notNull(), // e.g. ["S", "M", "L", "XL"]
   colors: jsonb("colors").$type<string[]>().notNull(), // e.g. ["Black", "White"]
   isNew: boolean("is_new").default(false),
+  onSale: boolean("on_sale").default(false), // For sale category
   createdAt: timestamp("created_at").defaultNow(),
 });
 
