@@ -1,5 +1,4 @@
 import { Link } from "wouter";
-import { motion } from "framer-motion";
 import { Product } from "@shared/schema";
 
 interface ProductCardProps {
@@ -7,29 +6,21 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  // Format price from cents to currency
   const price = new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: 'RUB',
     minimumFractionDigits: 0,
   }).format(product.price / 100);
 
-  // Map database path to static path if needed
   const imageUrl = product.imageUrl;
 
   return (
     <Link href={`/products/${product.id}`} className="group cursor-pointer block">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative aspect-[4/5] sm:aspect-[3/4] overflow-hidden bg-zinc-900 mb-2 sm:mb-4"
-      >
-        {/* Dynamic Image from DB or Unsplash fallback */}
+      <div className="relative aspect-[4/5] sm:aspect-[3/4] overflow-hidden bg-zinc-900 mb-2 sm:mb-4">
         <img 
           src={imageUrl} 
           alt={product.name}
-          className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 scale-100 group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-300 scale-100 group-hover:scale-105"
         />
         
         {/* Overlay Tags */}
@@ -47,7 +38,7 @@ export function ProductCard({ product }: ProductCardProps) {
             Смотреть
           </span>
         </div>
-      </motion.div>
+      </div>
       
       <div className="flex flex-col sm:flex-row justify-between items-start gap-1">
         <div>
