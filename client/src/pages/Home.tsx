@@ -85,7 +85,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
         </div>
 
-        <div className="relative z-10 text-center px-4 w-full max-w-lg mx-auto mb-12">
+        <div className="relative z-10 text-center px-4 w-full max-w-lg mx-auto mb-8">
           <motion.img
             src={heroLogo}
             alt="BMGBRAND"
@@ -96,13 +96,22 @@ export default function Home() {
           />
         </div>
 
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pb-6 sm:pb-12">
+        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pb-12 sm:pb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex flex-col items-center"
           >
+            <Link href="/products">
+              <Button 
+                size="lg"
+                className="bg-white text-black hover:bg-zinc-200 px-8 py-6 text-lg font-display uppercase tracking-widest rounded-none transition-all duration-300 hover:scale-105 active:scale-95"
+                data-testid="button-hero-catalog"
+              >
+                Смотреть каталог
+              </Button>
+            </Link>
           </motion.div>
         </div>
       </section>
