@@ -80,12 +80,12 @@ export default function Home() {
       <Navbar />
       
       {/* Hero Section */}
-      <section className="relative h-[80vh] sm:h-screen flex flex-col items-center justify-center overflow-hidden bg-black">
+      <section className="relative h-[80vh] sm:h-screen flex flex-col items-center justify-start overflow-hidden bg-black pt-20">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
         </div>
 
-        <div className="relative z-10 text-center px-4 w-full max-w-lg mx-auto mb-20">
+        <div className="relative z-10 text-center px-4 w-full max-w-lg mx-auto mb-12">
           <motion.img
             src={heroLogo}
             alt="BMGBRAND"
@@ -96,7 +96,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pb-12 sm:pb-20">
+        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto mt-auto pb-12 sm:pb-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
