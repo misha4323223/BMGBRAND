@@ -8,11 +8,11 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
-import heroBg from "@assets/generated_images/wet_softshell_fabric_on_asphalt_rain.png";
-import clothingImg from "@assets/generated_images/streetwear_clothing_category.png";
-import socksImg from "@assets/generated_images/designer_socks_category.png";
-import accessoriesImg from "@assets/generated_images/accessories_category.png";
-import merchImg from "@assets/generated_images/merch_category.png";
+import heroBg from "@assets/generated_images/wet_softshell_fabric_on_asphalt_rain.webp";
+import clothingImg from "@assets/generated_images/streetwear_clothing_category.webp";
+import socksImg from "@assets/generated_images/designer_socks_category.webp";
+import accessoriesImg from "@assets/generated_images/accessories_category.webp";
+import merchImg from "@assets/generated_images/merch_category.webp";
 
 const identityVideo = "https://storage.yandexcloud.net/bmg/media/identity/cinematic_dark_urban_streetwear_video.mp4";
 
@@ -34,19 +34,19 @@ const blogPosts = [
     title: "Новая коллекция SS'26", 
     date: "15 января 2026",
     excerpt: "Встречайте свежие дропы весенне-летнего сезона...",
-    image: clothingImg 
+    image: "/attached_assets/generated_images/blog_post_image_for_new_collection_drop.webp" 
   },
   { 
     title: "Лукбук: Urban Vibes", 
     date: "10 января 2026",
     excerpt: "Смотрите как носить наши вещи в городе...",
-    image: socksImg 
+    image: "/attached_assets/generated_images/blog_post_image_for_urban_vibes_lookbook.webp" 
   },
   { 
     title: "Коллаборация с художником", 
     date: "5 января 2026",
     excerpt: "Специальный дроп с уникальными принтами...",
-    image: accessoriesImg 
+    image: "/attached_assets/generated_images/blog_post_image_for_artist_collaboration.webp" 
   },
 ];
 

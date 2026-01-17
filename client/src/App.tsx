@@ -11,6 +11,7 @@ import ProductDetail from "@/pages/ProductDetail";
 import Cart from "@/pages/Cart";
 import Checkout from "@/pages/Checkout";
 import About from "@/pages/About";
+import { CookieConsent } from "@/components/CookieConsent";
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -42,6 +43,7 @@ function App() {
       <TooltipProvider>
         <ScrollToTop />
         <Toaster />
+        <CookieConsent />
         <Router />
       </TooltipProvider>
     </QueryClientProvider>
