@@ -2,6 +2,43 @@ import { driver } from "./db";
 import { type Product, type InsertProduct, type CartItem, type InsertCartItem, type Order, type InsertOrder } from "@shared/schema";
 import ydb from "ydb-sdk";
 
+// Simple in-memory cache with TTL
+class SimpleCache<T> {
+  private cache: Map<string, { data: T; expires: number }> = new Map();
+  private ttlMs: number;
+
+  constructor(ttlSeconds: number = 60) {
+    this.ttlMs = ttlSeconds * 1000;
+  }
+
+  get(key: string): T | null {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    if (Date.now() > item.expires) {
+      this.cache.delete(key);
+      return null;
+    }
+    return item.data;
+  }
+
+  set(key: string, data: T): void {
+    this.cache.set(key, { data, expires: Date.now() + this.ttlMs });
+  }
+
+  clear(): void {
+    this.cache.clear();
+    console.log("[Cache] Cleared all cached data");
+  }
+
+  delete(key: string): void {
+    this.cache.delete(key);
+  }
+}
+
+// Global cache instances (60 second TTL)
+const productsCache = new SimpleCache<Product[]>(60);
+const productCache = new SimpleCache<Product>(60);
+
 export interface IStorage {
   getProductByExternalId(externalId: string): Promise<Product | undefined>;
   getProductBySku(sku: string): Promise<Product | undefined>;
@@ -9,6 +46,7 @@ export interface IStorage {
   getProduct(id: number): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product>;
+  clearCache(): void;
   getCartItems(sessionId: string): Promise<(CartItem & { product: Product })[]>;
   addToCart(item: InsertCartItem): Promise<CartItem>;
   removeFromCart(id: number, sessionId?: string, productId?: number, size?: string, color?: string): Promise<void>;
@@ -119,7 +157,20 @@ export class DatabaseStorage implements IStorage {
     } as Product;
   }
 
+  clearCache(): void {
+    productsCache.clear();
+    productCache.clear();
+  }
+
   async getProducts(): Promise<Product[]> {
+    // Check cache first
+    const cached = productsCache.get("all");
+    if (cached) {
+      console.log("[Cache] HIT - getProducts");
+      return cached;
+    }
+    
+    console.log("[Cache] MISS - getProducts, fetching from YDB");
     const result = await this.safeQuery(async (session) => {
       const { resultSets } = await session.executeQuery("SELECT * FROM products");
       const rs = resultSets[0];
@@ -129,10 +180,24 @@ export class DatabaseStorage implements IStorage {
         return this.parseProduct(data);
       });
     });
-    return result || [];
+    
+    const products = result || [];
+    if (products.length > 0) {
+      productsCache.set("all", products);
+    }
+    return products;
   }
 
   async getProduct(id: number): Promise<Product | undefined> {
+    // Check cache first
+    const cacheKey = `product_${id}`;
+    const cached = productCache.get(cacheKey);
+    if (cached) {
+      console.log(`[Cache] HIT - getProduct(${id})`);
+      return cached;
+    }
+    
+    console.log(`[Cache] MISS - getProduct(${id}), fetching from YDB`);
     const result = await this.safeQuery(async (session) => {
       const query = "DECLARE $id AS Utf8; SELECT * FROM products WHERE id = $id";
       const { TypedValues, Types } = await import("ydb-sdk");
@@ -143,6 +208,10 @@ export class DatabaseStorage implements IStorage {
       const data = this.parseRowWithColumns(row, rs.columns);
       return this.parseProduct(data);
     });
+    
+    if (result) {
+      productCache.set(cacheKey, result);
+    }
     return result || undefined;
   }
 

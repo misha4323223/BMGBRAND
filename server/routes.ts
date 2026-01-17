@@ -518,6 +518,10 @@ export async function registerRoutes(
       }
       
       console.log(`[Sync] Complete: ${productsCreated} created, ${productsUpdated} updated`);
+      
+      // Clear cache after sync
+      storage.clearCache();
+      
       res.json({ 
         success: true, 
         message: `Synced from Object Storage: ${productsCreated} created, ${productsUpdated} updated` 
@@ -626,6 +630,10 @@ export async function registerRoutes(
       }
       
       console.log(`[WebP URLs] Complete: ${updated} products updated`);
+      
+      // Clear cache after updating URLs
+      storage.clearCache();
+      
       res.json({
         success: true,
         message: `Updated ${updated} product image URLs to WebP`,
@@ -796,6 +804,7 @@ export async function registerRoutes(
         }
         
         console.log("[1C] Import successful");
+        storage.clearCache();
         return res.send("success");
       } catch (err) {
         console.error("[1C] Import failed:", err);
