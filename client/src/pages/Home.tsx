@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
-import heroLogo from "/assets/hero-logo.webp";
+import heroLogo from "@assets/hero-logo.webp";
 import heroBg from "@assets/generated_images/wet_softshell_fabric_on_asphalt_rain.webp";
 import clothingImg from "@assets/generated_images/streetwear_clothing_category.webp";
 import socksImg from "@assets/generated_images/designer_socks_category.webp";
@@ -83,11 +83,11 @@ export default function Home() {
       <section className="relative h-[80vh] sm:h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img 
-            src={heroBg} 
-            alt="Hero Background" 
-            className="w-full h-full object-cover grayscale opacity-60"
+            src={heroLogo} 
+            alt="Hero Logo Background" 
+            className="w-full h-full object-contain p-4 sm:p-20 transition-all duration-700"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/40" />
         </div>
 
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto mt-10 sm:mt-20">
@@ -97,19 +97,12 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex flex-col items-center"
           >
-            <div className="relative mb-8 sm:mb-12">
-              <img 
-                src={heroLogo} 
-                alt="BMGBRAND Logo" 
-                className="w-full max-w-[320px] sm:max-w-[500px] md:max-w-[650px] h-auto drop-shadow-[0_0_30px_rgba(239,68,68,0.4)]"
-              />
-            </div>
-            <p className="font-mono text-sm sm:text-lg md:text-xl text-zinc-300 mb-8 sm:mb-10 max-w-xl mx-auto">
+            <p className="font-mono text-sm sm:text-lg md:text-xl text-zinc-300 mb-8 sm:mb-10 max-w-xl mx-auto uppercase tracking-widest drop-shadow-lg">
               МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ. <br/>
               ОРИГИНАЛЬНЫЙ РОССИЙСКИЙ СТРИТВИР.
             </p>
             <Link href="/products">
-              <button className="bg-primary hover:bg-red-600 text-white px-6 py-3 sm:px-8 sm:py-4 font-display text-lg sm:text-xl uppercase tracking-widest transition-all hover:scale-105 active:scale-95" data-testid="button-hero-cta">
+              <button className="bg-primary hover:bg-red-600 text-white px-6 py-3 sm:px-8 sm:py-4 font-display text-lg sm:text-xl uppercase tracking-widest transition-all hover:scale-105 active:scale-95 border border-primary/20 shadow-[0_0_20px_rgba(239,68,68,0.2)]" data-testid="button-hero-cta">
                 Смотреть коллекцию
               </button>
             </Link>
