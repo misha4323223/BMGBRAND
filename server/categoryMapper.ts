@@ -79,8 +79,11 @@ function determineSocksSubcategory(sku: string, name: string): string {
   if (skuUpper.startsWith("GK")) return "Короткие (34-39)";
   // NK - короткие 40-45р
   if (skuUpper.startsWith("NK")) return "Короткие (40-45)";
-  // N - Классические 40-45р (CHECK THIS BEFORE № to be specific)
-  if (skuUpper.startsWith("N") && !skuUpper.startsWith("NK")) return "Классические (40-45)";
+  // N - Классические (CHECK THIS BEFORE ANYTHING ELSE for N prefix)
+  if (skuUpper.startsWith("N") && !skuUpper.startsWith("NK")) {
+    const is3439 = nameLower.includes("34-39") || nameLower.includes("34/39") || nameLower.includes("34 39");
+    return is3439 ? "Классические (34-39)" : "Классические (40-45)";
+  }
   // R - Спортивные 40-45р
   if (skuUpper.startsWith("R")) return "Спортивные (40-45)";
   // G - Классические 34-39р
