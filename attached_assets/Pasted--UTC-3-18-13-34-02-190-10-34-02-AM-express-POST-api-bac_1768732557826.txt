@@ -1,0 +1,302 @@
+Время (UTC +3)
+Сообщение
+
+18 янв. 13:34:02.190
+10:34:02 AM [express] POST /api/backfill-categories 200 in 5628ms :: {"success":true,"message":"Updated 67 product categories","details":{"updated":67,"total":67,"stats":{"clothing/Толстовки":1,"socks/Спортивные (40-45)":1,"socks/Классические (40-45)":65}}}
+
+18 янв. 13:34:02.189
+REPORT RequestID: 9f685dca-dfff-40ff-a27a-b6aee4cc5997 Duration: 5638.603 ms Billed Duration: 5700 ms Memory Size: 2048 MB Max Memory Used: 233 MB Queuing Duration: 0.096 ms CPU Usage: 2.344 %
+
+18 янв. 13:34:02.189
+END RequestID: 9f685dca-dfff-40ff-a27a-b6aee4cc5997
+
+18 янв. 13:34:02.188
+[Cache] Cleared all cached data via storage.clearCache()
+
+18 янв. 13:34:02.188
+[Cache] Cleared all cached data
+
+18 янв. 13:34:02.188
+[Cache] Cleared all cached data
+
+18 янв. 13:34:02.188
+[Categories] Complete: 67 products updated
+
+18 янв. 13:34:02.188
+[YDB] Updated product id 1768597840271
+
+18 янв. 13:34:02.110
+[Categories] UPDATING 1768597840271 (№ 175): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:02.110
+[YDB] Updated product id 1768597840102
+
+18 янв. 13:34:02.032
+[Categories] UPDATING 1768597840102 (№ 174): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:02.032
+[YDB] Updated product id 1768597839911
+
+18 янв. 13:34:01.949
+[Categories] UPDATING 1768597839911 (№ 173): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:01.949
+[YDB] Updated product id 1768597839744
+
+18 янв. 13:34:01.870
+[Categories] UPDATING 1768597839744 (№ 172): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:01.870
+[YDB] Updated product id 1768597839577
+
+18 янв. 13:34:01.790
+[Categories] UPDATING 1768597839577 (№167): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:01.790
+[YDB] Updated product id 1768597839405
+
+18 янв. 13:34:01.476
+[Categories] UPDATING 1768597839405 (№160): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:01.476
+[YDB] Updated product id 1768597839234
+
+18 янв. 13:34:01.396
+[Categories] UPDATING 1768597839234 (№ 167): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:01.396
+[YDB] Updated product id 1768597839058
+
+18 янв. 13:34:01.307
+[Categories] UPDATING 1768597839058 (№ 168): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:01.307
+[YDB] Updated product id 1768597838882
+
+18 янв. 13:34:01.228
+[Categories] UPDATING 1768597838882 (№161): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:01.228
+[YDB] Updated product id 1768597838701
+
+18 янв. 13:34:01.149
+[Categories] UPDATING 1768597838701 (№166): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:01.149
+[YDB] Updated product id 1768597838513
+
+18 янв. 13:34:01.069
+[Categories] UPDATING 1768597838513 (N158): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:01.069
+[YDB] Updated product id 1768597838333
+
+18 янв. 13:34:00.983
+[Categories] UPDATING 1768597838333 (N032): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:00.983
+[YDB] Updated product id 1768597838163
+
+18 янв. 13:34:00.904
+[Categories] UPDATING 1768597838163 (N136): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:00.904
+[YDB] Updated product id 1768597837988
+
+18 янв. 13:34:00.823
+[Categories] UPDATING 1768597837988 (N009): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:00.823
+[YDB] Updated product id 1768597837798
+
+18 янв. 13:34:00.749
+[Categories] UPDATING 1768597837798 (N013): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:00.749
+[YDB] Updated product id 1768597837624
+
+18 янв. 13:34:00.672
+[Categories] UPDATING 1768597837624 (N124): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:00.672
+[YDB] Updated product id 1768597837432
+
+18 янв. 13:34:00.595
+[Categories] UPDATING 1768597837432 (№022): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:00.594
+[YDB] Updated product id 1768597837260
+
+18 янв. 13:34:00.517
+[Categories] UPDATING 1768597837260 (N156): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:00.517
+[YDB] Updated product id 1768597837073
+
+18 янв. 13:34:00.441
+[Categories] UPDATING 1768597837073 (N155): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:00.441
+[YDB] Updated product id 1768597836895
+
+18 янв. 13:34:00.341
+[Categories] UPDATING 1768597836895 (N154): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:00.341
+[YDB] Updated product id 1768597836729
+
+18 янв. 13:34:00.244
+[Categories] UPDATING 1768597836729 (N153): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:00.244
+[YDB] Updated product id 1768597836557
+
+18 янв. 13:34:00.143
+[Categories] UPDATING 1768597836557 (№129): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:00.143
+[YDB] Updated product id 1768597836230
+
+18 янв. 13:34:00.061
+[Categories] UPDATING 1768597836230 (N118): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:34:00.060
+[YDB] Updated product id 1768597836053
+
+18 янв. 13:33:59.965
+[Categories] UPDATING 1768597836053 (N131): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.965
+[YDB] Updated product id 1768597835873
+
+18 янв. 13:33:59.889
+[Categories] UPDATING 1768597835873 (N145): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.889
+[YDB] Updated product id 1768597835702
+
+18 янв. 13:33:59.812
+[Categories] UPDATING 1768597835702 (N115): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.812
+[YDB] Updated product id 1768597835513
+
+18 янв. 13:33:59.736
+[Categories] UPDATING 1768597835513 (N159): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.736
+[YDB] Updated product id 1768597835333
+
+18 янв. 13:33:59.656
+[Categories] UPDATING 1768597835333 (№164): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.656
+[YDB] Updated product id 1768597835155
+
+18 янв. 13:33:59.578
+[Categories] UPDATING 1768597835155 (№162): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.578
+[YDB] Updated product id 1768597834980
+
+18 янв. 13:33:59.502
+[Categories] UPDATING 1768597834980 (№0138): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.502
+[YDB] Updated product id 1768597834807
+
+18 янв. 13:33:59.427
+[Categories] UPDATING 1768597834807 (N147): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.427
+[YDB] Updated product id 1768597834635
+
+18 янв. 13:33:59.345
+[Categories] UPDATING 1768597834635 (N111): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.344
+[YDB] Updated product id 1768597834447
+
+18 янв. 13:33:59.271
+[Categories] UPDATING 1768597834447 (N150): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.271
+[YDB] Updated product id 1768597834113
+
+18 янв. 13:33:59.195
+[Categories] UPDATING 1768597834113 (N135): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.195
+[YDB] Updated product id 1768597833623
+
+18 янв. 13:33:59.120
+[Categories] UPDATING 1768597833623 (N090): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.120
+[YDB] Updated product id 1768597833424
+
+18 янв. 13:33:59.043
+[Categories] UPDATING 1768597833424 (N088): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:59.043
+[YDB] Updated product id 1768597833085
+
+18 янв. 13:33:58.962
+[Categories] UPDATING 1768597833085 (N001): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:58.962
+[YDB] Updated product id 1768597832901
+
+18 янв. 13:33:58.887
+[Categories] UPDATING 1768597832901 (N018): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:58.887
+[YDB] Updated product id 1768597832730
+
+18 янв. 13:33:58.811
+[Categories] UPDATING 1768597832730 (N057): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:58.811
+[YDB] Updated product id 1768597832550
+
+18 янв. 13:33:58.733
+[Categories] UPDATING 1768597832550 (N021): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:58.733
+[YDB] Updated product id 1768597832375
+
+18 янв. 13:33:58.657
+[Categories] UPDATING 1768597832375 (N015): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:58.657
+[YDB] Updated product id 1768597832205
+
+18 янв. 13:33:58.579
+[Categories] UPDATING 1768597832205 (N044): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:58.579
+[YDB] Updated product id 1768597832036
+
+18 янв. 13:33:58.503
+[Categories] UPDATING 1768597832036 (N054): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:58.503
+[YDB] Updated product id 1768597831855
+
+18 янв. 13:33:58.428
+[Categories] UPDATING 1768597831855 (N070): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:58.428
+[YDB] Updated product id 1768597831679
+
+18 янв. 13:33:58.354
+[Categories] UPDATING 1768597831679 (N068): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:58.354
+[YDB] Updated product id 1768597831502
+
+18 янв. 13:33:58.274
+[Categories] UPDATING 1768597831502 (N129): socks/none -> socks/Классические (40-45)
+
+18 янв. 13:33:58.274
+[YDB] Updated product id 1768597831325
