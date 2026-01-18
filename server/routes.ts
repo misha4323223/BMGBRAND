@@ -265,50 +265,54 @@ export async function registerRoutes(
           const result = parser.parse(xmlData);
           console.log(`[1C] Manually triggering parse for ${filename}`);
           
-          // Handle Products
-          if (result?.["КоммерческаяИнформация"]?.["Каталог"]?.["Товары"]?.["Товар"]) {
-            const items = result["КоммерческаяИнформация"]["Каталог"]["Товары"]["Товар"];
-            const productsArray = Array.isArray(items) ? items : [items];
-            for (const item of productsArray) {
-              const externalId = item["Ид"];
-              const name = item["Наименование"];
-              const description = item["Описание"] || "";
-              const sku = item["Артикул"] || "";
-              
-              // Extract sizes and colors from properties if available
-              let sizes: string[] = [];
-              let colors: string[] = [];
-              if (item["ЗначенияРеквизитов"]?.["ЗначениеРеквизита"]) {
-                 const props = Array.isArray(item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]) 
-                   ? item["ЗначенияРеквизитов"]["ЗначениеРеквизита"] 
-                   : [item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]];
-                 for (const prop of props) {
-                   if (prop["Наименование"] === "Размер") sizes.push(prop["Значение"]);
-                   if (prop["Наименование"] === "Цвет") colors.push(prop["Значение"]);
-                 }
-              }
-
-              const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
-              const imageUrl = getImageUrl(imgPath);
-              const thumbnailUrl = getThumbnailUrl(imageUrl);
-              const { category, subcategory } = mapProductCategory(sku, name);
-              const onSale = isOnSale(name, 0);
-              
-              const existing = await storage.getProductByExternalId(externalId);
-              if (!existing) {
-                // Check if SKU exists to avoid duplicate key error
-                const existingBySku = sku ? await storage.getProductBySku(sku) : null;
-                if (existingBySku) {
-                  console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead`);
-                  await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors } as any);
-                } else {
-                  await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors, isNew: true } as any);
-                }
-              } else {
-                await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors } as any);
-              }
-            }
+      // Handle Products
+      if (result?.["КоммерческаяИнформация"]?.["Каталог"]?.["Товары"]?.["Товар"]) {
+        const items = result["КоммерческаяИнформация"]["Каталог"]["Товары"]["Товар"];
+        const productsArray = Array.isArray(items) ? items : [items];
+        for (const item of productsArray) {
+          const externalId = item["Ид"];
+          const name = item["Наименование"];
+          const description = item["Описание"] || "";
+          const sku = item["Артикул"] || "";
+          
+          // Extract sizes and colors from properties if available
+          let sizes: string[] = [];
+          let colors: string[] = [];
+          if (item["ЗначенияРеквизитов"]?.["ЗначениеРеквизита"]) {
+             const props = Array.isArray(item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]) 
+               ? item["ЗначенияРеквизитов"]["ЗначениеРеквизита"] 
+               : [item["ЗначенияРеквизитов"]["ЗначениеРеквизита"]];
+             for (const prop of props) {
+               if (prop["Наименование"] === "Размер") sizes.push(prop["Значение"]);
+               if (prop["Наименование"] === "Цвет") colors.push(prop["Значение"]);
+             }
           }
+
+          const imgPath = Array.isArray(item["Картинка"]) ? item["Картинка"][0] : (typeof item["Картинка"] === 'string' ? item["Картинка"] : null);
+          const imageUrl = getImageUrl(imgPath);
+          const thumbnailUrl = getThumbnailUrl(imageUrl);
+          const { category, subcategory } = mapProductCategory(sku, name);
+          const onSale = isOnSale(name, 0);
+          
+          const existing = await storage.getProductByExternalId(externalId);
+          if (!existing) {
+            // Check if SKU exists to avoid duplicate key error
+            const existingBySku = sku ? await storage.getProductBySku(sku) : null;
+            if (existingBySku) {
+              console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead. Category: ${category}, Sub: ${subcategory}`);
+              await storage.updateProduct(existingBySku.id, { externalId, name, description, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors } as any);
+            } else {
+              console.log(`[1C] Creating new product ${name}. Category: ${category}, Sub: ${subcategory}`);
+              await storage.createProduct({ externalId, sku, name, description, price: 0, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors, isNew: true } as any);
+            }
+          } else {
+            console.log(`[1C] Updating existing product ${existing.id}. Category: ${category}, Sub: ${subcategory}`);
+            await storage.updateProduct(existing.id, { name, description, sku, imageUrl, thumbnailUrl, category, subcategory, onSale, sizes, colors } as any);
+          }
+        }
+        // Always clear cache after update
+        storage.clearCache();
+      }
 
           // Handle Offers (Prices)
           if (result?.["КоммерческаяИнформация"]?.["ПакетПредложений"]?.["Предложения"]?.["Предложение"]) {

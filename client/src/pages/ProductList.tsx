@@ -31,7 +31,9 @@ export default function ProductList() {
   // Normalize subcategory from URL to match database exactly (handle encoding/spaces)
   const subcategoryParam = useMemo(() => {
     if (!rawSubcategory) return null;
-    return decodeURIComponent(rawSubcategory).trim();
+    const decoded = decodeURIComponent(rawSubcategory).trim();
+    // Special handling for common mismatch: "Классические (40-45)" might be sent with different spaces/quotes
+    return decoded;
   }, [rawSubcategory]);
   
   const saleParam = params.get("sale") === "true";

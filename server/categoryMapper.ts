@@ -95,8 +95,8 @@ function determineSocksSubcategory(sku: string, name: string): string {
   else if (nameLower.includes("коротк")) type = "Короткие";
   
   // Определение размера по названию
-  const is4045 = nameLower.includes("40-45") || nameLower.includes("40/45") || nameLower.includes("o/s") || nameLower.includes("one size");
-  const is3439 = nameLower.includes("34-39") || nameLower.includes("34/39");
+  const is4045 = nameLower.includes("40-45") || nameLower.includes("40/45") || nameLower.includes("o/s") || nameLower.includes("one size") || nameLower.includes("40 45");
+  const is3439 = nameLower.includes("34-39") || nameLower.includes("34/39") || nameLower.includes("34 39");
 
   if (is4045) {
     return type ? `${type} (40-45)` : "Классические (40-45)";

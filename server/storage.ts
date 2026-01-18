@@ -260,13 +260,14 @@ export class DatabaseStorage implements IStorage {
         DECLARE $price AS Double;
         DECLARE $images AS Json;
         DECLARE $category AS Utf8;
+        DECLARE $subcategory AS Utf8;
         DECLARE $sizes AS Json;
         DECLARE $colors AS Json;
         DECLARE $is_new AS Bool;
         DECLARE $in_stock AS Bool;
         
-        UPSERT INTO products (id, external_id, sku, name, description, price, images, category, sizes, colors, is_new, in_stock)
-        VALUES ($id, $external_id, $sku, $name, $description, $price, $images, $category, $sizes, $colors, $is_new, $in_stock);
+        UPSERT INTO products (id, external_id, sku, name, description, price, images, category, subcategory, sizes, colors, is_new, in_stock)
+        VALUES ($id, $external_id, $sku, $name, $description, $price, $images, $category, $subcategory, $sizes, $colors, $is_new, $in_stock);
       `;
       
       await session.executeQuery(query, {
@@ -278,6 +279,7 @@ export class DatabaseStorage implements IStorage {
         $price: TypedValues.fromNative(Types.DOUBLE, p.price || 0),
         $images: TypedValues.fromNative(Types.JSON, JSON.stringify([p.imageUrl || ''])),
         $category: TypedValues.fromNative(Types.UTF8, p.category || ''),
+        $subcategory: TypedValues.fromNative(Types.UTF8, p.subcategory || ''),
         $sizes: TypedValues.fromNative(Types.JSON, JSON.stringify(p.sizes || [])),
         $colors: TypedValues.fromNative(Types.JSON, JSON.stringify(p.colors || [])),
         $is_new: TypedValues.fromNative(Types.BOOL, p.isNew || false),
@@ -345,6 +347,11 @@ export class DatabaseStorage implements IStorage {
         declareStatements += 'DECLARE $category AS Utf8;\n';
         setClauses.push('category = $category');
         params.$category = TypedValues.fromNative(Types.UTF8, p.category);
+      }
+      if (p.subcategory !== undefined) {
+        declareStatements += 'DECLARE $subcategory AS Utf8;\n';
+        setClauses.push('subcategory = $subcategory');
+        params.$subcategory = TypedValues.fromNative(Types.UTF8, p.subcategory || '');
       }
       if (p.sizes !== undefined) {
         declareStatements += 'DECLARE $sizes AS Json;\n';
