@@ -1098,39 +1098,41 @@ export async function registerRoutes(
   // Serve attached assets
   app.use("/attached_assets", express.static(path.resolve(process.cwd(), "attached_assets")));
 
-  // Products with pagination support + Cache-Control
-  app.get(api.products.list.path, async (req, res) => {
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 24));
-    const category = req.query.category as string | undefined;
-    const subcategory = req.query.subcategory as string | undefined;
-    const onSale = req.query.sale === "true";
-    
-    const allProducts = await storage.getProducts();
-    
-    // Filter by category/subcategory/sale
-    let filtered = allProducts;
-    
-    if (onSale) {
-      filtered = filtered.filter(p => p.onSale === true);
-    } else if (category) {
-      filtered = filtered.filter(p => p.category?.toLowerCase() === category.toLowerCase());
-      if (subcategory) {
-        // Normalization for matching
-        const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
-        const decodedSub = normalize(decodeURIComponent(subcategory));
-        
-        console.log(`[API] Filtering by subcategory: "${subcategory}" (normalized: "${decodedSub}")`);
-        
-        filtered = filtered.filter(p => {
-          if (!p.subcategory) return false;
-          const pSub = normalize(p.subcategory);
-          return pSub === decodedSub || pSub === normalize(subcategory);
-        });
+    // Products with pagination support + Cache-Control
+    app.get(api.products.list.path, async (req, res) => {
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 24));
+      const category = req.query.category as string | undefined;
+      const subcategory = req.query.subcategory as string | undefined;
+      const onSale = req.query.sale === "true";
+      
+      const allProducts = await storage.getProducts();
+      
+      // Filter by category/subcategory/sale
+      let filtered = allProducts;
+      
+      if (onSale) {
+        filtered = filtered.filter(p => p.onSale === true);
+      } else if (category) {
+        filtered = filtered.filter(p => p.category?.toLowerCase() === category.toLowerCase());
+        if (subcategory) {
+          // Normalization for matching
+          const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
+          // Handle both cases: direct string and URI encoded
+          const decodedSub = normalize(decodeURIComponent(subcategory));
+          const rawSub = normalize(subcategory);
+          
+          console.log(`[API] Filtering by subcategory: "${subcategory}" (decoded: "${decodedSub}", raw: "${rawSub}")`);
+          
+          filtered = filtered.filter(p => {
+            if (!p.subcategory) return false;
+            const pSub = normalize(p.subcategory);
+            return pSub === decodedSub || pSub === rawSub;
+          });
+        }
       }
-    }
-    
-    const total = filtered.length;
+      
+      const total = filtered.length;
     const totalPages = Math.ceil(total / limit);
     const offset = (page - 1) * limit;
     const products = filtered.slice(offset, offset + limit);
