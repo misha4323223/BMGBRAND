@@ -18,9 +18,9 @@ export function Navbar() {
   ];
 
   return (
-    <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-5xl z-50">
-      <div className="bg-black/90 backdrop-blur-xl border border-white/10 px-6 py-3 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
-        <div className="flex items-center justify-between h-10">
+    <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-4xl z-50">
+      <div className="bg-black/80 backdrop-blur-xl border border-white/20 px-5 py-2 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.05),0_8px_32px_rgba(0,0,0,0.6)] group-hover:border-primary/50 transition-all duration-500">
+        <div className="flex items-center justify-between h-8">
           
           {/* Logo */}
           <Link href="/" className="flex-shrink-0 cursor-pointer group">
