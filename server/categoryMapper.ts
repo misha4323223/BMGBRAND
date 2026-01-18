@@ -73,7 +73,7 @@ function determineSocksSubcategory(sku: string, name: string): string {
 
   // 2. Логика на основе артикула (SKU)
   // GR - Спортивные 34-39р
-  if (skuUpper.startsWith("GR")) return "Классические (34-39)";
+  if (skuUpper.startsWith("GR")) return "Спортивные (34-39)";
   // GK - короткие 34-39р
   if (skuUpper.startsWith("GK")) return "Короткие (34-39)";
   // NK - короткие 40-45р
