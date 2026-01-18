@@ -85,7 +85,7 @@ export default function Home() {
           <img 
             src={heroLogo} 
             alt="Hero Logo Background" 
-            className="w-full h-auto object-contain opacity-60 transition-all duration-700 max-w-[90%] sm:max-w-[75%]"
+            className="w-full h-auto object-contain opacity-60 transition-all duration-700 max-w-[80%] sm:max-w-[65%]"
           />
         </div>
 
