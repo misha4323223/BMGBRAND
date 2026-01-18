@@ -1116,10 +1116,17 @@ export async function registerRoutes(
     } else if (category) {
       filtered = filtered.filter(p => p.category?.toLowerCase() === category.toLowerCase());
       if (subcategory) {
-        // Decode subcategory to match what's in the DB
-        const decodedSub = decodeURIComponent(subcategory);
-        console.log(`[API] Filtering by subcategory: "${subcategory}" (decoded: "${decodedSub}")`);
-        filtered = filtered.filter(p => p.subcategory === subcategory || p.subcategory === decodedSub);
+        // Normalization for matching
+        const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
+        const decodedSub = normalize(decodeURIComponent(subcategory));
+        
+        console.log(`[API] Filtering by subcategory: "${subcategory}" (normalized: "${decodedSub}")`);
+        
+        filtered = filtered.filter(p => {
+          if (!p.subcategory) return false;
+          const pSub = normalize(p.subcategory);
+          return pSub === decodedSub || pSub === normalize(subcategory);
+        });
       }
     }
     
