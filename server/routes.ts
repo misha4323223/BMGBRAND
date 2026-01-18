@@ -886,6 +886,9 @@ export async function registerRoutes(
       console.log(`[Categories] Complete: ${updated} products updated`);
       storage.clearCache();
       
+      // Clear TanStack Query cache on frontend might be needed, but server-side cache is handled
+      console.log("[Cache] Cleared all cached data via storage.clearCache()");
+      
       res.json({
         success: true,
         message: `Updated ${updated} product categories`,

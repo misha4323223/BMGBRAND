@@ -6,6 +6,8 @@ import { Loader2 } from "lucide-react";
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { CATEGORIES, CategorySlug } from "@shared/schema";
+import { useQueryClient } from "@tanstack/react-query";
+import { api } from "@shared/routes";
 
 export default function ProductList() {
   const [search, setSearch] = useState(window.location.search);
@@ -27,6 +29,12 @@ export default function ProductList() {
   const subcategoryParam = params.get("subcategory");
   const saleParam = params.get("sale") === "true";
   
+  // Force refresh data on category/subcategory change
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: [api.products.list.path] });
+  }, [categoryParam, subcategoryParam, queryClient]);
+
   const { 
     data, 
     isLoading, 
