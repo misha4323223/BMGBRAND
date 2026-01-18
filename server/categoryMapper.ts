@@ -83,7 +83,7 @@ function determineSocksSubcategory(sku: string, name: string): string {
   // G - Классические 34-39р
   if (skuUpper.startsWith("G")) return "Классические (34-39)";
   // № - Классические 40-45р
-  if (skuUpper.startsWith("№") || skuUpper.startsWith("N") || nameLower.includes("№")) return "Классические (40-45)";
+  if (skuUpper.startsWith("№") || skuUpper.startsWith("N") || nameLower.includes("№") || nameLower.includes("носки booomerangs")) return "Классические (40-45)";
 
   // 3. Резервная логика по ключевым словам в названии (если SKU не подошел)
   let type = "";

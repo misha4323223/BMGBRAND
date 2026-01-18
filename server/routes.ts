@@ -903,7 +903,7 @@ export async function registerRoutes(
 
   // Get categories list for navigation
   app.get("/api/categories", (req, res) => {
-    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.json(CATEGORIES);
   });
 

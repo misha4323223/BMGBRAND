@@ -50,7 +50,12 @@ export default function ProductList() {
   }, [data]);
 
   const currentCategory = categoryParam ? CATEGORIES[categoryParam] : null;
-  const subcategories = currentCategory?.subcategories || [];
+  const subcategories = useMemo(() => {
+    if (!currentCategory) return [];
+    // If we have actual products, we could derive subcategories from them, 
+    // but for now we rely on the schema.
+    return currentCategory.subcategories;
+  }, [currentCategory]);
 
   const pagination = data?.pages[0]?.pagination;
   
