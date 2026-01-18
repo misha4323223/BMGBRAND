@@ -11,6 +11,7 @@ const SKU_PREFIXES: Record<string, CategoryMapping> = {
   // Носки
   "N": { category: "socks", subcategory: "Классические (40-45)" }, // Default for N prefix
   "№": { category: "socks", subcategory: "Классические (40-45)" }, // Default for № prefix
+  "&": { category: "socks", subcategory: "Классические (40-45)" }, // Symbol from screenshot
   
   // Одежда
   "H": { category: "clothing", subcategory: "Толстовки" }, // Hoodies
@@ -84,8 +85,8 @@ function determineSocksSubcategory(sku: string, name: string): string {
   if (skuUpper.startsWith("R")) return "Спортивные (40-45)";
   // G - Классические 34-39р
   if (skuUpper.startsWith("G") && !skuUpper.startsWith("GR") && !skuUpper.startsWith("GK")) return "Классические (34-39)";
-  // № - Классические 40-45р
-  if (skuUpper.startsWith("№") || nameLower.includes("№") || nameLower.includes("носки booomerangs")) return "Классические (40-45)";
+  // № or & - Классические 40-45р
+  if (skuUpper.startsWith("№") || skuUpper.startsWith("&") || nameLower.includes("№") || nameLower.includes("носки booomerangs")) return "Классические (40-45)";
 
   // 3. Резервная логика по ключевым словам в названии (если SKU не подошел)
   let type = "";
@@ -113,7 +114,7 @@ export function mapProductCategory(sku: string, name: string): CategoryMapping {
   const skuUpper = sku.toUpperCase();
   
   // Special handling for socks
-  if (skuUpper.startsWith("N") || skuUpper.startsWith("№") || skuUpper.startsWith("R") || skuUpper.startsWith("G") || 
+  if (skuUpper.startsWith("N") || skuUpper.startsWith("№") || skuUpper.startsWith("&") || skuUpper.startsWith("R") || skuUpper.startsWith("G") || 
       skuUpper.startsWith("GR") || skuUpper.startsWith("NK") || skuUpper.startsWith("GK") ||
       nameLower.includes("носк") || nameLower.includes("sock") || nameLower.includes("№")) {
     return {
