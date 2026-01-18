@@ -90,9 +90,9 @@ function determineSocksSubcategory(sku: string, name: string): string {
 
   // 3. Резервная логика по ключевым словам в названии (если SKU не подошел)
   let type = "";
-  if (nameLower.includes("спортивн") || nameLower.includes("резинк")) type = "Спортивные";
-  else if (nameLower.includes("коротк")) type = "Короткие";
-  else if (nameLower.includes("классическ") || nameLower.includes("№")) type = "Классические";
+  if (nameLower.includes("спортивн") || nameLower.includes("резинк") || nameLower.includes("теннис")) type = "Спортивные";
+  else if (nameLower.includes("коротк") || nameLower.includes("занижен")) type = "Короткие";
+  else if (nameLower.includes("классическ") || nameLower.includes("носки booomerangs") || nameLower.includes("№")) type = "Классические";
   
   // Определение размера по названию
   const is4045 = nameLower.includes("40-45") || nameLower.includes("40/45") || nameLower.includes("o/s") || nameLower.includes("one size") || nameLower.includes("40 45");
