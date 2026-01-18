@@ -26,7 +26,14 @@ export default function ProductList() {
   const params = useMemo(() => new URLSearchParams(search), [search]);
   
   const categoryParam = params.get("category") as CategorySlug | null;
-  const subcategoryParam = params.get("subcategory");
+  const rawSubcategory = params.get("subcategory");
+  
+  // Normalize subcategory from URL to match database exactly (handle encoding/spaces)
+  const subcategoryParam = useMemo(() => {
+    if (!rawSubcategory) return null;
+    return decodeURIComponent(rawSubcategory).trim();
+  }, [rawSubcategory]);
+  
   const saleParam = params.get("sale") === "true";
   
   // Force refresh data on category/subcategory change
@@ -184,20 +191,24 @@ export default function ProductList() {
             >
               Все {currentCategory?.name}
             </button>
-            {subcategories.map(sub => (
-              <button
-                key={sub}
-                onClick={() => handleSubcategoryChange(sub)}
-                data-testid={`button-subcategory-${sub}`}
-                className={`font-mono text-[10px] sm:text-xs tracking-wider px-3 sm:px-4 py-1.5 sm:py-2 border whitespace-nowrap transition-all ${
-                  subcategoryParam === sub
-                    ? "bg-zinc-800 border-zinc-700 text-white" 
-                    : "bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
-                }`}
-              >
-                {sub}
-              </button>
-            ))}
+            {subcategories.map(sub => {
+              // Exact comparison with normalized param
+              const isActive = subcategoryParam === sub;
+              return (
+                <button
+                  key={sub}
+                  onClick={() => handleSubcategoryChange(sub)}
+                  data-testid={`button-subcategory-${sub}`}
+                  className={`font-mono text-[10px] sm:text-xs tracking-wider px-3 sm:px-4 py-1.5 sm:py-2 border whitespace-nowrap transition-all ${
+                    isActive
+                      ? "bg-zinc-800 border-zinc-700 text-white" 
+                      : "bg-transparent border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
+                  }`}
+                >
+                  {sub}
+                </button>
+              );
+            })}
           </div>
         )}
 
