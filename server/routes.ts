@@ -32,6 +32,11 @@ function getImageUrl(imgPath: string | null): string {
     return `https://storage.yandexcloud.net/${bucket}/products/${cleanPath}`;
   }
   
+  // Local development path check
+  if (fs.existsSync(path.resolve(process.cwd(), "1c_uploads", imgPath.replace(/\\/g, '/')))) {
+    return `/api/1c-images/${imgPath.replace(/\\/g, '/')}`;
+  }
+  
   // Fallback to local path (won't work in production)
   return `/api/1c-images/${imgPath}`;
 }
