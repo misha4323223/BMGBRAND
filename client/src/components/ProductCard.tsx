@@ -88,9 +88,9 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
         )}
         
         {/* Overlay Tags */}
-        <div className="absolute top-4 left-4 flex flex-col gap-2">
+        <div className="absolute top-2 right-2 sm:top-4 sm:right-4 flex flex-col gap-2 z-10">
           {product.isNew && (
-            <span className="bg-primary text-white px-2 py-1 text-xs font-bold uppercase tracking-wider" data-testid={`badge-new-${product.id}`}>
+            <span className="bg-primary text-white px-1.5 py-0.5 sm:px-2 sm:py-1 text-[10px] sm:text-xs font-bold uppercase tracking-wider" data-testid={`badge-new-${product.id}`}>
               Новинка
             </span>
           )}
