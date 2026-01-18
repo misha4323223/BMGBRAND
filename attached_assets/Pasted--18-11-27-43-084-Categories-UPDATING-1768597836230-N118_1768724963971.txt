@@ -1,0 +1,301 @@
+
+
+18 янв. 11:27:43.084
+[Categories] UPDATING 1768597836230 (N118): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.084
+[YDB] Updated product id 1768597836053
+
+18 янв. 11:27:43.023
+[Categories] UPDATING 1768597836053 (N131): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.023
+[YDB] Updated product id 1768597835873
+
+18 янв. 11:27:42.959
+[Categories] UPDATING 1768597835873 (N145): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.959
+[YDB] Updated product id 1768597835702
+
+18 янв. 11:27:42.890
+[Categories] UPDATING 1768597835702 (N115): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.890
+[YDB] Updated product id 1768597835513
+
+18 янв. 11:27:42.825
+[Categories] UPDATING 1768597835513 (N159): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.825
+[YDB] Updated product id 1768597835333
+
+18 янв. 11:27:42.763
+[Categories] UPDATING 1768597835333 (№164): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.763
+[YDB] Updated product id 1768597835155
+
+18 янв. 11:27:42.702
+[Categories] UPDATING 1768597835155 (№162): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.702
+[YDB] Updated product id 1768597834980
+
+18 янв. 11:27:42.639
+[Categories] UPDATING 1768597834980 (№0138): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.639
+[YDB] Updated product id 1768597834807
+
+18 янв. 11:27:42.573
+[Categories] UPDATING 1768597834807 (N147): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.573
+[YDB] Updated product id 1768597834635
+
+18 янв. 11:27:42.514
+[Categories] UPDATING 1768597834635 (N111): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.514
+[YDB] Updated product id 1768597834447
+
+18 янв. 11:27:42.453
+[Categories] UPDATING 1768597834447 (N150): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.453
+[YDB] Updated product id 1768597834113
+
+18 янв. 11:27:42.389
+[Categories] UPDATING 1768597834113 (N135): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.389
+[YDB] Updated product id 1768597833623
+
+18 янв. 11:27:42.329
+[Categories] UPDATING 1768597833623 (N090): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.328
+[YDB] Updated product id 1768597833424
+
+18 янв. 11:27:42.268
+[Categories] UPDATING 1768597833424 (N088): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.268
+[YDB] Updated product id 1768597833085
+
+18 янв. 11:27:42.205
+[Categories] UPDATING 1768597833085 (N001): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.205
+[YDB] Updated product id 1768597832901
+
+18 янв. 11:27:42.147
+[Categories] UPDATING 1768597832901 (N018): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.147
+[YDB] Updated product id 1768597832730
+
+18 янв. 11:27:42.085
+[Categories] UPDATING 1768597832730 (N057): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.085
+[YDB] Updated product id 1768597832550
+
+18 янв. 11:27:42.021
+[Categories] UPDATING 1768597832550 (N021): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:42.021
+[YDB] Updated product id 1768597832375
+
+18 янв. 11:27:41.955
+[Categories] UPDATING 1768597832375 (N015): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.955
+[YDB] Updated product id 1768597832205
+
+18 янв. 11:27:41.895
+[Categories] UPDATING 1768597832205 (N044): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.895
+[YDB] Updated product id 1768597832036
+
+18 янв. 11:27:41.832
+[Categories] UPDATING 1768597832036 (N054): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.832
+[YDB] Updated product id 1768597831855
+
+18 янв. 11:27:41.767
+[Categories] UPDATING 1768597831855 (N070): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.767
+[YDB] Updated product id 1768597831679
+
+18 янв. 11:27:41.702
+[Categories] UPDATING 1768597831679 (N068): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.701
+[YDB] Updated product id 1768597831502
+
+18 янв. 11:27:41.645
+[Categories] UPDATING 1768597831502 (N129): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.645
+[YDB] Updated product id 1768597831325
+
+18 янв. 11:27:41.584
+[Categories] UPDATING 1768597831325 (N003): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.584
+[YDB] Updated product id 1768597831159
+
+18 янв. 11:27:41.522
+[Categories] UPDATING 1768597831159 (N062): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.522
+[YDB] Updated product id 1768597830986
+
+18 янв. 11:27:41.460
+[Categories] UPDATING 1768597830986 (N043): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.460
+[YDB] Updated product id 1768597830811
+
+18 янв. 11:27:41.396
+[Categories] UPDATING 1768597830811 (N064): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.396
+[YDB] Updated product id 1768597830633
+
+18 янв. 11:27:41.332
+[Categories] UPDATING 1768597830633 (N007): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.332
+[YDB] Updated product id 1768597830457
+
+18 янв. 11:27:41.269
+[Categories] UPDATING 1768597830457 (N008): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.269
+[YDB] Updated product id 1768597830281
+
+18 янв. 11:27:41.203
+[Categories] UPDATING 1768597830281 (N012): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.203
+[YDB] Updated product id 1768597830104
+
+18 янв. 11:27:41.140
+[Categories] UPDATING 1768597830104 (N076): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.140
+[YDB] Updated product id 1768597829898
+
+18 янв. 11:27:41.077
+[Categories] UPDATING 1768597829898 (N080): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.077
+[YDB] Updated product id 1768597829722
+
+18 янв. 11:27:41.005
+[Categories] UPDATING 1768597829722 (N081): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:41.005
+[YDB] Updated product id 1768597829549
+
+18 янв. 11:27:40.929
+[Categories] UPDATING 1768597829549 (N095): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:40.929
+[YDB] Updated product id 1768597829375
+
+18 янв. 11:27:40.867
+[Categories] UPDATING 1768597829375 (N017): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:40.867
+[YDB] Updated product id 1768597829191
+
+18 янв. 11:27:40.800
+[Categories] UPDATING 1768597829191 (N109): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:40.800
+[YDB] Updated product id 1768597829012
+
+18 янв. 11:27:40.736
+[Categories] UPDATING 1768597829012 (N177): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:40.736
+[YDB] Updated product id 1768597828847
+
+18 янв. 11:27:40.672
+[Categories] UPDATING 1768597828847 (№091): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:40.672
+[YDB] Updated product id 1768597828648
+
+18 янв. 11:27:40.610
+[Categories] UPDATING 1768597828648 (№089): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:40.610
+[YDB] Updated product id 1768597828459
+
+18 янв. 11:27:40.547
+[Categories] UPDATING 1768597828459 (N138): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:40.547
+[YDB] Updated product id 1768597828286
+
+18 янв. 11:27:40.479
+[Categories] UPDATING 1768597828286 (N140): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:40.479
+[YDB] Updated product id 1768597828113
+
+18 янв. 11:27:40.419
+[Categories] UPDATING 1768597828113 (N191): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:40.419
+[YDB] Updated product id 1768597827582
+
+18 янв. 11:27:40.355
+[Categories] UPDATING 1768597827582 (R024): socks/null -> socks/Спортивные (40-45)
+
+18 янв. 11:27:40.354
+[YDB] Updated product id 1
+
+18 янв. 11:27:40.227
+[Categories] UPDATING 1 (BMG-HOODIE-001): clothing/null -> clothing/Толстовки
+
+18 янв. 11:27:40.226
+[Cache] HIT - getProducts
+
+18 янв. 11:27:40.226
+[Categories] Starting category backfill...
+
+18 янв. 11:27:40.218
+8:27:40 AM [express] serving on port 8080
+
+18 янв. 11:27:39.987
+[Cache] MISS - getProducts, fetching from YDB
+
+18 янв. 11:27:39.984
+[YDB] Driver is ready!
+
+18 янв. 11:27:39.757
+[YDB] Driver created, waiting for ready...
+
+18 янв. 11:27:39.694
+[YDB] Created MetadataAuthService
+
+18 янв. 11:27:39.694
+[YDB] NODE_ENV: production
+
+18 янв. 11:27:39.694
+[YDB] Database: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
+
+18 янв. 11:27:39.693
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+18 янв. 11:27:38.733
+START RequestID: bdfb49e9-69a6-471b-bd0d-dc3d9a687702

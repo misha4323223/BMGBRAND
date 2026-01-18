@@ -1,0 +1,301 @@
+
+
+18 янв. 11:28:24.276
+REPORT RequestID: 49151681-891d-45cd-8d7e-93f8d0b4e52f Duration: 2.976 ms Billed Duration: 100 ms Memory Size: 2048 MB Max Memory Used: 236 MB Queuing Duration: 0.076 ms CPU Usage: 3.516 %
+
+18 янв. 11:28:24.276
+END RequestID: 49151681-891d-45cd-8d7e-93f8d0b4e52f
+
+18 янв. 11:28:24.261
+START RequestID: 49151681-891d-45cd-8d7e-93f8d0b4e52f
+
+18 янв. 11:28:12.874
+REPORT RequestID: b9e2c7bc-9770-4e9d-af69-791796943146 Duration: 128.711 ms Billed Duration: 200 ms Memory Size: 2048 MB Max Memory Used: 242 MB Queuing Duration: 0.046 ms
+
+18 янв. 11:28:12.874
+END RequestID: b9e2c7bc-9770-4e9d-af69-791796943146
+
+18 янв. 11:28:12.874
+8:28:12 AM [express] GET /api/cart/FpzAM9CMblFV0atG2Lx3P 304 in 128ms :: []
+
+18 янв. 11:28:12.873
+[Cart] Found 0 items for session FpzAM9CMblFV0atG2Lx3P
+
+18 янв. 11:28:12.742
+START RequestID: b9e2c7bc-9770-4e9d-af69-791796943146
+
+18 янв. 11:28:12.689
+REPORT RequestID: 8cef8aeb-1bcb-425f-a508-538c00615997 Duration: 3.285 ms Billed Duration: 100 ms Memory Size: 2048 MB Max Memory Used: 242 MB Queuing Duration: 0.078 ms
+
+18 янв. 11:28:12.689
+END RequestID: 8cef8aeb-1bcb-425f-a508-538c00615997
+
+18 янв. 11:28:12.682
+START RequestID: 8cef8aeb-1bcb-425f-a508-538c00615997
+
+18 янв. 11:28:11.907
+REPORT RequestID: f9fe8e9f-492c-456f-9ae1-d84946018b5e Duration: 3.330 ms Billed Duration: 100 ms Memory Size: 2048 MB Max Memory Used: 242 MB Queuing Duration: 0.046 ms
+
+18 янв. 11:28:11.907
+END RequestID: f9fe8e9f-492c-456f-9ae1-d84946018b5e
+
+18 янв. 11:28:11.896
+REPORT RequestID: 3724681b-4f08-460c-8cbd-238b4edcf509 Duration: 16.557 ms Billed Duration: 100 ms Memory Size: 2048 MB Max Memory Used: 242 MB Queuing Duration: 0.043 ms
+
+18 янв. 11:28:11.896
+END RequestID: 3724681b-4f08-460c-8cbd-238b4edcf509
+
+18 янв. 11:28:11.895
+START RequestID: f9fe8e9f-492c-456f-9ae1-d84946018b5e
+
+18 янв. 11:28:11.864
+START RequestID: 3724681b-4f08-460c-8cbd-238b4edcf509
+
+18 янв. 11:28:11.706
+REPORT RequestID: f025cef8-12fe-4b1a-89fe-f111284e23c3 Duration: 52.360 ms Billed Duration: 100 ms Memory Size: 2048 MB Max Memory Used: 242 MB Queuing Duration: 0.074 ms
+
+18 янв. 11:28:11.706
+END RequestID: f025cef8-12fe-4b1a-89fe-f111284e23c3
+
+18 янв. 11:28:11.650
+START RequestID: f025cef8-12fe-4b1a-89fe-f111284e23c3
+
+18 янв. 11:28:04.672
+REPORT RequestID: ed0fd048-d9d1-4f66-97df-75b074dc4aea Duration: 2.600 ms Billed Duration: 100 ms Memory Size: 2048 MB Max Memory Used: 242 MB Queuing Duration: 0.099 ms CPU Usage: 1.562 %
+
+18 янв. 11:28:04.672
+END RequestID: ed0fd048-d9d1-4f66-97df-75b074dc4aea
+
+18 янв. 11:28:04.672
+8:28:04 AM [express] GET /api/products 304 in 1ms :: {"products":[],"pagination":{"page":1,"limit":24,"total":0,"totalPages":0,"hasMore":false}}
+
+18 янв. 11:28:04.671
+[Cache] HIT - getProducts
+
+18 янв. 11:28:04.666
+START RequestID: ed0fd048-d9d1-4f66-97df-75b074dc4aea
+
+18 янв. 11:28:03.086
+REPORT RequestID: b3f6fe89-aecf-4560-a6ad-0db82d7c1332 Duration: 3.117 ms Billed Duration: 100 ms Memory Size: 2048 MB Max Memory Used: 241 MB Queuing Duration: 0.084 ms CPU Usage: 3.906 %
+
+18 янв. 11:28:03.086
+END RequestID: b3f6fe89-aecf-4560-a6ad-0db82d7c1332
+
+18 янв. 11:28:03.085
+8:28:03 AM [express] GET /api/products 200 in 2ms :: {"products":[{"id":1768597827582,"externalId":"4df9bf6e-4054-11ef-8324-00155d46f6c0","sku":"R024","name":"Носки BOOOMERANGS (Туалетная Бумага N024) Белый (40-45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/4d/4df9bf6e405411ef832400155d46f6c0_d6b8a2b6acc411ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597828113,"externalId":"29ec5a1c-35cc-11ed-8bf1-aa5507aeb675","sku":"N191","name":"Носки BOOOMERANGS (Клей №0191) Черный 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/29/29ec5a1c35cc11ed8bf1aa5507aeb675_c1a648e6acc511ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597828286,"externalId":"c88180dc-70b7-11ed-8e2b-aa5507aeb675","sku":"N140","name":"Носки BOOOMERANGS (WD-40) N140 Синий (40-45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/c8/c88180dc70b711ed8e2baa5507aeb675_0c022a6cb94711ef811d00155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597828459,"externalId":"c27f1842-d897-11ea-9e42-00155d466409","sku":"N138","name":"Носки BOOOMERANGS (Осень №0138) Белый 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/c2/c27f1842d89711ea9e4200155d466409_6240bd20acc311ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597828648,"externalId":"b5105337-43a1-11ec-9d5c-00155d46610f","sku":"№089","name":"%Носки BOOOMERANGS (Птица №089 ) Черный 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/b5/b510533743a111ec9d5c00155d46610f_139f0e0aacc411ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597828847,"externalId":"b5105338-43a1-11ec-9d5c-00155d46610f","sku":"№091","name":"&Носки BOOOMERANGS (Полосы №091 ) Разноцветные 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/b5/b510533843a111ec9d5c00155d46610f_3084c464acca11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597829012,"externalId":"8070cf1d-3d73-11ec-9d5d-00155d463406","sku":"N177","name":"Носки BOOOMERANGS (На Чиле N177 ) Белый 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/80/8070cf1d3d7311ec9d5d00155d463406_f3ef0fe2acc311ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597829191,"externalId":"e96d5734-5f9f-11ea-9e2a-00155d467501","sku":"N109","name":"Носки BOOOMERANGS (Доктор N109) Белый 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/e9/e96d57345f9f11ea9e2a00155d467501_fcc44062b94611ef811d00155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597829375,"externalId":"c8e1cf79-4768-11ea-9e26-00155d466406","sku":"N017","name":"Носки BOOOMERANGS (ЪУЪ №017) Белый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/c8/c8e1cf79476811ea9e2600155d466406_5ec9e3c0acc211ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597829549,"externalId":"600b0ead-4dc1-11ea-9e23-00155d466404","sku":"N095","name":"&Носки BOOOMERANGS (\"Танк\" №095) Т.Зеленый O/S","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/60/600b0ead4dc111ea9e2300155d466404_79188e70acbd11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597829722,"externalId":"600b0eae-4dc1-11ea-9e23-00155d466404","sku":"N081","name":"Носки BOOOMERANGS (АК-47№081) Белый (40-45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/60/600b0eae4dc111ea9e2300155d466404_392244a6acc111ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597829898,"externalId":"811a3fb6-6ebf-11ea-9e24-00155d46630a","sku":"N080","name":"Носки BOOOMERANGS (Уточки №080 ) Голубой О/S","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/81/811a3fb66ebf11ea9e2400155d46630a_670474c0acbc11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597830104,"externalId":"d976c790-473c-11ea-9e26-00155d466406","sku":"N076","name":"&Носки BOOOMERANGS (АвоЗадо N076) Салатовый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c790473c11ea9e2600155d466406_1a7554a4acbb11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597830281,"externalId":"d976c794-473c-11ea-9e26-00155d466406","sku":"N012","name":"Носки BOOOMERANGS (Ба-дум-тцц №012) Бордовый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c794473c11ea9e2600155d466406_819d3266acc311ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597830457,"externalId":"d976c795-473c-11ea-9e26-00155d466406","sku":"N008","name":"&Носки BOOOMERANGS (Банан №008) Салатовый О/S","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c795473c11ea9e2600155d466406_ab18d9ceacb911ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597830633,"externalId":"d976c79a-473c-11ea-9e26-00155d466406","sku":"N007","name":"Носки BOOOMERANGS (Гусь №007) Белый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c79a473c11ea9e2600155d466406_de6ae24eacba11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597830811,"externalId":"d976c79b-473c-11ea-9e26-00155d466406","sku":"N064","name":"Носки BOOOMERANGS (Звезда №064) Черный (40-45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c79b473c11ea9e2600155d466406_ac31ed40acc411ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597830986,"externalId":"d976c7a0-473c-11ea-9e26-00155d466406","sku":"N043","name":"Носки BOOOMERANGS (Кот Том N043) Серый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7a0473c11ea9e2600155d466406_7f195b82acbe11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597831159,"externalId":"d976c7a1-473c-11ea-9e26-00155d466406","sku":"N062","name":"&Носки BOOOMERANGS (Котики №062) Голубой O/S","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7a1473c11ea9e2600155d466406_46535ef0acbf11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597831325,"externalId":"d976c7a5-473c-11ea-9e26-00155d466406","sku":"N003","name":"Носки BOOOMERANGS (Курлык №003) Белый (40-45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7a5473c11ea9e2600155d466406_8c11242aaca811ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597831502,"externalId":"285c373b-dc7a-11ea-9e44-00155d46630b","sku":"N129","name":"Носки BOOOMERANGS (Пепе v.2 №129) Желтый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/28/285c373bdc7a11ea9e4400155d46630b_f7691354accb11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597831679,"externalId":"d976c7ad-473c-11ea-9e26-00155d466406","sku":"N068","name":"&Носки BOOOMERANGS (Молнии №068) Желтый 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7ad473c11ea9e2600155d466406_108e464aacc911ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597831855,"externalId":"d976c7af-473c-11ea-9e26-00155d466406","sku":"N070","name":"Носки BOOOMERANGS (Новогодние № 070) красные 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7af473c11ea9e2600155d466406_e7437aa0acbc11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597832036,"externalId":"d976c7b0-473c-11ea-9e26-00155d466406","sku":"N054","name":"Носки BOOOMERANGS (Огурчик N054) Зеленый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7b0473c11ea9e2600155d466406_e393eee8acbd11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"}],"pagination":{"page":1,"limit":24,"total":66,"totalPages":3,"hasMore":true}}
+
+18 янв. 11:28:03.083
+[Cache] HIT - getProducts
+
+18 янв. 11:28:03.078
+START RequestID: b3f6fe89-aecf-4560-a6ad-0db82d7c1332
+
+18 янв. 11:28:02.569
+REPORT RequestID: 80a59223-57c3-49e8-af84-a179f7482090 Duration: 3.127 ms Billed Duration: 100 ms Memory Size: 2048 MB Max Memory Used: 241 MB Queuing Duration: 0.135 ms CPU Usage: 3.906 %
+
+18 янв. 11:28:02.569
+END RequestID: 80a59223-57c3-49e8-af84-a179f7482090
+
+18 янв. 11:28:02.569
+8:28:02 AM [express] GET /api/products 304 in 2ms :: {"products":[{"id":1,"externalId":"test-001","sku":"BMG-HOODIE-001","name":"Худи BOOOMERANGS Classic","description":"Стильное худи из плотного хлопка","price":599000,"imageUrl":"https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400","thumbnailUrl":null,"category":"clothing","subcategory":null,"sizes":["S","M","L","XL"],"colors":["black","white"],"isNew":true,"onSale":false,"createdAt":"2026-01-16T11:29:11.137Z"}],"pagination":{"page":1,"limit":24,"total":1,"totalPages":1,"hasMore":false}}
+
+18 янв. 11:28:02.567
+[Cache] HIT - getProducts
+
+18 янв. 11:28:02.562
+START RequestID: 80a59223-57c3-49e8-af84-a179f7482090
+
+18 янв. 11:28:01.272
+8:28:01 AM [express] GET /api/products 200 in 4ms :: {"products":[{"id":1,"externalId":"test-001","sku":"BMG-HOODIE-001","name":"Худи BOOOMERANGS Classic","description":"Стильное худи из плотного хлопка","price":599000,"imageUrl":"https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400","thumbnailUrl":null,"category":"clothing","subcategory":null,"sizes":["S","M","L","XL"],"colors":["black","white"],"isNew":true,"onSale":false,"createdAt":"2026-01-16T11:29:11.137Z"},{"id":1768597827582,"externalId":"4df9bf6e-4054-11ef-8324-00155d46f6c0","sku":"R024","name":"Носки BOOOMERANGS (Туалетная Бумага N024) Белый (40-45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/4d/4df9bf6e405411ef832400155d46f6c0_d6b8a2b6acc411ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597828113,"externalId":"29ec5a1c-35cc-11ed-8bf1-aa5507aeb675","sku":"N191","name":"Носки BOOOMERANGS (Клей №0191) Черный 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/29/29ec5a1c35cc11ed8bf1aa5507aeb675_c1a648e6acc511ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597828286,"externalId":"c88180dc-70b7-11ed-8e2b-aa5507aeb675","sku":"N140","name":"Носки BOOOMERANGS (WD-40) N140 Синий (40-45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/c8/c88180dc70b711ed8e2baa5507aeb675_0c022a6cb94711ef811d00155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597828459,"externalId":"c27f1842-d897-11ea-9e42-00155d466409","sku":"N138","name":"Носки BOOOMERANGS (Осень №0138) Белый 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/c2/c27f1842d89711ea9e4200155d466409_6240bd20acc311ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597828648,"externalId":"b5105337-43a1-11ec-9d5c-00155d46610f","sku":"№089","name":"%Носки BOOOMERANGS (Птица №089 ) Черный 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/b5/b510533743a111ec9d5c00155d46610f_139f0e0aacc411ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597828847,"externalId":"b5105338-43a1-11ec-9d5c-00155d46610f","sku":"№091","name":"&Носки BOOOMERANGS (Полосы №091 ) Разноцветные 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/b5/b510533843a111ec9d5c00155d46610f_3084c464acca11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597829012,"externalId":"8070cf1d-3d73-11ec-9d5d-00155d463406","sku":"N177","name":"Носки BOOOMERANGS (На Чиле N177 ) Белый 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/80/8070cf1d3d7311ec9d5d00155d463406_f3ef0fe2acc311ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.188Z"},{"id":1768597829191,"externalId":"e96d5734-5f9f-11ea-9e2a-00155d467501","sku":"N109","name":"Носки BOOOMERANGS (Доктор N109) Белый 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/e9/e96d57345f9f11ea9e2a00155d467501_fcc44062b94611ef811d00155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597829375,"externalId":"c8e1cf79-4768-11ea-9e26-00155d466406","sku":"N017","name":"Носки BOOOMERANGS (ЪУЪ №017) Белый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/c8/c8e1cf79476811ea9e2600155d466406_5ec9e3c0acc211ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597829549,"externalId":"600b0ead-4dc1-11ea-9e23-00155d466404","sku":"N095","name":"&Носки BOOOMERANGS (\"Танк\" №095) Т.Зеленый O/S","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/60/600b0ead4dc111ea9e2300155d466404_79188e70acbd11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597829722,"externalId":"600b0eae-4dc1-11ea-9e23-00155d466404","sku":"N081","name":"Носки BOOOMERANGS (АК-47№081) Белый (40-45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/60/600b0eae4dc111ea9e2300155d466404_392244a6acc111ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597829898,"externalId":"811a3fb6-6ebf-11ea-9e24-00155d46630a","sku":"N080","name":"Носки BOOOMERANGS (Уточки №080 ) Голубой О/S","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/81/811a3fb66ebf11ea9e2400155d46630a_670474c0acbc11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597830104,"externalId":"d976c790-473c-11ea-9e26-00155d466406","sku":"N076","name":"&Носки BOOOMERANGS (АвоЗадо N076) Салатовый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c790473c11ea9e2600155d466406_1a7554a4acbb11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597830281,"externalId":"d976c794-473c-11ea-9e26-00155d466406","sku":"N012","name":"Носки BOOOMERANGS (Ба-дум-тцц №012) Бордовый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c794473c11ea9e2600155d466406_819d3266acc311ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597830457,"externalId":"d976c795-473c-11ea-9e26-00155d466406","sku":"N008","name":"&Носки BOOOMERANGS (Банан №008) Салатовый О/S","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c795473c11ea9e2600155d466406_ab18d9ceacb911ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597830633,"externalId":"d976c79a-473c-11ea-9e26-00155d466406","sku":"N007","name":"Носки BOOOMERANGS (Гусь №007) Белый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c79a473c11ea9e2600155d466406_de6ae24eacba11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597830811,"externalId":"d976c79b-473c-11ea-9e26-00155d466406","sku":"N064","name":"Носки BOOOMERANGS (Звезда №064) Черный (40-45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c79b473c11ea9e2600155d466406_ac31ed40acc411ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597830986,"externalId":"d976c7a0-473c-11ea-9e26-00155d466406","sku":"N043","name":"Носки BOOOMERANGS (Кот Том N043) Серый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7a0473c11ea9e2600155d466406_7f195b82acbe11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597831159,"externalId":"d976c7a1-473c-11ea-9e26-00155d466406","sku":"N062","name":"&Носки BOOOMERANGS (Котики №062) Голубой O/S","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7a1473c11ea9e2600155d466406_46535ef0acbf11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597831325,"externalId":"d976c7a5-473c-11ea-9e26-00155d466406","sku":"N003","name":"Носки BOOOMERANGS (Курлык №003) Белый (40-45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7a5473c11ea9e2600155d466406_8c11242aaca811ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597831502,"externalId":"285c373b-dc7a-11ea-9e44-00155d46630b","sku":"N129","name":"Носки BOOOMERANGS (Пепе v.2 №129) Желтый (40/45)","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/28/285c373bdc7a11ea9e4400155d46630b_f7691354accb11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597831679,"externalId":"d976c7ad-473c-11ea-9e26-00155d466406","sku":"N068","name":"&Носки BOOOMERANGS (Молнии №068) Желтый 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7ad473c11ea9e2600155d466406_108e464aacc911ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"},{"id":1768597831855,"externalId":"d976c7af-473c-11ea-9e26-00155d466406","sku":"N070","name":"Носки BOOOMERANGS (Новогодние № 070) красные 40-45","description":"Хлопок 75%, Полиамид 17%, Эластан 8%","price":35000,"imageUrl":"https://storage.yandexcloud.net/bmg/products/import_files/d9/d976c7af473c11ea9e2600155d466406_e7437aa0acbc11ef90f200155d46f61a.jpg","thumbnailUrl":null,"category":"socks","subcategory":null,"sizes":[],"colors":[],"isNew":true,"onSale":false,"createdAt":"2026-01-18T08:28:01.189Z"}],"pagination":{"page":1,"limit":24,"total":67,"totalPages":3,"hasMore":true}}
+
+18 янв. 11:28:01.272
+REPORT RequestID: a0e54488-2d4e-4dcb-bb5c-c8b226136490 Duration: 1366.337 ms Billed Duration: 1400 ms Memory Size: 2048 MB Max Memory Used: 233 MB Queuing Duration: 0.034 ms Function Init Duration: 1358.248 ms CPU Usage: 79.883 %
+
+18 янв. 11:28:01.272
+END RequestID: a0e54488-2d4e-4dcb-bb5c-c8b226136490
+
+18 янв. 11:28:01.268
+[Cache] HIT - getProducts
+
+18 янв. 11:28:01.241
+8:28:01 AM [express] serving on port 8080
+
+18 янв. 11:28:01.023
+[Cache] MISS - getProducts, fetching from YDB
+
+18 янв. 11:28:01.021
+[YDB] Driver is ready!
+
+18 янв. 11:28:00.803
+[YDB] Driver created, waiting for ready...
+
+18 янв. 11:28:00.744
+[YDB] Created MetadataAuthService
+
+18 янв. 11:28:00.744
+[YDB] NODE_ENV: production
+
+18 янв. 11:28:00.744
+[YDB] Database: /ru-central1/b1ginq9tlm42kl6f220g/etnkqb19271sftrt0113
+
+18 янв. 11:28:00.743
+[YDB] Initializing Driver for: grpcs://ydb.serverless.yandexcloud.net:2135
+
+18 янв. 11:27:59.780
+START RequestID: a0e54488-2d4e-4dcb-bb5c-c8b226136490
+
+18 янв. 11:27:44.565
+8:27:44 AM [express] POST /api/backfill-categories 200 in 4339ms :: {"success":true,"message":"Updated 67 product categories","details":{"updated":67,"total":67,"stats":{"clothing/Толстовки":1,"socks/Спортивные (40-45)":1,"socks/Классические (40-45)":65}}}
+
+18 янв. 11:27:44.565
+REPORT RequestID: bdfb49e9-69a6-471b-bd0d-dc3d9a687702 Duration: 5705.946 ms Billed Duration: 5800 ms Memory Size: 2048 MB Max Memory Used: 248 MB Queuing Duration: 0.065 ms Function Init Duration: 1322.587 ms CPU Usage: 3.809 %
+
+18 янв. 11:27:44.565
+END RequestID: bdfb49e9-69a6-471b-bd0d-dc3d9a687702
+
+18 янв. 11:27:44.562
+[Cache] Cleared all cached data via storage.clearCache()
+
+18 янв. 11:27:44.562
+[Cache] Cleared all cached data
+
+18 янв. 11:27:44.562
+[Cache] Cleared all cached data
+
+18 янв. 11:27:44.561
+[Categories] Complete: 67 products updated
+
+18 янв. 11:27:44.561
+[YDB] Updated product id 1768597840271
+
+18 янв. 11:27:44.499
+[Categories] UPDATING 1768597840271 (№ 175): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:44.498
+[YDB] Updated product id 1768597840102
+
+18 янв. 11:27:44.431
+[Categories] UPDATING 1768597840102 (№ 174): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:44.431
+[YDB] Updated product id 1768597839911
+
+18 янв. 11:27:44.363
+[Categories] UPDATING 1768597839911 (№ 173): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:44.362
+[YDB] Updated product id 1768597839744
+
+18 янв. 11:27:44.300
+[Categories] UPDATING 1768597839744 (№ 172): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:44.300
+[YDB] Updated product id 1768597839577
+
+18 янв. 11:27:44.232
+[Categories] UPDATING 1768597839577 (№167): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:44.232
+[YDB] Updated product id 1768597839405
+
+18 янв. 11:27:44.171
+[Categories] UPDATING 1768597839405 (№160): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:44.171
+[YDB] Updated product id 1768597839234
+
+18 янв. 11:27:44.107
+[Categories] UPDATING 1768597839234 (№ 167): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:44.107
+[YDB] Updated product id 1768597839058
+
+18 янв. 11:27:44.047
+[Categories] UPDATING 1768597839058 (№ 168): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:44.047
+[YDB] Updated product id 1768597838882
+
+18 янв. 11:27:43.981
+[Categories] UPDATING 1768597838882 (№161): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.981
+[YDB] Updated product id 1768597838701
+
+18 янв. 11:27:43.908
+[Categories] UPDATING 1768597838701 (№166): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.908
+[YDB] Updated product id 1768597838513
+
+18 янв. 11:27:43.850
+[Categories] UPDATING 1768597838513 (N158): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.849
+[YDB] Updated product id 1768597838333
+
+18 янв. 11:27:43.785
+[Categories] UPDATING 1768597838333 (N032): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.785
+[YDB] Updated product id 1768597838163
+
+18 янв. 11:27:43.726
+[Categories] UPDATING 1768597838163 (N136): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.726
+[YDB] Updated product id 1768597837988
+
+18 янв. 11:27:43.664
+[Categories] UPDATING 1768597837988 (N009): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.664
+[YDB] Updated product id 1768597837798
+
+18 янв. 11:27:43.602
+[Categories] UPDATING 1768597837798 (N013): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.602
+[YDB] Updated product id 1768597837624
+
+18 янв. 11:27:43.540
+[Categories] UPDATING 1768597837624 (N124): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.540
+[YDB] Updated product id 1768597837432
+
+18 янв. 11:27:43.474
+[Categories] UPDATING 1768597837432 (№022): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.474
+[YDB] Updated product id 1768597837260
+
+18 янв. 11:27:43.406
+[Categories] UPDATING 1768597837260 (N156): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.406
+[YDB] Updated product id 1768597837073
+
+18 янв. 11:27:43.343
+[Categories] UPDATING 1768597837073 (N155): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.343
+[YDB] Updated product id 1768597836895
+
+18 янв. 11:27:43.279
+[Categories] UPDATING 1768597836895 (N154): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.279
+[YDB] Updated product id 1768597836729
+
+18 янв. 11:27:43.216
+[Categories] UPDATING 1768597836729 (N153): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.216
+[YDB] Updated product id 1768597836557
+
+18 янв. 11:27:43.150
+[Categories] UPDATING 1768597836557 (№129): socks/null -> socks/Классические (40-45)
+
+18 янв. 11:27:43.149
+[YDB] Updated product id 1768597836230

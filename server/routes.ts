@@ -867,7 +867,10 @@ export async function registerRoutes(
         
         // Only update if category changed or onSale status
         if (product.category !== category || product.subcategory !== subcategory || product.onSale !== onSale) {
-          console.log(`[Categories] UPDATING ${product.id} (${product.sku}): ${product.category}/${product.subcategory} -> ${category}/${subcategory}`);
+          const oldCat = `${product.category}/${product.subcategory || "none"}`;
+          const newCat = `${category}/${subcategory || "none"}`;
+          console.log(`[Categories] UPDATING ${product.id} (${product.sku}): ${oldCat} -> ${newCat}`);
+          
           await storage.updateProduct(product.id, { 
             category,
             subcategory,
