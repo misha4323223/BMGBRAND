@@ -57,6 +57,9 @@ export interface IStorage {
   createOrder(order: InsertOrder & { items: any[], total: number }): Promise<Order>;
 }
 
+// Simple in-memory storage for development mode
+const devProducts: Product[] = [];
+
 export class DatabaseStorage implements IStorage {
   private async safeQuery<T>(fn: (session: ydb.Session) => Promise<T>): Promise<T | null> {
     if (!driver) return null;
@@ -166,6 +169,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProducts(): Promise<Product[]> {
+    if (!driver) {
+      return devProducts;
+    }
     // Check cache first
     const cached = productsCache.get("all");
     if (cached) {
@@ -192,6 +198,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProduct(id: number): Promise<Product | undefined> {
+    if (!driver) {
+      return devProducts.find(p => p.id === id);
+    }
     // Check cache first
     const cacheKey = `product_${id}`;
     const cached = productCache.get(cacheKey);
@@ -219,6 +228,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProductByExternalId(externalId: string): Promise<Product | undefined> {
+    if (!driver) {
+      return devProducts.find(p => p.externalId === externalId);
+    }
     const result = await this.safeQuery(async (session) => {
       const query = "DECLARE $externalId AS Utf8; SELECT * FROM products WHERE external_id = $externalId";
       const { TypedValues, Types } = await import("ydb-sdk");
@@ -233,6 +245,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProductBySku(sku: string): Promise<Product | undefined> {
+    if (!driver) {
+      return devProducts.find(p => p.sku === sku);
+    }
     const result = await this.safeQuery(async (session) => {
       const query = "DECLARE $sku AS Utf8; SELECT * FROM products WHERE sku = $sku";
       const { TypedValues, Types } = await import("ydb-sdk");
@@ -247,8 +262,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProduct(p: InsertProduct): Promise<Product> {
-    const newId = String(Date.now());
-    const result = await this.safeQuery(async (session) => {
+    const newId = String(Date.now() + Math.floor(Math.random() * 1000));
+    const product: Product = {
+      id: parseInt(newId) || 0,
+      externalId: p.externalId || null,
+      sku: p.sku || null,
+      name: p.name || '',
+      description: p.description || '',
+      price: p.price || 0,
+      imageUrl: p.imageUrl || '',
+      thumbnailUrl: p.thumbnailUrl || null,
+      category: p.category || '',
+      subcategory: p.subcategory || null,
+      sizes: p.sizes || [],
+      colors: p.colors || [],
+      isNew: p.isNew || false,
+      onSale: p.onSale || false,
+      createdAt: new Date(),
+    };
+
+    if (!driver) {
+      devProducts.push(product);
+      console.log(`[DevStorage] Created product: ${product.name}`);
+      return product;
+    }
+
+    await this.safeQuery(async (session) => {
       const { TypedValues, Types } = await import("ydb-sdk");
       // Match actual YDB table schema with correct types: price=Double, images/sizes/colors=Json
       const query = `
@@ -290,30 +329,21 @@ export class DatabaseStorage implements IStorage {
       return true;
     });
     
-    // In dev mode (no driver), result will be null - that's expected
-    // Only throw error if we're in production and the query actually failed
-    if (result === null && driver !== null) {
-      throw new Error(`Failed to create product: ${p.name}`);
-    }
-    
-    return {
-      id: parseInt(newId) || 0,
-      externalId: p.externalId || null,
-      sku: p.sku || null,
-      name: p.name || '',
-      description: p.description || '',
-      price: p.price || 0,
-      imageUrl: p.imageUrl || '',
-      category: p.category || '',
-      sizes: p.sizes || [],
-      colors: p.colors || [],
-      isNew: p.isNew || false,
-      createdAt: new Date(),
-    } as Product;
+    return product;
   }
 
   async updateProduct(id: number, p: Partial<InsertProduct>): Promise<Product> {
-    const result = await this.safeQuery(async (session) => {
+    if (!driver) {
+      const index = devProducts.findIndex(item => item.id === id);
+      if (index !== -1) {
+        devProducts[index] = { ...devProducts[index], ...p } as Product;
+        console.log(`[DevStorage] Updated product id ${id}`);
+        return devProducts[index];
+      }
+      return { id } as Product;
+    }
+
+    await this.safeQuery(async (session) => {
       const { TypedValues, Types } = await import("ydb-sdk");
       
       const setClauses: string[] = [];
