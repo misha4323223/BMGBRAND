@@ -866,15 +866,15 @@ export async function registerRoutes(
         const { category, subcategory } = mapProductCategory(sku, name);
         const onSale = isOnSale(name, product.price);
         
-        // Only update if category changed
+        // Only update if category changed or onSale status
         if (product.category !== category || product.subcategory !== subcategory || product.onSale !== onSale) {
+          console.log(`[Categories] UPDATING ${product.id} (${product.sku}): ${product.category}/${product.subcategory} -> ${category}/${subcategory}`);
           await storage.updateProduct(product.id, { 
             category,
             subcategory,
             onSale
           } as any);
           
-          console.log(`[Categories] ${product.name} -> ${category}/${subcategory}`);
           updated++;
         }
         
