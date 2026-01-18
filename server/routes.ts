@@ -1116,7 +1116,10 @@ export async function registerRoutes(
     } else if (category) {
       filtered = filtered.filter(p => p.category?.toLowerCase() === category.toLowerCase());
       if (subcategory) {
-        filtered = filtered.filter(p => p.subcategory === subcategory);
+        // Decode subcategory to match what's in the DB
+        const decodedSub = decodeURIComponent(subcategory);
+        console.log(`[API] Filtering by subcategory: "${subcategory}" (decoded: "${decodedSub}")`);
+        filtered = filtered.filter(p => p.subcategory === subcategory || p.subcategory === decodedSub);
       }
     }
     
