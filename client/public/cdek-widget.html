@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CDEK Widget</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    #cdek-map { width: 100%; height: 100%; min-height: 400px; }
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #666;
+    }
+    .loading::after {
+      content: '';
+      width: 24px;
+      height: 24px;
+      margin-left: 12px;
+      border: 3px solid #ddd;
+      border-top-color: #333;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #c00;
+      padding: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="cdek-map" class="loading">Загрузка карты</div>
+
+  <script>
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var cityCode = parseInt(params.get('city_code'), 10);
+      var cityName = params.get('city_name') || '';
+      var cityLat = parseFloat(params.get('lat')) || 54.011;
+      var cityLon = parseFloat(params.get('lon')) || 38.29;
+      var instanceId = params.get('instance_id') || '';
+      var apiKey = params.get('api_key') || '';
+      var servicePath = params.get('service_path') || '/api/cdek/widget-proxy';
+
+      if (!cityCode) {
+        document.getElementById('cdek-map').className = 'error';
+        document.getElementById('cdek-map').textContent = 'Город не указан';
+        return;
+      }
+
+      function sendMessage(type, data) {
+        window.parent.postMessage({
+          type: type,
+          instanceId: instanceId,
+          ...data
+        }, '*');
+      }
+
+      function initWidget() {
+        var container = document.getElementById('cdek-map');
+        container.className = '';
+        container.textContent = '';
+
+        console.log('[CDEK Widget] Init:', { cityCode: cityCode, cityName: cityName, containerSize: container.offsetWidth + 'x' + container.offsetHeight });
+
+        try {
+          new window.CDEKWidget({
+            apiKey: apiKey,
+            root: 'cdek-map',
+            debug: true,
+            defaultLocation: cityName || [cityLon, cityLat],
+            from: { country_code: 'RU', city: 'Новомосковск', code: 447 },
+            to: { country_code: 'RU', city: cityName, code: cityCode },
+            lang: 'rus',
+            currency: 'RUB',
+            servicePath: servicePath + '?default_city_code=' + cityCode,
+            hideFilters: { have_cashless: true, have_cash: true, is_dressing_room: true, type: true },
+            tariffs: { office: [136, 366, 368], door: [137] },
+            goods: [{ width: 20, height: 5, length: 29, weight: 0.1 }],
+            onChoose: function(delivery, tariff, point) {
+              console.log('[CDEK Widget] onChoose:', { delivery: delivery, tariff: tariff, point: point });
+              sendMessage('cdek:choose', {
+                point: {
+                  code: point ? (point.code || point.id) : null,
+                  name: point ? point.name : (delivery && delivery.address ? delivery.address.address_full : ''),
+                  address: point ? (point.location?.address_full || point.location?.address || point.address_comment || point.address || '') : (delivery && delivery.address ? delivery.address.address_full : ''),
+                  work_time: point ? (point.workTime || point.work_time) : null
+                },
+                delivery_type: delivery ? delivery.type : null,
+                tariff_code: tariff ? tariff.tariff_code : null,
+                delivery_sum: tariff ? tariff.delivery_sum : 0,
+                period_min: tariff ? tariff.period_min : null,
+                period_max: tariff ? tariff.period_max : null
+              });
+            },
+            onReady: function() {
+              console.log('[CDEK Widget] onReady, container:', container.offsetWidth + 'x' + container.offsetHeight);
+              sendMessage('cdek:ready', {});
+            },
+            onError: function(error) {
+              console.error('[CDEK Widget] onError:', error);
+              sendMessage('cdek:error', { error: typeof error === 'object' ? JSON.stringify(error) : error });
+            }
+          });
+        } catch (e) {
+          console.error('[CDEK Widget] Init error:', e);
+          container.className = 'error';
+          container.textContent = 'Ошибка: ' + e.message;
+          sendMessage('cdek:error', { error: e.message });
+        }
+      }
+
+      // Load Yandex Maps API first, then CDEKWidget
+      var ymapsScript = document.createElement('script');
+      ymapsScript.src = 'https://api-maps.yandex.ru/2.1/?apikey=' + apiKey + '&lang=ru_RU';
+      ymapsScript.onload = function() {
+        console.log('[CDEK Widget] Yandex Maps API loaded');
+        // Now load CDEKWidget
+        var widgetScript = document.createElement('script');
+        widgetScript.src = 'https://cdn.jsdelivr.net/npm/@cdek-it/widget@3';
+        widgetScript.onload = function() {
+          console.log('[CDEK Widget] CDEKWidget script loaded');
+          if (window.CDEKWidget) {
+            initWidget();
+          } else {
+            console.error('[CDEK Widget] CDEKWidget not available after script load');
+            document.getElementById('cdek-map').className = 'error';
+            document.getElementById('cdek-map').textContent = 'Не удалось загрузить виджет';
+            sendMessage('cdek:error', { error: 'CDEKWidget not available' });
+          }
+        };
+        widgetScript.onerror = function(e) {
+          console.error('[CDEK Widget] Failed to load CDEKWidget script:', e);
+          document.getElementById('cdek-map').className = 'error';
+          document.getElementById('cdek-map').textContent = 'Ошибка загрузки виджета СДЭК';
+          sendMessage('cdek:error', { error: 'Failed to load CDEKWidget' });
+        };
+        document.head.appendChild(widgetScript);
+      };
+      ymapsScript.onerror = function(e) {
+        console.error('[CDEK Widget] Failed to load Yandex Maps API:', e);
+        document.getElementById('cdek-map').className = 'error';
+        document.getElementById('cdek-map').textContent = 'Ошибка загрузки Яндекс.Карт';
+        sendMessage('cdek:error', { error: 'Failed to load Yandex Maps' });
+      };
+      document.head.appendChild(ymapsScript);
+    })();
+  </script>
+</body>
+</html>

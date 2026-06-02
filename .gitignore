@@ -1,0 +1,17 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+
+# Secrets - never commit!
+sa-key*.json
+*authorized_key*.json
+*.pem
+*.key
+
+# 1C uploads - store images in Object Storage, not Git
+1c_uploads/
+# Production secrets — never commit
+.env.production

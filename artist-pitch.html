@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Партнёрская программа BOOOMERANGS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black: #0a0a0a;
+    --white: #f5f5f0;
+    --accent: #c8ff00;
+    --gray: #1a1a1a;
+    --gray2: #2a2a2a;
+    --muted: #888;
+    --red: #ff3b3b;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Inter', -apple-system, sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .deck {
+    width: 100%; height: 100vh;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 48px 60px 130px;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity .45s cubic-bezier(.4,0,.2,1), transform .45s cubic-bezier(.4,0,.2,1);
+    pointer-events: none;
+  }
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: all;
+  }
+  .slide.prev {
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+
+  /* NAV */
+  .nav {
+    position: fixed;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    z-index: 100;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    padding: 10px 20px;
+    border-radius: 40px;
+    backdrop-filter: blur(12px);
+  }
+  .nav-btn {
+    background: none;
+    border: none;
+    color: var(--white);
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 18px;
+    opacity: .6;
+    transition: opacity .2s, background .2s;
+  }
+  .nav-btn:hover { opacity: 1; background: rgba(255,255,255,.1); }
+  .nav-btn:disabled { opacity: .2; cursor: default; }
+  .nav-counter {
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 50px;
+    text-align: center;
+    letter-spacing: .05em;
+  }
+  .nav-dots {
+    display: flex;
+    gap: 6px;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background .3s, transform .3s;
+    cursor: pointer;
+  }
+  .dot.active { background: var(--accent); transform: scale(1.4); }
+
+  /* SLIDE 1 — COVER */
+  .s1 { background: var(--black); text-align: center; }
+  .s1 .logo {
+    font-size: 11px;
+    letter-spacing: .35em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 48px;
+  }
+  .s1 .logo span { color: var(--accent); }
+  .s1 h1 {
+    font-size: clamp(42px, 7vw, 88px);
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: -.02em;
+    margin-bottom: 24px;
+  }
+  .s1 h1 em { color: var(--accent); font-style: normal; }
+  .s1 .sub {
+    font-size: 18px;
+    color: var(--muted);
+    font-weight: 300;
+    max-width: 500px;
+    line-height: 1.6;
+    margin-bottom: 52px;
+  }
+  .s1 .tag {
+    display: inline-block;
+    border: 1px solid rgba(200,255,0,.3);
+    color: var(--accent);
+    font-size: 12px;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    padding: 8px 20px;
+    border-radius: 40px;
+  }
+
+  /* SLIDE 2 — WHAT WE OFFER */
+  .s2 { background: var(--black); }
+  .slide-label {
+    font-size: 11px;
+    letter-spacing: .3em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 20px;
+    align-self: flex-start;
+  }
+  .s2 h2 {
+    font-size: clamp(24px, 3.5vw, 44px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -.02em;
+    margin-bottom: 24px;
+    align-self: flex-start;
+  }
+  .offer-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: 100%;
+    max-width: 900px;
+  }
+  .offer-card {
+    background: var(--gray);
+    border: 1px solid var(--gray2);
+    border-radius: 14px;
+    padding: 18px 20px;
+    transition: border-color .3s;
+  }
+  .offer-card:hover { border-color: rgba(200,255,0,.3); }
+  .offer-card .ico {
+    font-size: 26px;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .offer-card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    letter-spacing: -.01em;
+  }
+  .offer-card p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* SLIDE 3 — 3 INCOME SOURCES */
+  .s3 { background: var(--black); }
+  .s3 h2 {
+    font-size: clamp(24px, 3.5vw, 46px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -.02em;
+    margin-bottom: 40px;
+    align-self: flex-start;
+  }
+  .income-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    max-width: 780px;
+  }
+  .income-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    background: var(--gray);
+    border: 1px solid var(--gray2);
+    border-radius: 14px;
+    padding: 24px 28px;
+  }
+  .income-num {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--accent);
+    line-height: 1;
+    min-width: 40px;
+  }
+  .income-text h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .income-text p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .income-rate {
+    margin-left: auto;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .income-rate .pct {
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--accent);
+  }
+  .income-rate .pct-label {
+    font-size: 11px;
+    color: var(--muted);
+    display: block;
+  }
+  .income-rate .pct-example {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--black);
+    background: var(--accent);
+    padding: 2px 6px;
+    border-radius: 20px;
+    margin-bottom: 4px;
+  }
+
+  /* SLIDE 4 — ARTIST PAGE */
+  .s4 { background: var(--black); }
+  .s4 h2 {
+    font-size: clamp(24px, 3.5vw, 46px);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    margin-bottom: 12px;
+    align-self: flex-start;
+  }
+  .s4 .s4-sub {
+    font-size: 16px;
+    color: var(--muted);
+    margin-bottom: 36px;
+    align-self: flex-start;
+  }
+  .s4-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    width: 100%;
+    max-width: 860px;
+  }
+  .s4-block {
+    background: var(--gray);
+    border: 1px solid var(--gray2);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .s4-block .b-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .s4-block ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .s4-block ul li {
+    font-size: 14px;
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    line-height: 1.4;
+  }
+  .s4-block ul li::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+  .s4-url {
+    margin-top: 24px;
+    background: rgba(200,255,0,.07);
+    border: 1px solid rgba(200,255,0,.2);
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 15px;
+    color: var(--accent);
+    font-weight: 600;
+    text-align: center;
+    letter-spacing: .02em;
+    width: 100%;
+    max-width: 860px;
+  }
+
+  /* SLIDE 5 — HOW MONEY WORKS */
+  .s5 { background: var(--black); }
+  .s5 h2 {
+    font-size: clamp(24px, 3.5vw, 46px);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    margin-bottom: 40px;
+    align-self: flex-start;
+  }
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+    max-width: 860px;
+    margin-bottom: 32px;
+  }
+  .flow-step {
+    flex: 1;
+    text-align: center;
+    padding: 24px 16px;
+    background: var(--gray);
+    border: 1px solid var(--gray2);
+    border-radius: 14px;
+    position: relative;
+  }
+  .flow-arrow {
+    font-size: 22px;
+    color: var(--muted);
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+  .flow-step .f-ico { font-size: 28px; margin-bottom: 10px; display: block; }
+  .flow-step .f-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .flow-step .f-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .flow-step .f-badge {
+    display: inline-block;
+    background: rgba(200,255,0,.15);
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    padding: 3px 8px;
+    border-radius: 20px;
+    margin-top: 6px;
+  }
+  .s5-note {
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+    max-width: 600px;
+    line-height: 1.7;
+  }
+  .s5-note strong { color: var(--white); }
+
+  /* SLIDE 6 — WHO WE LOOK FOR */
+  .s6 { background: var(--black); }
+  .s6 h2 {
+    font-size: clamp(24px, 3.5vw, 46px);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    margin-bottom: 40px;
+    align-self: flex-start;
+  }
+  .who-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    width: 100%;
+    max-width: 860px;
+    margin-bottom: 36px;
+  }
+  .who-card {
+    background: var(--gray);
+    border: 1px solid var(--gray2);
+    border-radius: 14px;
+    padding: 24px 18px;
+    text-align: center;
+  }
+  .who-card .w-ico { font-size: 36px; margin-bottom: 12px; display: block; }
+  .who-card .w-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .who-card .w-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .s6-cta {
+    background: var(--accent);
+    color: var(--black);
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    padding: 14px 32px;
+    border-radius: 40px;
+    border: none;
+    cursor: default;
+  }
+
+  /* SLIDE 7 — CTA FINAL */
+  .s7 { background: var(--black); text-align: center; }
+  .s7 .big-text {
+    font-size: clamp(36px, 6vw, 80px);
+    font-weight: 900;
+    text-transform: uppercase;
+    line-height: 1;
+    letter-spacing: -.03em;
+    margin-bottom: 32px;
+  }
+  .s7 .big-text em { color: var(--accent); font-style: normal; }
+  .s7 .cta-desc {
+    font-size: 18px;
+    color: var(--muted);
+    max-width: 520px;
+    line-height: 1.7;
+    margin-bottom: 48px;
+  }
+  .cta-row {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .cta-primary {
+    background: var(--accent);
+    color: var(--black);
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    padding: 16px 36px;
+    border-radius: 40px;
+    border: none;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .cta-secondary {
+    background: transparent;
+    color: var(--white);
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    padding: 16px 36px;
+    border-radius: 40px;
+    border: 1px solid rgba(255,255,255,.2);
+    text-decoration: none;
+    display: inline-block;
+  }
+  .s7 .footer-note {
+    margin-top: 52px;
+    font-size: 11px;
+    color: rgba(255,255,255,.2);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+
+  /* PROGRESS BAR */
+  .progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: var(--accent);
+    transition: width .4s cubic-bezier(.4,0,.2,1);
+    z-index: 200;
+  }
+
+  /* SLIDE NUMBER */
+  .slide-num {
+    position: fixed;
+    top: 28px; right: 40px;
+    font-size: 11px;
+    color: rgba(255,255,255,.2);
+    letter-spacing: .15em;
+    z-index: 100;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .slide { padding: 32px 24px; }
+    .offer-grid { grid-template-columns: 1fr; }
+    .s4-cols { grid-template-columns: 1fr; }
+    .who-grid { grid-template-columns: repeat(2, 1fr); }
+    .flow { flex-wrap: wrap; }
+    .flow-arrow { display: none; }
+    .flow-step { min-width: 140px; }
+    .income-rate { display: none; }
+  }
+
+  /* KEYBOARD HINT */
+  .hint {
+    position: fixed;
+    bottom: 28px;
+    right: 40px;
+    font-size: 10px;
+    color: rgba(255,255,255,.15);
+    letter-spacing: .1em;
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="slide-num" id="slideNum"></div>
+<div class="hint">← → или клик</div>
+
+<div class="deck" id="deck">
+
+  <!-- SLIDE 1: COVER -->
+  <div class="slide s1 active" data-index="0">
+    <div class="logo">Партнёрская программа <span>BOOOMERANGS</span></div>
+    <h1>Твоя коллекция.<br><em>Твои деньги.</em></h1>
+    <p class="sub">Мы делаем вещи, которые носим сами —<br>и хотим, чтобы ты был частью этого.</p>
+    <div class="tag">Партнёрская программа для артистов</div>
+  </div>
+
+  <!-- SLIDE 2: WHAT WE OFFER -->
+  <div class="slide s2" data-index="1">
+    <div class="slide-label">Что мы предлагаем</div>
+    <h2>Не просто коллаб.<br>Полноценное партнёрство.</h2>
+    <div class="offer-grid">
+      <div class="offer-card">
+        <span class="ico">🎨</span>
+        <h3>Твоя коллекция</h3>
+        <p>Совместная линейка с твоим именем на сайте. Твои товары — отдельный раздел в каталоге.</p>
+      </div>
+      <div class="offer-card">
+        <span class="ico">💸</span>
+        <h3>Процент с продаж</h3>
+        <p>Получаешь комиссию с каждой продажи своих товаров — автоматически, без условий.</p>
+      </div>
+      <div class="offer-card">
+        <span class="ico">🔗</span>
+        <h3>Реферальная ссылка</h3>
+        <p>Приводишь аудиторию на сайт — зарабатываешь процент со всего, что они купят.</p>
+      </div>
+      <div class="offer-card">
+        <span class="ico">🌐</span>
+        <h3>Личная страница</h3>
+        <p>Мини-сайт на нашем домене с твоим фото, видео, описанием и коллекцией.</p>
+      </div>
+      <div class="offer-card">
+        <span class="ico">📊</span>
+        <h3>Личный кабинет</h3>
+        <p>Видишь продажи, клики, оборот и баланс в реальном времени. Всё прозрачно.</p>
+      </div>
+      <div class="offer-card">
+        <span class="ico">⚡</span>
+        <h3>QR-код и виджет</h3>
+        <p>Готовые инструменты: QR для сторис/мерча и виджет для вставки на свой сайт.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: 3 INCOME SOURCES -->
+  <div class="slide s3" data-index="2">
+    <div class="slide-label">Как ты зарабатываешь</div>
+    <h2>Три источника дохода<br>от одного партнёрства</h2>
+    <div class="income-list">
+      <div class="income-row">
+        <div class="income-num">1</div>
+        <div class="income-text">
+          <h3>Продажи твоей коллекции</h3>
+          <p>Кто-то зашёл на сайт и купил твой товар — ты получаешь процент. Без ссылок, без условий. Автоматически.</p>
+        </div>
+        <div class="income-rate">
+          <span class="pct-example">пример</span>
+          <div class="pct">~25%</div>
+          <span class="pct-label">с каждой продажи</span>
+        </div>
+      </div>
+      <div class="income-row">
+        <div class="income-num">2</div>
+        <div class="income-text">
+          <h3>Твои подписчики купили твой товар</h3>
+          <p>Пришли по твоей ссылке или промокоду и взяли что-то из твоей коллекции — та же ставка, двойного начисления нет.</p>
+        </div>
+        <div class="income-rate">
+          <span class="pct-example">пример</span>
+          <div class="pct">~25%</div>
+          <span class="pct-label">та же ставка</span>
+        </div>
+      </div>
+      <div class="income-row">
+        <div class="income-num">3</div>
+        <div class="income-text">
+          <h3>Твои подписчики купили что-то ещё</h3>
+          <p>Пришли по твоей ссылке, но взяли другие товары бренда — ты зарабатываешь и с них тоже.</p>
+        </div>
+        <div class="income-rate">
+          <span class="pct-example">пример</span>
+          <div class="pct">~10%</div>
+          <span class="pct-label">с чужих товаров</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: ARTIST PAGE -->
+  <div class="slide s4" data-index="3">
+    <div class="slide-label">Твоя страница</div>
+    <h2>Мини-сайт под твоим именем</h2>
+    <p class="s4-sub">Полностью настраиваемая страница прямо на сайте Booomerangs</p>
+    <div class="s4-cols">
+      <div class="s4-block">
+        <div class="b-title">Что можно добавить</div>
+        <ul>
+          <li>Главное фото или видео (hero-баннер)</li>
+          <li>Текст о себе и своём проекте</li>
+          <li>Галерея работ и фото</li>
+          <li>Ссылки на соцсети</li>
+          <li>Вся коллекция с кнопкой «Купить»</li>
+        </ul>
+      </div>
+      <div class="s4-block">
+        <div class="b-title">Как это работает</div>
+        <ul>
+          <li>Страница индексируется в Яндексе и Google</li>
+          <li>Все кнопки «Купить» — с твоим реф-ID</li>
+          <li>Покупка с твоей страницы = твоя комиссия</li>
+          <li>Обновляешь контент сам через личный кабинет</li>
+          <li>Делишься ссылкой в сторис, bio, везде</li>
+        </ul>
+      </div>
+    </div>
+    <div class="s4-url">booomerangs.ru / @ <em style="opacity:.5">твой-ник</em></div>
+  </div>
+
+  <!-- SLIDE 5: HOW MONEY WORKS -->
+  <div class="slide s5" data-index="4">
+    <div class="slide-label">Выплаты</div>
+    <h2>Как приходят деньги</h2>
+    <div class="flow">
+      <div class="flow-step">
+        <span class="f-ico">🛒</span>
+        <div class="f-title">Продажа</div>
+        <div class="f-desc">Покупатель<br>оплатил заказ</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <span class="f-ico">⏳</span>
+        <div class="f-title">Холд</div>
+        <div class="f-desc">14 дней<br>(период возврата)</div>
+        <div class="f-badge">14 ДНЕЙ</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <span class="f-ico">✅</span>
+        <div class="f-title">Подтверждено</div>
+        <div class="f-desc">Сумма доступна<br>к выводу</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <span class="f-ico">📄</span>
+        <div class="f-title">Документы</div>
+        <div class="f-desc">Чек самозанятого<br>или акт для ИП</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <span class="f-ico">💳</span>
+        <div class="f-title">Выплата</div>
+        <div class="f-desc">Деньги на<br>твоей карте</div>
+        <div class="f-badge">ГОТОВО</div>
+      </div>
+    </div>
+    <p class="s5-note">
+      Работаем официально — <strong>самозанятые, ИП, ООО</strong>.<br>
+      Полная прозрачность: каждый заказ виден в твоём кабинете.
+    </p>
+  </div>
+
+  <!-- SLIDE 6: WHO WE LOOK FOR -->
+  <div class="slide s6" data-index="5">
+    <div class="slide-label">Кому это подходит</div>
+    <h2>Ищем своих людей</h2>
+    <div class="who-grid">
+      <div class="who-card">
+        <span class="w-ico">🎤</span>
+        <div class="w-title">Музыканты</div>
+        <p class="w-desc">Хочешь мерч — делаем вместе.</p>
+      </div>
+      <div class="who-card">
+        <span class="w-ico">🎨</span>
+        <div class="w-title">Художники</div>
+        <p class="w-desc">Твои принты и графика — на реальных вещах.</p>
+      </div>
+      <div class="who-card">
+        <span class="w-ico">📸</span>
+        <div class="w-title">Блогеры</div>
+        <p class="w-desc">Своя аудитория? Монетизируй без своего производства.</p>
+      </div>
+      <div class="who-card">
+        <span class="w-ico">🔥</span>
+        <div class="w-title">Бренды / проекты</div>
+        <p class="w-desc">Небольшой проект, коллектив, субкультура — коллаб под твой проект.</p>
+      </div>
+    </div>
+    <div class="s6-cta">Главное — разделять ценности бренда</div>
+  </div>
+
+  <!-- SLIDE 7: FINAL CTA -->
+  <div class="slide s7" data-index="6">
+    <div class="big-text">Давай сделаем<br><em>что-то крутое</em><br>вместе</div>
+    <p class="cta-desc">Заполни заявку на сайте — мы свяжемся, обсудим условия и запустим твою коллекцию.</p>
+    <div class="cta-row">
+      <a class="cta-primary" href="https://booomerangs.ru/partner/register" target="_blank">Подать заявку</a>
+      <a class="cta-secondary" href="https://booomerangs.ru" target="_blank">Открыть сайт</a>
+    </div>
+    <div class="footer-note">BOOOMERANGS — Делаем вещи, которые носим сами</div>
+  </div>
+
+</div><!-- /deck -->
+
+<nav class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)" disabled>←</button>
+  <div class="nav-dots" id="dots"></div>
+  <span class="nav-counter" id="counter"></span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</nav>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let cur = 0;
+
+  const dotsEl = document.getElementById('dots');
+  const counterEl = document.getElementById('counter');
+  const progressEl = document.getElementById('progress');
+  const slideNumEl = document.getElementById('slideNum');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+
+  // Build dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function update() {
+    slides.forEach((s, i) => {
+      s.classList.remove('active', 'prev');
+      if (i === cur) s.classList.add('active');
+      else if (i < cur) s.classList.add('prev');
+    });
+    document.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i === cur);
+    });
+    counterEl.textContent = `${cur + 1} / ${total}`;
+    slideNumEl.textContent = `${String(cur + 1).padStart(2,'0')} / ${String(total).padStart(2,'0')}`;
+    progressEl.style.width = `${((cur + 1) / total) * 100}%`;
+    prevBtn.disabled = cur === 0;
+    nextBtn.disabled = cur === total - 1;
+  }
+
+  function go(dir) { goTo(cur + dir); }
+  function goTo(i) {
+    if (i < 0 || i >= total) return;
+    cur = i;
+    update();
+  }
+
+  // Keyboard
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+  });
+
+  // Click to advance (not on nav/links)
+  document.getElementById('deck').addEventListener('click', e => {
+    if (e.target.closest('.nav') || e.target.closest('a') || e.target.closest('button')) return;
+    go(1);
+  });
+
+  // Touch swipe
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dx = tx - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > 50) go(dx > 0 ? 1 : -1);
+  }, { passive: true });
+
+  update();
+</script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+uploads = []
+
+[[generated]]
+id = "mRmoVJ4dq4F1wlZOBcEs0"
+uri = "file://attached_assets/banner_variant_a.png"
+type = "image"
+title = "banner dark dramatic"
+
+[[generated]]
+id = "RCQWfMzkn68HhZVGmr6xF"
+uri = "file://attached_assets/banner_variant_b.png"
+type = "image"
+title = "banner minimal clean"
+
+[[generated]]
+id = "Xv9tSoYrVgnY4N_omiiN7"
+uri = "file://attached_assets/banner_variant_c.png"
+type = "image"
+title = "banner grunge street"
+
+[[outputs]]
+id = "vwULAdY21S8myotdRJggY"
+uri = "file://attached_assets/generated_images/hero_bmg_molodost.png"
+type = "image"
+title = "Герой BMGBRAND — новая композиция"
+
+[[outputs]]
+id = "QC7fMVJMj5TgusyOgTHXZ"
+uri = "file://attached_assets/1080_х_1920_1774011921610.webp"
+type = "image"
+title = "Отступ 30px от низа"
+
+[[outputs]]
+id = "qerqKKBEmZEv1azZXfZoJ"
+uri = "file://attached_assets/1080_х_1920_1774013001765.webp"
+type = "image"
+title = "Новое изображение - отступ 30px, макс качество"
+
+[[outputs]]
+id = "RezXXGVhuvXA6HW65D2eI"
+uri = "file://qr_care_logo.png"
+type = "image"
+title = "QR-код — круглый логотип"
+
+[[outputs]]
+id = "DAuxAmRP5JoQVPC8NcI3c"
+uri = "file://exports/boomerangs-logo-512.png"
+type = "image"
+title = "Booomerangs logo 512×512"
+
+[[outputs]]
+id = "AcTVxSTF9lZMT3T_qbIlX"
+uri = "file://docs-for-lawyer/ПОЛНЫЙ_ПАКЕТ_ДОКУМЕНТОВ.txt"
+type = "text"
+title = "Полный пакет — все 5 документов"
+
+[[outputs]]
+id = "IlQSxoxno2rD2K8VylAMM"
+uri = "file://docs-for-lawyer/offer.txt"
+type = "text"
+title = "Оферта партнёрской программы BOOOMERANGS v2.0.0"
+
+[[outputs]]
+id = "Hi4JvXER0zxmr8ri6_Rkm"
+uri = "file://docs-for-lawyer/privacy.txt"
+type = "text"
+title = "Политика обработки персональных данных v1.0.0"
+
+[[outputs]]
+id = "qqhpbVj4x0B2-CTv4ieW8"
+uri = "file://docs-for-lawyer/adult.txt"
+type = "text"
+title = "Подтверждение совершеннолетия v1.0.0"
+
+[[outputs]]
+id = "IUi_HhYq3JC6RNXdYxW_-"
+uri = "file://docs-for-lawyer/self_employed.txt"
+type = "text"
+title = "Соглашение для самозанятых v1.0.0"
+
+[[outputs]]
+id = "iHliBgNY0DsfUQm73-Svp"
+uri = "file://docs-for-lawyer/marketing.txt"
+type = "text"
+title = "Согласие на маркетинговые коммуникации v1.0.0"
+
+[[outputs]]
+id = "mrBVi-bl1kri5Dvz7jv4z"
+uri = "file://docs-for-lawyer/партнёрская-программа-руководство.md"
+type = "text"
+title = "Партнёрская программа — руководство для руководителей"
+
+[[outputs]]
+id = "hPZV1Yjg0WVmpRkT8gm3w"
+uri = "file://docs-for-lawyer/партнёрская-программа-руководство.pdf"
+type = "pdf"
+title = "Партнёрская программа — руководство для руководителей (PDF)"
+
+[[outputs]]
+id = "f9rh4GtKUK95wiJUXqI2p"
+uri = "file://attached_assets/banner_variant_a.png"
+type = "image"
+title = "Вариант A"
+
+[[outputs]]
+id = "HguJDjcRm6vvLBbk55BgY"
+uri = "file://attached_assets/banner_variant_b.png"
+type = "image"
+title = "Вариант B"
+
+[[outputs]]
+id = "f_utOfaxy_r0dQJDKwI5p"
+uri = "file://attached_assets/banner_variant_c.png"
+type = "image"
+title = "Вариант C"
+
+[[outputs]]
+id = "FUiq7MXnMPiwGxFnX_-Qi"
+uri = "file://artist-pitch.zip"
+type = "unspecified"
+title = "Партнёрская программа BOOOMERANGS"
+
+[[outputs]]
+id = "lqSLU1ydrTsEZsPdL8nQe"
+uri = "file://artist-pitch.pdf"
+type = "pdf"
+title = "Партнёрская программа BOOOMERANGS — Презентация PDF"
+
+[[outputs]]
+id = "dDKhPitrrgvmhmp8yDfae"
+uri = "file://attached_assets/generated_videos/booomerangs_partner_program.mp4"
+type = "video"
+title = "Партнёрская программа Booomerangs"

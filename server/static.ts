@@ -1,0 +1,766 @@
+import express, { type Express } from "express";
+import fs from "fs";
+import path from "path";
+import { getCachedLcpImageUrls, getCachedProductImageBySlug, getCachedProductMetaBySlug, getCachedRatingByProductId, getCachedProductsByCategory, getCachedAllVisibleProducts, getCachedHeroData } from "./storage";
+
+const SITE_NAME = "BMGBRAND";
+const DEFAULT_TITLE = `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
+const DEFAULT_DESC = "Российский бренд одежды с авторскими принтами — худи, футболки, носки и аксессуары. Доставка по всей России. Делаем вещи, которые носим сами.";
+
+const ARTISTS: Record<string, { name: string; desc: string }> = {
+  "goodtimes":      { name: "ГУДТАЙМС",          desc: "Официальный мерч ГУДТАЙМС — купить футболки, худи, аксессуары с символикой артиста. Доставка по всей России." },
+  "molodostvnutri": { name: "Молодость внутри",   desc: "Официальный мерч Молодость внутри — купить одежду и аксессуары. Доставка по всей России." },
+  "dikaya-myata":   { name: "ДИКАЯ МЯТА",         desc: "Официальный мерч ДИКАЯ МЯТА — купить худи, футболки, аксессуары. Доставка по всей России." },
+  "dragni":         { name: "ДРАГНИ",             desc: "Официальный мерч ДРАГНИ — купить одежду и аксессуары с символикой артиста. Доставка по всей России." },
+  "multfilmy":      { name: "МультFильмы",        desc: "Официальный мерч МультFильмы — купить уникальную одежду и аксессуары. Доставка по всей России." },
+};
+
+const CATEGORIES: Record<string, { name: string; title?: string; desc: string }> = {
+  "clothing": { name: "Одежда",      desc: "Купить одежду с авторскими принтами BMGBRAND — худи, свитшоты, футболки, шорты. Доставка по всей России." },
+  "merch":    { name: "Мерч",        desc: "Купить официальный мерч артистов BMGBRAND — одежда и аксессуары с уникальными принтами. Доставка по всей России." },
+  "socks":    {
+    name: "Необычные носки с принтом",
+    title: "Купить необычные носки с принтом — прикольные носки с мемами | BMGBRAND",
+    desc: "Купить необычные носки с принтом BOOOMERANGS: оригинальные носки с мемами, прикольные авторские рисунки, носки хорошего качества — хлопок 75%. Большой выбор принтов. Доставка по всей России СДЭК и Яндекс Доставкой.",
+  },
+  "accessories": { name: "Аксессуары", desc: "Купить аксессуары BMGBRAND — шапки, сумки, ремни и другие аксессуары. Доставка по всей России." },
+  "sale":     { name: "Распродажа",  desc: "Распродажа BMGBRAND — выгодные цены на одежду и аксессуары. Доставка по всей России." },
+};
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function formatPrice(kopecks: number): string {
+  return Math.round(kopecks / 100).toLocaleString("ru-RU") + " ₽";
+}
+
+function buildCategoryNoscript(catSlug: string, catName: string, catDesc: string, siteUrl: string): string {
+  const products = getCachedProductsByCategory(catSlug, 80);
+  if (products.length === 0) return "";
+
+  const inStock = products.filter(p => p.stock > 0);
+  const outOfStock = products.filter(p => p.stock === 0);
+  const allSorted = [...inStock, ...outOfStock];
+
+  const listItems = allSorted.map(p => {
+    const status = p.stock > 0 ? "в наличии" : "под заказ";
+    return `<li><a href="${escHtml(siteUrl + "/" + p.slug)}">${escHtml(p.name)}</a> — ${formatPrice(p.price)}, ${status}</li>`;
+  }).join("\n");
+
+  return `<noscript><div>` +
+    `<h1>${escHtml(catName)}</h1>` +
+    `<p>${escHtml(catDesc)}</p>` +
+    `<p>Всего товаров: ${products.length}. В наличии: ${inStock.length}.</p>` +
+    `<ul>\n${listItems}\n</ul>` +
+    `</div></noscript>`;
+}
+
+function buildProductNoscript(meta: NonNullable<ReturnType<typeof getCachedProductMetaBySlug>>, siteUrl: string, slug: string): string {
+  const price = formatPrice(meta.price);
+  const status = meta.preorderEnabled ? "предзаказ" : meta.stock > 0 ? "в наличии" : "нет в наличии";
+  const sizes = meta.sizes.length > 0 ? `Размеры: ${meta.sizes.join(", ")}.` : "";
+  const colors = meta.colors.length > 0 ? `Цвета: ${meta.colors.join(", ")}.` : "";
+  const desc = meta.description ? meta.description.slice(0, 300) : "";
+  const catInfo = meta.category ? `Категория: ${meta.category}.` : "";
+  const rating = getCachedRatingByProductId(meta.productId);
+  const ratingStr = rating && rating.reviewCount >= 1
+    ? `Рейтинг: ${rating.averageRating.toFixed(1)} из 5 (${rating.reviewCount} отзывов).`
+    : "";
+
+  return `<noscript><div>` +
+    `<h1>${escHtml(meta.title)} — купить</h1>` +
+    `<p>Цена: ${escHtml(price)}. Статус: ${status}. ${escHtml(sizes)} ${escHtml(colors)} ${escHtml(catInfo)}</p>` +
+    (desc ? `<p>${escHtml(desc)}</p>` : "") +
+    (ratingStr ? `<p>${escHtml(ratingStr)}</p>` : "") +
+    `<p>Доставка по всей России СДЭК и Яндекс Доставкой.</p>` +
+    `<p><a href="${escHtml(siteUrl + "/" + slug)}">Купить ${escHtml(meta.title)}</a></p>` +
+    `</div></noscript>`;
+}
+
+function buildHomeNoscript(siteUrl: string): string {
+  const products = getCachedAllVisibleProducts(24);
+  const inStock = products.filter(p => p.stock > 0).slice(0, 12);
+
+  const catLinks = Object.entries(CATEGORIES).map(([slug, cat]) =>
+    `<li><a href="${escHtml(siteUrl + "/products/" + slug)}">${escHtml(cat.name)}</a></li>`
+  ).join("\n");
+
+  const productItems = inStock.map(p =>
+    `<li><a href="${escHtml(siteUrl + "/" + p.slug)}">${escHtml(p.name)}</a> — ${formatPrice(p.price)}</li>`
+  ).join("\n");
+
+  return `<noscript><div>` +
+    `<h1>BOOOMERANGS — официальный магазин российского бренда BMGBRAND</h1>` +
+    `<p>Российский бренд одежды с авторскими принтами из Тулы. Авторские дизайны: худи, свитшоты, футболки, носки и аксессуары. Делаем вещи, которые носим сами. Доставка по всей России СДЭК и Яндекс Доставкой.</p>` +
+    `<h2>Категории</h2><ul>${catLinks}</ul>` +
+    (productItems ? `<h2>Популярные товары</h2><ul>${productItems}</ul>` : "") +
+    `<p><a href="${escHtml(siteUrl + "/products")}">Смотреть весь каталог</a></p>` +
+    `</div></noscript>`;
+}
+
+function buildCatalogNoscript(siteUrl: string): string {
+  const products = getCachedAllVisibleProducts(50);
+  if (products.length === 0) return "";
+
+  const catGroups: Record<string, typeof products> = {};
+  for (const p of products) {
+    if (!catGroups[p.category]) catGroups[p.category] = [];
+    catGroups[p.category].push(p);
+  }
+
+  const catBlocks = Object.entries(CATEGORIES).map(([slug, cat]) => {
+    const catProducts = catGroups[slug] || [];
+    if (catProducts.length === 0) return "";
+    const items = catProducts.slice(0, 10).map(p =>
+      `<li><a href="${escHtml(siteUrl + "/" + p.slug)}">${escHtml(p.name)}</a> — ${formatPrice(p.price)}</li>`
+    ).join("\n");
+    return `<h2><a href="${escHtml(siteUrl + "/products/" + slug)}">${escHtml(cat.name)}</a></h2><ul>${items}</ul>`;
+  }).filter(Boolean).join("\n");
+
+  return `<noscript><div>` +
+    `<h1>Каталог BOOOMERANGS — одежда и аксессуары</h1>` +
+    `<p>Официальный магазин бренда BMGBRAND. Доставка по всей России.</p>` +
+    catBlocks +
+    `</div></noscript>`;
+}
+
+function injectSeoBody(html: string, noscriptBlock: string): string {
+  if (!noscriptBlock) return html;
+  return html.replace("</body>", `${noscriptBlock}\n</body>`);
+}
+
+function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProductMetaBySlug>>, slug: string, siteUrl: string): string {
+  const isMerch = ["merch", "мерч"].includes(meta.category.toLowerCase());
+  const pageTitle = `${meta.title}${isMerch ? " — купить мерч" : " — купить"} | ${SITE_NAME}`;
+  const pageDesc = [
+    isMerch ? `Купить мерч ${meta.title} BOOOMERANGS` : `Купить ${meta.title} BOOOMERANGS`,
+    meta.sizes.length > 0 ? `Размеры: ${meta.sizes.join(", ")}.` : "",
+    "Доставка по России СДЭК и Яндекс Доставкой.",
+    meta.description ? meta.description.slice(0, 80) : "",
+  ].filter(Boolean).join(" ").slice(0, 220);
+
+  const productUrl = `${siteUrl}/${slug}`;
+  const priceValidUntil = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split("T")[0];
+  const availability = meta.preorderEnabled
+    ? "https://schema.org/PreOrder"
+    : meta.stock > 0
+      ? "https://schema.org/InStock"
+      : "https://schema.org/OutOfStock";
+
+  const rating = getCachedRatingByProductId(meta.productId);
+
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": meta.title,
+    "description": pageDesc,
+    "image": meta.images.length > 0 ? meta.images : (meta.image ? [meta.image] : []),
+    "url": productUrl,
+    "sku": meta.sku,
+    "brand": { "@type": "Brand", "name": SITE_NAME },
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "RUB",
+      "price": (meta.price / 100).toFixed(2),
+      "priceValidUntil": priceValidUntil,
+      "availability": availability,
+      "itemCondition": "https://schema.org/NewCondition",
+      "url": productUrl,
+      "seller": { "@type": "Organization", "name": SITE_NAME },
+    },
+    ...(rating && rating.reviewCount >= 1 ? {
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": rating.averageRating.toFixed(1),
+        "reviewCount": rating.reviewCount,
+        "bestRating": "5",
+        "worstRating": "1",
+      }
+    } : {}),
+    ...(meta.category ? { "category": meta.category } : {}),
+    ...(meta.colors.length > 0 ? { "color": meta.colors.join(", ") } : {}),
+    ...(meta.sizes.length > 0 ? { "size": meta.sizes.join(", ") } : {}),
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Главная", "item": siteUrl },
+      { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${siteUrl}/products` },
+      ...(meta.category ? [{ "@type": "ListItem", "position": 3, "name": meta.category, "item": `${siteUrl}/products/${meta.category}` }] : []),
+      { "@type": "ListItem", "position": meta.category ? 4 : 3, "name": meta.title, "item": productUrl },
+    ],
+  };
+
+  return JSON.stringify([productSchema, breadcrumbSchema]);
+}
+
+function injectMeta(html: string, opts: {
+  title: string;
+  description: string;
+  ogImage: string;
+  ogType?: string;
+  canonical?: string;
+  jsonLd?: string;
+}): string {
+  const { title, description, ogImage, ogType = "website", canonical, jsonLd } = opts;
+  const t = escHtml(title);
+  const d = escHtml(description.slice(0, 220));
+  const img = escHtml(ogImage);
+
+  html = html.replace(/<title>[^<]*<\/title>/, `<title>${t}</title>`);
+  html = html.replace(/<meta name="description" content="[^"]*"/, `<meta name="description" content="${d}"`);
+  html = html.replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${t}"`);
+  html = html.replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${d}"`);
+  html = html.replace(/<meta property="og:image" content="[^"]*"/, `<meta property="og:image" content="${img}"`);
+  html = html.replace(/<meta property="og:type" content="[^"]*"/, `<meta property="og:type" content="${ogType}"`);
+  html = html.replace(/<meta name="twitter:title" content="[^"]*"/, `<meta name="twitter:title" content="${t}"`);
+  html = html.replace(/<meta name="twitter:description" content="[^"]*"/, `<meta name="twitter:description" content="${d}"`);
+  html = html.replace(/<meta name="twitter:image" content="[^"]*"/, `<meta name="twitter:image" content="${img}"`);
+
+  if (canonical) {
+    const canonTag = `<link rel="canonical" href="${escHtml(canonical)}">`;
+    if (html.includes('<link rel="canonical"')) {
+      html = html.replace(/<link rel="canonical"[^>]*>/, canonTag);
+    } else {
+      html = html.replace('</head>', `    ${canonTag}\n  </head>`);
+    }
+  }
+
+  if (jsonLd) {
+    const ldTag = `<script type="application/ld+json">${jsonLd}</script>`;
+    html = html.replace('</head>', `    ${ldTag}\n  </head>`);
+  }
+
+  return html;
+}
+
+export function serveStatic(app: Express) {
+  const distPath = path.resolve(__dirname, "public");
+  if (!fs.existsSync(distPath)) {
+    throw new Error(
+      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+    );
+  }
+
+  const assetsDir = path.join(distPath, "assets");
+  let cssFileName = "";
+  let jsFileName = "";
+  let allJsChunks: string[] = [];
+  try {
+    const files = fs.readdirSync(assetsDir);
+    cssFileName = files.find((f: string) => f.endsWith(".css") && f.startsWith("index-")) || "";
+    jsFileName = files.find((f: string) => f.endsWith(".js") && f.startsWith("index-")) || "";
+    // Page-specific chunks — load lazily per route, never preload globally
+    const pageChunkPrefixes = [
+      "Admin", "Home", "ProductList", "ProductDetail", "Cart", "Checkout",
+      "Profile", "About", "FAQ", "Blog", "BlogDetail", "ArtistPage",
+      "WholesaleRegister", "WholesaleProfile", "WholesalePreorder",
+      "GiftCard", "Order", "Favorites", "Links", "TrackOrder",
+      "ConceptPage", "Vacancies", "Terms", "Privacy", "SlugResolver",
+      "VerifyEmail", "ResetPassword", "MerchOrder", "Care"
+    ];
+    const isPageChunk = (name: string) =>
+      pageChunkPrefixes.some(prefix => name.startsWith(prefix));
+
+    allJsChunks = files
+      .filter((f: string) => f.endsWith(".js") && f !== jsFileName && !isPageChunk(f))
+      .sort((a: string, b: string) => {
+        try {
+          const sizeA = fs.statSync(path.join(assetsDir, a)).size;
+          const sizeB = fs.statSync(path.join(assetsDir, b)).size;
+          return sizeB - sizeA;
+        } catch { return 0; }
+      })
+      .slice(0, 15);
+  } catch {}
+
+  const criticalChunks = allJsChunks.slice(0, 6);
+  const secondaryChunks = allJsChunks.slice(6);
+
+  const indexHtmlPath = path.resolve(distPath, "index.html");
+  let cachedHtml = "";
+  try {
+    let html = fs.readFileSync(indexHtmlPath, "utf-8");
+
+    const modulePreloadTags = criticalChunks
+      .map(chunk => `    <link rel="modulepreload" href="/assets/${chunk}">`)
+      .join('\n');
+    if (modulePreloadTags) {
+      html = html.replace('</head>', `${modulePreloadTags}\n  </head>`);
+    }
+
+    if (cssFileName) {
+      const escapedCss = cssFileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const cssRegex = new RegExp(`<link[^>]*href="/assets/${escapedCss}"[^>]*>`, 'g');
+      const asyncCss = `<link rel="preload" as="style" href="/assets/${cssFileName}"><link rel="stylesheet" href="/assets/${cssFileName}" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="/assets/${cssFileName}"></noscript>`;
+      const replaced = html.replace(cssRegex, asyncCss);
+      if (replaced !== html) {
+        html = replaced;
+        console.log(`[Static] CSS async loading applied for ${cssFileName}`);
+      } else {
+        console.warn(`[Static] CSS tag not found in HTML for ${cssFileName}, blocking CSS remains`);
+      }
+    } else {
+      console.warn("[Static] No CSS file found in assets directory");
+    }
+
+    cachedHtml = html;
+  } catch {
+    cachedHtml = "";
+  }
+
+  app.use(express.static(distPath, {
+    maxAge: '1y',
+    immutable: true,
+    index: false, // Prevent express.static from serving index.html directly for "/" — injection must happen in the catch-all handler
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+      if (filePath.endsWith('.css') || filePath.endsWith('.js')) {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+      }
+    }
+  }));
+
+  app.use("*", (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+    const url = req.originalUrl;
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
+
+    let routeLcpImage = "";
+
+    const knownRoutes = new Set(['/', '/products', '/cart', '/checkout', '/about', '/admin', '/verify-email', '/reset-password', '/profile', '/favorites', '/vacancies', '/faq', '/terms', '/privacy', '/links', '/concept', '/blog', '/wholesale-register', '/wholesale-profile', '/order-success', '/order-failed', '/contacts', '/merch-na-zakaz', '/partner/register', '/partner/login']);
+    const knownPrefixes = ['/products/', '/wholesale/', '/gift-cards/', '/blog/', '/@', '/order-success/', '/order-failed/', '/track/', '/api/', '/assets/'];
+    const isKnownRoute = knownRoutes.has(cleanUrl) || knownPrefixes.some(p => url.startsWith(p));
+    const slugMatch = !isKnownRoute ? cleanUrl.match(/^\/([a-z0-9][a-z0-9-]*[a-z0-9])(?:\/?)$/) : null;
+    const isValidRoute = isKnownRoute || !!slugMatch;
+    let detectedProductSlug = '';
+    if (slugMatch) {
+      try {
+        detectedProductSlug = decodeURIComponent(slugMatch[1]);
+        routeLcpImage = getCachedProductImageBySlug(detectedProductSlug);
+      } catch {}
+    }
+
+    if (!routeLcpImage) {
+      const lcpImages = getCachedLcpImageUrls();
+      if (lcpImages.length > 0) routeLcpImage = lcpImages[0];
+    }
+
+    const linkParts: string[] = [];
+    if (jsFileName) linkParts.push(`</assets/${jsFileName}>; rel=modulepreload`);
+    for (const chunk of criticalChunks) linkParts.push(`</assets/${chunk}>; rel=modulepreload`);
+    for (const chunk of secondaryChunks) linkParts.push(`</assets/${chunk}>; rel=modulepreload; nopush`);
+    if (routeLcpImage) linkParts.push(`<${routeLcpImage}>; rel=preload; as=image; fetchpriority=high`);
+
+    const isHomePage = url === "/" || url === "";
+    if (isHomePage) {
+      linkParts.push(`</api/products?page=1&limit=24>; rel=preload; as=fetch`);
+      linkParts.push(`</api/page-settings/home>; rel=preload; as=fetch`);
+      linkParts.push(`</api/page-settings/navbar>; rel=preload; as=fetch`);
+    }
+    if (linkParts.length > 0) res.setHeader('Link', linkParts.join(', '));
+
+    if (!cachedHtml) {
+      return res.sendFile(path.resolve(distPath, "index.html"));
+    }
+
+    let html = cachedHtml;
+
+    html = html.replace(
+      /<meta property="og:image" content="\/favicon\.png"/,
+      `<meta property="og:image" content="${siteUrl}/favicon.png"`
+    );
+    html = html.replace(
+      /<meta name="twitter:image" content="\/favicon\.png"/,
+      `<meta name="twitter:image" content="${siteUrl}/favicon.png"`
+    );
+
+    if (routeLcpImage) {
+      const preloadTag = `<link rel="preload" as="image" href="${routeLcpImage}" fetchpriority="high">`;
+      html = html.replace('</head>', `    ${preloadTag}\n  </head>`);
+    }
+
+    if (isHomePage) {
+      const heroData = getCachedHeroData();
+      if (heroData) {
+        const safeHero = JSON.stringify(heroData).replace(/<\/script>/gi, '<\\/script>');
+        const heroScript = `<script>window.__HERO__=${safeHero};</script>`;
+        html = html.replace('</head>', `    ${heroScript}\n  </head>`);
+        if (heroData.imgMobile) {
+          const mobilePreload = `<link rel="preload" as="image" href="${heroData.imgMobile}" fetchpriority="high" media="(max-width: 639px)">`;
+          html = html.replace('</head>', `    ${mobilePreload}\n  </head>`);
+        }
+      }
+    }
+
+    try {
+      // --- Product page ---
+      if (detectedProductSlug) {
+        const meta = getCachedProductMetaBySlug(detectedProductSlug);
+        if (meta && meta.title) {
+          const isMerch = ["merch", "мерч"].includes(meta.category.toLowerCase());
+          const title = `${meta.title}${isMerch ? " — купить мерч" : " — купить"} | ${SITE_NAME}`;
+          const desc = [
+            isMerch ? `Купить мерч ${meta.title} BOOOMERANGS` : `Купить ${meta.title} BOOOMERANGS`,
+            meta.sizes.length > 0 ? `Размеры: ${meta.sizes.join(", ")}.` : "",
+            "Доставка по России СДЭК и Яндекс Доставкой.",
+            meta.description ? meta.description.slice(0, 80) : "",
+          ].filter(Boolean).join(" ").slice(0, 220);
+          const image = meta.image.startsWith("http") ? meta.image : `${siteUrl}${meta.image}`;
+          const jsonLd = buildProductJsonLd(meta, detectedProductSlug, siteUrl);
+          html = injectMeta(html, {
+            title,
+            description: desc,
+            ogImage: image,
+            ogType: "product",
+            canonical: `${siteUrl}/${detectedProductSlug}`,
+            jsonLd,
+          });
+          html = injectSeoBody(html, buildProductNoscript(meta, siteUrl, detectedProductSlug));
+        }
+      }
+
+      // --- Home page ---
+      if (cleanUrl === "/" || cleanUrl === "") {
+        const homeJsonLd = JSON.stringify([
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": SITE_NAME,
+            "alternateName": "Booomerangs",
+            "description": "Официальный магазин мерча российского бренда одежды и аксессуаров. Мерч Гудтаймс, Молодость внутри, Дикая мята и других артистов. Доставка по всей России.",
+            "logo": `${siteUrl}/favicon.png`,
+            "url": siteUrl,
+            "sameAs": [
+              "https://vk.com/bmgbrand",
+              "https://t.me/bmg_booomerangs",
+            ],
+            "address": {
+              "@type": "PostalAddress",
+              "addressLocality": "Тула",
+              "addressCountry": "RU",
+            },
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Booomerangs",
+            "alternateName": SITE_NAME,
+            "url": `${siteUrl}/`,
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": `${siteUrl}/products?search={search_term_string}`,
+              "query-input": "required name=search_term_string",
+            },
+          },
+        ]);
+        html = injectMeta(html, {
+          title: DEFAULT_TITLE,
+          description: "Booomerangs (BMGBRAND) — официальный магазин мерча. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
+          ogImage: `${siteUrl}/og-image.png`,
+          canonical: `${siteUrl}/`,
+          jsonLd: homeJsonLd,
+        });
+        html = injectSeoBody(html, buildHomeNoscript(siteUrl));
+      }
+
+      // --- Artist/creator page: /@:slug ---
+      const artistMatch = cleanUrl.match(/^\/@([a-z0-9][a-z0-9-]*)$/);
+      if (artistMatch) {
+        const artistSlug = artistMatch[1];
+        const artist = ARTISTS[artistSlug];
+        if (artist) {
+          const title = `Мерч ${artist.name} — купить официальный мерч | ${SITE_NAME}`;
+          const jsonLd = JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Главная", "item": siteUrl },
+              { "@type": "ListItem", "position": 2, "name": "Мерч", "item": `${siteUrl}/products/merch` },
+              { "@type": "ListItem", "position": 3, "name": artist.name, "item": `${siteUrl}/@${artistSlug}` },
+            ],
+          });
+          html = injectMeta(html, {
+            title,
+            description: artist.desc,
+            ogImage: `${siteUrl}/favicon.png`,
+            ogType: "website",
+            canonical: `${siteUrl}/@${artistSlug}`,
+            jsonLd,
+          });
+        }
+      }
+
+      // --- Category page: /products/:catSlug ---
+      const catMatch = cleanUrl.match(/^\/products\/([a-z0-9][a-z0-9-]*)$/);
+      if (catMatch) {
+        const catSlug = catMatch[1];
+        const cat = CATEGORIES[catSlug];
+        if (cat) {
+          const title = cat.title || `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
+
+          const breadcrumb = {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Главная", "item": siteUrl },
+              { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${siteUrl}/products` },
+              { "@type": "ListItem", "position": 3, "name": cat.name, "item": `${siteUrl}/products/${catSlug}` },
+            ],
+          };
+
+          const socksFaq = catSlug === "socks" ? {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              { "@type": "Question", "name": "Какой состав у носков BOOOMERANGS?", "acceptedAnswer": { "@type": "Answer", "text": "Хлопок 75%, полиамид 17%, эластан 8%. Мягкие, комфортные, держат форму и цвет после стирки." } },
+              { "@type": "Question", "name": "Какие размеры носков есть в наличии?", "acceptedAnswer": { "@type": "Answer", "text": "Носки BOOOMERANGS выпускаются в двух размерах: 34–39 (женские) и 40–45 (мужские). На странице каждой модели указан доступный размер." } },
+              { "@type": "Question", "name": "Можно ли купить носки с необычным принтом оптом?", "acceptedAnswer": { "@type": "Answer", "text": "Да, для оптовых покупателей действуют специальные условия. Зарегистрируйтесь в разделе «Оптовым покупателям» или свяжитесь с нами." } },
+              { "@type": "Question", "name": "Как ухаживать за носками с принтом?", "acceptedAnswer": { "@type": "Answer", "text": "Стирать при температуре до 30°C, не использовать отбеливатель, сушить без отжима. Так принт сохранится дольше." } },
+              { "@type": "Question", "name": "Сколько идёт доставка носков по России?", "acceptedAnswer": { "@type": "Answer", "text": "Доставка СДЭК или Яндекс Доставкой — 2–7 дней в зависимости от региона. Отправляем по всей России." } },
+            ],
+          } : null;
+
+          const merchFaq = catSlug === "merch" ? {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              { "@type": "Question", "name": "Как купить мерч артиста на BMGBRAND?", "acceptedAnswer": { "@type": "Answer", "text": "Выберите артиста в каталоге, добавьте товар в корзину и оформите заказ. Оплата картой, СБП или Т-Pay. Доставка по всей России." } },
+              { "@type": "Question", "name": "Мерч какихартистов продаётся на BMGBRAND?", "acceptedAnswer": { "@type": "Answer", "text": "BMGBRAND — официальный производитель мерча ГУДТАЙМС, Молодость внутри, Дикая Мята, Драгни, МультFильмы и других российских артистов." } },
+              { "@type": "Question", "name": "Можно ли заказать мерч на заказ с логотипом?", "acceptedAnswer": { "@type": "Answer", "text": "Да. BMGBRAND производит мерч на заказ для брендов, артистов и мероприятий. Полный цикл: дизайн, производство, доставка. Подробнее на странице «Мерч на заказ»." } },
+              { "@type": "Question", "name": "Из чего сделан мерч BMGBRAND?", "acceptedAnswer": { "@type": "Answer", "text": "Собственное производство полного цикла. Футболки — 100% хлопок или двухнитка. Носки — хлопок 75%. Контроль качества каждой партии." } },
+            ],
+          } : null;
+
+          const schemas = [breadcrumb, socksFaq, merchFaq].filter(Boolean);
+          const jsonLd = JSON.stringify(schemas.length === 1 ? schemas[0] : schemas);
+
+          html = injectMeta(html, {
+            title,
+            description: cat.desc,
+            ogImage: `${siteUrl}/favicon.png`,
+            ogType: "website",
+            canonical: `${siteUrl}/products/${catSlug}`,
+            jsonLd,
+          });
+          html = injectSeoBody(html, buildCategoryNoscript(catSlug, cat.name, cat.desc, siteUrl));
+        }
+      }
+
+      // --- Catalog page: /products ---
+      if (cleanUrl === "/products") {
+        const jsonLd = JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Главная", "item": siteUrl },
+            { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${siteUrl}/products` },
+          ],
+        });
+        html = injectMeta(html, {
+          title: `Каталог — одежда и аксессуары | ${SITE_NAME}`,
+          description: "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.",
+          ogImage: `${siteUrl}/favicon.png`,
+          canonical: `${siteUrl}/products`,
+          jsonLd,
+        });
+        html = injectSeoBody(html, buildCatalogNoscript(siteUrl));
+      }
+
+      // --- Merch na zakaz page ---
+      if (cleanUrl === "/merch-na-zakaz") {
+        const merchOrderJsonLd = JSON.stringify([
+          {
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            "name": `${SITE_NAME} (Booomerangs)`,
+            "url": siteUrl,
+            "image": `${siteUrl}/og-image.png`,
+            "description": "Производство мерча на заказ под ключ: футболки, худи, носки, аксессуары с авторскими принтами. Работаем по всей России.",
+            "address": { "@type": "PostalAddress", "addressLocality": "Тула", "addressRegion": "Тульская область", "addressCountry": "RU" },
+            "areaServed": "RU",
+            "priceRange": "от 180 ₽",
+            "sameAs": [
+              "https://vk.com/bmgbrand",
+              "https://t.me/bmg_booomerangs",
+            ],
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Мерч на заказ — BMGBRAND (Booomerangs)",
+            "url": `${siteUrl}/merch-na-zakaz`,
+            "speakable": {
+              "@type": "SpeakableSpecification",
+              "cssSelector": ["#merch-hero-desc", "#merch-faq"],
+            },
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Создание мерча на заказ",
+            "provider": { "@type": "Organization", "name": SITE_NAME, "url": siteUrl, "address": { "@type": "PostalAddress", "addressLocality": "Тула", "addressCountry": "RU" } },
+            "description": "Производство мерча на заказ под ключ: футболки, худи, носки, аксессуары с авторскими принтами. Работаем по всей России. Тираж от 20 штук. Разработка дизайна бесплатно.",
+            "areaServed": "RU",
+            "serviceType": "Производство мерча",
+            "offers": [
+              { "@type": "Offer", "name": "Носки с принтом на заказ", "priceCurrency": "RUB", "price": "180", "description": "Носки с принтом от 180 ₽/пара при тираже от 50 пар. 200+ дизайнов." },
+              { "@type": "Offer", "name": "Футболки на заказ", "priceCurrency": "RUB", "price": "900", "description": "Футболки с принтом от 900 ₽ при тираже от 20 штук. 100% хлопок." },
+              { "@type": "Offer", "name": "Худи на заказ", "priceCurrency": "RUB", "price": "1800", "description": "Худи и свитшоты от 1 800 ₽ при тираже от 20 штук. Трёхнитка." },
+              { "@type": "Offer", "name": "Брюки и джоггеры на заказ", "priceCurrency": "RUB", "price": "1500", "description": "Брюки и джоггеры от 1 500 ₽ при тираже от 20 штук." },
+              { "@type": "Offer", "name": "Корпоративный мерч", "priceCurrency": "RUB", "price": "180", "description": "Мерч для компаний, мероприятий, фестивалей. Брендирование под ключ." },
+            ],
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              { "@type": "Question", "name": "Какой минимальный тираж для мерча на заказ?", "acceptedAnswer": { "@type": "Answer", "text": "Носки — от 50 пар, футболки и худи — от 20 штук, аксессуары — от 30 единиц. Для больших тиражей действуют скидки." } },
+              { "@type": "Question", "name": "Сколько стоит мерч на заказ?", "acceptedAnswer": { "@type": "Answer", "text": "Носки с принтом — от 180 ₽/пара, футболки — от 900 ₽, худи — от 1 800 ₽, брюки — от 1 500 ₽. Точный расчёт делаем индивидуально." } },
+              { "@type": "Question", "name": "Вы помогаете с разработкой дизайна мерча?", "acceptedAnswer": { "@type": "Answer", "text": "Да. Разработаем дизайн с нуля или адаптируем ваши материалы. Включено в стоимость при тиражах от 50 единиц." } },
+              { "@type": "Question", "name": "Сколько времени занимает производство мерча?", "acceptedAnswer": { "@type": "Answer", "text": "Носки — от 10 рабочих дней. Одежда — 2–4 недели с момента согласования макета. Срочные заказы обсуждаются отдельно." } },
+              { "@type": "Question", "name": "Вы работаете с физическими лицами и блогерами?", "acceptedAnswer": { "@type": "Answer", "text": "Да. Работаем с физлицами, ИП, ООО, блогерами, музыкантами и организаторами мероприятий. Среди клиентов: Гудтаймс, Молодость внутри, Дикая Мята." } },
+              { "@type": "Question", "name": "Можно ли заказать мерч с моим логотипом?", "acceptedAnswer": { "@type": "Answer", "text": "Да. Предоставьте логотип в векторном формате (AI, EPS, SVG) или хорошем разрешении — подготовим макет. Если фирменного стиля нет — разработаем с нуля." } },
+              { "@type": "Question", "name": "Вы доставляете мерч по всей России?", "acceptedAnswer": { "@type": "Answer", "text": "Да, отправляем по всей России через СДЭК и Яндекс Доставку. Для крупных тиражей возможна доставка паллетами через транспортные компании." } },
+              { "@type": "Question", "name": "Что такое корпоративный мерч и как его заказать?", "acceptedAnswer": { "@type": "Answer", "text": "Корпоративный мерч — брендированная одежда и аксессуары с логотипом компании. Подходит для сотрудников, мероприятий и подарков. Оставьте заявку — менеджер свяжется в течение 24 часов." } },
+            ],
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Главная", "item": siteUrl },
+              { "@type": "ListItem", "position": 2, "name": "Мерч на заказ", "item": `${siteUrl}/merch-na-zakaz` },
+            ],
+          },
+        ]);
+        html = injectMeta(html, {
+          title: `Мерч на заказ — футболки, худи, носки с принтом от 180 ₽ | ${SITE_NAME}`,
+          description: "Производство мерча на заказ от BMGBRAND: футболки от 900 ₽, худи от 1800 ₽, носки от 180 ₽/пара. Тираж от 20 шт. Разработка дизайна бесплатно. Работаем с блогерами, артистами, компаниями. Доставка по всей России — Тула, Москва, регионы.",
+          ogImage: `${siteUrl}/og-image.png`,
+          ogType: "website",
+          canonical: `${siteUrl}/merch-na-zakaz`,
+          jsonLd: merchOrderJsonLd,
+        });
+      }
+
+      // --- Partner register page ---
+      if (cleanUrl === "/partner/register" || cleanUrl === "/partner/login") {
+        const partnerJsonLd = JSON.stringify([
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Партнёрская программа BOOOMERANGS",
+            "description": "Зарабатывайте 15–25% комиссии, рекомендуя одежду российского бренда BOOOMERANGS. Программа для самозанятых, ИП и юридических лиц. Выплаты без минимальной суммы за 5 рабочих дней.",
+            "provider": { "@type": "Organization", "name": SITE_NAME, "url": siteUrl },
+            "areaServed": "RU",
+            "serviceType": "Партнёрская программа",
+            "audience": { "@type": "Audience", "audienceType": "Самозанятые, ИП, юридические лица, блогеры, артисты" },
+            "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.8", "reviewCount": "63", "bestRating": "5" },
+            "offers": { "@type": "Offer", "description": "Комиссия 15–25% с каждого оплаченного заказа по реферальной ссылке", "priceCurrency": "RUB" },
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              { "@type": "Question", "name": "Сколько можно заработать в партнёрской программе BOOOMERANGS?", "acceptedAnswer": { "@type": "Answer", "text": "Комиссия от 15% до 25% с каждого оплаченного заказа. Процент растёт с объёмом продаж за месяц. Потолка нет." } },
+              { "@type": "Question", "name": "Кто может стать партнёром BOOOMERANGS?", "acceptedAnswer": { "@type": "Answer", "text": "Самозанятый, индивидуальный предприниматель или юридическое лицо. Регистрация занимает несколько минут." } },
+              { "@type": "Question", "name": "Как работает реферальная ссылка?", "acceptedAnswer": { "@type": "Answer", "text": "Вы получаете уникальную ссылку и промокод. С каждого заказа по вашей ссылке начисляется комиссия в личном кабинете." } },
+              { "@type": "Question", "name": "Есть ли минимальная сумма для вывода комиссии?", "acceptedAnswer": { "@type": "Answer", "text": "Минимальной суммы нет. После 14-дневного холда выплатим на карту или расчётный счёт за 5 рабочих дней." } },
+              { "@type": "Question", "name": "Что такое партнёрская программа для блогеров BOOOMERANGS?", "acceptedAnswer": { "@type": "Answer", "text": "Блогеры и артисты получают персональную страницу на booomerangs.ru/@slug, витрину мерча и договорной процент комиссии." } },
+              { "@type": "Question", "name": "Когда я получу деньги после продажи?", "acceptedAnswer": { "@type": "Answer", "text": "После оплаты покупателем начинается 14-дневный холд. После его окончания средства доступны к выводу — выплата за 5 рабочих дней." } },
+            ],
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Главная", "item": siteUrl },
+              { "@type": "ListItem", "position": 2, "name": "Партнёрская программа", "item": `${siteUrl}/partner/register` },
+            ],
+          },
+        ]);
+        html = injectMeta(html, {
+          title: `Партнёрская программа ${SITE_NAME} — зарабатывай 15–25% на рекомендациях одежды`,
+          description: "Рекомендуй одежду BOOOMERANGS и зарабатывай комиссию 15–25% с каждого заказа. Для самозанятых, ИП и юрлиц. Реферальная ссылка, личный кабинет, выплаты без минимума за 5 дней.",
+          ogImage: `${siteUrl}/og-partner.png`,
+          ogType: "website",
+          canonical: `${siteUrl}/partner/register`,
+          jsonLd: partnerJsonLd,
+        });
+      }
+
+      // --- Static pages ---
+      const STATIC_PAGES: Record<string, { title: string; description: string }> = {
+        "/about": {
+          title: `О бренде | ${SITE_NAME}`,
+          description: "BMGBRAND — российский бренд одежды с авторскими принтами из Тулы. Узнайте нашу историю, ценности и команду.",
+        },
+        "/faq": {
+          title: `Вопросы и ответы | ${SITE_NAME}`,
+          description: "Ответы на частые вопросы о заказах, доставке, оплате и возврате в интернет-магазине BMGBRAND.",
+        },
+        "/contacts": {
+          title: `Контакты | ${SITE_NAME}`,
+          description: "Контактная информация BMGBRAND. Свяжитесь с нами по вопросам заказов, сотрудничества и оптовых закупок.",
+        },
+        "/vacancies": {
+          title: `Вакансии | ${SITE_NAME}`,
+          description: "Открытые вакансии в команду BMGBRAND. Присоединяйтесь к нашему бренду одежды с авторскими принтами.",
+        },
+        "/terms": {
+          title: `Условия использования | ${SITE_NAME}`,
+          description: "Условия использования сайта и интернет-магазина BMGBRAND.",
+        },
+        "/privacy": {
+          title: `Политика конфиденциальности | ${SITE_NAME}`,
+          description: "Политика конфиденциальности и обработки персональных данных интернет-магазина BMGBRAND.",
+        },
+        "/links": {
+          title: `Ссылки | ${SITE_NAME}`,
+          description: "Официальные ссылки и социальные сети бренда BMGBRAND.",
+        },
+        "/concept": {
+          title: `Концепция | ${SITE_NAME}`,
+          description: "Концепция и философия бренда BMGBRAND — российский бренд одежды с авторскими принтами.",
+        },
+        "/blog": {
+          title: `Блог | ${SITE_NAME}`,
+          description: "Блог BMGBRAND — новости бренда, статьи о стиле и авторских дизайнах.",
+        },
+        "/wholesale-register": {
+          title: `Оптовые закупки — регистрация | ${SITE_NAME}`,
+          description: "Регистрация оптового покупателя BMGBRAND. Специальные цены и условия для бизнеса.",
+        },
+      };
+
+      const staticPage = STATIC_PAGES[cleanUrl];
+      if (staticPage) {
+        html = injectMeta(html, {
+          title: staticPage.title,
+          description: staticPage.description,
+          ogImage: `${siteUrl}/favicon.png`,
+          canonical: `${siteUrl}${cleanUrl}`,
+        });
+      }
+    } catch (e) {
+      console.error("[Static] Meta injection error:", e);
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
+    if (!isValidRoute) {
+      html = html.replace('</head>', '  <meta name="robots" content="noindex,nofollow">\n  </head>');
+      res.status(404);
+    }
+
+    res.send(html);
+  });
+}

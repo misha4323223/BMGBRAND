@@ -1,0 +1,12 @@
+.git
+node_modules
+*.md
+.env
+.env.*
+.replit
+replit.nix
+.cache
+.upm
+.config
+dist
+1c_uploads

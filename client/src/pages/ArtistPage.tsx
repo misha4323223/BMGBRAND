@@ -1,0 +1,1141 @@
+import { useParams, Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, ArrowRight, ExternalLink, Play, Quote, ChevronLeft, ChevronRight, Share2, ShoppingCart, Zap, Tag } from "lucide-react";
+import { SiTelegram, SiVk, SiYoutube, SiInstagram, SiTiktok, SiSpotify, SiTwitch, SiSoundcloud, SiApplemusic, SiDiscord, SiX, SiBandcamp, SiPatreon, SiOnlyfans } from "react-icons/si";
+import { useState, useEffect, useRef } from "react";
+import { transliterateToSlug } from "@shared/schema";
+import SEO from "@/components/SEO";
+import { useAddToCart } from "@/hooks/use-cart";
+
+interface ArtistSettings {
+  heroImage?: string;
+  heroImageMobile?: string;
+  heroVideo?: string;
+  heroBgType?: string;
+  heroOpacity?: string;
+  heroTitle?: string;
+  heroSubtitle?: string;
+  name?: string;
+  role?: string;
+  shortDescription?: string;
+  aboutTitle?: string;
+  aboutText?: string;
+  aboutImages?: string[];
+  galleryTitle?: string;
+  galleryImages?: string[];
+  productsTitle?: string;
+  productsLimit?: number;
+  productsLinkText?: string;
+  quoteText?: string;
+  quoteAuthor?: string;
+  videoUrl?: string;
+  videoTitle?: string;
+  socialTelegram?: string;
+  socialVk?: string;
+  socialYoutube?: string;
+  socialInstagram?: string;
+  socialOther?: string;
+  socialOtherLabel?: string;
+  heroVisible?: boolean;
+  aboutVisible?: boolean;
+  galleryVisible?: boolean;
+  productsVisible?: boolean;
+  quoteVisible?: boolean;
+  videoVisible?: boolean;
+  socialsVisible?: boolean;
+  seoTitle?: string;
+  seoDescription?: string;
+  theme?: string;
+  marqueeText?: string;
+}
+
+interface ArtistThemeConfig {
+  bg: string;
+  bgMuted: string;
+  accent: string;
+  accentFg: string;
+  text: string;
+  textMuted: string;
+  decorBg?: string;
+  decorSymbols?: Array<{ symbol: string; color: string; opacity: number; size: string; pos: string; rotate?: string }>;
+  accentLines?: boolean;
+}
+
+const ARTIST_THEMES: Record<string, ArtistThemeConfig> = {
+  default: {
+    bg: '',
+    bgMuted: 'hsl(var(--muted) / 0.3)',
+    accent: 'hsl(var(--primary))',
+    accentFg: '#fff',
+    text: '',
+    textMuted: 'var(--muted-foreground)',
+  },
+  dark: {
+    bg: '#0a0a0a',
+    bgMuted: '#111111',
+    accent: '#ffffff',
+    accentFg: '#0a0a0a',
+    text: '#ffffff',
+    textMuted: '#777777',
+    decorBg: '#141414',
+    decorSymbols: [
+      { symbol: '◆', color: '#ffffff', opacity: 0.03, size: '160px', pos: 'top-20 left-6', rotate: 'rotate-12' },
+      { symbol: '◈', color: '#ffffff', opacity: 0.025, size: '120px', pos: 'bottom-20 right-6', rotate: '-rotate-12' },
+    ],
+  },
+  raw: {
+    bg: '#f0ebe3',
+    bgMuted: '#e5ddd2',
+    accent: '#1a1a1a',
+    accentFg: '#f0ebe3',
+    text: '#1a1a1a',
+    textMuted: '#6b6b5a',
+    decorBg: '#e8e0d6',
+  },
+  neon: {
+    bg: '#0d0d0d',
+    bgMuted: '#141414',
+    accent: '#00ff88',
+    accentFg: '#0d0d0d',
+    text: '#ffffff',
+    textMuted: '#555555',
+    decorBg: '#111111',
+    decorSymbols: [
+      { symbol: '⬡', color: '#00ff88', opacity: 0.04, size: '150px', pos: 'top-16 right-8', rotate: 'rotate-6' },
+      { symbol: '⬡', color: '#00ff88', opacity: 0.025, size: '100px', pos: 'bottom-16 left-6', rotate: '-rotate-12' },
+    ],
+    accentLines: true,
+  },
+  warm: {
+    bg: '#f7ece4',
+    bgMuted: '#efe3d8',
+    accent: '#ffa000',
+    accentFg: '#ffffff',
+    text: '#2e2e2e',
+    textMuted: '#8a7a6a',
+    decorBg: '#efe3d8',
+    decorSymbols: [
+      { symbol: '★', color: '#ffa000', opacity: 0.04, size: '140px', pos: 'top-24 left-8', rotate: 'rotate-12' },
+      { symbol: '♪', color: '#2e2e2e', opacity: 0.04, size: '110px', pos: 'bottom-24 right-8', rotate: '-rotate-12' },
+      { symbol: '✦', color: '#ffa000', opacity: 0.03, size: '90px', pos: 'top-1/2 right-1/4' },
+    ],
+    accentLines: true,
+  },
+};
+
+const socialIcons: Record<string, any> = {
+  telegram: SiTelegram,
+  vk: SiVk,
+  youtube: SiYoutube,
+  instagram: SiInstagram,
+};
+
+const urlPlatformIcons: Array<{ pattern: RegExp; icon: any }> = [
+  { pattern: /tiktok\.com/i, icon: SiTiktok },
+  { pattern: /spotify\.com/i, icon: SiSpotify },
+  { pattern: /twitch\.tv/i, icon: SiTwitch },
+  { pattern: /soundcloud\.com/i, icon: SiSoundcloud },
+  { pattern: /music\.apple\.com|itunes\.apple\.com/i, icon: SiApplemusic },
+  { pattern: /discord\.gg|discord\.com/i, icon: SiDiscord },
+  { pattern: /twitter\.com|x\.com/i, icon: SiX },
+  { pattern: /bandcamp\.com/i, icon: SiBandcamp },
+  { pattern: /patreon\.com/i, icon: SiPatreon },
+  { pattern: /onlyfans\.com/i, icon: SiOnlyfans },
+  { pattern: /t\.me|telegram\.me/i, icon: SiTelegram },
+  { pattern: /vk\.com|vkvideo/i, icon: SiVk },
+  { pattern: /youtube\.com|youtu\.be/i, icon: SiYoutube },
+  { pattern: /instagram\.com/i, icon: SiInstagram },
+];
+
+function getSocialIcon(key: string, url?: string): any {
+  if (socialIcons[key]) return socialIcons[key];
+  if (url) {
+    for (const { pattern, icon } of urlPlatformIcons) {
+      if (pattern.test(url)) return icon;
+    }
+  }
+  return ExternalLink;
+}
+
+const formatPrice = (cents: number) =>
+  new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 }).format(cents / 100);
+
+function ArtistMarquee({ text, bg, fg }: { text: string; bg: string; fg: string }) {
+  const SEP = ' ★ ';
+  const chunk = text + SEP;
+  const items = Array(12).fill(chunk);
+  return (
+    <>
+      <style>{`
+        @keyframes artist-marquee {
+          from { transform: translateX(0); }
+          to   { transform: translateX(-50%); }
+        }
+        .artist-marquee-inner { animation: artist-marquee 24s linear infinite; }
+        .artist-marquee-inner:hover { animation-play-state: paused; }
+      `}</style>
+      <div className="overflow-hidden select-none" style={{ background: bg }}>
+        <div className="border-y" style={{ borderColor: `${fg}18` }}>
+          <div
+            className="artist-marquee-inner flex whitespace-nowrap py-3 sm:py-4"
+            style={{ width: 'max-content' }}
+          >
+            {[...items, ...items].map((item, i) => (
+              <span
+                key={i}
+                className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.3em] px-4"
+                style={{ color: fg, opacity: 0.9 }}
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+interface ArtistProductCardProps {
+  product: any;
+  priority?: boolean;
+  theme?: ArtistThemeConfig;
+}
+
+function ArtistProductCard({ product, priority = false, theme }: ArtistProductCardProps) {
+  const tc = theme || ARTIST_THEMES.default;
+  const [open, setOpen] = useState(false);
+  const [buyMode, setBuyMode] = useState<'cart' | 'checkout'>('cart');
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [, navigate] = useLocation();
+  const { mutate: addItem, isPending } = useAddToCart();
+
+  const sizeStock: Record<string, number> | null = product.sizeStock || null;
+  const sizes: string[] = product.noSize
+    ? []
+    : product.sizes?.length > 0
+      ? product.sizes
+      : sizeStock ? Object.keys(sizeStock) : [];
+
+  const sizeOrder = ["XXS","XS","S","M","L","XL","XXL","2XL","3XL","4XL","5XL"];
+  const sortedSizes = [...sizes].sort((a, b) => {
+    const ai = sizeOrder.indexOf(a.toUpperCase()), bi = sizeOrder.indexOf(b.toUpperCase());
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.localeCompare(b);
+  });
+
+  const needsSizePicker = !product.noSize && sortedSizes.length > 1;
+
+  const imageUrl: string = (product.images?.[0] || product.imageUrl || product.thumbnailUrl || '');
+  const discountPct: number = product.discountPercent || 0;
+  const salePrice = discountPct > 0 ? Math.round(product.price * (1 - discountPct / 100)) : product.price;
+
+  function handleButtonClick(e: React.MouseEvent, mode: 'cart' | 'checkout') {
+    e.stopPropagation();
+    e.preventDefault();
+    setBuyMode(mode);
+    setSelectedSize(null);
+    if (!needsSizePicker) {
+      doAdd(mode, product.noSize ? '(OneSize)' : (sortedSizes[0] || undefined));
+      return;
+    }
+    setOpen(true);
+  }
+
+  function doAdd(mode: 'cart' | 'checkout', size?: string) {
+    addItem(
+      { productId: product.id, quantity: 1, size: size || undefined },
+      {
+        onSuccess: () => {
+          if (mode === 'checkout') {
+            setTimeout(() => navigate('/checkout'), 300);
+          }
+        },
+      }
+    );
+    setOpen(false);
+  }
+
+  function handleConfirm() {
+    if (needsSizePicker && !selectedSize) return;
+    doAdd(buyMode, selectedSize || undefined);
+  }
+
+  const accentBg = tc.accent || 'hsl(var(--primary))';
+  const accentFg = tc.accentFg || '#fff';
+
+  return (
+    <div className="group relative flex flex-col overflow-hidden rounded-lg" data-testid={`artist-product-card-${product.id}`}>
+      {/* Изображение */}
+      <Link href={`/${product.slug || product.id}`} className="block relative overflow-hidden bg-muted" style={{ aspectRatio: '971 / 1504' }}>
+        {imageUrl && (
+          <img
+            src={imageUrl}
+            alt={product.name}
+            loading={priority ? 'eager' : 'lazy'}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        )}
+        {discountPct > 0 && (
+          <span className="absolute top-2 right-2 bg-black/80 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full tracking-widest uppercase backdrop-blur-sm">
+            -{discountPct}%
+          </span>
+        )}
+        {/* Десктоп: hover-оверлей */}
+        <div className="absolute inset-x-0 bottom-0 hidden sm:flex gap-2 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black/60 to-transparent pt-10">
+          <button
+            type="button"
+            onClick={(e) => handleButtonClick(e, 'cart')}
+            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-md backdrop-blur-sm active:scale-95 transition-all"
+            data-testid={`button-artist-cart-${product.id}`}
+            style={{ backgroundColor: accentBg, color: accentFg }}
+          >
+            <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+            В корзину
+          </button>
+          <button
+            type="button"
+            onClick={(e) => handleButtonClick(e, 'checkout')}
+            className="flex-1 flex items-center justify-center gap-1.5 text-white text-xs font-semibold py-2 rounded-md bg-white/15 backdrop-blur-sm border border-white/50 hover:bg-white/25 active:scale-95 transition-all"
+            data-testid={`button-artist-buynow-${product.id}`}
+          >
+            <Zap className="w-3.5 h-3.5 shrink-0" />
+            В 1 клик
+          </button>
+        </div>
+      </Link>
+
+      {/* Мобильные: кнопки всегда видны под картинкой */}
+      <div className="flex sm:hidden gap-1.5 mt-2">
+        <button
+          type="button"
+          onClick={(e) => handleButtonClick(e, 'cart')}
+          className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-bold py-2.5 rounded-xl transition-all active:scale-95"
+          style={{ background: accentBg, color: accentFg }}
+          data-testid={`button-artist-cart-mobile-${product.id}`}
+        >
+          <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+          В корзину
+        </button>
+        <button
+          type="button"
+          onClick={(e) => handleButtonClick(e, 'checkout')}
+          className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-bold py-2.5 rounded-xl border-2 border-foreground/20 bg-background text-foreground transition-all active:scale-95"
+          data-testid={`button-artist-buynow-mobile-${product.id}`}
+        >
+          <Zap className="w-3.5 h-3.5 shrink-0" />
+          В 1 клик
+        </button>
+      </div>
+
+      <div className="px-2 pt-2 pb-2.5">
+        <Link
+          href={`/${product.slug || product.id}`}
+          className="block text-[13px] sm:text-sm font-semibold leading-snug line-clamp-2 mb-1.5 transition-opacity hover:opacity-70"
+          style={tc.text ? { color: tc.text } : {}}
+        >
+          {product.name}
+        </Link>
+        <div className="flex items-center gap-2">
+          <span
+            className={`text-sm font-black tracking-tight ${discountPct > 0 ? 'text-red-500' : ''}`}
+            style={tc.text && discountPct === 0 ? { color: tc.text } : {}}
+          >
+            {formatPrice(salePrice)}
+          </span>
+          {discountPct > 0 && (
+            <span className="text-[11px] line-through" style={tc.textMuted ? { color: tc.textMuted } : { color: 'var(--muted-foreground)' }}>
+              {formatPrice(product.price)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-xs sm:max-w-sm rounded-2xl p-6" aria-describedby={undefined}>
+          <DialogTitle className="text-base font-bold mb-1 pr-6 leading-snug">{product.name}</DialogTitle>
+          <p className="text-xs text-muted-foreground mb-4">
+            {buyMode === 'cart' ? 'Выберите размер и добавьте в корзину' : 'Выберите размер для быстрой покупки'}
+          </p>
+          <div className="flex flex-wrap gap-2 mb-5">
+            {sortedSizes.map((sz) => {
+              const stock = sizeStock ? (sizeStock[sz] ?? 0) : 1;
+              const outOfStock = sizeStock ? stock <= 0 : false;
+              return (
+                <button
+                  key={sz}
+                  type="button"
+                  disabled={outOfStock}
+                  onClick={() => setSelectedSize(sz)}
+                  className={`px-3 py-1.5 text-sm rounded-md border-2 transition-all font-medium
+                    ${outOfStock ? 'opacity-35 cursor-not-allowed border-border text-muted-foreground' : ''}
+                    ${selectedSize === sz ? 'border-foreground bg-foreground text-background' : outOfStock ? '' : 'border-border hover:border-foreground/50'}`}
+                  data-testid={`button-size-${sz}-${product.id}`}
+                >
+                  {sz}
+                </button>
+              );
+            })}
+          </div>
+          <Button
+            onClick={handleConfirm}
+            disabled={!selectedSize || isPending}
+            className="w-full"
+            style={buyMode === 'cart' ? { backgroundColor: accentBg, color: accentFg } : {}}
+            data-testid="button-size-confirm"
+          >
+            {isPending ? 'Добавляем...' : buyMode === 'cart' ? 'В корзину' : 'Купить в 1 клик'}
+          </Button>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+export default function ArtistPage() {
+  const params = useParams<{ slug: string }>();
+  const [, navigate] = useLocation();
+  const slug = params.slug?.replace(/^@/, '');
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [promoCopied, setPromoCopied] = useState(false);
+  const viewTrackedRef = useRef(false);
+
+  useEffect(() => {
+    if (shareCopied) {
+      const t = setTimeout(() => setShareCopied(false), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [shareCopied]);
+
+  useEffect(() => {
+    if (promoCopied) {
+      const t = setTimeout(() => setPromoCopied(false), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [promoCopied]);
+
+  // Отслеживаем посещение страницы (fire-and-forget)
+  useEffect(() => {
+    if (slug && !viewTrackedRef.current) {
+      viewTrackedRef.current = true;
+      fetch(`/api/artists/${slug}/view`, { method: 'POST' }).catch(() => {});
+    }
+  }, [slug]);
+
+  const artistPagesEmpty = (data: any) => data && typeof data === 'object' && Object.keys(data).length === 0;
+  const { data: allArtistPages, isLoading: artistPagesLoading } = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/artist_pages"],
+    refetchInterval: (query) => artistPagesEmpty(query.state.data) ? 2000 : false,
+    staleTime: 0,
+  });
+
+  const { data: homeSettings, isLoading: homeLoading } = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/home"],
+  });
+
+  const { data: promoData } = useQuery<{ promoCode: { code: string; discountPercent: number } | null }>({
+    queryKey: [`/api/artists/${slug}/promo`],
+    enabled: !!slug,
+  });
+
+  const settings: ArtistSettings = allArtistPages?.[slug] || {};
+
+  const isMintaSlug = slug?.toLowerCase().includes('dikaya') || slug?.toLowerCase().includes('minta') || slug?.toLowerCase().includes('myata');
+  const effectiveTheme = settings.theme || (isMintaSlug ? 'warm' : 'default');
+  const tc = ARTIST_THEMES[effectiveTheme] || ARTIST_THEMES.default;
+  const isColored = effectiveTheme !== 'default';
+
+  const homeArtist = (homeSettings?.artists?.items || []).find((a: any) => a.slug === slug);
+
+  const artistName = settings.name || homeArtist?.name || slug;
+  const artistRole = settings.role || homeArtist?.role || "";
+  const heroImage = settings.heroImage || homeArtist?.image || "";
+  const heroOpacity = settings.heroOpacity || "0.5";
+
+  const productsLimit = settings.productsLimit ?? 8;
+
+  const { data: slugProducts, isLoading: slugLoading } = useQuery<any[]>({
+    queryKey: ["/api/products/by-artist", slug, productsLimit],
+    queryFn: async () => {
+      const res = await fetch(`/api/products/by-artist/${slug}?limit=${productsLimit}`);
+      return res.json();
+    },
+    enabled: settings.productsVisible !== false && !!slug,
+  });
+
+  const products = (slugProducts || []).slice(0, productsLimit);
+
+  const productsQueryLoading = slugLoading;
+
+  const galleryImages = settings.galleryImages?.filter(Boolean) || [];
+  const aboutImages = settings.aboutImages?.filter(Boolean) || [];
+
+  const socials = [
+    { key: "telegram", url: settings.socialTelegram, label: "Telegram" },
+    { key: "vk", url: settings.socialVk, label: "VK" },
+    { key: "youtube", url: settings.socialYoutube, label: "YouTube" },
+    { key: "instagram", url: settings.socialInstagram, label: "Instagram" },
+  ].filter(s => s.url);
+
+  if (settings.socialOther) {
+    socials.push({ key: "other", url: settings.socialOther, label: settings.socialOtherLabel || "Ссылка" });
+  }
+
+  const isLoading = artistPagesLoading || homeLoading;
+  const hasNoData = !allArtistPages?.[slug] && !homeArtist;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Загрузка...</div>
+      </div>
+    );
+  }
+
+  if (hasNoData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold">Артист не найден</h1>
+          <p className="text-muted-foreground">Страница ещё не настроена</p>
+          <Link href="/">
+            <Button variant="outline" data-testid="button-back-home">
+              <ArrowLeft className="w-4 h-4 mr-2" /> На главную
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <SEO 
+        title={settings?.seoTitle || `Мерч ${artistName} — купить официальный мерч`}
+        description={settings?.seoDescription || `Купить мерч ${artistName} — официальный магазин Booomerangs. ${settings?.aboutText?.slice(0, 100) || "Футболки, худи, аксессуары с доставкой по всей России."}`}
+        keywords={`мерч ${artistName}, купить мерч ${artistName}, ${artistName}, Booomerangs, BMGBRAND`}
+        ogImage={heroImage || undefined}
+      />
+      <main className="min-h-screen" style={isColored ? { background: tc.bg } : {}}>
+
+        {/* Theme decorative background */}
+        {isColored && tc.decorSymbols && (
+          <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {tc.decorSymbols.map((d, i) => (
+              <div key={i} className={`absolute ${d.pos} ${d.rotate || ''} font-black select-none`} style={{ fontSize: d.size, color: d.color, opacity: d.opacity }}>
+                {d.symbol}
+              </div>
+            ))}
+            {tc.accentLines && (
+              <>
+                <div className="absolute top-0 left-0 w-[2px] h-full" style={{ background: tc.accent, opacity: 0.5 }} />
+                <div className="absolute top-0 right-0 w-[2px] h-full" style={{ background: tc.accent, opacity: 0.5 }} />
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="relative z-10">
+        {settings.heroVisible !== false && (
+          <section className="relative min-h-[75vh] sm:min-h-[88vh] flex items-end" data-testid="section-artist-hero">
+            {/* Кнопка Назад */}
+            <button
+              onClick={() => navigate("/")}
+              className="absolute top-5 left-5 z-30 flex items-center gap-2 text-white/70 text-sm font-medium hover:text-white transition-colors group"
+              data-testid="button-artist-back"
+            >
+              <span className="flex items-center justify-center w-8 h-8 rounded-full border border-white/20 bg-black/30 backdrop-blur-sm group-hover:border-white/50 group-hover:bg-black/50 transition-all">
+                <ArrowLeft className="w-3.5 h-3.5" />
+              </span>
+              <span className="hidden sm:inline">Назад</span>
+            </button>
+            <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-zinc-800" />
+
+            {settings.heroBgType === "video" && settings.heroVideo ? (
+              <video
+                src={settings.heroVideo}
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : heroImage ? (
+              <>
+                {/* Мобильный баннер — только на маленьких экранах */}
+                {settings.heroImageMobile ? (
+                  <>
+                    <img
+                      src={settings.heroImageMobile}
+                      alt={artistName}
+                      className="block lg:hidden absolute inset-0 w-full h-full object-cover"
+                    />
+                    <img
+                      src={heroImage}
+                      alt={artistName}
+                      className="hidden lg:block absolute inset-0 w-full h-full object-cover"
+                    />
+                  </>
+                ) : (
+                  <img
+                    src={heroImage}
+                    alt={artistName}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                )}
+                <img
+                  src={heroImage}
+                  alt=""
+                  className="hidden lg:block absolute right-0 top-0 h-full w-1/2 object-contain object-right-bottom drop-shadow-2xl"
+                />
+              </>
+            ) : null}
+
+            {/* Cinematic overlays */}
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/10"
+              style={{ opacity: Number(heroOpacity) + 0.15 }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/25 to-transparent" />
+            {/* Subtle vignette */}
+            <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 30% 100%, rgba(0,0,0,0.5) 0%, transparent 70%)' }} />
+
+            <div className="relative z-10 w-full px-4 sm:px-6 lg:px-12 pb-12 sm:pb-20">
+              <motion.div
+                initial="hidden"
+                animate="show"
+                variants={{ hidden: {}, show: { transition: { staggerChildren: 0.13 } } }}
+                className="max-w-lg lg:max-w-sm xl:max-w-md"
+              >
+                {artistRole && (
+                  <motion.div
+                    variants={{ hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}
+                    className="flex items-center gap-2.5 mb-3"
+                  >
+                    <span className="w-5 h-[1.5px] bg-white/50 shrink-0" />
+                    <span className="text-white/55 text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em]">
+                      {artistRole}
+                    </span>
+                  </motion.div>
+                )}
+                <div className="overflow-hidden mb-4">
+                  <motion.h1
+                    variants={{ hidden: { opacity: 0, y: 80 }, show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } } }}
+                    className="text-5xl sm:text-7xl lg:text-8xl font-black text-white leading-[0.92] tracking-tight"
+                  >
+                    {artistName}
+                  </motion.h1>
+                </div>
+                {settings.shortDescription && (
+                  <motion.p
+                    variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } }}
+                    className="text-white/60 text-sm sm:text-[15px] max-w-xs leading-relaxed mb-5"
+                  >
+                    {settings.shortDescription}
+                  </motion.p>
+                )}
+
+                <motion.div
+                  variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.45 } } }}
+                  className="flex flex-col gap-3 mt-5"
+                >
+                  {socials.length > 0 && settings.socialsVisible !== false && (
+                    <div className="flex items-center gap-1.5">
+                      {socials.map((s) => {
+                        const Icon = getSocialIcon(s.key, s.url);
+                        return (
+                          <a
+                            key={s.key}
+                            href={s.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={s.label}
+                            className="w-8 h-8 rounded-full border border-white/20 bg-white/8 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:border-white/50 hover:bg-white/15 transition-all duration-200"
+                            data-testid={`link-social-${s.key}`}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <button
+                    className="relative self-start flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold bg-transparent backdrop-blur-sm border border-white/25 text-white/70 hover:text-white hover:border-white/50 active:scale-95 transition-all tracking-wide"
+                    data-testid="button-artist-share"
+                    onClick={async () => {
+                      const shareData = {
+                        title: artistName,
+                        text: settings.shortDescription || artistName,
+                        url: window.location.href,
+                      };
+                      if (navigator.share) {
+                        try { await navigator.share(shareData); } catch (_) {}
+                      } else {
+                        try {
+                          await navigator.clipboard.writeText(window.location.href);
+                          setShareCopied(true);
+                          setTimeout(() => setShareCopied(false), 2500);
+                        } catch (_) {}
+                      }
+                    }}
+                  >
+                    <Share2 className="w-4 h-4" />
+                    {shareCopied ? "Ссылка скопирована!" : "Поделиться страницей"}
+                  </button>
+                </motion.div>
+              </motion.div>
+            </div>
+          </section>
+        )}
+
+        {settings.heroVisible !== false && (
+          <ArtistMarquee
+            text={settings.marqueeText || [artistName, artistRole].filter(Boolean).join(' — ')}
+            bg={isColored ? tc.accent : '#0a0a0a'}
+            fg={isColored ? tc.accentFg : '#ffffff'}
+          />
+        )}
+
+        {settings.aboutVisible !== false && settings.aboutText && (
+          <section className="py-16 sm:py-24" style={isColored ? { background: tc.bg } : { background: 'var(--background)' }} data-testid="section-artist-about">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              {isColored && (
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-[3px] w-8 rounded-full" style={{ background: tc.accent }} />
+                  <span className="text-xs font-bold uppercase tracking-[0.25em]" style={{ color: tc.accent }}>{artistName}</span>
+                </div>
+              )}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6 }}
+              >
+                <div className="flex items-center gap-4 mb-8">
+                  <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
+                    {settings.aboutTitle || "О коллаборации"}
+                  </h2>
+                  <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.12 }} />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+                  <div className="space-y-4">
+                    {settings.aboutText.split('\n').filter(Boolean).map((paragraph, i) => (
+                      <p key={i} className="leading-relaxed" style={isColored ? { color: tc.textMuted } : {}}>
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                  {aboutImages.length > 0 && (
+                    <div className="space-y-4">
+                      {aboutImages.map((img, i) => (
+                        <img
+                          key={i}
+                          src={img}
+                          alt={`${artistName} ${i + 1}`}
+                          className="w-full h-auto block rounded-2xl shadow-lg"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          </section>
+        )}
+
+        {settings.quoteVisible !== false && settings.quoteText && (
+          <section
+            className="relative py-16 sm:py-24 overflow-hidden"
+            style={{ background: isColored ? tc.bgMuted : 'hsl(var(--muted) / 0.25)' }}
+            data-testid="section-artist-quote"
+          >
+            {/* Giant decorative opening quote */}
+            <div
+              className="absolute -top-6 left-1/2 -translate-x-1/2 font-serif font-black select-none pointer-events-none leading-none"
+              style={{
+                fontSize: 'clamp(160px, 20vw, 280px)',
+                color: isColored ? tc.accent : 'currentColor',
+                opacity: isColored ? 0.06 : 0.04,
+                lineHeight: 1,
+              }}
+            >
+              &ldquo;
+            </div>
+            <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.7 }}
+              >
+                <blockquote
+                  className="text-xl sm:text-2xl lg:text-3xl font-medium leading-relaxed mb-6"
+                  style={isColored ? { color: tc.text } : {}}
+                >
+                  {settings.quoteText}
+                </blockquote>
+                {settings.quoteAuthor && (
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="h-px w-8" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.4 }} />
+                    <cite className="text-xs font-semibold uppercase tracking-[0.2em] not-italic" style={{ color: isColored ? tc.accent : 'var(--muted-foreground)' }}>
+                      {settings.quoteAuthor}
+                    </cite>
+                    <span className="h-px w-8" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.4 }} />
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          </section>
+        )}
+
+        {(settings.galleryVisible !== false && galleryImages.length > 0) || (settings.videoVisible !== false && settings.videoUrl) ? (
+          <section
+            className="py-12 sm:py-20"
+            style={isColored ? { background: tc.bg } : { background: 'var(--background)' }}
+            data-testid="section-artist-gallery-video"
+          >
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className={`flex flex-col ${settings.galleryVisible !== false && galleryImages.length > 0 && settings.videoVisible !== false && settings.videoUrl ? 'lg:flex-row lg:gap-10 lg:items-start' : ''}`}>
+
+                {/* Галерея — слева */}
+                {settings.galleryVisible !== false && galleryImages.length > 0 && (
+                  <div className={`${settings.videoVisible !== false && settings.videoUrl ? 'lg:w-1/2' : 'w-full'}`} data-testid="section-artist-gallery">
+                    {/* Header */}
+                    <div className="flex items-center gap-4 mb-6">
+                      <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
+                        {settings.galleryTitle || "Галерея"}
+                      </h2>
+                      <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.1 }} />
+                    </div>
+
+                    {/* Instagram-style grid */}
+                    <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
+                      {galleryImages.map((img, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { setGalleryIndex(i); setLightboxOpen(true); }}
+                          data-testid={`button-gallery-grid-${i}`}
+                          className="relative aspect-square overflow-hidden group/cell bg-muted focus:outline-none"
+                        >
+                          <img
+                            src={img}
+                            alt={`${artistName} фото ${i + 1}`}
+                            loading="lazy"
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover/cell:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover/cell:bg-black/25 transition-colors duration-300" />
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Lightbox */}
+                    <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+                      <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/95 border-none flex items-center justify-center" data-testid="dialog-gallery-lightbox">
+                        <DialogTitle className="sr-only">{artistName} — галерея</DialogTitle>
+                        <button
+                          onClick={() => setLightboxOpen(false)}
+                          className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                          data-testid="button-lightbox-close"
+                        >
+                          ✕
+                        </button>
+                        {galleryImages.length > 1 && (
+                          <button
+                            onClick={() => setGalleryIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)}
+                            data-testid="button-lightbox-prev"
+                            className="absolute left-3 sm:left-6 z-40 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                          >
+                            <ChevronLeft className="w-5 h-5" />
+                          </button>
+                        )}
+                        <div className="w-full h-full flex items-center justify-center p-3">
+                          <img
+                            key={galleryIndex}
+                            src={galleryImages[galleryIndex]}
+                            alt={`${artistName} фото ${galleryIndex + 1}`}
+                            className="max-w-full max-h-full object-contain select-none rounded"
+                            style={{ maxHeight: 'calc(100vh - 80px)' }}
+                          />
+                        </div>
+                        {galleryImages.length > 1 && (
+                          <button
+                            onClick={() => setGalleryIndex((prev) => (prev + 1) % galleryImages.length)}
+                            data-testid="button-lightbox-next"
+                            className="absolute right-3 sm:right-6 z-40 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                          >
+                            <ChevronRight className="w-5 h-5" />
+                          </button>
+                        )}
+                        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/40 text-xs font-mono tabular-nums">
+                          {galleryIndex + 1} / {galleryImages.length}
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                )}
+
+                {/* Видео — справа */}
+                {settings.videoVisible !== false && settings.videoUrl && (
+                  <div
+                    className={`${settings.galleryVisible !== false && galleryImages.length > 0 ? 'lg:w-1/2 mt-10 lg:mt-0' : 'w-full'}`}
+                    data-testid="section-artist-video"
+                  >
+                    {settings.videoTitle && (
+                      <div className="flex items-center gap-2 mb-5">
+                        <Play className="w-4 h-4 text-primary fill-primary" />
+                        <span className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                          {settings.videoTitle}
+                        </span>
+                      </div>
+                    )}
+                    {/* Spacer to align video top with gallery images when no title */}
+                    {!settings.videoTitle && settings.galleryVisible !== false && galleryImages.length > 0 && (
+                      <div className="h-[52px] hidden lg:block" />
+                    )}
+                    <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl shadow-black/25 dark:shadow-black/50 ring-1 ring-black/5 dark:ring-white/5">
+                      {(() => {
+                        const url = settings.videoUrl.trim();
+                        if (url.startsWith("<iframe") || url.startsWith("<IFRAME")) {
+                          const srcMatch = url.match(/src=["']([^"']+)["']/i);
+                          const src = srcMatch ? srcMatch[1] : null;
+                          return src ? <iframe src={src} className="w-full h-full" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock" allowFullScreen title="Video" style={{ border: 0 }} /> : null;
+                        }
+                        if (url.includes("youtube.com") || url.includes("youtu.be")) {
+                          return <iframe src={url.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Video" style={{ border: 0 }} />;
+                        }
+                        if (url.includes("vk.com") || url.includes("vkvideo") || url.includes("vk.ru")) {
+                          let src = url;
+                          if (!url.includes("video_ext.php")) {
+                            const m = url.match(/video(-?\d+)_(\d+)/);
+                            if (m) src = `https://vk.com/video_ext.php?oid=${m[1]}&id=${m[2]}&hd=2`;
+                          }
+                          return <iframe src={src} className="w-full h-full" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock" allowFullScreen title="Video" style={{ border: 0 }} />;
+                        }
+                        if (url.includes("disk.yandex.ru") || url.includes("yadi.sk")) {
+                          return <iframe src={url} className="w-full h-full" allow="autoplay; encrypted-media; fullscreen" allowFullScreen title="Video" style={{ border: 0 }} />;
+                        }
+                        return <video src={url} controls className="w-full h-full object-contain"><track kind="captions" /></video>;
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {settings.productsVisible !== false && (productsQueryLoading || products.length > 0) && (
+          <section className="py-16 sm:py-24" style={isColored ? { background: tc.bg } : { background: 'var(--background)' }} data-testid="section-artist-products">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              {isColored && (
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-[3px] w-8 rounded-full" style={{ background: tc.accent }} />
+                  <span className="text-xs font-bold uppercase tracking-[0.25em]" style={{ color: tc.accent }}>Коллекция</span>
+                </div>
+              )}
+              <div className="flex items-center gap-4 mb-8">
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
+                  {settings.productsTitle || "Товары коллекции"}
+                </h2>
+                <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.1 }} />
+              </div>
+              {productsQueryLoading ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="aspect-[3/4] rounded-lg bg-muted animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {products.slice(0, 8).map((product: any, index: number) => (
+                      <ArtistProductCard key={product.id} product={product} priority={index < 4} theme={tc} />
+                    ))}
+                  </div>
+                  {products.length > 0 && (
+                    <div className="flex justify-center mt-10">
+                      <Link
+                        href="/products"
+                        className="text-base flex items-center gap-2 group transition-colors font-bold"
+                        style={isColored ? { color: tc.accent } : {}}
+                        data-testid="link-all-artist-products"
+                      >
+                        {settings.productsLinkText || "Все товары"} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </Link>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </section>
+        )}
+        {/* Промокод партнёра — купон-билет */}
+        {promoData?.promoCode && (() => {
+          const ticketBg = isColored ? tc.accent : '#111111';
+          const ticketFg = isColored ? tc.accentFg : '#ffffff';
+          const ticketMuted = isColored ? `${tc.accentFg}99` : 'rgba(255,255,255,0.5)';
+          return (
+            <section
+              className="py-10 sm:py-16 overflow-visible"
+              style={{ background: isColored ? tc.bg : 'hsl(var(--background))' }}
+              data-testid="section-artist-promo"
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6 }}
+                className="max-w-xl mx-auto px-4 sm:px-6"
+              >
+                {/* Ticket card */}
+                <div className="relative flex flex-col sm:flex-row rounded-2xl overflow-hidden shadow-2xl shadow-black/30"
+                     style={{ background: ticketBg }}>
+
+                  {/* Notch circles — top & bottom of divider (visible on sm+) */}
+                  <div className="hidden sm:block absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full z-20 border-2"
+                       style={{ background: isColored ? tc.bg : 'hsl(var(--background))', borderColor: isColored ? tc.bg : 'hsl(var(--background))' }} />
+                  <div className="hidden sm:block absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-7 h-7 rounded-full z-20 border-2"
+                       style={{ background: isColored ? tc.bg : 'hsl(var(--background))', borderColor: isColored ? tc.bg : 'hsl(var(--background))' }} />
+                  {/* Notch circles — left & right of horizontal divider (on mobile) */}
+                  <div className="sm:hidden absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full z-20"
+                       style={{ background: isColored ? tc.bg : 'hsl(var(--background))' }} />
+                  <div className="sm:hidden absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full z-20"
+                       style={{ background: isColored ? tc.bg : 'hsl(var(--background))' }} />
+
+                  {/* Left — discount */}
+                  <div className="flex-1 flex flex-col items-center justify-center py-8 px-6 text-center gap-1">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.3em]" style={{ color: ticketMuted }}>
+                      промокод от {artistName}
+                    </p>
+                    <div className="font-black leading-none my-1" style={{ color: ticketFg, fontSize: 'clamp(60px, 16vw, 80px)' }}>
+                      -{promoData.promoCode.discountPercent}%
+                    </div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: ticketMuted }}>
+                      на весь заказ
+                    </p>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="relative flex items-center justify-center sm:flex-col">
+                    <div className="w-full h-px sm:w-px sm:h-full border-t sm:border-l border-dashed" style={{ borderColor: ticketMuted }} />
+                  </div>
+
+                  {/* Right — code + copy */}
+                  <div className="flex-1 flex flex-col items-center justify-center py-8 px-6 text-center gap-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.3em]" style={{ color: ticketMuted }}>
+                      ваш код
+                    </p>
+                    <button
+                      type="button"
+                      data-testid="button-artist-promo-copy"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(promoData.promoCode!.code);
+                          setPromoCopied(true);
+                          setTimeout(() => setPromoCopied(false), 2500);
+                        } catch (_) {}
+                      }}
+                      className="group flex flex-col items-center gap-2 transition-all active:scale-95"
+                    >
+                      <span className="font-mono font-black tracking-[0.15em]" style={{ color: ticketFg, fontSize: 'clamp(20px, 6vw, 28px)' }}>
+                        {promoData.promoCode.code}
+                      </span>
+                      <span
+                        className="text-[10px] font-semibold uppercase tracking-[0.2em] transition-colors px-3 py-1 rounded-full border"
+                        style={{
+                          color: promoCopied ? ticketBg : ticketFg,
+                          background: promoCopied ? ticketFg : 'transparent',
+                          borderColor: ticketMuted,
+                        }}
+                      >
+                        {promoCopied ? '✓ Скопировано' : 'нажмите чтобы скопировать'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </section>
+          );
+        })()}
+
+        </div>
+      </main>
+
+      {/* Мини-подвал страницы артиста */}
+      <footer className="border-t" style={isColored ? { background: tc.bg, borderColor: `${tc.accent}20` } : {}}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-8">
+            {/* Левая часть: логотип + слоган */}
+            <div className="text-center sm:text-left">
+              <Link href="/" className="inline-block mb-3">
+                <span className="text-xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
+                  BMG<span style={{ color: isColored ? tc.accent : 'hsl(var(--primary))' }}>BRAND</span>
+                </span>
+              </Link>
+              <p className="text-xs max-w-[200px]" style={{ color: isColored ? tc.textMuted : 'var(--muted-foreground)' }}>
+                Российский бренд одежды. Авторские дизайны и базовые вещи
+              </p>
+            </div>
+
+            {/* Центр: соцсети артиста (если есть) */}
+            {socials.length > 0 && settings.socialsVisible !== false && (
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: isColored ? tc.textMuted : 'var(--muted-foreground)' }}>
+                  {artistName}
+                </span>
+                <div className="flex items-center gap-2">
+                  {socials.map((s) => {
+                    const Icon = getSocialIcon(s.key, s.url);
+                    return (
+                      <a
+                        key={s.key}
+                        href={s.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={s.label}
+                        className="w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-110"
+                        style={isColored
+                          ? { borderColor: `${tc.accent}40`, color: tc.textMuted, background: 'transparent' }
+                          : { borderColor: 'hsl(var(--border))', color: 'var(--muted-foreground)', background: 'transparent' }}
+                        data-testid={`link-footer-social-${s.key}`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Правая часть: CTA */}
+            <div className="flex flex-col items-center sm:items-end gap-3">
+              <Link href="/products">
+                <button
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95"
+                  style={isColored
+                    ? { background: tc.accent, color: tc.accentFg }
+                    : { background: 'hsl(var(--primary))', color: '#fff' }}
+                  data-testid="button-artist-footer-shop"
+                >
+                  Смотреть коллекцию
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </Link>
+              <p className="text-[10px]" style={{ color: isColored ? tc.textMuted : 'var(--muted-foreground)', opacity: 0.5 }}>
+                © {new Date().getFullYear()} BMGBRAND
+              </p>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </>
+  );
+}
