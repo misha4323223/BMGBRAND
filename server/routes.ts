@@ -1097,6 +1097,34 @@ setTimeout(() => {
   setInterval(cleanupExpiredDrafts, DRAFT_CLEANUP_INTERVAL);
 }, 30 * 1000);
 
+// Auto-confirm commissions whose hold period has expired (pending + hold_until <= now → confirmed)
+// Runs every hour so partners see "Доступно к выплате" without waiting for admin action.
+async function autoConfirmExpiredHolds() {
+  try {
+    const allPending = await storage.listAllCommissions({ status: 'pending' });
+    const now = Date.now();
+    let confirmed = 0;
+    for (const c of allPending) {
+      if (!c.holdUntil) continue; // no hold set — awaiting payment, skip
+      const holdMs = c.holdUntil instanceof Date ? c.holdUntil.getTime() : new Date(c.holdUntil as string).getTime();
+      if (holdMs <= now) {
+        await storage.updateCommissionStatus(c.id, 'confirmed');
+        confirmed++;
+      }
+    }
+    if (confirmed > 0) {
+      console.log(`[HoldAutoConfirm] Confirmed ${confirmed} commission(s) with expired hold`);
+    }
+  } catch (err: any) {
+    console.error('[HoldAutoConfirm] Error:', err.message);
+  }
+}
+// First run after 5 seconds (covers commissions already expired at startup), then every hour
+setTimeout(() => {
+  autoConfirmExpiredHolds();
+  setInterval(autoConfirmExpiredHolds, 60 * 60 * 1000);
+}, 5 * 1000);
+
 const autoAddedSubcategoriesCache = new Set<string>();
 
 async function autoAddSubcategory(categorySlug: string, subcategoryName: string, storageRef: any): Promise<void> {
