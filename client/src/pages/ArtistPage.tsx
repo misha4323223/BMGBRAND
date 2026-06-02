@@ -1,6 +1,6 @@
 import { useParams, Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -226,12 +226,16 @@ function ArtistLikeButton({ slug, theme }: { slug: string; theme?: ArtistThemeCo
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => apiRequest('POST', `/api/artists/${slug}/like`),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       try { localStorage.setItem(storageKey, '1'); } catch {}
       setLiked(true);
       setBurst(true);
       setTimeout(() => setBurst(false), 600);
-      refetch();
+      if (res?.likes != null) {
+        queryClient.setQueryData([`/api/artists/${slug}/likes`], { likes: res.likes });
+      } else {
+        refetch();
+      }
     },
   });
 
