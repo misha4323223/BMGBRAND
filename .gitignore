@@ -15,3 +15,26 @@ sa-key*.json
 1c_uploads/
 # Production secrets — never commit
 .env.production
+
+# Ignore new files in attached_assets (Replit chat attachments, screenshots, logs)
+# Already-tracked files (17 used assets) are not affected by this rule
+attached_assets/*
+!attached_assets/artist-banner-desktop.webp
+!attached_assets/artist-banner-mobile.webp
+!attached_assets/merch-banner-desktop.webp
+!attached_assets/merch-banner-mobile.webp
+!attached_assets/rustore-icon.svg
+!attached_assets/rustore-logo-color.svg
+!attached_assets/yandex-delivery-logo.webp
+!attached_assets/yookassa-logo.webp
+!attached_assets/generated_images/
+attached_assets/generated_images/*
+!attached_assets/generated_images/accessories_category.webp
+!attached_assets/generated_images/designer_socks_category.webp
+!attached_assets/generated_images/merch_category.webp
+!attached_assets/generated_images/philosophy_mobile_new.webp
+!attached_assets/generated_images/streetwear_clothing_category.webp
+!attached_assets/generated_images/blog_post_image_for_artist_collaboration.webp
+!attached_assets/generated_images/blog_post_image_for_new_collection_drop.webp
+!attached_assets/generated_images/blog_post_image_for_urban_vibes_lookbook.webp
+!attached_assets/generated_images/oversized_black_t-shirt_streetwear.png
