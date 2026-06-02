@@ -174,7 +174,7 @@ function ArtistMarquee({ text, bg, fg }: { text: string; bg: string; fg: string 
           from { transform: translateX(0); }
           to   { transform: translateX(-50%); }
         }
-        .artist-marquee-inner { animation: artist-marquee 24s linear infinite; }
+        .artist-marquee-inner { animation: artist-marquee 45s linear infinite; }
         .artist-marquee-inner:hover { animation-play-state: paused; }
       `}</style>
       <div className="overflow-hidden select-none" style={{ background: bg }}>
