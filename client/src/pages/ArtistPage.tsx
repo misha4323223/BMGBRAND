@@ -251,7 +251,7 @@ function ArtistLikeButton({ slug, theme }: { slug: string; theme?: ArtistThemeCo
       className="flex flex-col items-center gap-3 py-10"
     >
       <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: isColored ? tc.textMuted : 'var(--muted-foreground)' }}>
-        Понравилась страница?
+        Нравится артист?
       </p>
       <button
         onClick={() => { if (!liked && !isPending) mutate(); }}
@@ -271,7 +271,7 @@ function ArtistLikeButton({ slug, theme }: { slug: string; theme?: ArtistThemeCo
             strokeWidth={2}
           />
         </motion.span>
-        <span>{liked ? 'Спасибо!' : 'Нравится'}</span>
+        <span>{liked ? 'Спасибо! ❤️' : 'Нравится артист'}</span>
         {count > 0 && (
           <span
             className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
