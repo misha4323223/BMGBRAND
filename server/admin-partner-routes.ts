@@ -1,5 +1,6 @@
 // Admin endpoints for partner program: moderation, commissions, payouts, global %
 import { Router, Response } from 'express';
+import bcrypt from 'bcryptjs';
 import PDFDocument from 'pdfkit';
 import { createHash } from 'crypto';
 import { storage } from './storage';
@@ -1042,6 +1043,101 @@ router.patch('/partners/:id/artist', authMiddleware, adminMiddleware, async (req
   } catch (error: any) {
     console.error('[Admin Artists] toggle error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка обновления статуса артиста' });
+  }
+});
+
+// POST /api/admin/partners/create-artist — создать артиста вручную (минуя форму регистрации)
+router.post('/partners/create-artist', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, email, password, slug, artistRate, commissionOverride } = req.body || {};
+
+    // Валидация обязательных полей
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Укажите имя артиста' });
+    }
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ error: 'Укажите email' });
+    }
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'Пароль должен быть не менее 6 символов' });
+    }
+    if (!slug || typeof slug !== 'string' || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug.trim())) {
+      return res.status(400).json({ error: 'Slug должен содержать только строчные латинские буквы, цифры и дефисы, и не начинаться/заканчиваться дефисом' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanSlug = slug.trim().toLowerCase();
+    const cleanName = name.trim();
+
+    // Проверяем что email не занят партнёром
+    const existingUser = await authStorage.getUserByEmailAndRole(cleanEmail, 'partner');
+    if (existingUser) {
+      return res.status(409).json({ error: 'Пользователь с таким email уже существует' });
+    }
+
+    // Проверяем что slug не занят
+    const existingPartner = await storage.getPartnerBySlug(cleanSlug);
+    if (existingPartner) {
+      return res.status(409).json({ error: `Slug «${cleanSlug}» уже занят другим партнёром` });
+    }
+
+    // Валидация числовых полей
+    let artistRateVal = 0;
+    if (artistRate !== undefined && artistRate !== null && artistRate !== '') {
+      const n = Number(artistRate);
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        return res.status(400).json({ error: '% артиста должен быть от 0 до 100' });
+      }
+      artistRateVal = n;
+    }
+    let commissionOverrideVal: number | null = null;
+    if (commissionOverride !== undefined && commissionOverride !== null && commissionOverride !== '') {
+      const n = Number(commissionOverride);
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        return res.status(400).json({ error: '% комиссии должен быть от 0 до 100' });
+      }
+      commissionOverrideVal = Math.round(n);
+    }
+
+    // Хэшируем пароль
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // Создаём пользователя (email_verified=true сразу, без подтверждения)
+    const user = await authStorage.createPartnerUser({
+      email: cleanEmail,
+      passwordHash,
+      name: cleanName,
+      verificationToken: '',
+    });
+    if (!user) {
+      return res.status(500).json({ error: 'Не удалось создать пользователя' });
+    }
+
+    // Создаём партнёра (createPartner хардкодит status='pending')
+    const partner = await storage.createPartner({
+      userId: user.id,
+      partnerSlug: cleanSlug,
+      storeName: cleanName,
+      contactName: cleanName,
+      contactEmail: cleanEmail,
+      isArtist: true,
+      artistRate: artistRateVal,
+      commissionOverride: commissionOverrideVal,
+    } as any, []);
+
+    // Сразу переводим в approved (минуем модерацию)
+    await storage.updatePartnerStatus(partner.id, 'approved');
+
+    // Инвалидируем кэш slug
+    invalidatePartnerSlugCache(cleanSlug);
+
+    console.log(`[Admin Artists] Created artist manually: slug=${cleanSlug} email=${cleanEmail} by ${req.user?.email || 'api-key'}`);
+
+    const updated = await storage.getPartnerById(partner.id);
+    res.json({ success: true, partner: updated });
+  } catch (error: any) {
+    console.error('[Admin Artists] create-artist error:', error);
+    res.status(500).json({ error: error?.message || 'Ошибка создания артиста' });
   }
 });
 

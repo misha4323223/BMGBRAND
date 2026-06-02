@@ -17,7 +17,7 @@ import { queryClient } from "@/lib/queryClient";
 import {
   Loader2, Search, CheckCircle, XCircle, Ban, RotateCcw,
   Users, BadgeDollarSign, Settings as SettingsIcon, Wallet, Copy,
-  Clock, History, ChevronDown, ChevronRight, FileText, Download, ShieldCheck, Trash2,
+  Clock, History, ChevronDown, ChevronRight, FileText, Download, ShieldCheck, Trash2, UserPlus,
 } from "lucide-react";
 
 interface PartnerStats {
@@ -310,6 +310,30 @@ function PartnersList({ apiKey }: { apiKey: string }) {
     },
   });
 
+  // --- Создание артиста вручную ---
+  const [showCreateArtist, setShowCreateArtist] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: "", email: "", password: "", slug: "", artistRate: "", commissionOverride: "",
+  });
+  const createArtistMutation = useMutation({
+    mutationFn: (data: typeof createForm) =>
+      adminMutate("POST", "/api/admin/partners/create-artist", {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        slug: data.slug,
+        artistRate: data.artistRate !== "" ? Number(data.artistRate) : undefined,
+        commissionOverride: data.commissionOverride !== "" ? Number(data.commissionOverride) : undefined,
+      }, apiKey),
+    onSuccess: () => {
+      toast({ title: "Готово", description: "Артист создан и аккаунт активирован" });
+      setShowCreateArtist(false);
+      setCreateForm({ name: "", email: "", password: "", slug: "", artistRate: "", commissionOverride: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/partners"] });
+    },
+    onError: (err: any) => toast({ title: "Ошибка", description: err?.message || "Не удалось создать", variant: "destructive" }),
+  });
+
   const filters = [
     { key: "all", label: "Все" },
     { key: "pending", label: "На модерации" },
@@ -332,15 +356,25 @@ function PartnersList({ apiKey }: { apiKey: string }) {
             {f.label}
           </Button>
         ))}
-        <div className="ml-auto relative">
-          <Search className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск..."
-            className="pl-8 w-64"
-            data-testid="input-search-partners"
-          />
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowCreateArtist(true)}
+            data-testid="button-create-artist"
+          >
+            <UserPlus className="w-4 h-4 mr-2" /> Создать артиста
+          </Button>
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Поиск..."
+              className="pl-8 w-64"
+              data-testid="input-search-partners"
+            />
+          </div>
         </div>
       </div>
 
@@ -510,6 +544,111 @@ function PartnersList({ apiKey }: { apiKey: string }) {
             >
               {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
               Удалить навсегда
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог создания артиста вручную */}
+      <Dialog open={showCreateArtist} onOpenChange={(open) => { if (!open) { setShowCreateArtist(false); setCreateForm({ name: "", email: "", password: "", slug: "", artistRate: "", commissionOverride: "" }); } }}>
+        <DialogContent data-testid="dialog-create-artist">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5" /> Создать артиста вручную
+            </DialogTitle>
+            <DialogDescription>
+              Аккаунт создаётся сразу активным. Артист сможет войти на <code>/partner/login</code> с указанными данными.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label htmlFor="ca-name">Имя артиста *</Label>
+              <Input
+                id="ca-name"
+                value={createForm.name}
+                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Например: ГУДТАЙМС"
+                data-testid="input-ca-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="ca-slug">Slug (латиницей) *</Label>
+              <Input
+                id="ca-slug"
+                value={createForm.slug}
+                onChange={(e) => setCreateForm((f) => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))}
+                placeholder="Например: goodtimes"
+                data-testid="input-ca-slug"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Должен совпадать с <code>artist_slug</code> на товарах в каталоге</p>
+            </div>
+            <div>
+              <Label htmlFor="ca-email">Email (логин) *</Label>
+              <Input
+                id="ca-email"
+                type="email"
+                value={createForm.email}
+                onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+                placeholder="artist@example.com"
+                data-testid="input-ca-email"
+              />
+            </div>
+            <div>
+              <Label htmlFor="ca-password">Пароль * (минимум 6 символов)</Label>
+              <Input
+                id="ca-password"
+                type="password"
+                value={createForm.password}
+                onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                placeholder="••••••••"
+                data-testid="input-ca-password"
+              />
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <Label htmlFor="ca-artist-rate">% артиста от продаж</Label>
+                <Input
+                  id="ca-artist-rate"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={createForm.artistRate}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, artistRate: e.target.value }))}
+                  placeholder="0"
+                  data-testid="input-ca-artist-rate"
+                />
+              </div>
+              <div className="flex-1">
+                <Label htmlFor="ca-commission">% реф. комиссии</Label>
+                <Input
+                  id="ca-commission"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={createForm.commissionOverride}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, commissionOverride: e.target.value }))}
+                  placeholder="глобальный"
+                  data-testid="input-ca-commission"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => { setShowCreateArtist(false); setCreateForm({ name: "", email: "", password: "", slug: "", artistRate: "", commissionOverride: "" }); }}
+              disabled={createArtistMutation.isPending}
+              data-testid="btn-ca-cancel"
+            >
+              Отмена
+            </Button>
+            <Button
+              onClick={() => createArtistMutation.mutate(createForm)}
+              disabled={createArtistMutation.isPending || !createForm.name || !createForm.email || !createForm.password || !createForm.slug}
+              data-testid="btn-ca-submit"
+            >
+              {createArtistMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />}
+              Создать аккаунт
             </Button>
           </DialogFooter>
         </DialogContent>
