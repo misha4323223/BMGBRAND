@@ -934,10 +934,23 @@ router.get('/partners/:id/legal-pdf', authMiddleware, adminMiddleware, async (re
   }
 });
 
-// GET /api/admin/partners/artists — список партнёров с is_artist=true
+// Легаси-артисты: существуют как страницы /@slug, но не имеют записи в partners
+const LEGACY_ARTISTS: Array<{ id: number; partnerSlug: string; storeName: string; contactName: string }> = [
+  { id: -1, partnerSlug: 'molodostvnutri', storeName: 'Молодость внутри', contactName: 'Молодость внутри' },
+  { id: -2, partnerSlug: 'goodtimes',      storeName: 'ГУДТАЙМС',          contactName: 'ГУДТАЙМС' },
+  { id: -3, partnerSlug: 'dikaya-myata',   storeName: 'ДИКАЯ МЯТА',        contactName: 'ДИКАЯ МЯТА' },
+  { id: -4, partnerSlug: 'dragni',         storeName: 'ДРАГНИ',            contactName: 'ДРАГНИ' },
+  { id: -5, partnerSlug: 'multfilmy',      storeName: 'МультFильмы',       contactName: 'МультFильмы' },
+];
+
+// GET /api/admin/partners/artists — список партнёров с is_artist=true + легаси-артисты
 router.get('/partners/artists', authMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const artists = await storage.getArtistPartners();
+    const dbArtists = await storage.getArtistPartners();
+    const dbSlugs = new Set(dbArtists.map((a: any) => a.partnerSlug));
+    // Добавляем легаси-артистов которых ещё нет в БД
+    const legacy = LEGACY_ARTISTS.filter((a) => !dbSlugs.has(a.partnerSlug));
+    const artists = [...dbArtists, ...legacy];
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ artists });
   } catch (error: any) {
