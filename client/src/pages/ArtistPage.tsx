@@ -1,9 +1,10 @@
 import { useParams, Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, ArrowRight, ExternalLink, Play, Quote, ChevronLeft, ChevronRight, Share2, ShoppingCart, Zap, Tag } from "lucide-react";
+import { ArrowLeft, ArrowRight, ExternalLink, Play, Quote, ChevronLeft, ChevronRight, Share2, ShoppingCart, Zap, Tag, Heart } from "lucide-react";
 import { SiTelegram, SiVk, SiYoutube, SiInstagram, SiTiktok, SiSpotify, SiTwitch, SiSoundcloud, SiApplemusic, SiDiscord, SiX, SiBandcamp, SiPatreon, SiOnlyfans } from "react-icons/si";
 import { useState, useEffect, useRef } from "react";
 import { transliterateToSlug } from "@shared/schema";
@@ -203,6 +204,85 @@ interface ArtistProductCardProps {
   product: any;
   priority?: boolean;
   theme?: ArtistThemeConfig;
+}
+
+function ArtistLikeButton({ slug, theme }: { slug: string; theme?: ArtistThemeConfig }) {
+  const tc = theme || ARTIST_THEMES.default;
+  const isColored = !!theme && theme !== ARTIST_THEMES.default;
+  const storageKey = `artist_liked_${slug}`;
+  const [liked, setLiked] = useState(() => {
+    try { return localStorage.getItem(storageKey) === '1'; } catch { return false; }
+  });
+  const [burst, setBurst] = useState(false);
+
+  const { data, refetch } = useQuery<{ likes: number }>({
+    queryKey: [`/api/artists/${slug}/likes`],
+    queryFn: async () => {
+      const res = await fetch(`/api/artists/${slug}/likes`);
+      return res.json();
+    },
+    staleTime: 30000,
+  });
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: () => apiRequest('POST', `/api/artists/${slug}/like`),
+    onSuccess: () => {
+      try { localStorage.setItem(storageKey, '1'); } catch {}
+      setLiked(true);
+      setBurst(true);
+      setTimeout(() => setBurst(false), 600);
+      refetch();
+    },
+  });
+
+  const count = data?.likes ?? 0;
+
+  const bg = isColored ? `${tc.accent}15` : 'hsl(var(--muted) / 0.4)';
+  const border = isColored ? `${tc.accent}30` : 'hsl(var(--border))';
+  const textColor = isColored ? tc.text : 'inherit';
+  const heartColor = liked ? '#f43f5e' : (isColored ? tc.textMuted : 'var(--muted-foreground)');
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5 }}
+      className="flex flex-col items-center gap-3 py-10"
+    >
+      <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: isColored ? tc.textMuted : 'var(--muted-foreground)' }}>
+        Понравилась страница?
+      </p>
+      <button
+        onClick={() => { if (!liked && !isPending) mutate(); }}
+        disabled={liked || isPending}
+        data-testid="button-artist-like"
+        className="relative flex items-center gap-2.5 px-6 py-3 rounded-full border text-sm font-semibold transition-all duration-200 select-none disabled:cursor-default"
+        style={{ background: bg, borderColor: border, color: textColor }}
+      >
+        <motion.span
+          animate={burst ? { scale: [1, 1.5, 0.9, 1.1, 1], rotate: [0, -10, 10, -5, 0] } : {}}
+          transition={{ duration: 0.5 }}
+        >
+          <Heart
+            className="w-4 h-4 transition-colors duration-300"
+            style={{ color: heartColor }}
+            fill={liked ? '#f43f5e' : 'none'}
+            strokeWidth={2}
+          />
+        </motion.span>
+        <span>{liked ? 'Спасибо!' : 'Нравится'}</span>
+        {count > 0 && (
+          <span
+            className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+            style={{ background: isColored ? `${tc.accent}20` : 'hsl(var(--muted))', color: isColored ? tc.accent : 'var(--muted-foreground)' }}
+          >
+            {count.toLocaleString('ru-RU')}
+          </span>
+        )}
+      </button>
+    </motion.div>
+  );
 }
 
 function ArtistProductCard({ product, priority = false, theme }: ArtistProductCardProps) {
@@ -1068,6 +1148,11 @@ export default function ArtistPage() {
 
         </div>
       </main>
+
+      {/* Лайк */}
+      <div style={isColored ? { background: tc.bg } : { background: 'var(--background)' }}>
+        <ArtistLikeButton slug={slug!} theme={isColored ? tc : undefined} />
+      </div>
 
       {/* Мини-подвал страницы артиста */}
       <footer className="border-t" style={isColored ? { background: tc.bg, borderColor: `${tc.accent}20` } : {}}>

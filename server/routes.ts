@@ -8208,6 +8208,37 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // GET /api/artists/:slug/likes — public: get like count
+  app.get("/api/artists/:slug/likes", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      if (!slug) return res.json({ likes: 0 });
+      const key = `artist_likes_${slug}`;
+      const raw = await storage.getBonusSetting(key);
+      const likes = raw ? parseInt(raw, 10) : 0;
+      res.set("Cache-Control", "public, max-age=10");
+      res.json({ likes: isNaN(likes) ? 0 : likes });
+    } catch {
+      res.json({ likes: 0 });
+    }
+  });
+
+  // POST /api/artists/:slug/like — public: increment like count
+  app.post("/api/artists/:slug/like", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      if (!slug) return res.json({ likes: 0 });
+      const key = `artist_likes_${slug}`;
+      const raw = await storage.getBonusSetting(key);
+      const current = raw ? parseInt(raw, 10) : 0;
+      const newCount = (isNaN(current) ? 0 : current) + 1;
+      await storage.setBonusSetting(key, String(newCount));
+      res.json({ likes: newCount });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // POST /api/artists/:slug/view — public: increment page view counter (fire-and-forget)
   app.post("/api/artists/:slug/view", async (req, res) => {
     try {
