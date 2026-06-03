@@ -647,30 +647,44 @@ export default function Home() {
                     className="flex items-end gap-3 sm:gap-4 overflow-x-auto scrollbar-hide px-4 sm:px-6 py-5 sm:py-6"
                     style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
                   >
-                    {stripItems.map((artist: any, idx: number) => (
-                      <Link
-                        key={idx}
-                        href={artist.slug ? `/@${artist.slug}` : (artist.link || "/products/merch")}
-                        className="flex flex-col items-center gap-2.5 group shrink-0 cursor-pointer"
-                        data-testid={`link-artist-strip-${idx}`}
-                      >
-                        <div className="relative w-[92px] h-[124px] sm:w-[110px] sm:h-[148px] rounded overflow-hidden ring-1 ring-zinc-700/80 group-hover:ring-primary group-hover:ring-2 transition-all duration-300 group-hover:scale-[1.04]">
-                          <img
-                            src={getOptimizedImageUrl(artist.image)}
-                            alt={artist.name}
-                            className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-transparent" />
-                          {/* COLLAB-лейбл снизу карточки при наведении */}
-                          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center pb-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <span className="text-[7px] sm:text-[8px] font-mono tracking-[0.2em] uppercase text-primary/90">collab</span>
+                    {stripItems.map((artist: any, idx: number) => {
+                      const rotations = [-2, 1.5, -1, 2, -1.5, 1];
+                      const rot = rotations[idx % rotations.length];
+                      return (
+                        <Link
+                          key={idx}
+                          href={artist.slug ? `/@${artist.slug}` : (artist.link || "/products/merch")}
+                          className="flex flex-col shrink-0 cursor-pointer group"
+                          style={{ transform: `rotate(${rot}deg)`, transition: "transform 0.35s cubic-bezier(.22,.68,0,1.2), box-shadow 0.35s ease" }}
+                          data-testid={`link-artist-strip-${idx}`}
+                        >
+                          {/* Поляроид */}
+                          <div
+                            className="bg-white shadow-lg group-hover:shadow-2xl"
+                            style={{
+                              padding: "6px 6px 0 6px",
+                              transform: "rotate(0deg)",
+                              transition: "transform 0.35s cubic-bezier(.22,.68,0,1.2)",
+                            }}
+                          >
+                            {/* Фото */}
+                            <div className="relative overflow-hidden" style={{ width: 86, height: 110 }}>
+                              <img
+                                src={getOptimizedImageUrl(artist.image)}
+                                alt={artist.name}
+                                className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                              />
+                            </div>
+                            {/* Белая полоска с именем */}
+                            <div className="flex items-center justify-center px-1 py-2" style={{ width: 86, minHeight: 32 }}>
+                              <span className="text-[7.5px] font-bold uppercase tracking-[0.1em] text-zinc-800 text-center leading-tight line-clamp-2">
+                                {artist.name}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                        <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-200 group-hover:text-white transition-colors duration-200 text-center leading-tight w-[92px] sm:w-[110px] line-clamp-2">
-                          {artist.name}
-                        </span>
-                      </Link>
-                    ))}
+                        </Link>
+                      );
+                    })}
                     <div className="shrink-0 w-10 sm:w-16" />
                   </div>
                 </div>
