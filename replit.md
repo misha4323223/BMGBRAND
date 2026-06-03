@@ -1,5 +1,41 @@
 # BMGBRAND (Booomerangs) Project Summary
 
+## Как запустить проект в Replit
+
+### Workflow (автозапуск)
+Проект запускается через workflow **"Start application"** командой:
+```
+NODE_ENV=development npx tsx server/index.ts
+```
+
+### Почему `npx tsx`, а не `node_modules/.bin/tsx`
+В `package.json` скрипт `dev` прописан как `node_modules/.bin/tsx server/index.ts` — прямой вызов бинарника. В Replit этот путь **не добавляется в `$PATH` автоматически**, поэтому при запуске через workflow система не находит `tsx` и падает с ошибкой `sh: 1: node_modules/.bin/tsx: not found`.
+
+**Решение:** использовать `npx tsx` — `npx` всегда ищет бинарники сначала в `node_modules/.bin/` текущего проекта, поэтому находит `tsx` корректно независимо от `$PATH`.
+
+### Что происходит при старте
+1. Подключается YDB (Yandex Database Serverless) через IAM-ключ из секрета `YDB_SA_KEY`
+2. Применяются миграции схемы (если нужны)
+3. Прогревается кэш: загружаются все продукты (~1181 шт.), настройки страниц, рейтинги
+4. Загружается кэш городов CDEK (~54 000 городов)
+5. Сервер начинает слушать на порту 5000
+
+Полный запуск занимает около **5–7 секунд**.
+
+### Команды
+| Команда | Назначение |
+|---|---|
+| `npx tsx server/index.ts` | Dev-сервер (Vite + Express на порту 5000) |
+| `npm run build` | Сборка фронтенда в `dist/` |
+| `npm run db:push` | Применить миграции схемы к PostgreSQL |
+
+### Важно
+- Все секреты (YDB, платёжные шлюзы, SMTP, Telegram) хранятся в **Replit Secrets** — не в коде
+- В dev-режиме фронтенд раздаётся через Vite (HMR); в production — через `serveStatic()` из `dist/`
+- Изображения хранятся в **Yandex Object Storage** — в preview Replit они могут не отображаться (CORS/CDN), это нормально
+
+---
+
 ## Overview
 
 BMGBRAND (Booomerangs) is a comprehensive e-commerce platform for a Russian streetwear brand. It features a product catalog, shopping cart, order processing, various payment and delivery options, a personal user account, a wholesale module, gift certificates, a blog, job postings, artist pages, and a full-fledged CMS for administration. The project aims to be a leading online retail destination in the Russian streetwear market.
