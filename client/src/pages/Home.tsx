@@ -1066,7 +1066,8 @@ export default function Home() {
                             alt={artist.name}
                             loading="lazy"
                             decoding="async"
-                            className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105"
+                            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                            style={{ objectPosition: 'center 20%' }}
                           />
                         </div>
                         <div className="flex flex-col justify-center px-5 py-3 bg-zinc-900 flex-1">
@@ -1098,7 +1099,8 @@ export default function Home() {
                             alt={artist.name}
                             loading="lazy"
                             decoding="async"
-                            className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105"
+                            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                            style={{ objectPosition: 'center 20%' }}
                           />
                         </div>
                         {/* Текст */}
