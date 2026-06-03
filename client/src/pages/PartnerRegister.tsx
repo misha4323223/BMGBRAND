@@ -629,12 +629,16 @@ export default function PartnerRegister() {
         {/* Кнопка реферальной программы */}
         <div className="border-t border-zinc-800">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-zinc-300">
-              Уже есть аккаунт?{" "}
-              <a href="/partner/login" className="text-white underline underline-offset-2 hover:text-zinc-300 transition-colors" data-testid="link-partner-login">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-zinc-400">Уже есть аккаунт?</span>
+              <a
+                href="/partner/login"
+                data-testid="link-partner-login"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md border border-white text-white text-sm font-semibold hover:bg-white hover:text-black transition-colors duration-150"
+              >
                 Войти
               </a>
-            </p>
+            </div>
             <Button
               type="button"
               variant="outline"
