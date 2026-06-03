@@ -845,22 +845,22 @@ export default function ArtistPage() {
 
         {settings.aboutVisible !== false && settings.aboutText && (
           <section className="py-16 sm:py-24" style={isColored ? { background: tc.bg } : { background: 'var(--background)' }} data-testid="section-artist-about">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-[3px] w-8 rounded-full" style={{ background: isColored ? tc.accent : 'currentColor', opacity: isColored ? 1 : 0.25 }} />
-                <span className="text-xs font-bold uppercase tracking-[0.25em]" style={{ color: isColored ? tc.accent : 'var(--muted-foreground)' }}>{artistName}</span>
-              </div>
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6 }}
               >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-[2px] w-6 rounded-full shrink-0" style={{ background: isColored ? tc.accent : 'rgba(255,255,255,0.25)' }} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.28em]" style={{ color: isColored ? tc.accent : 'var(--muted-foreground)' }}>{artistName}</span>
+                </div>
                 <div className="flex items-center gap-4 mb-8">
                   <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
                     {settings.aboutTitle || "О коллаборации"}
                   </h2>
-                  <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.12 }} />
+                  <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.10 }} />
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
                   <div className="space-y-4">
@@ -890,46 +890,42 @@ export default function ArtistPage() {
 
         {settings.quoteVisible !== false && settings.quoteText && (
           <section
-            className="relative py-16 sm:py-24 overflow-hidden"
-            style={{ background: isColored ? tc.bgMuted : 'hsl(var(--muted) / 0.25)' }}
+            className="relative overflow-hidden"
+            style={{ background: isColored ? tc.bgMuted : '#0c0c0c' }}
             data-testid="section-artist-quote"
           >
-            {/* Giant decorative opening quote */}
-            <div
-              className="absolute -top-6 left-1/2 -translate-x-1/2 font-serif font-black select-none pointer-events-none leading-none"
-              style={{
-                fontSize: 'clamp(160px, 20vw, 280px)',
-                color: isColored ? tc.accent : 'currentColor',
-                opacity: isColored ? 0.06 : 0.04,
-                lineHeight: 1,
-              }}
-            >
-              &ldquo;
-            </div>
-            <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div className="w-full h-px" style={{ background: isColored ? `${tc.accent}28` : 'rgba(255,255,255,0.06)' }} />
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 py-14 sm:py-20">
               <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, x: -16 }}
+                whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.7 }}
+                transition={{ duration: 0.65 }}
+                className="flex gap-6 sm:gap-10 items-stretch"
               >
-                <blockquote
-                  className="text-xl sm:text-2xl lg:text-3xl font-medium leading-relaxed mb-6"
-                  style={isColored ? { color: tc.text } : {}}
-                >
-                  {settings.quoteText}
-                </blockquote>
-                {settings.quoteAuthor && (
-                  <div className="flex items-center justify-center gap-3">
-                    <span className="h-px w-8" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.4 }} />
-                    <cite className="text-xs font-semibold uppercase tracking-[0.2em] not-italic" style={{ color: isColored ? tc.accent : 'var(--muted-foreground)' }}>
-                      {settings.quoteAuthor}
+                <div
+                  className="shrink-0 w-[3px] rounded-full"
+                  style={{ background: isColored ? tc.accent : 'rgba(255,255,255,0.22)' }}
+                />
+                <div>
+                  <blockquote
+                    className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-snug mb-5"
+                    style={isColored ? { color: tc.text } : { color: '#fff' }}
+                  >
+                    {settings.quoteText}
+                  </blockquote>
+                  {settings.quoteAuthor && (
+                    <cite
+                      className="text-[11px] font-bold uppercase tracking-[0.22em] not-italic"
+                      style={{ color: isColored ? tc.accent : 'rgba(255,255,255,0.32)' }}
+                    >
+                      — {settings.quoteAuthor}
                     </cite>
-                    <span className="h-px w-8" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.4 }} />
-                  </div>
-                )}
+                  )}
+                </div>
               </motion.div>
             </div>
+            <div className="w-full h-px" style={{ background: isColored ? `${tc.accent}28` : 'rgba(255,255,255,0.06)' }} />
           </section>
         )}
 
@@ -946,11 +942,17 @@ export default function ArtistPage() {
                 {settings.galleryVisible !== false && galleryImages.length > 0 && (
                   <div className={`${settings.videoVisible !== false && settings.videoUrl ? 'lg:w-1/2' : 'w-full'}`} data-testid="section-artist-gallery">
                     {/* Header */}
-                    <div className="flex items-center gap-4 mb-6">
-                      <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
-                        {settings.galleryTitle || "Галерея"}
-                      </h2>
-                      <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.1 }} />
+                    <div className="mb-6">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="h-[2px] w-6 rounded-full shrink-0" style={{ background: isColored ? tc.accent : 'rgba(255,255,255,0.25)' }} />
+                        <span className="text-[10px] font-bold uppercase tracking-[0.28em]" style={{ color: isColored ? tc.accent : 'var(--muted-foreground)' }}>{artistName}</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
+                          {settings.galleryTitle || "Галерея"}
+                        </h2>
+                        <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.10 }} />
+                      </div>
                     </div>
 
                     {/* Instagram-style grid */}
