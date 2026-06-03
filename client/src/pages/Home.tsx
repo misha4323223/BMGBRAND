@@ -631,6 +631,20 @@ export default function Home() {
           if (!stripItems || stripItems.length === 0) return null;
           return (
             <div className="w-full border-t-2 border-primary" style={{ background: "radial-gradient(ellipse 100% 60% at 50% 0%, #1c1c1c 0%, #0a0a0a 65%)" }}>
+              {/* ── Мобильный заголовок (только sm-) ── */}
+              <div className="flex sm:hidden items-center justify-between px-4 pt-4 pb-1">
+                <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-zinc-300">
+                  Коллаборации
+                </span>
+                <Link
+                  href={pageSettings?.artists?.linkUrl || "/products/merch"}
+                  className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-zinc-400 hover:text-white transition-colors"
+                  data-testid="link-all-artists-strip-mobile"
+                >
+                  <span>Все</span>
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
               {/* ── Лента коллабораций ── */}
               <div className="flex items-stretch">
                 {/* Левый лейбл */}
