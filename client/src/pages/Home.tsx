@@ -630,7 +630,7 @@ export default function Home() {
           const stripItems: any[] = pageSettings?.artists?.items || artists;
           if (!stripItems || stripItems.length === 0) return null;
           return (
-            <div className="w-full bg-zinc-950 border-t-2 border-primary" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.045) 1px, transparent 1px)", backgroundSize: "14px 14px" }}>
+            <div className="w-full bg-zinc-950 border-t-2 border-primary">
               {/* ── Лента коллабораций ── */}
               <div className="flex items-stretch">
                 {/* Левый лейбл */}
