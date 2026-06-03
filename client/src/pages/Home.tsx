@@ -649,47 +649,58 @@ export default function Home() {
           if (!stripItems || stripItems.length === 0) return null;
           return (
             <div className="w-full bg-zinc-950">
-              <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center gap-0 py-5 sm:py-6">
-                  <span className="shrink-0 text-[9px] font-mono tracking-[0.28em] uppercase text-zinc-500 pr-5 sm:pr-7 hidden sm:block whitespace-nowrap">
+              <div className="flex items-stretch">
+                {/* Левый лейбл */}
+                <div className="hidden sm:flex shrink-0 items-center justify-center px-5 lg:px-7 border-r border-zinc-800">
+                  <span className="text-[9px] font-mono tracking-[0.3em] uppercase text-zinc-500 whitespace-nowrap" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                     Коллаборации
                   </span>
-                  <div className="hidden sm:block w-px h-16 bg-zinc-800 shrink-0 mr-5 sm:mr-7" />
+                </div>
+                {/* Лента карточек с fade-масками */}
+                <div className="flex-1 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-12 bg-gradient-to-r from-zinc-950 to-transparent z-10 pointer-events-none" />
+                  <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-24 bg-gradient-to-l from-zinc-950 to-transparent z-10 pointer-events-none" />
                   <div
-                    className="flex-1 flex items-end gap-3 sm:gap-4 overflow-x-auto scrollbar-hide"
+                    className="flex items-end gap-3 sm:gap-4 overflow-x-auto scrollbar-hide px-4 sm:px-6 py-5 sm:py-6"
                     style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
                   >
                     {stripItems.map((artist: any, idx: number) => (
                       <Link
                         key={idx}
                         href={artist.slug ? `/@${artist.slug}` : (artist.link || "/products/merch")}
-                        className="flex flex-col items-center gap-2 group shrink-0 cursor-pointer"
+                        className="flex flex-col items-center gap-2.5 group shrink-0 cursor-pointer"
                         data-testid={`link-artist-strip-${idx}`}
                       >
-                        <div className="relative w-[72px] h-[96px] sm:w-[88px] sm:h-[116px] rounded-sm overflow-hidden ring-1 ring-zinc-700 group-hover:ring-primary group-hover:ring-2 transition-all duration-300">
+                        <div className="relative w-[92px] h-[124px] sm:w-[110px] sm:h-[148px] rounded overflow-hidden ring-1 ring-zinc-700/80 group-hover:ring-primary group-hover:ring-2 transition-all duration-300 group-hover:scale-[1.04]">
                           <img
                             src={getOptimizedImageUrl(artist.image)}
                             alt={artist.name}
-                            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                            className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-transparent" />
+                          {/* × маркер коллаборации */}
+                          <div className="absolute top-1.5 right-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <span className="text-white font-bold leading-none" style={{ fontSize: "9px" }}>×</span>
+                          </div>
                         </div>
-                        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-300 group-hover:text-white transition-colors duration-200 text-center leading-tight max-w-[88px] truncate">
+                        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400 group-hover:text-white transition-colors duration-200 text-center leading-tight w-[92px] sm:w-[110px] line-clamp-2">
                           {artist.name}
                         </span>
                       </Link>
                     ))}
+                    {/* Отступ справа чтобы последняя карточка не обрезалась fade-ом */}
+                    <div className="shrink-0 w-10 sm:w-16" />
                   </div>
-                  <Link
-                    href={pageSettings?.artists?.linkUrl || "/products/merch"}
-                    className="shrink-0 flex items-center gap-1.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-zinc-500 hover:text-white transition-colors duration-200 pl-5 sm:pl-7 ml-3 border-l border-zinc-800 py-2 whitespace-nowrap"
-                    data-testid="link-all-artists-strip"
-                  >
-                    <span className="hidden sm:inline">Все коллаборации</span>
-                    <span className="sm:hidden">Все</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </Link>
                 </div>
+                {/* Правая ссылка */}
+                <Link
+                  href={pageSettings?.artists?.linkUrl || "/products/merch"}
+                  className="hidden sm:flex shrink-0 items-center gap-2 text-[9px] font-mono uppercase tracking-widest text-zinc-500 hover:text-white transition-all duration-200 px-5 lg:px-7 border-l border-zinc-800 group"
+                  data-testid="link-all-artists-strip"
+                >
+                  <span className="whitespace-nowrap">Все</span>
+                  <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
               </div>
             </div>
           );
