@@ -666,7 +666,7 @@ export default function Home() {
                             <span className="text-[7px] sm:text-[8px] font-mono tracking-[0.2em] uppercase text-primary/90">collab</span>
                           </div>
                         </div>
-                        <span className="text-[10px] sm:text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-200 group-hover:text-white transition-colors duration-200 text-center leading-tight w-[92px] sm:w-[110px] line-clamp-2">
+                        <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-200 group-hover:text-white transition-colors duration-200 text-center leading-tight w-[92px] sm:w-[110px] line-clamp-2">
                           {artist.name}
                         </span>
                       </Link>
