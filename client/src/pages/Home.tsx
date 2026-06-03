@@ -648,42 +648,41 @@ export default function Home() {
           const stripItems: any[] = pageSettings?.artists?.items || artists;
           if (!stripItems || stripItems.length === 0) return null;
           return (
-            <div className="w-full bg-background border-b border-border/40">
+            <div className="w-full bg-zinc-950">
               <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center gap-0">
-                  <span className="shrink-0 text-[9px] font-mono tracking-[0.25em] uppercase text-muted-foreground pr-4 sm:pr-6 py-4 sm:py-5 border-r border-border/40 hidden sm:block">
-                    Артисты
+                <div className="flex items-center gap-0 py-5 sm:py-6">
+                  <span className="shrink-0 text-[9px] font-mono tracking-[0.28em] uppercase text-zinc-500 pr-5 sm:pr-7 hidden sm:block whitespace-nowrap">
+                    Коллаборации
                   </span>
+                  <div className="hidden sm:block w-px h-16 bg-zinc-800 shrink-0 mr-5 sm:mr-7" />
                   <div
-                    className="flex-1 flex items-center gap-5 sm:gap-7 overflow-x-auto scrollbar-hide px-0 sm:px-6 py-3.5 sm:py-4"
+                    className="flex-1 flex items-end gap-3 sm:gap-4 overflow-x-auto scrollbar-hide"
                     style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
                   >
                     {stripItems.map((artist: any, idx: number) => (
                       <Link
                         key={idx}
                         href={artist.slug ? `/@${artist.slug}` : (artist.link || "/products/merch")}
-                        className="flex flex-col items-center gap-1.5 group shrink-0 cursor-pointer"
+                        className="flex flex-col items-center gap-2 group shrink-0 cursor-pointer"
                         data-testid={`link-artist-strip-${idx}`}
                       >
-                        <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden ring-2 ring-border group-hover:ring-primary transition-all duration-200">
+                        <div className="relative w-[72px] h-[96px] sm:w-[88px] sm:h-[116px] rounded-sm overflow-hidden ring-1 ring-zinc-700 group-hover:ring-primary group-hover:ring-2 transition-all duration-300">
                           <img
                             src={getOptimizedImageUrl(artist.image)}
                             alt={artist.name}
-                            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                           />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
                         </div>
-                        <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide text-foreground text-center leading-tight max-w-[72px] truncate group-hover:text-primary transition-colors duration-200">
+                        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-300 group-hover:text-white transition-colors duration-200 text-center leading-tight max-w-[88px] truncate">
                           {artist.name}
-                        </span>
-                        <span className="text-[9px] font-mono tracking-wider uppercase text-muted-foreground text-center leading-none max-w-[72px] truncate -mt-0.5">
-                          {artist.role}
                         </span>
                       </Link>
                     ))}
                   </div>
                   <Link
                     href={pageSettings?.artists?.linkUrl || "/products/merch"}
-                    className="shrink-0 flex items-center gap-1.5 text-[10px] sm:text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors duration-200 pl-4 sm:pl-6 border-l border-border/40 py-4 whitespace-nowrap"
+                    className="shrink-0 flex items-center gap-1.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-zinc-500 hover:text-white transition-colors duration-200 pl-5 sm:pl-7 ml-3 border-l border-zinc-800 py-2 whitespace-nowrap"
                     data-testid="link-all-artists-strip"
                   >
                     <span className="hidden sm:inline">Все коллаборации</span>
