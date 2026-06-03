@@ -718,7 +718,7 @@ export default function ArtistPage() {
                       <img
                         src="/molodost-vnutri-logo.png"
                         alt={artistName}
-                        className="w-64 sm:w-80 lg:w-96 max-w-full"
+                        className="max-w-[220px] sm:max-w-[280px] h-auto"
                         style={{ filter: 'drop-shadow(0 2px 12px rgba(0,0,0,0.5))' }}
                       />
                     ) : artistName}
