@@ -1056,59 +1056,72 @@ export default function Home() {
                       key={index}
                       href={href}
                       data-testid={`link-artist-split-${index}`}
-                      className="group relative overflow-hidden bg-zinc-950 flex flex-col sm:flex-row h-[280px] sm:h-[400px]"
+                      className="group relative overflow-hidden bg-zinc-950 h-[300px] sm:h-[400px]"
                     >
-                      {/* ── Фото ── */}
-                      <div
-                        className={`
-                          absolute inset-y-0 w-full sm:w-[62%] z-10
-                          ${isEven ? "left-0" : "right-0"}
-                        `}
-                        style={{
-                          clipPath: isEven
-                            ? "polygon(0 0, 100% 0, 85% 100%, 0 100%)"
-                            : "polygon(15% 0, 100% 0, 100% 100%, 0 100%)"
-                        }}
-                      >
-                        <img
-                          src={getOptimizedImageUrl(artist.image)}
-                          alt={artist.name}
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105"
-                        />
-                        {/* Тёмный градиент для мобильного (снизу вверх) */}
-                        <div className="absolute inset-0 sm:hidden bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
+                      {/* ── МОБИЛЬНЫЙ: фото сверху 60%, тёмная панель снизу 40% ── */}
+                      <div className="flex flex-col sm:hidden h-full">
+                        <div className="relative overflow-hidden" style={{ height: "60%" }}>
+                          <img
+                            src={getOptimizedImageUrl(artist.image)}
+                            alt={artist.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105"
+                          />
+                        </div>
+                        <div className="flex flex-col justify-center px-5 py-3 bg-zinc-900 flex-1">
+                          <p className="text-[9px] font-mono tracking-[0.35em] uppercase text-primary mb-1">
+                            {artist.role}
+                          </p>
+                          <h3 className="font-['Oswald',sans-serif] text-2xl font-bold uppercase text-white leading-none tracking-tight mb-1">
+                            {artist.name}
+                          </h3>
+                          <p className="text-zinc-400 text-xs leading-snug line-clamp-1">
+                            {artist.collection}
+                          </p>
+                        </div>
                       </div>
 
-                      {/* ── Текстовая сторона ── */}
-                      <div
-                        className={`
-                          absolute z-20
-                          bottom-0 left-0 right-0 p-5
-                          sm:bottom-auto sm:inset-y-0 sm:w-[44%] sm:flex sm:flex-col sm:justify-center
-                          ${isEven ? "sm:right-0 sm:left-auto sm:pl-10 sm:pr-8" : "sm:left-0 sm:right-auto sm:pl-8 sm:pr-10"}
-                        `}
-                      >
-                        <p className="text-[9px] sm:text-[10px] font-mono tracking-[0.35em] uppercase text-primary mb-2 sm:mb-3">
-                          {artist.role}
-                        </p>
-                        <h3
-                          className="font-['Oswald',sans-serif] text-3xl sm:text-5xl xl:text-6xl font-bold uppercase text-white leading-none tracking-tight mb-2 sm:mb-4"
-                          style={{ textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}
+                      {/* ── ДЕСКТОП: диагональный сплит ── */}
+                      <div className="hidden sm:block h-full">
+                        {/* Фото */}
+                        <div
+                          className={`absolute inset-y-0 w-[62%] z-10 ${isEven ? "left-0" : "right-0"}`}
+                          style={{
+                            clipPath: isEven
+                              ? "polygon(0 0, 100% 0, 85% 100%, 0 100%)"
+                              : "polygon(15% 0, 100% 0, 100% 100%, 0 100%)"
+                          }}
                         >
-                          {artist.name}
-                        </h3>
-                        <p className="hidden sm:block text-zinc-400 text-sm leading-relaxed mb-6 line-clamp-2">
-                          {artist.collection}
-                        </p>
-                        <span className="hidden sm:inline-flex items-center gap-2 text-[11px] font-mono tracking-[0.2em] uppercase text-white border border-white/25 px-4 py-2.5 w-fit group-hover:bg-primary group-hover:border-primary transition-all duration-300">
-                          Смотреть коллекцию <ArrowRight className="w-3 h-3" />
-                        </span>
-                        {/* Мобильный: только имя + маленькая стрелка */}
-                        <span className="sm:hidden inline-flex items-center gap-1 mt-1 text-[10px] font-mono tracking-widest uppercase text-white/60">
-                          {artist.collection} <ArrowRight className="w-2.5 h-2.5" />
-                        </span>
+                          <img
+                            src={getOptimizedImageUrl(artist.image)}
+                            alt={artist.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105"
+                          />
+                        </div>
+                        {/* Текст */}
+                        <div
+                          className={`absolute z-20 inset-y-0 w-[40%] flex flex-col justify-center
+                            ${isEven ? "right-0 pl-14 pr-10" : "left-0 pl-10 pr-14"}`}
+                        >
+                          <p className="text-[10px] font-mono tracking-[0.35em] uppercase text-primary mb-3">
+                            {artist.role}
+                          </p>
+                          <h3
+                            className="font-['Oswald',sans-serif] text-5xl xl:text-6xl font-bold uppercase text-white leading-none tracking-tight mb-4"
+                            style={{ textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}
+                          >
+                            {artist.name}
+                          </h3>
+                          <p className="text-zinc-400 text-sm leading-relaxed mb-6 line-clamp-2">
+                            {artist.collection}
+                          </p>
+                          <span className="inline-flex items-center gap-2 text-[11px] font-mono tracking-[0.2em] uppercase text-white border border-white/25 px-4 py-2.5 w-fit group-hover:bg-primary group-hover:border-primary transition-all duration-300">
+                            Смотреть коллекцию <ArrowRight className="w-3 h-3" />
+                          </span>
+                        </div>
                       </div>
                     </Link>
                   );
