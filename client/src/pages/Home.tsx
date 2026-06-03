@@ -704,10 +704,10 @@ export default function Home() {
                     {/* Главный CTA-текст */}
                     <div className="flex-1 px-0 sm:px-7 py-4">
                       <p className="text-sm sm:text-base font-semibold text-white leading-tight">
-                        Создай мерч как у них
+                        Создай свой мерч и присоединяйся к нашей платформе
                       </p>
                       <p className="text-[11px] text-zinc-500 mt-0.5 hidden sm:block">
-                        Полный цикл производства — от идеи до доставки
+                        Полный цикл — от идеи до продажи на нашей платформе
                       </p>
                     </div>
                     {/* Кнопка */}
