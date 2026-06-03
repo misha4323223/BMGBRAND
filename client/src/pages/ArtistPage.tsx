@@ -1036,7 +1036,7 @@ export default function ArtistPage() {
               ) : (
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {products.slice(0, 8).map((product: any, index: number) => (
+                    {products.slice(0, productsLimit).map((product: any, index: number) => (
                       <ArtistProductCard key={product.id} product={product} priority={index < 4} theme={tc} />
                     ))}
                   </div>
