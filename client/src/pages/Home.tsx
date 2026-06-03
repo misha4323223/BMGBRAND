@@ -1,5 +1,5 @@
 import SEO from "@/components/SEO";
-import { ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Truck, Palette, Flag, Mail, Shirt } from "lucide-react";
+import { ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Truck, Palette, Flag, Mail, Shirt, Pencil, Settings2, ShoppingBag } from "lucide-react";
 
 declare global {
   interface Window {
@@ -685,7 +685,7 @@ export default function Home() {
               </div>
 
               {/* ── CTA: Мерч на заказ — вшит в тот же тёмный блок ── */}
-              <div className="border-t border-zinc-800">
+              <div className="border-t border-zinc-800 bg-zinc-900">
                 <Link href="/merch-na-zakaz" data-testid="merch-strip-banner" className="group block">
                   <div className="flex items-center gap-3 sm:gap-0 px-4 sm:px-0">
                     {/* Иконка + лейбл */}
@@ -702,18 +702,28 @@ export default function Home() {
                       <Shirt className="w-3.5 h-3.5 text-white" />
                     </div>
                     {/* Главный CTA-текст */}
-                    <div className="flex-1 px-0 sm:px-7 py-4">
+                    <div className="flex-1 px-0 sm:px-7 py-3.5">
                       <p className="text-sm sm:text-base font-semibold text-white leading-tight">
                         Создай свой мерч и присоединяйся к нашей платформе
                       </p>
-                      <p className="text-[11px] text-zinc-500 mt-0.5 hidden sm:block">
-                        Полный цикл — от идеи до продажи на нашей платформе
-                      </p>
+                      {/* Шаги-иконки вместо текстовой подписи */}
+                      <div className="hidden sm:flex items-center gap-2 mt-1.5">
+                        <Pencil className="w-3 h-3 text-zinc-500 shrink-0" />
+                        <span className="text-[10px] text-zinc-500">Идея</span>
+                        <ArrowRight className="w-2.5 h-2.5 text-zinc-700 shrink-0" />
+                        <Settings2 className="w-3 h-3 text-zinc-500 shrink-0" />
+                        <span className="text-[10px] text-zinc-500">Производство</span>
+                        <ArrowRight className="w-2.5 h-2.5 text-zinc-700 shrink-0" />
+                        <ShoppingBag className="w-3 h-3 text-zinc-500 shrink-0" />
+                        <span className="text-[10px] text-zinc-500">Продажа в каталоге</span>
+                      </div>
                     </div>
-                    {/* Кнопка */}
-                    <div className="shrink-0 flex items-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] text-primary group-hover:gap-3 transition-all duration-200 py-4 sm:px-7 sm:border-l sm:border-zinc-800">
-                      <span>Заказать</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                    {/* Красная кнопка */}
+                    <div className="shrink-0 px-4 sm:px-7 py-4">
+                      <div className="flex items-center gap-2 bg-primary px-4 py-2 rounded text-white text-[10px] sm:text-xs font-bold uppercase tracking-[0.15em] group-hover:bg-primary/90 transition-colors duration-200 whitespace-nowrap">
+                        <span>Заказать</span>
+                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                      </div>
                     </div>
                   </div>
                 </Link>
