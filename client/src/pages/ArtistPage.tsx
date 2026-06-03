@@ -929,142 +929,154 @@ export default function ArtistPage() {
           </section>
         )}
 
-        {(settings.galleryVisible !== false && galleryImages.length > 0) || (settings.videoVisible !== false && settings.videoUrl) ? (
+        {/* ── Галерея ── */}
+        {settings.galleryVisible !== false && galleryImages.length > 0 && (
           <section
             className="py-12 sm:py-20"
             style={isColored ? { background: tc.bg } : { background: 'var(--background)' }}
             data-testid="section-artist-gallery-video"
           >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className={`flex flex-col ${settings.galleryVisible !== false && galleryImages.length > 0 && settings.videoVisible !== false && settings.videoUrl ? 'lg:flex-row lg:gap-10 lg:items-start' : ''}`}>
-
-                {/* Галерея — слева */}
-                {settings.galleryVisible !== false && galleryImages.length > 0 && (
-                  <div className={`${settings.videoVisible !== false && settings.videoUrl ? 'lg:w-1/2' : 'w-full'}`} data-testid="section-artist-gallery">
-                    {/* Header */}
-                    <div className="flex items-center gap-4 mb-6">
-                      <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
-                        {settings.galleryTitle || "Галерея"}
-                      </h2>
-                      <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.10 }} />
-                    </div>
-
-                    {/* Instagram-style grid */}
-                    <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
-                      {galleryImages.map((img, i) => (
-                        <button
-                          key={i}
-                          onClick={() => { setGalleryIndex(i); setLightboxOpen(true); }}
-                          data-testid={`button-gallery-grid-${i}`}
-                          className="relative aspect-square overflow-hidden group/cell bg-muted focus:outline-none"
-                        >
-                          <img
-                            src={img}
-                            alt={`${artistName} фото ${i + 1}`}
-                            loading="lazy"
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover/cell:scale-105"
-                          />
-                          <div className="absolute inset-0 bg-black/0 group-hover/cell:bg-black/25 transition-colors duration-300" />
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Lightbox */}
-                    <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-                      <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/95 border-none flex items-center justify-center" data-testid="dialog-gallery-lightbox">
-                        <DialogTitle className="sr-only">{artistName} — галерея</DialogTitle>
-                        <button
-                          onClick={() => setLightboxOpen(false)}
-                          className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-                          data-testid="button-lightbox-close"
-                        >
-                          ✕
-                        </button>
-                        {galleryImages.length > 1 && (
-                          <button
-                            onClick={() => setGalleryIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)}
-                            data-testid="button-lightbox-prev"
-                            className="absolute left-3 sm:left-6 z-40 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-                          >
-                            <ChevronLeft className="w-5 h-5" />
-                          </button>
-                        )}
-                        <div className="w-full h-full flex items-center justify-center p-3">
-                          <img
-                            key={galleryIndex}
-                            src={galleryImages[galleryIndex]}
-                            alt={`${artistName} фото ${galleryIndex + 1}`}
-                            className="max-w-full max-h-full object-contain select-none rounded"
-                            style={{ maxHeight: 'calc(100vh - 80px)' }}
-                          />
-                        </div>
-                        {galleryImages.length > 1 && (
-                          <button
-                            onClick={() => setGalleryIndex((prev) => (prev + 1) % galleryImages.length)}
-                            data-testid="button-lightbox-next"
-                            className="absolute right-3 sm:right-6 z-40 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-                          >
-                            <ChevronRight className="w-5 h-5" />
-                          </button>
-                        )}
-                        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/40 text-xs font-mono tabular-nums">
-                          {galleryIndex + 1} / {galleryImages.length}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                )}
-
-                {/* Видео — справа */}
-                {settings.videoVisible !== false && settings.videoUrl && (
-                  <div
-                    className={`${settings.galleryVisible !== false && galleryImages.length > 0 ? 'lg:w-1/2 mt-10 lg:mt-0' : 'w-full'}`}
-                    data-testid="section-artist-video"
-                  >
-                    {settings.videoTitle && (
-                      <div className="flex items-center gap-2 mb-5">
-                        <Play className="w-4 h-4 text-primary fill-primary" />
-                        <span className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                          {settings.videoTitle}
-                        </span>
-                      </div>
-                    )}
-                    {/* Spacer to align video top with gallery images when no title */}
-                    {!settings.videoTitle && settings.galleryVisible !== false && galleryImages.length > 0 && (
-                      <div className="h-[52px] hidden lg:block" />
-                    )}
-                    <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl shadow-black/25 dark:shadow-black/50 ring-1 ring-black/5 dark:ring-white/5">
-                      {(() => {
-                        const url = settings.videoUrl.trim();
-                        if (url.startsWith("<iframe") || url.startsWith("<IFRAME")) {
-                          const srcMatch = url.match(/src=["']([^"']+)["']/i);
-                          const src = srcMatch ? srcMatch[1] : null;
-                          return src ? <iframe src={src} className="w-full h-full" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock" allowFullScreen title="Video" style={{ border: 0 }} /> : null;
-                        }
-                        if (url.includes("youtube.com") || url.includes("youtu.be")) {
-                          return <iframe src={url.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Video" style={{ border: 0 }} />;
-                        }
-                        if (url.includes("vk.com") || url.includes("vkvideo") || url.includes("vk.ru")) {
-                          let src = url;
-                          if (!url.includes("video_ext.php")) {
-                            const m = url.match(/video(-?\d+)_(\d+)/);
-                            if (m) src = `https://vk.com/video_ext.php?oid=${m[1]}&id=${m[2]}&hd=2`;
-                          }
-                          return <iframe src={src} className="w-full h-full" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock" allowFullScreen title="Video" style={{ border: 0 }} />;
-                        }
-                        if (url.includes("disk.yandex.ru") || url.includes("yadi.sk")) {
-                          return <iframe src={url} className="w-full h-full" allow="autoplay; encrypted-media; fullscreen" allowFullScreen title="Video" style={{ border: 0 }} />;
-                        }
-                        return <video src={url} controls className="w-full h-full object-contain"><track kind="captions" /></video>;
-                      })()}
-                    </div>
-                  </div>
-                )}
-
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" data-testid="section-artist-gallery">
+              <div className="flex items-center gap-4 mb-6">
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
+                  {settings.galleryTitle || "Галерея"}
+                </h2>
+                <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.10 }} />
               </div>
+
+              <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
+                {galleryImages.map((img, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setGalleryIndex(i); setLightboxOpen(true); }}
+                    data-testid={`button-gallery-grid-${i}`}
+                    className="relative aspect-square overflow-hidden group/cell bg-muted focus:outline-none"
+                  >
+                    <img
+                      src={img}
+                      alt={`${artistName} фото ${i + 1}`}
+                      loading="lazy"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover/cell:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover/cell:bg-black/25 transition-colors duration-300" />
+                  </button>
+                ))}
+              </div>
+
+              <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+                <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/95 border-none flex items-center justify-center" data-testid="dialog-gallery-lightbox">
+                  <DialogTitle className="sr-only">{artistName} — галерея</DialogTitle>
+                  <button
+                    onClick={() => setLightboxOpen(false)}
+                    className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                    data-testid="button-lightbox-close"
+                  >
+                    ✕
+                  </button>
+                  {galleryImages.length > 1 && (
+                    <button
+                      onClick={() => setGalleryIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)}
+                      data-testid="button-lightbox-prev"
+                      className="absolute left-3 sm:left-6 z-40 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                  )}
+                  <div className="w-full h-full flex items-center justify-center p-3">
+                    <img
+                      key={galleryIndex}
+                      src={galleryImages[galleryIndex]}
+                      alt={`${artistName} фото ${galleryIndex + 1}`}
+                      className="max-w-full max-h-full object-contain select-none rounded"
+                      style={{ maxHeight: 'calc(100vh - 80px)' }}
+                    />
+                  </div>
+                  {galleryImages.length > 1 && (
+                    <button
+                      onClick={() => setGalleryIndex((prev) => (prev + 1) % galleryImages.length)}
+                      data-testid="button-lightbox-next"
+                      className="absolute right-3 sm:right-6 z-40 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  )}
+                  <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/40 text-xs font-mono tabular-nums">
+                    {galleryIndex + 1} / {galleryImages.length}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </section>
-        ) : null}
+        )}
+
+        {/* ── Видео — кинематографичный полноширинный блок ── */}
+        {settings.videoVisible !== false && settings.videoUrl && (
+          <section
+            className="relative overflow-hidden"
+            style={{ background: isColored ? tc.bgMuted : '#090909' }}
+            data-testid="section-artist-video"
+          >
+            <div className="w-full h-px" style={{ background: isColored ? `${tc.accent}28` : 'rgba(255,255,255,0.06)' }} />
+
+            {/* Заголовок */}
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 pt-10 pb-5">
+              <motion.div
+                initial={{ opacity: 0, x: -16 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="flex items-center gap-4"
+              >
+                <div className="shrink-0 w-[3px] h-5 rounded-full" style={{ background: isColored ? tc.accent : 'rgba(255,255,255,0.25)' }} />
+                <span
+                  className="text-[10px] font-bold uppercase tracking-[0.28em]"
+                  style={{ color: isColored ? tc.accent : 'rgba(255,255,255,0.35)' }}
+                >
+                  {settings.videoTitle || "Видео"}
+                </span>
+              </motion.div>
+            </div>
+
+            {/* Плеер */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="px-4 sm:px-8 lg:px-16 pb-12 sm:pb-16"
+            >
+              <div className="max-w-5xl mx-auto">
+                <div className="aspect-video overflow-hidden" style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}>
+                  {(() => {
+                    const url = settings.videoUrl.trim();
+                    if (url.startsWith("<iframe") || url.startsWith("<IFRAME")) {
+                      const srcMatch = url.match(/src=["']([^"']+)["']/i);
+                      const src = srcMatch ? srcMatch[1] : null;
+                      return src ? <iframe src={src} className="w-full h-full" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock" allowFullScreen title="Video" style={{ border: 0 }} /> : null;
+                    }
+                    if (url.includes("youtube.com") || url.includes("youtu.be")) {
+                      return <iframe src={url.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Video" style={{ border: 0 }} />;
+                    }
+                    if (url.includes("vk.com") || url.includes("vkvideo") || url.includes("vk.ru")) {
+                      let src = url;
+                      if (!url.includes("video_ext.php")) {
+                        const m = url.match(/video(-?\d+)_(\d+)/);
+                        if (m) src = `https://vk.com/video_ext.php?oid=${m[1]}&id=${m[2]}&hd=2`;
+                      }
+                      return <iframe src={src} className="w-full h-full" allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock" allowFullScreen title="Video" style={{ border: 0 }} />;
+                    }
+                    if (url.includes("disk.yandex.ru") || url.includes("yadi.sk")) {
+                      return <iframe src={url} className="w-full h-full" allow="autoplay; encrypted-media; fullscreen" allowFullScreen title="Video" style={{ border: 0 }} />;
+                    }
+                    return <video src={url} controls className="w-full h-full object-contain"><track kind="captions" /></video>;
+                  })()}
+                </div>
+              </div>
+            </motion.div>
+
+            <div className="w-full h-px" style={{ background: isColored ? `${tc.accent}28` : 'rgba(255,255,255,0.06)' }} />
+          </section>
+        )}
 
         {settings.productsVisible !== false && (productsQueryLoading || products.length > 0) && (
           <section className="py-16 sm:py-24" style={isColored ? { background: tc.bg } : { background: 'var(--background)' }} data-testid="section-artist-products">
