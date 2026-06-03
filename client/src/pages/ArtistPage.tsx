@@ -752,10 +752,20 @@ export default function ArtistPage() {
             className="border-b border-white/5"
             style={{ background: isColored ? tc.bg : '#0d0d0d' }}
           >
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 py-4">
-              <div className="flex flex-wrap gap-2">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 py-5">
+              <div className="flex flex-wrap items-center gap-3">
                 {settings.socialsVisible !== false && socials.map((s) => {
                   const Icon = getSocialIcon(s.key, s.url);
+                  const brandColors: Record<string, string> = {
+                    telegram: '#26A5E4',
+                    vk: '#4C75A3',
+                    youtube: '#FF0000',
+                    instagram: '#E1306C',
+                    tiktok: '#ffffff',
+                    spotify: '#1DB954',
+                    soundcloud: '#FF5500',
+                  };
+                  const brandColor = brandColors[s.key] || '#ffffff';
                   return (
                     <a
                       key={s.key}
@@ -763,37 +773,63 @@ export default function ArtistPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                       data-testid={`link-social-bar-${s.key}`}
-                      className="group flex items-center gap-2 px-4 py-2.5 border text-xs font-semibold uppercase tracking-[0.15em] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                      className="flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-[0.12em] transition-all duration-300"
                       style={{
-                        background: 'rgba(255,255,255,0.04)',
-                        borderColor: 'rgba(255,255,255,0.12)',
-                        color: 'rgba(255,255,255,0.6)',
+                        background: 'rgba(255,255,255,0.07)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                        color: 'rgba(255,255,255,0.55)',
                       }}
                       onMouseEnter={e => {
-                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.1)';
-                        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.3)';
-                        (e.currentTarget as HTMLElement).style.color = '#fff';
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.background = `${brandColor}22`;
+                        el.style.borderColor = `${brandColor}55`;
+                        el.style.color = brandColor;
+                        el.style.boxShadow = `0 0 18px ${brandColor}40`;
+                        el.style.transform = 'translateY(-1px)';
                       }}
                       onMouseLeave={e => {
-                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
-                        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)';
-                        (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.6)';
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.background = 'rgba(255,255,255,0.07)';
+                        el.style.borderColor = 'rgba(255,255,255,0.10)';
+                        el.style.color = 'rgba(255,255,255,0.55)';
+                        el.style.boxShadow = 'none';
+                        el.style.transform = 'translateY(0)';
                       }}
                     >
-                      <Icon className="w-3.5 h-3.5 shrink-0" />
+                      <Icon className="w-4 h-4 shrink-0" />
                       <span>{s.label}</span>
                     </a>
                   );
                 })}
 
-                {/* Кнопка «Поделиться» — всегда последняя */}
+                {socials.length > 0 && (
+                  <div className="h-5 w-px bg-white/10 hidden sm:block" />
+                )}
+
+                {/* Кнопка «Поделиться» */}
                 <button
                   data-testid="button-artist-share-bar"
-                  className="flex items-center gap-2 px-4 py-2.5 border text-xs font-semibold uppercase tracking-[0.15em] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-[0.12em] transition-all duration-300"
                   style={{
-                    background: shareCopied ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
-                    borderColor: shareCopied ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)',
-                    color: shareCopied ? '#fff' : 'rgba(255,255,255,0.6)',
+                    background: shareCopied ? 'rgba(255,255,255,0.12)' : 'transparent',
+                    border: `1px solid ${shareCopied ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.18)'}`,
+                    color: shareCopied ? '#fff' : 'rgba(255,255,255,0.45)',
+                  }}
+                  onMouseEnter={e => {
+                    if (shareCopied) return;
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.background = 'rgba(255,255,255,0.08)';
+                    el.style.borderColor = 'rgba(255,255,255,0.30)';
+                    el.style.color = 'rgba(255,255,255,0.85)';
+                    el.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={e => {
+                    if (shareCopied) return;
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.background = 'transparent';
+                    el.style.borderColor = 'rgba(255,255,255,0.18)';
+                    el.style.color = 'rgba(255,255,255,0.45)';
+                    el.style.transform = 'translateY(0)';
                   }}
                   onClick={async () => {
                     const shareData = {
@@ -811,7 +847,7 @@ export default function ArtistPage() {
                     }
                   }}
                 >
-                  <Share2 className="w-3.5 h-3.5 shrink-0" />
+                  <Share2 className="w-4 h-4 shrink-0" />
                   <span>{shareCopied ? 'Скопировано!' : 'Поделиться'}</span>
                 </button>
               </div>
