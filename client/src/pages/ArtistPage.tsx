@@ -691,7 +691,7 @@ export default function ArtistPage() {
             {/* Subtle vignette */}
             <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 30% 100%, rgba(0,0,0,0.5) 0%, transparent 70%)' }} />
 
-            <div className="relative z-10 w-full px-4 sm:px-6 lg:px-12 pb-12 sm:pb-20">
+            <div className="relative z-10 w-full px-4 sm:px-6 lg:px-12 pb-4 sm:pb-6">
               <motion.div
                 initial="hidden"
                 animate="show"
