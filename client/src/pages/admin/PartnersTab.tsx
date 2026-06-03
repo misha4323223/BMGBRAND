@@ -941,6 +941,34 @@ function CommissionsList({ apiKey }: { apiKey: string }) {
     return m;
   }, [partnersQuery.data]);
 
+  // Загружаем активные выплаты — используем тот же queryKey что PayoutsList,
+  // чтобы не делать лишний сетевой запрос (данные берутся из кеша).
+  const payoutsForLockQuery = useQuery<{ payouts: AdminPayout[] }>({
+    queryKey: ["/api/admin/partner-payouts"],
+    queryFn: () => adminFetch("/api/admin/partner-payouts", apiKey),
+  });
+
+  // ID комиссий, уже включённых в незавершённую выплату — их отменять нельзя.
+  const reservedCommissionIds = useMemo(() => {
+    const set = new Set<number>();
+    for (const p of payoutsForLockQuery.data?.payouts || []) {
+      if (p.status === "completed" || p.status === "rejected") continue;
+      // commissionIds может прийти как JSON-строка или уже как массив
+      const raw = p.commissionIds as unknown;
+      let ids: number[] = [];
+      if (Array.isArray(raw)) {
+        ids = (raw as number[]).map(Number).filter((n) => Number.isFinite(n));
+      } else if (typeof raw === "string") {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) ids = parsed.map(Number).filter((n: number) => Number.isFinite(n));
+        } catch {}
+      }
+      ids.forEach((id) => set.add(id));
+    }
+    return set;
+  }, [payoutsForLockQuery.data]);
+
   const confirmMutation = useMutation({
     mutationFn: (ids: number[]) => adminMutate("POST", "/api/admin/partner-commissions/confirm", { ids }, apiKey),
     onSuccess: (data: any) => {
@@ -1100,6 +1128,7 @@ function CommissionsList({ apiKey }: { apiKey: string }) {
                 const s = commissionStateBadge(c);
                 const partner = partnerById.get(c.partnerId);
                 const canSel = canSelectStatus(c);
+                const isReserved = reservedCommissionIds.has(c.id);
                 return (
                   <tr key={c.id} className="border-b last:border-0" data-testid={`row-admin-commission-${c.id}`}>
                     <td className="py-2 pr-3">
@@ -1121,14 +1150,30 @@ function CommissionsList({ apiKey }: { apiKey: string }) {
                     <td className="py-2 pr-3"><Badge className={s.cls}>{s.label}</Badge></td>
                     <td className="py-2 pr-3">
                       {(c.status === "pending" || c.status === "confirmed") && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => { if (confirm(`Отменить комиссию #${c.id}?`)) cancelMutation.mutate(c.id); }}
-                          data-testid={`btn-cancel-comm-${c.id}`}
-                        >
-                          <XCircle className="w-3 h-3 mr-1" />Отменить
-                        </Button>
+                        isReserved ? (
+                          <span
+                            title="Комиссия входит в активную выплату — сначала отклоните выплату во вкладке «Выплаты»"
+                            data-testid={`btn-cancel-comm-${c.id}-locked`}
+                          >
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled
+                              className="opacity-40 cursor-not-allowed pointer-events-none"
+                            >
+                              <XCircle className="w-3 h-3 mr-1" />Отменить
+                            </Button>
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => { if (confirm(`Отменить комиссию #${c.id}?`)) cancelMutation.mutate(c.id); }}
+                            data-testid={`btn-cancel-comm-${c.id}`}
+                          >
+                            <XCircle className="w-3 h-3 mr-1" />Отменить
+                          </Button>
+                        )
                       )}
                       {c.status === "cancelled" && (
                         <Button
