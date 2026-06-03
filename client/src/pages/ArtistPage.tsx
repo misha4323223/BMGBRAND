@@ -790,12 +790,10 @@ export default function ArtistPage() {
         {settings.aboutVisible !== false && settings.aboutText && (
           <section className="py-16 sm:py-24" style={isColored ? { background: tc.bg } : { background: 'var(--background)' }} data-testid="section-artist-about">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-              {isColored && (
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-[3px] w-8 rounded-full" style={{ background: tc.accent }} />
-                  <span className="text-xs font-bold uppercase tracking-[0.25em]" style={{ color: tc.accent }}>{artistName}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-[3px] w-8 rounded-full" style={{ background: isColored ? tc.accent : 'currentColor', opacity: isColored ? 1 : 0.25 }} />
+                <span className="text-xs font-bold uppercase tracking-[0.25em]" style={{ color: isColored ? tc.accent : 'var(--muted-foreground)' }}>{artistName}</span>
+              </div>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -1019,12 +1017,10 @@ export default function ArtistPage() {
         {settings.productsVisible !== false && (productsQueryLoading || products.length > 0) && (
           <section className="py-16 sm:py-24" style={isColored ? { background: tc.bg } : { background: 'var(--background)' }} data-testid="section-artist-products">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              {isColored && (
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-[3px] w-8 rounded-full" style={{ background: tc.accent }} />
-                  <span className="text-xs font-bold uppercase tracking-[0.25em]" style={{ color: tc.accent }}>Коллекция</span>
-                </div>
-              )}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-[3px] w-8 rounded-full" style={{ background: isColored ? tc.accent : 'currentColor', opacity: isColored ? 1 : 0.25 }} />
+                <span className="text-xs font-bold uppercase tracking-[0.25em]" style={{ color: isColored ? tc.accent : 'var(--muted-foreground)' }}>Коллекция</span>
+              </div>
               <div className="flex items-center gap-4 mb-8">
                 <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
                   {settings.productsTitle || "Товары коллекции"}

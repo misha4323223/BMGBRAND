@@ -342,6 +342,7 @@ interface ArtistPageSettings {
   aboutText?: string;
   galleryTitle?: string;
   galleryImages?: string[];
+  aboutImages?: string[];
   quoteText?: string;
   quoteAuthor?: string;
   videoUrl?: string;
@@ -891,6 +892,14 @@ function PageEditor({ partnerSlug }: { partnerSlug: string }) {
                     placeholder="Расскажите о себе..."
                     rows={4}
                     data-testid="textarea-artist-about-text"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block">Фото рядом с текстом (до 2 шт.)</label>
+                  <p className="text-[11px] text-muted-foreground mb-2">Отображаются справа от текста в секции «О себе»</p>
+                  <GalleryUploader
+                    images={(form.aboutImages || []).slice(0, 2)}
+                    onChange={(imgs) => setForm((prev) => ({ ...prev, aboutImages: imgs.slice(0, 2) }))}
                   />
                 </div>
                 </div>
