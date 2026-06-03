@@ -229,17 +229,16 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   });
   const categories = useMemo(() => normalizeCategories(dynamicCategories || CATEGORIES), [dynamicCategories]);
 
-  const { data: artistPages } = useQuery<Record<string, any>>({
-    queryKey: ["/api/page-settings/artist_pages"],
+  const { data: homeSettings } = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/home"],
     staleTime: 5 * 60 * 1000,
   });
   const artistList = useMemo(() => {
-    if (!artistPages) return [];
-    return Object.entries(artistPages)
-      .filter(([, v]) => v && (v.name || v.title))
-      .map(([slug, v]) => ({ slug, name: (v.name || v.title || slug) as string }))
-      .sort((a, b) => a.name.localeCompare(b.name, "ru"));
-  }, [artistPages]);
+    const items: any[] = homeSettings?.artists?.items || [];
+    return items
+      .filter((a: any) => a && a.slug && (a.name || a.title))
+      .map((a: any) => ({ slug: a.slug as string, name: (a.name || a.title) as string }));
+  }, [homeSettings]);
 
   const pathCatSlug = catSubParams?.catSlug || catOnlyParams?.catSlug || null;
   const pathSubSlug = catSubParams?.subSlug || null;
