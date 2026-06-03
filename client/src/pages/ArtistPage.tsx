@@ -944,35 +944,29 @@ export default function ArtistPage() {
                 <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.10 }} />
               </div>
 
-              <div className="grid grid-cols-3 gap-1 sm:gap-1.5">
-                {galleryImages.map((img, i) => {
-                  const total = galleryImages.length;
-                  const isLastAlone = i === total - 1 && total % 3 === 1;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => { setGalleryIndex(i); setLightboxOpen(true); }}
-                      data-testid={`button-gallery-grid-${i}`}
-                      className={`relative overflow-hidden group/cell bg-muted focus:outline-none${isLastAlone ? ' col-span-3 sm:col-span-3' : ''}`}
-                      style={{ aspectRatio: isLastAlone ? '16/7' : '3/4' }}
-                    >
-                      <img
-                        src={img}
-                        alt={`${artistName} фото ${i + 1}`}
-                        loading="lazy"
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover/cell:scale-[1.04]"
-                        style={{ objectPosition: 'center top' }}
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover/cell:bg-black/45 transition-all duration-300 flex items-center justify-center">
-                        <div className="opacity-0 group-hover/cell:opacity-100 transition-opacity duration-300 w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
-                          </svg>
-                        </div>
+              <div className="columns-2 sm:columns-3 gap-1 sm:gap-1.5">
+                {galleryImages.map((img, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setGalleryIndex(i); setLightboxOpen(true); }}
+                    data-testid={`button-gallery-grid-${i}`}
+                    className="relative w-full mb-1 sm:mb-1.5 overflow-hidden group/cell bg-muted focus:outline-none break-inside-avoid block"
+                  >
+                    <img
+                      src={img}
+                      alt={`${artistName} фото ${i + 1}`}
+                      loading="lazy"
+                      className="w-full h-auto block transition-transform duration-700 group-hover/cell:scale-[1.04]"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover/cell:bg-black/45 transition-all duration-300 flex items-center justify-center">
+                      <div className="opacity-0 group-hover/cell:opacity-100 transition-opacity duration-300 w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+                        </svg>
                       </div>
-                    </button>
-                  );
-                })}
+                    </div>
+                  </button>
+                ))}
               </div>
 
               <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
