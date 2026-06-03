@@ -8081,6 +8081,7 @@ BMGBRAND — официальный производитель и магазин
       const maxPrice = req.query.maxPrice ? parseInt(req.query.maxPrice as string) : undefined;
       const sizeFilter = req.query.size as string | undefined;
       const sortBy = req.query.sort as string | undefined;
+      const artistSlugFilter = req.query.artistSlug as string | undefined;
       
       const allProducts = await storage.getProducts();
       const apiKey = req.headers["x-api-key"] as string;
@@ -8168,6 +8169,11 @@ BMGBRAND — официальный производитель и магазин
           if (!p.sizes || p.sizes.length === 0) return false;
           return p.sizes.some(ps => sizes.includes(ps.toLowerCase()));
         });
+      }
+
+      // Artist filter
+      if (artistSlugFilter) {
+        filtered = filtered.filter(p => (p as any).artistSlug === artistSlugFilter);
       }
       
       // Sorting (default: newest first by id)

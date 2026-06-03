@@ -229,6 +229,18 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   });
   const categories = useMemo(() => normalizeCategories(dynamicCategories || CATEGORIES), [dynamicCategories]);
 
+  const { data: artistPages } = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/artist_pages"],
+    staleTime: 5 * 60 * 1000,
+  });
+  const artistList = useMemo(() => {
+    if (!artistPages) return [];
+    return Object.entries(artistPages)
+      .filter(([, v]) => v && (v.name || v.title))
+      .map(([slug, v]) => ({ slug, name: (v.name || v.title || slug) as string }))
+      .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  }, [artistPages]);
+
   const pathCatSlug = catSubParams?.catSlug || catOnlyParams?.catSlug || null;
   const pathSubSlug = catSubParams?.subSlug || null;
 
@@ -263,11 +275,13 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(true);
   const [sortOpen, setSortOpen] = useState(false);
+  const [artistsOpen, setArtistsOpen] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000000]);
   const [priceInputMin, setPriceInputMin] = useState("");
   const [priceInputMax, setPriceInputMax] = useState("");
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [selectedArtist, setSelectedArtist] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("newest");
   const [appliedFilters, setAppliedFilters] = useState<ProductFilters>({});
   
@@ -279,6 +293,7 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     if (appliedFilters.minPrice !== undefined && appliedFilters.minPrice > 0) count++;
     if (appliedFilters.maxPrice !== undefined && appliedFilters.maxPrice < PRICE_MAX) count++;
     if (appliedFilters.size) count++;
+    if (appliedFilters.artistSlug) count++;
     return count;
   }, [appliedFilters]);
 
@@ -288,8 +303,9 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     if (priceRange[1] < PRICE_MAX) f.maxPrice = priceRange[1];
     if (selectedSizes.length > 0) f.size = selectedSizes.join(",");
     if (sortBy) f.sort = sortBy;
+    if (selectedArtist) f.artistSlug = selectedArtist;
     setAppliedFilters(f);
-  }, [priceRange, selectedSizes, sortBy]);
+  }, [priceRange, selectedSizes, sortBy, selectedArtist]);
 
   const resetFilters = useCallback(() => {
     setPriceRange([0, PRICE_MAX]);
@@ -297,17 +313,19 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     setPriceInputMax("");
     setSelectedSizes([]);
     setSortBy("");
+    setSelectedArtist("");
     setAppliedFilters({});
   }, []);
 
   useEffect(() => {
     const f: ProductFilters = {};
     if (sortBy) f.sort = sortBy;
+    if (selectedArtist) f.artistSlug = selectedArtist;
     if (appliedFilters.minPrice !== undefined) f.minPrice = appliedFilters.minPrice;
     if (appliedFilters.maxPrice !== undefined) f.maxPrice = appliedFilters.maxPrice;
     if (appliedFilters.size) f.size = appliedFilters.size;
     setAppliedFilters(f);
-  }, [sortBy]);
+  }, [sortBy, selectedArtist]);
 
   // Force refresh data on category/subcategory/search change
   const queryClient = useQueryClient();
@@ -726,6 +744,51 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
                 </div>
               )}
             </div>
+
+            {/* Artists (only on merch page) */}
+            {isMerch && artistList.length > 0 && (
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setArtistsOpen(prev => !prev); }}
+                  className="flex items-center justify-between w-full py-1.5 mb-1 cursor-pointer select-none"
+                  data-testid="button-toggle-artists"
+                  aria-expanded={artistsOpen}
+                >
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-white/50">По артисту</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 text-white/50 ${artistsOpen ? "rotate-0" : "-rotate-90"}`} />
+                </button>
+                {artistsOpen && (
+                  <div className="space-y-0.5">
+                    <button
+                      onClick={() => { setSelectedArtist(""); setFiltersOpen(false); }}
+                      data-testid="button-artist-all"
+                      className={`w-full text-left text-sm px-3 py-2 rounded-md transition-colors ${
+                        !selectedArtist
+                          ? "bg-white/10 text-white font-medium"
+                          : "text-white/70 hover:bg-white/5 hover:text-white"
+                      }`}
+                    >
+                      Все артисты
+                    </button>
+                    {artistList.map(({ slug, name }) => (
+                      <button
+                        key={slug}
+                        onClick={() => { setSelectedArtist(slug === selectedArtist ? "" : slug); setFiltersOpen(false); }}
+                        data-testid={`button-artist-${slug}`}
+                        className={`w-full text-left text-sm px-3 py-2 rounded-md transition-colors ${
+                          selectedArtist === slug
+                            ? "bg-white/10 text-white font-medium"
+                            : "text-white/70 hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Sort */}
             <div className="mb-4">

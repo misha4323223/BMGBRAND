@@ -30,6 +30,7 @@ export interface ProductFilters {
   maxPrice?: number;
   size?: string;
   sort?: string;
+  artistSlug?: string;
 }
 
 export function usePaginatedProducts(
@@ -49,6 +50,7 @@ export function usePaginatedProducts(
   if (filters?.maxPrice !== undefined) queryParams.set("maxPrice", String(filters.maxPrice));
   if (filters?.size) queryParams.set("size", filters.size);
   if (filters?.sort) queryParams.set("sort", filters.sort);
+  if (filters?.artistSlug) queryParams.set("artistSlug", filters.artistSlug);
   const filterKey = queryParams.toString();
   
   return useInfiniteQuery({
@@ -65,6 +67,7 @@ export function usePaginatedProducts(
       if (filters?.maxPrice !== undefined) params.set("maxPrice", String(filters.maxPrice));
       if (filters?.size) params.set("size", filters.size);
       if (filters?.sort) params.set("sort", filters.sort);
+      if (filters?.artistSlug) params.set("artistSlug", filters.artistSlug);
       
       const res = await fetch(`${api.products.list.path}?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch products");
