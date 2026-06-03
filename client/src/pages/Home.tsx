@@ -626,29 +626,12 @@ export default function Home() {
           )}
         </section>
         {renderPromoBanner("after_hero")}
-        <Link href="/merch-na-zakaz" data-testid="merch-strip-banner">
-          <div className="merch-strip-shimmer w-full bg-foreground text-background flex items-center gap-4 sm:gap-6 px-5 sm:px-12 py-4 sm:py-5 group cursor-pointer hover:bg-foreground/90 transition-colors duration-200">
-            <div className="shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary flex items-center justify-center">
-              <Shirt className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-            </div>
-            <span className="shrink-0 text-xs sm:text-sm font-black uppercase tracking-[0.2em] sm:tracking-[0.25em] whitespace-nowrap text-white">
-              Мерч на заказ
-            </span>
-            <div className="hidden sm:block w-px h-5 bg-white/20 shrink-0" />
-            <span className="flex-1 min-w-0 truncate hidden sm:inline text-xs sm:text-sm text-white tracking-wide">
-              Полный цикл производства вашей идеи
-            </span>
-            <span className="shrink-0 flex items-center gap-2 text-xs sm:text-sm font-semibold uppercase tracking-wider text-red-400 group-hover:gap-3 transition-all duration-200 whitespace-nowrap ml-4">
-              Подробнее
-              <ArrowRight className="w-4 h-4" />
-            </span>
-          </div>
-        </Link>
         {(() => {
           const stripItems: any[] = pageSettings?.artists?.items || artists;
           if (!stripItems || stripItems.length === 0) return null;
           return (
             <div className="w-full bg-zinc-950">
+              {/* ── Лента коллабораций ── */}
               <div className="flex items-stretch">
                 {/* Левый лейбл */}
                 <div className="hidden sm:flex shrink-0 items-center justify-center px-5 lg:px-7 border-r border-zinc-800">
@@ -678,7 +661,6 @@ export default function Home() {
                             className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-transparent" />
-                          {/* × маркер коллаборации */}
                           <div className="absolute top-1.5 right-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                             <span className="text-white font-bold leading-none" style={{ fontSize: "9px" }}>×</span>
                           </div>
@@ -688,11 +670,10 @@ export default function Home() {
                         </span>
                       </Link>
                     ))}
-                    {/* Отступ справа чтобы последняя карточка не обрезалась fade-ом */}
                     <div className="shrink-0 w-10 sm:w-16" />
                   </div>
                 </div>
-                {/* Правая ссылка */}
+                {/* Правая ссылка "Все" */}
                 <Link
                   href={pageSettings?.artists?.linkUrl || "/products/merch"}
                   className="hidden sm:flex shrink-0 items-center gap-2 text-[9px] font-mono uppercase tracking-widest text-zinc-500 hover:text-white transition-all duration-200 px-5 lg:px-7 border-l border-zinc-800 group"
@@ -700,6 +681,41 @@ export default function Home() {
                 >
                   <span className="whitespace-nowrap">Все</span>
                   <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </div>
+
+              {/* ── CTA: Мерч на заказ — вшит в тот же тёмный блок ── */}
+              <div className="border-t border-zinc-800">
+                <Link href="/merch-na-zakaz" data-testid="merch-strip-banner" className="group block">
+                  <div className="flex items-center gap-3 sm:gap-0 px-4 sm:px-0">
+                    {/* Иконка + лейбл */}
+                    <div className="hidden sm:flex shrink-0 items-center gap-3 px-5 lg:px-7 py-4 border-r border-zinc-800">
+                      <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
+                        <Shirt className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-[0.22em] text-white whitespace-nowrap">
+                        Мерч на заказ
+                      </span>
+                    </div>
+                    {/* Мобильная иконка */}
+                    <div className="sm:hidden w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
+                      <Shirt className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    {/* Главный CTA-текст */}
+                    <div className="flex-1 px-0 sm:px-7 py-4">
+                      <p className="text-sm sm:text-base font-semibold text-white leading-tight">
+                        Создай мерч как у них
+                      </p>
+                      <p className="text-[11px] text-zinc-500 mt-0.5 hidden sm:block">
+                        Полный цикл производства — от идеи до доставки
+                      </p>
+                    </div>
+                    {/* Кнопка */}
+                    <div className="shrink-0 flex items-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] text-primary group-hover:gap-3 transition-all duration-200 py-4 sm:px-7 sm:border-l sm:border-zinc-800">
+                      <span>Заказать</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
                 </Link>
               </div>
             </div>
