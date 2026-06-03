@@ -696,7 +696,7 @@ export default function ArtistPage() {
                 initial="hidden"
                 animate="show"
                 variants={{ hidden: {}, show: { transition: { staggerChildren: 0.13 } } }}
-                className="max-w-lg lg:max-w-sm xl:max-w-md"
+                className="max-w-lg lg:max-w-xl xl:max-w-2xl"
               >
                 {artistRole && (
                   <motion.div
