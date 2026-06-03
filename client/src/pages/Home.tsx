@@ -635,7 +635,7 @@ export default function Home() {
               <div className="flex items-stretch">
                 {/* Левый лейбл */}
                 <div className="hidden sm:flex shrink-0 items-center justify-center px-5 lg:px-7 border-r border-zinc-800">
-                  <span className="text-[9px] font-mono tracking-[0.3em] uppercase text-zinc-500 whitespace-nowrap" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                  <span className="text-[11px] font-mono tracking-[0.3em] uppercase text-zinc-300 whitespace-nowrap" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
                     Коллаборации
                   </span>
                 </div>
@@ -661,11 +661,12 @@ export default function Home() {
                             className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-transparent" />
-                          <div className="absolute top-1.5 right-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <span className="text-white font-bold leading-none" style={{ fontSize: "9px" }}>×</span>
+                          {/* COLLAB-лейбл снизу карточки при наведении */}
+                          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center pb-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <span className="text-[7px] sm:text-[8px] font-mono tracking-[0.2em] uppercase text-primary/90">collab</span>
                           </div>
                         </div>
-                        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400 group-hover:text-white transition-colors duration-200 text-center leading-tight w-[92px] sm:w-[110px] line-clamp-2">
+                        <span className="text-[10px] sm:text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-200 group-hover:text-white transition-colors duration-200 text-center leading-tight w-[92px] sm:w-[110px] line-clamp-2">
                           {artist.name}
                         </span>
                       </Link>
@@ -676,11 +677,11 @@ export default function Home() {
                 {/* Правая ссылка "Все" */}
                 <Link
                   href={pageSettings?.artists?.linkUrl || "/products/merch"}
-                  className="hidden sm:flex shrink-0 items-center gap-2 text-[9px] font-mono uppercase tracking-widest text-zinc-500 hover:text-white transition-all duration-200 px-5 lg:px-7 border-l border-zinc-800 group"
+                  className="hidden sm:flex shrink-0 items-center gap-2 text-[11px] font-mono uppercase tracking-widest text-zinc-300 hover:text-white transition-all duration-200 px-5 lg:px-7 border-l border-zinc-800 group"
                   data-testid="link-all-artists-strip"
                 >
                   <span className="whitespace-nowrap">Все</span>
-                  <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </div>
 
@@ -708,14 +709,14 @@ export default function Home() {
                       </p>
                       {/* Шаги-иконки вместо текстовой подписи */}
                       <div className="hidden sm:flex items-center gap-2 mt-1.5">
-                        <Pencil className="w-3 h-3 text-zinc-500 shrink-0" />
-                        <span className="text-[10px] text-zinc-500">Идея</span>
-                        <ArrowRight className="w-2.5 h-2.5 text-zinc-700 shrink-0" />
-                        <Settings2 className="w-3 h-3 text-zinc-500 shrink-0" />
-                        <span className="text-[10px] text-zinc-500">Производство</span>
-                        <ArrowRight className="w-2.5 h-2.5 text-zinc-700 shrink-0" />
-                        <ShoppingBag className="w-3 h-3 text-zinc-500 shrink-0" />
-                        <span className="text-[10px] text-zinc-500">Продажа в каталоге</span>
+                        <Pencil className="w-3 h-3 text-zinc-300 shrink-0" />
+                        <span className="text-[11px] text-zinc-300">Идея</span>
+                        <ArrowRight className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
+                        <Settings2 className="w-3 h-3 text-zinc-300 shrink-0" />
+                        <span className="text-[11px] text-zinc-300">Производство</span>
+                        <ArrowRight className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
+                        <ShoppingBag className="w-3 h-3 text-zinc-300 shrink-0" />
+                        <span className="text-[11px] text-zinc-300">Продажа в каталоге</span>
                       </div>
                     </div>
                     {/* Красная кнопка */}
