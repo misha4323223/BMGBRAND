@@ -1047,74 +1047,86 @@ export default function Home() {
             )}
 
             {artistLayout === "rows" && (
-              <>
-                {/* Mobile: horizontal scroll carousel */}
-                <div className="md:hidden relative">
-                  <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
-                  <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
-                  <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4 snap-x snap-mandatory pb-4" style={{ scrollbarWidth: 'none' }}>
-                    {artistItems.map((artist: any, index: number) => (
-                      <Link
-                        key={index}
-                        href={artist.slug ? `/@${artist.slug}` : (artist.link || pageSettings?.artists?.linkUrl || "/products/merch")}
-                        data-testid={`link-artist-mobile-${index}`}
-                        className="block group relative flex-shrink-0 snap-center w-[200px] aspect-[3/4] overflow-hidden bg-muted rounded-xl"
+              <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-3">
+                {artistItems.slice(0, 2).map((artist: any, index: number) => {
+                  const isEven = index % 2 === 0;
+                  const href = artist.slug ? `/@${artist.slug}` : (artist.link || pageSettings?.artists?.linkUrl || "/products/merch");
+                  return (
+                    <Link
+                      key={index}
+                      href={href}
+                      data-testid={`link-artist-split-${index}`}
+                      className="group relative overflow-hidden bg-zinc-950 flex flex-col sm:flex-row h-[280px] sm:h-[400px]"
+                    >
+                      {/* ── Фото ── */}
+                      <div
+                        className={`
+                          absolute inset-y-0 w-full sm:w-[62%] z-10
+                          ${isEven ? "left-0" : "right-0"}
+                        `}
+                        style={{
+                          clipPath: isEven
+                            ? "polygon(0 0, 100% 0, 85% 100%, 0 100%)"
+                            : "polygon(15% 0, 100% 0, 100% 100%, 0 100%)"
+                        }}
                       >
                         <img
                           src={getOptimizedImageUrl(artist.image)}
                           alt={artist.name}
                           loading="lazy"
                           decoding="async"
-                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                          className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                        <div className="absolute bottom-0 left-0 right-0 p-4" style={{textShadow: "0 1px 4px rgba(0,0,0,0.9)"}}>
-                          <p className="text-[9px] font-mono tracking-[0.22em] uppercase text-white mb-1">{artist.role}</p>
-                          <h3 className="font-['Barlow_Condensed',sans-serif] text-white text-xl font-bold uppercase leading-tight">{artist.name}</h3>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                  <div className="flex justify-center mt-3">
-                    <div className="flex items-center gap-2 text-foreground/40 text-xs">
-                      <span>Листайте</span>
-                      <ArrowRight className="w-3 h-3 animate-pulse" />
-                    </div>
-                  </div>
-                </div>
+                        {/* Тёмный градиент для мобильного (снизу вверх) */}
+                        <div className="absolute inset-0 sm:hidden bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
+                      </div>
 
-                {/* Desktop: 2-column editorial rows */}
-                <div className="hidden md:block max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-                  <div className="border-t border-foreground/15 grid grid-cols-2">
-                    {artistItems.map((artist: any, index: number) => (
-                      <Link
-                        key={index}
-                        href={artist.slug ? `/@${artist.slug}` : (artist.link || pageSettings?.artists?.linkUrl || "/products/merch")}
-                        data-testid={`link-artist-${index}`}
-                        className={`group flex items-stretch border-b border-foreground/10 hover:bg-foreground/[0.03] transition-colors duration-200 ${index % 2 === 0 ? "border-r border-foreground/10" : ""}`}
+                      {/* ── Текстовая сторона ── */}
+                      <div
+                        className={`
+                          absolute z-20
+                          bottom-0 left-0 right-0 p-5
+                          sm:bottom-auto sm:inset-y-0 sm:w-[44%] sm:flex sm:flex-col sm:justify-center
+                          ${isEven ? "sm:right-0 sm:left-auto sm:pl-10 sm:pr-8" : "sm:left-0 sm:right-auto sm:pl-8 sm:pr-10"}
+                        `}
                       >
-                        <div className="flex-shrink-0 w-[120px] aspect-[2/3] overflow-hidden bg-muted">
-                          <img
-                            src={getOptimizedImageUrl(artist.image)}
-                            alt={artist.name}
-                            loading="lazy"
-                            decoding="async"
-                            className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 group-hover:scale-[1.04] transition-all duration-500 ease-out"
-                          />
-                        </div>
-                        <div className="flex flex-1 items-center justify-between gap-2 px-6 py-3">
-                          <div className="min-w-0">
-                            <p className="text-[9px] font-mono tracking-[0.3em] uppercase text-foreground mb-1">{artist.role}</p>
-                            <h3 className="font-['Barlow_Condensed',sans-serif] text-4xl font-bold uppercase leading-none tracking-tight text-foreground truncate">{artist.name}</h3>
-                            <p className="text-[11px] text-foreground mt-1 font-mono truncate">{artist.collection}</p>
-                          </div>
-                          <ArrowRight className="flex-shrink-0 w-4 h-4 text-foreground/25 group-hover:text-foreground group-hover:translate-x-0.5 transition-all duration-200" />
-                        </div>
-                      </Link>
-                    ))}
+                        <p className="text-[9px] sm:text-[10px] font-mono tracking-[0.35em] uppercase text-primary mb-2 sm:mb-3">
+                          {artist.role}
+                        </p>
+                        <h3
+                          className="font-['Oswald',sans-serif] text-3xl sm:text-5xl xl:text-6xl font-bold uppercase text-white leading-none tracking-tight mb-2 sm:mb-4"
+                          style={{ textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}
+                        >
+                          {artist.name}
+                        </h3>
+                        <p className="hidden sm:block text-zinc-400 text-sm leading-relaxed mb-6 line-clamp-2">
+                          {artist.collection}
+                        </p>
+                        <span className="hidden sm:inline-flex items-center gap-2 text-[11px] font-mono tracking-[0.2em] uppercase text-white border border-white/25 px-4 py-2.5 w-fit group-hover:bg-primary group-hover:border-primary transition-all duration-300">
+                          Смотреть коллекцию <ArrowRight className="w-3 h-3" />
+                        </span>
+                        {/* Мобильный: только имя + маленькая стрелка */}
+                        <span className="sm:hidden inline-flex items-center gap-1 mt-1 text-[10px] font-mono tracking-widest uppercase text-white/60">
+                          {artist.collection} <ArrowRight className="w-2.5 h-2.5" />
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
+
+                {/* Ссылка «Все» если артистов больше 2 */}
+                {artistItems.length > 2 && (
+                  <div className="flex justify-end pt-1">
+                    <Link
+                      href={pageSettings?.artists?.linkUrl || "/products/merch"}
+                      className="inline-flex items-center gap-2 text-[11px] font-mono tracking-[0.25em] uppercase text-muted-foreground hover:text-primary transition-colors group"
+                      data-testid="link-all-artists-split"
+                    >
+                      {pageSettings?.artists?.linkText || "Все коллаборации"} <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                    </Link>
                   </div>
-                </div>
-              </>
+                )}
+              </div>
             )}
 
             {artistLayout === "carousel" && (() => {
