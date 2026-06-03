@@ -714,7 +714,14 @@ export default function ArtistPage() {
                     variants={{ hidden: { opacity: 0, y: 80 }, show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } } }}
                     className="text-5xl sm:text-7xl lg:text-8xl font-black text-white leading-[0.92] tracking-tight"
                   >
-                    {artistName}
+                    {slug?.toLowerCase().includes('molodost') ? (
+                      <img
+                        src="/molodost-vnutri-logo.png"
+                        alt={artistName}
+                        className="w-64 sm:w-80 lg:w-96 max-w-full"
+                        style={{ filter: 'drop-shadow(0 2px 12px rgba(0,0,0,0.5))' }}
+                      />
+                    ) : artistName}
                   </motion.h1>
                 </div>
                 {settings.shortDescription && (
