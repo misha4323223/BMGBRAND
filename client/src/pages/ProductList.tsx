@@ -229,16 +229,10 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   });
   const categories = useMemo(() => normalizeCategories(dynamicCategories || CATEGORIES), [dynamicCategories]);
 
-  const { data: homeSettings } = useQuery<Record<string, any>>({
-    queryKey: ["/api/page-settings/home"],
-    staleTime: 5 * 60 * 1000,
-  });
   const artistList = useMemo(() => {
-    const items: any[] = homeSettings?.artists?.items || [];
-    return items
-      .filter((a: any) => a && a.slug && (a.name || a.title))
-      .map((a: any) => ({ slug: a.slug as string, name: (a.name || a.title) as string }));
-  }, [homeSettings]);
+    const merchSubs: Array<{name: string; slug: string}> = (categories["merch"] as any)?.subcategories || [];
+    return merchSubs.filter(s => s.slug !== "jdm");
+  }, [categories]);
 
   const pathCatSlug = catSubParams?.catSlug || catOnlyParams?.catSlug || null;
   const pathSubSlug = catSubParams?.subSlug || null;
@@ -274,13 +268,11 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(true);
   const [sortOpen, setSortOpen] = useState(false);
-  const [artistsOpen, setArtistsOpen] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000000]);
   const [priceInputMin, setPriceInputMin] = useState("");
   const [priceInputMax, setPriceInputMax] = useState("");
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
-  const [selectedArtist, setSelectedArtist] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("newest");
   const [appliedFilters, setAppliedFilters] = useState<ProductFilters>({});
   
@@ -292,7 +284,6 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     if (appliedFilters.minPrice !== undefined && appliedFilters.minPrice > 0) count++;
     if (appliedFilters.maxPrice !== undefined && appliedFilters.maxPrice < PRICE_MAX) count++;
     if (appliedFilters.size) count++;
-    if (appliedFilters.artistSlug) count++;
     return count;
   }, [appliedFilters]);
 
@@ -302,9 +293,8 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     if (priceRange[1] < PRICE_MAX) f.maxPrice = priceRange[1];
     if (selectedSizes.length > 0) f.size = selectedSizes.join(",");
     if (sortBy) f.sort = sortBy;
-    if (selectedArtist) f.artistSlug = selectedArtist;
     setAppliedFilters(f);
-  }, [priceRange, selectedSizes, sortBy, selectedArtist]);
+  }, [priceRange, selectedSizes, sortBy]);
 
   const resetFilters = useCallback(() => {
     setPriceRange([0, PRICE_MAX]);
@@ -312,19 +302,17 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     setPriceInputMax("");
     setSelectedSizes([]);
     setSortBy("");
-    setSelectedArtist("");
     setAppliedFilters({});
   }, []);
 
   useEffect(() => {
     const f: ProductFilters = {};
     if (sortBy) f.sort = sortBy;
-    if (selectedArtist) f.artistSlug = selectedArtist;
     if (appliedFilters.minPrice !== undefined) f.minPrice = appliedFilters.minPrice;
     if (appliedFilters.maxPrice !== undefined) f.maxPrice = appliedFilters.maxPrice;
     if (appliedFilters.size) f.size = appliedFilters.size;
     setAppliedFilters(f);
-  }, [sortBy, selectedArtist]);
+  }, [sortBy]);
 
   // Force refresh data on category/subcategory/search change
   const queryClient = useQueryClient();
@@ -604,30 +592,15 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
         </div>
 
         {/* Artist filter strip — merch page only */}
-        {isMerch && artistList.length > 0 && (
+        {isMerch && !subcategoryParam && artistList.length > 0 && (
           <div className="px-4 sm:px-6 lg:px-8 max-w-8xl mx-auto mb-4">
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
-              <button
-                onClick={() => setSelectedArtist("")}
-                data-testid="button-artist-all"
-                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                  !selectedArtist
-                    ? "bg-white text-black border-white"
-                    : "border-white/30 text-white/70 hover:border-white/60 hover:text-white"
-                }`}
-              >
-                Все
-              </button>
               {artistList.map(({ slug, name }) => (
                 <button
                   key={slug}
-                  onClick={() => setSelectedArtist(slug === selectedArtist ? "" : slug)}
+                  onClick={() => navigate(`/${slug}`, true)}
                   data-testid={`button-artist-${slug}`}
-                  className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                    selectedArtist === slug
-                      ? "bg-white text-black border-white"
-                      : "border-white/30 text-white/70 hover:border-white/60 hover:text-white"
-                  }`}
+                  className="flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border border-white/30 text-white/70 hover:border-white/60 hover:text-white transition-colors"
                 >
                   {name}
                 </button>
