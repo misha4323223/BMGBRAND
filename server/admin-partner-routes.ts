@@ -559,6 +559,22 @@ router.post('/partner-payouts/:id/complete', authMiddleware, adminMiddleware, as
       status: 'completed',
       completedAt: new Date(),
     });
+
+    // Переводим комиссии в paid только здесь — когда выплата реально завершена.
+    // (До этого момента комиссии остаются confirmed, чтобы партнёр видел корректный
+    //  статус "Доступно к выплате" → а не ложное "Выплачено".)
+    try {
+      const parsedIds: unknown = JSON.parse(payout.commissionIds || '[]');
+      if (Array.isArray(parsedIds)) {
+        const commIds = (parsedIds as unknown[]).map(Number).filter((n) => Number.isFinite(n));
+        if (commIds.length > 0) {
+          await storage.markCommissionsPaid(commIds);
+        }
+      }
+    } catch (e: any) {
+      console.error('[Admin Partners] complete: markCommissionsPaid error:', e?.message);
+    }
+
     auditPayout(req, 'complete', id, {
       partnerId: payout.partnerId,
       amount: payout.amount,

@@ -470,8 +470,36 @@ router.post('/payout/request', authMiddleware, requirePartnerRole, async (req: A
       });
     }
 
-    const commissionIds = confirmedCommissions.map((c) => c.id);
-    const totalAmount   = confirmedCommissions.reduce((sum, c) => sum + c.commissionAmount, 0);
+    // 1а. Исключаем комиссии, уже зарезервированные в активных (незавершённых) выплатах.
+    //     Без этой проверки повторный запрос выплаты включил бы те же комиссии дважды.
+    const existingPayouts = await storage.listPartnerPayouts(partnerId);
+    const activePayouts = existingPayouts.filter(
+      (p) => p.status !== 'completed' && p.status !== 'rejected',
+    );
+    const reservedIds = new Set<number>();
+    for (const p of activePayouts) {
+      try {
+        const parsed: unknown = JSON.parse(p.commissionIds || '[]');
+        if (Array.isArray(parsed)) {
+          (parsed as unknown[]).forEach((cid) => {
+            const n = Number(cid);
+            if (Number.isFinite(n)) reservedIds.add(n);
+          });
+        }
+      } catch {}
+    }
+    const freeCommissions = reservedIds.size > 0
+      ? confirmedCommissions.filter((c) => !reservedIds.has(c.id))
+      : confirmedCommissions;
+
+    if (freeCommissions.length === 0) {
+      return res.status(400).json({
+        error: 'Все подтверждённые комиссии уже включены в активную выплату. Дождитесь её завершения или обратитесь к администратору.',
+      });
+    }
+
+    const commissionIds = freeCommissions.map((c) => c.id);
+    const totalAmount   = freeCommissions.reduce((sum, c) => sum + c.commissionAmount, 0);
 
     // 2. Данные партнёра (для реквизитов и legalStatus)
     const partner = await storage.getPartnerById(partnerId);
@@ -507,9 +535,9 @@ router.post('/payout/request', authMiddleware, requirePartnerRole, async (req: A
     if (!recipientName) recipientName = partner.contactName || `Партнёр #${partnerId}`;
     if (recipientDetails.length < 3) recipientDetails = `ИНН: ${partner.inn || '—'}`;
 
-    // 3. Помечаем комиссии как оплаченные (paid) и создаём карточку
-    await storage.markCommissionsPaid(commissionIds);
-
+    // 3. Создаём карточку выплаты.
+    //    Комиссии НЕ переводятся в paid здесь — это произойдёт только когда
+    //    администратор реально завершит выплату (POST /admin/partner-payouts/:id/complete).
     const payout = await storage.createPartnerPayout({
       partnerId,
       amount: totalAmount,
