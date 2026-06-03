@@ -767,21 +767,19 @@ export default function ArtistPage() {
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[0.13em] transition-all duration-200"
                       style={{
                         background: 'rgba(255,255,255,0.07)',
-                        border: '1px solid rgba(255,255,255,0.10)',
-                        color: 'rgba(255,255,255,0.5)',
+                        border: '1px solid rgba(255,255,255,0.18)',
+                        color: '#fff',
                       }}
                       onMouseEnter={e => {
                         const el = e.currentTarget as HTMLElement;
-                        el.style.background = 'rgba(255,255,255,0.13)';
-                        el.style.borderColor = 'rgba(255,255,255,0.25)';
-                        el.style.color = '#fff';
+                        el.style.background = 'rgba(255,255,255,0.16)';
+                        el.style.borderColor = 'rgba(255,255,255,0.35)';
                         el.style.transform = 'translateY(-1px)';
                       }}
                       onMouseLeave={e => {
                         const el = e.currentTarget as HTMLElement;
                         el.style.background = 'rgba(255,255,255,0.07)';
-                        el.style.borderColor = 'rgba(255,255,255,0.10)';
-                        el.style.color = 'rgba(255,255,255,0.5)';
+                        el.style.borderColor = 'rgba(255,255,255,0.18)';
                         el.style.transform = 'translateY(0)';
                       }}
                     >
@@ -800,24 +798,22 @@ export default function ArtistPage() {
                   data-testid="button-artist-share-bar"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[0.13em] transition-all duration-200"
                   style={{
-                    background: shareCopied ? 'rgba(255,255,255,0.10)' : 'transparent',
-                    border: `1px solid ${shareCopied ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.12)'}`,
-                    color: shareCopied ? '#fff' : 'rgba(255,255,255,0.38)',
+                    background: shareCopied ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.07)',
+                    border: `1px solid ${shareCopied ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.18)'}`,
+                    color: '#fff',
                   }}
                   onMouseEnter={e => {
                     if (shareCopied) return;
                     const el = e.currentTarget as HTMLElement;
-                    el.style.background = 'rgba(255,255,255,0.08)';
-                    el.style.borderColor = 'rgba(255,255,255,0.22)';
-                    el.style.color = 'rgba(255,255,255,0.8)';
+                    el.style.background = 'rgba(255,255,255,0.16)';
+                    el.style.borderColor = 'rgba(255,255,255,0.35)';
                     el.style.transform = 'translateY(-1px)';
                   }}
                   onMouseLeave={e => {
                     if (shareCopied) return;
                     const el = e.currentTarget as HTMLElement;
-                    el.style.background = 'transparent';
-                    el.style.borderColor = 'rgba(255,255,255,0.12)';
-                    el.style.color = 'rgba(255,255,255,0.38)';
+                    el.style.background = 'rgba(255,255,255,0.07)';
+                    el.style.borderColor = 'rgba(255,255,255,0.18)';
                     el.style.transform = 'translateY(0)';
                   }}
                   onClick={async () => {
