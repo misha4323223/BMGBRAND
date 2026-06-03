@@ -644,6 +644,57 @@ export default function Home() {
             </span>
           </div>
         </Link>
+        {(() => {
+          const stripItems: any[] = pageSettings?.artists?.items || artists;
+          if (!stripItems || stripItems.length === 0) return null;
+          return (
+            <div className="w-full bg-background border-b border-border/40">
+              <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center gap-0">
+                  <span className="shrink-0 text-[9px] font-mono tracking-[0.25em] uppercase text-muted-foreground pr-4 sm:pr-6 py-4 sm:py-5 border-r border-border/40 hidden sm:block">
+                    Артисты
+                  </span>
+                  <div
+                    className="flex-1 flex items-center gap-5 sm:gap-7 overflow-x-auto scrollbar-hide px-0 sm:px-6 py-3.5 sm:py-4"
+                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                  >
+                    {stripItems.map((artist: any, idx: number) => (
+                      <Link
+                        key={idx}
+                        href={artist.slug ? `/@${artist.slug}` : (artist.link || "/products/merch")}
+                        className="flex flex-col items-center gap-1.5 group shrink-0 cursor-pointer"
+                        data-testid={`link-artist-strip-${idx}`}
+                      >
+                        <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden ring-2 ring-border group-hover:ring-primary transition-all duration-200">
+                          <img
+                            src={getOptimizedImageUrl(artist.image)}
+                            alt={artist.name}
+                            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
+                        <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide text-foreground text-center leading-tight max-w-[72px] truncate group-hover:text-primary transition-colors duration-200">
+                          {artist.name}
+                        </span>
+                        <span className="text-[9px] font-mono tracking-wider uppercase text-muted-foreground text-center leading-none max-w-[72px] truncate -mt-0.5">
+                          {artist.role}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                  <Link
+                    href={pageSettings?.artists?.linkUrl || "/products/merch"}
+                    className="shrink-0 flex items-center gap-1.5 text-[10px] sm:text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors duration-200 pl-4 sm:pl-6 border-l border-border/40 py-4 whitespace-nowrap"
+                    data-testid="link-all-artists-strip"
+                  >
+                    <span className="hidden sm:inline">Все коллаборации</span>
+                    <span className="sm:hidden">Все</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
             </div>
           ) : null;
         }
