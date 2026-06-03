@@ -4,7 +4,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, ArrowRight, ExternalLink, Play, Quote, ChevronLeft, ChevronRight, Share2, ShoppingCart, Zap, Tag, Heart } from "lucide-react";
+import { ArrowLeft, ArrowRight, ExternalLink, Play, Quote, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Share2, ShoppingCart, Zap, Tag, Heart } from "lucide-react";
 import { SiTelegram, SiVk, SiYoutube, SiInstagram, SiTiktok, SiSpotify, SiTwitch, SiSoundcloud, SiApplemusic, SiDiscord, SiX, SiBandcamp, SiPatreon, SiOnlyfans } from "react-icons/si";
 import { useState, useEffect, useRef } from "react";
 import { transliterateToSlug } from "@shared/schema";
@@ -488,6 +488,7 @@ export default function ArtistPage() {
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [galleryExpanded, setGalleryExpanded] = useState(false);
   const [promoCopied, setPromoCopied] = useState(false);
   const viewTrackedRef = useRef(false);
 
@@ -944,30 +945,79 @@ export default function ArtistPage() {
                 <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.10 }} />
               </div>
 
-              <div className="columns-2 sm:columns-3 gap-1 sm:gap-1.5">
-                {galleryImages.map((img, i) => (
-                  <button
-                    key={i}
-                    onClick={() => { setGalleryIndex(i); setLightboxOpen(true); }}
-                    data-testid={`button-gallery-grid-${i}`}
-                    className="relative w-full mb-1 sm:mb-1.5 overflow-hidden group/cell bg-muted focus:outline-none break-inside-avoid block"
-                  >
-                    <img
-                      src={img}
-                      alt={`${artistName} фото ${i + 1}`}
-                      loading="lazy"
-                      className="w-full h-auto block transition-transform duration-700 group-hover/cell:scale-[1.04]"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover/cell:bg-black/45 transition-all duration-300 flex items-center justify-center">
-                      <div className="opacity-0 group-hover/cell:opacity-100 transition-opacity duration-300 w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
-                        </svg>
-                      </div>
+              {(() => {
+                const LIMIT = 6;
+                const hasMore = galleryImages.length > LIMIT;
+                const visible = galleryExpanded ? galleryImages : galleryImages.slice(0, LIMIT);
+                const hidden = hasMore && !galleryExpanded ? galleryImages.length - LIMIT : 0;
+                return (
+                  <>
+                    <div className="columns-2 sm:columns-3 gap-1 sm:gap-1.5">
+                      {visible.map((img, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { setGalleryIndex(i); setLightboxOpen(true); }}
+                          data-testid={`button-gallery-grid-${i}`}
+                          className="relative w-full mb-1 sm:mb-1.5 overflow-hidden group/cell bg-muted focus:outline-none break-inside-avoid block"
+                        >
+                          <img
+                            src={img}
+                            alt={`${artistName} фото ${i + 1}`}
+                            loading="lazy"
+                            className="w-full h-auto block transition-transform duration-700 group-hover/cell:scale-[1.04]"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover/cell:bg-black/45 transition-all duration-300 flex items-center justify-center">
+                            <div className="opacity-0 group-hover/cell:opacity-100 transition-opacity duration-300 w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+                              </svg>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                  </button>
-                ))}
-              </div>
+
+                    {hasMore && (
+                      <div className="mt-4 flex justify-center">
+                        <button
+                          data-testid="button-gallery-expand"
+                          onClick={() => setGalleryExpanded(v => !v)}
+                          className="group flex items-center gap-2.5 px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-[0.15em] transition-all duration-300 border"
+                          style={{
+                            background: 'transparent',
+                            borderColor: isColored ? `${tc.accent}40` : 'rgba(255,255,255,0.15)',
+                            color: isColored ? tc.accent : 'rgba(255,255,255,0.5)',
+                          }}
+                          onMouseEnter={e => {
+                            const el = e.currentTarget as HTMLElement;
+                            el.style.background = isColored ? `${tc.accent}15` : 'rgba(255,255,255,0.07)';
+                            el.style.borderColor = isColored ? `${tc.accent}70` : 'rgba(255,255,255,0.3)';
+                            el.style.color = isColored ? tc.accent : '#fff';
+                          }}
+                          onMouseLeave={e => {
+                            const el = e.currentTarget as HTMLElement;
+                            el.style.background = 'transparent';
+                            el.style.borderColor = isColored ? `${tc.accent}40` : 'rgba(255,255,255,0.15)';
+                            el.style.color = isColored ? tc.accent : 'rgba(255,255,255,0.5)';
+                          }}
+                        >
+                          {galleryExpanded ? (
+                            <>
+                              <ChevronUp className="w-3.5 h-3.5 shrink-0" />
+                              <span>Свернуть</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Ещё {hidden} фото</span>
+                              <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
                 <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/95 border-none flex items-center justify-center" data-testid="dialog-gallery-lightbox">
