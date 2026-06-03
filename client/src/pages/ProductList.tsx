@@ -338,6 +338,7 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     cachedSizesRef.current = [];
   }, [categoryParam, subcategoryParam]);
 
+
   const { 
     data, 
     isLoading, 
@@ -603,6 +604,39 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
           </div>
         </div>
 
+        {/* Artist filter strip — merch page only */}
+        {isMerch && artistList.length > 0 && (
+          <div className="px-4 sm:px-6 lg:px-8 max-w-8xl mx-auto mb-4">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+              <button
+                onClick={() => setSelectedArtist("")}
+                data-testid="button-artist-all"
+                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                  !selectedArtist
+                    ? "bg-white text-black border-white"
+                    : "border-white/30 text-white/70 hover:border-white/60 hover:text-white"
+                }`}
+              >
+                Все
+              </button>
+              {artistList.map(({ slug, name }) => (
+                <button
+                  key={slug}
+                  onClick={() => setSelectedArtist(slug === selectedArtist ? "" : slug)}
+                  data-testid={`button-artist-${slug}`}
+                  className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                    selectedArtist === slug
+                      ? "bg-white text-black border-white"
+                      : "border-white/30 text-white/70 hover:border-white/60 hover:text-white"
+                  }`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex relative">
           {/* Mobile sidebar overlay */}
           {filtersOpen && (
@@ -744,51 +778,6 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
                 </div>
               )}
             </div>
-
-            {/* Artists (only on merch page) */}
-            {isMerch && artistList.length > 0 && (
-              <div className="mb-4">
-                <button
-                  type="button"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setArtistsOpen(prev => !prev); }}
-                  className="flex items-center justify-between w-full py-1.5 mb-1 cursor-pointer select-none"
-                  data-testid="button-toggle-artists"
-                  aria-expanded={artistsOpen}
-                >
-                  <span className="text-[11px] font-medium uppercase tracking-wider text-white/50">По артисту</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 text-white/50 ${artistsOpen ? "rotate-0" : "-rotate-90"}`} />
-                </button>
-                {artistsOpen && (
-                  <div className="space-y-0.5">
-                    <button
-                      onClick={() => { setSelectedArtist(""); setFiltersOpen(false); }}
-                      data-testid="button-artist-all"
-                      className={`w-full text-left text-sm px-3 py-2 rounded-md transition-colors ${
-                        !selectedArtist
-                          ? "bg-white/10 text-white font-medium"
-                          : "text-white/70 hover:bg-white/5 hover:text-white"
-                      }`}
-                    >
-                      Все артисты
-                    </button>
-                    {artistList.map(({ slug, name }) => (
-                      <button
-                        key={slug}
-                        onClick={() => { setSelectedArtist(slug === selectedArtist ? "" : slug); setFiltersOpen(false); }}
-                        data-testid={`button-artist-${slug}`}
-                        className={`w-full text-left text-sm px-3 py-2 rounded-md transition-colors ${
-                          selectedArtist === slug
-                            ? "bg-white/10 text-white font-medium"
-                            : "text-white/70 hover:bg-white/5 hover:text-white"
-                        }`}
-                      >
-                        {name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Sort */}
             <div className="mb-4">
