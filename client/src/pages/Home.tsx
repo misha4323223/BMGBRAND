@@ -630,7 +630,7 @@ export default function Home() {
           const stripItems: any[] = pageSettings?.artists?.items || artists;
           if (!stripItems || stripItems.length === 0) return null;
           return (
-            <div className="w-full bg-zinc-950 border-t-2 border-primary">
+            <div className="w-full bg-zinc-950" style={{ boxShadow: "0 -3px 30px rgba(220,38,38,0.35)" }}>
               {/* ── Лента коллабораций ── */}
               <div className="flex items-stretch">
                 {/* Левый лейбл */}
