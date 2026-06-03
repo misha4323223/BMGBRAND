@@ -718,8 +718,8 @@ export default function ArtistPage() {
                       <img
                         src="/molodost-vnutri-logo.png"
                         alt={artistName}
-                        className="max-w-[220px] sm:max-w-[280px] h-auto"
-                        style={{ filter: 'drop-shadow(0 2px 12px rgba(0,0,0,0.5))' }}
+                        className="w-[260px] sm:w-[320px] object-cover object-top"
+                        style={{ height: '90px', filter: 'drop-shadow(0 2px 12px rgba(0,0,0,0.5))' }}
                       />
                     ) : artistName}
                   </motion.h1>
