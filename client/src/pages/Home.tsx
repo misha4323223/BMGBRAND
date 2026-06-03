@@ -685,7 +685,7 @@ export default function Home() {
               </div>
 
               {/* ── CTA: Мерч на заказ — вшит в тот же тёмный блок ── */}
-              <div className="border-t border-zinc-800 bg-zinc-900">
+              <div className="border-t border-zinc-800">
                 <Link href="/merch-na-zakaz" data-testid="merch-strip-banner" className="group block">
                   <div className="flex items-center gap-3 sm:gap-0 px-4 sm:px-0">
                     {/* Иконка + лейбл */}
