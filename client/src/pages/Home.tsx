@@ -1,5 +1,5 @@
 import SEO from "@/components/SEO";
-import { ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Truck, Palette, Flag, Mail, Shirt, Pencil, Settings2, ShoppingBag } from "lucide-react";
+import { ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Truck, Palette, Flag, Mail, Shirt, Pencil, Settings2, ShoppingBag, Globe } from "lucide-react";
 
 declare global {
   interface Window {
@@ -630,7 +630,7 @@ export default function Home() {
           const stripItems: any[] = pageSettings?.artists?.items || artists;
           if (!stripItems || stripItems.length === 0) return null;
           return (
-            <div className="w-full bg-zinc-950 border-t-2 border-primary">
+            <div className="w-full bg-zinc-950 border-t-2 border-primary" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.045) 1px, transparent 1px)", backgroundSize: "14px 14px" }}>
               {/* ── Лента коллабораций ── */}
               <div className="flex items-stretch">
                 {/* Левый лейбл */}
@@ -722,15 +722,21 @@ export default function Home() {
                         Создай свой мерч и присоединяйся к нашей платформе
                       </p>
                       {/* Шаги-иконки вместо текстовой подписи */}
-                      <div className="hidden sm:flex items-center gap-2 mt-1.5">
+                      <div className="hidden sm:flex items-center gap-1.5 mt-1.5 flex-wrap">
                         <Pencil className="w-3 h-3 text-zinc-300 shrink-0" />
-                        <span className="text-[11px] text-zinc-300">Идея</span>
+                        <span className="text-[10px] text-zinc-300">Идея</span>
                         <ArrowRight className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
                         <Settings2 className="w-3 h-3 text-zinc-300 shrink-0" />
-                        <span className="text-[11px] text-zinc-300">Производство</span>
+                        <span className="text-[10px] text-zinc-300">Производство</span>
+                        <ArrowRight className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
+                        <Globe className="w-3 h-3 text-zinc-300 shrink-0" />
+                        <span className="text-[10px] text-zinc-300">Платформа</span>
                         <ArrowRight className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
                         <ShoppingBag className="w-3 h-3 text-zinc-300 shrink-0" />
-                        <span className="text-[11px] text-zinc-300">Продажа в каталоге</span>
+                        <span className="text-[10px] text-zinc-300">Продажа</span>
+                        <ArrowRight className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
+                        <Truck className="w-3 h-3 text-zinc-300 shrink-0" />
+                        <span className="text-[10px] text-zinc-300">Доставка</span>
                       </div>
                     </div>
                     {/* Красная кнопка */}
