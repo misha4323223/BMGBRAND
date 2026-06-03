@@ -942,17 +942,11 @@ export default function ArtistPage() {
                 {settings.galleryVisible !== false && galleryImages.length > 0 && (
                   <div className={`${settings.videoVisible !== false && settings.videoUrl ? 'lg:w-1/2' : 'w-full'}`} data-testid="section-artist-gallery">
                     {/* Header */}
-                    <div className="mb-6">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="h-[2px] w-6 rounded-full shrink-0" style={{ background: isColored ? tc.accent : 'rgba(255,255,255,0.25)' }} />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.28em]" style={{ color: isColored ? tc.accent : 'var(--muted-foreground)' }}>{artistName}</span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
-                          {settings.galleryTitle || "Галерея"}
-                        </h2>
-                        <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.10 }} />
-                      </div>
+                    <div className="flex items-center gap-4 mb-6">
+                      <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
+                        {settings.galleryTitle || "Галерея"}
+                      </h2>
+                      <span className="flex-1 h-px hidden sm:block" style={{ background: isColored ? tc.accent : 'currentColor', opacity: 0.10 }} />
                     </div>
 
                     {/* Instagram-style grid */}
