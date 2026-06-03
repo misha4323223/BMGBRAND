@@ -704,8 +704,8 @@ export default function ArtistPage() {
                     variants={{ hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}
                     className="flex items-center gap-2.5 mb-3"
                   >
-                    <span className="w-5 h-[1.5px] bg-white/50 shrink-0" />
-                    <span className="text-white/55 text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em]">
+                    <span className="w-5 h-[1.5px] bg-white/70 shrink-0" />
+                    <span className="text-white/90 text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em]">
                       {artistRole}
                     </span>
                   </motion.div>
@@ -728,7 +728,7 @@ export default function ArtistPage() {
                 {settings.shortDescription && (
                   <motion.p
                     variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } }}
-                    className="text-white/60 text-sm sm:text-[15px] max-w-xs leading-relaxed mb-5"
+                    className="text-white text-sm sm:text-[15px] max-w-xs leading-relaxed mb-5"
                   >
                     {settings.shortDescription}
                   </motion.p>
