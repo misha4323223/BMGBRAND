@@ -733,54 +733,6 @@ export default function ArtistPage() {
                   </motion.p>
                 )}
 
-                <motion.div
-                  variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.45 } } }}
-                  className="flex flex-col gap-3 mt-5"
-                >
-                  {socials.length > 0 && settings.socialsVisible !== false && (
-                    <div className="flex items-center gap-1.5">
-                      {socials.map((s) => {
-                        const Icon = getSocialIcon(s.key, s.url);
-                        return (
-                          <a
-                            key={s.key}
-                            href={s.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={s.label}
-                            className="w-8 h-8 rounded-full border border-white/20 bg-white/8 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:border-white/50 hover:bg-white/15 transition-all duration-200"
-                            data-testid={`link-social-${s.key}`}
-                          >
-                            <Icon className="w-3.5 h-3.5" />
-                          </a>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <button
-                    className="relative self-start flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold bg-transparent backdrop-blur-sm border border-white/25 text-white/70 hover:text-white hover:border-white/50 active:scale-95 transition-all tracking-wide"
-                    data-testid="button-artist-share"
-                    onClick={async () => {
-                      const shareData = {
-                        title: artistName,
-                        text: settings.shortDescription || artistName,
-                        url: window.location.href,
-                      };
-                      if (navigator.share) {
-                        try { await navigator.share(shareData); } catch (_) {}
-                      } else {
-                        try {
-                          await navigator.clipboard.writeText(window.location.href);
-                          setShareCopied(true);
-                          setTimeout(() => setShareCopied(false), 2500);
-                        } catch (_) {}
-                      }
-                    }}
-                  >
-                    <Share2 className="w-4 h-4" />
-                    {shareCopied ? "Ссылка скопирована!" : "Поделиться страницей"}
-                  </button>
-                </motion.div>
               </motion.div>
             </div>
           </section>
@@ -792,6 +744,79 @@ export default function ArtistPage() {
             bg={isColored ? tc.accent : '#0a0a0a'}
             fg={isColored ? tc.accentFg : '#ffffff'}
           />
+        )}
+
+        {/* ── Социальные кнопки под бегущей строкой ── */}
+        {settings.heroVisible !== false && (socials.length > 0 || settings.socialsVisible !== false) && (
+          <div
+            className="border-b border-white/5"
+            style={{ background: isColored ? tc.bg : '#0d0d0d' }}
+          >
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 py-4">
+              <div className="flex flex-wrap gap-2">
+                {settings.socialsVisible !== false && socials.map((s) => {
+                  const Icon = getSocialIcon(s.key, s.url);
+                  return (
+                    <a
+                      key={s.key}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      data-testid={`link-social-bar-${s.key}`}
+                      className="group flex items-center gap-2 px-4 py-2.5 border text-xs font-semibold uppercase tracking-[0.15em] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        borderColor: 'rgba(255,255,255,0.12)',
+                        color: 'rgba(255,255,255,0.6)',
+                      }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.1)';
+                        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.3)';
+                        (e.currentTarget as HTMLElement).style.color = '#fff';
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
+                        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)';
+                        (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.6)';
+                      }}
+                    >
+                      <Icon className="w-3.5 h-3.5 shrink-0" />
+                      <span>{s.label}</span>
+                    </a>
+                  );
+                })}
+
+                {/* Кнопка «Поделиться» — всегда последняя */}
+                <button
+                  data-testid="button-artist-share-bar"
+                  className="flex items-center gap-2 px-4 py-2.5 border text-xs font-semibold uppercase tracking-[0.15em] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  style={{
+                    background: shareCopied ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+                    borderColor: shareCopied ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)',
+                    color: shareCopied ? '#fff' : 'rgba(255,255,255,0.6)',
+                  }}
+                  onClick={async () => {
+                    const shareData = {
+                      title: artistName,
+                      text: settings.shortDescription || artistName,
+                      url: window.location.href,
+                    };
+                    if (navigator.share) {
+                      try { await navigator.share(shareData); } catch (_) {}
+                    } else {
+                      try {
+                        await navigator.clipboard.writeText(window.location.href);
+                        setShareCopied(true);
+                      } catch (_) {}
+                    }
+                  }}
+                >
+                  <Share2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>{shareCopied ? 'Скопировано!' : 'Поделиться'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {settings.aboutVisible !== false && settings.aboutText && (
