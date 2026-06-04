@@ -254,9 +254,6 @@ function ArtistLikeButton({ slug, theme }: { slug: string; theme?: ArtistThemeCo
       transition={{ duration: 0.5 }}
       className="flex flex-col items-center gap-3 py-10"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: isColored ? tc.textMuted : 'var(--muted-foreground)' }}>
-        Нравится артист?
-      </p>
       <button
         onClick={() => { if (!liked && !isPending) mutate(); }}
         disabled={liked || isPending}
