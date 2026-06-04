@@ -491,7 +491,7 @@ function ImageUploader({ value, onChange, label, hint, testId, uploadUrl, accept
             <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
               <ImageIcon className="w-4 h-4" />
             </div>
-            <p className="text-xs text-center">Перетащите или нажмите · JPG, PNG, WebP · до 15 МБ</p>
+            <p className="text-xs text-center">Перетащите или нажмите · {resolvedAccept.split(",").map(t => t.split("/")[1]?.toUpperCase()).join(", ")} · до 15 МБ</p>
           </div>
         )}
       </div>
