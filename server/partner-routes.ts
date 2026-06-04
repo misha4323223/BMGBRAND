@@ -1178,7 +1178,7 @@ router.post('/artist/upload-image', authMiddleware, requirePartnerRole, async (r
   }
 });
 
-// POST /artist/upload-logo — загрузка логотипа (WebP или SVG, без конвертации через sharp)
+// POST /artist/upload-logo — загрузка логотипа (JPG/PNG/WebP → конвертируем в WebP; SVG → как есть)
 router.post('/artist/upload-logo', authMiddleware, requirePartnerRole, async (req: AuthRequest, res: Response) => {
   try {
     const partner = await storage.getPartnerById(req.user!.partnerId!);
@@ -1186,9 +1186,11 @@ router.post('/artist/upload-logo', authMiddleware, requirePartnerRole, async (re
       return res.status(403).json({ error: 'Нет доступа' });
     }
     const contentType = (req.headers['content-type'] || '').split(';')[0].trim();
-    const allowed = ['image/webp', 'image/svg+xml'];
-    if (!allowed.includes(contentType)) {
-      return res.status(400).json({ error: 'Допустимые форматы: WebP, SVG' });
+    const rasterTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    const isSvg = contentType === 'image/svg+xml';
+    const isRaster = rasterTypes.includes(contentType);
+    if (!isSvg && !isRaster) {
+      return res.status(400).json({ error: 'Допустимые форматы: JPG, PNG, WebP, SVG' });
     }
 
     const rawFilename = (req.headers['x-filename'] as string) || `logo_${Date.now()}`;
@@ -1198,12 +1200,27 @@ router.post('/artist/upload-logo', authMiddleware, requirePartnerRole, async (re
     for await (const chunk of req) chunks.push(Buffer.from(chunk));
     const buffer = Buffer.concat(chunks);
     if (buffer.length === 0) return res.status(400).json({ error: 'Пустой файл' });
-    if (buffer.length > 2 * 1024 * 1024) return res.status(400).json({ error: 'Логотип не должен превышать 2 МБ' });
+    if (buffer.length > 10 * 1024 * 1024) return res.status(400).json({ error: 'Файл не должен превышать 10 МБ' });
 
-    const ext = contentType === 'image/svg+xml' ? '.svg' : '.webp';
-    const cleanName = filename.replace(/\.[^.]+$/, ext).replace(/[^a-zA-Z0-9._-]/g, '_');
     const ts = Date.now();
     const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || 'bmg';
+
+    let uploadBuffer: Buffer;
+    let uploadContentType: string;
+    let ext: string;
+
+    if (isSvg) {
+      uploadBuffer = buffer;
+      uploadContentType = 'image/svg+xml';
+      ext = '.svg';
+    } else {
+      const sharp = (await import('sharp')).default;
+      uploadBuffer = await sharp(buffer).webp({ quality: 90 }).toBuffer();
+      uploadContentType = 'image/webp';
+      ext = '.webp';
+    }
+
+    const cleanName = filename.replace(/\.[^.]+$/, ext).replace(/[^a-zA-Z0-9._-]/g, '_');
     const s3Key = `site/artist/${partner.partnerSlug}/logo_${ts}_${cleanName}`;
 
     const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
@@ -1218,8 +1235,8 @@ router.post('/artist/upload-logo', authMiddleware, requirePartnerRole, async (re
     await s3.send(new PutObjectCommand({
       Bucket: bucketName,
       Key: s3Key,
-      Body: buffer,
-      ContentType: contentType,
+      Body: uploadBuffer,
+      ContentType: uploadContentType,
       ACL: 'public-read',
       CacheControl: 'public, max-age=31536000, immutable',
     }));

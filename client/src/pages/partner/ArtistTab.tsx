@@ -813,12 +813,12 @@ function PageEditor({ partnerSlug }: { partnerSlug: string }) {
                 </div>
                 <ImageUploader
                   label="Логотип (вместо текстового названия на обложке)"
-                  hint="Загрузите WebP или SVG с прозрачным фоном. Если загружено — показывается вместо имени в hero-блоке страницы."
+                  hint="JPG, PNG, WebP или SVG с прозрачным фоном. Если загружено — показывается вместо имени в hero-блоке страницы."
                   value={form.logoUrl || ""}
                   onChange={set("logoUrl")}
                   uploadUrl="/api/partner/artist/upload-logo"
-                  accept="image/webp,image/svg+xml"
-                  allowedTypes={["image/webp", "image/svg+xml"]}
+                  accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                  allowedTypes={["image/jpeg", "image/jpg", "image/png", "image/webp", "image/svg+xml", "image/gif", ""]}
                   testId="upload-artist-logo"
                 />
                 <div>
