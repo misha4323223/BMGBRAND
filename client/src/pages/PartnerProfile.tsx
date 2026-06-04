@@ -310,9 +310,20 @@ export default function PartnerProfile() {
             </Button>
           </div>
           <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t">
-            <Badge variant="secondary" className="text-[11px] font-normal">
-              <BadgeDollarSign className="w-3 h-3 mr-1" /> Ваша комиссия {effectiveCommissionPercent}%
-            </Badge>
+            {partner.isArtist ? (
+              <>
+                <Badge variant="secondary" className="text-[11px] font-normal">
+                  <BadgeDollarSign className="w-3 h-3 mr-1" /> С ваших товаров {partner.artistRate ?? effectiveCommissionPercent}%
+                </Badge>
+                <Badge variant="secondary" className="text-[11px] font-normal">
+                  <BadgeDollarSign className="w-3 h-3 mr-1" /> Реф. комиссия {partner.commissionOverride ?? partner.artistRate ?? effectiveCommissionPercent}%
+                </Badge>
+              </>
+            ) : (
+              <Badge variant="secondary" className="text-[11px] font-normal">
+                <BadgeDollarSign className="w-3 h-3 mr-1" /> Ваша комиссия {effectiveCommissionPercent}%
+              </Badge>
+            )}
             <Badge variant="outline" className="text-[11px] font-normal">
               {partner.contactName}
             </Badge>
