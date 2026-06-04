@@ -1267,71 +1267,78 @@ export default function ArtistPage() {
         <ArtistLikeButton slug={slug!} theme={isColored ? tc : undefined} />
       </div>
 
-      {/* Мини-подвал страницы артиста */}
-      <footer className="border-t" style={isColored ? { background: tc.bg, borderColor: `${tc.accent}20` } : {}}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-8">
-            {/* Левая часть: логотип + слоган */}
-            <div className="text-center sm:text-left">
-              <Link href="/" className="inline-block mb-3">
-                <span className="text-xl font-black tracking-tight" style={isColored ? { color: tc.text } : {}}>
-                  BMG<span style={{ color: isColored ? tc.accent : 'hsl(var(--primary))' }}>BRAND</span>
+      {/* ── Подвал: CTA «Хочешь свою страницу?» ── */}
+      <footer style={{ background: '#080808' }}>
+        <div className="w-full h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 py-14 sm:py-20">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-10"
+          >
+            {/* Левая часть: текст */}
+            <div className="max-w-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-[2px] w-6 rounded-full bg-white/25 shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                  BMGBRAND × Партнёрская программа
                 </span>
-              </Link>
-              <p className="text-xs max-w-[200px]" style={{ color: isColored ? tc.textMuted : 'var(--muted-foreground)' }}>
-                Российский бренд одежды. Авторские дизайны и базовые вещи
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight tracking-tight mb-3">
+                Хочешь свою<br />страницу?
+              </h3>
+              <p className="text-sm text-white/45 leading-relaxed">
+                Создай коллаборацию с брендом — получи персональную страницу, уникальную коллекцию и заработок с каждой продажи.
               </p>
             </div>
 
-            {/* Центр: соцсети артиста (если есть) */}
-            {socials.length > 0 && settings.socialsVisible !== false && (
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: isColored ? tc.textMuted : 'var(--muted-foreground)' }}>
-                  {artistName}
-                </span>
-                <div className="flex items-center gap-2">
-                  {socials.map((s) => {
-                    const Icon = getSocialIcon(s.key, s.url);
-                    return (
-                      <a
-                        key={s.key}
-                        href={s.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={s.label}
-                        className="w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-110"
-                        style={isColored
-                          ? { borderColor: `${tc.accent}40`, color: tc.textMuted, background: 'transparent' }
-                          : { borderColor: 'hsl(var(--border))', color: 'var(--muted-foreground)', background: 'transparent' }}
-                        data-testid={`link-footer-social-${s.key}`}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                      </a>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Правая часть: CTA */}
-            <div className="flex flex-col items-center sm:items-end gap-3">
-              <Link href="/products">
+            {/* Правая часть: кнопки */}
+            <div className="flex flex-col items-start sm:items-end gap-3 shrink-0">
+              <Link href="/partner/register">
                 <button
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95"
-                  style={isColored
-                    ? { background: tc.accent, color: tc.accentFg }
-                    : { background: 'hsl(var(--primary))', color: '#fff' }}
-                  data-testid="button-artist-footer-shop"
+                  className="flex items-center gap-2.5 px-6 py-3 rounded-full text-sm font-bold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.20)' }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.18)';
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.35)';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)';
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.20)';
+                  }}
+                  data-testid="button-artist-footer-partner"
                 >
-                  Смотреть коллекцию
+                  Стать партнёром
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </Link>
-              <p className="text-[10px]" style={{ color: isColored ? tc.textMuted : 'var(--muted-foreground)', opacity: 0.5 }}>
-                © {new Date().getFullYear()} BMGBRAND
-              </p>
+              <Link href="/products">
+                <button
+                  className="flex items-center gap-2 text-xs font-semibold text-white/35 hover:text-white/70 transition-colors duration-200"
+                  data-testid="button-artist-footer-shop"
+                >
+                  Смотреть коллекцию
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </Link>
             </div>
-          </div>
+          </motion.div>
+        </div>
+
+        {/* Нижняя строка */}
+        <div className="w-full h-px" style={{ background: 'rgba(255,255,255,0.05)' }} />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 py-4 flex items-center justify-between">
+          <Link href="/">
+            <span className="text-xs font-black tracking-tight text-white/25 hover:text-white/50 transition-colors">
+              BMGBRAND
+            </span>
+          </Link>
+          <p className="text-[10px] text-white/20">
+            © {new Date().getFullYear()}
+          </p>
         </div>
       </footer>
     </>
