@@ -1290,31 +1290,30 @@ export default function ArtistPage() {
               <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight tracking-tight mb-3">
                 Хочешь свою<br />страницу?
               </h3>
-              <p className="text-sm text-white/45 leading-relaxed">
+              <p className="text-sm text-white/70 leading-relaxed">
                 Создай коллаборацию с брендом — получи персональную страницу, уникальную коллекцию и заработок с каждой продажи.
               </p>
-            </div>
 
-            {/* Правая часть: кнопки */}
-            <div className="flex flex-col items-start sm:items-end gap-3 shrink-0">
-              <Link href="/partner/register">
-                <button
-                  className="flex items-center gap-2.5 px-6 py-3 rounded-full text-sm font-bold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.20)' }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.18)';
-                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.35)';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)';
-                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.20)';
-                  }}
-                  data-testid="button-artist-footer-partner"
-                >
-                  Стать партнёром
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </Link>
+              <div className="mt-8">
+                <Link href="/partner/register">
+                  <button
+                    className="flex items-center gap-2.5 px-6 py-3 rounded-full text-sm font-bold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.20)' }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.18)';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.35)';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.20)';
+                    }}
+                    data-testid="button-artist-footer-partner"
+                  >
+                    Стать партнёром
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </Link>
+              </div>
             </div>
           </motion.div>
         </div>
