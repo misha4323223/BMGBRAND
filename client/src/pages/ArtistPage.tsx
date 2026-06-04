@@ -1315,15 +1315,6 @@ export default function ArtistPage() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </Link>
-              <Link href="/products">
-                <button
-                  className="flex items-center gap-2 text-xs font-semibold text-white/35 hover:text-white/70 transition-colors duration-200"
-                  data-testid="button-artist-footer-shop"
-                >
-                  Смотреть коллекцию
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-              </Link>
             </div>
           </motion.div>
         </div>
