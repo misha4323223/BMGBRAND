@@ -333,6 +333,7 @@ interface ArtistPageSettings {
   name?: string;
   role?: string;
   shortDescription?: string;
+  logoUrl?: string;
   cardImage?: string;
   heroTitle?: string;
   heroSubtitle?: string;
@@ -390,18 +391,24 @@ interface ImageUploaderProps {
   label: string;
   hint?: string;
   testId?: string;
+  uploadUrl?: string;
+  accept?: string;
+  allowedTypes?: string[];
 }
 
-function ImageUploader({ value, onChange, label, hint, testId }: ImageUploaderProps) {
+function ImageUploader({ value, onChange, label, hint, testId, uploadUrl, accept, allowedTypes }: ImageUploaderProps) {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const resolvedUploadUrl = uploadUrl || "/api/partner/artist/upload-image";
+  const resolvedAccept = accept || "image/jpeg,image/png,image/webp";
+  const resolvedAllowedTypes = allowedTypes || ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
   const uploadFile = useCallback(async (file: File) => {
-    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    if (!allowed.includes(file.type)) {
-      toast({ title: "Неподдерживаемый формат", description: "Загрузите JPG, PNG или WebP", variant: "destructive" });
+    if (!resolvedAllowedTypes.includes(file.type)) {
+      toast({ title: "Неподдерживаемый формат", description: `Допустимые форматы: ${resolvedAccept}`, variant: "destructive" });
       return;
     }
     if (file.size > 15 * 1024 * 1024) {
@@ -410,7 +417,7 @@ function ImageUploader({ value, onChange, label, hint, testId }: ImageUploaderPr
     }
     setUploading(true);
     try {
-      const res = await fetch("/api/partner/artist/upload-image", {
+      const res = await fetch(resolvedUploadUrl, {
         method: "POST",
         headers: { "x-filename": encodeURIComponent(file.name), "content-type": file.type },
         body: file,
@@ -454,7 +461,7 @@ function ImageUploader({ value, onChange, label, hint, testId }: ImageUploaderPr
         <input
           ref={inputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept={resolvedAccept}
           className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = ""; }}
         />
@@ -804,6 +811,16 @@ function PageEditor({ partnerSlug }: { partnerSlug: string }) {
                   <label className="text-xs font-medium mb-1 block">Короткое описание</label>
                   <Input value={form.shortDescription || ""} onChange={f("shortDescription")} placeholder="Одна строка под именем на обложке" data-testid="input-artist-short-desc" />
                 </div>
+                <ImageUploader
+                  label="Логотип (вместо текстового названия на обложке)"
+                  hint="Загрузите WebP или SVG с прозрачным фоном. Если загружено — показывается вместо имени в hero-блоке страницы."
+                  value={form.logoUrl || ""}
+                  onChange={set("logoUrl")}
+                  uploadUrl="/api/partner/artist/upload-logo"
+                  accept="image/webp,image/svg+xml"
+                  allowedTypes={["image/webp", "image/svg+xml"]}
+                  testId="upload-artist-logo"
+                />
                 <div>
                   <label className="text-xs font-medium mb-1 block">Бегущая строка</label>
                   <Input value={form.marqueeText || ""} onChange={f("marqueeText")} placeholder="Имя ★ Слоган ★ Дроп — по умолчанию имя артиста" data-testid="input-artist-marquee" />

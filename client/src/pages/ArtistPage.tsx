@@ -30,6 +30,7 @@ interface ArtistSettings {
   productsTitle?: string;
   productsLimit?: number;
   productsLinkText?: string;
+  logoUrl?: string;
   quoteText?: string;
   quoteAuthor?: string;
   videoUrl?: string;
@@ -712,11 +713,13 @@ export default function ArtistPage() {
                     variants={{ hidden: { opacity: 0, y: 80 }, show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } } }}
                     className="text-5xl sm:text-7xl lg:text-8xl font-black text-white leading-[0.92] tracking-tight"
                   >
-                    {slug?.toLowerCase().includes('molodost') ? (
+                    {settings.logoUrl ? (
                       <img
-                        src="/molodost-vnutri-logo.webp"
+                        src={settings.logoUrl}
                         alt={artistName}
                         className="w-[240px] sm:w-[300px] h-auto"
+                        loading="eager"
+                        fetchPriority="high"
                         style={{ filter: 'drop-shadow(0 2px 16px rgba(0,0,0,0.6))' }}
                       />
                     ) : artistName}

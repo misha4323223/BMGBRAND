@@ -1178,6 +1178,61 @@ router.post('/artist/upload-image', authMiddleware, requirePartnerRole, async (r
   }
 });
 
+// POST /artist/upload-logo — загрузка логотипа (WebP или SVG, без конвертации через sharp)
+router.post('/artist/upload-logo', authMiddleware, requirePartnerRole, async (req: AuthRequest, res: Response) => {
+  try {
+    const partner = await storage.getPartnerById(req.user!.partnerId!);
+    if (!partner || !partner.isArtist || !partner.partnerSlug) {
+      return res.status(403).json({ error: 'Нет доступа' });
+    }
+    const contentType = (req.headers['content-type'] || '').split(';')[0].trim();
+    const allowed = ['image/webp', 'image/svg+xml'];
+    if (!allowed.includes(contentType)) {
+      return res.status(400).json({ error: 'Допустимые форматы: WebP, SVG' });
+    }
+
+    const rawFilename = (req.headers['x-filename'] as string) || `logo_${Date.now()}`;
+    const filename = (() => { try { return decodeURIComponent(rawFilename); } catch { return rawFilename; } })();
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(Buffer.from(chunk));
+    const buffer = Buffer.concat(chunks);
+    if (buffer.length === 0) return res.status(400).json({ error: 'Пустой файл' });
+    if (buffer.length > 2 * 1024 * 1024) return res.status(400).json({ error: 'Логотип не должен превышать 2 МБ' });
+
+    const ext = contentType === 'image/svg+xml' ? '.svg' : '.webp';
+    const cleanName = filename.replace(/\.[^.]+$/, ext).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const ts = Date.now();
+    const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || 'bmg';
+    const s3Key = `site/artist/${partner.partnerSlug}/logo_${ts}_${cleanName}`;
+
+    const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const s3 = new S3Client({
+      region: 'ru-central1',
+      endpoint: 'https://storage.yandexcloud.net',
+      credentials: {
+        accessKeyId: process.env.YANDEX_STORAGE_ACCESS_KEY || '',
+        secretAccessKey: process.env.YANDEX_STORAGE_SECRET_KEY || '',
+      },
+    });
+    await s3.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: s3Key,
+      Body: buffer,
+      ContentType: contentType,
+      ACL: 'public-read',
+      CacheControl: 'public, max-age=31536000, immutable',
+    }));
+
+    const url = `https://storage.yandexcloud.net/${bucketName}/${s3Key}`;
+    console.log(`[Artist Logo Upload] ${partner.partnerSlug}: ${url}`);
+    res.json({ url, success: true });
+  } catch (error: any) {
+    console.error('[Artist Logo Upload] error:', error);
+    res.status(500).json({ error: error?.message || 'Ошибка загрузки' });
+  }
+});
+
 // GET artist page settings
 router.get('/artist/page', authMiddleware, requirePartnerRole, async (req: AuthRequest, res: Response) => {
   try {
@@ -1203,7 +1258,7 @@ router.put('/artist/page', authMiddleware, requirePartnerRole, async (req: AuthR
       return res.status(403).json({ error: 'Нет доступа' });
     }
     const allowed = [
-      'name','role','shortDescription','cardImage','heroImage','heroImageMobile',
+      'name','role','shortDescription','logoUrl','cardImage','heroImage','heroImageMobile',
       'heroTitle','heroSubtitle','heroBgType','heroVideo','heroOpacity',
       'aboutTitle','aboutText','aboutImages',
       'quoteText','quoteAuthor',
