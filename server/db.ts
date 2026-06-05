@@ -272,6 +272,18 @@ async function initUsersTable() {
         }
       }
 
+      // Add photos column to reviews table if not exists
+      try {
+        await session.executeQuery(`ALTER TABLE reviews ADD COLUMN photos Utf8;`);
+        console.log("[YDB] Added photos column to reviews table");
+      } catch (err: any) {
+        if (err.message?.includes('already exists') || err.message?.includes('Member not found') || err.message?.includes('column already exists')) {
+          // already exists — fine
+        } else {
+          console.log("[YDB] reviews.photos column migration:", err.message?.substring(0, 120));
+        }
+      }
+
       // Migrate data from old favorites table to user_favorites (one-time)
       try {
         const oldData = await session.executeQuery("SELECT user_id, product_id FROM favorites");

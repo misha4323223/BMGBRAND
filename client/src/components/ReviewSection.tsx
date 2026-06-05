@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, Loader2, PenLine, ChevronDown, ChevronUp } from "lucide-react";
+import { Star, Loader2, PenLine, ChevronDown, ChevronUp, Camera, X, ZoomIn } from "lucide-react";
 import { useLocation } from "wouter";
 
 interface Review {
@@ -14,6 +14,7 @@ interface Review {
   authorName: string;
   rating: number;
   comment: string | null;
+  photos?: string[];
   isApproved: boolean;
   createdAt: string | null;
 }
@@ -115,6 +116,100 @@ function formatDate(dateStr: string | null): string {
   }
 }
 
+function PhotoLightbox({ photos, initialIndex, onClose }: {
+  photos: string[];
+  initialIndex: number;
+  onClose: () => void;
+}) {
+  const [idx, setIdx] = useState(initialIndex);
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+      onClick={onClose}
+      data-testid="photo-lightbox"
+    >
+      <button
+        className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
+        onClick={onClose}
+        data-testid="button-close-lightbox"
+      >
+        <X className="w-7 h-7" />
+      </button>
+      <div className="flex items-center gap-4 px-4 max-w-screen-lg w-full" onClick={(e) => e.stopPropagation()}>
+        {photos.length > 1 && (
+          <button
+            className="text-white/50 hover:text-white text-3xl font-light shrink-0 w-8"
+            onClick={() => setIdx((i) => (i - 1 + photos.length) % photos.length)}
+          >
+            ‹
+          </button>
+        )}
+        <img
+          src={photos[idx]}
+          alt={`Фото ${idx + 1}`}
+          className="max-h-[80vh] max-w-full object-contain rounded-xl mx-auto"
+          data-testid={`lightbox-img-${idx}`}
+        />
+        {photos.length > 1 && (
+          <button
+            className="text-white/50 hover:text-white text-3xl font-light shrink-0 w-8"
+            onClick={() => setIdx((i) => (i + 1) % photos.length)}
+          >
+            ›
+          </button>
+        )}
+      </div>
+      {photos.length > 1 && (
+        <div className="absolute bottom-6 flex gap-2">
+          {photos.map((_, i) => (
+            <button
+              key={i}
+              className={`w-2 h-2 rounded-full transition-colors ${i === idx ? "bg-white" : "bg-white/30"}`}
+              onClick={(e) => { e.stopPropagation(); setIdx(i); }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReviewPhotos({ photos }: { photos: string[] }) {
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  if (!photos || photos.length === 0) return null;
+  return (
+    <>
+      <div className="flex flex-wrap gap-2 mt-3">
+        {photos.map((url, i) => (
+          <button
+            key={i}
+            className="relative w-20 h-20 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 hover:opacity-90 transition-opacity group"
+            onClick={() => setLightboxIdx(i)}
+            data-testid={`review-photo-thumb-${i}`}
+          >
+            <img src={url} alt={`Фото ${i + 1}`} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+              <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </button>
+        ))}
+      </div>
+      {lightboxIdx !== null && (
+        <PhotoLightbox photos={photos} initialIndex={lightboxIdx} onClose={() => setLightboxIdx(null)} />
+      )}
+    </>
+  );
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export function ReviewSection({ productId }: { productId: number }) {
   const { toast } = useToast();
   const { data: authData } = useAuth();
@@ -125,10 +220,60 @@ export function ReviewSection({ productId }: { productId: number }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
 
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const { data: reviews = [], isLoading } = useQuery<Review[]>({
     queryKey: ["/api/reviews", productId],
     staleTime: 30000,
   });
+
+  const handlePhotoSelect = useCallback(async (files: FileList | null) => {
+    if (!files) return;
+    const remaining = 5 - photoPreviews.length;
+    if (remaining <= 0) return;
+    const toProcess = Array.from(files).slice(0, remaining);
+
+    for (const file of toProcess) {
+      if (!file.type.startsWith("image/")) continue;
+      if (file.size > 15 * 1024 * 1024) {
+        toast({ title: "Файл слишком большой", description: "Максимум 15 МБ", variant: "destructive" });
+        continue;
+      }
+      const base64 = await fileToBase64(file);
+      setPhotoPreviews((prev) => [...prev, base64]);
+      setUploadingCount((c) => c + 1);
+
+      try {
+        const res = await apiRequest("POST", "/api/reviews/upload-photo", { imageData: base64 });
+        const data = await res.json();
+        if (data.url) {
+          setUploadedUrls((prev) => [...prev, data.url]);
+        }
+      } catch {
+        toast({ title: "Не удалось загрузить фото", variant: "destructive" });
+        setPhotoPreviews((prev) => prev.filter((p) => p !== base64));
+      } finally {
+        setUploadingCount((c) => c - 1);
+      }
+    }
+  }, [photoPreviews.length, toast]);
+
+  const removePhoto = (idx: number) => {
+    setPhotoPreviews((prev) => prev.filter((_, i) => i !== idx));
+    setUploadedUrls((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const resetForm = () => {
+    setRating(0);
+    setComment("");
+    setPhotoPreviews([]);
+    setUploadedUrls([]);
+    setUploadingCount(0);
+    setShowForm(false);
+  };
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -136,14 +281,13 @@ export function ReviewSection({ productId }: { productId: number }) {
         productId,
         rating,
         comment: comment.trim() || null,
+        photos: uploadedUrls,
       });
       return res.json();
     },
     onSuccess: () => {
       toast({ title: "Спасибо за отзыв! Он появится после модерации." });
-      setRating(0);
-      setComment("");
-      setShowForm(false);
+      resetForm();
       queryClient.invalidateQueries({ queryKey: ["/api/reviews", productId] });
     },
     onError: (err: Error) => {
@@ -257,14 +401,66 @@ export function ReviewSection({ productId }: { productId: number }) {
                 />
               </div>
 
+              <div>
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wide">
+                  Фото <span className="normal-case font-normal">(до 5 штук, необязательно)</span>
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  {photoPreviews.map((preview, i) => (
+                    <div
+                      key={i}
+                      className="relative w-20 h-20 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 shrink-0"
+                      data-testid={`photo-preview-${i}`}
+                    >
+                      <img src={preview} alt="" className="w-full h-full object-cover" />
+                      {i >= uploadedUrls.length ? (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 text-white animate-spin" />
+                        </div>
+                      ) : (
+                        <button
+                          className="absolute top-1 right-1 w-5 h-5 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center transition-colors"
+                          onClick={() => removePhoto(i)}
+                          data-testid={`button-remove-photo-${i}`}
+                        >
+                          <X className="w-3 h-3 text-white" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  {photoPreviews.length < 5 && (
+                    <button
+                      className="w-20 h-20 rounded-xl border-2 border-dashed border-zinc-300 dark:border-zinc-600 flex flex-col items-center justify-center gap-1 hover:border-zinc-400 dark:hover:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                      onClick={() => fileInputRef.current?.click()}
+                      data-testid="button-add-photo"
+                    >
+                      <Camera className="w-5 h-5 text-zinc-400" />
+                      <span className="text-[10px] text-zinc-400">Добавить</span>
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handlePhotoSelect(e.target.files)}
+                  data-testid="input-photo-file"
+                />
+              </div>
+
               <button
                 onClick={() => submitMutation.mutate()}
-                disabled={rating === 0 || submitMutation.isPending}
+                disabled={rating === 0 || submitMutation.isPending || uploadingCount > 0}
                 className="w-full py-2.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 data-testid="button-submit-review"
               >
-                {submitMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                Отправить отзыв
+                {(submitMutation.isPending || uploadingCount > 0) && <Loader2 className="w-4 h-4 animate-spin" />}
+                {uploadingCount > 0 ? "Загрузка фото..." : "Отправить отзыв"}
               </button>
             </div>
           )}
@@ -332,6 +528,9 @@ export function ReviewSection({ productId }: { productId: number }) {
                         >
                           {review.comment}
                         </p>
+                      )}
+                      {review.photos && review.photos.length > 0 && (
+                        <ReviewPhotos photos={review.photos} />
                       )}
                     </div>
                   </div>

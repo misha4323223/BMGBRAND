@@ -2377,24 +2377,60 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // Upload photo for review (before submitting review)
+  app.post("/api/reviews/upload-photo", authMiddleware, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) return res.status(401).json({ error: "Необходимо войти в аккаунт" });
+      const { imageData } = req.body;
+      if (!imageData) return res.status(400).json({ error: "imageData is required" });
+      const match = imageData.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+      if (!match) return res.status(400).json({ error: "Invalid image format" });
+      const mimeType = match[1];
+      const ext = mimeType.includes("png") ? "png" : mimeType.includes("webp") ? "webp" : "jpg";
+      const base64Data = imageData.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+      if (buffer.length > 10 * 1024 * 1024) return res.status(400).json({ error: "Файл слишком большой (макс. 10MB)" });
+      // Resize to max 1200px wide via sharp
+      let processedBuffer = buffer;
+      try {
+        processedBuffer = await sharp(buffer)
+          .resize({ width: 1200, withoutEnlargement: true })
+          .webp({ quality: 85 })
+          .toBuffer();
+      } catch { /* use original if sharp fails */ }
+      const filename = `review_images/${Date.now()}_${user.id}.webp`;
+      const url = await uploadToYandexStorage(processedBuffer, filename, "image/webp");
+      if (!url) return res.status(500).json({ error: "Не удалось загрузить фото" });
+      res.json({ url });
+    } catch (err: any) {
+      console.error("[Reviews] Photo upload error:", err.message);
+      res.status(500).json({ error: "Upload failed" });
+    }
+  });
+
   app.post("/api/reviews", authMiddleware, async (req: any, res) => {
     try {
       const user = req.user;
       if (!user) {
         return res.status(401).json({ error: "Для отправки отзыва необходимо войти в аккаунт" });
       }
-      const { productId, rating, comment } = req.body;
+      const { productId, rating, comment, photos } = req.body;
       if (!productId || !rating) {
         return res.status(400).json({ error: "productId and rating are required" });
       }
       if (rating < 1 || rating > 5) {
         return res.status(400).json({ error: "Rating must be between 1 and 5" });
       }
+      const photoUrls: string[] = Array.isArray(photos)
+        ? photos.filter((u: any) => typeof u === "string" && u.startsWith("http")).slice(0, 5)
+        : [];
       const review = await storage.createReview({
         productId: Number(productId),
         authorName: user.name,
         rating: Number(rating),
         comment: comment ? String(comment).trim() : null,
+        photos: photoUrls,
         userId: user.id,
       });
 

@@ -4381,7 +4381,11 @@ export class DatabaseStorage implements IStorage {
         `DECLARE $productId AS Uint64; SELECT * FROM reviews WHERE product_id = $productId AND is_approved = true ORDER BY created_at DESC`,
         { '$productId': ydb.TypedValues.uint64(productId) }
       );
-      return this.parseResultSet<Review>(resultSets[0]);
+      const rows = this.parseResultSet<Review>(resultSets[0]);
+      return (rows || []).map(r => ({
+        ...r,
+        photos: r.photos ? (typeof r.photos === 'string' ? JSON.parse(r.photos) : r.photos) : [],
+      }));
     });
     return result || [];
   }
@@ -4397,6 +4401,9 @@ export class DatabaseStorage implements IStorage {
   async createReview(review: InsertReview): Promise<Review> {
     const id = Date.now();
     const now = new Date();
+    const photosJson = review.photos && (review.photos as any[]).length > 0
+      ? JSON.stringify(review.photos)
+      : null;
     await this.safeQuery(async (session) => {
       await session.executeQuery(`
         DECLARE $id AS Uint64;
@@ -4405,10 +4412,11 @@ export class DatabaseStorage implements IStorage {
         DECLARE $author_name AS Utf8;
         DECLARE $rating AS Int32;
         DECLARE $comment AS Optional<Utf8>;
+        DECLARE $photos AS Optional<Utf8>;
         DECLARE $is_approved AS Bool;
         DECLARE $created_at AS Datetime;
-        UPSERT INTO reviews (id, product_id, user_id, author_name, rating, comment, is_approved, created_at)
-        VALUES ($id, $product_id, $user_id, $author_name, $rating, $comment, $is_approved, $created_at)
+        UPSERT INTO reviews (id, product_id, user_id, author_name, rating, comment, photos, is_approved, created_at)
+        VALUES ($id, $product_id, $user_id, $author_name, $rating, $comment, $photos, $is_approved, $created_at)
       `, {
         '$id': ydb.TypedValues.uint64(id),
         '$product_id': ydb.TypedValues.uint64(review.productId),
@@ -4416,11 +4424,12 @@ export class DatabaseStorage implements IStorage {
         '$author_name': ydb.TypedValues.utf8(review.authorName),
         '$rating': ydb.TypedValues.int32(review.rating),
         '$comment': review.comment ? ydb.TypedValues.optional(ydb.TypedValues.utf8(review.comment)) : ydb.TypedValues.optionalNull(ydb.Types.UTF8),
+        '$photos': photosJson ? ydb.TypedValues.optional(ydb.TypedValues.utf8(photosJson)) : ydb.TypedValues.optionalNull(ydb.Types.UTF8),
         '$is_approved': ydb.TypedValues.bool(false),
         '$created_at': ydb.TypedValues.datetime(now),
       });
     });
-    return { id, ...review, isApproved: false, createdAt: now } as Review;
+    return { id, ...review, photos: review.photos || [], isApproved: false, createdAt: now } as Review;
   }
 
   async updateReview(id: number, updates: Partial<Review>): Promise<Review> {
