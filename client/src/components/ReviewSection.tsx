@@ -3,10 +3,9 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { Star, ChevronDown, ChevronUp, Loader2, LogIn } from "lucide-react";
+import { Star, Loader2, PenLine, ChevronDown, ChevronUp } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface Review {
   id: number;
@@ -19,10 +18,16 @@ interface Review {
   createdAt: string | null;
 }
 
-function StarRating({ rating, max = 5, size = "w-4 h-4", interactive = false, onRate }: {
+function StarRating({
+  rating,
+  max = 5,
+  size = 16,
+  interactive = false,
+  onRate,
+}: {
   rating: number;
   max?: number;
-  size?: string;
+  size?: number;
   interactive?: boolean;
   onRate?: (r: number) => void;
 }) {
@@ -35,7 +40,13 @@ function StarRating({ rating, max = 5, size = "w-4 h-4", interactive = false, on
         return (
           <Star
             key={i}
-            className={`${size} ${filled ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"} ${interactive ? "cursor-pointer" : ""}`}
+            width={size}
+            height={size}
+            className={`transition-all duration-150 ${
+              filled
+                ? "fill-yellow-400 text-yellow-400 scale-110"
+                : "fill-transparent text-zinc-300 dark:text-zinc-600"
+            } ${interactive ? "cursor-pointer hover:scale-125" : ""}`}
             onClick={() => interactive && onRate?.(val)}
             onMouseEnter={() => interactive && setHover(val)}
             onMouseLeave={() => interactive && setHover(0)}
@@ -47,10 +58,69 @@ function StarRating({ rating, max = 5, size = "w-4 h-4", interactive = false, on
   );
 }
 
+function getAvatarColor(name: string): string {
+  const colors = [
+    "bg-red-500", "bg-orange-500", "bg-amber-500",
+    "bg-emerald-500", "bg-teal-500", "bg-cyan-500",
+    "bg-blue-500", "bg-violet-500", "bg-pink-500",
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function Avatar({ name }: { name: string }) {
+  const initials = name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+  return (
+    <div
+      className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${getAvatarColor(name)}`}
+    >
+      {initials}
+    </div>
+  );
+}
+
+function RatingBar({ stars, count, total }: { stars: number; count: number; total: number }) {
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2 text-xs" data-testid={`rating-bar-${stars}`}>
+      <span className="w-3 text-right text-zinc-500 dark:text-zinc-400">{stars}</span>
+      <Star width={10} height={10} className="fill-yellow-400 text-yellow-400 shrink-0" />
+      <div className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-yellow-400 rounded-full transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="w-6 text-right text-zinc-400 dark:text-zinc-500">{count}</span>
+    </div>
+  );
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "";
+  try {
+    return new Date(dateStr).toLocaleDateString("ru-RU", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
 export function ReviewSection({ productId }: { productId: number }) {
   const { toast } = useToast();
   const { data: authData } = useAuth();
+  const [, navigate] = useLocation();
   const user = authData?.user;
+
   const [showForm, setShowForm] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
@@ -81,120 +151,190 @@ export function ReviewSection({ productId }: { productId: number }) {
     },
   });
 
-  const avgRating = reviews.length > 0
-    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-    : 0;
+  const avgRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0;
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "";
-    try {
-      return new Date(dateStr).toLocaleDateString("ru-RU", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      });
-    } catch {
-      return "";
-    }
+  const dist = [5, 4, 3, 2, 1].map((s) => ({
+    stars: s,
+    count: reviews.filter((r) => r.rating === s).length,
+  }));
+
+  const ratingLabel = (n: number) => {
+    if (n === 0) return "отзывов";
+    if (n === 1) return "отзыв";
+    if (n < 5) return "отзыва";
+    return "отзывов";
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-8" data-testid="review-section">
-      <h2 className="text-xl font-semibold mb-4">Отзывы</h2>
+    <div className="w-full max-w-3xl mx-auto px-4 py-10" data-testid="review-section">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold tracking-tight">Отзывы</h2>
+        {user && (
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-full border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            data-testid="button-toggle-review-form"
+          >
+            {showForm ? (
+              <>
+                <ChevronUp className="w-4 h-4" /> Закрыть
+              </>
+            ) : (
+              <>
+                <PenLine className="w-4 h-4" /> Написать отзыв
+              </>
+            )}
+          </button>
+        )}
+      </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-3 mb-6">
-            <StarRating rating={Math.round(avgRating)} />
-            <span className="text-sm text-muted-foreground" data-testid="text-review-count">
-              {avgRating > 0 ? avgRating.toFixed(1) : "0"} ({reviews.length}{" "}
-              {reviews.length === 1 ? "отзыв" : reviews.length < 5 ? "отзыва" : "отзывов"})
-            </span>
-          </div>
-
-          {user ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowForm(!showForm)}
-              className="mb-4"
-              data-testid="button-toggle-review-form"
-            >
-              {showForm ? <ChevronUp className="w-4 h-4 mr-1" /> : <ChevronDown className="w-4 h-4 mr-1" />}
-              Написать отзыв
-            </Button>
-          ) : (
-            <div className="mb-4 flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.location.href = "/profile"}
-                data-testid="button-login-to-review"
-              >
-                <LogIn className="w-4 h-4 mr-1" />
-                Войдите, чтобы оставить отзыв
-              </Button>
+          {reviews.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-6 mb-8 p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800">
+              <div className="flex flex-col items-center justify-center min-w-[100px]">
+                <span className="text-5xl font-extrabold leading-none text-zinc-900 dark:text-white" data-testid="text-avg-rating">
+                  {avgRating.toFixed(1)}
+                </span>
+                <StarRating rating={Math.round(avgRating)} size={16} />
+                <span className="text-xs text-zinc-400 mt-1" data-testid="text-review-count">
+                  {reviews.length} {ratingLabel(reviews.length)}
+                </span>
+              </div>
+              <div className="flex-1 flex flex-col justify-center gap-1.5">
+                {dist.map((d) => (
+                  <RatingBar
+                    key={d.stars}
+                    stars={d.stars}
+                    count={d.count}
+                    total={reviews.length}
+                  />
+                ))}
+              </div>
             </div>
           )}
 
           {showForm && user && (
-            <Card className="mb-6">
-              <CardContent className="pt-4 space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Отзыв от: <span className="font-medium text-foreground">{user.name}</span>
+            <div className="mb-8 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 space-y-4">
+              <div className="flex items-center gap-3">
+                <Avatar name={user.name} />
+                <div>
+                  <p className="text-sm font-semibold leading-none">{user.name}</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">Ваш отзыв</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wide">
+                  Оценка
                 </p>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Оценка</label>
-                  <StarRating rating={rating} size="w-6 h-6" interactive onRate={setRating} />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Комментарий (необязательно)</label>
-                  <Textarea
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Поделитесь впечатлениями..."
-                    rows={3}
-                    data-testid="input-review-comment"
-                  />
-                </div>
-                <Button
-                  onClick={() => submitMutation.mutate()}
-                  disabled={rating === 0 || submitMutation.isPending}
-                  data-testid="button-submit-review"
-                >
-                  {submitMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-                  Отправить отзыв
-                </Button>
-              </CardContent>
-            </Card>
+                <StarRating rating={rating} size={28} interactive onRate={setRating} />
+                {rating > 0 && (
+                  <p className="text-xs text-zinc-400 mt-1">
+                    {["", "Плохо", "Так себе", "Нормально", "Хорошо", "Отлично"][rating]}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wide">
+                  Комментарий <span className="normal-case font-normal">(необязательно)</span>
+                </p>
+                <Textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Поделитесь впечатлениями о товаре..."
+                  rows={3}
+                  className="resize-none rounded-xl text-sm"
+                  data-testid="input-review-comment"
+                />
+              </div>
+
+              <button
+                onClick={() => submitMutation.mutate()}
+                disabled={rating === 0 || submitMutation.isPending}
+                className="w-full py-2.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                data-testid="button-submit-review"
+              >
+                {submitMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Отправить отзыв
+              </button>
+            </div>
+          )}
+
+          {!user && (
+            <button
+              onClick={() => navigate("/profile")}
+              className="w-full mb-8 flex items-center gap-4 p-4 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 hover:border-zinc-500 dark:hover:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-all group"
+              data-testid="button-login-to-review"
+            >
+              <div className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-zinc-200 dark:group-hover:bg-zinc-700 transition-colors shrink-0">
+                <PenLine className="w-5 h-5 text-zinc-500" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                  Оставить отзыв
+                </p>
+                <p className="text-xs text-zinc-400">Войдите, чтобы поделиться мнением</p>
+              </div>
+            </button>
           )}
 
           {reviews.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4" data-testid="text-no-reviews">
-              Пока нет отзывов. Будьте первым!
-            </p>
+            <div className="text-center py-12" data-testid="text-no-reviews">
+              <div className="flex justify-center mb-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Star
+                    key={i}
+                    width={20}
+                    height={20}
+                    className="fill-transparent text-zinc-200 dark:text-zinc-700"
+                  />
+                ))}
+              </div>
+              <p className="text-sm font-medium text-zinc-500">Пока нет отзывов</p>
+              <p className="text-xs text-zinc-400 mt-0.5">Будьте первым, кто поделится мнением</p>
+            </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-0 divide-y divide-zinc-100 dark:divide-zinc-800">
               {reviews.map((review) => (
-                <div key={review.id} className="border-b border-border pb-4" data-testid={`review-item-${review.id}`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <StarRating rating={review.rating} size="w-3.5 h-3.5" />
-                    <span className="text-sm font-medium" data-testid={`text-review-author-${review.id}`}>
-                      {review.authorName}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDate(review.createdAt)}
-                    </span>
+                <div
+                  key={review.id}
+                  className="py-5 first:pt-0"
+                  data-testid={`review-item-${review.id}`}
+                >
+                  <div className="flex gap-3">
+                    <Avatar name={review.authorName} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span
+                          className="text-sm font-semibold"
+                          data-testid={`text-review-author-${review.id}`}
+                        >
+                          {review.authorName}
+                        </span>
+                        <span className="text-xs text-zinc-400">
+                          {formatDate(review.createdAt)}
+                        </span>
+                      </div>
+                      <StarRating rating={review.rating} size={13} />
+                      {review.comment && (
+                        <p
+                          className="text-sm text-zinc-600 dark:text-zinc-300 mt-2 leading-relaxed"
+                          data-testid={`text-review-comment-${review.id}`}
+                        >
+                          {review.comment}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  {review.comment && (
-                    <p className="text-sm text-foreground/80 mt-1" data-testid={`text-review-comment-${review.id}`}>
-                      {review.comment}
-                    </p>
-                  )}
                 </div>
               ))}
             </div>
