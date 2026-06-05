@@ -1586,3 +1586,91 @@ export async function sendPreorderNotifications(productName: string, subscribers
     }
   }
 }
+
+export function getAbandonedCartEmailHtml(
+  userName: string,
+  cartItems: Array<{ product: { name: string; imageUrl?: string; thumbnailUrl?: string; price: number }; quantity: number; size: string | null; color: string | null }>,
+  totalKopecks: number
+): string {
+  const siteUrl = 'https://www.booomerangs.ru';
+  const cartUrl = `${siteUrl}/cart`;
+  const totalRub = Math.round(totalKopecks / 100).toLocaleString('ru-RU');
+
+  const itemsHtml = cartItems.map(item => {
+    const img = item.product.thumbnailUrl || item.product.imageUrl || '';
+    const priceRub = Math.round(item.product.price / 100).toLocaleString('ru-RU');
+    const meta = [item.size, item.color].filter(Boolean).join(', ');
+    return `
+      <tr>
+        <td style="padding:12px 0;border-bottom:1px solid #f0f0f0;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              ${img ? `<td width="72" style="vertical-align:top;padding-right:14px;">
+                <a href="${cartUrl}"><img src="${img}" width="72" height="72" style="border-radius:8px;object-fit:cover;display:block;" /></a>
+              </td>` : ''}
+              <td style="vertical-align:top;">
+                <div style="font-size:14px;font-weight:700;color:#1C1C1C;margin-bottom:4px;">${item.product.name}</div>
+                ${meta ? `<div style="font-size:12px;color:#888;margin-bottom:4px;">${meta}</div>` : ''}
+                <div style="font-size:13px;color:#555;">
+                  ${item.quantity > 1 ? `${item.quantity} × ` : ''}${priceRub} ₽
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 0;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fff;border-radius:12px;overflow:hidden;">
+      <tr>
+        <td style="background:#1C1C1C;padding:24px 32px;">
+          <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:2px;text-transform:uppercase;">
+            BOO<span style="color:#E53935;">O</span>MERANGS
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:32px 32px 0;">
+          <div style="font-size:22px;font-weight:800;color:#1C1C1C;margin-bottom:8px;">
+            Вы кое-что забыли 🛒
+          </div>
+          <p style="font-size:14px;color:#555;margin:0 0 24px;">
+            ${userName ? `${userName}, у` : 'У'} вас в корзине остались товары. Не дайте им уйти к кому-то другому — размеры ограничены.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${itemsHtml}
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;border-top:2px solid #1C1C1C;padding-top:14px;">
+            <tr>
+              <td style="font-size:14px;color:#555;font-weight:600;">Итого:</td>
+              <td align="right" style="font-size:18px;font-weight:900;color:#1C1C1C;">${totalRub} ₽</td>
+            </tr>
+          </table>
+          <div style="text-align:center;margin:28px 0;">
+            <a href="${cartUrl}" style="display:inline-block;padding:14px 40px;background:#1C1C1C;color:#fff;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase;border-radius:6px;">
+              Завершить покупку
+            </a>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:20px 32px;border-top:1px solid #eee;font-size:11px;color:#999;">
+          &copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.<br>
+          Вы получили это письмо, потому что оставили товары в корзине на <a href="${siteUrl}" style="color:#999;">booomerangs.ru</a>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}

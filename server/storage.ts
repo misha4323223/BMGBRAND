@@ -389,6 +389,11 @@ export interface IStorage {
   getUnnotifiedByProductAndSize(productId: number, size: string): Promise<Array<{ id: string; email: string }>>;
   markStockNotificationsNotified(ids: string[]): Promise<void>;
   getAllStockNotifications(): Promise<Array<{ id: string; productId: string; productName: string; size: string; email: string; createdAt: string; notified: boolean; notifiedAt: string | null }>>;
+  // Abandoned cart reminders
+  getAbandonedCartUserSessions?(): Promise<string[]>;
+  getUserEmailById?(userId: number): Promise<{ name: string; email: string } | null>;
+  getCartReminder?(userId: number): Promise<{ sentAt: string; cartHash: string } | null>;
+  upsertCartReminder?(userId: number, cartHash: string): Promise<void>;
   // Price drop subscriptions
   createPriceDropSubscription(productId: number, productName: string, email: string, priceAtSubscription: number): Promise<boolean>;
   checkPriceDropSubscription(productId: number, email: string): Promise<boolean>;
@@ -6992,6 +6997,60 @@ export class DatabaseStorage implements IStorage {
         DECLARE $token AS Utf8;
         DELETE FROM partner_pending_submissions WHERE token = $token;
       `, { $token: TypedValues.utf8(token) });
+    });
+  }
+
+  async getAbandonedCartUserSessions(): Promise<string[]> {
+    const result = await this.safeQuery(async (session) => {
+      const { resultSets } = await session.executeQuery(
+        `SELECT DISTINCT session_id FROM cart_items WHERE String::StartsWith(session_id, 'user_')`
+      );
+      const rows = this.parseResultSet<{ sessionId: string }>(resultSets[0]);
+      return rows.map(r => r.sessionId).filter(Boolean);
+    });
+    return result || [];
+  }
+
+  async getUserEmailById(userId: number): Promise<{ name: string; email: string } | null> {
+    const result = await this.safeQuery(async (session) => {
+      const { TypedValues } = await import('ydb-sdk');
+      const { resultSets } = await session.executeQuery(
+        `DECLARE $id AS Uint64; SELECT id, name, email FROM users WHERE id = $id LIMIT 1`,
+        { '$id': TypedValues.uint64(userId) }
+      );
+      const rows = this.parseResultSet<{ id: number; name: string; email: string }>(resultSets[0]);
+      return rows[0] || null;
+    });
+    return result || null;
+  }
+
+  async getCartReminder(userId: number): Promise<{ sentAt: string; cartHash: string } | null> {
+    const result = await this.safeQuery(async (session) => {
+      const { TypedValues } = await import('ydb-sdk');
+      const { resultSets } = await session.executeQuery(
+        `DECLARE $user_id AS Uint64; SELECT user_id, sent_at, cart_hash FROM cart_reminders WHERE user_id = $user_id LIMIT 1`,
+        { '$user_id': TypedValues.uint64(userId) }
+      );
+      const rows = this.parseResultSet<{ userId: number; sentAt: string; cartHash: string }>(resultSets[0]);
+      return rows[0] ? { sentAt: rows[0].sentAt, cartHash: rows[0].cartHash } : null;
+    });
+    return result || null;
+  }
+
+  async upsertCartReminder(userId: number, cartHash: string): Promise<void> {
+    const now = new Date();
+    await this.safeQuery(async (session) => {
+      const { TypedValues } = await import('ydb-sdk');
+      await session.executeQuery(`
+        DECLARE $user_id AS Uint64;
+        DECLARE $sent_at AS Datetime;
+        DECLARE $cart_hash AS Utf8;
+        UPSERT INTO cart_reminders (user_id, sent_at, cart_hash) VALUES ($user_id, $sent_at, $cart_hash)
+      `, {
+        '$user_id': TypedValues.uint64(userId),
+        '$sent_at': TypedValues.datetime(now),
+        '$cart_hash': TypedValues.utf8(cartHash),
+      });
     });
   }
 }
