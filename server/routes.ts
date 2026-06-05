@@ -2430,7 +2430,7 @@ BMGBRAND — официальный производитель и магазин
         authorName: user.name,
         rating: Number(rating),
         comment: comment ? String(comment).trim() : null,
-        photos: photoUrls,
+        photos: photoUrls as any,
         userId: user.id,
       });
 
