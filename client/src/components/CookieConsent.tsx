@@ -51,7 +51,7 @@ export function CookieConsent() {
           transition={{ type: "spring", stiffness: 400, damping: 32, mass: 0.7 }}
           className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-5 sm:bottom-5 z-[100] sm:w-[310px]"
         >
-          <div className="bg-card border border-border rounded-2xl shadow-lg shadow-foreground/10 overflow-hidden">
+          <div className="bg-card/75 backdrop-blur-md border border-border/60 rounded-2xl shadow-sm overflow-hidden">
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5">
