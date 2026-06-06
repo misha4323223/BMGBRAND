@@ -4,14 +4,14 @@ import { sendEmail, getAbandonedCartEmailHtml } from './email';
 
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // каждые 24 часа
-const FIRST_RUN_DELAY_MS = 5 * 60 * 1000; // первая проверка через 5 мин после старта
+const FIRST_RUN_DELAY_MS = 1 * 60 * 1000; // первая проверка через 1 мин после старта
 
 export function startAbandonedCartJob(): void {
   setTimeout(() => {
     runAbandonedCartCheck();
     setInterval(runAbandonedCartCheck, CHECK_INTERVAL_MS);
   }, FIRST_RUN_DELAY_MS);
-  console.log('[AbandonedCart] Job scheduled: first run in 5 min, then every 24 hours');
+  console.log('[AbandonedCart] Job scheduled: first run in 1 min, then every 24 hours');
 }
 
 async function runAbandonedCartCheck(): Promise<void> {
