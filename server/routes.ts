@@ -2655,44 +2655,77 @@ BMGBRAND — официальный производитель и магазин
       let matched: any[] = [];
       if (lastUserMsg?.content) {
         const query = (lastUserMsg.content as string).toLowerCase();
-        // Category keyword map (ru → category slug)
-        const categoryKeywords: Record<string, string[]> = {
-          clothing: ["толстов", "свитшот", "свитер", "футболк", "шорт", "брюк", "одежд", "худи", "пуловер", "лонгслив", "бомбер"],
-          socks:    ["носк", "sock"],
-          accessories: ["аксессуар", "сумк", "рюкзак", "кепк", "шапк", "пояс", "ремен", "перчатк"],
-          sale:     ["скидк", "распродаж", "акци", "sale"],
-        };
 
-        // Stop words — ignore them when searching product names
-        const stopWords = new Set(["есть", "ли", "у", "вас", "мне", "что", "как", "где", "какие", "какой", "какая", "хочу", "можно", "нужен", "нужна", "покажи", "покажите", "дай", "дайте", "расскажи"]);
+        // Subcategory keyword map: query keyword → subcategory name (ru, partial match)
+        const subcategoryKeywords: Array<{ kw: string; sub: string }> = [
+          { kw: "худи",      sub: "Толстовки" },
+          { kw: "толстов",   sub: "Толстовки" },
+          { kw: "свитшот",   sub: "Свитшоты" },
+          { kw: "свитер",    sub: "Свитшоты" },
+          { kw: "футболк",   sub: "Футболки" },
+          { kw: "лонгслив",  sub: "Лонгсливы" },
+          { kw: "шорт",      sub: "Шорты" },
+          { kw: "брюк",      sub: "Брюки" },
+          { kw: "штан",      sub: "Брюки" },
+          { kw: "бомбер",    sub: "Бомберы" },
+          { kw: "куртк",     sub: "Куртки" },
+          { kw: "носк",      sub: "Носки" },
+          { kw: "sock",      sub: "Носки" },
+          { kw: "кепк",      sub: "Головные уборы" },
+          { kw: "шапк",      sub: "Головные уборы" },
+          { kw: "бейсболк",  sub: "Головные уборы" },
+          { kw: "сумк",      sub: "Сумки" },
+          { kw: "рюкзак",    sub: "Рюкзаки" },
+          { kw: "аксессуар", sub: "" },   // любой аксессуар → category accessories
+        ];
 
-        // Extract meaningful keywords from query
-        const keywords = query
+        // Category fallback map
+        const categoryKeywords: Array<{ kw: string; cat: string }> = [
+          { kw: "одежд",   cat: "clothing" },
+          { kw: "носк",    cat: "socks" },
+          { kw: "аксессуар", cat: "accessories" },
+          { kw: "скидк",   cat: "sale" },
+          { kw: "распродаж", cat: "sale" },
+          { kw: "sale",    cat: "sale" },
+        ];
+
+        // Stop words — ignore when extracting name keywords
+        const stopWords = new Set(["есть", "ли", "у", "вас", "мне", "что", "как", "где", "какие", "какой", "какая", "хочу", "можно", "нужен", "нужна", "покажи", "покажите", "дай", "дайте", "расскажи", "помоги", "хотел", "хотела"]);
+
+        // Extract meaningful name keywords from query
+        const nameKeywords = query
           .split(/[\s,.!?;:()[\]]+/)
           .map(w => w.trim())
           .filter(w => w.length >= 3 && !stopWords.has(w));
 
-        // Find matching category slug
-        let matchedCategorySlug: string | null = null;
-        for (const [slug, kws] of Object.entries(categoryKeywords)) {
-          if (kws.some(kw => query.includes(kw))) {
-            matchedCategorySlug = slug;
-            break;
-          }
+        // Find matched subcategory substring (e.g. "Толстовки")
+        let matchedSubStr: string | null = null;
+        for (const { kw, sub } of subcategoryKeywords) {
+          if (query.includes(kw)) { matchedSubStr = sub; break; }
+        }
+
+        // Find matched category slug fallback
+        let matchedCatSlug: string | null = null;
+        for (const { kw, cat } of categoryKeywords) {
+          if (query.includes(kw)) { matchedCatSlug = cat; break; }
         }
 
         // Search products from cache
         const allProducts = await storage.getProducts() as any[];
         const MAX_PRODUCTS = 5;
 
-        if (keywords.length > 0 || matchedCategorySlug) {
+        if (nameKeywords.length > 0 || matchedSubStr || matchedCatSlug) {
           matched = allProducts.filter((p: any) => {
-            if (!p.isActive) return false;
+            // Skip hidden or artist-only products
+            if (p.isHidden || p.artistOnly) return false;
             const nameLower = (p.name || "").toLowerCase();
-            // Match by category
-            if (matchedCategorySlug && p.category === matchedCategorySlug) return true;
+            const subLower  = (p.subcategory || "").toLowerCase();
+            // Match by subcategory (most precise)
+            if (matchedSubStr && subLower.includes(matchedSubStr.toLowerCase())) return true;
+            // Match by category fallback
+            if (!matchedSubStr && matchedCatSlug && p.category === matchedCatSlug) return true;
             // Match by keywords in product name
-            return keywords.some(kw => nameLower.includes(kw));
+            return nameKeywords.some(kw => nameLower.includes(kw));
           }).slice(0, MAX_PRODUCTS);
         }
 
