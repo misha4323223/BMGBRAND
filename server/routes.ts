@@ -2978,7 +2978,11 @@ BMGBRAND — официальный производитель и магазин
       const data = await response.json() as any;
       const rawReply = data.choices?.[0]?.message?.content || "Извините, не могу ответить прямо сейчас. Напишите нашему менеджеру.";
       // Strip <think>...</think> blocks (Qwen3 chain-of-thought)
-      const reply = rawReply.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+      // Handle both closed (<think>...</think>) and unclosed (<think>... to end) variants
+      const reply = rawReply
+        .replace(/<think>[\s\S]*?<\/think>/gi, "")
+        .replace(/<think>[\s\S]*/gi, "")
+        .trim();
 
       // Return matched products as structured data (not embedded in text)
       const SITE_BASE = "https://booomerangs.ru";
