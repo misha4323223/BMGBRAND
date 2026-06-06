@@ -1069,19 +1069,44 @@ export default function ProductDetail() {
                 {/* Size - show when product has sizes or sizeStock, but not for active preorders or noSize products */}
                 {!isEffectivelyNoSize(product) && (product.sizes?.length > 0 || ((product as any).sizeStock && Object.keys((product as any).sizeStock).length > 0)) && !((product as any).preorderEnabled && (product as any).preorderStatus === "collecting") && (
                 <div className="flex-1">
-                  <div className="flex items-start gap-2.5">
-                    <label className="text-xs font-semibold text-foreground uppercase tracking-wider pt-1.5 flex-shrink-0">Размер</label>
-                    {isWholesale && (
-                      <>
-                        <span className="text-xs text-primary font-medium pt-1.5">Остаток</span>
-                        {(!((product as any).sizeStock) || Object.keys((product as any).sizeStock || {}).length === 0) && (
-                          <span className="text-xs text-primary font-medium pt-1.5">
-                            {(product as any).stock ?? 0}
-                          </span>
-                        )}
-                      </>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-semibold text-foreground uppercase tracking-wider flex-shrink-0">Размер</label>
+                      {isWholesale && (
+                        <>
+                          <span className="text-xs text-primary font-medium">Остаток</span>
+                          {(!((product as any).sizeStock) || Object.keys((product as any).sizeStock || {}).length === 0) && (
+                            <span className="text-xs text-primary font-medium">
+                              {(product as any).stock ?? 0}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {!isWholesale && (
+                      <button
+                        data-testid="button-size-advisor"
+                        onClick={() => {
+                          const measurements = (product.measurements as SizeMeasurement[]) || [];
+                          const hasWaist = measurements.some((m: SizeMeasurement) => !!m.waist);
+                          window.dispatchEvent(new CustomEvent("open-size-advisor", {
+                            detail: {
+                              id: product.id,
+                              name: product.name,
+                              subcategory: product.subcategory,
+                              hasMeasurements: measurements.length > 0,
+                              hasWaist,
+                            } satisfies { id: number; name: string; subcategory?: string; hasMeasurements: boolean; hasWaist: boolean },
+                          }));
+                        }}
+                        className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/75 transition-colors shrink-0"
+                      >
+                        <Ruler className="w-3.5 h-3.5" />
+                        <span>Подобрать размер</span>
+                      </button>
                     )}
-                    <div className="flex flex-wrap gap-2">
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     {(() => {
                       const sizeStock = (product as any).sizeStock;
                       const hasSizeStock = sizeStock && Object.keys(sizeStock).length > 0;
@@ -1179,32 +1204,6 @@ export default function ProductDetail() {
                       });
                     })()}
                     </div>
-                  </div>
-                  {/* Size advisor button */}
-                  {!isWholesale && (
-                    <div className="mt-2">
-                      <button
-                        data-testid="button-size-advisor"
-                        onClick={() => {
-                          const measurements = (product.measurements as SizeMeasurement[]) || [];
-                          const hasWaist = measurements.some((m: SizeMeasurement) => !!m.waist);
-                          window.dispatchEvent(new CustomEvent("open-size-advisor", {
-                            detail: {
-                              id: product.id,
-                              name: product.name,
-                              subcategory: product.subcategory,
-                              hasMeasurements: measurements.length > 0,
-                              hasWaist,
-                            } satisfies { id: number; name: string; subcategory?: string; hasMeasurements: boolean; hasWaist: boolean },
-                          }));
-                        }}
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Ruler className="w-3.5 h-3.5" />
-                        Подобрать размер
-                      </button>
-                    </div>
-                  )}
 
                   {notifySize && !notifySubmitted.has(notifySize) && (
                     <div className="mt-3 space-y-2" data-testid="block-stock-notify">
