@@ -538,7 +538,7 @@ export default function ArtistPage() {
   const homeArtist = (homeSettings?.artists?.items || []).find((a: any) => a.slug === slug);
 
   const artistName = settings.name || homeArtist?.name || slug;
-  const artistRole = settings.role || homeArtist?.role || "";
+  const artistRole = settings.role !== undefined ? settings.role : (homeArtist?.role || "");
   const heroImage = settings.heroImage || homeArtist?.image || "";
   const heroOpacity = settings.heroOpacity || "0.5";
 
@@ -741,7 +741,7 @@ export default function ArtistPage() {
 
         {settings.heroVisible !== false && (
           <ArtistMarquee
-            text={settings.marqueeText || [artistName, artistRole].filter(Boolean).join(' — ')}
+            text={settings.marqueeText !== undefined ? settings.marqueeText : [artistName, artistRole].filter(Boolean).join(' — ')}
             bg={isColored ? tc.accent : '#0a0a0a'}
             fg={isColored ? tc.accentFg : '#ffffff'}
           />
