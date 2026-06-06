@@ -633,16 +633,6 @@ export default function Home() {
               >
                 <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8 transition-transform duration-300 group-hover:translate-x-1 stroke-[1.5]" />
               </button>
-              <div className="absolute bottom-8 left-0 right-0 z-20 flex justify-center gap-2">
-                {heroSlides.map((_: any, i: number) => (
-                  <button
-                    key={i}
-                    onClick={() => { setHeroPrev(activeIndex); setHeroAnimKey(k => k + 1); setHeroSlideIndex(i); }}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 ${i === activeIndex ? "bg-white w-5" : "bg-white/50"}`}
-                    data-testid={`button-hero-dot-${i}`}
-                  />
-                ))}
-              </div>
             </>
           )}
         </section>
