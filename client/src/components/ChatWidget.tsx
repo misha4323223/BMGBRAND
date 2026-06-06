@@ -77,10 +77,12 @@ const ChatIcon = () => (
 );
 
 const QUICK_QUESTIONS = [
-  "Какие способы доставки?",
-  "Как оплатить заказ?",
-  "Как вернуть товар?",
-  "Как выбрать размер?",
+  "Как доставляется мой заказ?",
+  "Какие способы оплаты доступны?",
+  "Как вернуть или обменять товар?",
+  "Как подобрать правильный размер?",
+  "Можно заказать мерч с логотипом?",
+  "Как работает партнёрская программа?",
 ];
 
 export function ChatWidget() {
@@ -355,7 +357,7 @@ export function ChatWidget() {
                       </div>
                       <div className="text-center">
                         <p className="font-semibold text-sm text-black">Привет! Я AI-ассистент</p>
-                        <p className="text-xs text-black/40 mt-1">Отвечу на вопросы о товарах,<br />доставке и оплате</p>
+                        <p className="text-xs text-black/40 mt-1">Отвечу на вопросы о доставке,<br />оплате, возврате, размерах и мерче</p>
                       </div>
                       <div className="w-full flex flex-col gap-2 mt-1">
                         {QUICK_QUESTIONS.map(q => (
