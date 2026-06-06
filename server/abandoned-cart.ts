@@ -14,7 +14,7 @@ export function startAbandonedCartJob(): void {
   console.log('[AbandonedCart] Job scheduled: first run in 1 min, then every 24 hours');
 }
 
-async function runAbandonedCartCheck(): Promise<void> {
+export async function runAbandonedCartCheck(): Promise<void> {
   const db = storage as any;
   if (typeof db.getAbandonedCartUserSessions !== 'function') {
     return; // dev mode without YDB — skip

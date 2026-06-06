@@ -22,6 +22,7 @@ import { ozonDeliveryOAuth, OZON_OAUTH_KEYS, OZON_OAUTH_REDIRECT_URI } from "./o
 import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PVZ_CODE, CDEK_DEFAULT_PACKAGE, CDEK_TARIFFS, isTariffToDoor, isTariffFromPvz } from "./cdek";
 import { yandexDeliveryService } from "./yandex-delivery";
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
+import { runAbandonedCartCheck } from "./abandoned-cart";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderDepositEmailHtml, getPreorderDepositPaidEmailHtml, getPreorderRemainingPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications } from "./email";
 import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
@@ -4127,6 +4128,14 @@ BMGBRAND — официальный производитель и магазин
       ]);
     } catch {}
     res.json({ success: true, message: "Токены сброшены" });
+  });
+
+  // POST /api/admin/trigger-abandoned-cart — ручной запуск проверки брошенных корзин
+  app.post("/api/admin/trigger-abandoned-cart", authMiddleware, requireAdminRole, async (_req, res) => {
+    res.json({ success: true, message: "Запущено — результат появится в логах" });
+    runAbandonedCartCheck().catch(err =>
+      console.error("[AbandonedCart] Manual trigger error:", err.message)
+    );
   });
 
   // GET /api/ozon/oauth/callback — публичный callback, вызывается Ozon после авторизации
