@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -37,7 +37,7 @@ type AiKey = typeof ORDERED_KEYS[number];
 
 interface AiKnowledgeTabProps {
   apiKey: string;
-  adminFetch: (url: string, apiKey: string, options?: RequestInit) => Promise<Response>;
+  adminFetch: (url: string, apiKey: string, options?: RequestInit) => Promise<any>;
 }
 
 export function AiKnowledgeTab({ apiKey, adminFetch }: AiKnowledgeTabProps) {
@@ -47,13 +47,9 @@ export function AiKnowledgeTab({ apiKey, adminFetch }: AiKnowledgeTabProps) {
   const [saving, setSaving] = useState<string | null>(null);
   const [resetting, setResetting] = useState<string | null>(null);
 
-  const { data, isLoading, refetch } = useQuery<{ blocks: Record<string, string>; defaults: Record<string, string> }>({
+  const { data, isLoading, error, refetch } = useQuery<{ blocks: Record<string, string>; defaults: Record<string, string> }>({
     queryKey: ["/api/admin/ai-knowledge"],
-    queryFn: async () => {
-      const res = await adminFetch("/api/admin/ai-knowledge", apiKey);
-      if (!res.ok) throw new Error("Ошибка загрузки");
-      return res.json();
-    },
+    queryFn: () => adminFetch("/api/admin/ai-knowledge", apiKey),
     enabled: !!apiKey,
   });
 
@@ -70,12 +66,10 @@ export function AiKnowledgeTab({ apiKey, adminFetch }: AiKnowledgeTabProps) {
     const value = getValue(key);
     setSaving(key);
     try {
-      const res = await adminFetch(`/api/admin/ai-knowledge/${key}`, apiKey, {
+      await adminFetch(`/api/admin/ai-knowledge/${key}`, apiKey, {
         method: "POST",
         body: JSON.stringify({ value }),
-        headers: { "Content-Type": "application/json" },
       });
-      if (!res.ok) throw new Error("Ошибка сохранения");
       setDrafts(prev => { const n = { ...prev }; delete n[key]; return n; });
       await qc.invalidateQueries({ queryKey: ["/api/admin/ai-knowledge"] });
       toast({ title: "Сохранено", description: `Блок «${BLOCK_META[key].label}» обновлён` });
@@ -89,12 +83,9 @@ export function AiKnowledgeTab({ apiKey, adminFetch }: AiKnowledgeTabProps) {
   async function handleReset(key: AiKey) {
     setResetting(key);
     try {
-      const res = await adminFetch(`/api/admin/ai-knowledge/${key}/reset`, apiKey, {
+      await adminFetch(`/api/admin/ai-knowledge/${key}/reset`, apiKey, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
       });
-      if (!res.ok) throw new Error("Ошибка сброса");
-      const json = await res.json();
       setDrafts(prev => { const n = { ...prev }; delete n[key]; return n; });
       await qc.invalidateQueries({ queryKey: ["/api/admin/ai-knowledge"] });
       toast({ title: "Сброшено", description: `Блок «${BLOCK_META[key].label}» восстановлен по умолчанию` });
@@ -110,6 +101,14 @@ export function AiKnowledgeTab({ apiKey, adminFetch }: AiKnowledgeTabProps) {
       <div className="p-6 flex items-center gap-2 text-muted-foreground">
         <RefreshCw className="w-4 h-4 animate-spin" />
         Загрузка блоков знаний...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-destructive">
+        Ошибка загрузки: {(error as Error).message}
       </div>
     );
   }
@@ -136,7 +135,7 @@ export function AiKnowledgeTab({ apiKey, adminFetch }: AiKnowledgeTabProps) {
         <p className="font-medium text-foreground mb-1">Как это работает:</p>
         <p>• <b>Базовый промт</b> — отправляется всегда</p>
         <p>• <b>Тематические блоки</b> — подключаются автоматически по ключевым словам в вопросе пользователя</p>
-        <p>• Итоговый промт в Groq: ~600–900 токенов вместо 4000+. Кэш обновляется каждые 5 минут.</p>
+        <p>• Итоговый промт в Groq: ~600–900 токенов. Кэш обновляется каждые 5 минут.</p>
       </div>
 
       {ORDERED_KEYS.map((key) => {
