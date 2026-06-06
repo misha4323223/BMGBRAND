@@ -186,12 +186,6 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
   }, [priority, shouldLoad]);
 
   useEffect(() => {
-    if (isEffectivelyNoSize(activeProduct)) {
-      setSelectedSize("(OneSize)");
-    }
-  }, [activeProduct.id, isEffectivelyNoSize(activeProduct)]);
-
-  useEffect(() => {
     if (!isModalOpen) {
       setActiveVariantId(null);
       setSelectedSize(null);
