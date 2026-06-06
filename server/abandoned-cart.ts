@@ -11,7 +11,7 @@ export function startAbandonedCartJob(): void {
     runAbandonedCartCheck();
     setInterval(runAbandonedCartCheck, CHECK_INTERVAL_MS);
   }, FIRST_RUN_DELAY_MS);
-  console.log('[AbandonedCart] Job scheduled: first run in 5 min, then every 30 min');
+  console.log('[AbandonedCart] Job scheduled: first run in 5 min, then every 24 hours');
 }
 
 async function runAbandonedCartCheck(): Promise<void> {

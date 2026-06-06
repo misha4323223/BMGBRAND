@@ -7000,7 +7000,32 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  private _cartRemindersTableReady = false;
+
+  private async ensureCartRemindersTable(): Promise<void> {
+    if (this._cartRemindersTableReady || !driver) return;
+    try {
+      await driver.tableClient.withSession(async (session: ydb.Session) => {
+        await session.createTable('cart_reminders', new ydb.TableDescription()
+          .withColumn(new ydb.Column('user_id', ydb.Types.optional(ydb.Types.UINT64)))
+          .withColumn(new ydb.Column('sent_at', ydb.Types.optional(ydb.Types.DATETIME)))
+          .withColumn(new ydb.Column('cart_hash', ydb.Types.optional(ydb.Types.UTF8)))
+          .withPrimaryKey('user_id')
+        );
+      });
+      this._cartRemindersTableReady = true;
+      console.log('[YDB] cart_reminders table created');
+    } catch (err: any) {
+      if (err.message?.includes('already exists') || err.issues?.some((i: any) => i.message?.includes('already exists'))) {
+        this._cartRemindersTableReady = true;
+      } else {
+        console.error('[CartReminders] Failed to ensure table:', err.message);
+      }
+    }
+  }
+
   async getAbandonedCartUserSessions(): Promise<string[]> {
+    await this.ensureCartRemindersTable();
     const result = await this.safeQuery(async (session) => {
       const { resultSets } = await session.executeQuery(
         `SELECT DISTINCT session_id FROM cart_items WHERE String::StartsWith(session_id, 'user_')`
