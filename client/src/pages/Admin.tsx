@@ -11120,16 +11120,31 @@ export default function Admin() {
 
             {/* Mobile cards - grid like website */}
             <div className="md:hidden">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mb-3"
-                onClick={selectAll}
-                data-testid="button-select-all-mobile"
-              >
-                <CheckSquare className="w-4 h-4 mr-2" />
-                {selectedProducts.size === filteredProducts.length ? "Снять выделение" : `Выбрать все (${filteredProducts.length})`}
-              </Button>
+              <div className="flex gap-2 mb-3">
+                <Button
+                  variant={selectedProducts.size > 0 ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1"
+                  onClick={selectAll}
+                  data-testid="button-select-all-mobile"
+                >
+                  <CheckSquare className="w-4 h-4 mr-2" />
+                  {selectedProducts.size > 0
+                    ? selectedProducts.size === filteredProducts.length
+                      ? `Снять выделение (${selectedProducts.size})`
+                      : `Выбрано: ${selectedProducts.size} — выбрать все`
+                    : `☑ Выбрать товары (${filteredProducts.length})`}
+                </Button>
+                {selectedProducts.size > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedProducts(new Set())}
+                  >
+                    ✕
+                  </Button>
+                )}
+              </div>
               <div className="space-y-2">
               {filteredProducts.map((product) => (
                 <div 
@@ -11232,6 +11247,60 @@ export default function Admin() {
             </div>
           </div>
         )}
+        {/* Floating bottom bar — mobile only, appears when products selected */}
+        {selectedProducts.size > 0 && (
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-lg p-3 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Выбрано: {selectedProducts.size} товаров</span>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedProducts(new Set())}>✕ Отмена</Button>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" className="flex-1" disabled={bulkMeasurementsMutation.isPending} data-testid="button-bulk-measurements-mobile">
+                    <Ruler className="w-4 h-4 mr-2" />
+                    {bulkMeasurementsMutation.isPending ? "Применяю..." : "Размерная таблица ▾"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align="start" className="bg-zinc-900 border-zinc-700 text-zinc-100 mb-1">
+                  {Object.entries(MEASUREMENT_TEMPLATES).map(([key, tmpl]) => (
+                    <DropdownMenuItem
+                      key={key}
+                      className="text-zinc-100 focus:bg-zinc-800 focus:text-white cursor-pointer"
+                      onClick={() => {
+                        if (confirm(`Применить шаблон «${tmpl.label}» к ${selectedProducts.size} товарам?\n\nЭто перезапишет уже заполненные таблицы.`)) {
+                          bulkMeasurementsMutation.mutate({ ids: Array.from(selectedProducts), measurements: tmpl.sizes });
+                        }
+                      }}
+                    >
+                      {tmpl.label}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator className="bg-zinc-700" />
+                  <DropdownMenuItem
+                    className="text-red-400 focus:bg-zinc-800 focus:text-red-300 cursor-pointer"
+                    onClick={() => {
+                      if (confirm(`Очистить размерную таблицу у ${selectedProducts.size} товаров?`)) {
+                        bulkMeasurementsMutation.mutate({ ids: Array.from(selectedProducts), measurements: [] });
+                      }
+                    }}
+                  >
+                    Очистить таблицу
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => { if (confirm(`Удалить ${selectedProducts.size} товаров?`)) deleteSelectedMutation.mutate(Array.from(selectedProducts)); }}
+                disabled={deleteSelectedMutation.isPending}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
         <Dialog open={badgeDialogOpen} onOpenChange={setBadgeDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
