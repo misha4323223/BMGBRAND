@@ -226,3 +226,10 @@ body.lb-open nav {
   50%  { left: 120%; }
   100% { left: 120%; }
 }
+
+/* Мобильный навбар: скрыть при скролле вниз (только < 1024px) */
+@media (max-width: 1023px) {
+  .navbar-hidden-mobile {
+    transform: translateX(-50%) translateY(calc(-100% - 20px)) !important;
+  }
+}

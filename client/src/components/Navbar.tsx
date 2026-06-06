@@ -32,6 +32,10 @@ export function Navbar() {
   const [isLoginDropdownOpen, setIsLoginDropdownOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
+  // ── Мобильный скролл: скрывать навбар при скролле вниз ──
+  const [isNavHidden, setIsNavHidden] = useState(false);
+  const lastScrollY = useRef(0);
+
   // Shop mega-menu state
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
   const shopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -85,6 +89,23 @@ export function Navbar() {
     } else {
       el.setAttribute("inert", "");
     }
+  }, [isOpen]);
+
+  // ── Скролл-хук: только мобильные (<1024px) ──
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.innerWidth >= 1024) return;
+      if (isOpen) { setIsNavHidden(false); return; }
+      const currentY = window.scrollY;
+      if (currentY > lastScrollY.current && currentY > 80) {
+        setIsNavHidden(true);
+      } else if (currentY < lastScrollY.current) {
+        setIsNavHidden(false);
+      }
+      lastScrollY.current = currentY;
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, [isOpen]);
 
 
@@ -243,7 +264,7 @@ export function Navbar() {
 
   return (
     <>
-    <nav className={`${getNavWrapperClasses()} ${isSearchOpen ? 'invisible' : ''} ${partnerBanner.rendered ? 'lg:border-b lg:border-black/15' : ''}`}>
+    <nav className={`${getNavWrapperClasses()} transition-transform duration-300 ease-in-out ${isNavHidden ? 'navbar-hidden-mobile' : ''} ${isSearchOpen ? 'invisible' : ''} ${partnerBanner.rendered ? 'lg:border-b lg:border-black/15' : ''}`}>
       <div className={`${getNavBarClasses()} lg:bg-background/80 lg:backdrop-blur-md ${partnerBanner.rendered ? 'lg:!border-0' : 'lg:border-b lg:border-border/20'} lg:shadow-none lg:px-8 lg:py-0 lg:rounded-none`}>
 
         {/* ── Mobile layout ─────────────────────────── */}
