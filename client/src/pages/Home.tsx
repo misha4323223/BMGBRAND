@@ -611,10 +611,10 @@ export default function Home() {
                   setHeroAnimKey(k => k + 1);
                   setHeroSlideIndex((activeIndex - 1 + heroSlides.length) % heroSlides.length);
                 }}
-                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm border border-white/20 text-white flex items-center justify-center transition-colors"
+                className="group absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-20 p-3 text-white/70 hover:text-white transition-all duration-300"
                 data-testid="button-hero-prev"
               >
-                <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+                <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8 transition-transform duration-300 group-hover:-translate-x-1 stroke-[1.5]" />
               </button>
               <button
                 type="button"
@@ -624,10 +624,10 @@ export default function Home() {
                   setHeroAnimKey(k => k + 1);
                   setHeroSlideIndex((activeIndex + 1) % heroSlides.length);
                 }}
-                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm border border-white/20 text-white flex items-center justify-center transition-colors"
+                className="group absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-20 p-3 text-white/70 hover:text-white transition-all duration-300"
                 data-testid="button-hero-next"
               >
-                <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+                <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8 transition-transform duration-300 group-hover:translate-x-1 stroke-[1.5]" />
               </button>
               <div className="absolute bottom-8 left-0 right-0 z-20 flex justify-center gap-2">
                 {heroSlides.map((_: any, i: number) => (
