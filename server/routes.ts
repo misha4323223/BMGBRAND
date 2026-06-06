@@ -6884,6 +6884,38 @@ BMGBRAND — официальный производитель и магазин
     res.json({ updated, total: ids.length, errors: errors.length > 0 ? errors.slice(0, 5) : undefined });
   });
 
+  app.patch("/api/admin/products/bulk-measurements", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const expectedKey = getAdminKey();
+
+    if (!expectedKey) return res.status(503).json({ message: "Admin API not configured" });
+    if (apiKey !== expectedKey) return res.status(401).json({ message: "Unauthorized" });
+
+    const { ids, measurements } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "ids array required" });
+    }
+    if (!Array.isArray(measurements)) {
+      return res.status(400).json({ message: "measurements array required" });
+    }
+
+    let updated = 0;
+    const errors: string[] = [];
+
+    for (const id of ids) {
+      try {
+        await storage.updateProduct(id, { measurements: measurements.length > 0 ? measurements : null } as any);
+        updated++;
+      } catch (err: any) {
+        errors.push(`${id}: ${err.message}`);
+      }
+    }
+
+    storage.clearCache();
+    console.log(`[Admin] Bulk measurements: ${updated}/${ids.length} products, rows=${measurements.length}`);
+    res.json({ updated, total: ids.length, errors: errors.length > 0 ? errors.slice(0, 5) : undefined });
+  });
+
   app.patch("/api/admin/products/category", async (req, res) => {
     const apiKey = req.headers["x-api-key"];
     const expectedKey = getAdminKey();

@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, RefreshCw, Lock, Search, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Image, MoveRight, MoreVertical, Settings, CheckSquare, Building2, Check, X, Users, Package, EyeOff, Eye, Gift, ShoppingCart, Clock, Truck, CreditCard, Ban, Star, Mail, TrendingUp, TrendingDown, Tag, Save, Plus, Pencil, Loader2, Layout, Type, ImageIcon, DollarSign, Upload, MessageSquare, Send, CheckCircle2, LogOut, Heart, Copy, Target, GripVertical, Bell, Phone, User, ChevronDown, ChevronRight, PlusCircle, MinusCircle, FileText } from "lucide-react";
+import { Trash2, RefreshCw, Lock, Search, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Image, MoveRight, MoreVertical, Settings, CheckSquare, Building2, Check, X, Users, Package, EyeOff, Eye, Gift, ShoppingCart, Clock, Truck, CreditCard, Ban, Star, Mail, TrendingUp, TrendingDown, Tag, Save, Plus, Pencil, Loader2, Layout, Type, ImageIcon, DollarSign, Upload, MessageSquare, Send, CheckCircle2, LogOut, Heart, Copy, Target, GripVertical, Bell, Phone, User, ChevronDown, ChevronRight, PlusCircle, MinusCircle, FileText, Ruler } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -2710,6 +2710,29 @@ export default function Admin() {
     },
   });
 
+  const bulkMeasurementsMutation = useMutation({
+    mutationFn: async ({ ids, measurements }: { ids: number[], measurements: any[] }) => {
+      return adminFetch("/api/admin/products/bulk-measurements", apiKey, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ ids, measurements }),
+      });
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      refetch();
+      const label = variables.measurements.length === 0 ? "очищена" : "применена";
+      toast({
+        title: "Размерная таблица обновлена",
+        description: `Таблица ${label} для ${data.updated} товаров`,
+      });
+      setSelectedProducts(new Set());
+    },
+    onError: (error: Error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+
   const convertToWebpMutation = useMutation({
     mutationFn: async () => {
       // Step 1: Convert images to WebP
@@ -3388,6 +3411,51 @@ export default function Admin() {
                 Убрать скидку
               </Button>
             </div>
+
+            <span className="text-muted-foreground text-xs">|</span>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  className="h-8"
+                  variant="outline"
+                  disabled={bulkMeasurementsMutation.isPending}
+                  data-testid="button-bulk-measurements"
+                >
+                  <Ruler className="w-3 h-3 mr-1" />
+                  {bulkMeasurementsMutation.isPending ? "Применяю..." : "Размерная таблица"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                {Object.entries(MEASUREMENT_TEMPLATES).map(([key, tmpl]) => (
+                  <DropdownMenuItem
+                    key={key}
+                    className="text-zinc-100 focus:bg-zinc-800 focus:text-white cursor-pointer"
+                    data-testid={`menu-bulk-tmpl-${key}`}
+                    onClick={() => {
+                      if (confirm(`Применить шаблон «${tmpl.label}» к ${selectedProducts.size} товарам?\n\nЭто перезапишет уже заполненные таблицы.`)) {
+                        bulkMeasurementsMutation.mutate({ ids: Array.from(selectedProducts), measurements: tmpl.sizes });
+                      }
+                    }}
+                  >
+                    {tmpl.label}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator className="bg-zinc-700" />
+                <DropdownMenuItem
+                  className="text-red-400 focus:bg-zinc-800 focus:text-red-300 cursor-pointer"
+                  data-testid="menu-bulk-tmpl-clear"
+                  onClick={() => {
+                    if (confirm(`Очистить размерную таблицу у ${selectedProducts.size} товаров?`)) {
+                      bulkMeasurementsMutation.mutate({ ids: Array.from(selectedProducts), measurements: [] });
+                    }
+                  }}
+                >
+                  Очистить таблицу
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Button
               variant="destructive"
