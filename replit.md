@@ -34,6 +34,33 @@ NODE_ENV=development npx tsx server/index.ts
 - В dev-режиме фронтенд раздаётся через Vite (HMR); в production — через `serveStatic()` из `dist/`
 - Изображения хранятся в **Yandex Object Storage** — в preview Replit они могут не отображаться (CORS/CDN), это нормально
 
+### package.json — overrides для CVE-уязвимостей
+
+Replit блокирует установку пакетов с известными CVE. В `package.json` добавлены `overrides` — принудительное обновление транзитивных зависимостей `ydb-sdk`:
+
+```json
+"overrides": {
+  "form-data": "^4.0.0",
+  "protobufjs": "^7.6.2",
+  "fast-xml-parser": "^5.8.0"
+}
+```
+
+| Пакет | Было | Стало | Причина |
+|---|---|---|---|
+| `form-data` | 2.3.3 | ^4.0.0 | CVE критическая, заблокирован Replit |
+| `protobufjs` | 7.5.4 | ^7.6.2 | Уязвимость, заблокирован Replit |
+| `fast-xml-parser` | 5.3.3 | ^5.8.0 | Заблокирован Replit |
+
+На продакшен не влияет — те же мажорные версии, обратно совместимы. GitHub Actions при сборке Docker тоже получает эти версии (это хорошо — старые версии с CVE в продакшене нежелательны).
+
+**YDB dev vs продакшен** определяется в `server/db.ts`:
+```ts
+const isCloud = process.env.NODE_ENV === "production" || !!process.env.YDB_SA_KEY;
+```
+- Replit dev: `NODE_ENV=development`, `YDB_SA_KEY` не задан → YDB не инициализируется, используется in-memory
+- Yandex Cloud: `NODE_ENV=production` или задан `YDB_SA_KEY` → YDB через IamAuthService
+
 ---
 
 ## Overview
