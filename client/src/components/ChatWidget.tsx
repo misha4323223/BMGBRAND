@@ -35,10 +35,19 @@ function AiMessageContent({ text }: { text: string }) {
 
 type ChatMode = "ai" | "manager";
 
+interface ProductCard {
+  id: number;
+  name: string;
+  price: number | null;
+  imageUrl: string | null;
+  url: string;
+}
+
 interface AiMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  products?: ProductCard[];
 }
 
 interface ChatMessage {
@@ -129,7 +138,8 @@ export function ChatWidget() {
       });
       const data = await res.json();
       const reply = data.reply || "Извините, не удалось получить ответ. Напишите нашему менеджеру.";
-      setAiMessages(prev => [...prev, { id: `a-${Date.now()}`, role: "assistant", content: reply }]);
+      const products: ProductCard[] = data.products || [];
+      setAiMessages(prev => [...prev, { id: `a-${Date.now()}`, role: "assistant", content: reply, products }]);
     } catch {
       setAiMessages(prev => [...prev, {
         id: `err-${Date.now()}`,
@@ -355,22 +365,52 @@ export function ChatWidget() {
                   )}
 
                   {aiMessages.map(msg => (
-                    <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                      {msg.role === "assistant" && (
-                        <div className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center mr-2 flex-shrink-0 mt-auto mb-0.5">
-                          <Bot className="w-3.5 h-3.5" />
+                    <div key={msg.id} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                      <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full`}>
+                        {msg.role === "assistant" && (
+                          <div className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center mr-2 flex-shrink-0 mt-auto mb-0.5">
+                            <Bot className="w-3.5 h-3.5" />
+                          </div>
+                        )}
+                        <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words shadow-sm
+                          ${msg.role === "user"
+                            ? "bg-black text-white rounded-br-md"
+                            : "bg-white text-black rounded-bl-md border border-black/8"
+                          }`}>
+                          {msg.role === "user"
+                            ? <p className="leading-snug">{msg.content}</p>
+                            : <AiMessageContent text={msg.content} />
+                          }
+                        </div>
+                      </div>
+                      {msg.role === "assistant" && msg.products && msg.products.length > 0 && (
+                        <div className="ml-9 mt-2 flex flex-col gap-2 w-[calc(100%-2.25rem)]">
+                          {msg.products.map(p => (
+                            <a
+                              key={p.id}
+                              href={p.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2.5 bg-white border border-black/10 rounded-xl px-3 py-2 shadow-sm hover:shadow-md hover:border-black/25 transition-all group text-left no-underline"
+                            >
+                              {p.imageUrl ? (
+                                <img src={p.imageUrl} alt={p.name} className="w-11 h-11 object-cover rounded-lg flex-shrink-0 bg-gray-100" />
+                              ) : (
+                                <div className="w-11 h-11 rounded-lg bg-gray-100 flex-shrink-0" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-black leading-snug line-clamp-2 group-hover:underline">{p.name}</p>
+                                {p.price && (
+                                  <p className="text-xs text-gray-500 mt-0.5">{p.price.toLocaleString("ru-RU")} ₽</p>
+                                )}
+                              </div>
+                              <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </a>
+                          ))}
                         </div>
                       )}
-                      <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words shadow-sm
-                        ${msg.role === "user"
-                          ? "bg-black text-white rounded-br-md"
-                          : "bg-white text-black rounded-bl-md border border-black/8"
-                        }`}>
-                        {msg.role === "user"
-                          ? <p className="leading-snug">{msg.content}</p>
-                          : <AiMessageContent text={msg.content} />
-                        }
-                      </div>
                     </div>
                   ))}
 

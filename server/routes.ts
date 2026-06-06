@@ -2652,6 +2652,7 @@ BMGBRAND — официальный производитель и магазин
       // --- Product search by keywords from the last user message ---
       const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
       let productContext = "";
+      let matched: any[] = [];
       if (lastUserMsg?.content) {
         const query = (lastUserMsg.content as string).toLowerCase();
         // Category keyword map (ru → category slug)
@@ -2682,10 +2683,7 @@ BMGBRAND — официальный производитель и магазин
 
         // Search products from cache
         const allProducts = await storage.getProducts() as any[];
-        const SITE_BASE = "https://booomerangs.ru";
         const MAX_PRODUCTS = 5;
-
-        let matched: any[] = [];
 
         if (keywords.length > 0 || matchedCategorySlug) {
           matched = allProducts.filter((p: any) => {
@@ -2699,13 +2697,8 @@ BMGBRAND — официальный производитель и магазин
         }
 
         if (matched.length > 0) {
-          const productLines = matched.map((p: any) => {
-            const url = `${SITE_BASE}/${p.slug || p.id}`;
-            const price = p.price ? `${Math.round(p.price / 100)} руб.` : "";
-            return `- [${p.name}](${url})${price ? " — " + price : ""}`;
-          }).join("\n");
-
-          productContext = `\n\n## Найденные товары по запросу пользователя\nПоказывай эти товары со ссылками в своём ответе:\n${productLines}`;
+          const productNames = matched.map((p: any) => p.name).join(", ");
+          productContext = `\n\n## Найденные товары\nПо запросу пользователя найдены товары: ${productNames}. Карточки этих товаров будут показаны автоматически — НЕ включай ссылки в текст ответа. Просто упомяни что нашёл товары и предложи посмотреть.`;
         }
       }
 
@@ -2750,8 +2743,7 @@ BMGBRAND — официальный производитель и магазин
 - Отвечай ТОЛЬКО на вопросы о товарах, доставке, оплате, возвратах, бренде
 - Если вопрос не по теме — вежливо скажи, что это не в твоей компетенции и предложи написать менеджеру
 - Отвечай на русском языке, коротко и по делу (2–5 предложений максимум)
-- Если в контексте есть "Найденные товары" — ОБЯЗАТЕЛЬНО включи ссылки на них в ответ в формате Markdown: [Название товара](ссылка)
-- Не придумывай ссылки сам — используй только те, что даны в контексте
+- НИКОГДА не придумывай ссылки на товары — карточки показываются автоматически
 - Всегда будь вежливым и дружелюбным${productContext}`;
 
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -2781,7 +2773,18 @@ BMGBRAND — официальный производитель и магазин
       const rawReply = data.choices?.[0]?.message?.content || "Извините, не могу ответить прямо сейчас. Напишите нашему менеджеру.";
       // Strip <think>...</think> blocks (Qwen3 chain-of-thought)
       const reply = rawReply.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
-      res.json({ reply });
+
+      // Return matched products as structured data (not embedded in text)
+      const SITE_BASE = "https://booomerangs.ru";
+      const productCards = matched.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price ? Math.round(p.price / 100) : null,
+        imageUrl: p.imageUrl || null,
+        url: `/${p.slug || p.id}`,
+      }));
+
+      res.json({ reply, products: productCards });
     } catch (err: any) {
       console.error("[AI Chat] Error:", err.message);
       res.status(500).json({ error: "Internal error" });
