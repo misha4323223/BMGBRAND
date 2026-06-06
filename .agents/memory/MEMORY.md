@@ -1,0 +1,3 @@
+- [tsx no watch mode](tsx-no-watch.md) — сервер запущен без --watch, изменения backend требуют перезапуска workflow вручную
+- [adminFetch returns JSON](admin-fetch-pattern.md) — adminFetch в Admin.tsx возвращает уже распарсенный объект, а не Response; не вызывать .ok/.json()
+- [AI topic keyword stems](ai-topic-stems.md) — ключевые слова в detectAiTopic — это подстроки корней; глагольные формы могут не совпасть с именными (доставляется ≠ доставк)
