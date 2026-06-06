@@ -274,7 +274,7 @@ export function ChatWidget() {
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className={`w-1.5 h-1.5 rounded-full ${mode === "ai" ? "bg-violet-400 animate-pulse" : "bg-emerald-400 animate-pulse"}`} />
                       <p className="text-[10px] text-white/60">
-                        {mode === "ai" ? "Qwen AI · отвечает мгновенно" : "Менеджер · пн–пт 11:00–19:00"}
+                        {mode === "ai" ? "BOOOM AI · отвечает мгновенно" : "Менеджер · пн–пт 11:00–19:00"}
                       </p>
                     </div>
                   </div>

@@ -2717,7 +2717,9 @@ BMGBRAND — официальный производитель и магазин
       }
 
       const data = await response.json() as any;
-      const reply = data.choices?.[0]?.message?.content || "Извините, не могу ответить прямо сейчас. Напишите нашему менеджеру.";
+      const rawReply = data.choices?.[0]?.message?.content || "Извините, не могу ответить прямо сейчас. Напишите нашему менеджеру.";
+      // Strip <think>...</think> blocks (Qwen3 chain-of-thought)
+      const reply = rawReply.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
       res.json({ reply });
     } catch (err: any) {
       console.error("[AI Chat] Error:", err.message);
