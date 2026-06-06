@@ -2637,6 +2637,94 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // AI chat endpoint (Groq / Qwen3-32B)
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      const { messages } = req.body;
+      if (!Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ error: "messages required" });
+      }
+      const apiKey = process.env.GROQ_API_KEY;
+      if (!apiKey) {
+        return res.status(503).json({ error: "AI service not configured" });
+      }
+
+      const systemPrompt = `Ты — AI-ассистент интернет-магазина BOOOMERANGS (booomerangs.ru) — российского стритвир-бренда одежды из Тулы.
+
+Твоя задача: вежливо и коротко отвечать на вопросы покупателей о товарах, доставке и оплате.
+
+## О бренде
+- BOOOMERANGS — российский бренд уличной одежды и аксессуаров
+- Производство и дизайн в России
+- Ассортимент: толстовки, свитшоты, футболки, шорты, брюки, аксессуары, носки
+- Сайт: booomerangs.ru
+
+## Доставка
+- **СДЭК**: курьером до двери или в пункт выдачи (ПВЗ) по всей России
+- **Яндекс Доставка NDD**: доставка до пунктов выдачи
+- Сроки: зависят от региона, обычно 3–7 рабочих дней
+- Бесплатная доставка при заказе от определённой суммы (уточняй на сайте)
+- Отслеживание заказа: через личный кабинет или трек-номер СДЭК
+
+## Оплата
+- **ЮKassa**: банковские карты (Visa, MasterCard, МИР), SberPay, YooMoney
+- **Т-Банк (Tinkoff)**: карты, SberPay, рассрочка "Долями"
+- **Ozon Pay**: оплата через экосистему Ozon
+- Оплата при получении недоступна
+- Все платежи защищены SSL
+
+## Размеры
+- Размерная сетка есть на странице каждого товара
+- Если сомневаешься в размере, рекомендуй взять размер больше или написать менеджеру
+
+## Возврат и обмен
+- Возврат в течение 14 дней с момента получения
+- Товар должен быть в первоначальном виде, с бирками
+- Для оформления возврата — написать менеджеру в чат
+
+## Оптовые закупки
+- Есть оптовый раздел для юридических лиц и ИП
+- Регистрация через сайт в разделе "Оптовикам"
+
+## Важные правила
+- Отвечай ТОЛЬКО на вопросы о товарах, доставке, оплате, возвратах, бренде
+- Если вопрос не по теме — вежливо скажи, что это не в твоей компетенции и предложи написать менеджеру
+- Отвечай на русском языке, коротко и по делу (2–5 предложений максимум)
+- Не придумывай конкретные цены и сроки если не уверен — говори "уточните на сайте" или "спросите менеджера"
+- Всегда будь вежливым и дружелюбным`;
+
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "qwen/qwen3-32b",
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...messages.slice(-10),
+          ],
+          max_tokens: 512,
+          temperature: 0.6,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("[AI Chat] Groq API error:", response.status, errText);
+        return res.status(502).json({ error: "AI service error" });
+      }
+
+      const data = await response.json() as any;
+      const reply = data.choices?.[0]?.message?.content || "Извините, не могу ответить прямо сейчас. Напишите нашему менеджеру.";
+      res.json({ reply });
+    } catch (err: any) {
+      console.error("[AI Chat] Error:", err.message);
+      res.status(500).json({ error: "Internal error" });
+    }
+  });
+
   // Telegram webhook for retail bot — receives admin replies
   app.post("/api/telegram/chat-webhook", async (req, res) => {
     try {
