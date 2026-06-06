@@ -258,6 +258,7 @@ export default function Home() {
   const [heroSlideIndex, setHeroSlideIndex] = useState(0);
   const [heroPrev, setHeroPrev] = useState<number | null>(null);
   const [heroPaused, setHeroPaused] = useState(false);
+  const [heroAnimKey, setHeroAnimKey] = useState(0);
 
   // Load page settings from database FIRST
   const { data: pageSettings, isLoading: settingsLoading } = useQuery<Record<string, any>>({
@@ -353,6 +354,13 @@ export default function Home() {
     return [];
   };
 
+  // Сбрасываем heroPrev после завершения анимации шторки
+  useEffect(() => {
+    if (heroPrev === null) return;
+    const t = setTimeout(() => setHeroPrev(null), 1400);
+    return () => clearTimeout(t);
+  }, [heroPrev]);
+
   useEffect(() => {
     const slides = getHeroSlides();
     if (slides.length <= 1) return;
@@ -361,6 +369,7 @@ export default function Home() {
       setHeroSlideIndex(prev => {
         const next = (prev + 1) % slides.length;
         setHeroPrev(prev);
+        setHeroAnimKey(k => k + 1);
         return next;
       });
     }, 7000);
@@ -529,9 +538,15 @@ export default function Home() {
           <div className="absolute inset-0 z-0 overflow-hidden">
             {heroSlides.map((s: any, i: number) => (
               <div
-                key={i}
-                className="absolute inset-0 transition-opacity duration-1000"
-                style={{ opacity: i === activeIndex ? (parseFloat(s.heroOpacity) || 0.6) : 0, zIndex: i === activeIndex ? 1 : 0 }}
+                key={i === activeIndex ? `active-${heroAnimKey}` : i}
+                className={`absolute inset-0${i === activeIndex ? ' hero-slide-enter' : ''}`}
+                style={{
+                  opacity: i === activeIndex
+                    ? (parseFloat(s.heroOpacity) || 0.6)
+                    : (i === heroPrev ? (parseFloat(s.heroOpacity) || 0.6) : 0),
+                  zIndex: i === activeIndex ? 2 : (i === heroPrev ? 1 : 0),
+                  transition: i !== activeIndex ? 'opacity 0.3s ease-out 1s' : undefined,
+                }}
               >
                 {s.bgType === "video" && s.heroVideo ? (
                   <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="absolute inset-0 w-full h-full object-cover" />
@@ -593,6 +608,7 @@ export default function Home() {
                 aria-label="Предыдущий слайд"
                 onClick={() => {
                   setHeroPrev(activeIndex);
+                  setHeroAnimKey(k => k + 1);
                   setHeroSlideIndex((activeIndex - 1 + heroSlides.length) % heroSlides.length);
                 }}
                 className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm border border-white/20 text-white flex items-center justify-center transition-colors"
@@ -605,6 +621,7 @@ export default function Home() {
                 aria-label="Следующий слайд"
                 onClick={() => {
                   setHeroPrev(activeIndex);
+                  setHeroAnimKey(k => k + 1);
                   setHeroSlideIndex((activeIndex + 1) % heroSlides.length);
                 }}
                 className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm border border-white/20 text-white flex items-center justify-center transition-colors"
@@ -616,7 +633,7 @@ export default function Home() {
                 {heroSlides.map((_: any, i: number) => (
                   <button
                     key={i}
-                    onClick={() => { setHeroPrev(activeIndex); setHeroSlideIndex(i); }}
+                    onClick={() => { setHeroPrev(activeIndex); setHeroAnimKey(k => k + 1); setHeroSlideIndex(i); }}
                     className={`w-2 h-2 rounded-full transition-all duration-300 ${i === activeIndex ? "bg-white w-5" : "bg-white/50"}`}
                     data-testid={`button-hero-dot-${i}`}
                   />
