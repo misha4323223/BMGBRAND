@@ -599,7 +599,7 @@ export default function Home() {
                 {slide.tagline1 || pageSettings?.hero?.tagline1 || window.__HERO__?.tagline1 || "МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ."}<br/>{slide.tagline2 || pageSettings?.hero?.tagline2 || window.__HERO__?.tagline2 || "РОССИЙСКИЙ БРЕНД ОДЕЖДЫ И АКСЕССУАРОВ."}
               </p>
               <Link href={slide.buttonLink || pageSettings?.hero?.buttonLink || window.__HERO__?.buttonLink || "/products"}>
-                <Button size="lg" className="bg-card/75 backdrop-blur-md border border-border/50 outline outline-1 outline-white/20 outline-offset-[5px] text-foreground hover:outline-0 hover:border-2 hover:border-border/80 transition-all duration-200 px-5 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-display uppercase tracking-[0.2em] sm:tracking-[0.3em] rounded-full h-auto min-h-0" data-testid="button-hero-catalog">
+                <Button size="lg" className="bg-card/75 backdrop-blur-md border border-border/50 outline outline-1 outline-white/10 outline-offset-[5px] text-foreground hover:outline-0 hover:border-2 hover:border-border/80 transition-all duration-200 px-5 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-display uppercase tracking-[0.2em] sm:tracking-[0.3em] rounded-full h-auto min-h-0" data-testid="button-hero-catalog">
                   {slide.buttonText || pageSettings?.hero?.buttonText || window.__HERO__?.buttonText || "Смотреть каталог"}
                 </Button>
               </Link>
