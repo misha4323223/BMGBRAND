@@ -1332,7 +1332,7 @@ function invalidateAiKnowledgeCache(): void {
 }
 
 const AI_TOPIC_MAP: Array<{ key: AiKnowledgeKey; kw: string[] }> = [
-  { key: 'ai_block_delivery',    kw: ['доставк', 'сдэк', 'cdek', 'курьер', 'пвз', 'трек', 'отслеж', 'когда придёт', 'сколько идёт', 'отправ', 'посылк'] },
+  { key: 'ai_block_delivery',    kw: ['доставк', 'доставля', 'сдэк', 'cdek', 'курьер', 'пвз', 'трек', 'отслеж', 'когда придёт', 'сколько идёт', 'отправ', 'посылк', 'получить заказ', 'забрать заказ'] },
   { key: 'ai_block_payment',     kw: ['оплат', 'юkassa', 'юкасса', 'тинькофф', 't-банк', 'ozon pay', 'карт', 'sbp', 'сбп', 'рассрочк', 'долями', 'т-пэй', 'платёж', 'платеж'] },
   { key: 'ai_block_returns',     kw: ['возврат', 'обмен', 'вернут', 'обменят', 'бракован', ' брак'] },
   { key: 'ai_block_sizing',      kw: ['размер', 'size', 'таблиц', 'подобрать', 'маломерит', 'большемерит', 'xs', 'xxl', 'мерк', 'замер'] },
@@ -2914,6 +2914,7 @@ BMGBRAND — официальный производитель и магазин
 
       await loadAiKnowledgeIfNeeded();
       const topicKey = detectAiTopic(lastUserMsg?.content || '');
+      console.log(`[AI Chat] query="${(lastUserMsg?.content || '').substring(0, 60)}" topic=${topicKey || 'none'}`);
       let systemPrompt = getAiKnowledgeCached('ai_prompt_base');
       if (topicKey) {
         const topicBlock = getAiKnowledgeCached(topicKey);
