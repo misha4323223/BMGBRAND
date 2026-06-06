@@ -3,7 +3,7 @@ import { storage } from './storage';
 import { sendEmail, getAbandonedCartEmailHtml } from './email';
 
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
-const CHECK_INTERVAL_MS = 30 * 60 * 1000; // каждые 30 минут
+const CHECK_INTERVAL_MS = 3 * 60 * 60 * 1000; // каждые 3 часа
 const FIRST_RUN_DELAY_MS = 5 * 60 * 1000; // первая проверка через 5 мин после старта
 
 export function startAbandonedCartJob(): void {
