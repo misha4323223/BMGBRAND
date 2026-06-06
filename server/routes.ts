@@ -2649,6 +2649,66 @@ BMGBRAND — официальный производитель и магазин
         return res.status(503).json({ error: "AI service not configured" });
       }
 
+      // --- Product search by keywords from the last user message ---
+      const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
+      let productContext = "";
+      if (lastUserMsg?.content) {
+        const query = (lastUserMsg.content as string).toLowerCase();
+        // Category keyword map (ru → category slug)
+        const categoryKeywords: Record<string, string[]> = {
+          clothing: ["толстов", "свитшот", "свитер", "футболк", "шорт", "брюк", "одежд", "худи", "пуловер", "лонгслив", "бомбер"],
+          socks:    ["носк", "sock"],
+          accessories: ["аксессуар", "сумк", "рюкзак", "кепк", "шапк", "пояс", "ремен", "перчатк"],
+          sale:     ["скидк", "распродаж", "акци", "sale"],
+        };
+
+        // Stop words — ignore them when searching product names
+        const stopWords = new Set(["есть", "ли", "у", "вас", "мне", "что", "как", "где", "какие", "какой", "какая", "хочу", "можно", "нужен", "нужна", "покажи", "покажите", "дай", "дайте", "расскажи"]);
+
+        // Extract meaningful keywords from query
+        const keywords = query
+          .split(/[\s,.!?;:()[\]]+/)
+          .map(w => w.trim())
+          .filter(w => w.length >= 3 && !stopWords.has(w));
+
+        // Find matching category slug
+        let matchedCategorySlug: string | null = null;
+        for (const [slug, kws] of Object.entries(categoryKeywords)) {
+          if (kws.some(kw => query.includes(kw))) {
+            matchedCategorySlug = slug;
+            break;
+          }
+        }
+
+        // Search products from cache
+        const allProducts = await storage.getProducts() as any[];
+        const SITE_BASE = "https://booomerangs.ru";
+        const MAX_PRODUCTS = 5;
+
+        let matched: any[] = [];
+
+        if (keywords.length > 0 || matchedCategorySlug) {
+          matched = allProducts.filter((p: any) => {
+            if (!p.isActive) return false;
+            const nameLower = (p.name || "").toLowerCase();
+            // Match by category
+            if (matchedCategorySlug && p.category === matchedCategorySlug) return true;
+            // Match by keywords in product name
+            return keywords.some(kw => nameLower.includes(kw));
+          }).slice(0, MAX_PRODUCTS);
+        }
+
+        if (matched.length > 0) {
+          const productLines = matched.map((p: any) => {
+            const url = `${SITE_BASE}/${p.slug || p.id}`;
+            const price = p.price ? `${Math.round(p.price / 100)} руб.` : "";
+            return `- [${p.name}](${url})${price ? " — " + price : ""}`;
+          }).join("\n");
+
+          productContext = `\n\n## Найденные товары по запросу пользователя\nПоказывай эти товары со ссылками в своём ответе:\n${productLines}`;
+        }
+      }
+
       const systemPrompt = `Ты — AI-ассистент интернет-магазина BOOOMERANGS (booomerangs.ru) — российского стритвир-бренда одежды из Тулы.
 
 Твоя задача: вежливо и коротко отвечать на вопросы покупателей о товарах, доставке и оплате.
@@ -2690,8 +2750,9 @@ BMGBRAND — официальный производитель и магазин
 - Отвечай ТОЛЬКО на вопросы о товарах, доставке, оплате, возвратах, бренде
 - Если вопрос не по теме — вежливо скажи, что это не в твоей компетенции и предложи написать менеджеру
 - Отвечай на русском языке, коротко и по делу (2–5 предложений максимум)
-- Не придумывай конкретные цены и сроки если не уверен — говори "уточните на сайте" или "спросите менеджера"
-- Всегда будь вежливым и дружелюбным`;
+- Если в контексте есть "Найденные товары" — ОБЯЗАТЕЛЬНО включи ссылки на них в ответ в формате Markdown: [Название товара](ссылка)
+- Не придумывай ссылки сам — используй только те, что даны в контексте
+- Всегда будь вежливым и дружелюбным${productContext}`;
 
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -2705,7 +2766,7 @@ BMGBRAND — официальный производитель и магазин
             { role: "system", content: systemPrompt },
             ...messages.slice(-10),
           ],
-          max_tokens: 512,
+          max_tokens: 600,
           temperature: 0.6,
         }),
       });

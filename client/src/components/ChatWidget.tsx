@@ -2,6 +2,37 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { X, Send, ArrowRight, ImagePlus, Loader2, Bot, UserRound, Sparkles } from "lucide-react";
 
+// Renders AI message text with clickable markdown links [text](url)
+function AiMessageContent({ text }: { text: string }) {
+  const parts = text.split(/(\[([^\]]+)\]\((https?:\/\/[^)]+)\))/g);
+  const result: React.ReactNode[] = [];
+  let i = 0;
+  while (i < parts.length) {
+    const part = parts[i];
+    if (part && part.startsWith("[") && parts[i + 2]) {
+      const label = parts[i + 1];
+      const url = parts[i + 2];
+      result.push(
+        <a
+          key={i}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2 font-medium hover:opacity-70 transition-opacity"
+          onClick={e => e.stopPropagation()}
+        >
+          {label}
+        </a>
+      );
+      i += 3;
+    } else {
+      if (part) result.push(<span key={i}>{part}</span>);
+      i++;
+    }
+  }
+  return <p className="leading-snug whitespace-pre-wrap">{result}</p>;
+}
+
 type ChatMode = "ai" | "manager";
 
 interface AiMessage {
@@ -330,12 +361,15 @@ export function ChatWidget() {
                           <Bot className="w-3.5 h-3.5" />
                         </div>
                       )}
-                      <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words shadow-sm leading-snug
+                      <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words shadow-sm
                         ${msg.role === "user"
                           ? "bg-black text-white rounded-br-md"
                           : "bg-white text-black rounded-bl-md border border-black/8"
                         }`}>
-                        {msg.content}
+                        {msg.role === "user"
+                          ? <p className="leading-snug">{msg.content}</p>
+                          : <AiMessageContent text={msg.content} />
+                        }
                       </div>
                     </div>
                   ))}
