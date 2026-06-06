@@ -7007,7 +7007,7 @@ export class DatabaseStorage implements IStorage {
     try {
       await driver.tableClient.withSession(async (session: ydb.Session) => {
         await session.createTable('cart_reminders', new ydb.TableDescription()
-          .withColumn(new ydb.Column('user_id', ydb.Types.optional(ydb.Types.UTF8)))
+          .withColumn(new ydb.Column('user_id', ydb.Types.optional(ydb.Types.UINT64)))
           .withColumn(new ydb.Column('sent_at', ydb.Types.optional(ydb.Types.DATETIME)))
           .withColumn(new ydb.Column('cart_hash', ydb.Types.optional(ydb.Types.UTF8)))
           .withPrimaryKey('user_id')
@@ -7053,8 +7053,8 @@ export class DatabaseStorage implements IStorage {
     const result = await this.safeQuery(async (session) => {
       const { TypedValues } = await import('ydb-sdk');
       const { resultSets } = await session.executeQuery(
-        `DECLARE $user_id AS Utf8; SELECT user_id, sent_at, cart_hash FROM cart_reminders WHERE user_id = $user_id LIMIT 1`,
-        { '$user_id': TypedValues.utf8(String(userId)) }
+        `DECLARE $user_id AS Uint64; SELECT user_id, sent_at, cart_hash FROM cart_reminders WHERE user_id = $user_id LIMIT 1`,
+        { '$user_id': TypedValues.uint64(userId) }
       );
       const rows = this.parseResultSet<{ userId: number; sentAt: string; cartHash: string }>(resultSets[0]);
       return rows[0] ? { sentAt: rows[0].sentAt, cartHash: rows[0].cartHash } : null;
@@ -7067,12 +7067,12 @@ export class DatabaseStorage implements IStorage {
     await this.safeQuery(async (session) => {
       const { TypedValues } = await import('ydb-sdk');
       await session.executeQuery(`
-        DECLARE $user_id AS Utf8;
+        DECLARE $user_id AS Uint64;
         DECLARE $sent_at AS Datetime;
         DECLARE $cart_hash AS Utf8;
         UPSERT INTO cart_reminders (user_id, sent_at, cart_hash) VALUES ($user_id, $sent_at, $cart_hash)
       `, {
-        '$user_id': TypedValues.utf8(String(userId)),
+        '$user_id': TypedValues.uint64(userId),
         '$sent_at': TypedValues.datetime(now),
         '$cart_hash': TypedValues.utf8(cartHash),
       });
