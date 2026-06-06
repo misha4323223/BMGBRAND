@@ -16,7 +16,7 @@ export default function SpinDemo() {
       </div>
 
       <div className="w-full max-w-sm aspect-square">
-        <SpinViewer frames={FRAMES} fps={8} className="w-full h-full" />
+        <SpinViewer frames={FRAMES} fps={3} className="w-full h-full" />
       </div>
 
       <div className="w-full max-w-sm">
