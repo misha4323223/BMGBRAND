@@ -50,7 +50,6 @@ const WholesalePreorder = lazy(() => import("@/pages/WholesalePreorder"));
 const Care = lazy(() => import("@/pages/Care"));
 const MerchOrder = lazy(() => import("@/pages/MerchOrder"));
 const NotFound = lazy(() => import("@/pages/not-found"));
-const SpinDemo = lazy(() => import("@/pages/SpinDemo"));
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -85,7 +84,6 @@ function Router() {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Switch>
-        <Route path="/spin-demo" component={SpinDemo} />
         <Route path="/" component={Home} />
         <Route path="/products/:catSlug/:subSlug">{() => <ProductList />}</Route>
         <Route path="/products/:catSlug">{() => <ProductList />}</Route>
