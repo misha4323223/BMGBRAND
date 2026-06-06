@@ -13,7 +13,7 @@ import { AuthModal } from "@/components/AuthModal";
 import { BrandLoader } from "@/components/BrandLoader";
 import { Badge } from "@/components/ui/badge";
 import SEO from "@/components/SEO";
-import { Minus, Plus, ShoppingBag, ChevronLeft, ChevronRight, Loader2, X, Percent, Heart, ArrowRight, Target, Clock, Landmark, Share2, Check, Home, ZoomIn, ZoomOut, Bell, TrendingUp, TrendingDown, LogIn, AlertTriangle, MapPin, Truck, RotateCcw, Gift } from "lucide-react";
+import { Minus, Plus, ShoppingBag, ChevronLeft, ChevronRight, Loader2, X, Percent, Heart, ArrowRight, Target, Clock, Landmark, Share2, Check, Home, ZoomIn, ZoomOut, Bell, TrendingUp, TrendingDown, LogIn, AlertTriangle, MapPin, Truck, RotateCcw, Gift, Ruler } from "lucide-react";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import { ProductCard } from "@/components/ProductCard";
 import {
@@ -1180,6 +1180,32 @@ export default function ProductDetail() {
                     })()}
                     </div>
                   </div>
+                  {/* Size advisor button */}
+                  {!isWholesale && (
+                    <div className="mt-2">
+                      <button
+                        data-testid="button-size-advisor"
+                        onClick={() => {
+                          const measurements = (product.measurements as SizeMeasurement[]) || [];
+                          const hasWaist = measurements.some((m: SizeMeasurement) => !!m.waist);
+                          window.dispatchEvent(new CustomEvent("open-size-advisor", {
+                            detail: {
+                              id: product.id,
+                              name: product.name,
+                              subcategory: product.subcategory,
+                              hasMeasurements: measurements.length > 0,
+                              hasWaist,
+                            } satisfies { id: number; name: string; subcategory?: string; hasMeasurements: boolean; hasWaist: boolean },
+                          }));
+                        }}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Ruler className="w-3.5 h-3.5" />
+                        Подобрать размер
+                      </button>
+                    </div>
+                  )}
+
                   {notifySize && !notifySubmitted.has(notifySize) && (
                     <div className="mt-3 space-y-2" data-testid="block-stock-notify">
                       <div className="flex items-center gap-2">

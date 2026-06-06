@@ -2813,7 +2813,7 @@ BMGBRAND — официальный производитель и магазин
   // AI chat endpoint (Groq / Qwen3-32B)
   app.post("/api/ai/chat", async (req, res) => {
     try {
-      const { messages } = req.body;
+      const { messages, productId: sizeProductId } = req.body;
       if (!Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "messages required" });
       }
@@ -2825,6 +2825,32 @@ BMGBRAND — официальный производитель и магазин
       const groqBase = proxyUrl
         ? proxyUrl.replace(/\/$/, "")
         : "https://api.groq.com";
+
+      // --- Size advisor: product measurements context ---
+      let sizeAdvisorContext = "";
+      if (sizeProductId) {
+        const allProducts = await storage.getProducts() as any[];
+        const targetProduct = allProducts.find((p: any) => String(p.id) === String(sizeProductId));
+        if (targetProduct) {
+          const productName = targetProduct.name || "товар";
+          const measurements = (targetProduct.measurements || []) as any[];
+          if (measurements.length > 0) {
+            const rows = measurements.map((m: any) => {
+              const parts: string[] = [`${m.size}:`];
+              if (m.chest) parts.push(`грудь ${m.chest} см`);
+              if (m.waist) parts.push(`талия ${m.waist} см`);
+              if (m.hips) parts.push(`бёдра ${m.hips} см`);
+              if (m.shoulders) parts.push(`плечи ${m.shoulders} см`);
+              if (m.sleeves) parts.push(`рукав ${m.sleeves} см`);
+              if (m.length) parts.push(`длина ${m.length} см`);
+              return parts.join(" ");
+            }).join("\n");
+            sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\nЗадача: на основе параметров покупателя из последнего сообщения определи подходящий размер. Обрати внимание — замеры в таблице это замеры ИЗДЕЛИЯ (не тела). Рекомендуй конкретный размер и объясни выбор в 1-2 предложениях.\n\n### Таблица замеров изделия:\n${rows}`;
+          } else {
+            sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\nТочная таблица замеров для этого товара ещё не заполнена. Ответь пользователю ДОСЛОВНО: "Точная таблица замеров для этого товара ещё не заполнена — рекомендую написать менеджеру" и предложи переключиться на чат с менеджером.`;
+          }
+        }
+      }
 
       // --- Product search by keywords from the last user message ---
       const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
@@ -2921,6 +2947,7 @@ BMGBRAND — официальный производитель и магазин
         if (topicBlock) systemPrompt += '\n\n' + topicBlock;
       }
       if (productContext) systemPrompt += productContext;
+      if (sizeAdvisorContext) systemPrompt += sizeAdvisorContext;
 
       const groqHeaders: Record<string, string> = { "Content-Type": "application/json" };
       if (apiKey) groqHeaders["Authorization"] = `Bearer ${apiKey}`;

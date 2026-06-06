@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { X, Send, ArrowRight, ImagePlus, Loader2, Bot, UserRound, Sparkles } from "lucide-react";
+import { X, Send, ArrowRight, ImagePlus, Loader2, Bot, UserRound, Sparkles, Ruler } from "lucide-react";
 
 // Renders AI message text with clickable markdown links [text](url)
 function AiMessageContent({ text }: { text: string }) {
@@ -34,6 +34,14 @@ function AiMessageContent({ text }: { text: string }) {
 }
 
 type ChatMode = "ai" | "manager";
+
+interface SizeAdvisorProduct {
+  id: number;
+  name: string;
+  subcategory?: string;
+  hasMeasurements: boolean;
+  hasWaist: boolean;
+}
 
 interface ProductCard {
   id: number;
@@ -95,6 +103,11 @@ export function ChatWidget() {
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
+  // Size advisor state
+  const [sizeAdvisorProduct, setSizeAdvisorProduct] = useState<SizeAdvisorProduct | null>(null);
+  const [sizeHeight, setSizeHeight] = useState("");
+  const [sizeMeasure, setSizeMeasure] = useState("");
+
   // Manager chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
@@ -119,6 +132,21 @@ export function ChatWidget() {
 
   const scrollAiToBottom = () => setTimeout(() => aiBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
   const scrollManagerToBottom = () => setTimeout(() => managerBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
+
+  // --- Size advisor: listen for open event from product page ---
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ev = e as CustomEvent<SizeAdvisorProduct>;
+      setSizeAdvisorProduct(ev.detail);
+      setSizeHeight("");
+      setSizeMeasure("");
+      setAiMessages([]);
+      setMode("ai");
+      setOpen(true);
+    };
+    window.addEventListener("open-size-advisor", handler);
+    return () => window.removeEventListener("open-size-advisor", handler);
+  }, []);
 
   // --- AI logic ---
   const sendAiMessage = async (text: string) => {
@@ -164,6 +192,44 @@ export function ChatWidget() {
 
   const handleAiKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAiMessage(aiInput); }
+  };
+
+  // --- Size advisor submit ---
+  const sendSizeAdvisorMessage = async () => {
+    if (!sizeAdvisorProduct || !sizeHeight.trim() || !sizeMeasure.trim() || aiLoading) return;
+    const isBottoms = sizeAdvisorProduct.hasWaist;
+    const measureLabel = isBottoms ? "обхват талии" : "обхват груди";
+    const msgText = `Подберите мне размер для товара "${sizeAdvisorProduct.name}". Мой рост: ${sizeHeight} см, ${measureLabel}: ${sizeMeasure} см.`;
+    const productId = sizeAdvisorProduct.id;
+    setSizeAdvisorProduct(null);
+
+    const userMsg: AiMessage = { id: `u-${Date.now()}`, role: "user", content: msgText };
+    const newMessages = [userMsg];
+    setAiMessages(newMessages);
+    setAiLoading(true);
+    scrollAiToBottom();
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          productId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAiMessages(prev => [...prev, { id: `err-${Date.now()}`, role: "assistant", content: "__tired__" }]);
+        return;
+      }
+      const reply = data.reply || "Не удалось получить ответ. Напишите нашему менеджеру.";
+      setAiMessages(prev => [...prev, { id: `a-${Date.now()}`, role: "assistant", content: reply, products: [] }]);
+    } catch {
+      setAiMessages(prev => [...prev, { id: `err-${Date.now()}`, role: "assistant", content: "__tired__" }]);
+    } finally {
+      setAiLoading(false);
+      scrollAiToBottom();
+    }
   };
 
   // --- Manager chat logic ---
@@ -350,7 +416,7 @@ export function ChatWidget() {
             {mode === "ai" && (
               <>
                 <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0 bg-[#f7f7f7]">
-                  {aiMessages.length === 0 && (
+                  {aiMessages.length === 0 && !sizeAdvisorProduct && (
                     <div className="flex flex-col items-center gap-3 pt-2 pb-1">
                       <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-white">
                         <Sparkles className="w-5 h-5" />
@@ -370,6 +436,62 @@ export function ChatWidget() {
                             {q}
                           </button>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Size advisor form */}
+                  {sizeAdvisorProduct && aiMessages.length === 0 && (
+                    <div className="flex flex-col gap-3 pt-2 pb-1">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-2xl bg-black flex items-center justify-center text-white flex-shrink-0">
+                          <Ruler className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm text-black">Подбор размера</p>
+                          <p className="text-xs text-black/40 mt-0.5 line-clamp-1">{sizeAdvisorProduct.name}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-xs text-black/50 mb-1 block">Ваш рост (см)</label>
+                          <input
+                            type="number"
+                            placeholder="например, 178"
+                            value={sizeHeight}
+                            onChange={e => setSizeHeight(e.target.value)}
+                            data-testid="input-size-height"
+                            className="w-full px-3 py-2 rounded-xl border border-black/12 text-sm text-black placeholder-black/25 bg-black/[0.02] outline-none focus:border-black transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-black/50 mb-1 block">
+                            {sizeAdvisorProduct.hasWaist ? "Обхват талии (см)" : "Обхват груди (см)"}
+                          </label>
+                          <input
+                            type="number"
+                            placeholder="например, 96"
+                            value={sizeMeasure}
+                            onChange={e => setSizeMeasure(e.target.value)}
+                            data-testid="input-size-measure"
+                            onKeyDown={e => { if (e.key === "Enter") sendSizeAdvisorMessage(); }}
+                            className="w-full px-3 py-2 rounded-xl border border-black/12 text-sm text-black placeholder-black/25 bg-black/[0.02] outline-none focus:border-black transition-colors"
+                          />
+                        </div>
+                        <button
+                          onClick={sendSizeAdvisorMessage}
+                          disabled={!sizeHeight.trim() || !sizeMeasure.trim() || aiLoading}
+                          data-testid="button-size-advisor-submit"
+                          className="w-full py-2.5 rounded-xl bg-black text-white text-sm font-medium hover:bg-black/80 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Подобрать размер
+                        </button>
+                        <button
+                          onClick={() => setSizeAdvisorProduct(null)}
+                          className="w-full py-1.5 text-xs text-black/40 hover:text-black/70 transition-colors"
+                        >
+                          Отмена
+                        </button>
                       </div>
                     </div>
                   )}
