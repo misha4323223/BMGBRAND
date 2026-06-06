@@ -49,19 +49,19 @@ export function CookieConsent() {
           animate={{ opacity: isExiting ? 0 : 1, y: isExiting ? 24 : 0 }}
           exit={{ opacity: 0, y: 24 }}
           transition={{ type: "spring", stiffness: 400, damping: 32, mass: 0.7 }}
-          className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-5 sm:bottom-5 z-[100] sm:w-[320px]"
+          className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-5 sm:bottom-5 z-[100] sm:w-[310px]"
         >
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden">
+          <div className="bg-card border border-border rounded-2xl shadow-lg shadow-foreground/10 overflow-hidden">
 
             {/* Header */}
-            <div className="flex items-center justify-between px-4 pt-4 pb-3">
+            <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5">
               <div className="flex items-center gap-2">
-                <Cookie className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="text-white text-sm font-semibold">Cookies</span>
+                <Cookie className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-foreground text-sm font-semibold tracking-tight">Cookies</span>
               </div>
               <button
                 onClick={() => setShowSettings(v => !v)}
-                className="flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors text-[11px]"
+                className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors text-[11px] font-medium"
                 data-testid="button-cookie-toggle-settings"
               >
                 Настроить
@@ -69,10 +69,13 @@ export function CookieConsent() {
               </button>
             </div>
 
+            {/* Divider */}
+            <div className="h-px bg-border mx-4" />
+
             {/* Text */}
-            <p className="px-4 pb-3 text-zinc-400 text-[11px] leading-relaxed">
+            <p className="px-4 pt-2.5 pb-3 text-muted-foreground text-[11px] leading-relaxed">
               Используем cookies для персонализации и аналитики.{" "}
-              <Link href="/privacy" className="text-zinc-500 hover:text-zinc-300 underline underline-offset-2 transition-colors">
+              <Link href="/privacy" className="text-foreground/60 hover:text-foreground underline underline-offset-2 transition-colors">
                 Подробнее
               </Link>
             </p>
@@ -84,14 +87,14 @@ export function CookieConsent() {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+                  transition={{ duration: 0.18 }}
                   className="overflow-hidden"
                 >
-                  <div className="mx-4 mb-3 rounded-xl border border-zinc-800 divide-y divide-zinc-800">
+                  <div className="mx-4 mb-3 rounded-xl border border-border divide-y divide-border bg-background">
                     {[
-                      { key: "necessary" as const, icon: <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />, label: "Необходимые", sub: "Для работы сайта", disabled: true },
-                      { key: "analytics" as const, icon: <BarChart3 className="w-3.5 h-3.5 text-blue-400" />, label: "Аналитика", sub: "Статистика посещений", disabled: false },
-                      { key: "marketing" as const, icon: <Target className="w-3.5 h-3.5 text-purple-400" />, label: "Маркетинг", sub: "Персонализация", disabled: false },
+                      { key: "necessary" as const, icon: <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />, label: "Необходимые", sub: "Для работы сайта", disabled: true },
+                      { key: "analytics" as const, icon: <BarChart3 className="w-3.5 h-3.5 text-blue-500" />, label: "Аналитика", sub: "Статистика посещений", disabled: false },
+                      { key: "marketing" as const, icon: <Target className="w-3.5 h-3.5 text-purple-500" />, label: "Маркетинг", sub: "Персонализация", disabled: false },
                     ].map(({ key, icon, label, sub, disabled }) => (
                       <div
                         key={key}
@@ -102,8 +105,8 @@ export function CookieConsent() {
                         <div className="flex items-center gap-2.5 min-w-0">
                           {icon}
                           <div>
-                            <p className="text-white text-[11px] font-medium leading-none mb-0.5">{label}</p>
-                            <p className="text-zinc-600 text-[10px] leading-none">{sub}</p>
+                            <p className="text-foreground text-[11px] font-medium leading-none mb-0.5">{label}</p>
+                            <p className="text-muted-foreground text-[10px] leading-none">{sub}</p>
                           </div>
                         </div>
                         <Switch
@@ -124,14 +127,14 @@ export function CookieConsent() {
               <button
                 onClick={() => saveConsent({ necessary: true, analytics: true, marketing: true })}
                 data-testid="button-cookie-accept-all"
-                className="flex-1 h-9 rounded-xl bg-white text-black text-xs font-bold hover:bg-zinc-100 active:scale-[0.97] transition-all"
+                className="flex-1 h-9 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 active:scale-[0.97] transition-all"
               >
                 Принять все
               </button>
               <button
                 onClick={() => saveConsent(settings)}
                 data-testid="button-cookie-accept-selected"
-                className="flex-1 h-9 rounded-xl border border-zinc-700 text-zinc-300 text-xs hover:border-zinc-500 hover:text-white active:scale-[0.97] transition-all"
+                className="flex-1 h-9 rounded-xl border border-border text-foreground text-xs font-medium hover:bg-muted active:scale-[0.97] transition-all"
               >
                 Выбранные
               </button>
