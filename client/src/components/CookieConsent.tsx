@@ -73,7 +73,7 @@ export function CookieConsent() {
             <div className="h-px bg-border mx-4" />
 
             {/* Text */}
-            <p className="px-4 pt-2.5 pb-3 text-muted-foreground text-[11px] leading-relaxed">
+            <p className="px-4 pt-2.5 pb-3 text-foreground/80 text-[11px] leading-relaxed">
               Используем cookies для персонализации и аналитики.{" "}
               <Link href="/privacy" className="text-foreground/60 hover:text-foreground underline underline-offset-2 transition-colors">
                 Подробнее
