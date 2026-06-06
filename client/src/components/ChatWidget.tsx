@@ -137,6 +137,14 @@ export function ChatWidget() {
         }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        setAiMessages(prev => [...prev, {
+          id: `err-${Date.now()}`,
+          role: "assistant",
+          content: "__tired__",
+        }]);
+        return;
+      }
       const reply = data.reply || "Извините, не удалось получить ответ. Напишите нашему менеджеру.";
       const products: ProductCard[] = data.products || [];
       setAiMessages(prev => [...prev, { id: `a-${Date.now()}`, role: "assistant", content: reply, products }]);
@@ -144,7 +152,7 @@ export function ChatWidget() {
       setAiMessages(prev => [...prev, {
         id: `err-${Date.now()}`,
         role: "assistant",
-        content: "Произошла ошибка. Попробуйте ещё раз или напишите менеджеру.",
+        content: "__tired__",
       }]);
     } finally {
       setAiLoading(false);
@@ -372,16 +380,30 @@ export function ChatWidget() {
                             <Bot className="w-3.5 h-3.5" />
                           </div>
                         )}
-                        <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words shadow-sm
-                          ${msg.role === "user"
-                            ? "bg-black text-white rounded-br-md"
-                            : "bg-white text-black rounded-bl-md border border-black/8"
-                          }`}>
-                          {msg.role === "user"
-                            ? <p className="leading-snug">{msg.content}</p>
-                            : <AiMessageContent text={msg.content} />
-                          }
-                        </div>
+                        {msg.role === "assistant" && msg.content === "__tired__" ? (
+                          <div className="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm bg-amber-50 border border-amber-200 rounded-bl-md">
+                            <p className="text-sm text-amber-900 leading-snug mb-2.5">
+                              😴 Наш помощник устал — напишите нам напрямую, поможем!
+                            </p>
+                            <button
+                              onClick={() => setChatMode("manager")}
+                              className="w-full py-1.5 px-3 rounded-lg bg-black text-white text-xs font-medium hover:bg-black/80 active:scale-95 transition-all"
+                            >
+                              Написать менеджеру
+                            </button>
+                          </div>
+                        ) : (
+                          <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words shadow-sm
+                            ${msg.role === "user"
+                              ? "bg-black text-white rounded-br-md"
+                              : "bg-white text-black rounded-bl-md border border-black/8"
+                            }`}>
+                            {msg.role === "user"
+                              ? <p className="leading-snug">{msg.content}</p>
+                              : <AiMessageContent text={msg.content} />
+                            }
+                          </div>
+                        )}
                       </div>
                       {msg.role === "assistant" && msg.products && msg.products.length > 0 && (
                         <div className="ml-9 mt-2 flex flex-col gap-2 w-[calc(100%-2.25rem)]">

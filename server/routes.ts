@@ -2799,7 +2799,11 @@ BMGBRAND — официальный производитель и магазин
       if (!response.ok) {
         const errText = await response.text();
         console.error("[AI Chat] Groq API error:", response.status, errText);
-        return res.status(502).json({ error: "AI service error" });
+        // Rate limit / quota exhausted
+        if (response.status === 429) {
+          return res.status(429).json({ error: "rate_limit" });
+        }
+        return res.status(502).json({ error: "ai_unavailable" });
       }
 
       const data = await response.json() as any;
