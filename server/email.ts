@@ -8,14 +8,15 @@ interface EmailOptions {
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   if (!config.email.enabled) {
-    console.log(`[Email] Sending disabled. Would send to ${options.to}:`);
+    console.log(`[Email] Sending disabled (SMTP_HOST not set). Would send to ${options.to}:`);
     console.log(`[Email] Subject: ${options.subject}`);
     
     const linkMatch = options.html.match(/href="([^"]*(?:verify-email|reset-password|confirm-signature)[^"]*)"/);
     if (linkMatch) {
       console.log(`[Email] *** ACTION LINK: ${linkMatch[1]} ***`);
+      return true;
     }
-    return true;
+    return false;
   }
 
   try {

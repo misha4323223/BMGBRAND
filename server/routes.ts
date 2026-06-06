@@ -4138,6 +4138,22 @@ BMGBRAND — официальный производитель и магазин
     );
   });
 
+  // POST /api/admin/clear-cart-reminders — сброс cooldown-записей (если письма не дошли)
+  app.post("/api/admin/clear-cart-reminders", authMiddleware, requireAdminRole, async (_req, res) => {
+    const db = storage as any;
+    if (typeof db.clearCartReminders !== 'function') {
+      return res.status(400).json({ success: false, message: "Метод недоступен (dev-режим без YDB)" });
+    }
+    try {
+      const count = await db.clearCartReminders();
+      console.log(`[AbandonedCart] Cleared ${count} cart_reminders records by admin`);
+      res.json({ success: true, message: `Сброшено ${count} записей cooldown` });
+    } catch (err: any) {
+      console.error('[AbandonedCart] Clear reminders error:', err.message);
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
+
   // GET /api/ozon/oauth/callback — публичный callback, вызывается Ozon после авторизации
   // redirect_uri должен совпадать с указанным в настройках приложения dev.ozon.ru
   app.get("/api/ozon/oauth/callback", async (req, res) => {

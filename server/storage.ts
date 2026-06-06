@@ -394,6 +394,7 @@ export interface IStorage {
   getUserEmailById?(userId: number): Promise<{ name: string; email: string } | null>;
   getCartReminder?(userId: number): Promise<{ sentAt: string; cartHash: string } | null>;
   upsertCartReminder?(userId: number, cartHash: string): Promise<void>;
+  clearCartReminders?(): Promise<number>;
   // Price drop subscriptions
   createPriceDropSubscription(productId: number, productName: string, email: string, priceAtSubscription: number): Promise<boolean>;
   checkPriceDropSubscription(productId: number, email: string): Promise<boolean>;
@@ -7077,6 +7078,20 @@ export class DatabaseStorage implements IStorage {
         '$cart_hash': TypedValues.utf8(cartHash),
       });
     });
+  }
+
+  async clearCartReminders(): Promise<number> {
+    await this.ensureCartRemindersTable();
+    const result = await this.safeQuery(async (session) => {
+      const { resultSets } = await session.executeQuery(
+        `SELECT COUNT(*) AS cnt FROM cart_reminders`
+      );
+      const rows = this.parseResultSet<{ cnt: number }>(resultSets[0]);
+      const count = Number(rows[0]?.cnt ?? 0);
+      await session.executeQuery(`DELETE FROM cart_reminders`);
+      return count;
+    });
+    return result ?? 0;
   }
 }
 
