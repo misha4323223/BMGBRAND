@@ -26,6 +26,7 @@ export async function runAbandonedCartCheck(): Promise<void> {
     let sent = 0;
     let skipped = 0;
 
+    let emptyCart = 0, noEmail = 0, cooldown = 0;
     for (const sessionId of sessions) {
       try {
         const userIdStr = sessionId.replace('user_', '');
@@ -34,7 +35,7 @@ export async function runAbandonedCartCheck(): Promise<void> {
 
         // Получаем товары корзины
         const cartItems = await storage.getCartItems(sessionId);
-        if (cartItems.length === 0) continue;
+        if (cartItems.length === 0) { emptyCart++; continue; }
 
         // Хэш текущей корзины (чтобы понять изменилась ли она)
         const cartHash = crypto
@@ -55,13 +56,14 @@ export async function runAbandonedCartCheck(): Promise<void> {
           const withinCooldown = Date.now() - sentAt < FIVE_DAYS_MS;
           if (sameCart && withinCooldown) {
             skipped++;
+            cooldown++;
             continue;
           }
         }
 
         // Получаем email пользователя
         const user = await db.getUserEmailById(userId);
-        if (!user?.email) continue;
+        if (!user?.email) { noEmail++; continue; }
 
         // Считаем сумму
         const totalKopecks = cartItems.reduce(
@@ -90,7 +92,7 @@ export async function runAbandonedCartCheck(): Promise<void> {
       }
     }
 
-    console.log(`[AbandonedCart] Done. Sent: ${sent}, skipped (cooldown): ${skipped}, total sessions: ${sessions.length}`);
+    console.log(`[AbandonedCart] Done. Sent: ${sent}, cooldown: ${cooldown}, emptyCart: ${emptyCart}, noEmail: ${noEmail}, total sessions: ${sessions.length}`);
   } catch (err: any) {
     console.error('[AbandonedCart] Job crashed:', err.message);
   }

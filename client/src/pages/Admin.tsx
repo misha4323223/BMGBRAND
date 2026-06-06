@@ -4,7 +4,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -743,6 +743,34 @@ function VacanciesEditor({ pageSettingsQuery, savePageSectionMutation }: {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AbandonedCartTriggerButton() {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+
+  const handleTrigger = async () => {
+    setLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/admin/trigger-abandoned-cart");
+      const data = await res.json();
+      toast({ title: "Запущено", description: data.message });
+    } catch {
+      toast({ title: "Ошибка", description: "Не удалось запустить проверку", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-4">
+      <Button onClick={handleTrigger} disabled={loading} data-testid="button-trigger-abandoned-cart">
+        {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShoppingCart className="w-4 h-4 mr-2" />}
+        Запустить проверку сейчас
+      </Button>
+      <p className="text-sm text-muted-foreground">Результат появится в логах сервера</p>
     </div>
   );
 }
@@ -4428,6 +4456,18 @@ export default function Admin() {
             {/* Settings Sub-tab */}
             {bonusesSubTab === "settings" && (
               <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ShoppingCart className="w-5 h-5" />
+                      Брошенные корзины
+                    </CardTitle>
+                    <CardDescription>Ручной запуск рассылки напоминаний о брошенных корзинах</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <AbandonedCartTriggerButton />
+                  </CardContent>
+                </Card>
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
