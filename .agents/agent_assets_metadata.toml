@@ -131,3 +131,15 @@ id = "dDKhPitrrgvmhmp8yDfae"
 uri = "file://attached_assets/generated_videos/booomerangs_partner_program.mp4"
 type = "video"
 title = "Партнёрская программа Booomerangs"
+
+[[outputs]]
+id = "xLd9lVabxITR6mLcgdye6"
+uri = "file://attached_assets/slide1_desktop_opt.webp"
+type = "image"
+title = "Слайд 1 — Desktop (245 КБ вместо 1172 КБ)"
+
+[[outputs]]
+id = "rlUfkj_nKDENtZnldEDUI"
+uri = "file://attached_assets/slide1_mobile_opt.webp"
+type = "image"
+title = "Слайд 1 — Mobile (197 КБ вместо 1609 КБ)"
