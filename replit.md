@@ -34,6 +34,29 @@ NODE_ENV=development npx tsx server/index.ts
 - В dev-режиме фронтенд раздаётся через Vite (HMR); в production — через `serveStatic()` из `dist/`
 - Изображения хранятся в **Yandex Object Storage** — в preview Replit они могут не отображаться (CORS/CDN), это нормально
 
+### npm registry и package-lock.json — важно для GitHub Actions
+
+В Replit npm по умолчанию проксирует запросы через внутренний адрес `package-firewall.replit.local`. Этот адрес **недоступен вне Replit** (GitHub Actions, Docker). Если установить пакеты без явного указания registry, в `package-lock.json` запишутся Replit-URL и Docker-сборка упадёт с ошибкой:
+```
+npm error network request to http://package-firewall.replit.local/npm/... failed
+```
+
+**Решение (постоянное):** в корне проекта лежит файл `.npmrc`:
+```
+registry=https://registry.npmjs.org
+```
+Это гарантирует, что все `npm install` — в Replit, в Docker и в GitHub Actions — используют публичный registry, а `package-lock.json` всегда содержит корректные URL.
+
+**После импорта репозитория из GitHub в Replit** — никаких дополнительных действий не нужно, `.npmrc` работает автоматически.
+
+**Если вдруг `package-lock.json` снова содержит Replit-URL** (проверить: `grep -c "package-firewall.replit.local" package-lock.json`), пересоздать:
+```bash
+rm -rf node_modules package-lock.json
+NODE_ENV=development npm install --include=dev
+```
+
+**При установке новых пакетов** — просто `npm install <пакет>`, `.npmrc` сам направит на публичный registry.
+
 ### package.json — overrides для CVE-уязвимостей
 
 Replit блокирует установку пакетов с известными CVE. В `package.json` добавлены `overrides` — принудительное обновление транзитивных зависимостей `ydb-sdk`:
