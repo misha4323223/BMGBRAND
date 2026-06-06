@@ -7040,8 +7040,8 @@ export class DatabaseStorage implements IStorage {
     const result = await this.safeQuery(async (session) => {
       const { TypedValues } = await import('ydb-sdk');
       const { resultSets } = await session.executeQuery(
-        `DECLARE $id AS Uint64; SELECT id, name, email FROM users WHERE id = $id LIMIT 1`,
-        { '$id': TypedValues.uint64(userId) }
+        `DECLARE $id AS Utf8; SELECT id, name, email FROM users WHERE id = $id LIMIT 1`,
+        { '$id': TypedValues.utf8(String(userId)) }
       );
       const rows = this.parseResultSet<{ id: number; name: string; email: string }>(resultSets[0]);
       return rows[0] || null;
