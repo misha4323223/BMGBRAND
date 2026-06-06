@@ -983,6 +983,8 @@ export default function Admin() {
   const [blogProductSearchQuery, setBlogProductSearchQuery] = useState("");
   const [measurementCopySearch, setMeasurementCopySearch] = useState("");
   const [showMeasurementCopy, setShowMeasurementCopy] = useState(false);
+  const [bulkMeasurementsCopyOpen, setBulkMeasurementsCopyOpen] = useState(false);
+  const [bulkMeasurementsCopySearch, setBulkMeasurementsCopySearch] = useState("");
 
   const MEASUREMENT_TEMPLATES: Record<string, { label: string; columns: string[]; sizes: Array<{ size: string; length?: string; chest?: string; shoulders?: string; sleeves?: string; waist?: string; hips?: string }> }> = {
     tshirt: {
@@ -3442,6 +3444,15 @@ export default function Admin() {
                     {tmpl.label}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuSeparator className="bg-zinc-700" />
+                <DropdownMenuItem
+                  className="text-zinc-100 focus:bg-zinc-800 focus:text-white cursor-pointer"
+                  data-testid="menu-bulk-tmpl-copy"
+                  onClick={() => { setBulkMeasurementsCopySearch(""); setBulkMeasurementsCopyOpen(true); }}
+                >
+                  <Copy className="w-3 h-3 mr-2" />
+                  Скопировать с товара...
+                </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-zinc-700" />
                 <DropdownMenuItem
                   className="text-red-400 focus:bg-zinc-800 focus:text-red-300 cursor-pointer"
@@ -11278,6 +11289,14 @@ export default function Admin() {
                   ))}
                   <DropdownMenuSeparator className="bg-zinc-700" />
                   <DropdownMenuItem
+                    className="text-zinc-100 focus:bg-zinc-800 focus:text-white cursor-pointer"
+                    onClick={() => { setBulkMeasurementsCopySearch(""); setBulkMeasurementsCopyOpen(true); }}
+                  >
+                    <Copy className="w-3 h-3 mr-2" />
+                    Скопировать с товара...
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-zinc-700" />
+                  <DropdownMenuItem
                     className="text-red-400 focus:bg-zinc-800 focus:text-red-300 cursor-pointer"
                     onClick={() => {
                       if (confirm(`Очистить размерную таблицу у ${selectedProducts.size} товаров?`)) {
@@ -11300,6 +11319,89 @@ export default function Admin() {
             </div>
           </div>
         )}
+
+        {/* Dialog: копировать замеры с товара для bulk-применения */}
+        <Dialog open={bulkMeasurementsCopyOpen} onOpenChange={setBulkMeasurementsCopyOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Ruler className="w-5 h-5" />
+                Скопировать замеры с товара
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Выберите товар, замеры которого будут применены к {selectedProducts.size} выбранным товарам.
+            </p>
+            <Input
+              placeholder="Поиск по названию..."
+              value={bulkMeasurementsCopySearch}
+              onChange={(e) => setBulkMeasurementsCopySearch(e.target.value)}
+              autoFocus
+              data-testid="input-bulk-copy-search"
+            />
+            <div className="max-h-72 overflow-y-auto space-y-1 mt-1">
+              {(products as any[])
+                .filter((p: any) =>
+                  p.measurements && (p.measurements as any[]).length > 0 &&
+                  (bulkMeasurementsCopySearch === "" ||
+                    p.name.toLowerCase().includes(bulkMeasurementsCopySearch.toLowerCase()) ||
+                    (p.sku && p.sku.toLowerCase().includes(bulkMeasurementsCopySearch.toLowerCase())))
+                )
+                .slice(0, 30)
+                .map((p: any) => {
+                  const ms = p.measurements as any[];
+                  const cols = [
+                    ms.some((r: any) => r.chest) ? "грудь" : null,
+                    ms.some((r: any) => r.shoulders) ? "плечи" : null,
+                    ms.some((r: any) => r.length) ? "длина" : null,
+                    ms.some((r: any) => r.sleeves) ? "рукав" : null,
+                    ms.some((r: any) => r.waist) ? "талия" : null,
+                  ].filter(Boolean).join(", ");
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="w-full text-left p-2 rounded-md text-sm hover:bg-muted flex items-center gap-3"
+                      data-testid={`button-bulk-copy-from-${p.id}`}
+                      onClick={() => {
+                        const count = selectedProducts.size;
+                        if (confirm(`Применить замеры из «${p.name}» к ${count} товарам?\n\nЭто перезапишет уже заполненные таблицы.`)) {
+                          bulkMeasurementsMutation.mutate({
+                            ids: Array.from(selectedProducts),
+                            measurements: ms.map((m: any) => ({ ...m })),
+                          });
+                          setBulkMeasurementsCopyOpen(false);
+                        }
+                      }}
+                    >
+                      {p.thumbnailUrl || p.imageUrl ? (
+                        <img src={p.thumbnailUrl || p.imageUrl} alt="" className="w-10 h-10 object-cover rounded shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 bg-muted rounded shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{p.name}</div>
+                        <div className="text-xs text-muted-foreground">{ms.length} размеров · {cols}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              {(products as any[]).filter((p: any) =>
+                p.measurements && (p.measurements as any[]).length > 0 &&
+                (bulkMeasurementsCopySearch === "" ||
+                  p.name.toLowerCase().includes(bulkMeasurementsCopySearch.toLowerCase()) ||
+                  (p.sku && p.sku.toLowerCase().includes(bulkMeasurementsCopySearch.toLowerCase())))
+              ).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {bulkMeasurementsCopySearch ? "Ничего не найдено" : "Нет товаров с заполненными замерами"}
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setBulkMeasurementsCopyOpen(false)}>Отмена</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={badgeDialogOpen} onOpenChange={setBadgeDialogOpen}>
           <DialogContent className="sm:max-w-md">
