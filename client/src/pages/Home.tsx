@@ -535,6 +535,10 @@ export default function Home() {
           onTouchEnd={() => setHeroPaused(false)}
           onTouchCancel={() => setHeroPaused(false)}
         >
+          {/* Градиентная вуаль по краям — стрелки всегда читаются */}
+          <div className="absolute inset-y-0 left-0 w-20 sm:w-28 z-10 pointer-events-none" style={{ background: "linear-gradient(to right, rgba(0,0,0,0.32) 0%, transparent 100%)" }} />
+          <div className="absolute inset-y-0 right-0 w-20 sm:w-28 z-10 pointer-events-none" style={{ background: "linear-gradient(to left, rgba(0,0,0,0.32) 0%, transparent 100%)" }} />
+
           <div className="absolute inset-0 z-0 overflow-hidden">
             {heroSlides.map((s: any, i: number) => (
               <div
