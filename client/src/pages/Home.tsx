@@ -699,6 +699,41 @@ export default function Home() {
                         </Link>
                       );
                     })}
+
+                    {/* ── Специальная карточка «× ваш мерч» ── */}
+                    <Link
+                      href="/merch-na-zakaz"
+                      className="flex flex-col shrink-0 cursor-pointer group"
+                      style={{ transform: "rotate(1.5deg)", transition: "transform 0.35s cubic-bezier(.22,.68,0,1.2)" }}
+                      data-testid="link-artist-strip-custom-merch"
+                    >
+                      <div
+                        className="bg-white shadow-lg group-hover:shadow-2xl"
+                        style={{ padding: "6px 6px 0 6px", transition: "transform 0.35s cubic-bezier(.22,.68,0,1.2)" }}
+                      >
+                        {/* Тёмный фон с логотипом */}
+                        <div
+                          className="relative overflow-hidden flex items-center justify-center"
+                          style={{ width: 86, height: 110, background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)" }}
+                        >
+                          <img
+                            src="/images/boomerangs-logo.webp"
+                            alt="Booomerangs"
+                            className="w-14 h-auto object-contain opacity-90 transition-transform duration-500 group-hover:scale-110"
+                          />
+                        </div>
+                        {/* Подпись */}
+                        <div className="flex flex-col items-center justify-center px-1 py-2" style={{ width: 86, minHeight: 32 }}>
+                          <span className="text-[7px] font-black uppercase tracking-[0.08em] text-zinc-800 text-center leading-tight">
+                            × ваш мерч
+                          </span>
+                          <span className="text-[5.5px] font-medium tracking-[0.05em] text-zinc-500 text-center leading-tight mt-0.5">
+                            стильно и можно
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+
                     <div className="shrink-0 w-10 sm:w-16" />
                   </div>
                 </div>
