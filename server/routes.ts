@@ -1178,7 +1178,180 @@ function extractGroupId(groupsNode: any): string | null {
   return String(id);
 }
 
-// Serve local 1C images
+// ─── AI Knowledge Cache ────────────────────────────────────────────────────
+const AI_KNOWLEDGE_CACHE_TTL = 5 * 60 * 1000;
+
+const AI_KNOWLEDGE_KEYS = [
+  'ai_prompt_base',
+  'ai_block_delivery',
+  'ai_block_payment',
+  'ai_block_returns',
+  'ai_block_sizing',
+  'ai_block_merch_order',
+  'ai_block_partner',
+  'ai_block_artist',
+  'ai_block_wholesale',
+  'ai_block_giftcards',
+] as const;
+
+type AiKnowledgeKey = typeof AI_KNOWLEDGE_KEYS[number];
+
+const AI_KNOWLEDGE_DEFAULTS: Record<AiKnowledgeKey, string> = {
+  ai_prompt_base: `Ты — AI-ассистент интернет-магазина BOOOMERANGS (booomerangs.ru) — российского стритвир-бренда одежды из Тулы.
+
+Твоя задача: вежливо и коротко отвечать на вопросы покупателей.
+
+## О бренде
+- BOOOMERANGS — российский бренд уличной одежды и аксессуаров из Тулы
+- Производство и дизайн в России
+- Ассортимент: толстовки, свитшоты, футболки, шорты, брюки, аксессуары, носки
+- Сайт: booomerangs.ru | Email: info@booomerangs.ru | Telegram: @bmg_booomerangs
+- Представлены у дистрибьюторов в 40+ городах России
+
+## Важные правила
+- Отвечай ТОЛЬКО на вопросы о магазине: товары, доставка, оплата, возвраты, сервисы бренда
+- Если вопрос не по теме — вежливо скажи что это не в твоей компетенции и предложи написать менеджеру
+- Отвечай на русском языке, коротко и по делу (2–5 предложений максимум)
+- НИКОГДА не придумывай ссылки на товары — карточки показываются автоматически
+- Всегда будь вежливым и дружелюбным`,
+
+  ai_block_delivery: `## Доставка
+- **СДЭК**: курьером до двери или в пункт выдачи (ПВЗ) по всей России
+- **Яндекс Доставка NDD**: доставка до пунктов выдачи
+- Сроки: зависят от региона, обычно 3–7 рабочих дней (от 1 до 10 дней)
+- Стоимость рассчитывается автоматически при оформлении заказа
+- Бесплатная доставка при заказе от определённой суммы (уточняй на сайте)
+- Отслеживание заказа: через личный кабинет или трек-номер СДЭК
+- Оплата при получении недоступна — только предоплата онлайн`,
+
+  ai_block_payment: `## Оплата
+- **ЮKassa**: банковские карты (Visa, MasterCard, МИР), SberPay, YooMoney, СБП
+- **Т-Банк (Tinkoff)**: карты, Т-Pay, рассрочка "Долями" (без переплат)
+- **Ozon Pay**: оплата через экосистему Ozon
+- Оплата при получении недоступна — только предоплата
+- Все платежи защищены SSL-шифрованием`,
+
+  ai_block_returns: `## Возврат и обмен
+- Возврат и обмен в течение 14 дней с момента получения
+- Товар должен быть в первоначальном виде: с бирками, без следов носки
+- Для оформления возврата — написать менеджеру в чат или на email info@booomerangs.ru
+- Бракованный товар принимается к возврату независимо от срока
+- Деньги возвращаются на карту в течение 3–10 рабочих дней`,
+
+  ai_block_sizing: `## Размеры
+- Размерная сетка есть на странице каждого товара (замеры в сантиметрах)
+- Одежда BOOOMERANGS часто оверсайз-силуэта — если сомневаешься, бери свой размер
+- Если между двумя размерами — бери меньший для облегания, больший для оверсайз-вида
+- Носки: универсальный размер 36–45, отдельные модели — по размерной сетке
+- Если сомневаешься — напиши менеджеру, помогут с выбором`,
+
+  ai_block_merch_order: `## Мерч на заказ
+BOOOMERANGS производит корпоративный и персональный мерч для брендов, артистов и мероприятий.
+
+Что делаем: футболки (от 1 шт), худи и свитшоты, носки с принтом (от 50 пар, 200+ дизайнов), брюки и шорты, аксессуары (шапки, сумки, кружки), брендированная упаковка.
+
+Как это работает:
+1. Заявка на booomerangs.ru/merch-na-zakaz — описание идеи и тираж
+2. Менеджер связывается в течение 24 часов
+3. Разрабатываем дизайн с нуля или адаптируем ваш макет
+4. Производство на собственных мощностях, доставка по всей России
+
+Сроки: одежда от 3 дней, носки от 14 рабочих дней.
+Работаем с физлицами, ИП, ООО, блогерами, музыкантами, организаторами мероприятий.`,
+
+  ai_block_partner: `## Партнёрская программа
+Реферальная программа для самозанятых, ИП и ООО.
+
+Как работает:
+- Регистрация: booomerangs.ru/partner/register
+- После одобрения — личный кабинет, реферальная ссылка (/r/ваш-slug) и именной промокод
+- Комиссия 15–25% с каждой покупки по ссылке или промокоду
+- Hold 14 дней (период возвратов), затем доступно к выводу
+- Вывод через личный кабинет по акту, договор с ЭЦП онлайн (63-ФЗ)
+
+Инструменты: аналитика в реальном времени, HTML-виджет для встраивания витрины, QR-код ссылки.
+Для артистов и блогеров доступна персональная страница — см. ниже.`,
+
+  ai_block_artist: `## Платформа для артистов и блогеров
+Медийным партнёрам доступны персональные страницы на сайте.
+
+Что это: лендинг по адресу booomerangs.ru/@ваш-slug — настраиваемые секции: hero с видео/фото, галерея, цитата, описание, соцсети, витрина мерча.
+
+Кому подходит: музыкантам, блогерам, инфлюенсерам, сообществам, художникам, брендам.
+
+Как начать:
+1. Регистрация: booomerangs.ru/partner/register (поставить галочку "Я артист или блогер")
+2. После одобрения — настроить страницу в личном кабинете
+3. Адрес страницы: booomerangs.ru/@ваш-slug
+
+Возможности: именной промокод для подписчиков, витрина авторских и выбранных товаров, аналитика просмотров и продаж. Комиссия — договорная.`,
+
+  ai_block_wholesale: `## Оптовые закупки
+Специальные условия для юридических лиц и предпринимателей.
+
+Кому доступно: ООО, ИП, физлицам с подтверждёнными объёмами.
+
+Условия: оптовые цены (индивидуальная скидка), доступ к оптовому каталогу и предзаказам, XML-фид для размещения на своём сайте, персональный менеджер.
+
+Как подключиться: регистрация на booomerangs.ru/wholesale/register → заполнить данные компании → ждать одобрения.`,
+
+  ai_block_giftcards: `## Подарочные сертификаты
+Электронные подарочные сертификаты BOOOMERANGS.
+
+Как работает: выбрать номинал и дизайн → указать email получателя и пожелание → оплатить → сертификат придёт на email. Код вводится при оформлении заказа.
+
+Особенности: сертификат не сгорает, можно использовать частично (остаток сохраняется), оплата через ЮKassa.
+
+Ссылка: booomerangs.ru/gift-cards`,
+};
+
+const aiKnowledgeCache = new Map<AiKnowledgeKey, string>();
+let aiKnowledgeCacheLastLoad = 0;
+
+async function loadAiKnowledgeIfNeeded(): Promise<void> {
+  if (Date.now() - aiKnowledgeCacheLastLoad <= AI_KNOWLEDGE_CACHE_TTL) return;
+  await Promise.all(
+    AI_KNOWLEDGE_KEYS.map(async (k) => {
+      try {
+        const val = await storage.getBonusSetting(k);
+        aiKnowledgeCache.set(k, val ?? AI_KNOWLEDGE_DEFAULTS[k]);
+      } catch {
+        aiKnowledgeCache.set(k, AI_KNOWLEDGE_DEFAULTS[k]);
+      }
+    })
+  );
+  aiKnowledgeCacheLastLoad = Date.now();
+}
+
+function getAiKnowledgeCached(key: AiKnowledgeKey): string {
+  return aiKnowledgeCache.get(key) ?? AI_KNOWLEDGE_DEFAULTS[key];
+}
+
+function invalidateAiKnowledgeCache(): void {
+  aiKnowledgeCacheLastLoad = 0;
+}
+
+const AI_TOPIC_MAP: Array<{ key: AiKnowledgeKey; kw: string[] }> = [
+  { key: 'ai_block_delivery',    kw: ['доставк', 'сдэк', 'cdek', 'курьер', 'пвз', 'трек', 'отслеж', 'когда придёт', 'сколько идёт', 'отправ', 'посылк'] },
+  { key: 'ai_block_payment',     kw: ['оплат', 'юkassa', 'юкасса', 'тинькофф', 't-банк', 'ozon pay', 'карт', 'sbp', 'сбп', 'рассрочк', 'долями', 'т-пэй', 'платёж', 'платеж'] },
+  { key: 'ai_block_returns',     kw: ['возврат', 'обмен', 'вернут', 'обменят', 'бракован', ' брак'] },
+  { key: 'ai_block_sizing',      kw: ['размер', 'size', 'таблиц', 'подобрать', 'маломерит', 'большемерит', 'xs', 'xxl', 'мерк', 'замер'] },
+  { key: 'ai_block_merch_order', kw: ['мерч', 'тираж', 'производств', 'печат', 'для группы', 'для бренда', 'корпоратив', 'нанесен', 'merch', 'заказ одежд', 'корпорат'] },
+  { key: 'ai_block_partner',     kw: ['партнёр', 'партнер', 'реферал', 'комисс', 'зарабат', 'реклам', 'affiliate', 'партнерк'] },
+  { key: 'ai_block_artist',      kw: ['артист', 'блогер', 'страниц', '/@', 'медийн', 'лендинг', 'инфлюенс', 'свою страницу'] },
+  { key: 'ai_block_wholesale',   kw: ['оптов', ' опт ', 'b2b', 'юрлиц', 'ооо ', ' ип ', 'закупк', 'дистрибьют'] },
+  { key: 'ai_block_giftcards',   kw: ['сертификат', 'подарк', 'gift', 'подарочн'] },
+];
+
+function detectAiTopic(query: string): AiKnowledgeKey | null {
+  const q = ' ' + query.toLowerCase() + ' ';
+  for (const { key, kw } of AI_TOPIC_MAP) {
+    if (kw.some(k => q.includes(k))) return key;
+  }
+  return null;
+}
+// ─── End AI Knowledge Cache ─────────────────────────────────────────────────
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -2739,49 +2912,14 @@ BMGBRAND — официальный производитель и магазин
         }
       }
 
-      const systemPrompt = `Ты — AI-ассистент интернет-магазина BOOOMERANGS (booomerangs.ru) — российского стритвир-бренда одежды из Тулы.
-
-Твоя задача: вежливо и коротко отвечать на вопросы покупателей о товарах, доставке и оплате.
-
-## О бренде
-- BOOOMERANGS — российский бренд уличной одежды и аксессуаров
-- Производство и дизайн в России
-- Ассортимент: толстовки, свитшоты, футболки, шорты, брюки, аксессуары, носки
-- Сайт: booomerangs.ru
-
-## Доставка
-- **СДЭК**: курьером до двери или в пункт выдачи (ПВЗ) по всей России
-- **Яндекс Доставка NDD**: доставка до пунктов выдачи
-- Сроки: зависят от региона, обычно 3–7 рабочих дней
-- Бесплатная доставка при заказе от определённой суммы (уточняй на сайте)
-- Отслеживание заказа: через личный кабинет или трек-номер СДЭК
-
-## Оплата
-- **ЮKassa**: банковские карты (Visa, MasterCard, МИР), SberPay, YooMoney
-- **Т-Банк (Tinkoff)**: карты, SberPay, рассрочка "Долями"
-- **Ozon Pay**: оплата через экосистему Ozon
-- Оплата при получении недоступна
-- Все платежи защищены SSL
-
-## Размеры
-- Размерная сетка есть на странице каждого товара
-- Если сомневаешься в размере, рекомендуй взять размер больше или написать менеджеру
-
-## Возврат и обмен
-- Возврат в течение 14 дней с момента получения
-- Товар должен быть в первоначальном виде, с бирками
-- Для оформления возврата — написать менеджеру в чат
-
-## Оптовые закупки
-- Есть оптовый раздел для юридических лиц и ИП
-- Регистрация через сайт в разделе "Оптовикам"
-
-## Важные правила
-- Отвечай ТОЛЬКО на вопросы о товарах, доставке, оплате, возвратах, бренде
-- Если вопрос не по теме — вежливо скажи, что это не в твоей компетенции и предложи написать менеджеру
-- Отвечай на русском языке, коротко и по делу (2–5 предложений максимум)
-- НИКОГДА не придумывай ссылки на товары — карточки показываются автоматически
-- Всегда будь вежливым и дружелюбным${productContext}`;
+      await loadAiKnowledgeIfNeeded();
+      const topicKey = detectAiTopic(lastUserMsg?.content || '');
+      let systemPrompt = getAiKnowledgeCached('ai_prompt_base');
+      if (topicKey) {
+        const topicBlock = getAiKnowledgeCached(topicKey);
+        if (topicBlock) systemPrompt += '\n\n' + topicBlock;
+      }
+      if (productContext) systemPrompt += productContext;
 
       const groqHeaders: Record<string, string> = { "Content-Type": "application/json" };
       if (apiKey) groqHeaders["Authorization"] = `Bearer ${apiKey}`;
@@ -2828,6 +2966,55 @@ BMGBRAND — официальный производитель и магазин
     } catch (err: any) {
       console.error("[AI Chat] Error:", err.message);
       res.status(500).json({ error: "Internal error" });
+    }
+  });
+
+  // AI Knowledge management (admin)
+  app.get("/api/admin/ai-knowledge", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    await loadAiKnowledgeIfNeeded();
+    const result: Record<string, string> = {};
+    for (const k of AI_KNOWLEDGE_KEYS) {
+      result[k] = getAiKnowledgeCached(k);
+    }
+    res.json({ blocks: result, defaults: AI_KNOWLEDGE_DEFAULTS });
+  });
+
+  app.post("/api/admin/ai-knowledge/:key", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    const key = req.params.key as AiKnowledgeKey;
+    if (!(AI_KNOWLEDGE_KEYS as readonly string[]).includes(key)) {
+      return res.status(400).json({ error: "Unknown knowledge key" });
+    }
+    const { value } = req.body;
+    if (typeof value !== "string") return res.status(400).json({ error: "value required" });
+    try {
+      await storage.setBonusSetting(key, value);
+      aiKnowledgeCache.set(key, value);
+      invalidateAiKnowledgeCache();
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/ai-knowledge/:key/reset", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    const key = req.params.key as AiKnowledgeKey;
+    if (!(AI_KNOWLEDGE_KEYS as readonly string[]).includes(key)) {
+      return res.status(400).json({ error: "Unknown knowledge key" });
+    }
+    try {
+      const def = AI_KNOWLEDGE_DEFAULTS[key];
+      await storage.setBonusSetting(key, def);
+      aiKnowledgeCache.set(key, def);
+      invalidateAiKnowledgeCache();
+      res.json({ ok: true, value: def });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 
