@@ -2645,9 +2645,13 @@ BMGBRAND — официальный производитель и магазин
         return res.status(400).json({ error: "messages required" });
       }
       const apiKey = process.env.GROQ_API_KEY;
-      if (!apiKey) {
+      const proxyUrl = process.env.GROQ_PROXY_URL;
+      if (!apiKey && !proxyUrl) {
         return res.status(503).json({ error: "AI service not configured" });
       }
+      const groqBase = proxyUrl
+        ? proxyUrl.replace(/\/$/, "")
+        : "https://api.groq.com";
 
       // --- Product search by keywords from the last user message ---
       const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
@@ -2779,12 +2783,11 @@ BMGBRAND — официальный производитель и магазин
 - НИКОГДА не придумывай ссылки на товары — карточки показываются автоматически
 - Всегда будь вежливым и дружелюбным${productContext}`;
 
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const groqHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (apiKey) groqHeaders["Authorization"] = `Bearer ${apiKey}`;
+      const response = await fetch(`${groqBase}/openai/v1/chat/completions`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers: groqHeaders,
         body: JSON.stringify({
           model: "qwen/qwen3-32b",
           messages: [
