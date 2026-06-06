@@ -227,10 +227,10 @@ body.lb-open nav {
   100% { left: 120%; }
 }
 
-/* Хиро-баннер: шторка (clip-path reveal) */
+/* Хиро-баннер: шторка (translateX — работает во всех браузерах и GPU-ускорена) */
 @keyframes hero-curtain-reveal {
-  from { clip-path: inset(0 100% 0 0); }
-  to   { clip-path: inset(0 0% 0 0); }
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
 }
 .hero-slide-enter {
   animation: hero-curtain-reveal 1.2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
