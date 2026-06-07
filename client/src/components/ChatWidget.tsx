@@ -601,36 +601,39 @@ export function ChatWidget() {
             bg-white rounded-2xl overflow-hidden shadow-[0_8px_48px_rgba(0,0,0,0.22)] border border-black/10">
 
             {/* Header */}
-            <div className="flex-shrink-0 bg-black text-white px-4 py-3 sm:px-5 sm:py-3.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-                    {mode === "ai" ? <Bot className="w-4 h-4" /> : <ChatIcon />}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm tracking-wide">
-                      {mode === "ai" ? "AI-ассистент" : "Онлайн-чат"}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className={`w-1.5 h-1.5 rounded-full ${mode === "ai" ? "bg-violet-400 animate-pulse" : "bg-emerald-400 animate-pulse"}`} />
-                      <p className="text-[10px] text-white/60">
-                        {mode === "ai" ? "BOOOM AI · отвечает мгновенно" : "Менеджер · пн–пт 11:00–19:00"}
-                      </p>
-                    </div>
-                  </div>
+            <div className="flex-shrink-0 bg-black text-white px-4 pt-3.5 pb-3 sm:px-5">
+              <div className="flex items-start gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  {mode === "ai" ? <Bot className="w-4 h-4" /> : <ChatIcon />}
                 </div>
-
-                {/* Switch mode button */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm tracking-wide leading-tight">
+                    {mode === "ai" ? "AI-ассистент" : "Онлайн-чат"}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${mode === "ai" ? "bg-violet-400 animate-pulse" : "bg-emerald-400 animate-pulse"}`} />
+                    <p className="text-[10px] text-white/60">
+                      {mode === "ai" ? "BOOOM AI · отвечает мгновенно" : "Менеджер · пн–пт 11:00–19:00"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setMode(m => m === "ai" ? "manager" : "ai")}
+                    className="flex items-center gap-1 mt-1.5 text-[10px] text-white/40 hover:text-white/70 transition-colors"
+                    data-testid="button-chat-switch-mode"
+                  >
+                    {mode === "ai" ? (
+                      <><UserRound className="w-2.5 h-2.5" /> Связь с менеджером</>
+                    ) : (
+                      <><Bot className="w-2.5 h-2.5" /> Перейти к AI-помощнику</>
+                    )}
+                  </button>
+                </div>
                 <button
-                  onClick={() => setMode(m => m === "ai" ? "manager" : "ai")}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-[11px] font-medium text-white/90 whitespace-nowrap"
-                  data-testid="button-chat-switch-mode"
+                  onClick={() => setOpen(false)}
+                  className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center flex-shrink-0 active:scale-90 transition-all"
+                  aria-label="Закрыть"
                 >
-                  {mode === "ai" ? (
-                    <><UserRound className="w-3 h-3" /> Связь с менеджером</>
-                  ) : (
-                    <><Bot className="w-3 h-3" /> AI-помощник</>
-                  )}
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
