@@ -2813,7 +2813,7 @@ BMGBRAND — официальный производитель и магазин
   // AI chat endpoint (Groq / Qwen3-32B)
   app.post("/api/ai/chat", async (req, res) => {
     try {
-      const { messages, productId: sizeProductId } = req.body;
+      const { messages, productId: sizeProductId, pageContext } = req.body;
       if (!Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "messages required" });
       }
@@ -2850,6 +2850,23 @@ BMGBRAND — официальный производитель и магазин
             sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\nТочная таблица замеров для этого товара ещё не заполнена. Ответь пользователю ДОСЛОВНО: "Точная таблица замеров для этого товара ещё не заполнена — рекомендую написать менеджеру" и предложи переключиться на чат с менеджером.`;
           }
         }
+      }
+
+      // --- Current product page context ---
+      let pageContextStr = "";
+      if (pageContext?.pageType === "product" && pageContext.product) {
+        const p = pageContext.product;
+        const priceStr = p.price ? `${Number(p.price).toLocaleString("ru-RU")} ₽` : "цена не указана";
+        const sizeStock: Record<string, number> = p.sizeStock || {};
+        const stockLines = Object.entries(sizeStock).filter(([, q]) => (q as number) > 0).map(([s, q]) => `${s}: ${q} шт.`);
+        const stockStr = stockLines.length > 0 ? stockLines.join(", ") : (p.stock > 0 ? `в наличии ${p.stock} шт.` : "нет в наличии");
+        pageContextStr = `\n\n## Текущий товар (пользователь смотрит эту карточку прямо сейчас)\n- Название: ${p.name}\n- Цена: ${priceStr}\n- Цвет: ${p.color || "не указан"}\n- Состав: ${p.composition || "не указан"}\n- Описание: ${(p.description || "").slice(0, 400)}\n- Наличие по размерам: ${stockStr}\n- Категория: ${p.subcategory || p.category || "не указана"}\n\nЕсли пользователь спрашивает про этот товар (состав, размеры, цвет, наличие) — отвечай на основе этих данных.`;
+      } else if (pageContext?.pageType === "cart") {
+        pageContextStr = "\n\n## Текущая страница\nПользователь сейчас находится в корзине.";
+      } else if (pageContext?.pageType === "checkout") {
+        pageContextStr = "\n\n## Текущая страница\nПользователь сейчас оформляет заказ.";
+      } else if (pageContext?.pageType === "home") {
+        pageContextStr = "\n\n## Текущая страница\nПользователь сейчас на главной странице сайта.";
       }
 
       // --- Product search by keywords from the last user message ---
@@ -2946,6 +2963,7 @@ BMGBRAND — официальный производитель и магазин
         const topicBlock = getAiKnowledgeCached(topicKey);
         if (topicBlock) systemPrompt += '\n\n' + topicBlock;
       }
+      if (pageContextStr) systemPrompt += pageContextStr;
       if (productContext) systemPrompt += productContext;
       if (sizeAdvisorContext) systemPrompt += sizeAdvisorContext;
 

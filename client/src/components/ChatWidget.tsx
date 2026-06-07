@@ -58,6 +58,19 @@ interface AiMessage {
   products?: ProductCard[];
 }
 
+interface ProductPageContext {
+  id: number;
+  name: string;
+  price: number;
+  description: string;
+  composition?: string;
+  color?: string;
+  sizeStock?: Record<string, number>;
+  stock?: number;
+  category?: string;
+  subcategory?: string;
+}
+
 interface ChatMessage {
   messageId: string;
   sender: "client" | "admin";
@@ -102,6 +115,7 @@ export function ChatWidget() {
   const [aiMessages, setAiMessages] = useState<AiMessage[]>([]);
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [productPageCtx, setProductPageCtx] = useState<ProductPageContext | null>(null);
 
   // Size advisor state
   const [sizeAdvisorProduct, setSizeAdvisorProduct] = useState<SizeAdvisorProduct | null>(null);
@@ -148,6 +162,21 @@ export function ChatWidget() {
     return () => window.removeEventListener("open-size-advisor", handler);
   }, []);
 
+  // --- Product page context: track current product for AI ---
+  useEffect(() => {
+    const setHandler = (e: Event) => {
+      const ev = e as CustomEvent<ProductPageContext>;
+      setProductPageCtx(ev.detail);
+    };
+    const clearHandler = () => setProductPageCtx(null);
+    window.addEventListener("set-product-context", setHandler);
+    window.addEventListener("clear-product-context", clearHandler);
+    return () => {
+      window.removeEventListener("set-product-context", setHandler);
+      window.removeEventListener("clear-product-context", clearHandler);
+    };
+  }, []);
+
   // --- AI logic ---
   const sendAiMessage = async (text: string) => {
     if (!text.trim() || aiLoading) return;
@@ -158,12 +187,21 @@ export function ChatWidget() {
     setAiLoading(true);
     scrollAiToBottom();
 
+    // Derive page type from current URL
+    const pageType = location.startsWith("/cart") ? "cart"
+      : location.startsWith("/checkout") ? "checkout"
+      : location === "/" ? "home"
+      : location.startsWith("/products") ? "catalog"
+      : productPageCtx ? "product"
+      : "other";
+
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          pageContext: { pageType, product: productPageCtx ?? undefined },
         }),
       });
       const data = await res.json();
@@ -215,6 +253,7 @@ export function ChatWidget() {
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
           productId,
+          pageContext: { pageType: "product", product: productPageCtx ?? undefined },
         }),
       });
       const data = await res.json();

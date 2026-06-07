@@ -267,6 +267,28 @@ export default function ProductDetail() {
     }
   }, [product, slug]);
 
+  // Notify AI chat widget about current product context
+  useEffect(() => {
+    if (!product) return;
+    window.dispatchEvent(new CustomEvent("set-product-context", {
+      detail: {
+        id: product.id,
+        name: product.name,
+        price: product.price ? Math.round(product.price / 100) : 0,
+        description: (product as any).description || "",
+        composition: (product as any).composition || "",
+        color: (product as any).color || "",
+        sizeStock: (product as any).sizeStock || {},
+        stock: (product as any).stock ?? 0,
+        category: (product as any).category || "",
+        subcategory: (product as any).subcategory || "",
+      },
+    }));
+    return () => {
+      window.dispatchEvent(new Event("clear-product-context"));
+    };
+  }, [product?.id]);
+
   const originalId = product?.id || 0;
   const { data: colorVariants } = useColorVariants(originalId);
   const addToCart = useAddToCart();
