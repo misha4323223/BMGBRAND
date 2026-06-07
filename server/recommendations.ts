@@ -37,12 +37,18 @@ function extractProductIds(items: any[]): ProductId[] {
     .filter((id) => !isNaN(id) && id > 0);
 }
 
-function isInStock(p: any): boolean {
-  if (p.isHidden) return false;
+function isVisible(p: any): boolean {
+  // Reject hidden products — isHidden may be boolean, string "true", or number 1
+  if (p.isHidden === true || p.isHidden === 'true' || p.isHidden === 1) return false;
+  // Must have a real price
+  if (!p.price || Number(p.price) <= 0) return false;
+  // Must have an image
+  if (!p.imageUrl) return false;
+  // Must have stock
   if (p.sizeStock && typeof p.sizeStock === 'object') {
-    return Object.values(p.sizeStock as Record<string, number>).some((n) => n > 0);
+    return Object.values(p.sizeStock as Record<string, number>).some((n) => Number(n) > 0);
   }
-  return (p.stock ?? 0) > 0;
+  return (Number(p.stock) ?? 0) > 0;
 }
 
 function toProductShape(p: any): any {
@@ -164,7 +170,7 @@ export async function getRecommendations(
     for (const [id] of sorted) {
       if (seenIds.has(id)) continue;
       const p = productMap.get(id);
-      if (p && !p.isHidden && isInStock(p)) {
+      if (p && isVisible(p)) {
         result.push(toProductShape(p));
         seenIds.add(id);
         if (result.length >= count) break;
@@ -179,8 +185,7 @@ export async function getRecommendations(
       const needed = count - result.length;
       const pool = allProducts.filter((p: any) =>
         !seenIds.has(p.id) &&
-        !p.isHidden &&
-        isInStock(p) &&
+        isVisible(p) &&
         p.category === anchor.category
       );
       // Fisher-Yates shuffle so every page load shows a different set
