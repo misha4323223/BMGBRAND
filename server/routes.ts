@@ -2812,7 +2812,7 @@ BMGBRAND — официальный производитель и магазин
   });
 
   // AI chat endpoint (Groq / Qwen3-32B)
-  app.post("/api/ai/chat", async (req, res) => {
+  app.post("/api/ai/chat", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const { messages, productId: sizeProductId, pageContext } = req.body;
       if (!Array.isArray(messages) || messages.length === 0) {
@@ -2987,6 +2987,70 @@ BMGBRAND — официальный производитель и магазин
         }
       }
 
+      // --- Authenticated user context ---
+      let userContextStr = "";
+      if (req.user) {
+        try {
+          const u = req.user;
+          const lines: string[] = [`## Текущий пользователь (авторизован)`];
+          if (u.name) lines.push(`- Имя: ${u.name}`);
+          if (u.wholesaleApproved) {
+            lines.push(`- Тип: Оптовый покупатель (скидка ${u.wholesaleDiscount ?? 30}%)`);
+          } else if ((u.loyaltyDiscount ?? 0) > 0) {
+            lines.push(`- Скидка по программе лояльности: ${u.loyaltyDiscount}%`);
+          }
+
+          // Last 3 orders
+          const orders = await storage.getOrdersByUserId(u.id);
+          const statusMap: Record<string, string> = {
+            paid: "Оплачен", processing: "В обработке", shipped: "Отправлен",
+            delivered: "Доставлен", cancelled: "Отменён",
+            pending: "Ожидает оплаты", awaiting_payment: "Ожидает оплаты",
+          };
+          if (orders.length > 0) {
+            lines.push(`\n### Заказы:`);
+            for (const o of orders.slice(0, 3)) {
+              const status = statusMap[o.status] || o.status;
+              const total = `${Math.round(o.total / 100).toLocaleString("ru-RU")} ₽`;
+              const date = o.createdAt ? new Date(String(o.createdAt)).toLocaleDateString("ru-RU") : "—";
+              let line = `- №${o.id} от ${date}: ${status}, ${total}`;
+              if (o.transportCompany) line += `, доставка: ${o.transportCompany}`;
+              if (o.cdekData) {
+                try {
+                  const cd = typeof o.cdekData === "string" ? JSON.parse(o.cdekData) : o.cdekData;
+                  if (cd.trackingNumber || cd.cdekId) line += ` (трек: ${cd.trackingNumber || cd.cdekId})`;
+                  if (cd.statusName) line += `, статус СДЭК: ${cd.statusName}`;
+                } catch {}
+              }
+              lines.push(line);
+            }
+          } else {
+            lines.push(`\n### Заказов пока нет`);
+          }
+
+          // Newsletter promo code
+          try {
+            const sub = await storage.getNewsletterSubscription(u.email.toLowerCase());
+            if (sub?.promoCodeGiven) {
+              const promo = await storage.getPromoCodeByCode(sub.promoCodeGiven);
+              if (promo?.isActive) {
+                const disc = promo.discountPercent
+                  ? `${promo.discountPercent}%`
+                  : promo.discountAmount
+                    ? `${Math.round(Number(promo.discountAmount) / 100)} ₽`
+                    : "";
+                lines.push(`\n### Промокод: ${promo.code}${disc ? ` — скидка ${disc}` : ""} (активен)`);
+              }
+            }
+          } catch {}
+
+          userContextStr = "\n\n" + lines.join("\n");
+          userContextStr += "\n\nОбращайся к пользователю по имени. Называй конкретные номера заказов и их статусы. НЕ раскрывай email пользователя в ответе.";
+        } catch (e: any) {
+          console.error("[AI Chat] User context error:", e?.message);
+        }
+      }
+
       await loadAiKnowledgeIfNeeded();
       const topicKey = detectAiTopic(lastUserMsg?.content || '');
       console.log(`[AI Chat] query="${(lastUserMsg?.content || '').substring(0, 60)}" topic=${topicKey || 'none'}`);
@@ -2995,6 +3059,7 @@ BMGBRAND — официальный производитель и магазин
         const topicBlock = getAiKnowledgeCached(topicKey);
         if (topicBlock) systemPrompt += '\n\n' + topicBlock;
       }
+      if (userContextStr) systemPrompt += userContextStr;
       if (pageContextStr) systemPrompt += pageContextStr;
       if (productContext) systemPrompt += productContext;
       if (sizeAdvisorContext) systemPrompt += sizeAdvisorContext;
