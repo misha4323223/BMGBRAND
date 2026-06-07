@@ -27,6 +27,10 @@ export function CartDrawerProvider({ children }: { children: React.ReactNode }) 
   const openDrawer = useCallback(() => setIsOpen(true), []);
   const closeDrawer = useCallback(() => setIsOpen(false), []);
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(isOpen ? 'cart-drawer-open' : 'cart-drawer-close'));
+  }, [isOpen]);
+
   return (
     <CartDrawerContext.Provider value={{ isOpen, openDrawer, closeDrawer }}>
       {children}

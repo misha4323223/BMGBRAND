@@ -174,7 +174,7 @@ export function ChatWidget() {
   const firePeek = useCallback((message: string, trigger: string) => {
     if (openRef.current) return;
     if (peekActiveRef.current) return;
-    if (sessionStorage.getItem('proactive_fired')) return;
+    if (sessionStorage.getItem(`proactive_fired_${trigger}`)) return;
     const dismissedUntil = localStorage.getItem('proactive_dismissed_until');
     if (dismissedUntil && Date.now() < parseInt(dismissedUntil)) return;
     const lastShown = localStorage.getItem('proactive_last_shown');
@@ -182,7 +182,7 @@ export function ChatWidget() {
     setPeekMessage(message);
     setPeekTrigger(trigger);
     setTimeout(() => setPeekAnimated(true), 50);
-    sessionStorage.setItem('proactive_fired', '1');
+    sessionStorage.setItem(`proactive_fired_${trigger}`, '1');
     localStorage.setItem('proactive_last_shown', String(Date.now()));
     peekAutoHideRef.current = setTimeout(hidePeek, 10000);
     fetch('/api/ai/proactive-event', {
@@ -237,6 +237,26 @@ export function ChatWidget() {
     }
     return () => { triggerTimersRef.current.forEach(clearTimeout); triggerTimersRef.current = []; };
   }, [location, productPageCtx, firePeek]);
+
+  // Cart drawer proactive trigger (works on all screen sizes)
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onOpen = () => {
+      timer = setTimeout(() => {
+        firePeek('Остались вопросы? Помогу с доставкой, промокодом или выбором размера', 'cart_time');
+      }, 60000);
+    };
+    const onClose = () => {
+      if (timer) { clearTimeout(timer); timer = null; }
+    };
+    window.addEventListener('cart-drawer-open', onOpen);
+    window.addEventListener('cart-drawer-close', onClose);
+    return () => {
+      window.removeEventListener('cart-drawer-open', onOpen);
+      window.removeEventListener('cart-drawer-close', onClose);
+      if (timer) clearTimeout(timer);
+    };
+  }, [firePeek]);
 
   // Exit intent (desktop only)
   useEffect(() => {
