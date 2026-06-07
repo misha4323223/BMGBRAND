@@ -142,6 +142,11 @@ export function ChatWidget() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+  // Proactive peek state
+  const [peekMessage, setPeekMessage] = useState<string | null>(null);
+  const [peekTrigger, setPeekTrigger] = useState<string | null>(null);
+  const [peekAnimated, setPeekAnimated] = useState(false);
+
   const sessionId = useRef(getOrCreateSessionId());
   const aiBottomRef = useRef<HTMLDivElement>(null);
   const managerBottomRef = useRef<HTMLDivElement>(null);
@@ -152,6 +157,96 @@ export function ChatWidget() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const openRef = useRef(false);
   openRef.current = open;
+
+  // Proactive refs
+  const peekActiveRef = useRef(false);
+  const triggerTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const peekAutoHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { peekActiveRef.current = peekMessage !== null; }, [peekMessage]);
+
+  const hidePeek = useCallback(() => {
+    setPeekAnimated(false);
+    if (peekAutoHideRef.current) { clearTimeout(peekAutoHideRef.current); peekAutoHideRef.current = null; }
+    setTimeout(() => { setPeekMessage(null); setPeekTrigger(null); }, 300);
+  }, []);
+
+  const firePeek = useCallback((message: string, trigger: string) => {
+    if (openRef.current) return;
+    if (peekActiveRef.current) return;
+    if (sessionStorage.getItem('proactive_fired')) return;
+    const dismissedUntil = localStorage.getItem('proactive_dismissed_until');
+    if (dismissedUntil && Date.now() < parseInt(dismissedUntil)) return;
+    const lastShown = localStorage.getItem('proactive_last_shown');
+    if (lastShown && Date.now() - parseInt(lastShown) < 24 * 60 * 60 * 1000) return;
+    setPeekMessage(message);
+    setPeekTrigger(trigger);
+    setTimeout(() => setPeekAnimated(true), 50);
+    sessionStorage.setItem('proactive_fired', '1');
+    localStorage.setItem('proactive_last_shown', String(Date.now()));
+    peekAutoHideRef.current = setTimeout(hidePeek, 10000);
+    fetch('/api/ai/proactive-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trigger, event: 'shown' }),
+    }).catch(() => {});
+  }, [hidePeek]);
+
+  // Hide peek + mark session when chat opens manually
+  useEffect(() => {
+    if (open) { hidePeek(); sessionStorage.setItem('proactive_chat_opened', '1'); }
+  }, [open, hidePeek]);
+
+  // Proactive trigger engine
+  useEffect(() => {
+    triggerTimersRef.current.forEach(clearTimeout);
+    triggerTimersRef.current = [];
+    const isHome = location === '/';
+    const isCart = location.startsWith('/cart');
+    const isCheckout = location.startsWith('/checkout');
+    const isCatalog = location.startsWith('/products');
+    const isNewUser = !localStorage.getItem('visited_before');
+    localStorage.setItem('visited_before', '1');
+    if (isHome && isNewUser) {
+      triggerTimersRef.current.push(setTimeout(() =>
+        firePeek('Привет! Я AI-ассистент BOOOMERANGS. Отвечу про доставку, размеры и оплату — мгновенно 🙌', 'home_newuser'), 20000));
+    }
+    if (productPageCtx) {
+      const name = productPageCtx.name;
+      const sizeVals = Object.values(productPageCtx.sizeStock ?? {}) as number[];
+      const hasStock = (productPageCtx.stock ?? 0) > 0 || sizeVals.some(v => v > 0);
+      if (!hasStock) {
+        triggerTimersRef.current.push(setTimeout(() =>
+          firePeek(`Этот размер недоступен — хотите узнать о поступлении «${name}»?`, 'product_outofstock'), 5000));
+      } else {
+        triggerTimersRef.current.push(setTimeout(() =>
+          firePeek(`Помочь с выбором размера для «${name}»? Подберу за 30 секунд 📏`, 'product_time'), 35000));
+      }
+    }
+    if (isCart) {
+      triggerTimersRef.current.push(setTimeout(() =>
+        firePeek('Остались вопросы? Помогу с доставкой, промокодом или выбором размера', 'cart_time'), 60000));
+    }
+    if (isCheckout) {
+      triggerTimersRef.current.push(setTimeout(() =>
+        firePeek('Застряли на оформлении? Помогу разобраться с доставкой или оплатой', 'checkout_time'), 90000));
+    }
+    if (isCatalog) {
+      triggerTimersRef.current.push(setTimeout(() =>
+        firePeek('Помочь с выбором? Скажите что ищете — подберу варианты 🔍', 'catalog_browse'), 120000));
+    }
+    return () => { triggerTimersRef.current.forEach(clearTimeout); triggerTimersRef.current = []; };
+  }, [location, productPageCtx, firePeek]);
+
+  // Exit intent (desktop only)
+  useEffect(() => {
+    if (window.innerWidth < 768) return;
+    const handler = (e: MouseEvent) => {
+      if (e.clientY <= 10) firePeek('Не уходите! Помогу найти нужный размер или расскажу про акции 👋', 'exit_intent');
+    };
+    document.addEventListener('mouseleave', handler);
+    return () => document.removeEventListener('mouseleave', handler);
+  }, [firePeek]);
 
   const scrollAiToBottom = () => setTimeout(() => aiBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
   const scrollManagerToBottom = () => setTimeout(() => managerBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
@@ -574,7 +669,7 @@ export function ChatWidget() {
                               😴 Наш помощник устал — напишите нам напрямую, поможем!
                             </p>
                             <button
-                              onClick={() => setChatMode("manager")}
+                              onClick={() => setMode("manager")}
                               className="w-full py-1.5 px-3 rounded-lg bg-black text-white text-xs font-medium hover:bg-black/80 active:scale-95 transition-all"
                             >
                               Написать менеджеру
@@ -779,6 +874,49 @@ export function ChatWidget() {
             <X className="w-5 h-5" />
           </button>
           <img src={previewImage} alt="Просмотр фото" className="max-w-full max-h-full object-contain rounded-lg" onClick={e => e.stopPropagation()} />
+        </div>
+      )}
+
+      {/* Proactive peek bubble */}
+      {peekMessage && (
+        <div className={`fixed bottom-[100px] right-6 z-50 max-w-[260px] transition-all duration-300 ${peekAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3 pointer-events-none'}`}>
+          <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.18)] border border-black/8 p-3.5 relative">
+            <button
+              onClick={() => {
+                if (peekTrigger) fetch('/api/ai/proactive-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trigger: peekTrigger, event: 'dismissed' }) }).catch(() => {});
+                localStorage.setItem('proactive_dismissed_until', String(Date.now() + 7 * 24 * 60 * 60 * 1000));
+                hidePeek();
+              }}
+              className="absolute top-2 right-2 w-5 h-5 rounded-full bg-black/6 hover:bg-black/12 flex items-center justify-center transition-colors flex-shrink-0"
+              data-testid="button-peek-dismiss"
+              aria-label="Закрыть"
+            >
+              <X className="w-3 h-3 text-black/50" />
+            </button>
+            <div className="flex items-start gap-2.5 pr-5">
+              <div className="w-7 h-7 rounded-xl bg-black flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Bot className="w-3.5 h-3.5 text-white" />
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-black/40 uppercase tracking-wide mb-1">AI-ассистент</p>
+                <p className="text-xs text-black leading-snug">{peekMessage}</p>
+                <button
+                  onClick={() => {
+                    if (peekTrigger) fetch('/api/ai/proactive-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trigger: peekTrigger, event: 'clicked' }) }).catch(() => {});
+                    const msg = peekMessage;
+                    hidePeek();
+                    setMode('ai');
+                    if (msg) setAiMessages([{ id: `proactive-${Date.now()}`, role: 'assistant', content: msg, products: [] }]);
+                    setOpen(true);
+                  }}
+                  className="mt-2 text-[11px] font-medium text-black underline underline-offset-2 hover:no-underline transition-all"
+                  data-testid="button-peek-open"
+                >
+                  Ответить →
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
