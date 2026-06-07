@@ -618,7 +618,7 @@ export function ChatWidget() {
                   </div>
                   <button
                     onClick={() => setMode(m => m === "ai" ? "manager" : "ai")}
-                    className="flex items-center gap-1 mt-1.5 text-[10px] text-white/40 hover:text-white/70 transition-colors"
+                    className="flex items-center gap-1 mt-1.5 text-[11px] text-white/70 hover:text-white transition-colors"
                     data-testid="button-chat-switch-mode"
                   >
                     {mode === "ai" ? (
