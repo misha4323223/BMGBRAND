@@ -627,7 +627,7 @@ export function ChatWidget() {
                   data-testid="button-chat-switch-mode"
                 >
                   {mode === "ai" ? (
-                    <><UserRound className="w-3 h-3" /> Живой чат</>
+                    <><UserRound className="w-3 h-3" /> Связь с менеджером</>
                   ) : (
                     <><Bot className="w-3 h-3" /> AI-помощник</>
                   )}
