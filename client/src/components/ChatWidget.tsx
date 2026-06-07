@@ -177,13 +177,10 @@ export function ChatWidget() {
     if (sessionStorage.getItem(`proactive_fired_${trigger}`)) return;
     const dismissedUntil = localStorage.getItem('proactive_dismissed_until');
     if (dismissedUntil && Date.now() < parseInt(dismissedUntil)) return;
-    const lastShown = localStorage.getItem('proactive_last_shown');
-    if (lastShown && Date.now() - parseInt(lastShown) < 24 * 60 * 60 * 1000) return;
     setPeekMessage(message);
     setPeekTrigger(trigger);
     setTimeout(() => setPeekAnimated(true), 50);
     sessionStorage.setItem(`proactive_fired_${trigger}`, '1');
-    localStorage.setItem('proactive_last_shown', String(Date.now()));
     peekAutoHideRef.current = setTimeout(hidePeek, 10000);
     fetch('/api/ai/proactive-event', {
       method: 'POST',
