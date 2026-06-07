@@ -164,15 +164,15 @@ export function ChatWidget() {
 
   useEffect(() => {
     if (open) { setBtnExpanded(false); return; }
-    // First pulse after 5s, then every 11s (3s open + 8s closed)
+    // First pulse after 5s, then every 18s (10s open + 8s closed)
     const initial = setTimeout(() => {
       setBtnExpanded(true);
-      setTimeout(() => setBtnExpanded(false), 3000);
+      setTimeout(() => setBtnExpanded(false), 10000);
     }, 5000);
     btnExpandRef.current = setInterval(() => {
       setBtnExpanded(true);
-      setTimeout(() => setBtnExpanded(false), 3000);
-    }, 11000);
+      setTimeout(() => setBtnExpanded(false), 10000);
+    }, 18000);
     return () => {
       clearTimeout(initial);
       if (btnExpandRef.current) clearInterval(btnExpandRef.current);
@@ -627,7 +627,7 @@ export function ChatWidget() {
                   data-testid="button-chat-switch-mode"
                 >
                   {mode === "ai" ? (
-                    <><UserRound className="w-3 h-3" /> Менеджер</>
+                    <><UserRound className="w-3 h-3" /> Живой чат</>
                   ) : (
                     <><Bot className="w-3 h-3" /> AI-помощник</>
                   )}
