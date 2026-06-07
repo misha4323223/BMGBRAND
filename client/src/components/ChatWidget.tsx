@@ -163,6 +163,7 @@ export function ChatWidget() {
   const triggerTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const peekAutoHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cartRemovedProductRef = useRef<string | null>(null);
+  const lastTriggerRef = useRef<string | null>(null);
 
   useEffect(() => { peekActiveRef.current = peekMessage !== null; }, [peekMessage]);
 
@@ -180,6 +181,7 @@ export function ChatWidget() {
     if (dismissedUntil && Date.now() < parseInt(dismissedUntil)) return;
     setPeekMessage(message);
     setPeekTrigger(trigger);
+    lastTriggerRef.current = trigger;
     setTimeout(() => setPeekAnimated(true), 50);
     sessionStorage.setItem(`proactive_fired_${trigger}`, '1');
     peekAutoHideRef.current = setTimeout(hidePeek, 10000);
@@ -360,8 +362,8 @@ export function ChatWidget() {
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
           pageContext: cartRemovedProductRef.current
-            ? { pageType: "cart_remove", removedProductName: cartRemovedProductRef.current, product: productPageCtx ?? undefined }
-            : { pageType, product: productPageCtx ?? undefined, artist: artistPageCtx ?? undefined },
+            ? { pageType: "cart_remove", removedProductName: cartRemovedProductRef.current, product: productPageCtx ?? undefined, activeTrigger: lastTriggerRef.current }
+            : { pageType, product: productPageCtx ?? undefined, artist: artistPageCtx ?? undefined, activeTrigger: lastTriggerRef.current },
         }),
       });
       const data = await res.json();

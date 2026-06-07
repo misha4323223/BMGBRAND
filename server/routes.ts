@@ -2860,19 +2860,43 @@ BMGBRAND — официальный производитель и магазин
         const sizeStock: Record<string, number> = p.sizeStock || {};
         const stockLines = Object.entries(sizeStock).filter(([, q]) => (q as number) > 0).map(([s, q]) => `${s}: ${q} шт.`);
         const stockStr = stockLines.length > 0 ? stockLines.join(", ") : (p.stock > 0 ? `в наличии ${p.stock} шт.` : "нет в наличии");
-        pageContextStr = `\n\n## Текущий товар (пользователь смотрит эту карточку прямо сейчас)\n- Название: ${p.name}\n- Цена: ${priceStr}\n- Цвет: ${p.color || "не указан"}\n- Состав: ${p.composition || "не указан"}\n- Описание: ${(p.description || "").slice(0, 400)}\n- Наличие по размерам: ${stockStr}\n- Категория: ${p.subcategory || p.category || "не указана"}\n\nЕсли пользователь спрашивает про этот товар (состав, размеры, цвет, наличие) — отвечай на основе этих данных.`;
+        const triggerNote = pageContext?.activeTrigger === "product_outofstock"
+          ? `\n\nВАЖНО: пользователь видит что нужный ему размер/цвет НЕДОСТУПЕН. Предложи оформить уведомление о поступлении (кнопка на странице товара) или подскажи доступные альтернативы.`
+          : pageContext?.activeTrigger === "product_time"
+          ? `\n\nВАЖНО: пользователь рассматривает этот товар уже больше 30 секунд и не добавляет в корзину — видимо, сомневается. Помоги развеять сомнения: уточни что интересует (размер, состав, как сидит), дай конкретный совет.`
+          : "";
+        pageContextStr = `\n\n## Текущий товар (пользователь смотрит эту карточку прямо сейчас)\n- Название: ${p.name}\n- Цена: ${priceStr}\n- Цвет: ${p.color || "не указан"}\n- Состав: ${p.composition || "не указан"}\n- Описание: ${(p.description || "").slice(0, 400)}\n- Наличие по размерам: ${stockStr}\n- Категория: ${p.subcategory || p.category || "не указана"}\n\nЕсли пользователь спрашивает про этот товар (состав, размеры, цвет, наличие) — отвечай на основе этих данных.${triggerNote}`;
       } else if (pageContext?.pageType === "cart_remove" && pageContext.removedProductName) {
         pageContextStr = `\n\n## Контекст\nПользователь только что удалил товар «${pageContext.removedProductName}» из корзины. Ты написал ему проактивное сообщение с предложением помочь подобрать замену. Теперь пользователь отвечает на это предложение. Помоги ему найти похожие товары или ответь на его вопрос, зная что он искал что-то похожее на «${pageContext.removedProductName}».`;
       } else if (pageContext?.pageType === "cart") {
-        pageContextStr = "\n\n## Текущая страница\nПользователь сейчас находится в корзине.";
+        const cartNote = pageContext?.activeTrigger === "cart_time"
+          ? " Пользователь находится в корзине уже больше минуты и не оформляет заказ — вероятно, сомневается. Предложи помощь с оформлением, уточни нет ли вопросов по доставке или оплате."
+          : "";
+        pageContextStr = `\n\n## Текущая страница\nПользователь сейчас находится в корзине.${cartNote}`;
       } else if (pageContext?.pageType === "checkout") {
-        pageContextStr = "\n\n## Текущая страница\nПользователь сейчас оформляет заказ.";
+        const checkoutNote = pageContext?.activeTrigger === "checkout_time"
+          ? " Пользователь застрял на странице оформления заказа более 90 секунд — вероятно, столкнулся с проблемой при вводе данных, выборе доставки или оплаты. Предложи конкретную помощь."
+          : "";
+        pageContextStr = `\n\n## Текущая страница\nПользователь сейчас оформляет заказ.${checkoutNote}`;
       } else if (pageContext?.pageType === "home") {
-        pageContextStr = "\n\n## Текущая страница\nПользователь сейчас на главной странице сайта.";
+        const homeNote = pageContext?.activeTrigger === "home_newuser"
+          ? " Это новый посетитель, который впервые зашёл на сайт. Поприветствуй его, кратко расскажи о бренде BOOOMERANGS и предложи помочь с выбором."
+          : "";
+        pageContextStr = `\n\n## Текущая страница\nПользователь сейчас на главной странице сайта.${homeNote}`;
+      } else if (pageContext?.pageType === "catalog") {
+        const catalogNote = pageContext?.activeTrigger === "catalog_browse"
+          ? " Пользователь уже несколько минут листает каталог и не может найти нужное. Спроси что именно ищет — стиль, тип вещи, размер, бюджет — и предложи конкретные варианты."
+          : "";
+        pageContextStr = `\n\n## Текущая страница\nПользователь просматривает каталог товаров.${catalogNote}`;
       } else if (pageContext?.pageType === "artist" && pageContext.artist) {
         const a = pageContext.artist;
         const productLines = (a.products || []).map((p: any) => `${p.name} — ${Number(p.price).toLocaleString("ru-RU")} ₽`).join(", ");
         pageContextStr = `\n\n## Страница артиста (пользователь сейчас здесь)\n- Имя: ${a.name}${a.role ? ` (${a.role})` : ""}\n${a.description ? `- Описание: ${a.description}\n` : ""}- Товары в коллаборации: ${productLines || "загружаются"}\n\nЕсли пользователь спрашивает об этом артисте, его истории, коллаборации или товарах — отвечай на основе этих данных.`;
+      }
+
+      // Overlay for exit_intent trigger — works on any page
+      if (pageContext?.activeTrigger === "exit_intent") {
+        pageContextStr += `\n\nВАЖНО: пользователь собирался покинуть сайт (навёл мышь к закрытию вкладки), но решил написать. Постарайся удержать его — расскажи про текущие акции, промокоды или предложи помощь с тем что он искал. Будь особенно приветливым и конкретным.`;
       }
 
       // --- Product search by keywords from the last user message ---
