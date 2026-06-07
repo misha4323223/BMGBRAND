@@ -202,9 +202,7 @@ export function ChatWidget() {
     const isCart = location.startsWith('/cart');
     const isCheckout = location.startsWith('/checkout');
     const isCatalog = location.startsWith('/products');
-    const isNewUser = !localStorage.getItem('visited_before');
-    localStorage.setItem('visited_before', '1');
-    if (isHome && isNewUser) {
+    if (isHome) {
       triggerTimersRef.current.push(setTimeout(() =>
         firePeek('Привет! Я AI-ассистент BOOOMERANGS. Отвечу про доставку, размеры и оплату — мгновенно 🙌', 'home_newuser'), 20000));
     }
