@@ -233,6 +233,22 @@ export function ChatWidget() {
     return () => { triggerTimersRef.current.forEach(clearTimeout); triggerTimersRef.current = []; };
   }, [location, productPageCtx, firePeek]);
 
+  // Cart item removed — offer help after 3s
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onRemoved = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        firePeek('Передумали? Помогу подобрать замену или рассказать про похожие товары 🛍️', 'cart_remove');
+      }, 3000);
+    };
+    window.addEventListener('cart-item-removed', onRemoved);
+    return () => {
+      window.removeEventListener('cart-item-removed', onRemoved);
+      if (timer) clearTimeout(timer);
+    };
+  }, [firePeek]);
+
   // Cart drawer proactive trigger (works on all screen sizes)
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;

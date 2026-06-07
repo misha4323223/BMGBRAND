@@ -197,6 +197,7 @@ export function useRemoveFromCart() {
         description: "Товар удален из корзины.",
         className: "bg-black text-white border-primary",
       });
+      window.dispatchEvent(new CustomEvent('cart-item-removed'));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [api.cart.list.path] });
