@@ -4234,7 +4234,11 @@ export class DatabaseStorage implements IStorage {
         pageSettingsCache.setRefreshing(pageName, true);
         console.log(`[Cache] STALE - pageSettings(${pageName}), refreshing in background`);
         this.fetchPageSettingsFromYdb(pageName).then(settings => {
-          pageSettingsCache.set(pageName, settings);
+          if (settings !== null) {
+            pageSettingsCache.set(pageName, settings);
+          } else {
+            console.warn(`[Cache] pageSettings(${pageName}) YDB error on stale refresh — keeping old cache`);
+          }
           pageSettingsCache.setRefreshing(pageName, false);
         }).catch(err => {
           pageSettingsCache.setRefreshing(pageName, false);
@@ -4247,11 +4251,16 @@ export class DatabaseStorage implements IStorage {
     }
     console.log(`[Cache] MISS - pageSettings(${pageName}), fetching from YDB`);
     const settings = await this.fetchPageSettingsFromYdb(pageName);
-    pageSettingsCache.set(pageName, settings);
-    return settings;
+    if (settings !== null) {
+      pageSettingsCache.set(pageName, settings);
+      return settings;
+    }
+    // YDB error — не кешируем, чтобы следующий запрос повторил попытку
+    console.warn(`[Cache] pageSettings(${pageName}) YDB error on MISS — returning {} without caching`);
+    return {};
   }
 
-  private async fetchPageSettingsFromYdb(pageName: string): Promise<Record<string, any>> {
+  private async fetchPageSettingsFromYdb(pageName: string): Promise<Record<string, any> | null> {
     const result = await this.safeQuery(async (session) => {
       const { TypedValues } = await import("ydb-sdk");
       const query = `
@@ -4274,7 +4283,8 @@ export class DatabaseStorage implements IStorage {
       }
       return settings;
     });
-    return result || {};
+    // null = YDB error (BadSession, network, etc.), {} = success but no rows
+    return result;
   }
 
   async setPageSectionSettings(pageName: string, sectionId: string, settings: any): Promise<void> {
