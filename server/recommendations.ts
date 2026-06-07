@@ -172,29 +172,35 @@ export async function getRecommendations(
     }
   }
 
-  // ── Layer 2: same-category fallback ────────────────────────────────────
+  // ── Layer 2: same-category fallback (randomised) ───────────────────────
   if (result.length < count) {
     const anchor = productMap.get(productId);
     if (anchor) {
       const needed = count - result.length;
-      const candidates = allProducts
-        .filter((p: any) =>
-          !seenIds.has(p.id) &&
-          !p.isHidden &&
-          isInStock(p) &&
-          p.category === anchor.category
-        )
-        .slice(0, needed);
-
-      for (const p of candidates) {
+      const pool = allProducts.filter((p: any) =>
+        !seenIds.has(p.id) &&
+        !p.isHidden &&
+        isInStock(p) &&
+        p.category === anchor.category
+      );
+      // Fisher-Yates shuffle so every page load shows a different set
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      for (const p of pool.slice(0, needed)) {
         result.push(toProductShape(p));
         seenIds.add(p.id);
       }
     }
   }
 
-  // Cache full result (without exclude filter applied)
-  recommendationCache.set(productId, { products: result, at: Date.now() });
+  // Cache only when co-purchase layer contributed at least one result.
+  // Pure-fallback results are not cached so randomisation stays fresh.
+  const hasCoPurchase = (coPurchaseMap.get(productId)?.size ?? 0) > 0;
+  if (hasCoPurchase) {
+    recommendationCache.set(productId, { products: result, at: Date.now() });
+  }
 
   const excludeSet = new Set(excludeIds);
   return result.filter((p) => !excludeSet.has(p.id)).slice(0, count);
