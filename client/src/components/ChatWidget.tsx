@@ -158,6 +158,28 @@ export function ChatWidget() {
   const openRef = useRef(false);
   openRef.current = open;
 
+  // Animated button expand state
+  const [btnExpanded, setBtnExpanded] = useState(false);
+  const btnExpandRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (open) { setBtnExpanded(false); return; }
+    // First pulse after 5s, then every 11s (3s open + 8s closed)
+    const initial = setTimeout(() => {
+      setBtnExpanded(true);
+      setTimeout(() => setBtnExpanded(false), 3000);
+    }, 5000);
+    btnExpandRef.current = setInterval(() => {
+      setBtnExpanded(true);
+      setTimeout(() => setBtnExpanded(false), 3000);
+    }, 11000);
+    return () => {
+      clearTimeout(initial);
+      if (btnExpandRef.current) clearInterval(btnExpandRef.current);
+      setBtnExpanded(false);
+    };
+  }, [open]);
+
   // Proactive refs
   const peekActiveRef = useRef(false);
   const triggerTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -937,25 +959,38 @@ export function ChatWidget() {
             </button>
             <div className="flex items-start gap-2.5 pr-5">
               <div className="w-7 h-7 rounded-xl bg-black flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Bot className="w-3.5 h-3.5 text-white" />
+                <Sparkles className="w-3.5 h-3.5 text-violet-300" />
               </div>
-              <div>
-                <p className="text-[10px] font-semibold text-black/40 uppercase tracking-wide mb-1">AI-ассистент</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-semibold text-black/40 uppercase tracking-wide mb-1">AI-ассистент BOOOMERANGS</p>
                 <p className="text-xs text-black leading-snug">{peekMessage}</p>
-                <button
-                  onClick={() => {
-                    if (peekTrigger) fetch('/api/ai/proactive-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trigger: peekTrigger, event: 'clicked' }) }).catch(() => {});
-                    const msg = peekMessage;
-                    hidePeek();
-                    setMode('ai');
-                    if (msg) setAiMessages([{ id: `proactive-${Date.now()}`, role: 'assistant', content: msg, products: [] }]);
-                    setOpen(true);
-                  }}
-                  className="mt-2 text-[11px] font-medium text-black underline underline-offset-2 hover:no-underline transition-all"
-                  data-testid="button-peek-open"
-                >
-                  Ответить →
-                </button>
+                <div className="mt-2.5 flex gap-1.5">
+                  <button
+                    onClick={() => {
+                      if (peekTrigger) fetch('/api/ai/proactive-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trigger: peekTrigger, event: 'clicked' }) }).catch(() => {});
+                      const msg = peekMessage;
+                      hidePeek();
+                      setMode('ai');
+                      if (msg) setAiMessages([{ id: `proactive-${Date.now()}`, role: 'assistant', content: msg, products: [] }]);
+                      setOpen(true);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-black text-white text-[11px] font-medium hover:bg-black/80 active:scale-95 transition-all"
+                    data-testid="button-peek-open-ai"
+                  >
+                    <Sparkles className="w-3 h-3" /> AI
+                  </button>
+                  <button
+                    onClick={() => {
+                      hidePeek();
+                      setMode('manager');
+                      setOpen(true);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-black/8 text-black text-[11px] font-medium hover:bg-black/15 active:scale-95 transition-all"
+                    data-testid="button-peek-open-manager"
+                  >
+                    <UserRound className="w-3 h-3" /> Менеджер
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -964,10 +999,23 @@ export function ChatWidget() {
 
       {/* Toggle button */}
       <div className="fixed bottom-6 right-6 z-50">
-        <button onClick={() => setOpen(o => !o)}
-          className="relative w-14 h-14 rounded-2xl bg-black text-white shadow-[0_4px_24px_rgba(0,0,0,0.35)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.45)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center"
-          data-testid="button-chat-toggle" aria-label="Открыть чат">
-          {open ? <X className="w-5 h-5" /> : <ChatIcon />}
+        <button
+          onClick={() => setOpen(o => !o)}
+          data-testid="button-chat-toggle"
+          aria-label="Открыть чат"
+          className={`relative h-14 rounded-2xl bg-black text-white shadow-[0_4px_24px_rgba(0,0,0,0.35)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.45)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-2 overflow-hidden
+            ${open ? 'w-14' : btnExpanded ? 'w-40 px-4' : 'w-14'}`}
+        >
+          {open ? (
+            <X className="w-5 h-5 flex-shrink-0" />
+          ) : (
+            <>
+              <Sparkles className={`w-5 h-5 flex-shrink-0 transition-all duration-300 ${btnExpanded ? 'text-violet-300' : ''}`} />
+              <span className={`text-sm font-semibold whitespace-nowrap transition-all duration-300 ${btnExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
+                Спроси AI
+              </span>
+            </>
+          )}
           {!open && unreadCount > 0 && (
             <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
               {unreadCount > 9 ? "9+" : unreadCount}
