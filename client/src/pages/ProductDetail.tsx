@@ -16,6 +16,7 @@ import SEO from "@/components/SEO";
 import { Minus, Plus, ShoppingBag, ChevronLeft, ChevronRight, Loader2, X, Percent, Heart, ArrowRight, Target, Clock, Landmark, Share2, Check, Home, ZoomIn, ZoomOut, Bell, TrendingUp, TrendingDown, LogIn, AlertTriangle, MapPin, Truck, RotateCcw, Gift, Ruler } from "lucide-react";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import { ProductCard } from "@/components/ProductCard";
+import { RecommendationBlock } from "@/components/RecommendationBlock";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -1956,6 +1957,13 @@ export default function ProductDetail() {
             </div>
           )}
         </section>
+      )}
+
+      {product && (
+        <RecommendationBlock
+          productId={product.id}
+          title="С этим часто берут"
+        />
       )}
 
       {recentlyViewedProducts && recentlyViewedProducts.length > 0 && (

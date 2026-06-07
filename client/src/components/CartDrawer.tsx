@@ -1,4 +1,5 @@
 import { useCart, useRemoveFromCart, useUpdateCartQuantity } from "@/hooks/use-cart";
+import { RecommendationBlock } from "@/components/RecommendationBlock";
 import { useWholesalePrice } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { X, ShoppingBag, ArrowRight, Minus, Plus, Trash2 } from "lucide-react";
@@ -209,6 +210,7 @@ function CartDrawer() {
                   </Button>
                 </div>
               ) : (
+                <>
                 <div className="divide-y divide-border">
                   {cartItems.map((item, index) => {
                     const discountPct = (item.product as any).discountPercent;
@@ -344,6 +346,13 @@ function CartDrawer() {
                     );
                   })}
                 </div>
+                <RecommendationBlock
+                  productId={cartItems[cartItems.length - 1].productId}
+                  exclude={cartItems.map((item) => item.productId)}
+                  title="Добавь к заказу"
+                  compact
+                />
+                </>
               )}
             </div>
 

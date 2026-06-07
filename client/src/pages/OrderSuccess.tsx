@@ -1,5 +1,6 @@
 import { useParams, Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
+import { RecommendationBlock } from "@/components/RecommendationBlock";
 import { CheckCircle, XCircle, Loader2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ interface OrderStatus {
   orderId: number;
   status: string;
   paid: boolean;
+  productIds?: number[];
 }
 
 export default function OrderSuccess() {
@@ -85,7 +87,7 @@ export default function OrderSuccess() {
     <div className="min-h-screen flex flex-col bg-background">
       <SEO title="Заказ оформлен" noindex={true} />
       <Navbar />
-      <main className="flex-1 container mx-auto px-4 py-16 flex items-center justify-center">
+      <main className="flex-1 container mx-auto px-4 py-16 flex flex-col items-center gap-8">
         <Card className="max-w-md w-full text-center">
           <CardHeader>
             <div className="flex justify-center mb-4">
@@ -154,6 +156,14 @@ export default function OrderSuccess() {
             )}
           </CardContent>
         </Card>
+        {isPaid && orderStatus?.productIds && orderStatus.productIds.length > 0 && (
+          <div className="w-full">
+            <RecommendationBlock
+              productId={orderStatus.productIds[0]}
+              title="К вашему заказу также подойдёт"
+            />
+          </div>
+        )}
       </main>
       <Footer />
     </div>

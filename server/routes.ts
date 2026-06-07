@@ -28,6 +28,7 @@ import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
 import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notifyPreorderStatusChange, registerWholesaleWebhook, sendChatNotification, registerChatWebhook, notifyNewReview, notifyMerchOrder, answerCallbackQuery, editMessageText } from "./telegram";
 import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyNewReview, vkNotifyMerchOrder, verifyActionLink } from "./vk";
+import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
 
 // ==================== Admin Auth ====================
 const rateLimitMap = new Map<string, { attempts: number; blockedUntil: number }>();
@@ -3980,6 +3981,7 @@ BMGBRAND — официальный производитель и магазин
                 await storage.updateOrderStatus(numericId, "paid");
                 await storage.updateOrderPaymentId(numericId, paymentId);
                 console.log(`[YooKassa Webhook] Order ${numericId} marked as paid`);
+                updateCoPurchaseIndex(order.items);
 
                 try {
                   const itemsForStock = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
@@ -4423,6 +4425,9 @@ BMGBRAND — официальный производитель и магазин
                 await storage.updateOrderStatus(numericId, "paid");
                 await storage.updateOrderPaymentId(numericId, String(PaymentId));
                 console.log(`[T-Bank Webhook] Order ${numericId} marked as paid`);
+                storage.getOrder(numericId).then((o: any) => {
+                  if (o) updateCoPurchaseIndex(o.items);
+                }).catch(() => {});
 
                 // Start hold-period for partner commission once payment succeeded.
                 // Status STAYS "pending" — admin must manually press "Подтвердить" after hold expires.
@@ -4736,6 +4741,7 @@ BMGBRAND — официальный производитель и магазин
           await storage.updateOrderStatus(orderId, "paid");
           if (orderID) await storage.updateOrderPaymentId(orderId, orderID);
           console.log(`[OzonPay Webhook] Order ${orderId} marked as paid`);
+          updateCoPurchaseIndex(order.items);
 
           try {
             const itemsForStock = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
@@ -9737,6 +9743,26 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  app.get("/api/products/:id/recommendations", async (req, res) => {
+    try {
+      const productId = Number(req.params.id);
+      if (isNaN(productId) || productId <= 0) {
+        return res.status(400).json({ message: "Invalid product id" });
+      }
+      const count = Math.min(Number(req.query.count) || 6, 12);
+      const excludeParam = req.query.exclude as string | undefined;
+      const excludeIds = excludeParam
+        ? excludeParam.split(",").map(Number).filter((n) => !isNaN(n) && n > 0)
+        : [];
+      const products = await getRecommendations(productId, storage, count, excludeIds);
+      res.set("Cache-Control", "public, max-age=120");
+      res.json(products);
+    } catch (err: any) {
+      console.error("[API] Recommendations error:", err?.message);
+      res.status(500).json({ message: "Failed to get recommendations" });
+    }
+  });
+
   // 1C Sync API
   app.post("/api/sync/products", async (req, res) => {
     const apiKey = req.headers["x-api-key"];
@@ -10880,10 +10906,18 @@ BMGBRAND — официальный производитель и магазин
 
       // If order already has a final status, return it
       if (order.status === "paid" || order.status === "cancelled") {
+        let productIds: number[] = [];
+        if (order.status === "paid") {
+          try {
+            const it = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+            if (Array.isArray(it)) productIds = it.map((i: any) => Number(i.productId ?? i.id)).filter((id: number) => !isNaN(id) && id > 0);
+          } catch {}
+        }
         return res.json({ 
           orderId: order.id,
           status: order.status,
-          paid: order.status === "paid"
+          paid: order.status === "paid",
+          productIds,
         });
       }
 
@@ -10936,10 +10970,16 @@ BMGBRAND — официальный производитель и магазин
               console.error(`[Payment Poll] getOrderBitrixDealId failed for order ${order.id}:`, err?.message || err)
             );
 
+            let productIds: number[] = [];
+            try {
+              const it = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+              if (Array.isArray(it)) productIds = it.map((i: any) => Number(i.productId ?? i.id)).filter((id: number) => !isNaN(id) && id > 0);
+            } catch {}
             return res.json({
               orderId: order.id,
               status: "paid",
-              paid: true
+              paid: true,
+              productIds,
             });
           } else if (paymentStatus.status === "canceled") {
             await storage.updateOrderStatus(order.id, "cancelled");
@@ -10962,10 +11002,18 @@ BMGBRAND — официальный производитель и магазин
         }
       }
 
+      let productIds: number[] = [];
+      if (order.status === "paid") {
+        try {
+          const it = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+          if (Array.isArray(it)) productIds = it.map((i: any) => Number(i.productId ?? i.id)).filter((id: number) => !isNaN(id) && id > 0);
+        } catch {}
+      }
       res.json({ 
         orderId: order.id,
         status: order.status,
-        paid: order.status === "paid"
+        paid: order.status === "paid",
+        productIds,
       });
     } catch (err: any) {
       console.error("[Orders] Status check error:", err.message);

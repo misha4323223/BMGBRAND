@@ -385,6 +385,12 @@ async function seedDefaultLegalDocuments() {
           console.error("[Warmup] Failed to preload products:", err);
         }
         try {
+          const { buildCoPurchaseIndex } = await import("./recommendations");
+          await buildCoPurchaseIndex(storage);
+        } catch (err: any) {
+          console.error("[Warmup] Failed to build co-purchase index:", err?.message);
+        }
+        try {
           await warmRatingsCache(storage as any);
         } catch (err) {
           console.error("[Warmup] Failed to warm ratings cache:", err);
