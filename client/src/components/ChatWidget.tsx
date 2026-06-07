@@ -195,17 +195,17 @@ export function ChatWidget() {
     setTimeout(() => { setPeekMessage(null); setPeekTrigger(null); }, 300);
   }, []);
 
-  const firePeek = useCallback((message: string, trigger: string) => {
+  const firePeek = useCallback((message: string, trigger: string, opts?: { skipSessionCache?: boolean }) => {
     if (openRef.current) return;
     if (peekActiveRef.current) return;
-    if (sessionStorage.getItem(`proactive_fired_${trigger}`)) return;
+    if (!opts?.skipSessionCache && sessionStorage.getItem(`proactive_fired_${trigger}`)) return;
     const dismissedUntil = localStorage.getItem('proactive_dismissed_until');
     if (dismissedUntil && Date.now() < parseInt(dismissedUntil)) return;
     setPeekMessage(message);
     setPeekTrigger(trigger);
     lastTriggerRef.current = trigger;
     setTimeout(() => setPeekAnimated(true), 50);
-    sessionStorage.setItem(`proactive_fired_${trigger}`, '1');
+    if (!opts?.skipSessionCache) sessionStorage.setItem(`proactive_fired_${trigger}`, '1');
     peekAutoHideRef.current = setTimeout(hidePeek, 10000);
     fetch('/api/ai/proactive-event', {
       method: 'POST',
@@ -229,7 +229,7 @@ export function ChatWidget() {
     const isCatalog = location.startsWith('/products');
     if (isHome) {
       triggerTimersRef.current.push(setTimeout(() =>
-        firePeek('Привет! Я AI-ассистент BOOOMERANGS. Отвечу про доставку, размеры и оплату — мгновенно 🙌', 'home_newuser'), 20000));
+        firePeek('Хей! 🤙 Я BOOOM AI — здесь разбираюсь во всём: состав, размеры, доставка, акции. Пишите — помогу быстрее менеджера', 'home_newuser', { skipSessionCache: true }), 20000));
     }
     if (productPageCtx) {
       const name = productPageCtx.name;
