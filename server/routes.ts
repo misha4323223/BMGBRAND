@@ -2870,10 +2870,11 @@ BMGBRAND — официальный производитель и магазин
       }
 
       // --- Product search by keywords from the last user message ---
+      // Skip keyword search when user is already on a product page — context already injected above
       const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
       let productContext = "";
       let matched: any[] = [];
-      if (lastUserMsg?.content) {
+      if (lastUserMsg?.content && pageContext?.pageType !== "product") {
         const query = (lastUserMsg.content as string).toLowerCase();
 
         // Subcategory keyword map: query keyword → subcategory name (ru, partial match)
@@ -2910,7 +2911,7 @@ BMGBRAND — официальный производитель и магазин
         ];
 
         // Stop words — ignore when extracting name keywords
-        const stopWords = new Set(["есть", "ли", "у", "вас", "мне", "что", "как", "где", "какие", "какой", "какая", "хочу", "можно", "нужен", "нужна", "покажи", "покажите", "дай", "дайте", "расскажи", "помоги", "хотел", "хотела"]);
+        const stopWords = new Set(["есть", "ли", "у", "вас", "мне", "что", "как", "где", "какие", "какой", "какая", "хочу", "можно", "нужен", "нужна", "покажи", "покажите", "дай", "дайте", "расскажи", "помоги", "хотел", "хотела", "про", "при", "для", "под", "над", "без", "все", "это", "этот", "эту", "эта", "эти", "той", "тот", "там", "тут", "еще", "ещё", "уже", "очень", "весь", "вся", "всё", "они", "она", "оно", "его", "её", "их", "мой", "твой", "свой"]);
 
         // Extract meaningful name keywords from query
         const nameKeywords = query
