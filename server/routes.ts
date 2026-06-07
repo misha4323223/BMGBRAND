@@ -2861,6 +2861,8 @@ BMGBRAND — официальный производитель и магазин
         const stockLines = Object.entries(sizeStock).filter(([, q]) => (q as number) > 0).map(([s, q]) => `${s}: ${q} шт.`);
         const stockStr = stockLines.length > 0 ? stockLines.join(", ") : (p.stock > 0 ? `в наличии ${p.stock} шт.` : "нет в наличии");
         pageContextStr = `\n\n## Текущий товар (пользователь смотрит эту карточку прямо сейчас)\n- Название: ${p.name}\n- Цена: ${priceStr}\n- Цвет: ${p.color || "не указан"}\n- Состав: ${p.composition || "не указан"}\n- Описание: ${(p.description || "").slice(0, 400)}\n- Наличие по размерам: ${stockStr}\n- Категория: ${p.subcategory || p.category || "не указана"}\n\nЕсли пользователь спрашивает про этот товар (состав, размеры, цвет, наличие) — отвечай на основе этих данных.`;
+      } else if (pageContext?.pageType === "cart_remove" && pageContext.removedProductName) {
+        pageContextStr = `\n\n## Контекст\nПользователь только что удалил товар «${pageContext.removedProductName}» из корзины. Ты написал ему проактивное сообщение с предложением помочь подобрать замену. Теперь пользователь отвечает на это предложение. Помоги ему найти похожие товары или ответь на его вопрос, зная что он искал что-то похожее на «${pageContext.removedProductName}».`;
       } else if (pageContext?.pageType === "cart") {
         pageContextStr = "\n\n## Текущая страница\nПользователь сейчас находится в корзине.";
       } else if (pageContext?.pageType === "checkout") {

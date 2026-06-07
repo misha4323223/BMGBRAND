@@ -263,6 +263,7 @@ function CartDrawer() {
                                   productId: item.productId,
                                   size: item.size,
                                   color: item.color,
+                                  productName: item.product?.name,
                                 })
                               }
                               data-testid={`button-drawer-remove-${item.productId}`}
@@ -286,6 +287,7 @@ function CartDrawer() {
                                       productId: item.productId,
                                       size: item.size,
                                       color: item.color,
+                                      productName: item.product?.name,
                                     });
                                   } else {
                                     updateQuantity.mutate({

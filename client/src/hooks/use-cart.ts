@@ -152,6 +152,7 @@ interface RemoveCartItemParams {
   productId: number;
   size: string | null;
   color: string | null;
+  productName?: string;
 }
 
 export function useRemoveFromCart() {
@@ -191,13 +192,13 @@ export function useRemoveFromCart() {
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data: void, _variables: RemoveCartItemParams) => {
       toast({
         title: "УДАЛЕНО",
         description: "Товар удален из корзины.",
         className: "bg-black text-white border-primary",
       });
-      window.dispatchEvent(new CustomEvent('cart-item-removed'));
+      window.dispatchEvent(new CustomEvent('cart-item-removed', { detail: { productName: _variables?.productName || '' } }));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [api.cart.list.path] });

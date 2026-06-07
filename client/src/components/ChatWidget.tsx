@@ -162,6 +162,7 @@ export function ChatWidget() {
   const peekActiveRef = useRef(false);
   const triggerTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const peekAutoHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cartRemovedProductRef = useRef<string | null>(null);
 
   useEffect(() => { peekActiveRef.current = peekMessage !== null; }, [peekMessage]);
 
@@ -236,10 +237,16 @@ export function ChatWidget() {
   // Cart item removed — offer help after 3s
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const onRemoved = () => {
+    const onRemoved = (e: Event) => {
+      const productName = (e as CustomEvent<{ productName: string }>).detail?.productName || '';
+      cartRemovedProductRef.current = productName || null;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        firePeek('Передумали? Помогу подобрать замену или рассказать про похожие товары 🛍️', 'cart_remove');
+        const name = cartRemovedProductRef.current;
+        const msg = name
+          ? `Передумали насчёт «${name}»? Помогу подобрать замену или похожие товары 🛍️`
+          : 'Передумали? Помогу подобрать замену или рассказать про похожие товары 🛍️';
+        firePeek(msg, 'cart_remove');
       }, 3000);
     };
     window.addEventListener('cart-item-removed', onRemoved);
@@ -352,7 +359,9 @@ export function ChatWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          pageContext: { pageType, product: productPageCtx ?? undefined, artist: artistPageCtx ?? undefined },
+          pageContext: cartRemovedProductRef.current
+            ? { pageType: "cart_remove", removedProductName: cartRemovedProductRef.current, product: productPageCtx ?? undefined }
+            : { pageType, product: productPageCtx ?? undefined, artist: artistPageCtx ?? undefined },
         }),
       });
       const data = await res.json();

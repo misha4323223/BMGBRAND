@@ -178,6 +178,7 @@ export default function Cart() {
                           productId: item.productId,
                           size: item.size,
                           color: item.color,
+                          productName: item.product?.name,
                         })}
                         data-testid={`button-remove-cart-item-${item.id}`}
                         className="text-muted-foreground hover:text-destructive transition-colors p-1"
