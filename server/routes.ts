@@ -2867,6 +2867,10 @@ BMGBRAND — официальный производитель и магазин
         pageContextStr = "\n\n## Текущая страница\nПользователь сейчас оформляет заказ.";
       } else if (pageContext?.pageType === "home") {
         pageContextStr = "\n\n## Текущая страница\nПользователь сейчас на главной странице сайта.";
+      } else if (pageContext?.pageType === "artist" && pageContext.artist) {
+        const a = pageContext.artist;
+        const productLines = (a.products || []).map((p: any) => `${p.name} — ${Number(p.price).toLocaleString("ru-RU")} ₽`).join(", ");
+        pageContextStr = `\n\n## Страница артиста (пользователь сейчас здесь)\n- Имя: ${a.name}${a.role ? ` (${a.role})` : ""}\n${a.description ? `- Описание: ${a.description}\n` : ""}- Товары в коллаборации: ${productLines || "загружаются"}\n\nЕсли пользователь спрашивает об этом артисте, его истории, коллаборации или товарах — отвечай на основе этих данных.`;
       }
 
       // --- Product search by keywords from the last user message ---
@@ -2874,7 +2878,7 @@ BMGBRAND — официальный производитель и магазин
       const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
       let productContext = "";
       let matched: any[] = [];
-      if (lastUserMsg?.content && pageContext?.pageType !== "product") {
+      if (lastUserMsg?.content && pageContext?.pageType !== "product" && pageContext?.pageType !== "artist") {
         const query = (lastUserMsg.content as string).toLowerCase();
 
         // Subcategory keyword map: query keyword → subcategory name (ru, partial match)

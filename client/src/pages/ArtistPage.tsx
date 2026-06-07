@@ -557,6 +557,26 @@ export default function ArtistPage() {
 
   const productsQueryLoading = slugLoading;
 
+  // Notify AI chat widget about current artist context
+  useEffect(() => {
+    if (!slug || !artistName) return;
+    window.dispatchEvent(new CustomEvent("set-artist-context", {
+      detail: {
+        slug,
+        name: artistName,
+        role: settings.role || "",
+        description: (settings.shortDescription || settings.aboutText || "").slice(0, 300),
+        products: products.slice(0, 8).map((p: any) => ({
+          name: p.name,
+          price: p.price ? Math.round(p.price / 100) : 0,
+        })),
+      },
+    }));
+    return () => {
+      window.dispatchEvent(new Event("clear-artist-context"));
+    };
+  }, [slug, artistName, products.length]);
+
   const galleryImages = settings.galleryImages?.filter(Boolean) || [];
   const aboutImages = settings.aboutImages?.filter(Boolean) || [];
 

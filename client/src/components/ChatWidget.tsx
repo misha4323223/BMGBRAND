@@ -71,6 +71,14 @@ interface ProductPageContext {
   subcategory?: string;
 }
 
+interface ArtistPageContext {
+  slug: string;
+  name: string;
+  role?: string;
+  description?: string;
+  products: Array<{ name: string; price: number }>;
+}
+
 interface ChatMessage {
   messageId: string;
   sender: "client" | "admin";
@@ -116,6 +124,7 @@ export function ChatWidget() {
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [productPageCtx, setProductPageCtx] = useState<ProductPageContext | null>(null);
+  const [artistPageCtx, setArtistPageCtx] = useState<ArtistPageContext | null>(null);
 
   // Size advisor state
   const [sizeAdvisorProduct, setSizeAdvisorProduct] = useState<SizeAdvisorProduct | null>(null);
@@ -177,6 +186,21 @@ export function ChatWidget() {
     };
   }, []);
 
+  // --- Artist page context: track current artist for AI ---
+  useEffect(() => {
+    const setHandler = (e: Event) => {
+      const ev = e as CustomEvent<ArtistPageContext>;
+      setArtistPageCtx(ev.detail);
+    };
+    const clearHandler = () => setArtistPageCtx(null);
+    window.addEventListener("set-artist-context", setHandler);
+    window.addEventListener("clear-artist-context", clearHandler);
+    return () => {
+      window.removeEventListener("set-artist-context", setHandler);
+      window.removeEventListener("clear-artist-context", clearHandler);
+    };
+  }, []);
+
   // --- AI logic ---
   const sendAiMessage = async (text: string) => {
     if (!text.trim() || aiLoading) return;
@@ -192,6 +216,7 @@ export function ChatWidget() {
       : location.startsWith("/checkout") ? "checkout"
       : location === "/" ? "home"
       : location.startsWith("/products") ? "catalog"
+      : artistPageCtx ? "artist"
       : productPageCtx ? "product"
       : "other";
 
@@ -201,7 +226,7 @@ export function ChatWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          pageContext: { pageType, product: productPageCtx ?? undefined },
+          pageContext: { pageType, product: productPageCtx ?? undefined, artist: artistPageCtx ?? undefined },
         }),
       });
       const data = await res.json();
@@ -253,7 +278,7 @@ export function ChatWidget() {
         body: JSON.stringify({
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
           productId,
-          pageContext: { pageType: "product", product: productPageCtx ?? undefined },
+          pageContext: { pageType: "product", product: productPageCtx ?? undefined, artist: artistPageCtx ?? undefined },
         }),
       });
       const data = await res.json();
