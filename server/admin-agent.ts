@@ -18,8 +18,8 @@ const SYSTEM_PROMPT = `Ты — AI-ассистент администратор
 - hide_product — скрыть/показать товар.
   params: { id: number, hidden: boolean }
 - create_promo_code — создать промокод.
-  params: { code: string, discountPercent?: number, discountAmount?: number, expiresAt?: string, isActive: boolean, maxUses?: number, minOrderAmount?: number }
-  discountAmount тоже в КОПЕЙКАХ.
+  params: { code: string, discountPercent?: number, discountAmount?: number, startsAt?: string, expiresAt?: string, isActive: boolean, maxUses?: number, minOrderAmount?: number }
+  discountAmount тоже в КОПЕЙКАХ. Даты startsAt/expiresAt в формате ISO 8601 (например "2025-06-15T00:00:00Z").
 - update_promo_code — обновить промокод.
   params: { id: number, fields: object }
 - delete_promo_code — удалить промокод.
@@ -188,6 +188,7 @@ export async function executeWriteTool(tool: string, params: any): Promise<strin
         discountPercent: params.discountPercent ?? null,
         discountAmount: params.discountAmount ?? null,
         isActive: params.isActive ?? true,
+        startsAt: params.startsAt ? new Date(params.startsAt) : null,
         expiresAt: params.expiresAt ? new Date(params.expiresAt) : null,
         maxUses: params.maxUses ?? null,
         minOrderAmount: params.minOrderAmount ?? null,
