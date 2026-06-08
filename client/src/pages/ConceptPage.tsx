@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowRight, Package, Bell, CheckCircle2, ShoppingCart, X } from "lucide-react";
+import { ArrowRight, Package, Bell, CheckCircle2, ShoppingCart, X, ArrowLeft } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -147,9 +147,7 @@ export default function ConceptPage() {
         description="Pre-drop BOOOMERANGS — поддержи создание новых моделей одежды с авторскими принтами. Голосуй рублём за то, что хочешь носить."
         keywords="предзаказ, pre-drop, российский бренд одежды с авторскими принтами, BOOOMERANGS"
       />
-      <Navbar />
-
-      {/* Hero banner */}
+      {/* Hero banner с оверлеями */}
       <section className="bg-black relative overflow-hidden">
         {/* Desktop image */}
         <img
@@ -163,31 +161,36 @@ export default function ConceptPage() {
           alt="Предзаказ — твой доступ к будущим релизам"
           className="block sm:hidden w-full object-cover"
         />
-      </section>
 
-      {/* Subscription form */}
-      <section className="bg-foreground text-background py-8 sm:py-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="max-w-xl">
+        {/* Кнопка «назад» — верхний левый угол */}
+        <button
+          onClick={() => window.history.length > 1 ? window.history.back() : window.location.href = '/'}
+          className="absolute top-4 left-4 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-white px-2 py-2 sm:px-3 rounded-full text-sm font-medium hover:bg-black/70 transition-colors"
+          data-testid="button-back-hero"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="hidden sm:inline">Назад</span>
+        </button>
+
+        {/* Форма подписки — левый нижний угол */}
+        <div className="absolute bottom-0 left-0 right-0 sm:right-auto p-4 sm:p-6 sm:max-w-sm md:max-w-md z-10">
+          <div className="bg-black/60 backdrop-blur-md rounded-xl p-4 sm:p-5 border border-white/10">
             {subscribed ? (
-              <div className="flex items-center gap-3 bg-background/10 border border-background/10 rounded-xl px-5 py-4" data-testid="preorder-subscribed-message">
+              <div className="flex items-center gap-3" data-testid="preorder-subscribed-message">
                 <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-background">Ты подписан!</p>
-                  <p className="text-xs text-background/40 mt-0.5">Пришлём письмо при запуске нового предзаказа</p>
+                  <p className="text-sm font-semibold text-white">Ты подписан!</p>
+                  <p className="text-xs text-white/50 mt-0.5">Пришлём письмо при запуске нового предзаказа</p>
                 </div>
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2">
                   <Bell className="w-4 h-4 text-primary shrink-0" />
-                  <span className="text-sm font-semibold text-background tracking-tight">
+                  <span className="text-sm font-semibold text-white tracking-tight">
                     Узнай первым о новом предзаказе
                   </span>
                 </div>
-                <p className="text-xs text-background/40 leading-relaxed">
-                  Подпишись — пришлём письмо, как только откроется следующий предзаказ
-                </p>
                 <div className="flex gap-2">
                   <Input
                     type="email"
@@ -195,7 +198,7 @@ export default function ConceptPage() {
                     value={subEmail}
                     onChange={e => setSubEmail(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && subEmail && agreed && subscribeMutation.mutate()}
-                    className="bg-background/10 border-background/15 text-background placeholder:text-background/25 focus-visible:border-primary focus-visible:ring-0 h-9 text-sm"
+                    className="bg-white/10 border-white/15 text-white placeholder:text-white/30 focus-visible:border-primary focus-visible:ring-0 h-9 text-sm"
                     data-testid="input-preorder-email"
                   />
                   <Button
@@ -216,7 +219,7 @@ export default function ConceptPage() {
                     className="mt-0.5 accent-primary shrink-0"
                     data-testid="checkbox-preorder-agree"
                   />
-                  <span className="text-[11px] text-background/35 group-hover:text-background/50 transition-colors leading-relaxed">
+                  <span className="text-[11px] text-white/40 group-hover:text-white/60 transition-colors leading-relaxed">
                     Соглашаюсь получать уведомления о новых предзаказах. Отписаться можно в любой момент в личном кабинете.
                   </span>
                 </label>
@@ -226,7 +229,6 @@ export default function ConceptPage() {
               </div>
             )}
           </div>
-          <div className="h-px bg-background/10 mt-8 sm:mt-10" />
         </div>
       </section>
 
