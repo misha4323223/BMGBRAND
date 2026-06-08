@@ -42,8 +42,8 @@ function isVisible(p: any): boolean {
   if (p.isHidden === true || p.isHidden === 'true' || p.isHidden === 1) return false;
   // Must have a real price
   if (!p.price || Number(p.price) <= 0) return false;
-  // Must have an image
-  if (!p.imageUrl) return false;
+  // Must have a real remote image (local paths = not published on site)
+  if (!p.imageUrl || !String(p.imageUrl).startsWith('http')) return false;
   // Must have stock
   if (p.sizeStock && typeof p.sizeStock === 'object') {
     return Object.values(p.sizeStock as Record<string, number>).some((n) => Number(n) > 0);
