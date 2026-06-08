@@ -149,3 +149,9 @@ id = "5V9CjpRMG6Urwtq1oLj1d"
 uri = "file://attached_assets/result.webp"
 type = "image"
 title = "Изображение без белой полосы (WebP, 0.73 МБ)"
+
+[[outputs]]
+id = "zYZfkWC1_BJrwvhjDiSIN"
+uri = "file://attached_assets/dikaya_myata_images.zip"
+type = "unspecified"
+title = "Изображения страницы Дикая Мята (11 фото, WebP)"
