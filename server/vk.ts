@@ -367,12 +367,14 @@ export async function sendVkChatNotification(
   sessionId: string,
   text: string,
   userName?: string,
-  imageUrl?: string
+  imageUrl?: string,
+  isWholesale?: boolean
 ): Promise<number | null> {
   const { token, peerId } = getConfig();
   if (!token || !peerId) return null;
 
-  const header = userName ? `💬 ${userName}:` : `💬 Сообщение:`;
+  const prefix = isWholesale ? '🏭 ОПТ' : '💬';
+  const header = userName ? `${prefix} ${userName}:` : `${prefix} Сообщение:`;
   const body_text = imageUrl
     ? `${header}\n${text ? text + "\n" : ""}📷 ${imageUrl}`
     : `${header}\n${text}`;
@@ -510,7 +512,11 @@ async function runLongPoll(
             continue;
           }
 
-          const replyText: string = (msg.text || '').trim();
+          const rawText: string = (msg.text || '').trim();
+          const replyText = rawText
+            .replace(/^\[Ответ\][\s\S]*?\n\n/m, '')
+            .replace(/^\[Ответ\][^\n]*\n?/m, '')
+            .trim();
           if (!replyText) continue;
 
           const adminName = 'Менеджер';

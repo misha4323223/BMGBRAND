@@ -2802,7 +2802,7 @@ BMGBRAND — официальный производитель и магазин
       const timestamp = Date.now();
       const msgText = text?.trim() || (imageUrl ? '📷 Фото' : '');
       const tgMessageId = await sendChatNotification(sessionId, msgText, effectiveUserName, isWholesale, imageUrl || undefined);
-      const vkMessageId = await sendVkChatNotification(sessionId, text?.trim() || '', effectiveUserName, imageUrl || undefined);
+      const vkMessageId = await sendVkChatNotification(sessionId, text?.trim() || '', effectiveUserName, imageUrl || undefined, isWholesale);
       await storage.saveChatMessage({
         messageId,
         sessionId,
