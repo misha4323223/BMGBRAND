@@ -4023,6 +4023,38 @@ BMGBRAND — официальный производитель и магазин
                 await storage.incrementPreorderCurrent(pid as number);
               }
               console.log(`[YooKassa Webhook] Multi-preorder paid: order ${multiOrderId}, products: [${uniqueProductIds.join(', ')}]`);
+              const multiProductNames = [...new Set(multiItems.map((i: any) => i.productName).filter(Boolean))].join(", ");
+              const notifData = {
+                orderId: multiOrderId,
+                productName: multiProductNames || "Предзаказ (несколько товаров)",
+                customerName: multiOrder.customerName,
+                customerEmail: multiOrder.customerEmail,
+                depositAmount: multiOrder.total,
+                totalAmount: multiOrder.total,
+                items: multiItems.map((i: any) => ({ size: i.size, quantity: i.quantity || 1 })),
+                color: multiItems[0]?.color || undefined,
+                shippingDate: null,
+              };
+              notifyPreorderDeposit(notifData);
+              vkNotifyPreorderDeposit(notifData);
+              if (multiOrder.customerEmail) {
+                try {
+                  const emailHtml = getPreorderDepositPaidEmailHtml({
+                    id: multiOrder.id,
+                    customerName: multiOrder.customerName,
+                    total: multiOrder.total,
+                    items: multiItems,
+                  });
+                  await sendEmail({
+                    to: multiOrder.customerEmail,
+                    subject: `Предзаказ #${multiOrder.id} оплачен — BOOOMERANGS`,
+                    html: emailHtml,
+                  });
+                  console.log(`[YooKassa Webhook] Multi-preorder email sent to ${multiOrder.customerEmail}`);
+                } catch (emailErr: any) {
+                  console.error(`[YooKassa Webhook] Failed to send multi-preorder email:`, emailErr.message);
+                }
+              }
             }
           }
         } else if (orderId.startsWith("PREORDER-")) {
@@ -4440,6 +4472,38 @@ BMGBRAND — официальный производитель и магазин
                 await storage.incrementPreorderCurrent(pid as number);
               }
               console.log(`[T-Bank Webhook] Multi-preorder paid: order ${multiOrderId}, products: [${uniqueProductIds.join(', ')}]`);
+              const multiProductNames = [...new Set(multiItems.map((i: any) => i.productName).filter(Boolean))].join(", ");
+              const notifData = {
+                orderId: multiOrderId,
+                productName: multiProductNames || "Предзаказ (несколько товаров)",
+                customerName: multiOrder.customerName,
+                customerEmail: multiOrder.customerEmail,
+                depositAmount: multiOrder.total,
+                totalAmount: multiOrder.total,
+                items: multiItems.map((i: any) => ({ size: i.size, quantity: i.quantity || 1 })),
+                color: multiItems[0]?.color || undefined,
+                shippingDate: null,
+              };
+              notifyPreorderDeposit(notifData);
+              vkNotifyPreorderDeposit(notifData);
+              if (multiOrder.customerEmail) {
+                try {
+                  const emailHtml = getPreorderDepositPaidEmailHtml({
+                    id: multiOrder.id,
+                    customerName: multiOrder.customerName,
+                    total: multiOrder.total,
+                    items: multiItems,
+                  });
+                  await sendEmail({
+                    to: multiOrder.customerEmail,
+                    subject: `Предзаказ #${multiOrder.id} оплачен — BOOOMERANGS`,
+                    html: emailHtml,
+                  });
+                  console.log(`[T-Bank Webhook] Multi-preorder email sent to ${multiOrder.customerEmail}`);
+                } catch (emailErr: any) {
+                  console.error(`[T-Bank Webhook] Failed to send multi-preorder email:`, emailErr.message);
+                }
+              }
             }
           }
         } else if (OrderId.startsWith("PREORDER-")) {
