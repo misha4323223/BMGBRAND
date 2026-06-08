@@ -218,7 +218,7 @@ export default function ConceptPage() {
                     type="checkbox"
                     checked={agreed}
                     onChange={e => setAgreed(e.target.checked)}
-                    className="mt-0.5 accent-primary shrink-0"
+                    className="mt-0.5 shrink-0" style={{ accentColor: "#D7FF00" }}
                     data-testid="checkbox-preorder-agree"
                   />
                   <span className="text-[11px] text-white/40 group-hover:text-white/60 transition-colors leading-relaxed">
