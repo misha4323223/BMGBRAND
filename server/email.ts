@@ -622,105 +622,13 @@ export function getOrderCancelledAdminEmailHtml(order: {
   `;
 }
 
-export function getPreorderDepositEmailHtml(order: {
-  id: number;
-  customerName: string;
-  customerEmail: string;
-  total: number;
-  depositAmount: number;
-  remainingAmount: number;
-  items: any[];
-}): string {
-  const fmt = (v: number) => (v / 100).toLocaleString('ru-RU') + ' \u20BD';
-  const productItems = order.items.filter((item: any) => !item._discountDetails);
-
-  const itemsHtml = productItems.map((item: any) => `
-    <tr>
-      <td style="padding: 10px 0; border-bottom: 1px solid #eee;">
-        ${item.productName || 'Товар'}
-        ${item.size ? ` <span style="color: #666;">(${item.size})</span>` : ''}
-        ${item.color && item.color !== 'Default' ? ` <span style="color: #666;">\u2014 ${item.color}</span>` : ''}
-      </td>
-      <td style="padding: 10px 0; border-bottom: 1px solid #eee; text-align: center;">${item.quantity || 1}</td>
-      <td style="padding: 10px 0; border-bottom: 1px solid #eee; text-align: right; white-space: nowrap;">${fmt((item.price || 0) * (item.quantity || 1))}</td>
-    </tr>
-  `).join('');
-
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .logo { font-size: 24px; font-weight: bold; color: #1C1C1C; }
-        .logo span { color: #E53935; }
-        .status { background: #e8f5e9; color: #2e7d32; padding: 12px 20px; border-radius: 8px; text-align: center; font-weight: bold; margin: 20px 0; }
-        .order-info { background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0; }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th { text-align: left; padding: 8px 0; border-bottom: 2px solid #1C1C1C; font-size: 13px; text-transform: uppercase; color: #666; }
-        .breakdown { background: #fafafa; border-radius: 8px; padding: 15px; margin: 15px 0; }
-        .breakdown td { font-size: 14px; }
-        .footer { margin-top: 40px; font-size: 12px; color: #666; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="logo">BOOOMERANGS</div>
-        
-        <div class="status">Предзаказ оплачен</div>
-        
-        <p>Привет, ${order.customerName}!</p>
-        <p>Спасибо за оформление предзаказа <strong>#${order.id}</strong>! Оплата успешно прошла.</p>
-        
-        <table>
-          <thead>
-            <tr>
-              <th>Товар</th>
-              <th style="text-align: center;">Кол-во</th>
-              <th style="text-align: right;">Сумма</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsHtml}
-          </tbody>
-        </table>
-        
-        <div class="breakdown">
-          <table>
-            <tbody>
-              <tr>
-                <td style="padding: 10px 0 0; font-weight: bold; font-size: 16px; color: #2e7d32;">Оплачено</td>
-                <td style="padding: 10px 0 0; text-align: right; font-weight: bold; font-size: 16px; color: #2e7d32;">${fmt(order.total)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        
-        <div class="order-info">
-          <p style="margin: 0;"><strong>Что дальше?</strong></p>
-          <p style="margin: 5px 0 0;">Мы начнём производство, как только завершится сбор предзаказов. Вы получите уведомление о каждом этапе: начало производства и отправка. Следите за статусом в личном кабинете!</p>
-        </div>
-        
-        <p>Вы можете отслеживать статус предзаказа в <a href="https://www.booomerangs.ru/profile" style="color: #E53935;">личном кабинете</a>.</p>
-        
-        <div class="footer">
-          <p>&copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.</p>
-          <p>booomerangs.ru</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-}
-
-export function getPreorderDepositPaidEmailHtml(order: {
+export function getPreorderPaidEmailHtml(order: {
   id: number;
   customerName: string;
   total: number;
   items: any[];
-  productName?: string;
+  deliveryType?: string;
+  deliveryAddress?: string;
 }): string {
   const fmt = (v: number) => (v / 100).toLocaleString('ru-RU') + ' \u20BD';
   const productItems = order.items.filter((item: any) => !item._discountDetails);
@@ -737,100 +645,20 @@ export function getPreorderDepositPaidEmailHtml(order: {
     </tr>
   `).join('');
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1C1C1C; margin: 0; padding: 0; background-color: #f7f7f7;">
-      <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        
-        <div style="background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
-          
-          <div style="background: linear-gradient(135deg, #1C1C1C 0%, #2d2d2d 100%); padding: 32px 24px; text-align: center;">
-            <div style="font-size: 28px; font-weight: 800; letter-spacing: 2px;">
-              <span style="color: #ffffff;">BOOOMERANGS</span>
-            </div>
-          </div>
-          
-          <div style="padding: 0 24px;">
-            <div style="background: linear-gradient(135deg, #E53935 0%, #c62828 100%); color: #ffffff; padding: 16px 24px; border-radius: 12px; text-align: center; margin: -20px 0 24px 0; position: relative; box-shadow: 0 4px 12px rgba(229,57,53,0.3);">
-              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.9; margin-bottom: 4px;">PRE-ORDER</div>
-              <div style="font-size: 18px; font-weight: 700;">Предзаказ оформлен и оплачен</div>
-            </div>
-            
-            <p style="font-size: 15px; color: #333; margin: 0 0 8px 0;">Привет, <strong>${order.customerName}</strong>!</p>
-            <p style="font-size: 15px; color: #555; margin: 0 0 24px 0;">Ваш предзаказ <strong style="color: #1C1C1C;">#${order.id}</strong> успешно оплачен. Товар зарезервирован за вами.</p>
-            
-            <div style="background: #fafafa; border-radius: 12px; padding: 4px 0; margin-bottom: 24px;">
-              <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                  <tr>
-                    <th style="text-align: left; padding: 12px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #999; font-weight: 600;">Товар</th>
-                    <th style="text-align: center; padding: 12px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #999; font-weight: 600;">Кол-во</th>
-                    <th style="text-align: right; padding: 12px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #999; font-weight: 600;">Сумма</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${itemsHtml}
-                </tbody>
-              </table>
-            </div>
-            
-            <div style="background: linear-gradient(135deg, #1C1C1C 0%, #333 100%); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="color: #ccc; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Оплачено</td>
-                  <td style="text-align: right; color: #ffffff; font-size: 24px; font-weight: 800;">${fmt(order.total)}</td>
-                </tr>
-              </table>
-            </div>
-            
-            <div style="border: 2px dashed #E53935; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
-              <div style="font-size: 13px; font-weight: 700; color: #E53935; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">Что дальше?</div>
-              <p style="font-size: 14px; color: #555; margin: 0;">Мы уведомим вас, когда товар поступит на склад и будет готов к отправке. Следите за обновлениями в личном кабинете.</p>
-            </div>
-            
-            <div style="text-align: center; margin-bottom: 32px;">
-              <a href="https://www.booomerangs.ru/profile" style="display: inline-block; padding: 14px 40px; background: #1C1C1C; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.5px;">Мои предзаказы</a>
-            </div>
-          </div>
-          
-          <div style="padding: 24px; background: #fafafa; border-top: 1px solid #f0f0f0; text-align: center;">
-            <p style="margin: 0 0 4px 0; font-size: 12px; color: #999;">&copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.</p>
-            <p style="margin: 0; font-size: 12px;"><a href="https://www.booomerangs.ru" style="color: #E53935; text-decoration: none;">booomerangs.ru</a></p>
-          </div>
-          
-        </div>
+  const isPickup = order.deliveryType === 'pickup';
+
+  const deliveryBlock = order.deliveryAddress ? `
+    <div style="background: #fafafa; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;">
+      <div style="font-size: 12px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">
+        ${isPickup ? '🎪 Место выдачи' : '📦 Пункт выдачи СДЭК'}
       </div>
-    </body>
-    </html>
-  `;
-}
+      <p style="font-size: 14px; color: #333; margin: 0;">${order.deliveryAddress}</p>
+    </div>
+  ` : '';
 
-export function getPreorderRemainingPaidEmailHtml(order: {
-  id: number;
-  customerName: string;
-  total: number;
-  items: any[];
-  address?: string;
-}): string {
-  const fmt = (v: number) => (v / 100).toLocaleString('ru-RU') + ' \u20BD';
-  const productItems = order.items.filter((item: any) => !item._discountDetails);
-
-  const itemsHtml = productItems.map((item: any) => `
-    <tr>
-      <td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; font-size: 14px;">
-        <strong>${item.productName || 'Товар'}</strong>
-        ${item.size ? `<br><span style="color: #888; font-size: 13px;">Размер: ${item.size}</span>` : ''}
-        ${item.color && item.color !== 'Default' ? `<br><span style="color: #888; font-size: 13px;">Цвет: ${item.color}</span>` : ''}
-      </td>
-      <td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; text-align: center; font-size: 14px;">${item.quantity || 1}</td>
-      <td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; text-align: right; white-space: nowrap; font-size: 14px; font-weight: 600;">${fmt((item.price || 0) * (item.quantity || 1))}</td>
-    </tr>
-  `).join('');
+  const nextStepText = isPickup
+    ? 'Как только он будет готов к выдаче, мы напишем вам.'
+    : 'Как только он будет готов, мы передадим его в СДЭК и пришлём вам трек-номер.';
 
   return `
     <!DOCTYPE html>
@@ -841,24 +669,21 @@ export function getPreorderRemainingPaidEmailHtml(order: {
     </head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1C1C1C; margin: 0; padding: 0; background-color: #f7f7f7;">
       <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        
         <div style="background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
-          
+
           <div style="background: linear-gradient(135deg, #1C1C1C 0%, #2d2d2d 100%); padding: 32px 24px; text-align: center;">
-            <div style="font-size: 28px; font-weight: 800; letter-spacing: 2px;">
-              <span style="color: #ffffff;">BOOOMERANGS</span>
-            </div>
+            <div style="font-size: 28px; font-weight: 800; letter-spacing: 2px; color: #ffffff;">BOOOMERANGS</div>
           </div>
-          
+
           <div style="padding: 0 24px;">
-            <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); color: #ffffff; padding: 16px 24px; border-radius: 12px; text-align: center; margin: -20px 0 24px 0; position: relative; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
-              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.9; margin-bottom: 4px;">PRE-ORDER</div>
-              <div style="font-size: 18px; font-weight: 700;">Предзаказ полностью оплачен!</div>
+            <div style="background: linear-gradient(135deg, #1C1C1C 0%, #333 100%); color: #ffffff; padding: 16px 24px; border-radius: 12px; text-align: center; margin: -20px 0 24px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.7; margin-bottom: 4px;">PRE-ORDER</div>
+              <div style="font-size: 18px; font-weight: 700;">Предзаказ оформлен ✓</div>
             </div>
-            
+
             <p style="font-size: 15px; color: #333; margin: 0 0 8px 0;">Привет, <strong>${order.customerName}</strong>!</p>
-            <p style="font-size: 15px; color: #555; margin: 0 0 24px 0;">Отличные новости! Ваш предзаказ <strong style="color: #1C1C1C;">#${order.id}</strong> полностью оплачен. Мы начинаем подготовку к отправке.</p>
-            
+            <p style="font-size: 15px; color: #555; margin: 0 0 24px 0;">Ваш предзаказ <strong style="color: #1C1C1C;">#${order.id}</strong> оплачен и ждёт своего часа.</p>
+
             <div style="background: #fafafa; border-radius: 12px; padding: 4px 0; margin-bottom: 24px;">
               <table style="width: 100%; border-collapse: collapse;">
                 <thead>
@@ -873,38 +698,32 @@ export function getPreorderRemainingPaidEmailHtml(order: {
                 </tbody>
               </table>
             </div>
-            
-            <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px;">
+
+            <div style="background: linear-gradient(135deg, #1C1C1C 0%, #333 100%); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px;">
               <table style="width: 100%; border-collapse: collapse;">
                 <tr>
-                  <td style="color: rgba(255,255,255,0.8); font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Итого оплачено</td>
+                  <td style="color: #ccc; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Итого оплачено</td>
                   <td style="text-align: right; color: #ffffff; font-size: 24px; font-weight: 800;">${fmt(order.total)}</td>
                 </tr>
               </table>
             </div>
-            
-            ${order.address ? `
-            <div style="background: #fafafa; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;">
-              <div style="font-size: 12px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Адрес доставки</div>
-              <p style="font-size: 14px; color: #333; margin: 0;">${order.address}</p>
+
+            ${deliveryBlock}
+
+            <div style="border: 2px dashed #ccc; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
+              <div style="font-size: 13px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">Что дальше?</div>
+              <p style="font-size: 14px; color: #555; margin: 0;">${nextStepText}</p>
             </div>
-            ` : ''}
-            
-            <div style="border: 2px dashed #2e7d32; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
-              <div style="font-size: 13px; font-weight: 700; color: #2e7d32; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">Что дальше?</div>
-              <p style="font-size: 14px; color: #555; margin: 0;">Мы подготовим ваш заказ и отправим его в ближайшее время. Вы получите уведомление с трек-номером для отслеживания.</p>
-            </div>
-            
+
             <div style="text-align: center; margin-bottom: 32px;">
-              <a href="https://www.booomerangs.ru/profile" style="display: inline-block; padding: 14px 40px; background: #1C1C1C; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.5px;">Мои предзаказы</a>
+              <a href="https://www.booomerangs.ru/profile" style="display: inline-block; padding: 14px 40px; background: #1C1C1C; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.5px;">Личный кабинет</a>
             </div>
           </div>
-          
+
           <div style="padding: 24px; background: #fafafa; border-top: 1px solid #f0f0f0; text-align: center;">
             <p style="margin: 0 0 4px 0; font-size: 12px; color: #999;">&copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.</p>
             <p style="margin: 0; font-size: 12px;"><a href="https://www.booomerangs.ru" style="color: #E53935; text-decoration: none;">booomerangs.ru</a></p>
           </div>
-          
         </div>
       </div>
     </body>

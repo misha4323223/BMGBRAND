@@ -23,7 +23,7 @@ import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PV
 import { yandexDeliveryService } from "./yandex-delivery";
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
 import { runAbandonedCartCheck } from "./abandoned-cart";
-import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderDepositEmailHtml, getPreorderDepositPaidEmailHtml, getPreorderRemainingPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications } from "./email";
+import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications } from "./email";
 import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
 import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notifyPreorderStatusChange, registerWholesaleWebhook, sendChatNotification, registerChatWebhook, notifyNewReview, notifyMerchOrder, answerCallbackQuery, editMessageText } from "./telegram";
@@ -3981,35 +3981,6 @@ BMGBRAND — официальный производитель и магазин
               }
             }
           }
-        } else if (orderId.startsWith("PREORDER-REMAINING-")) {
-          const preorderOrderId = Number(orderId.replace("PREORDER-REMAINING-", ""));
-          if (!isNaN(preorderOrderId)) {
-            await storage.updateOrderStatus(preorderOrderId, "paid");
-            await storage.updateOrderPreorderFields(preorderOrderId, { remainingAmount: 0, preorderPaymentId: paymentId });
-            console.log(`[YooKassa Webhook] Preorder remaining payment confirmed for order ${preorderOrderId}`);
-
-            const preorderOrder = await storage.getOrder(preorderOrderId);
-            if (preorderOrder && preorderOrder.customerEmail) {
-              try {
-                const orderItems = typeof preorderOrder.items === 'string' ? JSON.parse(preorderOrder.items) : preorderOrder.items;
-                const emailHtml = getPreorderRemainingPaidEmailHtml({
-                  id: preorderOrder.id,
-                  customerName: preorderOrder.customerName,
-                  total: preorderOrder.total,
-                  items: Array.isArray(orderItems) ? orderItems : [],
-                  address: preorderOrder.address,
-                });
-                await sendEmail({
-                  to: preorderOrder.customerEmail,
-                  subject: `BMGBRAND — Предзаказ #${preorderOrder.id} полностью оплачен!`,
-                  html: emailHtml,
-                });
-                console.log(`[YooKassa Webhook] Preorder fully paid email sent to ${preorderOrder.customerEmail}`);
-              } catch (emailErr: any) {
-                console.error(`[YooKassa Webhook] Failed to send preorder paid email:`, emailErr.message);
-              }
-            }
-          }
         } else if (orderId.startsWith("PREORDER-MULTI-")) {
           const multiOrderId = Number(orderId.replace("PREORDER-MULTI-", ""));
           if (!isNaN(multiOrderId)) {
@@ -4051,79 +4022,27 @@ BMGBRAND — официальный производитель и магазин
               vkNotifyPreorderDeposit(notifData);
               if (multiOrder.customerEmail) {
                 try {
-                  const emailHtml = getPreorderDepositPaidEmailHtml({
+                  const cdForEmail = multiOrder.cdekData ? (() => { try { return JSON.parse(multiOrder.cdekData as string); } catch { return null; } })() : null;
+                  const deliveryTypeForEmail = cdForEmail?.deliveryType || 'cdek';
+                  const deliveryAddressForEmail = deliveryTypeForEmail === 'pickup'
+                    ? (multiOrder.address || '').replace(/^Самовывоз:\s*/i, '')
+                    : (cdForEmail?.pointAddress || '');
+                  const emailHtml = getPreorderPaidEmailHtml({
                     id: multiOrder.id,
                     customerName: multiOrder.customerName,
                     total: multiOrder.total,
                     items: multiItems,
+                    deliveryType: deliveryTypeForEmail,
+                    deliveryAddress: deliveryAddressForEmail,
                   });
                   await sendEmail({
                     to: multiOrder.customerEmail,
-                    subject: `Предзаказ #${multiOrder.id} оплачен — BOOOMERANGS`,
+                    subject: `Предзаказ #${multiOrder.id} оформлен — BOOOMERANGS`,
                     html: emailHtml,
                   });
                   console.log(`[YooKassa Webhook] Multi-preorder email sent to ${multiOrder.customerEmail}`);
                 } catch (emailErr: any) {
                   console.error(`[YooKassa Webhook] Failed to send multi-preorder email:`, emailErr.message);
-                }
-              }
-            }
-          }
-        } else if (orderId.startsWith("PREORDER-")) {
-          const preorderOrderId = Number(orderId.replace("PREORDER-", ""));
-          if (!isNaN(preorderOrderId)) {
-            await storage.updateOrderStatus(preorderOrderId, "paid");
-            await storage.updateOrderPreorderFields(preorderOrderId, { depositPaid: true, remainingAmount: 0 });
-
-            const preorderOrder = await storage.getOrder(preorderOrderId);
-            if (preorderOrder) {
-              const orderItems = typeof preorderOrder.items === 'string' ? JSON.parse(preorderOrder.items) : preorderOrder.items;
-              const productId = Array.isArray(orderItems) ? orderItems[0]?.productId : null;
-              if (productId) {
-                const newCurrent = await storage.incrementPreorderCurrent(productId);
-                const product = await storage.getProduct(productId);
-                console.log(`[YooKassa Webhook] Preorder paid for order ${preorderOrderId}, product ${productId}, count: ${newCurrent}`);
-
-                notifyPreorderDeposit({
-                  orderId: preorderOrderId,
-                  productName: orderItems[0]?.productName || product?.name || '',
-                  customerName: preorderOrder.customerName,
-                  customerEmail: preorderOrder.customerEmail,
-                  depositAmount: preorderOrder.total,
-                  totalAmount: preorderOrder.total,
-                  items: orderItems.map((i: any) => ({ size: i.size, quantity: i.quantity || 1 })),
-                  color: orderItems[0]?.color,
-                  shippingDate: (product as any)?.preorderShippingDate || null,
-                });
-                vkNotifyPreorderDeposit({
-                  orderId: preorderOrderId,
-                  productName: orderItems[0]?.productName || product?.name || '',
-                  customerName: preorderOrder.customerName,
-                  customerEmail: preorderOrder.customerEmail,
-                  depositAmount: preorderOrder.total,
-                  totalAmount: preorderOrder.total,
-                  items: orderItems.map((i: any) => ({ size: i.size, quantity: i.quantity || 1 })),
-                  color: orderItems[0]?.color,
-                  shippingDate: (product as any)?.preorderShippingDate || null,
-                });
-              }
-
-              if (preorderOrder.customerEmail) {
-                try {
-                  const emailHtml = getPreorderDepositPaidEmailHtml({
-                    id: preorderOrder.id,
-                    customerName: preorderOrder.customerName,
-                    total: preorderOrder.total,
-                    items: Array.isArray(orderItems) ? orderItems : [],
-                  });
-                  await sendEmail({
-                    to: preorderOrder.customerEmail,
-                    subject: `BMGBRAND — Предзаказ #${preorderOrder.id} оплачен!`,
-                    html: emailHtml,
-                  });
-                  console.log(`[YooKassa Webhook] Preorder paid email sent to ${preorderOrder.customerEmail}`);
-                } catch (emailErr: any) {
-                  console.error(`[YooKassa Webhook] Failed to send preorder paid email:`, emailErr.message);
                 }
               }
             }
@@ -4442,35 +4361,6 @@ BMGBRAND — официальный производитель и магазин
               console.error(`[T-Bank Webhook] Failed to send batch email:`, emailErr.message);
             }
           }
-        } else if (OrderId.startsWith("PREORDER-REMAINING-")) {
-          const preorderOrderId = Number(OrderId.replace("PREORDER-REMAINING-", ""));
-          if (!isNaN(preorderOrderId)) {
-            await storage.updateOrderStatus(preorderOrderId, "paid");
-            await storage.updateOrderPreorderFields(preorderOrderId, { remainingAmount: 0, preorderPaymentId: String(PaymentId) });
-            console.log(`[T-Bank Webhook] Preorder remaining payment confirmed for order ${preorderOrderId}`);
-
-            const preorderOrder = await storage.getOrder(preorderOrderId);
-            if (preorderOrder && preorderOrder.customerEmail) {
-              try {
-                const orderItems = typeof preorderOrder.items === 'string' ? JSON.parse(preorderOrder.items) : preorderOrder.items;
-                const emailHtml = getPreorderRemainingPaidEmailHtml({
-                  id: preorderOrder.id,
-                  customerName: preorderOrder.customerName,
-                  total: preorderOrder.total,
-                  items: Array.isArray(orderItems) ? orderItems : [],
-                  address: preorderOrder.address,
-                });
-                await sendEmail({
-                  to: preorderOrder.customerEmail,
-                  subject: `BMGBRAND — Предзаказ #${preorderOrder.id} полностью оплачен!`,
-                  html: emailHtml,
-                });
-                console.log(`[T-Bank Webhook] Preorder fully paid email sent to ${preorderOrder.customerEmail}`);
-              } catch (emailErr: any) {
-                console.error(`[T-Bank Webhook] Failed to send preorder paid email:`, emailErr.message);
-              }
-            }
-          }
         } else if (OrderId.startsWith("PREORDER-MULTI-")) {
           const multiOrderId = Number(OrderId.replace("PREORDER-MULTI-", ""));
           if (!isNaN(multiOrderId)) {
@@ -4512,15 +4402,22 @@ BMGBRAND — официальный производитель и магазин
               vkNotifyPreorderDeposit(notifData);
               if (multiOrder.customerEmail) {
                 try {
-                  const emailHtml = getPreorderDepositPaidEmailHtml({
+                  const cdForEmail = multiOrder.cdekData ? (() => { try { return JSON.parse(multiOrder.cdekData as string); } catch { return null; } })() : null;
+                  const deliveryTypeForEmail = cdForEmail?.deliveryType || 'cdek';
+                  const deliveryAddressForEmail = deliveryTypeForEmail === 'pickup'
+                    ? (multiOrder.address || '').replace(/^Самовывоз:\s*/i, '')
+                    : (cdForEmail?.pointAddress || '');
+                  const emailHtml = getPreorderPaidEmailHtml({
                     id: multiOrder.id,
                     customerName: multiOrder.customerName,
                     total: multiOrder.total,
                     items: multiItems,
+                    deliveryType: deliveryTypeForEmail,
+                    deliveryAddress: deliveryAddressForEmail,
                   });
                   await sendEmail({
                     to: multiOrder.customerEmail,
-                    subject: `Предзаказ #${multiOrder.id} оплачен — BOOOMERANGS`,
+                    subject: `Предзаказ #${multiOrder.id} оформлен — BOOOMERANGS`,
                     html: emailHtml,
                   });
                   console.log(`[T-Bank Webhook] Multi-preorder email sent to ${multiOrder.customerEmail}`);
@@ -4529,66 +4426,6 @@ BMGBRAND — официальный производитель и магазин
                 }
               }
             }
-          }
-        } else if (OrderId.startsWith("PREORDER-")) {
-          const preorderOrderId = Number(OrderId.replace("PREORDER-", ""));
-          if (!isNaN(preorderOrderId)) {
-            await storage.updateOrderStatus(preorderOrderId, "paid");
-            await storage.updateOrderPreorderFields(preorderOrderId, { depositPaid: true, remainingAmount: 0 });
-
-            const order = await storage.getOrder(preorderOrderId);
-            if (order) {
-              const items = Array.isArray(order.items) ? order.items : JSON.parse(String(order.items) || '[]');
-              const productId = items[0]?.productId;
-              if (productId) {
-                const newCurrent = await storage.incrementPreorderCurrent(productId);
-                const product = await storage.getProduct(productId);
-
-                notifyPreorderDeposit({
-                  orderId: preorderOrderId,
-                  productName: items[0]?.productName || product?.name || '',
-                  customerName: order.customerName,
-                  customerEmail: order.customerEmail,
-                  depositAmount: order.total,
-                  totalAmount: order.total,
-                  items: items.map((i: any) => ({ size: i.size, quantity: i.quantity || 1 })),
-                  color: items[0]?.color,
-                  shippingDate: (product as any)?.preorderShippingDate || null,
-                });
-                vkNotifyPreorderDeposit({
-                  orderId: preorderOrderId,
-                  productName: items[0]?.productName || product?.name || '',
-                  customerName: order.customerName,
-                  customerEmail: order.customerEmail,
-                  depositAmount: order.total,
-                  totalAmount: order.total,
-                  items: items.map((i: any) => ({ size: i.size, quantity: i.quantity || 1 })),
-                  color: items[0]?.color,
-                  shippingDate: (product as any)?.preorderShippingDate || null,
-                });
-              }
-
-              if (order.customerEmail) {
-                try {
-                  const orderItems = Array.isArray(order.items) ? order.items : JSON.parse(String(order.items) || '[]');
-                  const emailHtml = getPreorderDepositPaidEmailHtml({
-                    id: order.id,
-                    customerName: order.customerName,
-                    total: order.total,
-                    items: orderItems,
-                  });
-                  await sendEmail({
-                    to: order.customerEmail,
-                    subject: `BMGBRAND — Предзаказ #${order.id} оплачен!`,
-                    html: emailHtml,
-                  });
-                  console.log(`[T-Bank Webhook] Preorder paid email sent to ${order.customerEmail}`);
-                } catch (emailErr: any) {
-                  console.error(`[T-Bank Webhook] Failed to send preorder paid email:`, emailErr.message);
-                }
-              }
-            }
-            console.log(`[T-Bank Webhook] Preorder paid for order ${preorderOrderId}`);
           }
         } else {
           // Could be either a single gift card or a regular order
