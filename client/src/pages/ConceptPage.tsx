@@ -173,7 +173,7 @@ export default function ConceptPage() {
         </button>
 
         {/* Форма подписки — левый нижний угол */}
-        <div className="absolute bottom-0 left-0 right-0 sm:right-auto p-4 sm:p-6 sm:max-w-sm md:max-w-md z-10">
+        <div className="absolute bottom-0 left-0 right-0 sm:right-auto px-4 sm:px-6 pb-0 pt-4 sm:pt-6 sm:max-w-sm md:max-w-md z-10">
           <div className="bg-black/60 backdrop-blur-md rounded-xl p-4 sm:p-5">
             {subscribed ? (
               <div className="flex items-center gap-3" data-testid="preorder-subscribed-message">
