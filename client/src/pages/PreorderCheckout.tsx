@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
@@ -59,7 +59,14 @@ export default function PreorderCheckout() {
   const [showCdekWidget, setShowCdekWidget] = useState(false);
   const [cdekWidgetLoading, setCdekWidgetLoading] = useState(false);
   const [cdekIframeUrl, setCdekIframeUrl] = useState<string | null>(null);
+  const cdekInstanceCounterRef = useRef(0);
   const cdekCurrentInstanceRef = useRef<string | null>(null);
+
+  const { data: mapsKeyData } = useQuery<{ key: string }>({
+    queryKey: ["/api/cdek/maps-key"],
+    staleTime: Infinity,
+  });
+  const mapsApiKey = mapsKeyData?.key || '';
 
   const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -130,31 +137,29 @@ export default function PreorderCheckout() {
     return () => window.removeEventListener("message", handle);
   }, [toast]);
 
-  const openCdekWidget = async () => {
+  const buildCdekIframeUrl = useCallback((city: any): string => {
+    cdekInstanceCounterRef.current += 1;
+    const instanceId = `cdek-${cdekInstanceCounterRef.current}-${Date.now()}`;
+    cdekCurrentInstanceRef.current = instanceId;
+    const params = new URLSearchParams({
+      city_code: String(city.code),
+      city_name: city.city,
+      lat: String(city.latitude || 54.011),
+      lon: String(city.longitude || 38.29),
+      instance_id: instanceId,
+      service_path: '/api/cdek/widget-proxy',
+      ...(mapsApiKey ? { api_key: mapsApiKey } : {}),
+    });
+    return `/cdek-widget.html?${params.toString()}`;
+  }, [mapsApiKey]);
+
+  const openCdekWidget = useCallback(() => {
     if (!selectedCdekCity) return;
     setCdekWidgetLoading(true);
     setShowCdekWidget(true);
-    const instanceId = `cdek-${Date.now()}`;
-    cdekCurrentInstanceRef.current = instanceId;
-    try {
-      const r = await fetch("/api/cdek/widget-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cityCode: selectedCdekCity.code, instanceId }),
-      });
-      if (r.ok) {
-        const d = await r.json();
-        setCdekIframeUrl(d.url);
-      } else {
-        setCdekWidgetLoading(false);
-        setShowCdekWidget(false);
-        toast({ title: "Ошибка", description: "Не удалось загрузить карту СДЭК", variant: "destructive" });
-      }
-    } catch {
-      setCdekWidgetLoading(false);
-      setShowCdekWidget(false);
-    }
-  };
+    const url = buildCdekIframeUrl(selectedCdekCity);
+    setCdekIframeUrl(url);
+  }, [selectedCdekCity, buildCdekIframeUrl]);
 
   const orderMutation = useMutation({
     mutationFn: async () => {
