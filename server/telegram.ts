@@ -323,6 +323,8 @@ interface PreorderNotification {
   items?: Array<{ size?: string; quantity: number }>;
   color?: string;
   shippingDate?: string | null;
+  paymentMethod?: string;
+  deliveryInfo?: string;
 }
 
 export function notifyPreorderDeposit(data: PreorderNotification): void {
@@ -336,6 +338,8 @@ export function notifyPreorderDeposit(data: PreorderNotification): void {
   }
   text += `👤 ${esc(data.customerName)}  |  ${esc(data.customerEmail)}`;
   text += `\n💰 Оплачено: <b>${price(data.depositAmount)}</b>`;
+  if (data.paymentMethod) text += `\n💳 ${esc(data.paymentMethod)}`;
+  if (data.deliveryInfo) text += `\n🚚 ${esc(data.deliveryInfo)}`;
   if (data.shippingDate) {
     try {
       const d = new Date(data.shippingDate);

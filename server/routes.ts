@@ -4024,6 +4024,16 @@ BMGBRAND — официальный производитель и магазин
               }
               console.log(`[YooKassa Webhook] Multi-preorder paid: order ${multiOrderId}, products: [${uniqueProductIds.join(', ')}]`);
               const multiProductNames = [...new Set(multiItems.map((i: any) => i.productName).filter(Boolean))].join(", ");
+              const multiCdekDeliveryInfo = (() => {
+                try {
+                  const cd = multiOrder.cdekData ? JSON.parse(multiOrder.cdekData as string) : null;
+                  if (!cd) return multiOrder.address || "—";
+                  if (cd.deliveryType === "pickup") return "Самовывоз";
+                  if (cd.pointAddress) return `СДЭК: ${cd.pointAddress}`;
+                  if (cd.deliveryType === "cdek") return "СДЭК";
+                  return multiOrder.address || "—";
+                } catch { return multiOrder.address || "—"; }
+              })();
               const notifData = {
                 orderId: multiOrderId,
                 productName: multiProductNames || "Предзаказ (несколько товаров)",
@@ -4034,6 +4044,8 @@ BMGBRAND — официальный производитель и магазин
                 items: multiItems.map((i: any) => ({ size: i.size, quantity: i.quantity || 1 })),
                 color: multiItems[0]?.color || undefined,
                 shippingDate: null,
+                paymentMethod: "ЮКасса",
+                deliveryInfo: multiCdekDeliveryInfo,
               };
               notifyPreorderDeposit(notifData);
               vkNotifyPreorderDeposit(notifData);
@@ -4473,6 +4485,16 @@ BMGBRAND — официальный производитель и магазин
               }
               console.log(`[T-Bank Webhook] Multi-preorder paid: order ${multiOrderId}, products: [${uniqueProductIds.join(', ')}]`);
               const multiProductNames = [...new Set(multiItems.map((i: any) => i.productName).filter(Boolean))].join(", ");
+              const tbankCdekDeliveryInfo = (() => {
+                try {
+                  const cd = multiOrder.cdekData ? JSON.parse(multiOrder.cdekData as string) : null;
+                  if (!cd) return multiOrder.address || "—";
+                  if (cd.deliveryType === "pickup") return "Самовывоз";
+                  if (cd.pointAddress) return `СДЭК: ${cd.pointAddress}`;
+                  if (cd.deliveryType === "cdek") return "СДЭК";
+                  return multiOrder.address || "—";
+                } catch { return multiOrder.address || "—"; }
+              })();
               const notifData = {
                 orderId: multiOrderId,
                 productName: multiProductNames || "Предзаказ (несколько товаров)",
@@ -4483,6 +4505,8 @@ BMGBRAND — официальный производитель и магазин
                 items: multiItems.map((i: any) => ({ size: i.size, quantity: i.quantity || 1 })),
                 color: multiItems[0]?.color || undefined,
                 shippingDate: null,
+                paymentMethod: "Т-Банк",
+                deliveryInfo: tbankCdekDeliveryInfo,
               };
               notifyPreorderDeposit(notifData);
               vkNotifyPreorderDeposit(notifData);
