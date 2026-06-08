@@ -284,7 +284,7 @@ export function Navbar() {
               </Button>
             )}
             <Link href="/" className="flex-shrink-0 cursor-pointer" data-testid="link-navbar-logo">
-              <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-20 w-auto object-contain" />
+              <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-9 w-auto object-contain" />
             </Link>
           </div>
           <div className="flex items-center space-x-1">
