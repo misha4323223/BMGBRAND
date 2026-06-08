@@ -3165,6 +3165,38 @@ BMGBRAND — официальный производитель и магазин
   });
   // ─── End Proactive chat stats ────────────────────────────────────────────────
 
+  // ─── Admin AI Agent ──────────────────────────────────────────────────────────
+  app.post("/api/admin/agent/chat", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { command, history } = req.body;
+      if (!command?.trim()) return res.status(400).json({ error: "command required" });
+      const { processAdminCommand } = await import("./admin-agent");
+      const result = await processAdminCommand(command, history || []);
+      res.json(result);
+    } catch (e: any) {
+      console.error("[AdminAgent] chat error:", e?.message);
+      res.status(500).json({ error: e?.message || "Agent error" });
+    }
+  });
+
+  app.post("/api/admin/agent/execute", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { tool, params } = req.body;
+      if (!tool) return res.status(400).json({ error: "tool required" });
+      const { executeWriteTool } = await import("./admin-agent");
+      const result = await executeWriteTool(tool, params || {});
+      res.json({ result });
+    } catch (e: any) {
+      console.error("[AdminAgent] execute error:", e?.message);
+      res.status(500).json({ error: e?.message || "Execute error" });
+    }
+  });
+  // ─── End Admin AI Agent ──────────────────────────────────────────────────────
+
   // AI Knowledge management (admin)
   app.get("/api/admin/ai-knowledge", async (req, res) => {
     const apiKey = req.headers["x-api-key"] || req.query.key;

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Save, RotateCcw, RefreshCw, Bot, Truck, CreditCard, ArrowLeftRight, Ruler, Shirt, Handshake, Star, Building2, Gift, BarChart2, Trash2 } from "lucide-react";
+import { AdminAgentChat } from "./AdminAgentChat";
 
 const BLOCK_META: Record<string, { label: string; desc: string; icon: any }> = {
   ai_prompt_base:      { label: "Базовый промт",            desc: "Личность, тон, правила поведения и информация о бренде. Используется в каждом запросе.",                    icon: Bot },
@@ -178,6 +179,9 @@ export function AiKnowledgeTab({ apiKey, adminFetch }: AiKnowledgeTabProps) {
         <p>• <b>Тематические блоки</b> — подключаются автоматически по ключевым словам в вопросе пользователя</p>
         <p>• Итоговый промт в Groq: ~600–900 токенов. Кэш обновляется каждые 5 минут.</p>
       </div>
+
+      {/* Admin Agent Chat */}
+      <AdminAgentChat apiKey={apiKey} adminFetch={adminFetch} />
 
       {/* Proactive chat stats */}
       <Card>
