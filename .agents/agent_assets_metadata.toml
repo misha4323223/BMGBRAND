@@ -143,3 +143,9 @@ id = "rlUfkj_nKDENtZnldEDUI"
 uri = "file://attached_assets/slide1_mobile_opt.webp"
 type = "image"
 title = "Слайд 1 — Mobile (197 КБ вместо 1609 КБ)"
+
+[[outputs]]
+id = "5V9CjpRMG6Urwtq1oLj1d"
+uri = "file://attached_assets/result.webp"
+type = "image"
+title = "Изображение без белой полосы (WebP, 0.73 МБ)"
