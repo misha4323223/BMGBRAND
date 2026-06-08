@@ -7447,10 +7447,11 @@ BMGBRAND — официальный производитель и магазин
         // Preorder notifications — отправляем при включении предзаказа
         if (preorderEnabled === true && !(product as any).preorderEnabled) {
           storage.getAllPreorderSubscribers().then(subscribers => {
-            if (subscribers.length > 0) {
+            const activeSubscribers = subscribers.filter(s => s.isActive);
+            if (activeSubscribers.length > 0) {
               const prodUrl = prodSlug ? `/products/${prodSlug}` : undefined;
-              sendPreorderNotifications(product.name, subscribers, prodImages, prodUrl).catch(() => {});
-              console.log(`[PreorderNotify] Sent notifications to ${subscribers.length} subscribers for "${product.name}"`);
+              sendPreorderNotifications(product.name, activeSubscribers, prodImages, prodUrl).catch(() => {});
+              console.log(`[PreorderNotify] Sent notifications to ${activeSubscribers.length} active subscribers for "${product.name}" (${subscribers.length - activeSubscribers.length} unsubscribed skipped)`);
             }
           }).catch(() => {});
         }
