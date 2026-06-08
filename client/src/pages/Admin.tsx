@@ -460,6 +460,80 @@ const DEFAULT_VACANCIES: VacancyItem[] = [
   },
 ];
 
+function ConceptPageEditor({ apiKey }: { apiKey: string }) {
+  const { toast } = useToast();
+  const { data: settings, refetch } = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/concept"],
+    queryFn: async () => {
+      const res = await fetch("/api/page-settings/concept");
+      if (!res.ok) return {};
+      return res.json();
+    },
+  });
+
+  const [heroImage, setHeroImage] = useState<string>("");
+  const [heroImageMobile, setHeroImageMobile] = useState<string>("");
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (settings && !initialized) {
+      setHeroImage(settings?.hero?.heroImage || "");
+      setHeroImageMobile(settings?.hero?.heroImageMobile || "");
+      setInitialized(true);
+    }
+  }, [settings, initialized]);
+
+  const handleSave = async () => {
+    try {
+      await adminFetch("/api/admin/page-settings/concept/hero", apiKey, {
+        method: "POST",
+        body: JSON.stringify({ heroImage, heroImageMobile }),
+      });
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ["/api/page-settings/concept"] });
+      toast({ title: "Сохранено", description: "Баннеры концепт-страницы обновлены" });
+    } catch (err: any) {
+      toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-base font-medium mb-1">Баннеры страницы «Pre-drop»</h3>
+        <p className="text-sm text-muted-foreground mb-4">Загрузите изображения для десктопного и мобильного баннера. Они хранятся в Yandex Object Storage.</p>
+      </div>
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Баннер (десктоп)</Label>
+          <p className="text-xs text-muted-foreground">Рекомендуемый размер: 2560×1440 px, горизонтальный, WebP/JPG</p>
+          <ImageUploadField
+            value={heroImage}
+            onChange={setHeroImage}
+            apiKey={apiKey}
+            placeholder="URL или перетащите изображение"
+            hint="2560×1440 px, landscape, WebP/JPG"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Баннер (мобильный)</Label>
+          <p className="text-xs text-muted-foreground">Рекомендуемый размер: 1080×1920 px, вертикальный, WebP/JPG</p>
+          <ImageUploadField
+            value={heroImageMobile}
+            onChange={setHeroImageMobile}
+            apiKey={apiKey}
+            placeholder="URL или перетащите изображение"
+            hint="1080×1920 px, portrait, WebP/JPG"
+          />
+        </div>
+      </div>
+      <Button onClick={handleSave} data-testid="button-save-concept-banners">
+        <Save className="w-4 h-4 mr-2" /> Сохранить баннеры
+      </Button>
+    </div>
+  );
+}
+
 function VacanciesEditor({ pageSettingsQuery, savePageSectionMutation }: {
   pageSettingsQuery: any;
   savePageSectionMutation: any;
@@ -4791,6 +4865,7 @@ export default function Admin() {
                   <SelectItem value="blog_pages">Страницы блога</SelectItem>
                   <SelectItem value="checkout">Оформление заказа</SelectItem>
                   <SelectItem value="static_pages">Статические страницы</SelectItem>
+                  <SelectItem value="concept">Концепт (Предзаказ)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -8464,6 +8539,11 @@ export default function Admin() {
                 pageSettingsQuery={pageSettingsQuery}
                 savePageSectionMutation={savePageSectionMutation}
               />
+            )}
+
+            {/* Concept Page (Pre-drop) Banner Editor */}
+            {selectedPage === "concept" && (
+              <ConceptPageEditor apiKey={apiKey} />
             )}
 
             {selectedPage === "static_pages" && (

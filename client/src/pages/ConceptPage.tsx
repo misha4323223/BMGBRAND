@@ -10,8 +10,6 @@ import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { useToast } from "@/hooks/use-toast";
-import heroBannerDesktop from "@assets/Десктоп_1780953132498.png";
-import heroBannerMobile from "@assets/Мобильный_1780953125715.png";
 
 interface PreorderProduct {
   id: number;
@@ -68,6 +66,13 @@ export default function ConceptPage() {
   const { data: products, isLoading } = useQuery<PreorderProduct[]>({
     queryKey: ["/api/preorder/products"],
   });
+
+  const { data: conceptSettings } = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/concept"],
+  });
+
+  const heroBannerDesktop: string = conceptSettings?.hero?.heroImage || "";
+  const heroBannerMobile: string = conceptSettings?.hero?.heroImageMobile || "";
 
   const [subEmail, setSubEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -150,17 +155,21 @@ export default function ConceptPage() {
       {/* Hero banner с оверлеями */}
       <section className="bg-black relative overflow-hidden">
         {/* Desktop image */}
-        <img
-          src={heroBannerDesktop}
-          alt="Предзаказ — твой доступ к будущим релизам"
-          className="hidden sm:block w-full object-cover"
-        />
+        {heroBannerDesktop && (
+          <img
+            src={heroBannerDesktop}
+            alt="Предзаказ — твой доступ к будущим релизам"
+            className="hidden sm:block w-full object-cover"
+          />
+        )}
         {/* Mobile image */}
-        <img
-          src={heroBannerMobile}
-          alt="Предзаказ — твой доступ к будущим релизам"
-          className="block sm:hidden w-full object-cover"
-        />
+        {heroBannerMobile && (
+          <img
+            src={heroBannerMobile}
+            alt="Предзаказ — твой доступ к будущим релизам"
+            className="block sm:hidden w-full object-cover"
+          />
+        )}
 
         {/* Кнопка «назад» — верхний левый угол */}
         <button
