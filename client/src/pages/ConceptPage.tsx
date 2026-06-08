@@ -101,13 +101,14 @@ export default function ConceptPage() {
         if (ia === -1) return 1; if (ib === -1) return -1;
         return ia - ib;
       });
-      if (sorted.length === 0 || (sorted.length === 1 && sorted[0] === "ONE SIZE")) {
+      if (sorted.length <= 1) {
+        const onlySize = sorted[0] || "ONE SIZE";
         addOrUpdateItem({
           productId: product.id,
           productName: product.name,
           price: product.price,
           imageUrl: product.images?.[0] || product.thumbnailUrl || product.imageUrl || "",
-          selectedSizes: { "ONE SIZE": 1 },
+          selectedSizes: { [onlySize]: 1 },
         });
         toast({ title: "Добавлено в корзину предзаказов", description: product.name });
       } else {
