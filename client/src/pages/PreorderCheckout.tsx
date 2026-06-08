@@ -195,7 +195,7 @@ export default function PreorderCheckout() {
           }))
       );
 
-      const data = await apiRequest("POST", "/api/preorder/order-multi", {
+      const res = await apiRequest("POST", "/api/preorder/order-multi", {
         customerLastName: lastName.trim(),
         customerFirstName: firstName.trim(),
         customerMiddleName: middleName.trim(),
@@ -213,7 +213,7 @@ export default function PreorderCheckout() {
         cdekDeliverySum: deliveryType === "cdek" ? cdekDeliverySum : undefined,
       });
 
-      return data;
+      return await res.json();
     },
     onSuccess: (data: any) => {
       if (data.confirmationToken) {
