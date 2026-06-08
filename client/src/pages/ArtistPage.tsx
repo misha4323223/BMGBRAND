@@ -693,11 +693,13 @@ export default function ArtistPage() {
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                 )}
-                <img
-                  src={heroImage}
-                  alt=""
-                  className="hidden lg:block absolute right-0 top-0 h-full w-1/2 object-contain object-right-bottom drop-shadow-2xl"
-                />
+                {!settings.heroImageMobile && (
+                  <img
+                    src={heroImage}
+                    alt=""
+                    className="hidden lg:block absolute right-0 top-0 h-full w-1/2 object-contain object-right-bottom drop-shadow-2xl"
+                  />
+                )}
               </>
             ) : null}
 
