@@ -476,18 +476,21 @@ export default function PreorderCheckout() {
                   )}
 
                   {showCdekWidget && cdekIframeUrl && (
-                    <div className="rounded-xl overflow-hidden border border-border aspect-video relative">
+                    <div className="relative w-full h-[500px]">
+                      <iframe
+                        key={cdekIframeUrl}
+                        src={cdekIframeUrl}
+                        className="absolute inset-0 w-full h-full border border-border rounded-xl"
+                        style={{ border: 'none' }}
+                        title="CDEK Points Map"
+                        data-testid="preorder-cdek-widget-iframe"
+                      />
                       {cdekWidgetLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                        <div className="absolute inset-0 border border-border rounded-xl flex flex-col items-center justify-center bg-accent/10 z-10">
+                          <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
+                          <p className="text-muted-foreground text-sm">Загрузка карты ПВЗ...</p>
                         </div>
                       )}
-                      <iframe
-                        src={cdekIframeUrl}
-                        className="w-full h-full"
-                        title="CDEK Points Map"
-                        onLoad={() => setCdekWidgetLoading(false)}
-                      />
                     </div>
                   )}
 
