@@ -1989,6 +1989,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
   const { toast } = useToast();
   const { addOrUpdateItem, items: preorderCartItems } = usePreorderCart();
   const [sizeQuantities, setSizeQuantities] = useState<Record<string, number>>({});
+  const [justAdded, setJustAdded] = useState(false);
 
   const SIZE_ORDER = ["XXS","XS","S","M","L","XL","XXL","XXXL","ONE SIZE","OS"];
   const sizeStockData = (product as any).sizeStock;
@@ -2019,6 +2020,10 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
   const alreadyInCart = preorderCartItems.some(i => i.productId === product.id);
 
   function handleAddToCart() {
+    if (alreadyInCart) {
+      setLocation("/predrop/checkout");
+      return;
+    }
     if (availableSizes.length === 0) {
       addOrUpdateItem({
         productId: product.id,
@@ -2029,7 +2034,8 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
         selectedColor: selectedColor || undefined,
       });
       toast({ title: "Добавлено в корзину предзаказов", description: product.name });
-      setLocation("/predrop/checkout");
+      setJustAdded(true);
+      setTimeout(() => setJustAdded(false), 1800);
       return;
     }
     if (totalItems === 0) {
@@ -2045,7 +2051,8 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
       selectedColor: selectedColor || undefined,
     });
     toast({ title: "Добавлено в корзину предзаказов", description: product.name });
-    setLocation("/predrop/checkout");
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 1800);
   }
 
   return (
@@ -2100,18 +2107,35 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
       )}
       <Button
         onClick={handleAddToCart}
-        className="w-full h-11 rounded-full text-sm font-medium"
+        className={`w-full h-11 rounded-full text-sm font-medium transition-all ${justAdded ? "bg-green-600 hover:bg-green-600" : ""}`}
         data-testid="button-preorder-add-to-cart"
       >
-        <ShoppingCart className="w-4 h-4 mr-2" />
-        {alreadyInCart
-          ? "Перейти к оформлению →"
-          : availableSizes.length > 0 && totalItems === 0
-            ? "Выберите размер"
-            : totalItems > 0
-              ? `В корзину — ${(totalItems * product.price / 100).toLocaleString("ru-RU")} ₽`
-              : "В корзину предзаказов"
-        }
+        {justAdded ? (
+          <>
+            <Check className="w-4 h-4 mr-2" />
+            Добавлено в корзину предзаказов
+          </>
+        ) : alreadyInCart ? (
+          <>
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            Перейти к оформлению →
+          </>
+        ) : availableSizes.length > 0 && totalItems === 0 ? (
+          <>
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            Выберите размер
+          </>
+        ) : totalItems > 0 ? (
+          <>
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            {`В корзину предзаказов — ${(totalItems * product.price / 100).toLocaleString("ru-RU")} ₽`}
+          </>
+        ) : (
+          <>
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            В корзину предзаказов
+          </>
+        )}
       </Button>
     </div>
   );

@@ -110,7 +110,6 @@ export default function ConceptPage() {
           selectedSizes: { "ONE SIZE": 1 },
         });
         toast({ title: "Добавлено в корзину предзаказов", description: product.name });
-        setLocation("/predrop/checkout");
       } else {
         setPopupSizes(sorted);
         setSizePopupId(product.id);
@@ -124,7 +123,6 @@ export default function ConceptPage() {
         selectedSizes: { "ONE SIZE": 1 },
       });
       toast({ title: "Добавлено в корзину предзаказов", description: product.name });
-      setLocation("/predrop/checkout");
     } finally {
       setPopupLoadingId(null);
     }
@@ -350,7 +348,6 @@ export default function ConceptPage() {
                                       });
                                       setSizePopupId(null);
                                       toast({ title: "Добавлено в корзину предзаказов", description: `${product.name} — ${size}` });
-                                      setLocation("/predrop/checkout");
                                     }}
                                     data-testid={`size-option-${product.id}-${size}`}
                                   >
