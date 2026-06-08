@@ -471,14 +471,25 @@ async function runLongPoll(
 
       ts = String(data.ts);
 
-      for (const update of (data.updates || [])) {
+      const updates = data.updates || [];
+      if (updates.length > 0) {
+        console.log(`[VK LongPoll] ${updates.length} update(s): types=[${updates.map((u: any[]) => u[0]).join(',')}]`);
+      }
+
+      for (const update of updates) {
         if (update[0] !== 4) continue;
         const msgId: number = update[1];
         const flags: number = update[2];
         const msgPeerId: number = update[3];
+        const msgText: string = update[5] || '';
+
+        console.log(`[VK LongPoll] Msg event: id=${msgId} flags=${flags} peer=${msgPeerId} outgoing=${!!(flags & 2)} text="${msgText.slice(0, 40)}"`);
 
         if (flags & 2) continue;
-        if (String(msgPeerId) !== String(peerId)) continue;
+        if (String(msgPeerId) !== String(peerId)) {
+          console.log(`[VK LongPoll] Skip: peer ${msgPeerId} != ${peerId}`);
+          continue;
+        }
 
         try {
           const msgRes = await fetch(
@@ -486,10 +497,18 @@ async function runLongPoll(
           );
           const msgData = await msgRes.json() as any;
           const msg = msgData?.response?.items?.[0];
-          if (!msg) continue;
+          if (!msg) {
+            console.log(`[VK LongPoll] messages.getById returned no item for id=${msgId}`);
+            continue;
+          }
+
+          console.log(`[VK LongPoll] Full msg: id=${msg.id} has_reply=${!!msg.reply_message} reply_id=${msg.reply_message?.id}`);
 
           const replyMsg = msg.reply_message;
-          if (!replyMsg?.id) continue;
+          if (!replyMsg?.id) {
+            console.log(`[VK LongPoll] No reply_message, skipping (not a reply)`);
+            continue;
+          }
 
           const replyText: string = (msg.text || '').trim();
           if (!replyText) continue;
