@@ -483,9 +483,9 @@ async function runLongPoll(
         const msgPeerId: number = update[3];
         const msgText: string = update[5] || '';
 
-        console.log(`[VK LongPoll] Msg event: id=${msgId} flags=${flags} peer=${msgPeerId} outgoing=${!!(flags & 2)} text="${msgText.slice(0, 40)}"`);
+        const isOutgoing = !!(flags & 2);
+        console.log(`[VK LongPoll] Msg event: id=${msgId} flags=${flags} peer=${msgPeerId} outgoing=${isOutgoing} text="${msgText.slice(0, 40)}"`);
 
-        if (flags & 2) continue;
         if (String(msgPeerId) !== String(peerId)) {
           console.log(`[VK LongPoll] Skip: peer ${msgPeerId} != ${peerId}`);
           continue;
