@@ -270,6 +270,8 @@ export default function ConceptPage() {
                 const isCancelled = status === "cancelled";
                 const isLocked = status !== "collecting";
 
+                const inCart = !!cartPreorderItems.find(i => i.productId === product.id);
+
                 return (
                   <Link
                     key={product.id}
@@ -277,8 +279,8 @@ export default function ConceptPage() {
                     data-testid={`card-preorder-${product.id}`}
                     className={`block ${isLocked ? "pointer-events-none cursor-default" : "group"}`}
                   >
-                    {/* Image */}
-                    <div className={`relative aspect-[3/4] bg-muted overflow-hidden rounded-sm mb-4 ${isLocked ? "opacity-70" : ""}`}>
+                    {/* Image — чистое, без оверлеев */}
+                    <div className={`relative aspect-[3/4] bg-muted overflow-hidden rounded-sm mb-3 ${isLocked ? "opacity-70" : ""}`}>
                       {imageUrl ? (
                         <img
                           src={imageUrl}
@@ -292,42 +294,76 @@ export default function ConceptPage() {
                         </div>
                       )}
 
-                      {/* Status pill */}
-                      {!isCancelled && (
-                        <div className="absolute top-3 left-3">
-                          <span className="inline-flex items-center gap-1.5 bg-background/90 backdrop-blur-sm text-foreground text-[10px] font-semibold uppercase tracking-[0.12em] px-2.5 py-1 rounded-full">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                            {cfg.label}
-                          </span>
-                        </div>
-                      )}
+                      {/* Оверлей «Отменено» */}
                       {isCancelled && (
                         <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                           <span className="text-xs uppercase tracking-widest text-foreground/60">Отменено</span>
                         </div>
                       )}
 
-                      {/* Cart button for collecting status */}
+                      {/* Hover CTA */}
                       {!isLocked && (
-                        <div className="absolute top-2 right-2 z-20">
+                        <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-foreground/90 backdrop-blur-sm text-background text-xs font-semibold uppercase tracking-widest flex items-center justify-center gap-2 py-3">
+                          Подробнее <ArrowRight className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="space-y-2.5">
+                      <h3 className={`text-sm font-medium text-foreground leading-tight line-clamp-2 ${isLocked ? "" : "group-hover:text-primary transition-colors"}`}>
+                        {product.name}
+                      </h3>
+
+                      {/* Цена + статус-бейдж в одной строке */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-base font-bold text-foreground">
+                          {formatPrice(product.price)}
+                        </span>
+                        {!isCancelled && (
+                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full ${
+                            status === "collecting"
+                              ? "bg-primary/10 text-primary"
+                              : "bg-muted text-muted-foreground"
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status === "collecting" ? "bg-primary" : "bg-muted-foreground/50"}`} />
+                            {cfg.label}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Кнопка «В предзаказ» — только при сборе заявок */}
+                      {!isLocked && (
+                        <div className="relative" onClick={e => e.preventDefault()}>
                           <button
-                            className="w-8 h-8 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors shadow-sm"
+                            className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all border ${
+                              inCart
+                                ? "bg-primary text-white border-primary hover:bg-primary/90"
+                                : "bg-foreground text-background border-foreground hover:bg-foreground/85"
+                            }`}
                             onClick={(e) => openSizePopup(e, product)}
                             data-testid={`button-preorder-cart-${product.id}`}
                             aria-label="В корзину предзаказов"
                           >
                             {popupLoadingId === product.id ? (
-                              <span className="w-3.5 h-3.5 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin block" />
-                            ) : cartPreorderItems.find(i => i.productId === product.id) ? (
-                              <X className="w-3.5 h-3.5 text-foreground" />
+                              <span className="w-3.5 h-3.5 border-2 border-current/30 border-t-current rounded-full animate-spin block" />
+                            ) : inCart ? (
+                              <>
+                                <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+                                Оформить предзаказ
+                              </>
                             ) : (
-                              <ShoppingCart className="w-3.5 h-3.5 text-foreground" />
+                              <>
+                                <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+                                В предзаказ
+                              </>
                             )}
                           </button>
+
                           {/* Size picker popup */}
                           {sizePopupId === product.id && (
                             <div
-                              className="absolute top-10 right-0 z-30 bg-background border border-border rounded-xl shadow-lg p-3 min-w-[160px]"
+                              className="absolute bottom-full mb-2 left-0 right-0 z-30 bg-background border border-border rounded-xl shadow-xl p-3"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Выберите размер</p>
@@ -366,29 +402,9 @@ export default function ConceptPage() {
                         </div>
                       )}
 
-                      {/* Hover CTA — только при сборе заявок */}
-                      {!isLocked && (
-                        <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-foreground/90 backdrop-blur-sm text-background text-xs font-semibold uppercase tracking-widest flex items-center justify-center gap-2 py-3">
-                          Предзаказать <ArrowRight className="w-3.5 h-3.5" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="space-y-2">
-                      <h3 className={`text-sm font-medium text-foreground leading-tight line-clamp-2 ${isLocked ? "" : "group-hover:text-primary transition-colors"}`}>
-                        {product.name}
-                      </h3>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-base font-bold text-foreground">
-                          {formatPrice(product.price)}
-                        </span>
-                      </div>
-
                       {/* Progress steps */}
                       {!isCancelled && (
-                        <div className="pt-1 flex gap-1">
+                        <div className="flex gap-1">
                           {STEPS.map((step, idx) => {
                             const stepNum = idx + 1;
                             const active = stepNum === cfg.step;
@@ -399,7 +415,7 @@ export default function ConceptPage() {
                                   done ? "bg-foreground" : active ? "bg-primary" : "bg-muted-foreground/20"
                                 }`} />
                                 <span className={`text-[9px] uppercase tracking-wide truncate text-foreground ${
-                                  active ? "font-semibold" : ""
+                                  active ? "font-semibold" : "opacity-50"
                                 }`}>
                                   {step}
                                 </span>
@@ -411,7 +427,7 @@ export default function ConceptPage() {
 
                       {/* Dates */}
                       {(product.preorderDeadline || product.preorderShippingDate) && (
-                        <div className="text-[10px] text-foreground space-y-0.5 pt-0.5">
+                        <div className="text-[10px] text-muted-foreground space-y-0.5">
                           {product.preorderDeadline && (
                             <p>Сбор до {formatDate(product.preorderDeadline)}</p>
                           )}
