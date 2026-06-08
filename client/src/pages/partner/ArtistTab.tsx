@@ -1161,6 +1161,7 @@ export function ArtistTab({ partnerSlug, artistRate }: ArtistTabProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ArtistProduct | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [unlinkingId, setUnlinkingId] = useState<number | null>(null);
 
   const productsQuery = useQuery<{ products: ArtistProduct[] }>({
     queryKey: ["/api/partner/artist/products"],
@@ -1211,6 +1212,19 @@ export function ArtistTab({ partnerSlug, artistRate }: ArtistTabProps) {
       qc.invalidateQueries({ queryKey: ["/api/partner/my-products"] });
       qc.invalidateQueries({ queryKey: ["/api/partner/artist/products"] });
     },
+  });
+
+  const unlinkMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/partner/artist/linked-products/${id}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/partner/artist/products"] });
+      toast({ title: "Товар отвязан с вашей страницы" });
+      setUnlinkingId(null);
+    },
+    onError: (e: any) => toast({ title: "Ошибка", description: e?.message, variant: "destructive" }),
   });
 
   const loading = productsQuery.isLoading || statsQuery.isLoading;
@@ -1462,7 +1476,15 @@ export function ArtistTab({ partnerSlug, artistRate }: ArtistTabProps) {
             <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Привязаны из каталога</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {products.filter(p => !p.artistOnly).map((p) => (
-                <Card key={p.id} className="overflow-hidden" data-testid={`artist-catalog-product-${p.id}`}>
+                <Card key={p.id} className="overflow-hidden relative group" data-testid={`artist-catalog-product-${p.id}`}>
+                  <button
+                    onClick={() => setUnlinkingId(p.id)}
+                    className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-full bg-black/60 hover:bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Отвязать товар со страницы"
+                    data-testid={`button-unlink-catalog-product-${p.id}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                   <div className="aspect-square bg-muted overflow-hidden">
                     {p.thumbnailUrl || p.imageUrl ? (
                       <img src={p.thumbnailUrl || p.imageUrl || ""} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
@@ -1510,6 +1532,31 @@ export function ArtistTab({ partnerSlug, artistRate }: ArtistTabProps) {
               Удалить
             </Button>
             <Button variant="outline" onClick={() => setDeletingId(null)} data-testid="btn-cancel-delete">Отмена</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unlink catalog product confirmation */}
+      <Dialog open={unlinkingId !== null} onOpenChange={(v) => !v && setUnlinkingId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Отвязать товар?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Товар пропадёт с вашей страницы. Администратор сможет привязать его снова в любой момент.
+          </p>
+          <div className="flex gap-2 mt-2">
+            <Button
+              variant="destructive"
+              className="flex-1"
+              disabled={unlinkMutation.isPending}
+              onClick={() => unlinkingId !== null && unlinkMutation.mutate(unlinkingId)}
+              data-testid="btn-confirm-unlink"
+            >
+              {unlinkMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+              Отвязать
+            </Button>
+            <Button variant="outline" onClick={() => setUnlinkingId(null)} data-testid="btn-cancel-unlink">Отмена</Button>
           </div>
         </DialogContent>
       </Dialog>

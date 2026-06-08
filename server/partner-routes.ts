@@ -1495,6 +1495,34 @@ router.delete('/my-products/:id', authMiddleware, requirePartnerRole, async (req
   }
 });
 
+// DELETE — unlink catalog/1C product from artist page (sets artist_slug = null, does NOT delete product)
+router.delete('/artist/linked-products/:id', authMiddleware, requirePartnerRole, async (req: AuthRequest, res: Response) => {
+  try {
+    const partner = await storage.getPartnerById(req.user!.partnerId!);
+    if (!partner || !partner.isArtist || !partner.partnerSlug) {
+      return res.status(403).json({ error: 'Нет доступа' });
+    }
+    const productId = parseInt(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ error: 'Неверный ID' });
+
+    const product = await storage.getProduct(productId);
+    if (!product) return res.status(404).json({ error: 'Товар не найден' });
+    if ((product as any).artistSlug !== partner.partnerSlug) {
+      return res.status(403).json({ error: 'Товар не принадлежит вашей странице' });
+    }
+    if ((product as any).artistOnly === true) {
+      return res.status(400).json({ error: 'Используйте удаление для собственных товаров' });
+    }
+
+    await storage.updateProduct(productId, { artistSlug: null } as any);
+    console.log(`[Artist] Unlinked catalog product ${productId} from partner ${partner.partnerSlug}`);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[Artist] unlink product error:', error);
+    res.status(500).json({ error: error?.message || 'Ошибка отвязки товара' });
+  }
+});
+
 // Update contact settings (name, phone, store name)
 router.patch('/settings', authMiddleware, requirePartnerRole, async (req: AuthRequest, res: Response) => {
   try {
