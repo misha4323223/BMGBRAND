@@ -73,6 +73,62 @@ export default function ConceptPage() {
   const { addOrUpdateItem, items: cartPreorderItems } = usePreorderCart();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [sizePopupId, setSizePopupId] = useState<number | null>(null);
+  const [popupSizes, setPopupSizes] = useState<string[]>([]);
+  const [popupLoadingId, setPopupLoadingId] = useState<number | null>(null);
+
+  const SIZE_ORDER = ["XXS","XS","S","M","L","XL","XXL","XXXL","ONE SIZE","OS"];
+
+  async function openSizePopup(e: React.MouseEvent, product: PreorderProduct) {
+    e.preventDefault();
+    e.stopPropagation();
+    const already = cartPreorderItems.find(i => i.productId === product.id);
+    if (already) {
+      setLocation("/predrop/checkout");
+      return;
+    }
+    setPopupLoadingId(product.id);
+    try {
+      const res = await fetch(`/api/products/${product.id}`);
+      const data = await res.json();
+      const sizeStockData = data.sizeStock || {};
+      const fromStock = Object.keys(sizeStockData).filter(k => (sizeStockData[k] ?? 0) > 0);
+      const fromSizes: string[] = data.sizes || [];
+      const all = Array.from(new Set([...fromSizes, ...fromStock]));
+      const sorted = all.sort((a, b) => {
+        const ia = SIZE_ORDER.indexOf(a), ib = SIZE_ORDER.indexOf(b);
+        if (ia === -1 && ib === -1) return a.localeCompare(b);
+        if (ia === -1) return 1; if (ib === -1) return -1;
+        return ia - ib;
+      });
+      if (sorted.length === 0 || (sorted.length === 1 && sorted[0] === "ONE SIZE")) {
+        addOrUpdateItem({
+          productId: product.id,
+          productName: product.name,
+          price: product.price,
+          imageUrl: product.images?.[0] || product.thumbnailUrl || product.imageUrl || "",
+          selectedSizes: { "ONE SIZE": 1 },
+        });
+        toast({ title: "Добавлено в корзину предзаказов", description: product.name });
+        setLocation("/predrop/checkout");
+      } else {
+        setPopupSizes(sorted);
+        setSizePopupId(product.id);
+      }
+    } catch {
+      addOrUpdateItem({
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        imageUrl: product.images?.[0] || product.thumbnailUrl || product.imageUrl || "",
+        selectedSizes: { "ONE SIZE": 1 },
+      });
+      toast({ title: "Добавлено в корзину предзаказов", description: product.name });
+      setLocation("/predrop/checkout");
+    } finally {
+      setPopupLoadingId(null);
+    }
+  }
 
   const subscribeMutation = useMutation({
     mutationFn: async () => {
@@ -255,33 +311,60 @@ export default function ConceptPage() {
 
                       {/* Cart button for collecting status */}
                       {!isLocked && (
-                        <button
-                          className="absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors shadow-sm"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const already = cartPreorderItems.find(i => i.productId === product.id);
-                            if (already) {
-                              setLocation("/predrop/checkout");
-                              return;
-                            }
-                            addOrUpdateItem({
-                              productId: product.id,
-                              productName: product.name,
-                              price: product.price,
-                              imageUrl,
-                              selectedSizes: { "ONE SIZE": 1 },
-                            });
-                            toast({ title: "Добавлено в корзину", description: product.name });
-                          }}
-                          data-testid={`button-preorder-cart-${product.id}`}
-                          aria-label="В корзину предзаказов"
-                        >
-                          {cartPreorderItems.find(i => i.productId === product.id)
-                            ? <X className="w-3.5 h-3.5 text-foreground" />
-                            : <ShoppingCart className="w-3.5 h-3.5 text-foreground" />
-                          }
-                        </button>
+                        <div className="absolute top-2 right-2 z-20">
+                          <button
+                            className="w-8 h-8 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors shadow-sm"
+                            onClick={(e) => openSizePopup(e, product)}
+                            data-testid={`button-preorder-cart-${product.id}`}
+                            aria-label="В корзину предзаказов"
+                          >
+                            {popupLoadingId === product.id ? (
+                              <span className="w-3.5 h-3.5 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin block" />
+                            ) : cartPreorderItems.find(i => i.productId === product.id) ? (
+                              <X className="w-3.5 h-3.5 text-foreground" />
+                            ) : (
+                              <ShoppingCart className="w-3.5 h-3.5 text-foreground" />
+                            )}
+                          </button>
+                          {/* Size picker popup */}
+                          {sizePopupId === product.id && (
+                            <div
+                              className="absolute top-10 right-0 z-30 bg-background border border-border rounded-xl shadow-lg p-3 min-w-[160px]"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Выберите размер</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {popupSizes.map((size) => (
+                                  <button
+                                    key={size}
+                                    className="px-2.5 py-1.5 text-xs font-medium border rounded-lg hover:border-primary hover:text-primary transition-colors"
+                                    onClick={() => {
+                                      addOrUpdateItem({
+                                        productId: product.id,
+                                        productName: product.name,
+                                        price: product.price,
+                                        imageUrl,
+                                        selectedSizes: { [size]: 1 },
+                                      });
+                                      setSizePopupId(null);
+                                      toast({ title: "Добавлено в корзину предзаказов", description: `${product.name} — ${size}` });
+                                      setLocation("/predrop/checkout");
+                                    }}
+                                    data-testid={`size-option-${product.id}-${size}`}
+                                  >
+                                    {size}
+                                  </button>
+                                ))}
+                              </div>
+                              <button
+                                className="mt-2 w-full text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={() => setSizePopupId(null)}
+                              >
+                                Отмена
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       {/* Hover CTA — только при сборе заявок */}

@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { usePreorderCart } from "@/context/PreorderCartContext";
 import { CATEGORIES, transliterateToSlug, type CategorySlug, type SizeMeasurement } from "@shared/schema";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -274,7 +275,7 @@ export default function ProductDetail() {
     window.dispatchEvent(new CustomEvent("set-product-context", {
       detail: {
         id: product.id,
-        name: product.name,
+        productName: product.name,
         price: product.price ? Math.round(product.price / 100) : 0,
         description: (product as any).description || "",
         composition: (product as any).composition || "",
@@ -1115,7 +1116,7 @@ export default function ProductDetail() {
                           window.dispatchEvent(new CustomEvent("open-size-advisor", {
                             detail: {
                               id: product.id,
-                              name: product.name,
+                              productName: product.name,
                               subcategory: product.subcategory,
                               hasMeasurements: measurements.length > 0,
                               hasWaist,
@@ -1986,35 +1987,8 @@ export default function ProductDetail() {
 function PreorderButton({ product, selectedSize, selectedColor }: { product: any; selectedSize: string; selectedColor: string }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { data: authData, isLoading: authLoading } = useAuth();
-  const isLoggedIn = !!authData?.user;
-  const [agreeTerms, setAgreeTerms] = useState(false);
-  const [agreePolicy, setAgreePolicy] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
-  const [preorderWidgetToken, setPreorderWidgetToken] = useState<string | null>(null);
-  const [preorderOrderId, setPreorderOrderId] = useState<number | null>(null);
-  const [preorderError, setPreorderError] = useState<string | null>(null);
-  const [lastName, setLastName] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [middleName, setMiddleName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const { addOrUpdateItem, items: preorderCartItems } = usePreorderCart();
   const [sizeQuantities, setSizeQuantities] = useState<Record<string, number>>({});
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalView, setAuthModalView] = useState<"login" | "register">("login");
-  const [cdekCityQuery, setCdekCityQuery] = useState("");
-  const [cdekCities, setCdekCities] = useState<any[]>([]);
-  const [cdekCitiesLoading, setCdekCitiesLoading] = useState(false);
-  const [selectedCdekCity, setSelectedCdekCity] = useState<any | null>(null);
-  const [selectedCdekPoint, setSelectedCdekPoint] = useState<any | null>(null);
-  const [cdekTariffCode, setCdekTariffCode] = useState<number | null>(null);
-  const [cdekDeliverySum, setCdekDeliverySum] = useState<number>(0);
-  const [showCdekWidget, setShowCdekWidget] = useState(false);
-  const [cdekWidgetLoading, setCdekWidgetLoading] = useState(false);
-  const [cdekIframeUrl, setCdekIframeUrl] = useState<string | null>(null);
-  const cdekCurrentInstanceRef = useRef<string | null>(null);
-  const { data: mapsKeyData } = useQuery<{ key: string }>({ queryKey: ["/api/cdek/maps-key"], staleTime: Infinity });
-  const mapsApiKey = mapsKeyData?.key || '';
 
   const SIZE_ORDER = ["XXS","XS","S","M","L","XL","XXL","XXXL","ONE SIZE","OS"];
   const sizeStockData = (product as any).sizeStock;
@@ -2041,185 +2015,41 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
     });
   }
 
-  const { data: paymentMethodsData, isLoading: methodsLoading } = useQuery<{ methods: { id: string, name: string, description?: string }[], enabled: boolean }>({
-    queryKey: ["/api/payment-methods"],
-  });
-  const paymentMethods = paymentMethodsData?.methods || [];
-
-  useEffect(() => {
-    if (paymentMethods.length > 0 && !selectedPaymentMethod) {
-      setSelectedPaymentMethod(paymentMethods[0].id);
-    }
-  }, [paymentMethods, selectedPaymentMethod]);
-
-  useEffect(() => {
-    if (!cdekCityQuery.trim() || cdekCityQuery.length < 2) { setCdekCities([]); return; }
-    const timer = setTimeout(async () => {
-      setCdekCitiesLoading(true);
-      try {
-        const r = await fetch(`/api/cdek/cities?city=${encodeURIComponent(cdekCityQuery)}&size=7`);
-        if (r.ok) { const d = await r.json(); setCdekCities(Array.isArray(d) ? d : []); }
-      } catch { setCdekCities([]); }
-      finally { setCdekCitiesLoading(false); }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [cdekCityQuery]);
-
-  useEffect(() => {
-    const handle = (e: MessageEvent) => {
-      const d = e.data;
-      if (!d || typeof d !== 'object') return;
-      if (d.instanceId !== cdekCurrentInstanceRef.current) return;
-      if (d.type === 'cdek:ready') { setCdekWidgetLoading(false); }
-      if (d.type === 'cdek:choose') {
-        setSelectedCdekPoint({ code: d.point.code, name: d.point.name, address: d.point.address });
-        setCdekTariffCode(d.tariff_code || 136);
-        setCdekDeliverySum(d.delivery_sum ? Math.round(d.delivery_sum * 100) : 0);
-        setShowCdekWidget(false);
-      }
-      if (d.type === 'cdek:error') { setCdekWidgetLoading(false); }
-    };
-    window.addEventListener('message', handle);
-    return () => window.removeEventListener('message', handle);
-  }, []);
   
-  const preorderMutation = useMutation({
-    mutationFn: async () => {
-      setPreorderError(null);
-      const items = availableSizes.length > 0
-        ? Object.entries(sizeQuantities).filter(([, q]) => q > 0).map(([size, quantity]) => ({ size, quantity }))
-        : [{ size: selectedSize || undefined, quantity: 1 }];
-      const res = await apiRequest("POST", "/api/preorder/order", {
+  const alreadyInCart = preorderCartItems.some(i => i.productId === product.id);
+
+  function handleAddToCart() {
+    if (availableSizes.length === 0) {
+      addOrUpdateItem({
         productId: product.id,
-        color: selectedColor || undefined,
-        paymentMethod: selectedPaymentMethod,
-        customerLastName: lastName.trim(),
-        customerFirstName: firstName.trim(),
-        customerMiddleName: middleName.trim(),
-        customerEmail: email.trim(),
-        customerPhone: phone.trim(),
-        items,
-        cdekPointCode: selectedCdekPoint?.code || undefined,
-        cdekCityCode: selectedCdekCity?.code || undefined,
-        cdekTariffCode: cdekTariffCode || 136,
-        cdekPointAddress: selectedCdekPoint?.address || undefined,
-        cdekDeliverySum: cdekDeliverySum || undefined,
+        productName: product.name,
+        price: product.price,
+        imageUrl: product.thumbnailUrl || product.imageUrl || "",
+        selectedSizes: { "ONE SIZE": 1 },
+        selectedColor: selectedColor || undefined,
       });
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      if (data.confirmationToken) {
-        setPreorderWidgetToken(data.confirmationToken);
-        setPreorderOrderId(data.orderId || null);
-      } else if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
-      } else {
-        toast({ title: "Предзаказ создан", description: "Номер заказа: " + data.orderId });
-      }
-    },
-    onError: (err: any) => {
-      const msg = err?.message || "Произошла ошибка при оформлении предзаказа";
-      if (msg.includes("авторизуйтесь") || msg.includes("Unauthorized")) {
-        toast({ title: "Необходима авторизация", description: "Войдите в аккаунт для оформления предзаказа", variant: "destructive" });
-      } else {
-        setPreorderError(msg);
-      }
-    },
-  });
-
-  const needsSize = availableSizes.length > 0 && totalItems === 0;
-  const needsColor = product.colors?.length > 0 && !selectedColor;
-  const hasCustomerInfo = lastName.trim().length > 0 && firstName.trim().length > 0 && email.trim().length > 0 && email.includes("@") && phone.trim().length > 0;
-  const needsCdekPoint = !selectedCdekPoint;
-  const canSubmit = agreeTerms && agreePolicy && !needsSize && !needsColor && !needsCdekPoint && !preorderMutation.isPending && !!selectedPaymentMethod && !methodsLoading && hasCustomerInfo;
-
-  const openCdekWidget = (city: any) => {
-    const iid = `cdek-preorder-${Date.now()}`;
-    cdekCurrentInstanceRef.current = iid;
-    const p = new URLSearchParams({
-      city_code: String(city.code),
-      city_name: city.city,
-      lat: String(city.latitude || 54.011),
-      lon: String(city.longitude || 38.29),
-      instance_id: iid,
-      service_path: '/api/cdek/widget-proxy',
-      ...(mapsApiKey ? { api_key: mapsApiKey } : {}),
+      toast({ title: "Добавлено в корзину предзаказов", description: product.name });
+      setLocation("/predrop/checkout");
+      return;
+    }
+    if (totalItems === 0) {
+      toast({ title: "Выберите размер", variant: "destructive" });
+      return;
+    }
+    addOrUpdateItem({
+      productId: product.id,
+      productName: product.name,
+      price: product.price,
+      imageUrl: product.thumbnailUrl || product.imageUrl || "",
+      selectedSizes: { ...sizeQuantities },
+      selectedColor: selectedColor || undefined,
     });
-    setCdekIframeUrl(`/cdek-widget.html?${p.toString()}`);
-    setShowCdekWidget(true);
-    setCdekWidgetLoading(true);
-  };
-
-  if (!authLoading && !isLoggedIn) {
-    return (
-      <div className="mb-8 space-y-4" data-testid="preorder-login-prompt">
-        <div className="border border-border rounded-lg p-5 text-center space-y-3">
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-            <LogIn className="w-5 h-5 text-primary" />
-          </div>
-          <p className="text-sm font-medium text-foreground">
-            Для оформления предзаказа необходима авторизация
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Войдите в аккаунт или зарегистрируйтесь, чтобы оформить предзаказ и отслеживать его статус
-          </p>
-          <div className="flex justify-center pt-1">
-            <Button
-              onClick={() => { setAuthModalView("login"); setAuthModalOpen(true); }}
-              className="rounded-full"
-              data-testid="button-preorder-login"
-            >
-              <LogIn className="w-4 h-4 mr-2" />
-              Войти / Зарегистрироваться
-            </Button>
-          </div>
-        </div>
-        <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} initialView={authModalView} />
-      </div>
-    );
+    toast({ title: "Добавлено в корзину предзаказов", description: product.name });
+    setLocation("/predrop/checkout");
   }
-
-  const preorderReturnUrl = preorderOrderId ? `${window.location.origin}/order-success/${preorderOrderId}` : window.location.origin;
 
   return (
     <div className="mb-8 space-y-4" data-testid="preorder-action">
-      {preorderWidgetToken && (
-        <YooKassaWidget
-          confirmationToken={preorderWidgetToken}
-          returnUrl={preorderReturnUrl}
-          onSuccess={() => {
-            setPreorderWidgetToken(null);
-            if (preorderOrderId) {
-              setLocation(`/order-success/${preorderOrderId}`);
-            }
-          }}
-          onFail={() => {
-            setPreorderWidgetToken(null);
-            toast({ title: "Оплата не прошла", variant: "destructive" });
-          }}
-          onClose={() => setPreorderWidgetToken(null)}
-        />
-      )}
-      {preorderError && (
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 space-y-2" data-testid="preorder-error">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center shrink-0 mt-0.5">
-              <AlertTriangle className="w-4 h-4 text-destructive" />
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">Не удалось оформить предзаказ</p>
-              <p className="text-xs text-muted-foreground">{preorderError}</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setPreorderError(null)}
-            className="text-xs text-primary hover:underline ml-11"
-            data-testid="button-dismiss-preorder-error"
-          >
-            Закрыть
-          </button>
-        </div>
-      )}
       {availableSizes.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-2">
@@ -2229,7 +2059,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
                 <div className="text-xs font-medium text-foreground">
                   {Object.entries(sizeQuantities).filter(([,q]) => q > 0).map(([size, qty]) => `${size} × ${qty}`).join(", ")}
                 </div>
-                <div className="text-xs text-muted-foreground">{totalItems} шт. · {(totalItems * product.price / 100).toLocaleString("ru-RU")} ₽{cdekDeliverySum > 0 && <span className="ml-1 text-primary">+ {(cdekDeliverySum/100).toLocaleString("ru-RU")} ₽ дост.</span>}</div>
+                <div className="text-xs text-muted-foreground">{totalItems} шт. · {(totalItems * product.price / 100).toLocaleString("ru-RU")} ₽</div>
               </div>
             )}
           </div>
@@ -2268,212 +2098,21 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
           </div>
         </div>
       )}
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Данные покупателя</p>
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="text"
-            placeholder="Фамилия *"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            className="h-9 px-3 text-sm border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-            data-testid="input-preorder-lastname"
-          />
-          <input
-            type="text"
-            placeholder="Имя *"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            className="h-9 px-3 text-sm border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-            data-testid="input-preorder-firstname"
-          />
-        </div>
-        <input
-          type="text"
-          placeholder="Отчество"
-          value={middleName}
-          onChange={(e) => setMiddleName(e.target.value)}
-          className="w-full h-9 px-3 text-sm border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-          data-testid="input-preorder-middlename"
-        />
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="email"
-            placeholder="Email *"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="h-9 px-3 text-sm border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-            data-testid="input-preorder-email"
-          />
-          <input
-            type="tel"
-            placeholder="Телефон *"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="h-9 px-3 text-sm border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-            data-testid="input-preorder-phone"
-          />
-        </div>
-      </div>
-
-      {/* CDEK Delivery */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Truck className="w-3.5 h-3.5 text-muted-foreground" />
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Доставка СДЭК</p>
-        </div>
-        {selectedCdekPoint ? (
-          <div className="flex items-start gap-3 p-3 border rounded-xl border-primary bg-primary/5">
-            <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground leading-tight">{selectedCdekPoint.name}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{selectedCdekPoint.address}</p>
-              {cdekDeliverySum > 0 && (
-                <p className="text-xs text-primary font-medium mt-1">Доставка: {(cdekDeliverySum / 100).toLocaleString("ru-RU")} ₽</p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => { setSelectedCdekPoint(null); setCdekTariffCode(null); setCdekDeliverySum(0); setShowCdekWidget(false); setCdekIframeUrl(null); setSelectedCdekCity(null); setCdekCityQuery(""); }}
-              className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-              data-testid="button-cdek-clear-point"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Введите город доставки..."
-                value={selectedCdekCity ? selectedCdekCity.city : cdekCityQuery}
-                onChange={(e) => { setSelectedCdekCity(null); setSelectedCdekPoint(null); setShowCdekWidget(false); setCdekCityQuery(e.target.value); }}
-                className="w-full h-9 px-3 text-sm border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                data-testid="input-cdek-city"
-              />
-              {cdekCitiesLoading && <Loader2 className="absolute right-3 top-2.5 w-4 h-4 animate-spin text-muted-foreground" />}
-              {cdekCities.length > 0 && !selectedCdekCity && (
-                <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-background border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {cdekCities.map((c: any) => (
-                    <button
-                      key={c.code}
-                      type="button"
-                      className="w-full px-3 py-2 text-sm text-left hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg"
-                      onClick={() => { setSelectedCdekCity(c); setCdekCityQuery(""); setCdekCities([]); openCdekWidget(c); }}
-                      data-testid={`option-cdek-city-${c.code}`}
-                    >
-                      <span className="font-medium">{c.city}</span>
-                      {c.region && <span className="text-muted-foreground ml-1 text-xs">{c.region}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {selectedCdekCity && !selectedCdekPoint && (
-              <button
-                type="button"
-                onClick={() => selectedCdekCity && openCdekWidget(selectedCdekCity)}
-                className="w-full h-9 text-sm border border-dashed rounded-lg flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
-                data-testid="button-cdek-open-widget"
-              >
-                <MapPin className="w-4 h-4" />
-                Выбрать пункт выдачи в {selectedCdekCity.city}
-              </button>
-            )}
-            {showCdekWidget && cdekIframeUrl && (
-              <div className="relative rounded-xl overflow-hidden border border-border" style={{ height: 360 }}>
-                {cdekWidgetLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-                <iframe
-                  src={cdekIframeUrl}
-                  className="w-full h-full border-0"
-                  title="Выбор ПВЗ СДЭК"
-                  data-testid="iframe-cdek-widget"
-                />
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {paymentMethods.length > 1 && (
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">Способ оплаты</p>
-          <RadioGroup value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod} className="space-y-2">
-            {paymentMethods.map((method: any) => (
-              <div
-                key={method.id}
-                className={`flex items-center space-x-3 p-2.5 border rounded-lg hover-elevate cursor-pointer ${selectedPaymentMethod === method.id ? "border-primary bg-primary/5" : ""}`}
-                onClick={() => setSelectedPaymentMethod(method.id)}
-                data-testid={`radio-preorder-pay-${method.id}`}
-              >
-                <RadioGroupItem value={method.id} id={`preorder-pay-${method.id}`} />
-                <Label htmlFor={`preorder-pay-${method.id}`} className="flex-1 cursor-pointer flex items-center justify-between">
-                  <span className="text-sm font-medium">{method.name}</span>
-                  {method.id === "tbank" ? (
-                    <div className="flex items-center gap-1.5">
-                      <Landmark className="w-5 h-5 text-[#FFDD2D]" />
-                      <span className="text-[9px] font-bold uppercase tracking-tighter">T-Bank</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-6 h-6 bg-[#8000FF] rounded flex items-center justify-center text-white font-bold text-[8px]">ЮK</div>
-                      <span className="text-[9px] font-bold uppercase tracking-tighter">YooKassa</span>
-                    </div>
-                  )}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
-        </div>
-      )}
-      <div className="space-y-2">
-        <label className="flex items-start gap-2 cursor-pointer text-xs text-muted-foreground" data-testid="label-agree-terms">
-          <Checkbox checked={agreeTerms} onCheckedChange={(v) => setAgreeTerms(v === true)} data-testid="checkbox-agree-terms" className="mt-0.5" />
-          <span>Согласен(-на) с <Link href="/terms" className="underline text-foreground">условиями оферты</Link> и условиями предзаказа</span>
-        </label>
-        <label className="flex items-start gap-2 cursor-pointer text-xs text-muted-foreground" data-testid="label-agree-policy">
-          <Checkbox checked={agreePolicy} onCheckedChange={(v) => setAgreePolicy(v === true)} data-testid="checkbox-agree-policy" className="mt-0.5" />
-          <span>Согласен(-на) с <Link href="/privacy" className="underline text-foreground">политикой конфиденциальности</Link></span>
-        </label>
-      </div>
       <Button
-        onClick={() => preorderMutation.mutate()}
-        disabled={!canSubmit}
+        onClick={handleAddToCart}
         className="w-full h-11 rounded-full text-sm font-medium"
-        data-testid="button-preorder-submit"
+        data-testid="button-preorder-add-to-cart"
       >
-        {preorderMutation.isPending ? (
-          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-        ) : (
-          <TrendingUp className="w-4 h-4 mr-2" />
-        )}
-        {(() => {
-          const noSize = availableSizes.length > 0 && totalItems === 0;
-          if (noSize && cdekDeliverySum === 0) return "Предзаказать";
-          if (noSize && cdekDeliverySum > 0) return <>Предзаказать + {(cdekDeliverySum / 100).toLocaleString("ru-RU")} &#8381; доставка</>;
-          const goods = totalItems > 0 ? totalItems * product.price : product.price;
-          const total = goods + cdekDeliverySum;
-          return <>Предзаказать за {(total / 100).toLocaleString("ru-RU")} &#8381;{cdekDeliverySum > 0 && <span className="opacity-70 font-normal text-xs ml-1">(+{(cdekDeliverySum/100).toLocaleString("ru-RU")} ₽ дост.)</span>}</>;
-        })()}
+        <ShoppingCart className="w-4 h-4 mr-2" />
+        {alreadyInCart
+          ? "Перейти к оформлению →"
+          : availableSizes.length > 0 && totalItems === 0
+            ? "Выберите размер"
+            : totalItems > 0
+              ? `В корзину — ${(totalItems * product.price / 100).toLocaleString("ru-RU")} ₽`
+              : "В корзину предзаказов"
+        }
       </Button>
-      {(needsSize || needsColor) && (
-        <p className="text-center text-primary text-xs">
-          Выберите {needsSize ? "размер" : ""}{needsSize && needsColor ? " и " : ""}{needsColor ? "цвет" : ""}
-        </p>
-      )}
-      {needsCdekPoint && !needsSize && !needsColor && (
-        <p className="text-center text-primary text-xs">Выберите пункт выдачи СДЭК</p>
-      )}
-      {!hasCustomerInfo && !needsSize && !needsColor && !needsCdekPoint && (
-        <p className="text-center text-muted-foreground text-xs">
-          Заполните фамилию, имя и email
-        </p>
-      )}
     </div>
   );
 }
