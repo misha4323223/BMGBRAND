@@ -485,9 +485,11 @@ export function ChatWidget() {
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
   useEffect(() => {
+    if (open) {
+      setUnreadCount(0);
+    }
     if (open && mode === "manager") {
       loadMessages();
-      setUnreadCount(0);
       scrollManagerToBottom();
       setTimeout(() => managerInputRef.current?.focus(), 200);
     }
@@ -1002,7 +1004,13 @@ export function ChatWidget() {
       )}
 
       {/* Toggle button */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+        {!open && unreadCount > 0 && (
+          <div className="flex items-center gap-1.5 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-white/70 flex-shrink-0" />
+            сообщений {unreadCount > 9 ? "9+" : unreadCount}
+          </div>
+        )}
         <button
           onClick={() => setOpen(o => !o)}
           data-testid="button-chat-toggle"
@@ -1019,11 +1027,6 @@ export function ChatWidget() {
                 Спроси AI
               </span>
             </>
-          )}
-          {!open && unreadCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
           )}
         </button>
       </div>
