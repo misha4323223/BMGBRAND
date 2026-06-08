@@ -186,7 +186,7 @@ export default function ConceptPage() {
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Bell className="w-4 h-4 shrink-0" style={{ color: "#C8F13A" }} />
+                  <Bell className="w-4 h-4 shrink-0" style={{ color: "#D7FF00" }} />
                   <span className="text-sm font-semibold text-white tracking-tight">
                     Узнай первым о новом предзаказе
                   </span>
@@ -207,7 +207,7 @@ export default function ConceptPage() {
                     onClick={() => subscribeMutation.mutate()}
                     disabled={!subEmail || !agreed || subscribeMutation.isPending}
                     className="shrink-0 h-9 px-4 text-xs font-semibold text-black hover:opacity-90"
-                    style={{ backgroundColor: "#C8F13A" }}
+                    style={{ backgroundColor: "#D7FF00" }}
                     data-testid="button-preorder-subscribe"
                   >
                     {subscribeMutation.isPending ? "..." : "Подписаться"}
