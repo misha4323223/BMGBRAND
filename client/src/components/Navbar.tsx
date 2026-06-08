@@ -166,6 +166,7 @@ export function Navbar() {
 
   const visibleLinks = settings.links.filter((l) => l.visible);
   const isHome = location === "/";
+  const isConceptPage = location === "/concept";
 
   const openShopMenu = () => {
     if (shopTimerRef.current) clearTimeout(shopTimerRef.current);
@@ -284,7 +285,7 @@ export function Navbar() {
               </Button>
             )}
             <Link href="/" className="flex-shrink-0 cursor-pointer" data-testid="link-navbar-logo">
-              <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-9 w-auto object-contain" />
+              <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-20 w-auto object-contain" />
             </Link>
           </div>
           <div className="flex items-center space-x-1">
@@ -294,12 +295,14 @@ export function Navbar() {
                 <Search className="w-5 h-5 text-foreground" />
               </button>
             )}
-            <Link href="/favorites" className="relative p-1.5 hover:bg-muted rounded-full transition-colors" aria-label="Избранное">
-              <Heart className={`w-5 h-5 ${favoritesCount > 0 ? 'fill-foreground text-foreground' : 'text-foreground'}`} />
-              {favoritesCount > 0 && (
-                <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{favoritesCount}</span>
-              )}
-            </Link>
+            {!isConceptPage && (
+              <Link href="/favorites" className="relative p-1.5 hover:bg-muted rounded-full transition-colors" aria-label="Избранное">
+                <Heart className={`w-5 h-5 ${favoritesCount > 0 ? 'fill-foreground text-foreground' : 'text-foreground'}`} />
+                {favoritesCount > 0 && (
+                  <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{favoritesCount}</span>
+                )}
+              </Link>
+            )}
             {preorderCount > 0 && (
               <Link href="/predrop/checkout" className="relative p-1.5 hover:bg-muted rounded-full transition-colors" aria-label="Корзина предзаказов">
                 <PackageOpen className="w-5 h-5 text-foreground" />
@@ -602,12 +605,14 @@ export function Navbar() {
                 ) : null}
               </>
             )}
-            <Link href="/favorites" className="relative cursor-pointer group p-2 hover:bg-muted rounded-full transition-colors" data-testid="link-favorites" aria-label="Избранное">
-              <Heart className={`w-6 h-6 transition-colors ${favoritesCount > 0 ? 'fill-foreground text-foreground' : 'text-foreground group-hover:text-primary'}`} />
-              {favoritesCount > 0 && (
-                <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{favoritesCount}</span>
-              )}
-            </Link>
+            {!isConceptPage && (
+              <Link href="/favorites" className="relative cursor-pointer group p-2 hover:bg-muted rounded-full transition-colors" data-testid="link-favorites" aria-label="Избранное">
+                <Heart className={`w-6 h-6 transition-colors ${favoritesCount > 0 ? 'fill-foreground text-foreground' : 'text-foreground group-hover:text-primary'}`} />
+                {favoritesCount > 0 && (
+                  <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{favoritesCount}</span>
+                )}
+              </Link>
+            )}
             {preorderCount > 0 && (
               <Link href="/predrop/checkout" className="relative cursor-pointer group p-2 hover:bg-muted rounded-full transition-colors" aria-label="Корзина предзаказов">
                 <PackageOpen className="w-6 h-6 text-foreground group-hover:text-primary transition-colors" />
