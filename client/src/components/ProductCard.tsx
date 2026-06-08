@@ -835,7 +835,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                     </div>
                   )}
 
-                  {!isActiveProductOutOfStock && (
+                  {!isActiveProductOutOfStock && !(activeProduct as any).preorderEnabled && (
                   <div className="space-y-1 sm:space-y-2">
                     <span className="text-[10px] sm:text-xs font-semibold text-black uppercase tracking-wider">Количество</span>
                     <div className="flex items-center w-fit border border-black/30 rounded-md overflow-hidden">
@@ -859,7 +859,48 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
               </div>
 
               <div className="mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-black/25 space-y-1.5 sm:space-y-3">
-                {isActiveProductOutOfStock ? (
+                {(activeProduct as any).preorderEnabled ? (
+                  <div className="space-y-2">
+                    <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-3 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold tracking-widest uppercase text-amber-800 bg-amber-200 px-2 py-0.5 rounded-sm">Предзаказ</span>
+                        {(activeProduct as any).preorderStatus === "collecting" && (
+                          <span className="text-[10px] text-amber-700">· Сбор заявок</span>
+                        )}
+                        {(activeProduct as any).preorderStatus === "production" && (
+                          <span className="text-[10px] text-amber-700">· Производство</span>
+                        )}
+                        {(activeProduct as any).preorderStatus === "shipping" && (
+                          <span className="text-[10px] text-amber-700">· Отправка</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-amber-900/75 leading-relaxed">
+                        Товар доступен только по предзаказу — оформите заявку на странице товара.
+                      </p>
+                      {(activeProduct as any).preorderDeadline && (
+                        <p className="text-[11px] text-amber-800">
+                          <span className="font-semibold">Приём заявок до:</span>{" "}
+                          {new Date((activeProduct as any).preorderDeadline).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
+                        </p>
+                      )}
+                      {(activeProduct as any).preorderShippingDate && (
+                        <p className="text-[11px] text-amber-800">
+                          <span className="font-semibold">Ориентировочная отправка:</span>{" "}
+                          {new Date((activeProduct as any).preorderShippingDate).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
+                        </p>
+                      )}
+                    </div>
+                    <Link
+                      href={`/${activeProduct.slug || activeProduct.id}`}
+                      onClick={() => setIsModalOpen(false)}
+                      className="flex items-center justify-center gap-1.5 w-full h-9 sm:h-12 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white text-xs sm:text-sm font-semibold tracking-widest uppercase transition-all rounded-none"
+                      data-testid={`button-modal-go-preorder-${activeProduct.id}`}
+                    >
+                      Перейти к предзаказу
+                      <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    </Link>
+                  </div>
+                ) : isActiveProductOutOfStock ? (
                   <>
                     <div className="flex items-center justify-center h-9 sm:h-12 rounded-md bg-black/5 text-black/60 text-xs sm:text-sm font-medium" data-testid="text-modal-out-of-stock">
                       {notifySize ? `Размер ${notifySize} — нет в наличии` : "Нет в наличии"}

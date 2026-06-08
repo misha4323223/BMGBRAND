@@ -14360,7 +14360,7 @@ ${offersXml}
     }
   });
 
-  app.get("/api/admin/preorder/pickup-points", adminMiddleware, async (_req, res) => {
+  app.get("/api/admin/preorder/pickup-points", authMiddleware, requireAdminRole, async (_req, res) => {
     try {
       const points = await storage.getPickupPoints();
       res.json(points);
@@ -14369,7 +14369,7 @@ ${offersXml}
     }
   });
 
-  app.post("/api/admin/preorder/pickup-points", adminMiddleware, async (req, res) => {
+  app.post("/api/admin/preorder/pickup-points", authMiddleware, requireAdminRole, async (req, res) => {
     try {
       const { id, name, date, city, address, isActive } = req.body;
       if (!name || !city || !address) return res.status(400).json({ error: "name, city, address required" });
@@ -14390,7 +14390,7 @@ ${offersXml}
     }
   });
 
-  app.put("/api/admin/preorder/pickup-points/:id", adminMiddleware, async (req, res) => {
+  app.put("/api/admin/preorder/pickup-points/:id", authMiddleware, requireAdminRole, async (req, res) => {
     try {
       const { id } = req.params;
       const points = await storage.getPickupPoints();
@@ -14404,7 +14404,7 @@ ${offersXml}
     }
   });
 
-  app.delete("/api/admin/preorder/pickup-points/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/preorder/pickup-points/:id", authMiddleware, requireAdminRole, async (req, res) => {
     try {
       const { id } = req.params;
       const points = await storage.getPickupPoints();
