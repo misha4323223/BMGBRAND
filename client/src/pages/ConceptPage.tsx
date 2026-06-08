@@ -338,7 +338,9 @@ export default function ConceptPage() {
                                   <button
                                     key={size}
                                     className="px-2.5 py-1.5 text-xs font-medium border rounded-lg hover:border-primary hover:text-primary transition-colors"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       addOrUpdateItem({
                                         productId: product.id,
                                         productName: product.name,

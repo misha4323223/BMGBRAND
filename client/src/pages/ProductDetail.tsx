@@ -13,7 +13,7 @@ import { AuthModal } from "@/components/AuthModal";
 import { BrandLoader } from "@/components/BrandLoader";
 import { Badge } from "@/components/ui/badge";
 import SEO from "@/components/SEO";
-import { Minus, Plus, ShoppingBag, ChevronLeft, ChevronRight, Loader2, X, Percent, Heart, ArrowRight, Target, Clock, Landmark, Share2, Check, Home, ZoomIn, ZoomOut, Bell, TrendingUp, TrendingDown, LogIn, AlertTriangle, MapPin, Truck, RotateCcw, Gift, Ruler } from "lucide-react";
+import { Minus, Plus, ShoppingBag, ShoppingCart, ChevronLeft, ChevronRight, Loader2, X, Percent, Heart, ArrowRight, Target, Clock, Landmark, Share2, Check, Home, ZoomIn, ZoomOut, Bell, TrendingUp, TrendingDown, LogIn, AlertTriangle, MapPin, Truck, RotateCcw, Gift, Ruler } from "lucide-react";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import { ProductCard } from "@/components/ProductCard";
 import { RecommendationBlock } from "@/components/RecommendationBlock";
