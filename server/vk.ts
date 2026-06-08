@@ -358,3 +358,155 @@ export function vkNotifyPartnerFeedback(data: {
 
   sendVkMessage(text).catch(err => console.error("[VK] vkNotifyPartnerFeedback failed:", err));
 }
+
+// ============================================
+// VK CHAT (live chat notifications + Long Poll replies)
+// ============================================
+
+export async function sendVkChatNotification(
+  sessionId: string,
+  text: string,
+  userName?: string,
+  imageUrl?: string
+): Promise<number | null> {
+  const { token, peerId } = getConfig();
+  if (!token || !peerId) return null;
+
+  const header = userName ? `💬 ${userName}:` : `💬 Сообщение:`;
+  const body_text = imageUrl
+    ? `${header}\n${text ? text + "\n" : ""}📷 ${imageUrl}`
+    : `${header}\n${text}`;
+  const msgText = plain(body_text).slice(0, VK_MAX_LENGTH);
+
+  try {
+    const body = new URLSearchParams({
+      peer_id: peerId,
+      message: msgText,
+      random_id: String(randomId()),
+      access_token: token,
+      v: "5.199",
+    });
+
+    const response = await fetch(`https://api.vk.com/method/messages.send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
+
+    const data = await response.json() as any;
+    if (data.error) {
+      console.error("[VK Chat] Send error:", data.error.error_msg);
+      return null;
+    }
+
+    const messageId = data.response as number;
+    console.log(`[VK Chat] Sent for session ${sessionId.slice(0, 8)}, vk_message_id=${messageId}`);
+    return messageId;
+  } catch (err: any) {
+    console.error("[VK Chat] Failed:", err.message);
+    return null;
+  }
+}
+
+let longPollActive = false;
+
+export function startVkLongPoll(
+  onReply: (vkMessageId: number, replyText: string, adminName: string) => Promise<void>
+): void {
+  if (longPollActive) return;
+  const { token, peerId } = getConfig();
+  if (!token || !peerId) {
+    console.log("[VK LongPoll] Not configured, skipping");
+    return;
+  }
+  longPollActive = true;
+  runLongPoll(onReply).catch(err => {
+    console.error("[VK LongPoll] Fatal error:", err.message);
+    longPollActive = false;
+  });
+}
+
+async function getLongPollServer(): Promise<{ key: string; server: string; ts: string }> {
+  const { token } = getConfig();
+  const res = await fetch(
+    `https://api.vk.com/method/messages.getLongPollServer?access_token=${token}&v=5.199&lp_version=3`
+  );
+  const data = await res.json() as any;
+  if (data.error) throw new Error(`messages.getLongPollServer: ${data.error.error_msg}`);
+  return data.response;
+}
+
+async function runLongPoll(
+  onReply: (vkMessageId: number, replyText: string, adminName: string) => Promise<void>
+): Promise<void> {
+  const { token, peerId } = getConfig();
+  console.log("[VK LongPoll] Starting...");
+
+  let lpParams: { key: string; server: string; ts: string };
+  try {
+    lpParams = await getLongPollServer();
+  } catch (err: any) {
+    console.error("[VK LongPoll] Could not get server params:", err.message);
+    longPollActive = false;
+    return;
+  }
+
+  let { key, server, ts } = lpParams;
+
+  while (true) {
+    try {
+      const url = `https://${server}?act=a_check&key=${key}&ts=${ts}&wait=25&mode=2&version=3`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(35000) });
+      const data = await res.json() as any;
+
+      if (data.failed) {
+        if (data.failed === 1) {
+          ts = String(data.ts);
+        } else {
+          console.log(`[VK LongPoll] Failed=${data.failed}, refreshing server params`);
+          ({ key, server, ts } = await getLongPollServer());
+        }
+        continue;
+      }
+
+      ts = String(data.ts);
+
+      for (const update of (data.updates || [])) {
+        if (update[0] !== 4) continue;
+        const msgId: number = update[1];
+        const flags: number = update[2];
+        const msgPeerId: number = update[3];
+
+        if (flags & 2) continue;
+        if (String(msgPeerId) !== String(peerId)) continue;
+
+        try {
+          const msgRes = await fetch(
+            `https://api.vk.com/method/messages.getById?access_token=${token}&v=5.199&message_ids=${msgId}`
+          );
+          const msgData = await msgRes.json() as any;
+          const msg = msgData?.response?.items?.[0];
+          if (!msg) continue;
+
+          const replyMsg = msg.reply_message;
+          if (!replyMsg?.id) continue;
+
+          const replyText: string = (msg.text || '').trim();
+          if (!replyText) continue;
+
+          const adminName = 'Менеджер';
+          console.log(`[VK LongPoll] Reply to vk_msg_id=${replyMsg.id}: "${replyText.slice(0, 60)}"`);
+          await onReply(replyMsg.id as number, replyText, adminName);
+        } catch (err: any) {
+          console.error("[VK LongPoll] Error processing message:", err.message);
+        }
+      }
+    } catch (err: any) {
+      console.error("[VK LongPoll] Poll error:", err.message);
+      await new Promise(r => setTimeout(r, 5000));
+      try {
+        ({ key, server, ts } = await getLongPollServer());
+      } catch {}
+    }
+  }
+}

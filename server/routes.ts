@@ -27,7 +27,7 @@ import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getO
 import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
 import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notifyPreorderStatusChange, registerWholesaleWebhook, sendChatNotification, registerChatWebhook, notifyNewReview, notifyMerchOrder, answerCallbackQuery, editMessageText } from "./telegram";
-import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyNewReview, vkNotifyMerchOrder, verifyActionLink } from "./vk";
+import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyNewReview, vkNotifyMerchOrder, verifyActionLink, sendVkChatNotification, startVkLongPoll } from "./vk";
 import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
 
 // ==================== Admin Auth ====================
@@ -2730,6 +2730,27 @@ BMGBRAND — официальный производитель и магазин
     });
   }, 2000);
 
+  // Start VK Long Poll for admin replies via VK chat
+  setTimeout(() => {
+    startVkLongPoll(async (vkMessageId, replyText, adminName) => {
+      const sessionId = await storage.getSessionIdByVkMessageId(vkMessageId);
+      if (!sessionId) {
+        console.warn(`[VK LongPoll] Session not found for vk_message_id=${vkMessageId}`);
+        return;
+      }
+      const { randomUUID } = await import("crypto");
+      await storage.saveChatMessage({
+        messageId: randomUUID(),
+        sessionId,
+        sender: 'admin',
+        text: replyText,
+        timestamp: Date.now(),
+        userName: adminName,
+      });
+      console.log(`[VK LongPoll] Admin reply saved for session ${sessionId.slice(0, 8)}`);
+    });
+  }, 3000);
+
   // ============================================
   // CHAT API
   // ============================================
@@ -2781,6 +2802,7 @@ BMGBRAND — официальный производитель и магазин
       const timestamp = Date.now();
       const msgText = text?.trim() || (imageUrl ? '📷 Фото' : '');
       const tgMessageId = await sendChatNotification(sessionId, msgText, effectiveUserName, isWholesale, imageUrl || undefined);
+      const vkMessageId = await sendVkChatNotification(sessionId, text?.trim() || '', effectiveUserName, imageUrl || undefined);
       await storage.saveChatMessage({
         messageId,
         sessionId,
@@ -2790,6 +2812,7 @@ BMGBRAND — официальный производитель и магазин
         userId: effectiveUserId,
         userName: effectiveUserName,
         tgMessageId: tgMessageId || undefined,
+        vkMessageId: vkMessageId || undefined,
         imageUrl: imageUrl || undefined,
       });
       res.json({ success: true, messageId, timestamp });

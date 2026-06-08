@@ -419,9 +419,10 @@ export interface IStorage {
   getStockNotificationsByEmail(email: string): Promise<Array<{ id: string; productId: number; productName: string; size: string; createdAt: string }>>;
   deleteStockNotification(productId: number, size: string, email: string): Promise<void>;
   // Chat
-  saveChatMessage(msg: { messageId: string; sessionId: string; sender: string; text: string; timestamp: number; userId?: string; userName?: string; tgMessageId?: number; imageUrl?: string }): Promise<void>;
+  saveChatMessage(msg: { messageId: string; sessionId: string; sender: string; text: string; timestamp: number; userId?: string; userName?: string; tgMessageId?: number; vkMessageId?: number; imageUrl?: string }): Promise<void>;
   getChatMessages(sessionId: string, since?: number): Promise<Array<{ messageId: string; sessionId: string; sender: string; text: string; timestamp: number; userId?: string; userName?: string; imageUrl?: string }>>;
   getSessionIdByTgMessageId(tgMessageId: number): Promise<string | null>;
+  getSessionIdByVkMessageId(vkMessageId: number): Promise<string | null>;
   getChatSessions(): Promise<Array<{ sessionId: string; lastMessage: string; lastTimestamp: number; userName?: string; unread?: number }>>;
   // Wholesale XML feed
   getWholesaleFeedProductIds(userId: number): Promise<number[]>;
@@ -4887,7 +4888,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async saveChatMessage(msg: { messageId: string; sessionId: string; sender: string; text: string; timestamp: number; userId?: string; userName?: string; tgMessageId?: number; imageUrl?: string }): Promise<void> {
+  async saveChatMessage(msg: { messageId: string; sessionId: string; sender: string; text: string; timestamp: number; userId?: string; userName?: string; tgMessageId?: number; vkMessageId?: number; imageUrl?: string }): Promise<void> {
     const ydb = await import("ydb-sdk");
     const { TypedValues, Types } = ydb;
     const result = await this.safeQuery(async (session) => {
@@ -4900,9 +4901,10 @@ export class DatabaseStorage implements IStorage {
         DECLARE $user_id AS Optional<Utf8>;
         DECLARE $user_name AS Optional<Utf8>;
         DECLARE $tg_message_id AS Optional<Int64>;
+        DECLARE $vk_message_id AS Optional<Int64>;
         DECLARE $image_url AS Optional<Utf8>;
-        UPSERT INTO chat_messages (message_id, session_id, sender, text, timestamp, user_id, user_name, tg_message_id, image_url)
-        VALUES ($message_id, $session_id, $sender, $text, $timestamp, $user_id, $user_name, $tg_message_id, $image_url);
+        UPSERT INTO chat_messages (message_id, session_id, sender, text, timestamp, user_id, user_name, tg_message_id, vk_message_id, image_url)
+        VALUES ($message_id, $session_id, $sender, $text, $timestamp, $user_id, $user_name, $tg_message_id, $vk_message_id, $image_url);
       `, {
         $message_id: TypedValues.utf8(msg.messageId),
         $session_id: TypedValues.utf8(msg.sessionId),
@@ -4912,6 +4914,7 @@ export class DatabaseStorage implements IStorage {
         $user_id: msg.userId ? TypedValues.optional(TypedValues.utf8(msg.userId)) : TypedValues.optionalNull(Types.UTF8),
         $user_name: msg.userName ? TypedValues.optional(TypedValues.utf8(msg.userName)) : TypedValues.optionalNull(Types.UTF8),
         $tg_message_id: msg.tgMessageId ? TypedValues.optional(TypedValues.int64(msg.tgMessageId)) : TypedValues.optionalNull(Types.INT64),
+        $vk_message_id: msg.vkMessageId ? TypedValues.optional(TypedValues.int64(msg.vkMessageId)) : TypedValues.optionalNull(Types.INT64),
         $image_url: msg.imageUrl ? TypedValues.optional(TypedValues.utf8(msg.imageUrl)) : TypedValues.optionalNull(Types.UTF8),
       });
       return true;
@@ -4976,6 +4979,23 @@ export class DatabaseStorage implements IStorage {
         LIMIT 1;
       `, {
         $tg_message_id: TypedValues.optional(TypedValues.int64(tgMessageId)),
+      });
+      return qr.resultSets[0]?.rows || [];
+    });
+    if (!result || result.length === 0) return null;
+    return String(this.extractTypedValue(result[0].items![0]) ?? '') || null;
+  }
+
+  async getSessionIdByVkMessageId(vkMessageId: number): Promise<string | null> {
+    const { TypedValues } = await import("ydb-sdk");
+    const result = await this.safeQuery(async (session) => {
+      const qr = await session.executeQuery(`
+        DECLARE $vk_message_id AS Optional<Int64>;
+        SELECT session_id FROM chat_messages
+        WHERE vk_message_id = $vk_message_id
+        LIMIT 1;
+      `, {
+        $vk_message_id: TypedValues.optional(TypedValues.int64(vkMessageId)),
       });
       return qr.resultSets[0]?.rows || [];
     });
