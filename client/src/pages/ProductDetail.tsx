@@ -1002,8 +1002,8 @@ export default function ProductDetail() {
                                         isActive={isCurrentProduct}
                                         isSoldOut={isSoldOut}
                                         onClick={() => {
-                                          if (!isCurrentProduct && variant.slug) {
-                                            setLocation(`/${variant.slug}`);
+                                          if (!isCurrentProduct) {
+                                            setLocation(`/${variant.slug || variant.id}`);
                                           }
                                         }}
                                         onMouseEnter={() => {
@@ -1030,7 +1030,8 @@ export default function ProductDetail() {
                           <div className="flex flex-wrap gap-1.5">
                             {colorVariants.map(variant => {
                               const isCurrentProduct = variant.id === product.id;
-                              const isSoldOut = variant.stock <= 0;
+                              const isPreorderCollecting = (product as any).preorderEnabled && (product as any).preorderStatus === "collecting";
+                              const isSoldOut = isPreorderCollecting ? false : variant.stock <= 0;
                               return (
                                 <VariantThumb
                                   key={variant.id}
@@ -1038,8 +1039,8 @@ export default function ProductDetail() {
                                   isActive={isCurrentProduct}
                                   isSoldOut={isSoldOut}
                                   onClick={() => {
-                                    if (!isCurrentProduct && variant.slug) {
-                                      setLocation(`/${variant.slug}`);
+                                    if (!isCurrentProduct) {
+                                      setLocation(`/${variant.slug || variant.id}`);
                                     }
                                   }}
                                   onMouseEnter={() => {
