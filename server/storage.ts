@@ -1,4 +1,13 @@
 import { driver, waitForDriver, isAuthError, reconnectYdb } from "./db";
+
+export interface PickupPoint {
+  id: string;
+  name: string;
+  date: string;
+  city: string;
+  address: string;
+  isActive: boolean;
+}
 import { 
   type Product, type InsertProduct, 
   type CartItem, type InsertCartItem, 
@@ -369,6 +378,9 @@ export interface IStorage {
   getBonusSetting(key: string): Promise<string | undefined>;
   setBonusSetting(key: string, value: string): Promise<void>;
   getAllBonusSettings(): Promise<Record<string, string>>;
+  // Preorder pickup points
+  getPickupPoints(): Promise<PickupPoint[]>;
+  savePickupPoints(points: PickupPoint[]): Promise<void>;
   // User loyalty
   updateUserTotalSpent(userId: number, amount: number): Promise<void>;
   recalculateUserLoyaltyDiscount(userId: number): Promise<number>;
@@ -4169,6 +4181,20 @@ export class DatabaseStorage implements IStorage {
       settings[r.key] = r.value;
     });
     return settings;
+  }
+
+  async getPickupPoints(): Promise<PickupPoint[]> {
+    const raw = await this.getBonusSetting("preorder_pickup_points");
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw) as PickupPoint[];
+    } catch {
+      return [];
+    }
+  }
+
+  async savePickupPoints(points: PickupPoint[]): Promise<void> {
+    await this.setBonusSetting("preorder_pickup_points", JSON.stringify(points));
   }
 
   // User loyalty

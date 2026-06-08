@@ -4010,6 +4010,21 @@ BMGBRAND — официальный производитель и магазин
               }
             }
           }
+        } else if (orderId.startsWith("PREORDER-MULTI-")) {
+          const multiOrderId = Number(orderId.replace("PREORDER-MULTI-", ""));
+          if (!isNaN(multiOrderId)) {
+            await storage.updateOrderStatus(multiOrderId, "paid");
+            await storage.updateOrderPreorderFields(multiOrderId, { depositPaid: true, remainingAmount: 0 });
+            const multiOrder = await storage.getOrder(multiOrderId);
+            if (multiOrder) {
+              const multiItems = typeof multiOrder.items === 'string' ? JSON.parse(multiOrder.items) : (Array.isArray(multiOrder.items) ? multiOrder.items : []);
+              const uniqueProductIds = [...new Set(multiItems.map((i: any) => i.productId).filter(Boolean))];
+              for (const pid of uniqueProductIds) {
+                await storage.incrementPreorderCurrent(pid as number);
+              }
+              console.log(`[YooKassa Webhook] Multi-preorder paid: order ${multiOrderId}, products: [${uniqueProductIds.join(', ')}]`);
+            }
+          }
         } else if (orderId.startsWith("PREORDER-")) {
           const preorderOrderId = Number(orderId.replace("PREORDER-", ""));
           if (!isNaN(preorderOrderId)) {
@@ -4224,6 +4239,15 @@ BMGBRAND — официальный производитель и магазин
           }
         } else if (orderId.startsWith("PREORDER-REMAINING-")) {
           console.log(`[YooKassa Webhook] Preorder remaining payment canceled for ${orderId}, keeping order`);
+        } else if (orderId.startsWith("PREORDER-MULTI-")) {
+          const multiOrderId = Number(orderId.replace("PREORDER-MULTI-", ""));
+          if (!isNaN(multiOrderId)) {
+            const multiOrder = await storage.getOrder(multiOrderId);
+            if (multiOrder && multiOrder.status === "awaiting_payment") {
+              await storage.deleteOrder(multiOrderId);
+              console.log(`[YooKassa Webhook] Deleted draft multi-preorder ${multiOrderId} after cancel`);
+            }
+          }
         } else if (orderId.startsWith("PREORDER-")) {
           const preorderOrderId = Number(orderId.replace("PREORDER-", ""));
           if (!isNaN(preorderOrderId)) {
@@ -4401,6 +4425,21 @@ BMGBRAND — официальный производитель и магазин
               } catch (emailErr: any) {
                 console.error(`[T-Bank Webhook] Failed to send preorder paid email:`, emailErr.message);
               }
+            }
+          }
+        } else if (OrderId.startsWith("PREORDER-MULTI-")) {
+          const multiOrderId = Number(OrderId.replace("PREORDER-MULTI-", ""));
+          if (!isNaN(multiOrderId)) {
+            await storage.updateOrderStatus(multiOrderId, "paid");
+            await storage.updateOrderPreorderFields(multiOrderId, { depositPaid: true, remainingAmount: 0 });
+            const multiOrder = await storage.getOrder(multiOrderId);
+            if (multiOrder) {
+              const multiItems = typeof multiOrder.items === 'string' ? JSON.parse(multiOrder.items) : (Array.isArray(multiOrder.items) ? multiOrder.items : []);
+              const uniqueProductIds = [...new Set(multiItems.map((i: any) => i.productId).filter(Boolean))];
+              for (const pid of uniqueProductIds) {
+                await storage.incrementPreorderCurrent(pid as number);
+              }
+              console.log(`[T-Bank Webhook] Multi-preorder paid: order ${multiOrderId}, products: [${uniqueProductIds.join(', ')}]`);
             }
           }
         } else if (OrderId.startsWith("PREORDER-")) {
@@ -14306,6 +14345,203 @@ ${offersXml}
     } catch (err: any) {
       console.error("[Preorder] My orders error:", err.message);
       res.status(500).json({ error: "Failed to get preorder orders" });
+    }
+  });
+
+  // ==================== Preorder Pickup Points ====================
+
+  app.get("/api/preorder/pickup-points", async (_req, res) => {
+    try {
+      const points = await storage.getPickupPoints();
+      res.json(points);
+    } catch (err: any) {
+      console.error("[PickupPoints] Get error:", err.message);
+      res.status(500).json({ error: "Failed to get pickup points" });
+    }
+  });
+
+  app.get("/api/admin/preorder/pickup-points", adminMiddleware, async (_req, res) => {
+    try {
+      const points = await storage.getPickupPoints();
+      res.json(points);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to get pickup points" });
+    }
+  });
+
+  app.post("/api/admin/preorder/pickup-points", adminMiddleware, async (req, res) => {
+    try {
+      const { id, name, date, city, address, isActive } = req.body;
+      if (!name || !city || !address) return res.status(400).json({ error: "name, city, address required" });
+      const points = await storage.getPickupPoints();
+      const newPoint = {
+        id: id || `pickup-${Date.now()}`,
+        name: String(name),
+        date: date ? String(date) : "",
+        city: String(city),
+        address: String(address),
+        isActive: isActive !== false,
+      };
+      points.push(newPoint);
+      await storage.savePickupPoints(points);
+      res.status(201).json(newPoint);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to create pickup point" });
+    }
+  });
+
+  app.put("/api/admin/preorder/pickup-points/:id", adminMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const points = await storage.getPickupPoints();
+      const idx = points.findIndex((p: any) => p.id === id);
+      if (idx === -1) return res.status(404).json({ error: "Not found" });
+      points[idx] = { ...points[idx], ...req.body, id };
+      await storage.savePickupPoints(points);
+      res.json(points[idx]);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to update pickup point" });
+    }
+  });
+
+  app.delete("/api/admin/preorder/pickup-points/:id", adminMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const points = await storage.getPickupPoints();
+      const filtered = points.filter((p: any) => p.id !== id);
+      await storage.savePickupPoints(filtered);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to delete pickup point" });
+    }
+  });
+
+  // ==================== Multi-Product Preorder Order ====================
+
+  app.post("/api/preorder/order-multi", async (req: any, res) => {
+    try {
+      const {
+        customerLastName, customerFirstName, customerMiddleName,
+        customerEmail, customerPhone,
+        address, paymentMethod, items: reqItems,
+        deliveryType, pickupPointId,
+        cdekPointCode, cdekPointAddress, cdekCityCode, cdekTariffCode, cdekDeliverySum,
+      } = req.body;
+
+      if (!customerLastName?.trim() || !customerFirstName?.trim()) {
+        return res.status(400).json({ error: "Необходимо указать фамилию и имя" });
+      }
+      if (!customerEmail?.trim() || !customerEmail.includes("@")) {
+        return res.status(400).json({ error: "Необходимо указать корректный email" });
+      }
+      if (!Array.isArray(reqItems) || reqItems.length === 0) {
+        return res.status(400).json({ error: "Корзина пуста" });
+      }
+
+      const fullName = [customerLastName.trim(), customerFirstName.trim(), customerMiddleName?.trim()].filter(Boolean).join(" ");
+      const deliveryCost = cdekDeliverySum ? Number(cdekDeliverySum) : 0;
+
+      const orderItems = reqItems.filter((i: any) => i.quantity > 0).map((i: any) => ({
+        productId: Number(i.productId),
+        productName: String(i.productName || ""),
+        quantity: Number(i.quantity),
+        price: Number(i.price),
+        size: i.size || undefined,
+        color: i.color || undefined,
+        imageUrl: i.imageUrl || undefined,
+      }));
+
+      if (orderItems.length === 0) {
+        return res.status(400).json({ error: "Нет товаров с ненулевым количеством" });
+      }
+
+      const totalPrice = orderItems.reduce((s: number, i: any) => s + i.price * i.quantity, 0) + deliveryCost;
+
+      const order = await storage.createOrder({
+        sessionId: req.sessionID || `preorder-multi-${Date.now()}`,
+        customerName: fullName,
+        customerEmail: customerEmail.trim(),
+        customerPhone: customerPhone || "",
+        address: address || "",
+        items: orderItems,
+        total: totalPrice,
+        userId: req.user?.id,
+      });
+
+      await storage.updateOrderPreorderFields(order.id, {
+        isPreorder: true,
+        depositPaid: false,
+        remainingAmount: 0,
+      });
+
+      if (cdekPointCode || cdekCityCode) {
+        await storage.updateOrderCdekData(order.id, JSON.stringify({
+          pointCode: cdekPointCode || undefined,
+          cityCode: cdekCityCode ? Number(cdekCityCode) : undefined,
+          tariffCode: cdekTariffCode ? Number(cdekTariffCode) : 136,
+          pointAddress: cdekPointAddress || undefined,
+          deliveryCost: deliveryCost || undefined,
+          deliveryType: deliveryType || "cdek",
+          pickupPointId: pickupPointId || undefined,
+        }));
+      } else if (pickupPointId) {
+        await storage.updateOrderCdekData(order.id, JSON.stringify({
+          deliveryType: "pickup",
+          pickupPointId,
+        }));
+      }
+
+      const baseUrl = process.env.APP_DOMAIN || `https://${req.get('host')}`;
+      const chosenMethod = paymentMethod || (paymentService.isTBankEnabled() ? "tbank" : "yookassa");
+      const useMethod = chosenMethod === "yookassa" && paymentService.isYooKassaEnabled() ? "yookassa"
+        : chosenMethod === "tbank" && paymentService.isTBankEnabled() ? "tbank"
+        : paymentService.isTBankEnabled() ? "tbank"
+        : paymentService.isYooKassaEnabled() ? "yookassa"
+        : null;
+
+      let paymentUrl: string | undefined;
+      let confirmationToken: string | undefined;
+
+      if (useMethod) {
+        const receiptItems = orderItems.map((i: any) => ({
+          name: i.productName,
+          quantity: i.quantity,
+          price: i.price,
+        }));
+        if (deliveryCost > 0) {
+          receiptItems.push({ name: "Доставка", quantity: 1, price: deliveryCost });
+        }
+
+        const paymentResult = await paymentService.createPayment({
+          amount: totalPrice,
+          description: `Предзаказ (multi) #${order.id}`,
+          orderId: `PREORDER-MULTI-${order.id}`,
+          returnUrl: `${baseUrl}/order-success/${order.id}`,
+          paymentMethod: useMethod,
+          useWidget: useMethod === "yookassa",
+          receiptEmail: customerEmail.trim(),
+          receiptItems,
+        });
+
+        if (paymentResult.success && paymentResult.confirmationToken) {
+          confirmationToken = paymentResult.confirmationToken;
+          if (paymentResult.paymentId) await storage.updateOrderPaymentId(order.id, paymentResult.paymentId);
+        } else if (paymentResult.success && paymentResult.confirmationUrl) {
+          paymentUrl = paymentResult.confirmationUrl;
+          if (paymentResult.paymentId) await storage.updateOrderPaymentId(order.id, paymentResult.paymentId);
+        }
+      }
+
+      if (!paymentUrl && !confirmationToken) {
+        console.error("[Preorder Multi] Payment not generated for order", order.id);
+        return res.status(500).json({ error: "Не удалось инициировать оплату. Попробуйте позже." });
+      }
+
+      console.log(`[Preorder Multi] Order ${order.id} created, ${orderItems.length} items, total ${totalPrice}`);
+      res.status(201).json({ orderId: order.id, paymentUrl, confirmationToken, isPreorder: true });
+    } catch (err: any) {
+      console.error("[Preorder Multi] Create order error:", err.message);
+      res.status(500).json({ error: "Произошла ошибка при создании предзаказа. Попробуйте позже." });
     }
   });
 

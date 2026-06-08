@@ -12580,7 +12580,7 @@ export default function Admin() {
 
 function AdminPreordersTab({ apiKey }: { apiKey: string }) {
   const { toast } = useToast();
-  const [subTab, setSubTab] = useState<"products" | "customers" | "wholesale">("products");
+  const [subTab, setSubTab] = useState<"products" | "customers" | "wholesale" | "pickup">("products");
   const [wholesaleOrderSearch, setWholesaleOrderSearch] = useState("");
   const [wholesaleOrderStatusFilter, setWholesaleOrderStatusFilter] = useState<string>("all");
   const [wholesaleOrderTypeFilter, setWholesaleOrderTypeFilter] = useState<"all" | "preorder" | "order">("all");
@@ -12608,6 +12608,15 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
   const adminSlides = slidesData?.slides || [];
   const [slidesUploading, setSlidesUploading] = useState(false);
   const [slideDeletingIdx, setSlideDeletingIdx] = useState<number | null>(null);
+
+  const { data: pickupPoints = [], refetch: refetchPickupPoints } = useQuery<any[]>({
+    queryKey: ["/api/admin/preorder/pickup-points"],
+    queryFn: () => adminFetch("/api/admin/preorder/pickup-points", apiKey),
+    enabled: subTab === "pickup",
+  });
+  const [pickupForm, setPickupForm] = useState({ name: "", date: "", city: "", address: "", isActive: true });
+  const [savingPickup, setSavingPickup] = useState(false);
+  const [editingPickupId, setEditingPickupId] = useState<string | null>(null);
 
   const handleSlideUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -12819,6 +12828,15 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
         >
           <Building2 className="w-4 h-4 mr-1" />
           Опт. заявки {wholesaleOrdersData?.total != null ? `(${wholesaleOrdersData.total})` : ""}
+        </Button>
+        <Button
+          variant={subTab === "pickup" ? "secondary" : "ghost"}
+          size="sm"
+          onClick={() => setSubTab("pickup")}
+          data-testid="button-preorders-pickup-tab"
+        >
+          <MapPin className="w-4 h-4 mr-1" />
+          Точки выдачи ({pickupPoints.length})
         </Button>
       </div>
 
@@ -13557,6 +13575,152 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
             </>
           )}
         </>
+      )}
+
+      {/* ТОЧКИ ВЫДАЧИ */}
+      {subTab === "pickup" && (
+        <div className="space-y-4">
+          {/* Форма добавления */}
+          <Card className="p-4 space-y-3">
+            <h3 className="font-semibold text-sm">{editingPickupId ? "Редактировать точку" : "Добавить точку выдачи"}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                className="border border-border rounded-md px-3 py-2 text-sm bg-background w-full"
+                placeholder="Название (напр. Дикая Мята 2026)"
+                value={pickupForm.name}
+                onChange={e => setPickupForm(f => ({ ...f, name: e.target.value }))}
+                data-testid="input-pickup-name"
+              />
+              <input
+                className="border border-border rounded-md px-3 py-2 text-sm bg-background w-full"
+                placeholder="Город"
+                value={pickupForm.city}
+                onChange={e => setPickupForm(f => ({ ...f, city: e.target.value }))}
+                data-testid="input-pickup-city"
+              />
+              <input
+                className="border border-border rounded-md px-3 py-2 text-sm bg-background w-full"
+                placeholder="Адрес / локация"
+                value={pickupForm.address}
+                onChange={e => setPickupForm(f => ({ ...f, address: e.target.value }))}
+                data-testid="input-pickup-address"
+              />
+              <input
+                className="border border-border rounded-md px-3 py-2 text-sm bg-background w-full"
+                placeholder="Дата (напр. 28–29 июня 2026)"
+                value={pickupForm.date}
+                onChange={e => setPickupForm(f => ({ ...f, date: e.target.value }))}
+                data-testid="input-pickup-date"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                <input
+                  type="checkbox"
+                  checked={pickupForm.isActive}
+                  onChange={e => setPickupForm(f => ({ ...f, isActive: e.target.checked }))}
+                  className="accent-primary"
+                  data-testid="checkbox-pickup-active"
+                />
+                Активна (показывается покупателям)
+              </label>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                disabled={savingPickup || !pickupForm.name || !pickupForm.city || !pickupForm.address}
+                onClick={async () => {
+                  setSavingPickup(true);
+                  try {
+                    if (editingPickupId) {
+                      await adminFetch(`/api/admin/preorder/pickup-points/${editingPickupId}`, apiKey, {
+                        method: "PUT",
+                        body: JSON.stringify(pickupForm),
+                      });
+                      toast({ title: "Точка обновлена" });
+                      setEditingPickupId(null);
+                    } else {
+                      await adminFetch("/api/admin/preorder/pickup-points", apiKey, {
+                        method: "POST",
+                        body: JSON.stringify(pickupForm),
+                      });
+                      toast({ title: "Точка добавлена" });
+                    }
+                    setPickupForm({ name: "", date: "", city: "", address: "", isActive: true });
+                    refetchPickupPoints();
+                  } catch {
+                    toast({ title: "Ошибка", variant: "destructive" });
+                  }
+                  setSavingPickup(false);
+                }}
+                data-testid="button-pickup-save"
+              >
+                {savingPickup ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                {editingPickupId ? "Сохранить" : "Добавить"}
+              </Button>
+              {editingPickupId && (
+                <Button size="sm" variant="ghost" onClick={() => { setEditingPickupId(null); setPickupForm({ name: "", date: "", city: "", address: "", isActive: true }); }}>
+                  Отмена
+                </Button>
+              )}
+            </div>
+          </Card>
+
+          {/* Список точек */}
+          {pickupPoints.length === 0 ? (
+            <Card className="p-6 text-center">
+              <MapPin className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">Нет точек выдачи</p>
+              <p className="text-xs text-muted-foreground mt-1">Добавьте точки для самовывоза на фестивалях</p>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {pickupPoints.map((point: any) => (
+                <Card key={point.id} className="p-4 flex items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm">{point.name}</span>
+                      <Badge variant={point.isActive ? "default" : "secondary"} className="text-[10px]">
+                        {point.isActive ? "Активна" : "Скрыта"}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{point.city} — {point.address}</p>
+                    {point.date && <p className="text-xs text-muted-foreground">{point.date}</p>}
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={() => { setEditingPickupId(point.id); setPickupForm({ name: point.name, date: point.date || "", city: point.city, address: point.address, isActive: point.isActive }); }}
+                      data-testid={`button-pickup-edit-${point.id}`}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      onClick={async () => {
+                        if (!confirm(`Удалить «${point.name}»?`)) return;
+                        try {
+                          await adminFetch(`/api/admin/preorder/pickup-points/${point.id}`, apiKey, { method: "DELETE" });
+                          toast({ title: "Точка удалена" });
+                          refetchPickupPoints();
+                        } catch {
+                          toast({ title: "Ошибка", variant: "destructive" });
+                        }
+                      }}
+                      data-testid={`button-pickup-delete-${point.id}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

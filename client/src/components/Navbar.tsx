@@ -1,9 +1,10 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingBag, Menu, X, ArrowLeft, Search, User, LogOut, LogIn, Gift, Heart, ChevronDown, ChevronRight, Briefcase, TrendingUp, Shirt } from "lucide-react";
+import { ShoppingBag, Menu, X, ArrowLeft, Search, User, LogOut, LogIn, Gift, Heart, ChevronDown, ChevronRight, Briefcase, TrendingUp, Shirt, PackageOpen } from "lucide-react";
 import { usePartnerBanner, PartnerBannerContent } from "./PartnerBanner";
 import { useState, useRef, useEffect, useMemo, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/hooks/use-cart";
+import { usePreorderCart } from "@/context/PreorderCartContext";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useAuth, useLogout, useWholesalePrice } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -126,6 +127,7 @@ export function Navbar() {
   const partnerBanner = usePartnerBanner();
   
   const { favoritesCount } = useFavorites();
+  const { totalCount: preorderCount } = usePreorderCart();
   const user = authData?.user;
   const cartCount = cartItems?.reduce((acc, item) => acc + item.quantity, 0) || 0;
   const { isWholesale } = useWholesalePrice();
@@ -298,6 +300,12 @@ export function Navbar() {
                 <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{favoritesCount}</span>
               )}
             </Link>
+            {preorderCount > 0 && (
+              <Link href="/predrop/checkout" className="relative p-1.5 hover:bg-muted rounded-full transition-colors" aria-label="Корзина предзаказов">
+                <PackageOpen className="w-5 h-5 text-foreground" />
+                <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{preorderCount}</span>
+              </Link>
+            )}
             {settings.showCart && (
               <Link href="/cart" className="relative p-1.5 hover:bg-muted rounded-full transition-colors" aria-label="Корзина">
                 <ShoppingBag className="w-5 h-5 text-foreground" />
@@ -600,6 +608,12 @@ export function Navbar() {
                 <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{favoritesCount}</span>
               )}
             </Link>
+            {preorderCount > 0 && (
+              <Link href="/predrop/checkout" className="relative cursor-pointer group p-2 hover:bg-muted rounded-full transition-colors" aria-label="Корзина предзаказов">
+                <PackageOpen className="w-6 h-6 text-foreground group-hover:text-primary transition-colors" />
+                <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{preorderCount}</span>
+              </Link>
+            )}
             {settings.showCart && (
               <Link href="/cart" className="relative cursor-pointer group p-2 hover:bg-muted rounded-full transition-colors" aria-label="Корзина">
                 <ShoppingBag className="w-6 h-6 text-foreground group-hover:text-primary transition-colors" />

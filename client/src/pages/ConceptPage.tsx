@@ -1,13 +1,15 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link } from "wouter";
-import { ArrowRight, Package, Bell, CheckCircle2 } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { ArrowRight, Package, Bell, CheckCircle2, ShoppingCart, X } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
+import { usePreorderCart } from "@/context/PreorderCartContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface PreorderProduct {
   id: number;
@@ -68,6 +70,9 @@ export default function ConceptPage() {
   const [subEmail, setSubEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  const { addOrUpdateItem, items: cartPreorderItems } = usePreorderCart();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const subscribeMutation = useMutation({
     mutationFn: async () => {
@@ -246,6 +251,37 @@ export default function ConceptPage() {
                         <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                           <span className="text-xs uppercase tracking-widest text-foreground/60">Отменено</span>
                         </div>
+                      )}
+
+                      {/* Cart button for collecting status */}
+                      {!isLocked && (
+                        <button
+                          className="absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors shadow-sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const already = cartPreorderItems.find(i => i.productId === product.id);
+                            if (already) {
+                              setLocation("/predrop/checkout");
+                              return;
+                            }
+                            addOrUpdateItem({
+                              productId: product.id,
+                              productName: product.name,
+                              price: product.price,
+                              imageUrl,
+                              selectedSizes: { "ONE SIZE": 1 },
+                            });
+                            toast({ title: "Добавлено в корзину", description: product.name });
+                          }}
+                          data-testid={`button-preorder-cart-${product.id}`}
+                          aria-label="В корзину предзаказов"
+                        >
+                          {cartPreorderItems.find(i => i.productId === product.id)
+                            ? <X className="w-3.5 h-3.5 text-foreground" />
+                            : <ShoppingCart className="w-3.5 h-3.5 text-foreground" />
+                          }
+                        </button>
                       )}
 
                       {/* Hover CTA — только при сборе заявок */}

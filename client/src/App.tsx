@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartDrawerProvider } from "@/components/CartDrawer";
 import { captureRefFromUrl } from "@/lib/partner-ref";
+import { PreorderCartProvider } from "@/context/PreorderCartContext";
 
 const CookieConsent = lazy(() => import("@/components/CookieConsent").then(m => ({ default: m.CookieConsent })));
 const NewsletterPopup = lazy(() => import("@/components/NewsletterPopup").then(m => ({ default: m.NewsletterPopup })));
@@ -46,6 +47,7 @@ const Favorites = lazy(() => import("@/pages/Favorites"));
 const Links = lazy(() => import("@/pages/Links"));
 const TrackOrder = lazy(() => import("@/pages/TrackOrder"));
 const ConceptPage = lazy(() => import("@/pages/ConceptPage"));
+const PreorderCheckout = lazy(() => import("@/pages/PreorderCheckout"));
 const WholesalePreorder = lazy(() => import("@/pages/WholesalePreorder"));
 const Care = lazy(() => import("@/pages/Care"));
 const MerchOrder = lazy(() => import("@/pages/MerchOrder"));
@@ -121,6 +123,7 @@ function Router() {
         <Route path="/links" component={Links} />
         <Route path="/track/:trackNumber" component={TrackOrder} />
         <Route path="/concept" component={ConceptPage} />
+        <Route path="/predrop/checkout" component={PreorderCheckout} />
         <Route path="/merch-na-zakaz" component={MerchOrder} />
         <Route path="/:slug">
           {(params: any) => params?.slug?.startsWith("@") ? <ArtistPage /> : <SlugResolver />}
@@ -157,11 +160,13 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <CartDrawerProvider>
-          <ScrollToTop />
-          <PartnerRefCapture />
-          <Toaster />
-          <DeferredComponents />
-          <Router />
+          <PreorderCartProvider>
+            <ScrollToTop />
+            <PartnerRefCapture />
+            <Toaster />
+            <DeferredComponents />
+            <Router />
+          </PreorderCartProvider>
         </CartDrawerProvider>
       </TooltipProvider>
     </QueryClientProvider>
