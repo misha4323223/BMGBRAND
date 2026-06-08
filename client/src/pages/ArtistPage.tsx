@@ -737,7 +737,7 @@ export default function ArtistPage() {
                       <img
                         src={settings.logoUrl}
                         alt={artistName}
-                        className="w-[240px] sm:w-[300px] h-auto"
+                        className="w-[320px] sm:w-[480px] lg:w-[560px] h-auto"
                         loading="eager"
                         fetchPriority="high"
                         style={{ filter: 'drop-shadow(0 2px 16px rgba(0,0,0,0.6))' }}
