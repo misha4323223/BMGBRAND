@@ -139,6 +139,7 @@ export function ChatWidget() {
   const [nameSet, setNameSet] = useState(() => !!localStorage.getItem("chat_user_name"));
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const lastSeenTsRef = useRef<number>(parseInt(localStorage.getItem("chat_last_seen_ts") || "0"));
   const [unreadCount, setUnreadCount] = useState(0);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
