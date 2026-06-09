@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { storage } from './storage';
 import { sendEmail, getAbandonedCartEmailHtml } from './email';
 
-const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+const COOLDOWN_MS = 4 * 24 * 60 * 60 * 1000; // повтор не чаще раза в 4 дня
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // каждые 24 часа
 const FIRST_RUN_DELAY_MS = 1 * 60 * 1000; // первая проверка через 1 мин после старта
 
@@ -52,9 +52,10 @@ export async function runAbandonedCartCheck(): Promise<void> {
         const reminder = await db.getCartReminder(userId);
         if (reminder) {
           const sentAt = new Date(reminder.sentAt).getTime();
-          const sameCart = reminder.cartHash === cartHash;
-          const withinCooldown = Date.now() - sentAt < FIVE_DAYS_MS;
-          if (sameCart && withinCooldown) {
+          const withinCooldown = (Date.now() - sentAt) < COOLDOWN_MS;
+          // Не слать повторно если 4 дня с последней отправки ещё не прошло
+          // (независимо от того изменилась корзина или нет)
+          if (withinCooldown) {
             skipped++;
             cooldown++;
             continue;

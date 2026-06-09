@@ -250,6 +250,20 @@ export default function Checkout() {
     }
   }, [selectedPaymentMethod]);
 
+  // Auto-apply promo code from sessionStorage (set by PromoCapture in App.tsx
+  // when user arrives from a post-purchase email link like /products?promo=CODE).
+  const autoPromoApplied = useRef(false);
+  useEffect(() => {
+    if (autoPromoApplied.current) return;
+    if (!cartItems || cartItems.length === 0) return;
+    const pending = sessionStorage.getItem("pendingPromo");
+    if (!pending) return;
+    autoPromoApplied.current = true;
+    sessionStorage.removeItem("pendingPromo");
+    setPromoCodeInput(pending);
+    validatePromo.mutate(pending);
+  }, [cartItems]);
+
   // Gift card state
   const [giftCardInput, setGiftCardInput] = useState("");
   const [appliedGiftCard, setAppliedGiftCard] = useState<{ code: string; balance: number } | null>(null);

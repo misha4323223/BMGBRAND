@@ -74,6 +74,20 @@ function PartnerRefCapture() {
   return null;
 }
 
+// Persist ?promo=<code> from URL into sessionStorage so the discount code
+// survives the journey: email link → product catalog → checkout auto-apply.
+function PromoCapture() {
+  const [location] = useLocation();
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const promo = params.get("promo");
+    if (promo) {
+      sessionStorage.setItem("pendingPromo", promo.toUpperCase());
+    }
+  }, [location]);
+  return null;
+}
+
 function LoadingFallback() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
@@ -163,6 +177,7 @@ function App() {
           <PreorderCartProvider>
             <ScrollToTop />
             <PartnerRefCapture />
+            <PromoCapture />
             <Toaster />
             <DeferredComponents />
             <Router />
