@@ -3513,6 +3513,7 @@ export class DatabaseStorage implements IStorage {
             .withColumn(new ydb.Column('used_count', ydb.Types.optional(ydb.Types.INT32)))
             .withColumn(new ydb.Column('can_combine_with_loyalty', ydb.Types.optional(ydb.Types.BOOL)))
             .withColumn(new ydb.Column('is_active', ydb.Types.optional(ydb.Types.BOOL)))
+            .withColumn(new ydb.Column('applicable_categories', ydb.Types.optional(ydb.Types.UTF8)))
             .withColumn(new ydb.Column('starts_at', ydb.Types.optional(ydb.Types.DATETIME)))
             .withColumn(new ydb.Column('expires_at', ydb.Types.optional(ydb.Types.DATETIME)))
             .withColumn(new ydb.Column('created_at', ydb.Types.optional(ydb.Types.DATETIME)))

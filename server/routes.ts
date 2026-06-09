@@ -2256,6 +2256,57 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // Test post-purchase email — creates a real promo code and sends the real template
+  app.post("/api/admin/test-ppemail", async (req, res) => {
+    const reqUser = (req as any).user;
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const isAdmin = (reqUser && reqUser.role === 'admin') || apiKey === getAdminKey();
+    if (!isAdmin) return res.status(403).json({ error: "Forbidden" });
+    const { to, name } = req.body;
+    if (!to) return res.status(400).json({ error: "to is required" });
+    try {
+      const { sendEmail, getPostPurchaseEmailHtml } = await import('./email');
+      const { getRecommendations } = await import('./recommendations');
+
+      const suffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+      const promoCode = `THANKS-${suffix}`;
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      await storage.createPromoCode({
+        code: promoCode,
+        discountPercent: 10,
+        maxUses: 1,
+        expiresAt,
+        isActive: true,
+      });
+
+      const allProducts = await storage.getProducts();
+      const visibleProducts = allProducts.filter((p: any) =>
+        !p.isHidden && p.price > 0 && typeof p.imageUrl === 'string' && p.imageUrl.startsWith('http')
+      );
+      const recs = visibleProducts.slice(0, 3);
+
+      const html = getPostPurchaseEmailHtml({
+        customerName: name || 'Дмитрий',
+        aiText: '',
+        recommendations: recs,
+        promoCode,
+        discountPercent: 10,
+        validityHours: 24,
+      });
+
+      const ok = await sendEmail({
+        to,
+        subject: `[TEST] Подарок за покупку — скидка 10% на следующий заказ`,
+        html,
+      });
+
+      res.json({ success: ok, promoCode, expiresAt });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Temporary: create a test order in "paid" status for artist stats testing
   app.post("/api/admin/test-order", async (req, res) => {
     const apiKey = req.headers["x-api-key"] || req.query.key;
