@@ -640,3 +640,54 @@ export function notifyPartnerFeedback(data: {
   sendMessageToChat(chatId, text, token)
     .catch(err => console.error("[Telegram] notifyPartnerFeedback failed:", err));
 }
+
+// ── Autonomous Agent notifications ─────────────────────────────────────────
+
+export async function notifyAgentQueueItem(item: {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+}): Promise<void> {
+  const { token, chatId } = getConfig();
+  if (!token || !chatId) return;
+
+  const typeEmoji: Record<string, string> = {
+    discount: "💸",
+    description: "📝",
+    hide_product: "👁",
+    seo: "🔍",
+    blog_draft: "✍️",
+    review_reply: "💬",
+    promo_code: "🎟",
+  };
+  const emoji = typeEmoji[item.type] || "🤖";
+
+  const desc = item.description.length > 400
+    ? item.description.slice(0, 400) + "…"
+    : item.description;
+
+  const text =
+    `${emoji} <b>BOOOM AI предлагает:</b>\n\n` +
+    `<b>${item.title}</b>\n\n` +
+    `${desc}`;
+
+  const buttons = [[
+    { text: "✅ Подтвердить", callback_data: `agent_approve:${item.id}` },
+    { text: "❌ Отклонить",   callback_data: `agent_reject:${item.id}` },
+  ]];
+
+  await sendMessageWithInlineKeyboard(chatId, text, buttons, token);
+}
+
+export async function sendAgentAlert(text: string): Promise<void> {
+  const { token, chatId } = getConfig();
+  if (!token || !chatId) return;
+  await sendMessageToChat(chatId, text, token);
+}
+
+export async function sendAgentDigest(text: string): Promise<void> {
+  const { token, chatId } = getConfig();
+  if (!token || !chatId) return;
+  await sendMessageToChat(chatId, text, token);
+}

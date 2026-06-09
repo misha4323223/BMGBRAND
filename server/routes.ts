@@ -3360,6 +3360,121 @@ BMGBRAND — официальный производитель и магазин
   });
   // ─── End Admin AI Agent ──────────────────────────────────────────────────────
 
+  // ─── Autonomous Agent Queue ───────────────────────────────────────────────────
+
+  app.get("/api/admin/agent-queue", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { getQueue } = await import("./agent-queue");
+      const status = req.query.status as string | undefined;
+      const items = await getQueue(status as any);
+      res.json({ items });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  app.post("/api/admin/agent-queue/:id/approve", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { id } = req.params;
+      const { updateQueueItemStatus, getQueueItemById, addLogEntry } = await import("./agent-queue");
+      const { executeWriteTool } = await import("./admin-agent");
+      const item = await getQueueItemById(id);
+      if (!item) return res.status(404).json({ error: "Not found" });
+      if (item.status !== "pending") return res.status(400).json({ error: `Already ${item.status}` });
+
+      await updateQueueItemStatus(id, "approved");
+      try {
+        const result = await executeWriteTool(item.tool, item.params);
+        await updateQueueItemStatus(id, "executed", { executedAt: new Date().toISOString() });
+        await addLogEntry({ type: item.type, action: `Подтверждено: ${item.title}`, summary: result.slice(0, 100), isAuto: false });
+        res.json({ ok: true, result });
+      } catch (execErr: any) {
+        await updateQueueItemStatus(id, "approved", { error: execErr.message });
+        res.status(500).json({ error: execErr.message });
+      }
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  app.post("/api/admin/agent-queue/:id/reject", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { id } = req.params;
+      const { updateQueueItemStatus, addLogEntry } = await import("./agent-queue");
+      const item = await updateQueueItemStatus(id, "rejected");
+      if (!item) return res.status(404).json({ error: "Not found" });
+      await addLogEntry({ type: item.type, action: `Отклонено: ${item.title}`, summary: item.description.slice(0, 100), isAuto: false });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  app.get("/api/admin/autonomous-agent/status", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { getAgentStatus } = await import("./autonomous-agent");
+      const { getAgentSettings, getQueue } = await import("./agent-queue");
+      const [status, settings, pendingItems] = await Promise.all([
+        getAgentStatus(),
+        getAgentSettings(),
+        getQueue("pending"),
+      ]);
+      res.json({ status, settings, pendingCount: pendingItems.length });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  app.get("/api/admin/autonomous-agent/log", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { getLog } = await import("./agent-queue");
+      const log = await getLog();
+      res.json({ log });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  app.put("/api/admin/autonomous-agent/settings", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { saveAgentSettings } = await import("./agent-queue");
+      const settings = await saveAgentSettings(req.body);
+      res.json({ ok: true, settings });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  app.post("/api/admin/autonomous-agent/run", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { runAutonomousAgent, runSeoJob, runAlertsJob, runWeeklyDigest } = await import("./autonomous-agent");
+      const { job } = req.body;
+      res.json({ ok: true, message: "Запущено в фоне" });
+      if (job === "seo") runSeoJob().catch(e => console.error("[AutonomousAgent] manual seo error:", e?.message));
+      else if (job === "alerts") runAlertsJob().catch(e => console.error("[AutonomousAgent] manual alerts error:", e?.message));
+      else if (job === "digest") runWeeklyDigest().catch(e => console.error("[AutonomousAgent] manual digest error:", e?.message));
+      else runAutonomousAgent().catch(e => console.error("[AutonomousAgent] manual run error:", e?.message));
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  // ─── End Autonomous Agent Queue ───────────────────────────────────────────────
+
   // AI Knowledge management (admin)
   app.get("/api/admin/ai-knowledge", async (req, res) => {
     const apiKey = req.headers["x-api-key"] || req.query.key;
@@ -3451,6 +3566,52 @@ BMGBRAND — официальный производитель и магазин
               await answerCallbackQuery(callbackId, '❌ Ошибка при отклонении', retailToken);
               console.error('[Telegram] Error rejecting review:', e.message);
             }
+          }
+        } else if (data.startsWith('agent_approve:')) {
+          const itemId = data.slice('agent_approve:'.length);
+          try {
+            const { updateQueueItemStatus, getQueueItemById, addLogEntry } = await import('./agent-queue');
+            const { executeWriteTool } = await import('./admin-agent');
+            const item = await getQueueItemById(itemId);
+            if (!item) {
+              await answerCallbackQuery(callbackId, '⚠️ Действие не найдено', retailToken);
+            } else if (item.status !== 'pending') {
+              await answerCallbackQuery(callbackId, `⚠️ Уже обработано: ${item.status}`, retailToken);
+            } else {
+              await updateQueueItemStatus(itemId, 'approved');
+              try {
+                await executeWriteTool(item.tool, item.params);
+                await updateQueueItemStatus(itemId, 'executed', { executedAt: new Date().toISOString() });
+                await addLogEntry({ type: item.type, action: `Подтверждено: ${item.title}`, summary: item.description.slice(0, 100), isAuto: false });
+                await answerCallbackQuery(callbackId, '✅ Выполнено!', retailToken);
+                await editMessageText(chatId, messageId, originalText + '\n\n✅ <b>Подтверждено и выполнено</b>', retailToken);
+                console.log(`[Telegram] Agent action ${itemId} approved & executed`);
+              } catch (execErr: any) {
+                await updateQueueItemStatus(itemId, 'approved', { error: execErr.message });
+                await answerCallbackQuery(callbackId, '⚠️ Одобрено, но выполнить не удалось', retailToken);
+                await editMessageText(chatId, messageId, originalText + `\n\n⚠️ <b>Одобрено, ошибка выполнения:</b> ${execErr.message}`, retailToken);
+              }
+            }
+          } catch (e: any) {
+            await answerCallbackQuery(callbackId, '❌ Ошибка', retailToken);
+            console.error('[Telegram] Agent approve error:', e.message);
+          }
+        } else if (data.startsWith('agent_reject:')) {
+          const itemId = data.slice('agent_reject:'.length);
+          try {
+            const { updateQueueItemStatus, addLogEntry } = await import('./agent-queue');
+            const item = await updateQueueItemStatus(itemId, 'rejected');
+            if (!item) {
+              await answerCallbackQuery(callbackId, '⚠️ Действие не найдено', retailToken);
+            } else {
+              await addLogEntry({ type: item.type, action: `Отклонено: ${item.title}`, summary: item.description.slice(0, 100), isAuto: false });
+              await answerCallbackQuery(callbackId, '❌ Отклонено', retailToken);
+              await editMessageText(chatId, messageId, originalText + '\n\n❌ <b>Отклонено</b>', retailToken);
+              console.log(`[Telegram] Agent action ${itemId} rejected`);
+            }
+          } catch (e: any) {
+            await answerCallbackQuery(callbackId, '❌ Ошибка', retailToken);
+            console.error('[Telegram] Agent reject error:', e.message);
           }
         }
         return;

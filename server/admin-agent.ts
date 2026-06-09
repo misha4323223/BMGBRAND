@@ -13,8 +13,9 @@ const SYSTEM_PROMPT = `Ты — AI-ассистент администратор
 
 ИНСТРУМЕНТЫ ИЗМЕНЕНИЙ (требуют подтверждения администратора):
 - update_product — обновить поля товара.
-  params: { id: number, fields: { name?, description?, price?, wholesalePrice?, discountPercent?, isHidden?, composition?, badgeText?, category?, subcategory?, sizeStock? } }
+  params: { id: number, fields: { name?, description?, price?, wholesalePrice?, discountPercent?, isHidden?, composition?, badgeText?, category?, subcategory?, sizeStock?, seoTitle?, seoDescription?, imageAlts? } }
   ВАЖНО: цены в КОПЕЙКАХ. 4500 руб = 450000 копеек. Всегда конвертируй.
+  seoTitle: строка до 60 символов. seoDescription: строка до 155 символов. imageAlts: массив строк.
 - hide_product — скрыть/показать товар.
   params: { id: number, hidden: boolean }
 - create_promo_code — создать промокод.

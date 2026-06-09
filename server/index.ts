@@ -19,6 +19,7 @@ import { createServer } from "http";
 import { reconnectYdb, shouldReconnectYdb } from "./db";
 import { startAbandonedCartJob } from "./abandoned-cart";
 import { initPostPurchaseEmailJob } from "./post-purchase-email";
+import { initAutonomousAgent } from "./autonomous-agent";
 
 // Last-resort safety net: if a YDB-related promise escapes try/catch (e.g.
 // a fire-and-forget background task), proactively trigger driver reconnect
@@ -409,6 +410,7 @@ async function seedDefaultLegalDocuments() {
       });
       startAbandonedCartJob();
       initPostPurchaseEmailJob();
+      initAutonomousAgent();
     },
   );
 })();
