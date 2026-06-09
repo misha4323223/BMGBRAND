@@ -1407,6 +1407,107 @@ export async function sendPreorderNotifications(productName: string, subscribers
   }
 }
 
+export function getPostPurchaseEmailHtml(opts: {
+  customerName: string;
+  aiText: string;
+  recommendations: Array<{ name: string; slug?: string; price: number; imageUrl?: string; thumbnailUrl?: string }>;
+  promoCode: string;
+  discountPercent: number;
+  validityHours: number;
+}): string {
+  const siteUrl = 'https://www.booomerangs.ru';
+  const { customerName, aiText, recommendations, promoCode, discountPercent, validityHours } = opts;
+  const firstName = (customerName || '').split(' ')[0] || '';
+
+  const recsHtml = recommendations.map(rec => {
+    const img = rec.thumbnailUrl || rec.imageUrl || '';
+    const priceRub = Math.round(rec.price / 100).toLocaleString('ru-RU');
+    const url = rec.slug ? `${siteUrl}/${rec.slug}` : `${siteUrl}/catalog`;
+    return `
+      <td width="33%" style="padding:0 6px;vertical-align:top;text-align:center;">
+        <a href="${url}" style="text-decoration:none;color:inherit;display:block;">
+          ${img ? `<img src="${img}" width="140" height="140" style="border-radius:8px;object-fit:cover;display:block;margin:0 auto 8px;" />` : ''}
+          <div style="font-size:12px;font-weight:700;color:#1C1C1C;margin-bottom:4px;line-height:1.3;">${rec.name}</div>
+          <div style="font-size:13px;color:#E53935;font-weight:800;">${priceRub} ₽</div>
+        </a>
+      </td>`;
+  }).join('');
+
+  const defaultText = firstName
+    ? `${firstName}, ваш заказ уже в пути. Пока вы ждёте, мы подобрали кое-что, что отлично дополнит вашу покупку.`
+    : 'Ваш заказ уже в пути. Пока вы ждёте, мы подобрали кое-что, что отлично дополнит вашу покупку.';
+  const bodyText = aiText || defaultText;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 0;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fff;border-radius:12px;overflow:hidden;">
+      <tr>
+        <td style="background:#1C1C1C;padding:24px 32px;">
+          <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:2px;text-transform:uppercase;">
+            BOO<span style="color:#E53935;">O</span>MERANGS
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:32px 32px 0;">
+          <div style="font-size:22px;font-weight:800;color:#1C1C1C;margin-bottom:8px;">
+            Спасибо за покупку! &#x1F64C;
+          </div>
+          <p style="font-size:14px;color:#555;margin:0 0 28px;line-height:1.6;">
+            ${bodyText}
+          </p>
+
+          ${recommendations.length > 0 ? `
+          <div style="font-size:12px;font-weight:700;color:#1C1C1C;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">
+            Вам может понравиться
+          </div>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+            <tr>${recsHtml}</tr>
+          </table>` : ''}
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+            <tr>
+              <td style="background:#F8F5F0;border-radius:10px;padding:24px;text-align:center;">
+                <div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">
+                  Ваш подарок — скидка ${discountPercent}%
+                </div>
+                <div style="font-size:26px;font-weight:900;color:#1C1C1C;letter-spacing:4px;background:#fff;border:2px dashed #1C1C1C;border-radius:8px;padding:14px 20px;display:inline-block;margin-bottom:10px;">
+                  ${promoCode}
+                </div>
+                <div style="font-size:12px;color:#999;margin-top:8px;">
+                  Действует ${validityHours} часов &middot; Только для вас &middot; Один раз
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <div style="text-align:center;margin:0 0 32px;">
+            <a href="${siteUrl}/catalog" style="display:inline-block;padding:14px 40px;background:#E53935;color:#fff;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase;border-radius:6px;">
+              Использовать скидку
+            </a>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:20px 32px;border-top:1px solid #eee;font-size:11px;color:#999;">
+          &copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.<br>
+          <a href="${siteUrl}" style="color:#999;">booomerangs.ru</a>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
 export function getAbandonedCartEmailHtml(
   userName: string,
   cartItems: Array<{ product: { name: string; imageUrl?: string; thumbnailUrl?: string; price: number }; quantity: number; size: string | null; color: string | null }>,

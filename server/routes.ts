@@ -24,6 +24,7 @@ import { yandexDeliveryService } from "./yandex-delivery";
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
 import { runAbandonedCartCheck } from "./abandoned-cart";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications } from "./email";
+import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
 import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notifyPreorderStatusChange, registerWholesaleWebhook, sendChatNotification, registerChatWebhook, notifyNewReview, notifyMerchOrder, answerCallbackQuery, editMessageText } from "./telegram";
@@ -4143,6 +4144,12 @@ BMGBRAND — официальный производитель и магазин
                   }
                 }
                 
+                if (order.customerEmail) {
+                  const _ooItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                  schedulePostPurchaseEmail(numericId, order.customerEmail, order.customerName || '', Array.isArray(_ooItems) ? _ooItems : [])
+                    .catch(err => console.error(`[YooKassa Webhook] PPEmail schedule failed for order ${numericId}:`, err?.message));
+                }
+
                 createCdekWaybillForOrder(numericId).catch(err => 
                   console.error(`[YooKassa Webhook] CDEK waybill error for order ${numericId}:`, err.message)
                 );
@@ -4577,6 +4584,12 @@ BMGBRAND — официальный производитель и магазин
                   }
                 }
                 
+                if (order && order.customerEmail) {
+                  const _tbItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                  schedulePostPurchaseEmail(numericId, order.customerEmail, order.customerName || '', Array.isArray(_tbItems) ? _tbItems : [])
+                    .catch(err => console.error(`[T-Bank Webhook] PPEmail schedule failed for order ${numericId}:`, err?.message));
+                }
+
                 createCdekWaybillForOrder(numericId).catch(err => 
                   console.error(`[T-Bank Webhook] CDEK waybill error for order ${numericId}:`, err.message)
                 );
@@ -4875,6 +4888,10 @@ BMGBRAND — официальный производитель и магазин
             } catch (emailErr: any) {
               console.error("[OzonPay Webhook] Failed to send email:", emailErr.message);
             }
+
+            const _ozItems = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
+            schedulePostPurchaseEmail(orderId, order.customerEmail, order.customerName || '', Array.isArray(_ozItems) ? _ozItems : [])
+              .catch(err => console.error(`[OzonPay Webhook] PPEmail schedule failed for order ${orderId}:`, err?.message));
           }
 
           const orderItemsParsed = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
