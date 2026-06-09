@@ -1422,7 +1422,7 @@ export function getPostPurchaseEmailHtml(opts: {
   const recsHtml = recommendations.map(rec => {
     const img = rec.imageUrl || rec.thumbnailUrl || '';
     const priceRub = Math.round(rec.price / 100).toLocaleString('ru-RU');
-    const url = rec.slug ? `${siteUrl}/${rec.slug}` : `${siteUrl}/catalog`;
+    const url = rec.slug ? `${siteUrl}/${rec.slug}` : `${siteUrl}/products`;
     return `
       <td width="33%" style="padding:0 6px;vertical-align:top;text-align:center;">
         <a href="${url}" style="text-decoration:none;color:inherit;display:block;">
@@ -1489,7 +1489,7 @@ export function getPostPurchaseEmailHtml(opts: {
           </table>
 
           <div style="text-align:center;margin:0 0 32px;">
-            <a href="${siteUrl}/catalog?promo=${encodeURIComponent(promoCode)}" style="display:inline-block;padding:14px 40px;background:#E53935;color:#fff;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase;border-radius:6px;">
+            <a href="${siteUrl}/products?promo=${encodeURIComponent(promoCode)}" style="display:inline-block;padding:14px 40px;background:#E53935;color:#fff;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase;border-radius:6px;">
               Использовать скидку
             </a>
           </div>
