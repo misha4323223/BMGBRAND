@@ -6,6 +6,7 @@ import {
   type QueueItem,
 } from "./agent-queue";
 import { notifyAgentQueueItem, sendAgentAlert, sendAgentDigest } from "./telegram";
+import { vkNotifyAgentAlert, vkNotifyAgentDigest } from "./vk";
 
 const MAX_SEO_PER_RUN = 50;
 const MAX_QUEUE_PER_RUN = 20;
@@ -218,6 +219,7 @@ export async function runAlertsJob(): Promise<void> {
       `${lines}${lowStock.length > 20 ? `\n…и ещё ${lowStock.length - 20} товаров` : ""}`;
 
     await sendAgentAlert(text);
+    vkNotifyAgentAlert(text);
     console.log(`[AutonomousAgent] Low stock alert: ${lowStock.length} products`);
   }
 
@@ -238,6 +240,7 @@ export async function runAlertsJob(): Promise<void> {
       `${lines}${noPhoto.length > 15 ? `\n…и ещё ${noPhoto.length - 15} товаров` : ""}`;
 
     await sendAgentAlert(text);
+    vkNotifyAgentAlert(text);
     console.log(`[AutonomousAgent] No-photo alert: ${noPhoto.length} products`);
   }
 }
@@ -403,6 +406,7 @@ export async function runWeeklyDigest(): Promise<void> {
       `• Выручка: ${Math.round(weekRevenue / 100).toLocaleString("ru-RU")} ₽`;
 
     await sendAgentDigest(text);
+    vkNotifyAgentDigest(text);
     await addLogEntry({
       type: "digest",
       action: "Еженедельный дайджест отправлен",

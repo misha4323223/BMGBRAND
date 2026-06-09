@@ -535,3 +535,13 @@ async function runLongPoll(
     }
   }
 }
+
+// ── Autonomous Agent notifications ─────────────────────────────────────────
+
+export function vkNotifyAgentAlert(text: string): void {
+  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyAgentAlert failed:", err));
+}
+
+export function vkNotifyAgentDigest(text: string): void {
+  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyAgentDigest failed:", err));
+}
