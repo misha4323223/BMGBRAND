@@ -23,7 +23,7 @@ export const DEFAULT_NAVBAR_SETTINGS: NavbarSettings = {
   links: [
     { label: "Главная", href: "/", visible: true },
     { label: "Товары", href: "/products", visible: true },
-    { label: "Pre-drop", href: "/concept", visible: true },
+    { label: "Предзаказ", href: "/concept", visible: true },
     { label: "Подарочные карты", href: "/gift-cards", visible: true },
     { label: "О нас", href: "/about", visible: true },
   ],
