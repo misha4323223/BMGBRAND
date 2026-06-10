@@ -24,7 +24,7 @@ import { yandexDeliveryService } from "./yandex-delivery";
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
 import { runAbandonedCartCheck } from "./abandoned-cart";
 import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow } from "./new-products-notifier";
-import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications } from "./email";
+import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
 import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
@@ -12970,6 +12970,27 @@ BMGBRAND — официальный производитель и магазин
     try {
       const result = await triggerNewProductsNotifierNow();
       res.json({ success: true, ...result });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Send test new-products newsletter to a single email (preview only)
+  app.post("/api/admin/newsletter-preview", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const expectedKey = getAdminKey();
+    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: "email is required" });
+      // берём 5 последних видимых товаров из кэша
+      const allProducts = await storage.getProducts();
+      const visible = allProducts.filter((p: any) => !p.isHidden && p.imageUrl);
+      const sample = visible.slice(0, 5);
+      if (sample.length === 0) return res.status(400).json({ error: "No products found" });
+      const html = getNewProductsNewsletterHtml(sample, sample.length);
+      const ok = await sendEmail({ to: email, subject: '[ПРЕВЬЮ] Смотри, что появилось 🆕', html: html(email) });
+      res.json({ success: ok, sentTo: email, productsCount: sample.length });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

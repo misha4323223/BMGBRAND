@@ -1,4 +1,5 @@
 import { config } from './config';
+import { createHmac } from 'crypto';
 
 interface EmailOptions {
   to: string;
@@ -1672,9 +1673,8 @@ export function getNewProductsNewsletterHtml(
     : `В магазине ${appeared} <strong>${count}&nbsp;${countWord}</strong>`;
 
   return (email: string): string => {
-    const crypto = require('crypto');
     const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
-    const token = crypto.createHmac('sha256', jwtSecret).update(email.toLowerCase()).digest('hex').slice(0, 32);
+    const token = createHmac('sha256', jwtSecret).update(email.toLowerCase()).digest('hex').slice(0, 32);
     const unsubUrl = `${siteUrl}/api/newsletter/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`;
 
     return `<!DOCTYPE html>
