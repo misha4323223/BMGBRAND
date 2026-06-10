@@ -8,18 +8,30 @@ import {
 import { notifyAgentQueueItem, sendAgentAlert, sendAgentDigest } from "./telegram";
 import { vkNotifyAgentAlert, vkNotifyAgentDigest } from "./vk";
 
-const MAX_SEO_PER_RUN = 50;
+const MAX_SEO_PER_RUN = 20;          // снижено с 50 — меньше нагрузка на Groq
 const MAX_QUEUE_PER_RUN = 20;
 const LOW_STOCK_THRESHOLD = 2;
 const STALE_DAYS = 14;
 const DESCRIPTION_MIN_LENGTH = 40;
 
+// Groq: не более 20 запросов в минуту (с запасом от лимита ~30 RPM)
+const GROQ_RPM_LIMIT = 20;
+const GROQ_DELAY_MS = Math.ceil(60_000 / GROQ_RPM_LIMIT); // ~3 000 мс между запросами
+
 // ── Groq helpers ──────────────────────────────────────────────────────────
 
 let requestsThisRun = 0;
+let requestsThisMinute = 0;
+let minuteWindowStart = 0;
 
 function resetRequestCounter() {
   requestsThisRun = 0;
+  requestsThisMinute = 0;
+  minuteWindowStart = Date.now();
+}
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 async function groqComplete(
@@ -35,34 +47,111 @@ async function groqComplete(
     ? proxyUrl.replace(/\/$/, "")
     : "https://api.groq.com";
 
-  const resp = await fetch(`${groqBase}/openai/v1/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-    },
-    body: JSON.stringify({
-      model: "qwen/qwen3-32b",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.3,
-      max_tokens: maxTokens,
-    }),
-  });
+  // Throttle: держим не более GROQ_RPM_LIMIT запросов в минуту
+  const now = Date.now();
+  if (now - minuteWindowStart >= 60_000) {
+    requestsThisMinute = 0;
+    minuteWindowStart = now;
+  }
+  if (requestsThisMinute >= GROQ_RPM_LIMIT) {
+    const waitMs = 60_000 - (now - minuteWindowStart) + 500;
+    console.log(`[AutonomousAgent] Groq RPM limit reached, waiting ${Math.round(waitMs / 1000)}s…`);
+    await sleep(waitMs);
+    requestsThisMinute = 0;
+    minuteWindowStart = Date.now();
+  }
 
-  if (!resp.ok) throw new Error(`Groq HTTP ${resp.status}`);
-  const data: any = await resp.json();
-  let text: string = data.choices?.[0]?.message?.content || "";
-  text = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
-  requestsThisRun++;
-  return text;
+  // Retry с экспоненциальным backoff при 429
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) {
+      const backoff = Math.min(2 ** attempt * 2_000, 30_000);
+      console.log(`[AutonomousAgent] Groq retry ${attempt} in ${backoff}ms…`);
+      await sleep(backoff);
+    }
+
+    const resp = await fetch(`${groqBase}/openai/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model: "qwen/qwen3-32b",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.3,
+        max_tokens: maxTokens,
+      }),
+    });
+
+    if (resp.status === 429) {
+      const retryAfter = Number(resp.headers.get("retry-after") || "0") * 1000;
+      lastError = new Error(`Groq 429 rate limit`);
+      if (retryAfter > 0) await sleep(retryAfter);
+      continue;
+    }
+
+    if (!resp.ok) throw new Error(`Groq HTTP ${resp.status}`);
+
+    const data: any = await resp.json();
+    let text: string = data.choices?.[0]?.message?.content || "";
+    text = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    requestsThisRun++;
+    requestsThisMinute++;
+
+    // Фиксированная задержка после каждого запроса
+    await sleep(GROQ_DELAY_MS);
+    return text;
+  }
+
+  throw lastError ?? new Error("Groq: all retries failed");
 }
 
-// Small delay to avoid flooding the API
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
+// ── Message chunking ──────────────────────────────────────────────────────
+// Telegram лимит ~4096 символов, VK ~4096, режем по 3000 с запасом
+
+const TG_CHUNK_CHARS = 3_000;
+
+async function sendAlertChunked(
+  header: string,
+  lines: string[],
+  totalCount: number,
+  sentCount: number
+): Promise<void> {
+  const chunks: string[][] = [];
+  let current: string[] = [];
+  let currentLen = header.length;
+
+  for (const line of lines) {
+    if (currentLen + line.length + 1 > TG_CHUNK_CHARS && current.length > 0) {
+      chunks.push(current);
+      current = [];
+      currentLen = header.length;
+    }
+    current.push(line);
+    currentLen += line.length + 1;
+  }
+  if (current.length > 0) chunks.push(current);
+
+  const totalChunks = chunks.length;
+  const hiddenCount = totalCount - sentCount;
+
+  for (let i = 0; i < totalChunks; i++) {
+    const partLabel = totalChunks > 1 ? ` (часть ${i + 1}/${totalChunks})` : "";
+    const footer =
+      i === totalChunks - 1 && hiddenCount > 0
+        ? `\n…и ещё ${hiddenCount} товаров`
+        : "";
+
+    const text = `${header}${partLabel}\n\n${chunks[i].join("\n")}${footer}`;
+    await sendAgentAlert(text);
+    vkNotifyAgentAlert(text);
+
+    if (i < totalChunks - 1) await sleep(500);
+  }
 }
 
 // ── Product classification ─────────────────────────────────────────────────
@@ -161,8 +250,6 @@ ${isDesign ? "ВАЖНО: это товар с уникальным принто
         summary: `«${product.name}» → title: «${updateFields.seoTitle?.slice(0, 40) || "—"}»`,
         isAuto: true,
       });
-
-      await sleep(300);
     } catch (e: any) {
       console.error(`[AutonomousAgent] SEO error for product ${product.id}:`, e?.message);
       errors++;
@@ -184,12 +271,19 @@ ${isDesign ? "ВАЖНО: это товар с уникальным принто
   return { processed, skipped, errors };
 }
 
-// ── Alerts Job ────────────────────────────────────────────────────────────
+// ── Alerts Job (только по понедельникам) ──────────────────────────────────
 
 export async function runAlertsJob(): Promise<void> {
   console.log("[AutonomousAgent] Starting alerts job...");
   const settings = await getAgentSettings();
   if (!settings.enabled || !settings.alertsEnabled) return;
+
+  // Алерты только по понедельникам (день 1 по getDay())
+  const today = new Date().getDay(); // 0=вс,1=пн,...,6=сб
+  if (today !== 1) {
+    console.log(`[AutonomousAgent] Alerts: not Monday (day=${today}), skipping.`);
+    return;
+  }
 
   const allProducts = (await storage.getProducts()) as any[];
   const visibleProducts = allProducts.filter((p) => !p.isHidden);
@@ -209,17 +303,15 @@ export async function runAlertsJob(): Promise<void> {
   }
 
   if (lowStock.length > 0) {
-    const lines = lowStock
-      .slice(0, 20)
-      .map((p) => `• <b>${p.name}</b> — осталось ${p.total} шт. (ID: ${p.id})`)
-      .join("\n");
-
-    const text =
-      `⚠️ <b>BOOOM AI: Заканчивается товар</b>\n\n` +
-      `${lines}${lowStock.length > 20 ? `\n…и ещё ${lowStock.length - 20} товаров` : ""}`;
-
-    await sendAgentAlert(text);
-    vkNotifyAgentAlert(text);
+    const lines = lowStock.map(
+      (p) => `• <b>${p.name}</b> — осталось ${p.total} шт. (ID: ${p.id})`
+    );
+    await sendAlertChunked(
+      "⚠️ <b>BOOOM AI: Заканчивается товар</b>",
+      lines,
+      lowStock.length,
+      lowStock.length
+    );
     console.log(`[AutonomousAgent] Low stock alert: ${lowStock.length} products`);
   }
 
@@ -230,17 +322,15 @@ export async function runAlertsJob(): Promise<void> {
   });
 
   if (noPhoto.length > 0) {
-    const lines = noPhoto
-      .slice(0, 15)
-      .map((p: any) => `• <b>${p.name}</b> (ID: ${p.id})`)
-      .join("\n");
-
-    const text =
-      `📷 <b>BOOOM AI: Товары без фото</b>\n\n` +
-      `${lines}${noPhoto.length > 15 ? `\n…и ещё ${noPhoto.length - 15} товаров` : ""}`;
-
-    await sendAgentAlert(text);
-    vkNotifyAgentAlert(text);
+    const lines = noPhoto.map(
+      (p: any) => `• <b>${p.name}</b> (ID: ${p.id})`
+    );
+    await sendAlertChunked(
+      "📷 <b>BOOOM AI: Товары без фото</b>",
+      lines,
+      noPhoto.length,
+      noPhoto.length
+    );
     console.log(`[AutonomousAgent] No-photo alert: ${noPhoto.length} products`);
   }
 }
@@ -346,7 +436,6 @@ ${isDesign ? "Это товар с уникальным принтом." : ""}
 
       await notifyAgentQueueItem(item);
       queued++;
-      await sleep(800);
     } catch (e: any) {
       console.error(`[AutonomousAgent] Description error for ${product.id}:`, e?.message);
     }
@@ -437,7 +526,6 @@ export async function runAutonomousAgent(): Promise<void> {
 
   try {
     await runSeoJob();
-    await runAlertsJob();
     await runStaleProductsJob();
     await runDescriptionJob();
 
@@ -464,37 +552,33 @@ export function initAutonomousAgent(): void {
   const now = new Date();
 
   // Ночной SEO + анализ — каждые 24ч, стартует в ~03:00 МСК (00:00 UTC)
-  const targetHour = 3;
   const nextRun = new Date(now);
-  nextRun.setUTCHours(targetHour - 3, 0, 0, 0);
+  nextRun.setUTCHours(0, 0, 0, 0);
   if (nextRun.getTime() <= nowMs) nextRun.setUTCDate(nextRun.getUTCDate() + 1);
-  const delayMs = nextRun.getTime() - nowMs;
+  const seoDelayMs = nextRun.getTime() - nowMs;
 
   setTimeout(() => {
     runAutonomousAgent();
     setInterval(runAutonomousAgent, 24 * 60 * 60 * 1000);
-  }, delayMs);
+  }, seoDelayMs);
 
-  // Алерты — каждые 6 часов
-  const ALERTS_INTERVAL = 6 * 60 * 60 * 1000;
+  // Алерты + дайджест — каждый понедельник в 09:00 МСК (06:00 UTC)
+  const daysUntilMonday = (8 - now.getUTCDay()) % 7 || 7;
+  const nextMonday = new Date(now);
+  nextMonday.setUTCDate(now.getUTCDate() + daysUntilMonday);
+  nextMonday.setUTCHours(6, 0, 0, 0); // 09:00 МСК
+  const mondayDelayMs = nextMonday.getTime() - nowMs;
+
   setTimeout(() => {
     runAlertsJob();
-    setInterval(runAlertsJob, ALERTS_INTERVAL);
-  }, 5 * 60 * 1000); // первый запуск через 5 мин после старта сервера
-
-  // Еженедельный дайджест — каждый понедельник
-  const daysUntilMonday = (8 - now.getDay()) % 7 || 7;
-  const nextMonday = new Date(now);
-  nextMonday.setDate(now.getDate() + daysUntilMonday);
-  nextMonday.setHours(9, 0, 0, 0);
-  const digestDelay = nextMonday.getTime() - nowMs;
-
-  setTimeout(() => {
     runWeeklyDigest();
-    setInterval(runWeeklyDigest, 7 * 24 * 60 * 60 * 1000);
-  }, digestDelay);
+    setInterval(() => {
+      runAlertsJob();
+      runWeeklyDigest();
+    }, 7 * 24 * 60 * 60 * 1000);
+  }, mondayDelayMs);
 
   console.log(
-    `[AutonomousAgent] Scheduled: SEO in ${Math.round(delayMs / 60000)}min, alerts in 5min, digest in ${Math.round(digestDelay / 60000 / 60)}h`
+    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h`
   );
 }
