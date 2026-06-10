@@ -1230,7 +1230,7 @@ export class DatabaseStorage implements IStorage {
       if ((p as any).salePrice !== undefined) {
         declareStatements += 'DECLARE $sale_price AS Int64;\n';
         setClauses.push('sale_price = $sale_price');
-        params.$sale_price = TypedValues.fromNative(Types.INT64, BigInt((p as any).salePrice || 0));
+        params.$sale_price = TypedValues.fromNative(Types.INT64, (p as any).salePrice || 0);
       }
       // Handle images array - prefer explicit images over imageUrl
       if ((p as any).images !== undefined && Array.isArray((p as any).images)) {

@@ -7618,6 +7618,9 @@ BMGBRAND — официальный производитель и магазин
       if (salePrice !== undefined) {
         const sp = parseInt(salePrice);
         updateData.salePrice = (isNaN(sp) || sp <= 0) ? 0 : sp;
+        console.log(`[Admin] salePrice received: ${JSON.stringify(salePrice)} → parsed: ${sp} → updateData.salePrice: ${updateData.salePrice}`);
+      } else {
+        console.log(`[Admin] salePrice NOT in request body (undefined)`);
       }
       if (isNew !== undefined) updateData.isNew = isNew;
       if (badgeText !== undefined) updateData.badgeText = badgeText || null;
