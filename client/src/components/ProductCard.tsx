@@ -216,6 +216,8 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
   const activeSalePrice = activeHasDiscount ? Math.round(activeProduct.price * (1 - effectiveActiveDiscountPct / 100)) : activeProduct.price;
   const activeRetailPrice = formatPrice(activeProduct.price);
   const activeDisplayPrice = activeWholesalePrice ? formatPrice(activeWholesalePrice) : activeRetailPrice;
+  const isModalPreorderCollecting = (activeProduct as any).preorderEnabled && (activeProduct as any).preorderStatus === "collecting";
+  const showModalPreorderLabels = isModalPreorderCollecting && !!activeHasDiscount;
 
   const handleAddToCart = () => {
     const activeSizeStock = (activeProduct as any).sizeStock as Record<string, number> | null;
@@ -565,19 +567,26 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
               <div className="flex-1 flex flex-col">
                 <div className="mb-3 sm:mb-5 text-left">
                   <h3 className="text-base sm:text-xl font-bold leading-snug text-black tracking-tight mb-2">{displayName(activeProduct.name)}</h3>
-                  <div className="flex items-baseline gap-3 flex-wrap">
-                    <span className={`text-2xl sm:text-3xl font-black tracking-tight ${activeHasDiscount ? 'text-red-500' : 'text-black'}`}>{activeHasDiscount ? formatPrice(activeSalePrice) : activeDisplayPrice}</span>
-                    {activeHasDiscount && (
-                      <>
-                        <span className="text-base text-black/35 line-through font-medium">{activeRetailPrice}</span>
-                        <span className="text-xs font-bold tracking-widest text-white bg-black px-2 py-0.5 uppercase">-{effectiveActiveDiscountPct}%</span>
-                      </>
+                  <div className="space-y-1">
+                    {showModalPreorderLabels && (
+                      <p className="text-[10px] font-medium text-black uppercase tracking-wide">Предпродажная цена</p>
                     )}
-                    {isWholesale && activeWholesalePrice && (
-                      <>
-                        <span className="text-base text-black/35 line-through font-medium">{activeRetailPrice}</span>
-                        <span className="text-xs font-bold tracking-widest text-white bg-black px-2 py-0.5 uppercase">ОПТ</span>
-                      </>
+                    <div className="flex items-baseline gap-3 flex-wrap">
+                      <span className={`text-2xl sm:text-3xl font-black tracking-tight ${activeHasDiscount ? 'text-red-500' : 'text-black'}`}>{activeHasDiscount ? formatPrice(activeSalePrice) : activeDisplayPrice}</span>
+                      {activeHasDiscount && (
+                        <span className="text-base font-semibold text-red-400 line-through">{activeRetailPrice}</span>
+                      )}
+                      {isWholesale && activeWholesalePrice && (
+                        <>
+                          <span className="text-base text-black/35 line-through font-medium">{activeRetailPrice}</span>
+                          <span className="text-xs font-bold tracking-widest text-white bg-black px-2 py-0.5 uppercase">ОПТ</span>
+                        </>
+                      )}
+                    </div>
+                    {showModalPreorderLabels && (
+                      <p className="text-[11px] text-black">
+                        Цена после релиза — {activeRetailPrice} · <span className="font-medium">экономите {formatPrice(activeProduct.price - activeSalePrice)}</span>
+                      </p>
                     )}
                   </div>
                   {!isWholesale && activeSalePrice >= 300000 && activeSalePrice <= 3000000 && (
