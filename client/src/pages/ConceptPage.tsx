@@ -340,13 +340,13 @@ export default function ConceptPage() {
                       <div className="space-y-1">
                         {hasDiscount ? (
                           <>
-                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Предпродажная цена</p>
+                            <p className="text-[10px] font-medium text-foreground uppercase tracking-wide">Предпродажная цена</p>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-base font-bold text-foreground">{formatPrice(salePrice)}</span>
-                              <span className="text-[13px] line-through text-muted-foreground/50">{formatPrice(product.price)}</span>
+                              <span className="text-[13px] line-through text-foreground/40">{formatPrice(product.price)}</span>
                               <span className="text-[10px] font-bold bg-foreground/90 text-background px-1.5 py-0.5 rounded-sm">−{discountPct}%</span>
                             </div>
-                            <p className="text-[10px] text-foreground/70">Цена после релиза — {formatPrice(product.price)}</p>
+                            <p className="text-[10px] text-foreground">Цена после релиза — {formatPrice(product.price)}</p>
                           </>
                         ) : (
                           <span className="text-base font-bold text-foreground">{formatPrice(product.price)}</span>
@@ -446,7 +446,7 @@ export default function ConceptPage() {
                                   done ? "bg-foreground" : active ? "bg-primary" : "bg-muted-foreground/20"
                                 }`} />
                                 <span className={`text-[9px] uppercase tracking-wide truncate text-foreground ${
-                                  active ? "font-semibold" : "opacity-50"
+                                  active ? "font-semibold" : "opacity-70"
                                 }`}>
                                   {step}
                                 </span>
@@ -458,7 +458,7 @@ export default function ConceptPage() {
 
                       {/* Dates */}
                       {(product.preorderDeadline || product.preorderShippingDate) && (
-                        <div className="text-[10px] text-muted-foreground space-y-0.5">
+                        <div className="text-[10px] text-foreground space-y-0.5">
                           {product.preorderDeadline && (
                             <p>Сбор до {formatDate(product.preorderDeadline)}</p>
                           )}
