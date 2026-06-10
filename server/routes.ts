@@ -7733,6 +7733,7 @@ BMGBRAND — официальный производитель и магазин
       if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
       
       await storage.updateProduct(id, updateData);
+      storage.clearCache();
       const updated = await storage.getProduct(id);
       
       if (product) {
