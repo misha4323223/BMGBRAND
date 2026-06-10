@@ -152,8 +152,11 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
   const wholesalePrice = useMemo(() => getWholesalePrice(product.price, (product as any).wholesalePrice), [product.price, (product as any).wholesalePrice, getWholesalePrice]);
   const displayPrice = useMemo(() => wholesalePrice ? formatPrice(wholesalePrice) : retailPrice, [wholesalePrice, retailPrice]);
   const discountPct = (product as any).discountPercent;
-  const hasDiscount = discountPct && discountPct > 0 && !wholesalePrice;
-  const salePrice = hasDiscount ? Math.round(product.price * (1 - discountPct / 100)) : product.price;
+  const productSalePrice = (product as any).salePrice;
+  const hasDiscount = ((productSalePrice && productSalePrice > 0 && productSalePrice < product.price) || (discountPct && discountPct > 0)) && !wholesalePrice;
+  const salePrice = productSalePrice && productSalePrice > 0 && productSalePrice < product.price
+    ? productSalePrice
+    : (discountPct && discountPct > 0 ? Math.round(product.price * (1 - discountPct / 100)) : product.price);
   
   useEffect(() => {
     if (priority && product.thumbnailUrl) {

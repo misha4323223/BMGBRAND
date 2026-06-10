@@ -732,6 +732,7 @@ export class DatabaseStorage implements IStorage {
       price: parsedPrice,
       wholesalePrice: parsedWholesalePrice,
       discountPercent: data.old_price ? Number(data.old_price) : null,
+      salePrice: data.sale_price ? Number(data.sale_price) : null,
       imageUrl: images.length > 0 ? images[0] : (data.image_url || ''),
       thumbnailUrl: data.thumbnail_url || null,
       hoverThumbnailUrl: data.hover_thumbnail_url || null,
@@ -1225,6 +1226,11 @@ export class DatabaseStorage implements IStorage {
         declareStatements += 'DECLARE $old_price AS Double;\n';
         setClauses.push('old_price = $old_price');
         params.$old_price = TypedValues.fromNative(Types.DOUBLE, (p as any).discountPercent || 0);
+      }
+      if ((p as any).salePrice !== undefined) {
+        declareStatements += 'DECLARE $sale_price AS Int64;\n';
+        setClauses.push('sale_price = $sale_price');
+        params.$sale_price = TypedValues.fromNative(Types.INT64, BigInt((p as any).salePrice || 0));
       }
       // Handle images array - prefer explicit images over imageUrl
       if ((p as any).images !== undefined && Array.isArray((p as any).images)) {

@@ -284,6 +284,11 @@ export default function ProductDetail() {
         stock: (product as any).stock ?? 0,
         category: (product as any).category || "",
         subcategory: (product as any).subcategory || "",
+        preorderEnabled: (product as any).preorderEnabled || false,
+        preorderStatus: (product as any).preorderStatus || null,
+        preorderDeadline: (product as any).preorderDeadline || null,
+        preorderGoal: (product as any).preorderGoal || 0,
+        preorderCurrent: (product as any).preorderCurrent || 0,
       },
     }));
     return () => {
@@ -562,11 +567,14 @@ export default function ProductDetail() {
   const wholesalePriceValue = getWholesalePrice(product.price, (product as any).wholesalePrice);
   const displayPrice = wholesalePriceValue ? formatPrice(wholesalePriceValue) : retailPrice;
   const discountPct = (product as any).discountPercent;
+  const productSalePrice = (product as any).salePrice;
   const sizeDiscountsMap = (product as any).sizeDiscounts as Record<string, number> | null | undefined;
   const activeSizeDiscount = (sizeDiscountsMap && selectedSize && sizeDiscountsMap[selectedSize]) ? sizeDiscountsMap[selectedSize] : null;
   const effectiveDiscountPct = activeSizeDiscount ?? discountPct;
-  const hasDiscount = effectiveDiscountPct && effectiveDiscountPct > 0 && !wholesalePriceValue;
-  const salePrice = hasDiscount ? Math.round(product.price * (1 - effectiveDiscountPct / 100)) : product.price;
+  const hasDiscount = ((productSalePrice && productSalePrice > 0 && productSalePrice < product.price) || (effectiveDiscountPct && effectiveDiscountPct > 0)) && !wholesalePriceValue;
+  const salePrice = productSalePrice && productSalePrice > 0 && productSalePrice < product.price
+    ? productSalePrice
+    : (effectiveDiscountPct && effectiveDiscountPct > 0 ? Math.round(product.price * (1 - effectiveDiscountPct / 100)) : product.price);
   const isPreorderCollecting = (product as any).preorderEnabled && (product as any).preorderStatus === "collecting";
   const showPreorderPriceLabels = isPreorderCollecting && !!hasDiscount;
 

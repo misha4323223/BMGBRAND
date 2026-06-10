@@ -42,6 +42,10 @@ export default function Cart() {
   };
   
   const retailSubtotal = cartItems?.reduce((acc, item) => {
+    const itemSalePrice = (item.product as any).salePrice;
+    if (itemSalePrice && itemSalePrice > 0 && itemSalePrice < item.product.price) {
+      return acc + (itemSalePrice * item.quantity);
+    }
     const discountPct = (item.product as any).discountPercent;
     const sizeDiscounts = (item.product as any).sizeDiscounts as Record<string, number> | null;
     const sizeDiscount = sizeDiscounts && item.size ? sizeDiscounts[item.size] : null;
@@ -84,14 +88,17 @@ export default function Cart() {
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
               {cartItems.map((item) => {
+                const itemSalePrice = (item.product as any).salePrice;
                 const discountPct = (item.product as any).discountPercent;
                 const sizeDiscounts = (item.product as any).sizeDiscounts as Record<string, number> | null;
                 const sizeDiscount = sizeDiscounts && item.size ? sizeDiscounts[item.size] : null;
                 const effectiveDiscount = sizeDiscount ?? discountPct;
-                const hasDiscount = effectiveDiscount && effectiveDiscount > 0 && !isWholesale;
-                const retailItemPrice = hasDiscount
-                  ? Math.round(item.product.price * (1 - effectiveDiscount / 100))
-                  : item.product.price;
+                const hasDiscount = !isWholesale && ((itemSalePrice && itemSalePrice > 0 && itemSalePrice < item.product.price) || (effectiveDiscount && effectiveDiscount > 0));
+                const retailItemPrice = (itemSalePrice && itemSalePrice > 0 && itemSalePrice < item.product.price && !isWholesale)
+                  ? itemSalePrice
+                  : (effectiveDiscount && effectiveDiscount > 0 && !isWholesale
+                    ? Math.round(item.product.price * (1 - effectiveDiscount / 100))
+                    : item.product.price);
                 const wholesaleItemPrice = getWholesalePrice(item.product.price, (item.product as any).wholesalePrice) || item.product.price;
                 const itemPrice = isWholesale ? wholesaleItemPrice : retailItemPrice;
                 const itemTotal = itemPrice * item.quantity;

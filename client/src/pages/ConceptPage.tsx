@@ -88,6 +88,8 @@ export default function ConceptPage() {
   const SIZE_ORDER = ["XXS","XS","S","M","L","XL","XXL","XXXL","ONE SIZE","OS"];
 
   function getEffectivePrice(p: PreorderProduct): number {
+    const sp = (p as any).salePrice;
+    if (sp && sp > 0 && sp < p.price) return sp;
     const d = p.discountPercent;
     return d && d > 0 ? Math.round(p.price * (1 - d / 100)) : p.price;
   }

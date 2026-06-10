@@ -1005,6 +1005,7 @@ export default function Admin() {
     preorderProductionDate: string;
     preorderShippingDate: string;
     discountPercent: string;
+    salePrice: string;
     stock: string;
     sizeStock: Record<string, number>;
     sizeDiscounts: Record<string, number>;
@@ -1040,6 +1041,7 @@ export default function Admin() {
     preorderDeadline: "",
     preorderProductionDate: "",
     preorderShippingDate: "",
+    salePrice: "",
     stock: "",
     sizeStock: {},
     sizeDiscounts: {},
@@ -2053,6 +2055,7 @@ export default function Admin() {
         price: p.price ? String(p.price) : "",
         wholesalePrice: p.wholesalePrice ? String(p.wholesalePrice) : "",
         discountPercent: p.discountPercent ? String(p.discountPercent) : "",
+        salePrice: (p as any).salePrice ? String((p as any).salePrice) : "",
         category: p.category || "clothing",
         subcategory: p.subcategory || "",
         sku: p.sku || "",
@@ -8965,6 +8968,23 @@ export default function Admin() {
                           </p>
                         </div>
                         <div>
+                          <Label className="text-sm">Цена со скидкой точно (₽)</Label>
+                          <Input
+                            type="number"
+                            value={productForm.salePrice ? String(parseInt(productForm.salePrice) / 100) : ""}
+                            onChange={(e) => setProductForm({...productForm, salePrice: String(parseInt(e.target.value || "0") * 100)})}
+                            placeholder="2500"
+                            min="0"
+                            data-testid="input-product-sale-price"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {productForm.salePrice && parseInt(productForm.salePrice) > 0
+                              ? `Перекрывает % скидки. Покупатель платит ровно ${parseInt(productForm.salePrice) / 100} ₽.`
+                              : "Фиксированная цена после скидки (например 2500). Если задана — % скидки игнорируется."
+                            }
+                          </p>
+                        </div>
+                        <div>
                           <Label className="text-sm">Общий остаток (шт)</Label>
                           <Input
                             type="number"
@@ -9985,6 +10005,7 @@ export default function Admin() {
                               price: parseInt(productForm.price) || 0,
                               wholesalePrice: parseInt(productForm.wholesalePrice) || undefined,
                               discountPercent: productForm.discountPercent ? parseInt(productForm.discountPercent) : 0,
+                              salePrice: productForm.salePrice ? parseInt(productForm.salePrice) : null,
                               measurements: productForm.measurements.length > 0 ? productForm.measurements : undefined,
                               lookProducts: productForm.lookProducts.length > 0 ? productForm.lookProducts : [],
                               lookCategory: productForm.lookCategory || null,

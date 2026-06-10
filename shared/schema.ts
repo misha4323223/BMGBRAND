@@ -140,6 +140,7 @@ export const products = pgTable("products", {
   isNew: boolean("is_new").default(false),
   badgeText: text("badge_text"), // Custom badge text: "NEW", "ХИТ", "SALE", etc.
   discountPercent: integer("discount_percent"), // Discount percentage (0-100), stored in old_price column in YDB
+  salePrice: integer("sale_price"), // Exact sale price in kopeks — overrides discountPercent if set (e.g. 250000 = 2500 ₽)
   onSale: boolean("on_sale").default(false), // For sale category
   isHidden: boolean("is_hidden").default(false), // Hide product from public catalog
   autoHideOverride: boolean("auto_hide_override").default(false), // If true, auto-hide will not affect this product (admin manually showed it)

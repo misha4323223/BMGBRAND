@@ -3054,7 +3054,15 @@ BMGBRAND — официальный производитель и магазин
         const crossSellHint = category.toLowerCase().includes("толстовк") || category.toLowerCase().includes("свитшот") || category.toLowerCase().includes("футболк")
           ? `\n\nДОПРОДАЖА: если пользователь определился с этим товаром или добавил в корзину — предложи посмотреть носки BOOOMERANGS как дополнение к образу (одна короткая фраза, без давления).`
           : "";
-        pageContextStr = `\n\n## Текущий товар (пользователь смотрит эту карточку прямо сейчас)\n- Название: ${p.name}\n- Цена: ${priceStr}\n- Цвет: ${p.color || "не указан"}\n- Состав: ${p.composition || "не указан"}\n- Описание: ${(p.description || "").slice(0, 400)}\n- Наличие по размерам: ${stockStr}\n- Категория: ${category}\n\nЕсли пользователь спрашивает про этот товар (состав, размеры, цвет, наличие) — отвечай на основе этих данных.${triggerNote}${lowStockNote}${crossSellHint}`;
+        let preorderNote = "";
+        if (p.preorderEnabled) {
+          const statusMap: Record<string, string> = { collecting: "сбор заявок", production: "в производстве", shipping: "отгружается", completed: "завершён" };
+          const statusLabel = statusMap[p.preorderStatus] || "предзаказ";
+          const deadlinePart = p.preorderDeadline ? `, дедлайн: ${p.preorderDeadline}` : "";
+          const progressPart = (p.preorderGoal && p.preorderGoal > 0) ? `, собрано заявок: ${p.preorderCurrent || 0} из ${p.preorderGoal}` : "";
+          preorderNote = `\n\nВАЖНО: это товар ПРЕДЗАКАЗА (статус: ${statusLabel}${deadlinePart}${progressPart}). Покупатель оформляет заявку заранее и ждёт производства. Если спрашивают про сроки, как это работает, или когда придёт — объясни схему предзаказа. Не говори что карточка пустая — это нормально для предзаказного товара.`;
+        }
+        pageContextStr = `\n\n## Текущий товар (пользователь смотрит эту карточку прямо сейчас)\n- Название: ${p.name}\n- Цена: ${priceStr}\n- Цвет: ${p.color || "не указан"}\n- Состав: ${p.composition || "не указан"}\n- Описание: ${(p.description || "").slice(0, 400)}\n- Наличие по размерам: ${stockStr}\n- Категория: ${category}\n\nЕсли пользователь спрашивает про этот товар (состав, размеры, цвет, наличие) — отвечай на основе этих данных.${triggerNote}${lowStockNote}${crossSellHint}${preorderNote}`;
       } else if (pageContext?.pageType === "cart_remove" && pageContext.removedProductName) {
         pageContextStr = `\n\n## Контекст\nПользователь только что удалил товар «${pageContext.removedProductName}» из корзины. Ты написал ему проактивное сообщение с предложением помочь подобрать замену. Теперь пользователь отвечает на это предложение. Помоги ему найти похожие товары или ответь на его вопрос, зная что он искал что-то похожее на «${pageContext.removedProductName}».`;
       } else if (pageContext?.pageType === "cart") {
@@ -7578,7 +7586,7 @@ BMGBRAND — официальный производитель и магазин
         measurements, images, imageUrl, sku, color, wholesalePrice,
         isNew, badgeText, lookProducts, lookCategory, lookSubcategory,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate,
-        stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts
+        stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice
       } = req.body;
       
       const updateData: any = {};
@@ -7605,6 +7613,10 @@ BMGBRAND — официальный производитель и магазин
       if (discountPercent !== undefined) {
         const dp = parseInt(discountPercent);
         updateData.discountPercent = isNaN(dp) || dp <= 0 ? 0 : Math.min(dp, 99);
+      }
+      if (salePrice !== undefined) {
+        const sp = parseInt(salePrice);
+        updateData.salePrice = (isNaN(sp) || sp <= 0) ? 0 : sp;
       }
       if (isNew !== undefined) updateData.isNew = isNew;
       if (badgeText !== undefined) updateData.badgeText = badgeText || null;
@@ -10652,12 +10664,17 @@ BMGBRAND — официальный производитель и магазин
           if (isWholesale && item.product.wholesalePrice) {
             price = item.product.wholesalePrice;
           } else if (!isWholesale) {
-            const discountPct = (item.product as any).discountPercent;
-            const sizeDiscounts = (item.product as any).sizeDiscounts as Record<string, number> | null;
-            const sizeDiscount = (sizeDiscounts && item.size && sizeDiscounts[item.size]) ? sizeDiscounts[item.size] : null;
-            const effectiveDiscount = sizeDiscount ?? (discountPct || 0);
-            if (effectiveDiscount > 0) {
-              price = Math.round(item.product.price * (1 - effectiveDiscount / 100));
+            const itemSalePrice = (item.product as any).salePrice;
+            if (itemSalePrice && itemSalePrice > 0 && itemSalePrice < item.product.price) {
+              price = itemSalePrice;
+            } else {
+              const discountPct = (item.product as any).discountPercent;
+              const sizeDiscounts = (item.product as any).sizeDiscounts as Record<string, number> | null;
+              const sizeDiscount = (sizeDiscounts && item.size && sizeDiscounts[item.size]) ? sizeDiscounts[item.size] : null;
+              const effectiveDiscount = sizeDiscount ?? (discountPct || 0);
+              if (effectiveDiscount > 0) {
+                price = Math.round(item.product.price * (1 - effectiveDiscount / 100));
+              }
             }
           }
           const sizeCharIds = (item.product as any).sizeCharacteristicIds as Record<string, string> | null | undefined;
