@@ -16,6 +16,7 @@ interface PreorderProduct {
   slug?: string;
   name: string;
   price: number;
+  discountPercent?: number;
   images?: string[];
   imageUrl?: string;
   thumbnailUrl?: string;
@@ -86,6 +87,11 @@ export default function ConceptPage() {
 
   const SIZE_ORDER = ["XXS","XS","S","M","L","XL","XXL","XXXL","ONE SIZE","OS"];
 
+  function getEffectivePrice(p: PreorderProduct): number {
+    const d = p.discountPercent;
+    return d && d > 0 ? Math.round(p.price * (1 - d / 100)) : p.price;
+  }
+
   async function openSizePopup(e: React.MouseEvent, product: PreorderProduct) {
     e.preventDefault();
     e.stopPropagation();
@@ -95,6 +101,7 @@ export default function ConceptPage() {
       return;
     }
     setPopupLoadingId(product.id);
+    const effectivePrice = getEffectivePrice(product);
     try {
       const res = await fetch(`/api/products/${product.id}`);
       const data = await res.json();
@@ -113,7 +120,7 @@ export default function ConceptPage() {
         addOrUpdateItem({
           productId: product.id,
           productName: product.name,
-          price: product.price,
+          price: effectivePrice,
           imageUrl: product.images?.[0] || product.thumbnailUrl || product.imageUrl || "",
           selectedSizes: { [onlySize]: 1 },
         });
@@ -126,7 +133,7 @@ export default function ConceptPage() {
       addOrUpdateItem({
         productId: product.id,
         productName: product.name,
-        price: product.price,
+        price: effectivePrice,
         imageUrl: product.images?.[0] || product.thumbnailUrl || product.imageUrl || "",
         selectedSizes: { "ONE SIZE": 1 },
       });
@@ -282,6 +289,9 @@ export default function ConceptPage() {
                 const isLocked = status !== "collecting";
 
                 const inCart = !!cartPreorderItems.find(i => i.productId === product.id);
+                const discountPct = product.discountPercent;
+                const hasDiscount = !!discountPct && discountPct > 0;
+                const salePrice = hasDiscount ? Math.round(product.price * (1 - discountPct / 100)) : product.price;
 
                 return (
                   <Link
@@ -326,11 +336,21 @@ export default function ConceptPage() {
                         {product.name}
                       </h3>
 
-                      {/* Цена + статус-бейдж в одной строке */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-base font-bold text-foreground">
-                          {formatPrice(product.price)}
-                        </span>
+                      {/* Цена */}
+                      <div className="space-y-1">
+                        {hasDiscount ? (
+                          <>
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Предпродажная цена</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-base font-bold text-foreground">{formatPrice(salePrice)}</span>
+                              <span className="text-[13px] line-through text-muted-foreground/50">{formatPrice(product.price)}</span>
+                              <span className="text-[10px] font-bold bg-foreground/90 text-background px-1.5 py-0.5 rounded-sm">−{discountPct}%</span>
+                            </div>
+                            <p className="text-[10px] text-foreground/70">Цена после релиза — {formatPrice(product.price)}</p>
+                          </>
+                        ) : (
+                          <span className="text-base font-bold text-foreground">{formatPrice(product.price)}</span>
+                        )}
                         {!isCancelled && (
                           <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full ${
                             status === "collecting"
@@ -389,7 +409,7 @@ export default function ConceptPage() {
                                       addOrUpdateItem({
                                         productId: product.id,
                                         productName: product.name,
-                                        price: product.price,
+                                        price: salePrice,
                                         imageUrl,
                                         selectedSizes: { [size]: 1 },
                                       });

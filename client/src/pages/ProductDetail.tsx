@@ -567,6 +567,8 @@ export default function ProductDetail() {
   const effectiveDiscountPct = activeSizeDiscount ?? discountPct;
   const hasDiscount = effectiveDiscountPct && effectiveDiscountPct > 0 && !wholesalePriceValue;
   const salePrice = hasDiscount ? Math.round(product.price * (1 - effectiveDiscountPct / 100)) : product.price;
+  const isPreorderCollecting = (product as any).preorderEnabled && (product as any).preorderStatus === "collecting";
+  const showPreorderPriceLabels = isPreorderCollecting && !!hasDiscount;
 
   const origin = window.location.origin;
   const productUrl = `${origin}/${product.slug || product.id}`;
@@ -925,23 +927,31 @@ export default function ProductDetail() {
                 )}
               </div>
               <div className="border-t border-border my-3 sm:my-4"></div>
-              <div className="flex items-center gap-3 flex-wrap" data-testid={`text-product-price-${product.id}`}>
-                <p className={`text-2xl sm:text-3xl font-bold ${hasDiscount ? 'text-red-600' : isWholesale ? 'text-primary' : 'text-foreground'}`}>
-                  {hasDiscount ? formatPrice(salePrice) : displayPrice}
-                </p>
-                {hasDiscount && (
-                  <>
-                    <span className="text-lg text-foreground/45 line-through">{retailPrice}</span>
-                    <Badge variant="destructive">-{effectiveDiscountPct}%</Badge>
-                  </>
+              <div className="space-y-1" data-testid={`text-product-price-${product.id}`}>
+                {showPreorderPriceLabels && (
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Предпродажная цена</p>
                 )}
-                {isWholesale && wholesalePriceValue && (
-                  <>
-                    <span className="text-lg text-foreground/45 line-through">{retailPrice}</span>
-                    <Badge variant="secondary">
-                      ОПТ
-                    </Badge>
-                  </>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <p className={`text-2xl sm:text-3xl font-bold ${hasDiscount ? 'text-red-600' : isWholesale ? 'text-primary' : 'text-foreground'}`}>
+                    {hasDiscount ? formatPrice(salePrice) : displayPrice}
+                  </p>
+                  {hasDiscount && (
+                    <>
+                      <span className="text-lg text-foreground/45 line-through">{retailPrice}</span>
+                      <Badge variant="destructive">-{effectiveDiscountPct}%</Badge>
+                    </>
+                  )}
+                  {isWholesale && wholesalePriceValue && (
+                    <>
+                      <span className="text-lg text-foreground/45 line-through">{retailPrice}</span>
+                      <Badge variant="secondary">ОПТ</Badge>
+                    </>
+                  )}
+                </div>
+                {showPreorderPriceLabels && (
+                  <p className="text-xs text-muted-foreground/60">
+                    Цена после релиза — {retailPrice} · <span className="font-medium text-foreground/70">экономите {formatPrice(product.price - salePrice)}</span>
+                  </p>
                 )}
               </div>
               {!isWholesale && salePrice >= 300000 && salePrice <= 3000000 && (
@@ -2029,7 +2039,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
       addOrUpdateItem({
         productId: product.id,
         productName: product.name,
-        price: product.price,
+        price: salePrice,
         imageUrl: product.thumbnailUrl || product.imageUrl || "",
         selectedSizes: { "ONE SIZE": 1 },
         selectedColor: selectedColor || undefined,
@@ -2046,7 +2056,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
     addOrUpdateItem({
       productId: product.id,
       productName: product.name,
-      price: product.price,
+      price: salePrice,
       imageUrl: product.thumbnailUrl || product.imageUrl || "",
       selectedSizes: { ...sizeQuantities },
       selectedColor: selectedColor || undefined,
@@ -2067,7 +2077,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
                 <div className="text-xs font-medium text-foreground">
                   {Object.entries(sizeQuantities).filter(([,q]) => q > 0).map(([size, qty]) => `${size} × ${qty}`).join(", ")}
                 </div>
-                <div className="text-xs text-muted-foreground">{totalItems} шт. · {(totalItems * product.price / 100).toLocaleString("ru-RU")} ₽</div>
+                <div className="text-xs text-muted-foreground">{totalItems} шт. · {(totalItems * salePrice / 100).toLocaleString("ru-RU")} ₽</div>
               </div>
             )}
           </div>
@@ -2129,7 +2139,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
         ) : totalItems > 0 ? (
           <>
             <ShoppingCart className="w-4 h-4 mr-2" />
-            {`В корзину предзаказов — ${(totalItems * product.price / 100).toLocaleString("ru-RU")} ₽`}
+            {`В корзину предзаказов — ${(totalItems * salePrice / 100).toLocaleString("ru-RU")} ₽`}
           </>
         ) : (
           <>
