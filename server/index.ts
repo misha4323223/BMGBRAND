@@ -13,7 +13,7 @@ import cookieParser from "cookie-parser";
 import compression from "compression";
 import helmet from "helmet";
 import cors from "cors";
-import { registerRoutes } from "./routes";
+import { registerRoutes, migrateAiKnowledgeDefaults } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { reconnectYdb, shouldReconnectYdb } from "./db";
@@ -411,6 +411,7 @@ async function seedDefaultLegalDocuments() {
       startAbandonedCartJob();
       initPostPurchaseEmailJob();
       initAutonomousAgent();
+      migrateAiKnowledgeDefaults();
     },
   );
 })();

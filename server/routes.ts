@@ -1384,8 +1384,32 @@ Pre-drop — это возможность заказать вещь ещё до
 **Минимальный заказ:** без ограничений, можно заказать 1 единицу.`,
 };
 
+// Bump this string any time you update AI_KNOWLEDGE_DEFAULTS — on next server
+// start all blocks will be re-written from code to the database automatically.
+const AI_KNOWLEDGE_VERSION = "v3";
+
 const aiKnowledgeCache = new Map<AiKnowledgeKey, string>();
 let aiKnowledgeCacheLastLoad = 0;
+
+export async function migrateAiKnowledgeDefaults(): Promise<void> {
+  try {
+    const stored = await storage.getBonusSetting("ai_knowledge_version");
+    if (stored === AI_KNOWLEDGE_VERSION) return;
+    console.log(`[AI Knowledge] Migrating defaults to ${AI_KNOWLEDGE_VERSION}…`);
+    await Promise.all(
+      AI_KNOWLEDGE_KEYS.map((k) =>
+        storage.setBonusSetting(k, AI_KNOWLEDGE_DEFAULTS[k]).catch((e) =>
+          console.error(`[AI Knowledge] Failed to migrate ${k}:`, e.message)
+        )
+      )
+    );
+    await storage.setBonusSetting("ai_knowledge_version", AI_KNOWLEDGE_VERSION);
+    console.log(`[AI Knowledge] Migration complete — all ${AI_KNOWLEDGE_KEYS.length} blocks updated.`);
+    invalidateAiKnowledgeCache();
+  } catch (e: any) {
+    console.error("[AI Knowledge] Migration error:", e.message);
+  }
+}
 
 async function loadAiKnowledgeIfNeeded(): Promise<void> {
   if (Date.now() - aiKnowledgeCacheLastLoad <= AI_KNOWLEDGE_CACHE_TTL) return;
