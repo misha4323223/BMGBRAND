@@ -453,6 +453,11 @@ ${isDesign ? "Это товар с уникальным принтом." : ""}
 
 // ── Weekly Digest ─────────────────────────────────────────────────────────
 
+const DIGEST_AI_SYSTEM = `Ты аналитик для российского стритвир-магазина BOOOMERANGS.
+Тебе дадут сводку по продажам за неделю. Напиши 2-3 коротких наблюдения на русском языке — что важно, на что обратить внимание, что радует или настораживает.
+Пиши живо, по-человечески, без воды. Только факты и выводы. Не повторяй цифры из сводки дословно.
+Верни только текст наблюдений без заголовков и маркеров.`;
+
 export async function runWeeklyDigest(): Promise<void> {
   console.log("[AutonomousAgent] Starting weekly digest...");
   const settings = await getAgentSettings();
@@ -464,49 +469,153 @@ export async function runWeeklyDigest(): Promise<void> {
       storage.getOrders() as Promise<any[]>,
     ]);
 
-    const visibleProducts = (products as any[]).filter((p: any) => !p.isHidden);
-    const hiddenProducts = (products as any[]).filter((p: any) => p.isHidden);
+    const visibleProducts = products.filter((p: any) => !p.isHidden);
+    const hiddenProducts = products.filter((p: any) => p.isHidden);
 
     const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const weekOrders = (orders as any[]).filter(
+    const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+
+    const weekOrders = orders.filter(
       (o: any) => o.createdAt && new Date(String(o.createdAt)).getTime() > oneWeekAgo
     );
     const weekPaid = weekOrders.filter((o: any) =>
       ["paid", "shipped", "delivered"].includes(o.status)
     );
+    const weekCancelled = weekOrders.filter((o: any) => o.status === "cancelled");
     const weekRevenue = weekPaid.reduce((s: number, o: any) => s + (o.total || 0), 0);
+    const cancelledRevenue = weekCancelled.reduce((s: number, o: any) => s + (o.total || 0), 0);
+    const avgCheck = weekPaid.length > 0 ? Math.round(weekRevenue / weekPaid.length / 100) : 0;
+    const conversion = weekOrders.length > 0
+      ? Math.round((weekPaid.length / weekOrders.length) * 100)
+      : 0;
 
-    const noSeo = (products as any[]).filter(
+    // Зависшие заказы: статус "paid" больше 3 дней
+    const stuckPaid = orders.filter((o: any) => {
+      if (o.status !== "paid") return false;
+      const created = o.createdAt ? new Date(String(o.createdAt)).getTime() : 0;
+      return created < threeDaysAgo;
+    });
+
+    // Новые vs повторные покупатели
+    const weekUserIds = weekPaid
+      .map((o: any) => o.userId)
+      .filter((id: any) => id != null && id !== 0);
+    const allPrevUserIds = new Set(
+      orders
+        .filter((o: any) => {
+          const created = o.createdAt ? new Date(String(o.createdAt)).getTime() : 0;
+          return created <= oneWeekAgo && ["paid", "shipped", "delivered"].includes(o.status);
+        })
+        .map((o: any) => o.userId)
+        .filter((id: any) => id != null)
+    );
+    const newBuyers = weekUserIds.filter((id: any) => !allPrevUserIds.has(id)).length;
+    const returningBuyers = weekUserIds.length - newBuyers;
+
+    // Топ товаров по количеству и выручке
+    const productSales = new Map<string, { name: string; qty: number; revenue: number }>();
+    for (const order of weekPaid) {
+      const items = Array.isArray(order.items) ? order.items : [];
+      for (const item of items) {
+        const key = String(item.productId || item.name || "?");
+        const name = item.productName || item.name || `Товар ${key}`;
+        const qty = Number(item.quantity) || 1;
+        const rev = (Number(item.price) || 0) * qty;
+        const existing = productSales.get(key);
+        if (existing) {
+          existing.qty += qty;
+          existing.revenue += rev;
+        } else {
+          productSales.set(key, { name, qty, revenue: rev });
+        }
+      }
+    }
+    const sortedByQty = [...productSales.values()].sort((a, b) => b.qty - a.qty).slice(0, 5);
+    const sortedByRev = [...productSales.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+
+    // Состояние магазина
+    const noSeo = products.filter(
       (p: any) => !p.isHidden && (!p.seoTitle || !p.seoDescription)
     ).length;
-    const noDesc = (products as any[]).filter(
+    const noDesc = products.filter(
       (p: any) => !p.isHidden && (!p.description || p.description.trim().length < DESCRIPTION_MIN_LENGTH)
     ).length;
+    const criticalStock = visibleProducts.filter((p: any) => {
+      const ss = p.sizeStock as Record<string, number> | null;
+      if (!ss) return false;
+      const total = Object.values(ss).reduce((s: number, v: unknown) => s + (Number(v) || 0), 0);
+      return total === 1;
+    }).length;
     const lowStockCount = visibleProducts.filter((p: any) => {
       const ss = p.sizeStock as Record<string, number> | null;
       if (!ss) return false;
       const total = Object.values(ss).reduce((s: number, v: unknown) => s + (Number(v) || 0), 0);
-      return total > 0 && total <= LOW_STOCK_THRESHOLD;
+      return total > 1 && total <= LOW_STOCK_THRESHOLD;
     }).length;
 
+    // Топ по количеству
+    const topQtyLines = sortedByQty.length > 0
+      ? sortedByQty.map((p, i) => `  ${i + 1}. ${p.name.slice(0, 35)} — ${p.qty} шт.`).join("\n")
+      : "  нет данных";
+
+    // Топ по выручке
+    const topRevLines = sortedByRev.length > 0
+      ? sortedByRev.map((p, i) => `  ${i + 1}. ${p.name.slice(0, 35)} — ${Math.round(p.revenue / 100).toLocaleString("ru-RU")} ₽`).join("\n")
+      : "  нет данных";
+
+    // Пробуем получить AI-комментарий (если Groq доступен — +1 запрос)
+    let aiComment = "";
+    try {
+      const digestSummaryForAi =
+        `Заказов: ${weekOrders.length}, оплачено: ${weekPaid.length}, выручка: ${Math.round(weekRevenue / 100).toLocaleString("ru-RU")} ₽, ` +
+        `средний чек: ${avgCheck} ₽, конверсия: ${conversion}%, ` +
+        `отмен: ${weekCancelled.length}, зависших заказов: ${stuckPaid.length}, ` +
+        `новых покупателей: ${newBuyers}, повторных: ${returningBuyers}. ` +
+        `Топ товар по продажам: ${sortedByQty[0]?.name || "—"} (${sortedByQty[0]?.qty || 0} шт.). ` +
+        `Критический остаток (1 шт.): ${criticalStock} товаров.`;
+      aiComment = await groqComplete(digestSummaryForAi, DIGEST_AI_SYSTEM, 200);
+    } catch {
+      // AI-комментарий необязателен — продолжаем без него
+    }
+
+    const dateStr = new Date().toLocaleDateString("ru-RU", {
+      day: "numeric", month: "long", year: "numeric",
+    });
+
     const text =
-      `📊 <b>BOOOM AI — Еженедельный дайджест</b>\n` +
-      `${new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}\n\n` +
-      `<b>Товары:</b>\n` +
-      `• Видимых: ${visibleProducts.length} / Скрытых: ${hiddenProducts.length}\n` +
-      `• Без SEO: ${noSeo}\n` +
-      `• Без описания: ${noDesc}\n` +
-      `• Заканчивается (≤${LOW_STOCK_THRESHOLD} шт.): ${lowStockCount}\n\n` +
-      `<b>За неделю:</b>\n` +
-      `• Заказов: ${weekOrders.length} (оплачено: ${weekPaid.length})\n` +
-      `• Выручка: ${Math.round(weekRevenue / 100).toLocaleString("ru-RU")} ₽`;
+      `📊 <b>BOOOM AI — Дайджест</b> · ${dateStr}\n\n` +
+
+      `<b>💰 Продажи за неделю</b>\n` +
+      `• Заказов: ${weekOrders.length} → оплачено: ${weekPaid.length} (${conversion}%)\n` +
+      `• Выручка: ${Math.round(weekRevenue / 100).toLocaleString("ru-RU")} ₽\n` +
+      `• Средний чек: ${avgCheck.toLocaleString("ru-RU")} ₽\n` +
+      `• Новых покупателей: ${newBuyers} / повторных: ${returningBuyers}\n` +
+
+      (weekCancelled.length > 0
+        ? `• ⚠️ Отменено: ${weekCancelled.length} заказов (${Math.round(cancelledRevenue / 100).toLocaleString("ru-RU")} ₽)\n`
+        : "") +
+      (stuckPaid.length > 0
+        ? `• 🔴 Не отправлено >3 дней: ${stuckPaid.length} заказов!\n`
+        : "") +
+
+      `\n<b>🏆 Топ-5 по количеству</b>\n${topQtyLines}\n` +
+      `\n<b>💵 Топ-5 по выручке</b>\n${topRevLines}\n` +
+
+      `\n<b>🏪 Магазин</b>\n` +
+      `• Товаров: ${visibleProducts.length} видимых / ${hiddenProducts.length} скрытых\n` +
+      `• Без SEO: ${noSeo} · Без описания: ${noDesc}\n` +
+      (criticalStock > 0 ? `• 🔴 Остаток 1 шт.: ${criticalStock} товаров\n` : "") +
+      (lowStockCount > 0 ? `• ⚠️ Заканчивается (2 шт.): ${lowStockCount} товаров\n` : "") +
+
+      (aiComment ? `\n<b>🤖 Наблюдение</b>\n${aiComment}` : "");
 
     await sendAgentDigest(text);
     vkNotifyAgentDigest(text);
+
     await addLogEntry({
       type: "digest",
       action: "Еженедельный дайджест отправлен",
-      summary: `Заказов за неделю: ${weekOrders.length}, выручка: ${Math.round(weekRevenue / 100).toLocaleString("ru-RU")} ₽`,
+      summary: `Заказов: ${weekOrders.length}, выручка: ${Math.round(weekRevenue / 100).toLocaleString("ru-RU")} ₽, топ: ${sortedByQty[0]?.name || "—"}`,
       isAuto: true,
     });
   } catch (e: any) {
