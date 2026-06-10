@@ -11,6 +11,7 @@ import { transliterateToSlug } from "@shared/schema";
 import SEO from "@/components/SEO";
 import { useAddToCart } from "@/hooks/use-cart";
 import { usePreorderCart } from "@/context/PreorderCartContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface ArtistSettings {
   heroImage?: string;
@@ -296,6 +297,7 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
   const [, navigate] = useLocation();
   const { mutate: addItem, isPending } = useAddToCart();
   const { addOrUpdateItem } = usePreorderCart();
+  const { toast } = useToast();
 
   const isPreorder = !!(product.preorderEnabled);
 
@@ -378,7 +380,10 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
       preorderProductionDate: product.preorderProductionDate ?? null,
     });
     setOpen(false);
-    setTimeout(() => navigate('/preorder-checkout'), 200);
+    toast({
+      title: "Добавлено в предзаказ",
+      description: product.name,
+    });
   }
 
   function handleConfirm() {
