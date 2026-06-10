@@ -4022,7 +4022,7 @@ export class DatabaseStorage implements IStorage {
   async getAllNewsletterSubscriptions(): Promise<NewsletterSubscription[]> {
     if (!driver) return [];
     const result = await this.safeQuery(async (session) => {
-      const query = "SELECT * FROM newsletter_subscriptions ORDER BY subscribed_at DESC LIMIT 100";
+      const query = "SELECT * FROM newsletter_subscriptions ORDER BY subscribed_at DESC LIMIT 1000";
       const { resultSets } = await session.executeQuery(query, {});
       return this.parseResultSet<NewsletterSubscription>(resultSets[0]);
     });
