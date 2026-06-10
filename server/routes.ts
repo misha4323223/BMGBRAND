@@ -23,6 +23,7 @@ import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PV
 import { yandexDeliveryService } from "./yandex-delivery";
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
 import { runAbandonedCartCheck } from "./abandoned-cart";
+import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow } from "./new-products-notifier";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications } from "./email";
 import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
@@ -5801,7 +5802,7 @@ BMGBRAND — официальный производитель и магазин
                   if (!existing) {
                     const slug = generateUniqueSlug(name, existingSlugs);
                     existingSlugs.push(slug);
-                    await storage.createProduct({ 
+                    const created1c = await storage.createProduct({ 
                       externalId, sku, name, description, price: 0, 
                       imageUrl, thumbnailUrl, images, 
                       category, subcategory, onSale, sizes: finalSizes, colors,
@@ -5811,6 +5812,7 @@ BMGBRAND — официальный производитель и магазин
                       badgeText: "NEW",
                       artistSlug: getArtistSlugFromName(name) || undefined,
                     } as any);
+                    enqueueNewProduct(created1c.id).catch(() => {});
                     await throttle();
                     createdCount++;
                     console.log(`[1C IMPORT] [${processedCount}/${productsArray.length}] CREATED: ${name} → ${slug} (${sku}) [Color: ${extractedColor || 'N/A'}, Sizes: ${finalSizes.join(',')}]`);
@@ -6098,7 +6100,7 @@ BMGBRAND — официальный производитель и магазин
                 productsUpdated++;
                 await throttle(); // Prevent YDB overload
               } else {
-                await storage.createProduct({
+                const createdSync2 = await storage.createProduct({
                   externalId,
                   sku,
                   name,
@@ -6116,6 +6118,7 @@ BMGBRAND — официальный производитель и магазин
                   isNew: true,
                   badgeText: "NEW"
                 } as any);
+                enqueueNewProduct(createdSync2.id).catch(() => {});
                 productsCreated++;
                 await throttle(); // Prevent YDB overload
               }
@@ -7344,6 +7347,7 @@ BMGBRAND — официальный производитель и магазин
       
       const product = await storage.createProduct(productData);
       console.log(`[Admin] Created new product: ${name} (ID: ${product.id})`);
+      enqueueNewProduct(product.id).catch(() => {});
       res.json({ success: true, product });
     } catch (error) {
       console.error("[Admin] Error creating product:", error);
@@ -9008,7 +9012,7 @@ BMGBRAND — официальный производитель и магазин
                   await throttle(); // Prevent YDB overload
                 } else {
                   console.log(`[1C] Creating new product: ${name} (${externalId})`);
-                  await storage.createProduct({
+                  const created1cV2 = await storage.createProduct({
                     externalId,
                     sku,
                     name,
@@ -9026,6 +9030,7 @@ BMGBRAND — официальный производитель и магазин
                     isNew: true,
                     badgeText: "NEW"
                   } as any);
+                  enqueueNewProduct(created1cV2.id).catch(() => {});
                   productsCreated++;
                   await throttle(); // Prevent YDB overload
                 }
@@ -10220,6 +10225,7 @@ BMGBRAND — официальный производитель и магазин
           results.push({ id: updated.id, status: "updated" });
         } else {
           const created = await storage.createProduct(item as any);
+          enqueueNewProduct(created.id).catch(() => {});
           results.push({ id: created.id, status: "created" });
         }
       }
@@ -10348,6 +10354,7 @@ BMGBRAND — официальный производитель и магазин
     try {
       const input = api.products.create.input.parse(req.body);
       const product = await storage.createProduct(input);
+      enqueueNewProduct(product.id).catch(() => {});
       res.status(201).json(product);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -11533,6 +11540,47 @@ BMGBRAND — официальный производитель и магазин
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // One-click unsubscribe via token link in newsletter emails
+  app.get("/api/newsletter/unsubscribe", async (req, res) => {
+    try {
+      const email = String(req.query.email || '').toLowerCase().trim();
+      const token = String(req.query.token || '');
+      if (!email || !token) {
+        return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна</h2></body></html>');
+      }
+      const crypto = await import('crypto');
+      const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
+      const expected = crypto.createHmac('sha256', jwtSecret).update(email).digest('hex').slice(0, 32);
+      if (token !== expected) {
+        return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна или устарела</h2></body></html>');
+      }
+      const all = await storage.getAllNewsletterSubscriptions();
+      const sub = all.find((s: any) => (s.email || '').toLowerCase().trim() === email);
+      if (sub) {
+        await storage.deleteNewsletterSubscription(Number(sub.id));
+        console.log(`[Newsletter] Unsubscribed via token: ${email}`);
+      }
+      res.send(`<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Вы отписались</title></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="min-height:100vh;">
+  <tr><td align="center" style="padding:60px 20px;">
+    <div style="max-width:480px;background:#fff;border-radius:10px;padding:48px 40px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+      <div style="font-size:22px;font-weight:900;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px;">BOOOMERANGS</div>
+      <div style="font-size:40px;margin-bottom:16px;">✓</div>
+      <h2 style="margin:0 0 12px;font-size:20px;color:#1C1C1C;">Вы отписались от рассылки</h2>
+      <p style="margin:0 0 28px;font-size:14px;color:#666;">Вы больше не будете получать письма о новинках. Если захотите снова подписаться — это можно сделать на сайте.</p>
+      <a href="https://www.booomerangs.ru" style="display:inline-block;padding:12px 32px;background:#1C1C1C;color:#fff;text-decoration:none;font-size:13px;font-weight:600;border-radius:6px;">Перейти на сайт</a>
+    </div>
+  </td></tr>
+</table>
+</body></html>`);
+    } catch (err: any) {
+      res.status(500).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ошибка сервера</h2></body></html>');
     }
   });
 
@@ -12896,6 +12944,32 @@ BMGBRAND — официальный производитель и магазин
         subscriptions: subscriptions || [], 
         count: subscriptions?.length || 0 
       });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: New-products queue status
+  app.get("/api/admin/newsletter-queue-status", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const expectedKey = getAdminKey();
+    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const status = await getNewProductsQueueStatus();
+      res.json(status);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Force-send new-products newsletter now (ignore debounce timer)
+  app.post("/api/admin/newsletter-trigger-now", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const expectedKey = getAdminKey();
+    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const result = await triggerNewProductsNotifierNow();
+      res.json({ success: true, ...result });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

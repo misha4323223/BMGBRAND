@@ -1595,3 +1595,141 @@ export function getAbandonedCartEmailHtml(
 </body>
 </html>`;
 }
+
+export function getNewProductsNewsletterHtml(
+  products: any[],
+  totalNewCount: number
+): (email: string) => string {
+  const MAX = 5;
+  const siteUrl = 'https://www.booomerangs.ru';
+  const displayProducts = products.slice(0, MAX);
+  const hasMore = totalNewCount > MAX;
+
+  function formatPrice(product: any): string {
+    const price = Number(product.price || 0);
+    const discount = Number(product.discountPercent || 0);
+    const final = discount > 0 ? Math.round(price * (1 - discount / 100)) : price;
+    const formatNum = (n: number) => Math.round(n / 100).toLocaleString('ru-RU');
+    if (discount > 0) {
+      return `<span style="text-decoration:line-through;color:#aaa;font-size:12px;">${formatNum(price)}&nbsp;&#8381;</span>&nbsp;<span style="color:#E53935;font-weight:700;">${formatNum(final)}&nbsp;&#8381;</span>`;
+    }
+    return `<span style="font-weight:700;color:#1C1C1C;">${formatNum(final)}&nbsp;&#8381;</span>`;
+  }
+
+  function productCard(p: any): string {
+    const slug = p.slug || String(p.id);
+    const productUrl = `${siteUrl}/product/${slug}`;
+    const rawImg = p.thumbnailUrl || p.imageUrl || '';
+    const imgSrc = rawImg.startsWith('http') ? rawImg : rawImg ? `${siteUrl}${rawImg}` : '';
+    return `
+      <td width="48%" style="vertical-align:top;padding:0 1% 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eee;border-radius:8px;overflow:hidden;">
+          <tr>
+            <td style="padding:0;">
+              <a href="${productUrl}" style="display:block;">
+                ${imgSrc ? `<img src="${imgSrc}" alt="${p.name}" width="100%" style="display:block;width:100%;height:200px;object-fit:cover;border-radius:8px 8px 0 0;" />` : `<div style="width:100%;height:200px;background:#f0f0f0;border-radius:8px 8px 0 0;"></div>`}
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:12px 14px 6px;">
+              <a href="${productUrl}" style="font-size:13px;font-weight:600;color:#1C1C1C;text-decoration:none;line-height:1.4;display:block;">${p.name}</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:4px 14px 14px;">${formatPrice(p)}</td>
+          </tr>
+          <tr>
+            <td style="padding:0 14px 16px;text-align:center;">
+              <a href="${productUrl}" style="display:inline-block;padding:9px 20px;background:#1C1C1C;color:#fff;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:0.5px;border-radius:5px;">
+                Смотреть
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>`;
+  }
+
+  function buildRows(): string {
+    let rows = '';
+    for (let i = 0; i < displayProducts.length; i += 2) {
+      const left = displayProducts[i];
+      const right = displayProducts[i + 1];
+      rows += `
+      <tr>
+        ${productCard(left)}
+        ${right ? productCard(right) : '<td width="48%" style="padding:0 1%;"></td>'}
+      </tr>`;
+    }
+    return rows;
+  }
+
+  const count = displayProducts.length;
+  const countWord = count === 1 ? 'новый товар' : count < 5 ? 'новых товара' : 'новых товаров';
+  const appeared = count === 1 ? 'появился' : 'появилось';
+  const subtitle = hasMore
+    ? `В магазине появилось <strong>${totalNewCount} новых товаров</strong>&nbsp;&#8212;&nbsp;показываем топ&#8209;${MAX}`
+    : `В магазине ${appeared} <strong>${count}&nbsp;${countWord}</strong>`;
+
+  return (email: string): string => {
+    const crypto = require('crypto');
+    const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
+    const token = crypto.createHmac('sha256', jwtSecret).update(email.toLowerCase()).digest('hex').slice(0, 32);
+    const unsubUrl = `${siteUrl}/api/newsletter/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`;
+
+    return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Смотри, что появилось</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:20px 0;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:10px;overflow:hidden;">
+        <tr>
+          <td style="background:#1C1C1C;padding:22px 32px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td><span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:2px;text-transform:uppercase;">BOOOMERANGS</span></td>
+                <td align="right"><span style="font-size:11px;color:#aaa;letter-spacing:1px;text-transform:uppercase;">Новинки</span></td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 32px 8px;">
+            <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#1C1C1C;line-height:1.2;">Смотри, что появилось</h1>
+            <p style="margin:0;font-size:14px;color:#666;">${subtitle}</p>
+          </td>
+        </tr>
+        <tr><td style="padding:16px 32px 20px;"><div style="height:2px;background:#1C1C1C;border-radius:2px;"></div></td></tr>
+        <tr>
+          <td style="padding:0 26px;">
+            <table width="100%" cellpadding="0" cellspacing="0">${buildRows()}</table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:24px 32px 32px;text-align:center;">
+            <a href="${siteUrl}/catalog" style="display:inline-block;padding:14px 40px;background:#E53935;color:#fff;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-radius:6px;">
+              Смотреть все новинки
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 32px;border-top:1px solid #eee;background:#fafafa;">
+            <p style="margin:0 0 6px;font-size:11px;color:#aaa;text-align:center;">&copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.</p>
+            <p style="margin:0;font-size:11px;color:#aaa;text-align:center;">Вы получили это письмо, потому что подписались на рассылку новинок на <a href="${siteUrl}" style="color:#aaa;">booomerangs.ru</a></p>
+            <p style="margin:8px 0 0;text-align:center;"><a href="${unsubUrl}" style="font-size:11px;color:#bbb;text-decoration:underline;">Отписаться от рассылки</a></p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+  };
+}
