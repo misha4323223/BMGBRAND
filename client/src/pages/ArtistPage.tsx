@@ -739,11 +739,15 @@ export default function ArtistPage() {
                       <img
                         src={settings.logoUrl}
                         alt={artistName}
-                        className="h-auto"
+                        className="block"
                         loading="eager"
                         fetchPriority="high"
                         style={{
-                          width: settings.logoSize ? `${settings.logoSize}px` : '240px',
+                          width: settings.logoSize ? `${settings.logoSize}px` : '280px',
+                          height: 'auto',
+                          maxWidth: '90vw',
+                          objectFit: 'contain',
+                          objectPosition: 'left center',
                           filter: 'drop-shadow(0 2px 16px rgba(0,0,0,0.6))'
                         }}
                       />
