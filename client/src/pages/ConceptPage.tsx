@@ -343,7 +343,7 @@ export default function ConceptPage() {
                             <p className="text-[10px] font-medium text-foreground uppercase tracking-wide">Предпродажная цена</p>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-base font-bold text-foreground">{formatPrice(salePrice)}</span>
-                              <span className="text-[13px] line-through text-foreground/40">{formatPrice(product.price)}</span>
+                              <span className="text-[13px] line-through text-red-400">{formatPrice(product.price)}</span>
                               <span className="text-[10px] font-bold bg-foreground/90 text-background px-1.5 py-0.5 rounded-sm">−{discountPct}%</span>
                             </div>
                             <p className="text-[10px] text-foreground">Цена после релиза — {formatPrice(product.price)}</p>
