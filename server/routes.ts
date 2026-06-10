@@ -13066,8 +13066,10 @@ BMGBRAND — официальный производитель и магазин
     }
     try {
       const { pageName, sectionId } = req.params;
-      const settings = req.body;
-      await storage.setPageSectionSettings(pageName, sectionId, settings);
+      const incoming = req.body;
+      const existing = await storage.getPageSettings(pageName);
+      const merged = { ...(existing[sectionId] || {}), ...incoming };
+      await storage.setPageSectionSettings(pageName, sectionId, merged);
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
