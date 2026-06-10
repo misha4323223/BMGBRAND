@@ -14,9 +14,12 @@ const LOW_STOCK_THRESHOLD = 2;
 const STALE_DAYS = 14;
 const DESCRIPTION_MIN_LENGTH = 40;
 
-// Groq: не более 20 запросов в минуту (с запасом от лимита ~30 RPM)
-const GROQ_RPM_LIMIT = 20;
-const GROQ_DELAY_MS = Math.ceil(60_000 / GROQ_RPM_LIMIT); // ~3 000 мс между запросами
+// Groq лимит: 30 RPM на бесплатном тарифе.
+// Безопасный темп: 12 RPM (один запрос каждые 5 секунд) — в 2.5× ниже лимита.
+// При 429: минимальное ожидание 3 минуты перед повтором.
+const GROQ_SAFE_RPM = 12;
+const GROQ_DELAY_MS = Math.ceil(60_000 / GROQ_SAFE_RPM); // 5 000 мс между запросами
+const GROQ_429_WAIT_MS = 3 * 60_000;                      // 3 минуты при rate limit
 
 // ── Groq helpers ──────────────────────────────────────────────────────────
 
@@ -47,29 +50,25 @@ async function groqComplete(
     ? proxyUrl.replace(/\/$/, "")
     : "https://api.groq.com";
 
-  // Throttle: держим не более GROQ_RPM_LIMIT запросов в минуту
+  // Счётчик скользящего окна — сбрасываем каждую минуту
   const now = Date.now();
   if (now - minuteWindowStart >= 60_000) {
     requestsThisMinute = 0;
     minuteWindowStart = now;
   }
-  if (requestsThisMinute >= GROQ_RPM_LIMIT) {
-    const waitMs = 60_000 - (now - minuteWindowStart) + 500;
-    console.log(`[AutonomousAgent] Groq RPM limit reached, waiting ${Math.round(waitMs / 1000)}s…`);
+
+  // Если уже достигли безопасного лимита — ждём начала следующей минуты
+  if (requestsThisMinute >= GROQ_SAFE_RPM) {
+    const waitMs = 60_000 - (now - minuteWindowStart) + 1_000;
+    console.log(`[AutonomousAgent] Groq safe RPM reached (${requestsThisMinute}), waiting ${Math.round(waitMs / 1000)}s…`);
     await sleep(waitMs);
     requestsThisMinute = 0;
     minuteWindowStart = Date.now();
   }
 
-  // Retry с экспоненциальным backoff при 429
+  // До 3 попыток при 429. При каждом 429 ждём GROQ_429_WAIT_MS (3 мин).
   let lastError: Error | null = null;
-  for (let attempt = 0; attempt < 4; attempt++) {
-    if (attempt > 0) {
-      const backoff = Math.min(2 ** attempt * 2_000, 30_000);
-      console.log(`[AutonomousAgent] Groq retry ${attempt} in ${backoff}ms…`);
-      await sleep(backoff);
-    }
-
+  for (let attempt = 0; attempt < 3; attempt++) {
     const resp = await fetch(`${groqBase}/openai/v1/chat/completions`, {
       method: "POST",
       headers: {
@@ -88,9 +87,15 @@ async function groqComplete(
     });
 
     if (resp.status === 429) {
-      const retryAfter = Number(resp.headers.get("retry-after") || "0") * 1000;
+      // Используем retry-after из заголовка, но не меньше GROQ_429_WAIT_MS
+      const retryAfterSec = Number(resp.headers.get("retry-after") || "0");
+      const waitMs = Math.max(retryAfterSec * 1_000, GROQ_429_WAIT_MS);
       lastError = new Error(`Groq 429 rate limit`);
-      if (retryAfter > 0) await sleep(retryAfter);
+      console.warn(`[AutonomousAgent] Groq 429 — waiting ${Math.round(waitMs / 1000)}s before retry (attempt ${attempt + 1}/3)…`);
+      // Сбрасываем минутный счётчик — после долгого ожидания окно сменилось
+      await sleep(waitMs);
+      requestsThisMinute = 0;
+      minuteWindowStart = Date.now();
       continue;
     }
 
@@ -102,7 +107,7 @@ async function groqComplete(
     requestsThisRun++;
     requestsThisMinute++;
 
-    // Фиксированная задержка после каждого запроса
+    // Пауза после каждого успешного запроса (5 секунд)
     await sleep(GROQ_DELAY_MS);
     return text;
   }
