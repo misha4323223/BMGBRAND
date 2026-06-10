@@ -10,6 +10,7 @@ import { useState, useEffect, useRef } from "react";
 import { transliterateToSlug } from "@shared/schema";
 import SEO from "@/components/SEO";
 import { useAddToCart } from "@/hooks/use-cart";
+import { usePreorderCart } from "@/context/PreorderCartContext";
 
 interface ArtistSettings {
   heroImage?: string;
@@ -294,6 +295,9 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [, navigate] = useLocation();
   const { mutate: addItem, isPending } = useAddToCart();
+  const { addOrUpdateItem } = usePreorderCart();
+
+  const isPreorder = !!(product.preorderEnabled);
 
   const sizeStock: Record<string, number> | null = product.sizeStock || null;
   const sizes: string[] = product.noSize
@@ -317,6 +321,13 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
   const discountPct: number = product.discountPercent || 0;
   const salePrice = discountPct > 0 ? Math.round(product.price * (1 - discountPct / 100)) : product.price;
 
+  function formatDeadline(dateStr?: string | null) {
+    if (!dateStr) return null;
+    try {
+      return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+    } catch { return null; }
+  }
+
   function handleButtonClick(e: React.MouseEvent, mode: 'cart' | 'checkout') {
     e.stopPropagation();
     e.preventDefault();
@@ -324,6 +335,17 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
     setSelectedSize(null);
     if (!needsSizePicker) {
       doAdd(mode, product.noSize ? '(OneSize)' : (sortedSizes[0] || undefined));
+      return;
+    }
+    setOpen(true);
+  }
+
+  function handlePreorderClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    setSelectedSize(null);
+    if (!needsSizePicker) {
+      doAddPreorder(product.noSize ? '(OneSize)' : (sortedSizes[0] || undefined));
       return;
     }
     setOpen(true);
@@ -343,13 +365,36 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
     setOpen(false);
   }
 
+  function doAddPreorder(size?: string) {
+    addOrUpdateItem({
+      productId: product.id,
+      productName: product.name,
+      price: salePrice,
+      imageUrl: imageUrl,
+      slug: product.slug,
+      selectedSizes: { [size || '(OneSize)']: 1 },
+      preorderDeadline: product.preorderDeadline ?? null,
+      preorderShippingDate: product.preorderShippingDate ?? null,
+      preorderProductionDate: product.preorderProductionDate ?? null,
+    });
+    setOpen(false);
+    setTimeout(() => navigate('/preorder-checkout'), 200);
+  }
+
   function handleConfirm() {
     if (needsSizePicker && !selectedSize) return;
-    doAdd(buyMode, selectedSize || undefined);
+    if (isPreorder) {
+      doAddPreorder(selectedSize || undefined);
+    } else {
+      doAdd(buyMode, selectedSize || undefined);
+    }
   }
 
   const accentBg = tc.accent || 'hsl(var(--primary))';
   const accentFg = tc.accentFg || '#fff';
+
+  const deadlineStr = formatDeadline(product.preorderDeadline);
+  const shippingStr = formatDeadline(product.preorderShippingDate);
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-lg" data-testid={`artist-product-card-${product.id}`}>
@@ -368,14 +413,71 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
             -{discountPct}%
           </span>
         )}
-        {/* Десктоп: hover-оверлей */}
-        <div className="absolute inset-x-0 bottom-0 hidden sm:flex gap-2 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black/60 to-transparent pt-10">
+        {/* Десктоп: hover-оверлей — только для обычных товаров */}
+        {!isPreorder && (
+          <div className="absolute inset-x-0 bottom-0 hidden sm:flex gap-2 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black/60 to-transparent pt-10">
+            <button
+              type="button"
+              onClick={(e) => handleButtonClick(e, 'cart')}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-md backdrop-blur-sm active:scale-95 transition-all"
+              data-testid={`button-artist-cart-${product.id}`}
+              style={{ backgroundColor: accentBg, color: accentFg }}
+            >
+              <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+              В корзину
+            </button>
+            <button
+              type="button"
+              onClick={(e) => handleButtonClick(e, 'checkout')}
+              className="flex-1 flex items-center justify-center gap-1.5 text-white text-xs font-semibold py-2 rounded-md bg-white/15 backdrop-blur-sm border border-white/50 hover:bg-white/25 active:scale-95 transition-all"
+              data-testid={`button-artist-buynow-${product.id}`}
+            >
+              <Zap className="w-3.5 h-3.5 shrink-0" />
+              В 1 клик
+            </button>
+          </div>
+        )}
+      </Link>
+
+      {/* Предзаказ: инфо-блок + кнопка */}
+      {isPreorder ? (
+        <div className="mt-2 px-1">
+          <div className="rounded-xl border border-amber-300/60 bg-amber-50/80 px-3 py-2 mb-2" style={tc.bg ? { background: `${tc.accent}10`, borderColor: `${tc.accent}40` } : {}}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-amber-400 text-white">ПРЕДЗАКАЗ</span>
+              <span className="text-[10px] text-amber-700 font-medium">· Сбор заявок</span>
+            </div>
+            {deadlineStr && (
+              <p className="text-[11px] text-amber-800 leading-snug">
+                Приём заявок до: <span className="font-semibold">{deadlineStr}</span>
+              </p>
+            )}
+            {shippingStr && (
+              <p className="text-[11px] text-amber-800 leading-snug">
+                Ориентировочная отправка: <span className="font-semibold">{shippingStr}</span>
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handlePreorderClick}
+            className="w-full flex items-center justify-center gap-1.5 text-[11px] font-bold py-2.5 rounded-xl transition-all active:scale-95"
+            style={{ background: accentBg, color: accentFg }}
+            data-testid={`button-artist-preorder-${product.id}`}
+          >
+            <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+            В предзаказ
+          </button>
+        </div>
+      ) : (
+        /* Обычный товар: мобильные кнопки */
+        <div className="flex sm:hidden gap-1.5 mt-2">
           <button
             type="button"
             onClick={(e) => handleButtonClick(e, 'cart')}
-            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-md backdrop-blur-sm active:scale-95 transition-all"
-            data-testid={`button-artist-cart-${product.id}`}
-            style={{ backgroundColor: accentBg, color: accentFg }}
+            className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-bold py-2.5 rounded-xl transition-all active:scale-95"
+            style={{ background: accentBg, color: accentFg }}
+            data-testid={`button-artist-cart-mobile-${product.id}`}
           >
             <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
             В корзину
@@ -383,37 +485,14 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
           <button
             type="button"
             onClick={(e) => handleButtonClick(e, 'checkout')}
-            className="flex-1 flex items-center justify-center gap-1.5 text-white text-xs font-semibold py-2 rounded-md bg-white/15 backdrop-blur-sm border border-white/50 hover:bg-white/25 active:scale-95 transition-all"
-            data-testid={`button-artist-buynow-${product.id}`}
+            className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-bold py-2.5 rounded-xl border-2 border-foreground/20 bg-background text-foreground transition-all active:scale-95"
+            data-testid={`button-artist-buynow-mobile-${product.id}`}
           >
             <Zap className="w-3.5 h-3.5 shrink-0" />
             В 1 клик
           </button>
         </div>
-      </Link>
-
-      {/* Мобильные: кнопки всегда видны под картинкой */}
-      <div className="flex sm:hidden gap-1.5 mt-2">
-        <button
-          type="button"
-          onClick={(e) => handleButtonClick(e, 'cart')}
-          className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-bold py-2.5 rounded-xl transition-all active:scale-95"
-          style={{ background: accentBg, color: accentFg }}
-          data-testid={`button-artist-cart-mobile-${product.id}`}
-        >
-          <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
-          В корзину
-        </button>
-        <button
-          type="button"
-          onClick={(e) => handleButtonClick(e, 'checkout')}
-          className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-bold py-2.5 rounded-xl border-2 border-foreground/20 bg-background text-foreground transition-all active:scale-95"
-          data-testid={`button-artist-buynow-mobile-${product.id}`}
-        >
-          <Zap className="w-3.5 h-3.5 shrink-0" />
-          В 1 клик
-        </button>
-      </div>
+      )}
 
       <div className="px-2 pt-2 pb-2.5">
         <Link
@@ -442,12 +521,12 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
         <DialogContent className="max-w-xs sm:max-w-sm rounded-2xl p-6" aria-describedby={undefined}>
           <DialogTitle className="text-base font-bold mb-1 pr-6 leading-snug">{product.name}</DialogTitle>
           <p className="text-xs text-muted-foreground mb-4">
-            {buyMode === 'cart' ? 'Выберите размер и добавьте в корзину' : 'Выберите размер для быстрой покупки'}
+            {isPreorder ? 'Выберите размер для предзаказа' : buyMode === 'cart' ? 'Выберите размер и добавьте в корзину' : 'Выберите размер для быстрой покупки'}
           </p>
           <div className="flex flex-wrap gap-2 mb-5">
             {sortedSizes.map((sz) => {
               const stock = sizeStock ? (sizeStock[sz] ?? 0) : 1;
-              const outOfStock = sizeStock ? stock <= 0 : false;
+              const outOfStock = !isPreorder && sizeStock ? stock <= 0 : false;
               return (
                 <button
                   key={sz}
@@ -466,12 +545,12 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
           </div>
           <Button
             onClick={handleConfirm}
-            disabled={!selectedSize || isPending}
+            disabled={!selectedSize}
             className="w-full"
-            style={buyMode === 'cart' ? { backgroundColor: accentBg, color: accentFg } : {}}
+            style={{ backgroundColor: accentBg, color: accentFg }}
             data-testid="button-size-confirm"
           >
-            {isPending ? 'Добавляем...' : buyMode === 'cart' ? 'В корзину' : 'Купить в 1 клик'}
+            {isPreorder ? 'В предзаказ' : buyMode === 'cart' ? 'В корзину' : 'Купить в 1 клик'}
           </Button>
         </DialogContent>
       </Dialog>
