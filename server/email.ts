@@ -1701,3 +1701,104 @@ export function getNewProductsNewsletterHtml(
 </html>`;
   };
 }
+
+export function getPreorderNewsletterHtml(
+  products: any[],
+  totalNewCount: number
+): string {
+  const MAX = 3;
+  const siteUrl = 'https://www.booomerangs.ru';
+  const displayProducts = products.slice(0, MAX);
+  const hasMore = totalNewCount > MAX;
+
+  function formatPrice(product: any): string {
+    const price = Number(product.price || 0);
+    const discount = Number(product.discountPercent || 0);
+    const final = discount > 0 ? Math.round(price * (1 - discount / 100)) : price;
+    const formatNum = (n: number) => Math.round(n / 100).toLocaleString('ru-RU');
+    if (discount > 0) {
+      return `<span style="text-decoration:line-through;color:#aaa;font-size:12px;">${formatNum(price)}&nbsp;&#8381;</span>&nbsp;<span style="color:#E53935;font-weight:700;">${formatNum(final)}&nbsp;&#8381;</span>`;
+    }
+    return `<span style="font-weight:700;color:#1C1C1C;">${formatNum(final)}&nbsp;&#8381;</span>`;
+  }
+
+  function productRow(p: any): string {
+    const slug = p.slug || String(p.id);
+    const productUrl = `${siteUrl}/products/${slug}`;
+    const rawImg = p.thumbnailUrl || p.imageUrl || '';
+    const imgSrc = rawImg.startsWith('http') ? rawImg : rawImg ? `${siteUrl}${rawImg}` : '';
+    return `
+      <tr>
+        <td style="padding:12px 0;border-bottom:1px solid #f0f0f0;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              ${imgSrc ? `<td width="72" style="vertical-align:top;padding-right:14px;">
+                <a href="${productUrl}"><img src="${imgSrc}" width="72" height="72" style="border-radius:8px;object-fit:cover;display:block;" /></a>
+              </td>` : ''}
+              <td style="vertical-align:middle;">
+                <a href="${productUrl}" style="font-size:14px;font-weight:700;color:#1C1C1C;text-decoration:none;display:block;margin-bottom:4px;line-height:1.3;">${p.name}</a>
+                <div style="font-size:13px;color:#555;margin-bottom:4px;">${formatPrice(p)}</div>
+                <span style="display:inline-block;background:#E53935;color:#fff;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:3px;">Предзаказ</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>`;
+  }
+
+  const count = displayProducts.length;
+  const countWord = count === 1 ? 'предзаказ' : count < 5 ? 'предзаказа' : 'предзаказов';
+  const opened = count === 1 ? 'открылся' : 'открылось';
+  const bodyText = hasMore
+    ? `Открылось ${totalNewCount} новых предзаказов — вот несколько из них.`
+    : `В магазине ${opened} ${count} новых ${countWord}. Количество мест ограничено — успей забронировать раньше всех.`;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 0;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fff;border-radius:12px;overflow:hidden;">
+      <tr>
+        <td style="background:#1C1C1C;padding:24px 32px;">
+          <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:2px;text-transform:uppercase;">
+            BOO<span style="color:#E53935;">O</span>MERANGS
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:32px 32px 0;">
+          <div style="display:inline-block;background:#E53935;color:#fff;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:4px 10px;border-radius:3px;margin-bottom:16px;">Новый предзаказ</div>
+          <div style="font-size:22px;font-weight:800;color:#1C1C1C;margin-bottom:8px;">
+            Успей забронировать
+          </div>
+          <p style="font-size:14px;color:#555;margin:0 0 24px;">
+            ${bodyText}
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${displayProducts.map(productRow).join('')}
+          </table>
+          <div style="text-align:center;margin:28px 0;">
+            <a href="${siteUrl}/predrop" style="display:inline-block;padding:14px 40px;background:#1C1C1C;color:#fff;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase;border-radius:6px;">
+              Смотреть все предзаказы
+            </a>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:20px 32px;border-top:1px solid #eee;font-size:11px;color:#999;">
+          &copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.<br>
+          Вы получили это письмо, потому что подписались на уведомления о предзаказах на <a href="${siteUrl}" style="color:#999;">booomerangs.ru</a><br>
+          <a href="${siteUrl}/profile" style="color:#bbb;text-decoration:underline;">Отписаться от уведомлений о предзаказах</a>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}

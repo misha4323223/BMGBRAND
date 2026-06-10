@@ -24,6 +24,7 @@ import { yandexDeliveryService } from "./yandex-delivery";
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
 import { runAbandonedCartCheck } from "./abandoned-cart";
 import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow } from "./new-products-notifier";
+import { enqueuePreorderProduct } from "./preorder-notifier";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
 import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
@@ -7749,16 +7750,9 @@ BMGBRAND — официальный производитель и магазин
           processStockNotifications(id, product.name, { [notifySize]: 0 }, { [notifySize]: newStock }, prodImages, prodSlug).catch(() => {});
         }
 
-        // Preorder notifications — отправляем при включении предзаказа
+        // Preorder notifications — ставим в очередь при включении предзаказа (дайджест раз в 5 часов)
         if (preorderEnabled === true && !(product as any).preorderEnabled) {
-          storage.getAllPreorderSubscribers().then(subscribers => {
-            const activeSubscribers = subscribers.filter(s => s.isActive);
-            if (activeSubscribers.length > 0) {
-              const prodUrl = prodSlug ? `/products/${prodSlug}` : undefined;
-              sendPreorderNotifications(product.name, activeSubscribers, prodImages, prodUrl).catch(() => {});
-              console.log(`[PreorderNotify] Sent notifications to ${activeSubscribers.length} active subscribers for "${product.name}" (${subscribers.length - activeSubscribers.length} unsubscribed skipped)`);
-            }
-          }).catch(() => {});
+          enqueuePreorderProduct(id).catch(() => {});
         }
 
         // Price drop notifications — учитываем и прямое изменение цены, и скидку процентом

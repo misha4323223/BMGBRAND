@@ -21,6 +21,7 @@ import { startAbandonedCartJob } from "./abandoned-cart";
 import { initPostPurchaseEmailJob } from "./post-purchase-email";
 import { initAutonomousAgent } from "./autonomous-agent";
 import { startNewProductsNotifierJob } from "./new-products-notifier";
+import { startPreorderNotifierJob } from "./preorder-notifier";
 
 // Last-resort safety net: if a YDB-related promise escapes try/catch (e.g.
 // a fire-and-forget background task), proactively trigger driver reconnect
@@ -413,6 +414,7 @@ async function seedDefaultLegalDocuments() {
       initPostPurchaseEmailJob();
       initAutonomousAgent();
       startNewProductsNotifierJob();
+      startPreorderNotifierJob();
       migrateAiKnowledgeDefaults();
     },
   );
