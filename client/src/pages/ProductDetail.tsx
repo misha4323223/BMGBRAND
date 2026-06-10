@@ -929,7 +929,7 @@ export default function ProductDetail() {
               <div className="border-t border-border my-3 sm:my-4"></div>
               <div className="space-y-1" data-testid={`text-product-price-${product.id}`}>
                 {showPreorderPriceLabels && (
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Предпродажная цена</p>
+                  <p className="text-xs font-medium text-foreground uppercase tracking-wide">Предпродажная цена</p>
                 )}
                 <div className="flex items-center gap-3 flex-wrap">
                   <p className={`text-2xl sm:text-3xl font-bold ${hasDiscount ? 'text-red-600' : isWholesale ? 'text-primary' : 'text-foreground'}`}>
@@ -937,8 +937,7 @@ export default function ProductDetail() {
                   </p>
                   {hasDiscount && (
                     <>
-                      <span className="text-lg text-foreground/45 line-through">{retailPrice}</span>
-                      <Badge variant="destructive">-{effectiveDiscountPct}%</Badge>
+                      <span className="text-lg font-semibold text-red-400 line-through">{retailPrice}</span>
                     </>
                   )}
                   {isWholesale && wholesalePriceValue && (
@@ -949,8 +948,8 @@ export default function ProductDetail() {
                   )}
                 </div>
                 {showPreorderPriceLabels && (
-                  <p className="text-xs text-muted-foreground/60">
-                    Цена после релиза — {retailPrice} · <span className="font-medium text-foreground/70">экономите {formatPrice(product.price - salePrice)}</span>
+                  <p className="text-xs text-foreground">
+                    Цена после релиза — {retailPrice} · <span className="font-medium text-foreground">экономите {formatPrice(product.price - salePrice)}</span>
                   </p>
                 )}
               </div>
@@ -1311,25 +1310,25 @@ export default function ProductDetail() {
                   </div>
                   <div className="space-y-1.5">
                     {deadline && (
-                      <p className="text-xs text-foreground/70 flex items-center gap-1">
+                      <p className="text-xs text-foreground flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         Сбор до {fmtDate(deadline)}
                       </p>
                     )}
                     {productionDate && (
-                      <p className="text-xs text-foreground/70 flex items-center gap-1">
+                      <p className="text-xs text-foreground flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         В производстве до {fmtDate(productionDate)}
                       </p>
                     )}
                     {shippingDate && (
-                      <p className="text-xs text-foreground/70 flex items-center gap-1">
+                      <p className="text-xs text-foreground flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         Отправка {fmtDate(shippingDate)}
                       </p>
                     )}
                   </div>
-                  <p className="text-xs text-foreground/70 mt-3">
+                  <p className="text-xs text-foreground mt-3">
                     Полная оплата при оформлении предзаказа
                   </p>
                 </div>
@@ -2071,13 +2070,13 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
       {availableSizes.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide shrink-0">Размер и количество</p>
+            <p className="text-xs font-medium text-foreground uppercase tracking-wide shrink-0">Размер и количество</p>
             {totalItems > 0 && (
               <div className="text-right">
                 <div className="text-xs font-medium text-foreground">
                   {Object.entries(sizeQuantities).filter(([,q]) => q > 0).map(([size, qty]) => `${size} × ${qty}`).join(", ")}
                 </div>
-                <div className="text-xs text-muted-foreground">{totalItems} шт. · {(totalItems * salePrice / 100).toLocaleString("ru-RU")} ₽</div>
+                <div className="text-xs text-foreground">{totalItems} шт. · {(totalItems * salePrice / 100).toLocaleString("ru-RU")} ₽</div>
               </div>
             )}
           </div>
