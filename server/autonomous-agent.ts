@@ -87,15 +87,17 @@ async function groqComplete(
     });
 
     if (resp.status === 429) {
-      // Используем retry-after из заголовка, но не меньше GROQ_429_WAIT_MS
       const retryAfterSec = Number(resp.headers.get("retry-after") || "0");
       const waitMs = Math.max(retryAfterSec * 1_000, GROQ_429_WAIT_MS);
-      lastError = new Error(`Groq 429 rate limit`);
-      console.warn(`[AutonomousAgent] Groq 429 — waiting ${Math.round(waitMs / 1000)}s before retry (attempt ${attempt + 1}/3)…`);
-      // Сбрасываем минутный счётчик — после долгого ожидания окно сменилось
+      lastError = new Error(`Groq 429 rate limit — stopping run until tomorrow`);
+      console.warn(`[AutonomousAgent] Groq 429 (attempt ${attempt + 1}/3) — waiting ${Math.round(waitMs / 1000)}s…`);
       await sleep(waitMs);
       requestsThisMinute = 0;
       minuteWindowStart = Date.now();
+      if (attempt === 2) {
+        // 3-й раз подряд 429 — останавливаем весь батч до следующей ночи
+        throw new Error("Groq 429: три попытки подряд — батч остановлен до следующей ночи");
+      }
       continue;
     }
 
