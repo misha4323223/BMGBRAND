@@ -3,7 +3,6 @@ import {
   addToQueue,
   addLogEntry,
   getAgentSettings,
-  type QueueItem,
 } from "./agent-queue";
 import { notifyAgentQueueItem, sendAgentAlert, sendAgentDigest } from "./telegram";
 import { vkNotifyAgentAlert, vkNotifyAgentDigest } from "./vk";
@@ -122,12 +121,7 @@ async function groqComplete(
 
 const TG_CHUNK_CHARS = 3_000;
 
-async function sendAlertChunked(
-  header: string,
-  lines: string[],
-  totalCount: number,
-  sentCount: number
-): Promise<void> {
+async function sendAlertChunked(header: string, lines: string[]): Promise<void> {
   const chunks: string[][] = [];
   let current: string[] = [];
   let currentLen = header.length;
@@ -144,19 +138,11 @@ async function sendAlertChunked(
   if (current.length > 0) chunks.push(current);
 
   const totalChunks = chunks.length;
-  const hiddenCount = totalCount - sentCount;
-
   for (let i = 0; i < totalChunks; i++) {
     const partLabel = totalChunks > 1 ? ` (часть ${i + 1}/${totalChunks})` : "";
-    const footer =
-      i === totalChunks - 1 && hiddenCount > 0
-        ? `\n…и ещё ${hiddenCount} товаров`
-        : "";
-
-    const text = `${header}${partLabel}\n\n${chunks[i].join("\n")}${footer}`;
+    const text = `${header}${partLabel}\n\n${chunks[i].join("\n")}`;
     await sendAgentAlert(text);
     vkNotifyAgentAlert(text);
-
     if (i < totalChunks - 1) await sleep(500);
   }
 }
@@ -285,13 +271,6 @@ export async function runAlertsJob(): Promise<void> {
   const settings = await getAgentSettings();
   if (!settings.enabled || !settings.alertsEnabled) return;
 
-  // Алерты только по понедельникам (день 1 по getDay())
-  const today = new Date().getDay(); // 0=вс,1=пн,...,6=сб
-  if (today !== 1) {
-    console.log(`[AutonomousAgent] Alerts: not Monday (day=${today}), skipping.`);
-    return;
-  }
-
   const allProducts = (await storage.getProducts()) as any[];
   const visibleProducts = allProducts.filter((p) => !p.isHidden);
 
@@ -313,12 +292,7 @@ export async function runAlertsJob(): Promise<void> {
     const lines = lowStock.map(
       (p) => `• <b>${p.name}</b> — осталось ${p.total} шт. (ID: ${p.id})`
     );
-    await sendAlertChunked(
-      "⚠️ <b>BOOOM AI: Заканчивается товар</b>",
-      lines,
-      lowStock.length,
-      lowStock.length
-    );
+    await sendAlertChunked("⚠️ <b>BOOOM AI: Заканчивается товар</b>", lines);
     console.log(`[AutonomousAgent] Low stock alert: ${lowStock.length} products`);
   }
 
@@ -332,14 +306,12 @@ export async function runAlertsJob(): Promise<void> {
     const lines = noPhoto.map(
       (p: any) => `• <b>${p.name}</b> (ID: ${p.id})`
     );
-    await sendAlertChunked(
-      "📷 <b>BOOOM AI: Товары без фото</b>",
-      lines,
-      noPhoto.length,
-      noPhoto.length
-    );
+    await sendAlertChunked("📷 <b>BOOOM AI: Товары без фото</b>", lines);
     console.log(`[AutonomousAgent] No-photo alert: ${noPhoto.length} products`);
   }
+
+  // Отмечаем что уже отправляли сегодня
+  await markMondaySentToday();
 }
 
 // ── Stale Products Job (dangerous → queue) ────────────────────────────────
@@ -673,9 +645,14 @@ export function initAutonomousAgent(): void {
   if (nextRun.getTime() <= nowMs) nextRun.setUTCDate(nextRun.getUTCDate() + 1);
   const seoDelayMs = nextRun.getTime() - nowMs;
 
+  const runSeoSafe = () =>
+    runAutonomousAgent().catch((e: any) =>
+      console.error("[AutonomousAgent] SEO job unhandled error:", e?.message)
+    );
+
   setTimeout(() => {
-    runAutonomousAgent();
-    setInterval(runAutonomousAgent, 24 * 60 * 60 * 1000);
+    runSeoSafe();
+    setInterval(runSeoSafe, 24 * 60 * 60 * 1000);
   }, seoDelayMs);
 
   // Алерты + дайджест — каждый понедельник в 09:00 МСК (06:00 UTC)
@@ -685,13 +662,16 @@ export function initAutonomousAgent(): void {
   nextMonday.setUTCHours(6, 0, 0, 0); // 09:00 МСК
   const mondayDelayMs = nextMonday.getTime() - nowMs;
 
+  const runMondaySafe = () =>
+    runAlertsJob()
+      .then(() => runWeeklyDigest())
+      .catch((e: any) =>
+        console.error("[AutonomousAgent] Monday job unhandled error:", e?.message)
+      );
+
   setTimeout(() => {
-    runAlertsJob();
-    runWeeklyDigest();
-    setInterval(() => {
-      runAlertsJob();
-      runWeeklyDigest();
-    }, 7 * 24 * 60 * 60 * 1000);
+    runMondaySafe();
+    setInterval(runMondaySafe, 7 * 24 * 60 * 60 * 1000);
   }, mondayDelayMs);
 
   console.log(
