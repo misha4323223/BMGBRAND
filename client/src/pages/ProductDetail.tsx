@@ -2024,7 +2024,10 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
   })();
   const totalItems = Object.values(sizeQuantities).reduce((s, q) => s + q, 0);
   const discountPct = (product as any).discountPercent || 0;
-  const salePrice = discountPct > 0 ? Math.round(product.price * (1 - discountPct / 100)) : product.price;
+  const productFixedPrice: number = (product as any).salePrice || 0;
+  const salePrice = productFixedPrice > 0 && productFixedPrice < product.price
+    ? productFixedPrice
+    : (discountPct > 0 ? Math.round(product.price * (1 - discountPct / 100)) : product.price);
 
   function changeQty(size: string, delta: number) {
     setSizeQuantities(prev => {
