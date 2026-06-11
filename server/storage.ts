@@ -3736,12 +3736,13 @@ export class DatabaseStorage implements IStorage {
         DECLARE $max_uses AS Int32;
         DECLARE $can_combine AS Bool;
         DECLARE $is_active AS Bool;
+        DECLARE $allow_for_wholesale AS Bool;
         DECLARE $applicable_categories AS Optional<Utf8>;
         DECLARE $starts_at AS Optional<Datetime>;
         DECLARE $expires_at AS Optional<Datetime>;
         DECLARE $created_at AS Datetime;
-        UPSERT INTO promo_codes (id, code, discount_percent, discount_amount, min_order_amount, max_uses, used_count, can_combine_with_loyalty, is_active, applicable_categories, starts_at, expires_at, created_at)
-        VALUES ($id, $code, $discount_percent, $discount_amount, $min_order_amount, $max_uses, 0, $can_combine, $is_active, $applicable_categories, $starts_at, $expires_at, $created_at)
+        UPSERT INTO promo_codes (id, code, discount_percent, discount_amount, min_order_amount, max_uses, used_count, can_combine_with_loyalty, is_active, allow_for_wholesale, applicable_categories, starts_at, expires_at, created_at)
+        VALUES ($id, $code, $discount_percent, $discount_amount, $min_order_amount, $max_uses, 0, $can_combine, $is_active, $allow_for_wholesale, $applicable_categories, $starts_at, $expires_at, $created_at)
       `, {
         '$id': ydb.TypedValues.uint64(id),
         '$code': ydb.TypedValues.utf8(promo.code.toUpperCase()),
@@ -3751,6 +3752,7 @@ export class DatabaseStorage implements IStorage {
         '$max_uses': ydb.TypedValues.int32(maxUses ?? 0),
         '$can_combine': ydb.TypedValues.bool(promo.canCombineWithLoyalty !== false),
         '$is_active': ydb.TypedValues.bool(promo.isActive !== false),
+        '$allow_for_wholesale': ydb.TypedValues.bool(promo.allowForWholesale === true),
         '$applicable_categories': applicableCategories ? ydb.TypedValues.optional(ydb.TypedValues.utf8(applicableCategories)) : ydb.TypedValues.optionalNull(ydb.Types.UTF8),
         '$starts_at': startsAt ? ydb.TypedValues.optional(ydb.TypedValues.datetime(startsAt)) : ydb.TypedValues.optionalNull(ydb.Types.DATETIME),
         '$expires_at': expiresAt ? ydb.TypedValues.optional(ydb.TypedValues.datetime(expiresAt)) : ydb.TypedValues.optionalNull(ydb.Types.DATETIME),
@@ -3771,6 +3773,7 @@ export class DatabaseStorage implements IStorage {
     if (updates.maxUses !== undefined) { setParts.push('max_uses = $mu'); params['$mu'] = ydb.TypedValues.int32(updates.maxUses!); }
     if (updates.canCombineWithLoyalty !== undefined) { setParts.push('can_combine_with_loyalty = $ccl'); params['$ccl'] = ydb.TypedValues.bool(updates.canCombineWithLoyalty!); }
     if (updates.isActive !== undefined) { setParts.push('is_active = $ia'); params['$ia'] = ydb.TypedValues.bool(updates.isActive!); }
+    if (updates.allowForWholesale !== undefined) { setParts.push('allow_for_wholesale = $afw'); params['$afw'] = ydb.TypedValues.bool(updates.allowForWholesale!); }
     if ('applicableCategories' in updates) {
       const ac = updates.applicableCategories;
       const acStr = ac ? (typeof ac === 'string' ? ac : JSON.stringify(ac)) : null;
@@ -3780,7 +3783,7 @@ export class DatabaseStorage implements IStorage {
     
     if (setParts.length > 0) {
       const declares = Object.entries(params).map(([k, v]) => {
-        const type = k === '$id' ? 'Uint64' : k === '$code' ? 'Utf8' : k.includes('$ccl') || k.includes('$ia') ? 'Bool' : k === '$ac' ? 'Optional<Utf8>' : 'Int32';
+        const type = k === '$id' ? 'Uint64' : k === '$code' ? 'Utf8' : k === '$ccl' || k === '$ia' || k === '$afw' ? 'Bool' : k === '$ac' ? 'Optional<Utf8>' : 'Int32';
         return `DECLARE ${k} AS ${type};`;
       }).join('\n');
       

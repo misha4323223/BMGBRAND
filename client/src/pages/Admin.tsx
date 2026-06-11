@@ -2423,6 +2423,7 @@ export default function Admin() {
         minOrderAmount: 0,
         maxUses: 0,
         isActive: true,
+        allowForWholesale: false,
         startsAt: "",
         expiresAt: "",
         applicableCategories: "",
@@ -2485,6 +2486,7 @@ export default function Admin() {
     minOrderAmount: 0,
     maxUses: 0,
     isActive: true,
+    allowForWholesale: false,
     startsAt: "",
     expiresAt: "",
     applicableCategories: "",
@@ -3764,6 +3766,17 @@ export default function Admin() {
                       />
                     </div>
                   </div>
+                  <div className="flex items-center gap-3 sm:col-span-2 py-1">
+                    <Checkbox
+                      id="promo-allow-wholesale"
+                      checked={newPromo.allowForWholesale}
+                      onCheckedChange={(v) => setNewPromo({...newPromo, allowForWholesale: !!v})}
+                      className="border-zinc-500"
+                    />
+                    <label htmlFor="promo-allow-wholesale" className="text-sm text-zinc-300 cursor-pointer select-none">
+                      Доступен для оптовых покупателей
+                    </label>
+                  </div>
                   <div className="space-y-2 sm:col-span-2">
                     <label className="text-sm text-zinc-400">Применять только к категориям (пусто = на весь заказ)</label>
                     {(() => {
@@ -3875,7 +3888,12 @@ export default function Admin() {
                   {promoCodesQuery.data?.promoCodes?.map((promo: any) => (
                     <div key={promo.id} className="flex items-center justify-between p-3 border border-zinc-800 rounded-md hover:bg-zinc-800/50 transition-colors">
                       <div>
-                        <div className="font-bold text-lg text-white">{promo.code}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-bold text-lg text-white">{promo.code}</div>
+                          {promo.allowForWholesale && (
+                            <span className="text-xs bg-blue-600/30 text-blue-300 border border-blue-600/40 px-1.5 py-0.5 rounded">Опт</span>
+                          )}
+                        </div>
                         <div className="text-sm text-zinc-400">
                           {promo.discountPercent ? `${promo.discountPercent}%` : `${promo.discountAmount / 100} ₽`} скидка
                           {promo.minOrderAmount > 0 && ` • от ${promo.minOrderAmount / 100} ₽`}

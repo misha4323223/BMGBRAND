@@ -10762,12 +10762,17 @@ BMGBRAND — официальный производитель и магазин
       if (promoCode) {
         appliedPromo = await storage.getPromoCodeByCode(promoCode);
         if (appliedPromo && appliedPromo.isActive) {
+          // Safety net: block wholesale users from using non-wholesale promo codes
+          if (isWholesale && !appliedPromo.allowForWholesale) {
+            console.warn(`[Order] Promo ${promoCode} blocked — not allowed for wholesale user ${input.customerEmail}`);
+            appliedPromo = null;
+          }
           // Safety net: block reuse of promo by the same email
-          const promoAlreadyUsed = await storage.isPromoUsedByEmail(input.customerEmail, promoCode);
+          const promoAlreadyUsed = appliedPromo ? await storage.isPromoUsedByEmail(input.customerEmail, promoCode) : false;
           if (promoAlreadyUsed) {
             console.warn(`[Order] Promo ${promoCode} blocked — already used by ${input.customerEmail}`);
             appliedPromo = null;
-          } else {
+          } else if (appliedPromo) {
             // Determine eligible subtotal (may be restricted to specific categories)
             let eligibleSubtotal = orderSubtotal;
             let promoApplicableCategories: string[] | null = null;
@@ -12039,6 +12044,7 @@ BMGBRAND — официальный производитель и магазин
       
       await executeSchemeQuery(`ALTER TABLE promo_codes ADD COLUMN description Utf8`, "add description column");
       await executeSchemeQuery(`ALTER TABLE promo_codes ADD COLUMN applicable_categories Utf8`, "add applicable_categories column");
+      await executeSchemeQuery(`ALTER TABLE promo_codes ADD COLUMN allow_for_wholesale Bool`, "add allow_for_wholesale column");
 
       await executeSchemeQuery(`CREATE TABLE loyalty_tiers (
         id Uint64,
@@ -12081,6 +12087,7 @@ BMGBRAND — официальный производитель и магазин
       await executeSchemeQuery("ALTER TABLE orders ADD COLUMN bitrix_deal_id Utf8", "alter orders.bitrix_deal_id");
       await executeSchemeQuery("ALTER TABLE promo_codes ADD COLUMN description Utf8", "alter promo_codes.description");
       await executeSchemeQuery("ALTER TABLE promo_codes ADD COLUMN applicable_categories Utf8", "alter promo_codes.applicable_categories");
+      await executeSchemeQuery("ALTER TABLE promo_codes ADD COLUMN allow_for_wholesale Bool", "alter promo_codes.allow_for_wholesale");
       await executeSchemeQuery("ALTER TABLE orders ADD COLUMN invoice_number Int32", "alter orders.invoice_number");
 
       // Partner platform tables
@@ -12279,8 +12286,15 @@ BMGBRAND — официальный производитель и магазин
         return res.json({ valid: false, message: "Лимит использований исчерпан" });
       }
       
+      // Check wholesale restriction
+      const reqUser = (req as any).user;
+      const isWholesaleUser = reqUser?.role === 'wholesale' && reqUser?.wholesaleApproved;
+      if (isWholesaleUser && !promo.allowForWholesale) {
+        return res.json({ valid: false, message: "Этот промокод недоступен для оптовых покупателей" });
+      }
+
       // Check per-email usage (one-time promo protection)
-      const emailToCheck = email || (req as any).user?.email;
+      const emailToCheck = email || reqUser?.email;
       if (emailToCheck) {
         const alreadyUsed = await storage.isPromoUsedByEmail(emailToCheck, code);
         if (alreadyUsed) {
