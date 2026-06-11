@@ -214,18 +214,22 @@ ${isDesign ? "ВАЖНО: это товар с уникальным принто
 
 Сгенерируй seoTitle и seoDescription.`;
 
-      const raw = await groqComplete(prompt, SEO_SYSTEM, 256);
+      const raw = await groqComplete(prompt, SEO_SYSTEM, 1024);
+
+      console.log(`[AutonomousAgent] SEO raw for ${product.id}: ${raw.slice(0, 120)}`);
 
       let parsed: { seoTitle?: string; seoDescription?: string } = {};
       try {
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        const jsonMatch = raw.match(/\{[\s\S]*?\}/);
         parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
       } catch {
+        console.warn(`[AutonomousAgent] SEO JSON parse failed for ${product.id}, raw: ${raw.slice(0, 100)}`);
         errors++;
         continue;
       }
 
       if (!parsed.seoTitle && !parsed.seoDescription) {
+        console.warn(`[AutonomousAgent] SEO empty result for ${product.id}`);
         errors++;
         continue;
       }
