@@ -571,6 +571,7 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
                 {([
                   { job: "all", label: "Полный запуск" },
                   { job: "seo", label: "SEO-генерация" },
+                  { job: "descriptions", label: "Описания" },
                   { job: "alerts", label: "Алерты" },
                   { job: "digest", label: "Дайджест" },
                 ] as const).map(({ job, label }) => (

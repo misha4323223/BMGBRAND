@@ -3495,12 +3495,13 @@ BMGBRAND — официальный производитель и магазин
     const apiKey = req.headers["x-api-key"] || req.query.key;
     if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
     try {
-      const { runAutonomousAgent, runSeoJob, runAlertsJob, runWeeklyDigest } = await import("./autonomous-agent");
+      const { runAutonomousAgent, runSeoJob, runAlertsJob, runWeeklyDigest, runDescriptionJob } = await import("./autonomous-agent");
       const { job } = req.body;
       res.json({ ok: true, message: "Запущено в фоне" });
       if (job === "seo") runSeoJob().catch(e => console.error("[AutonomousAgent] manual seo error:", e?.message));
       else if (job === "alerts") runAlertsJob().catch(e => console.error("[AutonomousAgent] manual alerts error:", e?.message));
       else if (job === "digest") runWeeklyDigest().catch(e => console.error("[AutonomousAgent] manual digest error:", e?.message));
+      else if (job === "descriptions") runDescriptionJob().catch(e => console.error("[AutonomousAgent] manual descriptions error:", e?.message));
       else runAutonomousAgent().catch(e => console.error("[AutonomousAgent] manual run error:", e?.message));
     } catch (e: any) {
       res.status(500).json({ error: e?.message });

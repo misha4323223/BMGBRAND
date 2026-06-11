@@ -104,7 +104,10 @@ async function groqComplete(
 
     const data: any = await resp.json();
     let text: string = data.choices?.[0]?.message?.content || "";
-    text = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    // Убираем <think>...</think> блоки (Qwen3 reasoning), включая незакрытые теги
+    text = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+    text = text.replace(/<think>[\s\S]*/gi, "");
+    text = text.trim();
     requestsThisRun++;
     requestsThisMinute++;
 
@@ -626,6 +629,12 @@ export async function runAutonomousAgent(): Promise<void> {
   try {
     await runSeoJob();
     await runStaleProductsJob();
+
+    // Пауза 30 минут после SEO — даём Groq остыть и сбрасываем счётчик
+    console.log("[AutonomousAgent] Waiting 30 min before description job...");
+    await sleep(30 * 60 * 1000);
+    resetRequestCounter();
+
     await runDescriptionJob();
 
     const elapsed = Math.round((Date.now() - startTime) / 1000);
