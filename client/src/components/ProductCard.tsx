@@ -211,12 +211,16 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
     ? Object.values(activeSizeStockData).every((v: any) => v <= 0)
     : (activeProduct.stock !== undefined && activeProduct.stock !== null && activeProduct.stock <= 0);
   const activeDiscountPct = (activeProduct as any).discountPercent;
+  const activeProductFixedPrice: number = (activeProduct as any).salePrice || 0;
   const activeWholesalePrice = getWholesalePrice(activeProduct.price, (activeProduct as any).wholesalePrice);
   const activeSizeDiscountsMap = (activeProduct as any).sizeDiscounts as Record<string, number> | null | undefined;
   const activeSizeDiscount = (!isWholesale && activeSizeDiscountsMap && selectedSize && activeSizeDiscountsMap[selectedSize]) ? activeSizeDiscountsMap[selectedSize] : null;
   const effectiveActiveDiscountPct = activeSizeDiscount ?? activeDiscountPct;
-  const activeHasDiscount = effectiveActiveDiscountPct && effectiveActiveDiscountPct > 0 && !activeWholesalePrice;
-  const activeSalePrice = activeHasDiscount ? Math.round(activeProduct.price * (1 - effectiveActiveDiscountPct / 100)) : activeProduct.price;
+  const activeHasFixedPrice = activeProductFixedPrice > 0 && activeProductFixedPrice < activeProduct.price && !activeWholesalePrice;
+  const activeHasDiscount = (activeHasFixedPrice || (effectiveActiveDiscountPct && effectiveActiveDiscountPct > 0)) && !activeWholesalePrice;
+  const activeSalePrice = activeHasFixedPrice
+    ? activeProductFixedPrice
+    : (activeHasDiscount ? Math.round(activeProduct.price * (1 - (effectiveActiveDiscountPct || 0) / 100)) : activeProduct.price);
   const activeRetailPrice = formatPrice(activeProduct.price);
   const activeDisplayPrice = activeWholesalePrice ? formatPrice(activeWholesalePrice) : activeRetailPrice;
   const isModalPreorderCollecting = (activeProduct as any).preorderEnabled && (activeProduct as any).preorderStatus === "collecting";
