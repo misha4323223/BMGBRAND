@@ -2392,7 +2392,7 @@ BMGBRAND — официальный производитель и магазин
       const visibleProducts = allProducts.filter((p: any) =>
         !p.isHidden && p.price > 0 && typeof p.imageUrl === 'string' && p.imageUrl.startsWith('http')
       );
-      const recs = visibleProducts.slice(0, 3);
+      const recs = visibleProducts.slice(0, 3) as Array<{ name: string; slug?: string; price: number; imageUrl?: string; thumbnailUrl?: string }>;
 
       const html = getPostPurchaseEmailHtml({
         customerName: name || 'Дмитрий',
@@ -2732,7 +2732,7 @@ BMGBRAND — официальный производитель и магазин
         processedBuffer = await sharp(buffer)
           .resize({ width: 1200, withoutEnlargement: true })
           .webp({ quality: 85 })
-          .toBuffer();
+          .toBuffer() as Buffer;
       } catch { /* use original if sharp fails */ }
       const filename = `review_images/${Date.now()}_${user.id}.webp`;
       const url = await uploadToYandexStorage(processedBuffer, filename, "image/webp");

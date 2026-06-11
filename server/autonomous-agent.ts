@@ -7,6 +7,13 @@ import {
 import { notifyAgentQueueItem, sendAgentAlert, sendAgentDigest } from "./telegram";
 import { vkNotifyAgentAlert, vkNotifyAgentDigest } from "./vk";
 
+const MONDAY_SENT_KEY = "agent_monday_sent_date";
+
+async function markMondaySentToday(): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  await (storage as any).setBonusSetting(MONDAY_SENT_KEY, today);
+}
+
 const MAX_SEO_PER_RUN = 20;          // снижено с 50 — меньше нагрузка на Groq
 const MAX_QUEUE_PER_RUN = 20;
 const LOW_STOCK_THRESHOLD = 2;

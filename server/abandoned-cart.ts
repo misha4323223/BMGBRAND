@@ -103,7 +103,7 @@ export async function runAbandonedCartCheck(): Promise<void> {
         );
 
         // Отправляем письмо
-        const html = getAbandonedCartEmailHtml(user.name || '', cartItems, totalKopecks, user.email);
+        const html = getAbandonedCartEmailHtml(user.name || '', cartItems as any, totalKopecks, user.email);
         const ok = await sendEmail({
           to: user.email,
           subject: 'Вы кое-что забыли в корзине',

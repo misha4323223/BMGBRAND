@@ -15,6 +15,17 @@ export interface User {
   contactPhone?: string | null;
   wholesaleApproved?: boolean;
   wholesaleDiscount?: number;
+  phone?: string | null;
+  yandexId?: string | null;
+  yandexLogin?: string | null;
+  yandexAvatar?: string | null;
+  totalSpent?: number;
+  loyaltyDiscount?: number;
+  birthday?: string | null;
+  gender?: string | null;
+  storeName?: string | null;
+  storeAddress?: string | null;
+  partnerSlug?: string | null;
 }
 
 interface AuthResponse {

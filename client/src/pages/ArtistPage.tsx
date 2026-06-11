@@ -54,6 +54,7 @@ interface ArtistSettings {
   seoDescription?: string;
   theme?: string;
   marqueeText?: string;
+  logoSize?: number;
 }
 
 interface ArtistThemeConfig {

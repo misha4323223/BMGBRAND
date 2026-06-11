@@ -4451,7 +4451,7 @@ export class DatabaseStorage implements IStorage {
   async createReview(review: InsertReview): Promise<Review> {
     const id = Date.now();
     const now = new Date();
-    const photosJson = review.photos && (review.photos as any[]).length > 0
+    const photosJson = review.photos && (review.photos as unknown as any[]).length > 0
       ? JSON.stringify(review.photos)
       : null;
     await this.safeQuery(async (session) => {
