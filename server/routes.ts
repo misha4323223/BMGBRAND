@@ -292,6 +292,7 @@ async function createCdekWaybillForOrder(orderId: number): Promise<{ success: bo
       }
     } catch { }
     console.error(`[CDEK Waybill] Error creating waybill for order #${orderId}:`, error.message);
+    notifyError('CDEK накладная', `Заказ #${orderId} — ошибка создания накладной CDEK`, error.message);
     return { success: false, error: error.message };
   } finally {
     cdekWaybillLocks.delete(orderId);
@@ -4333,11 +4334,13 @@ BMGBRAND — официальный производитель и магазин
                       console.log(`[YooKassa Webhook] Email sent to recipient: ${card.recipientEmail}`);
                     } catch (recipientErr: any) {
                       console.error(`[YooKassa Webhook] Failed to send recipient email for card ${card.code}:`, recipientErr.message);
+                      notifyError('Email подарочная карта (YooKassa)', `Сертификат ${card.code} — не удалось отправить получателю`, `${card.recipientEmail} | ${recipientErr.message}`);
                     }
                   }
                 }
               } catch (emailErr: any) {
                 console.error(`[YooKassa Webhook] Failed to send gift card email:`, emailErr.message);
+                notifyError('Email подарочная карта (YooKassa)', 'Не удалось отправить письмо с подарочной картой', emailErr.message);
               }
             }
           }
@@ -4477,6 +4480,7 @@ BMGBRAND — официальный производитель и магазин
                     console.log(`[YooKassa Webhook] Order confirmation email sent to ${order.customerEmail}`);
                   } catch (emailErr: any) {
                     console.error(`[YooKassa Webhook] Failed to send order email:`, emailErr.message);
+                    notifyError('Email (YooKassa)', `Заказ #${order.id} — не удалось отправить письмо покупателю`, `${order.customerEmail} | ${emailErr.message}`);
                   }
                 }
                 
@@ -4720,11 +4724,13 @@ BMGBRAND — официальный производитель и магазин
                     console.log(`[T-Bank Webhook] Batch recipient email sent to: ${card.recipientEmail}`);
                   } catch (recipientErr: any) {
                     console.error(`[T-Bank Webhook] Failed to send batch recipient email to ${card.recipientEmail}:`, recipientErr.message);
+                    notifyError('Email подарочная карта (T-Bank)', `Не удалось отправить получателю`, `${card.recipientEmail} | ${recipientErr.message}`);
                   }
                 }
               }
             } catch (emailErr: any) {
               console.error(`[T-Bank Webhook] Failed to send batch email:`, emailErr.message);
+              notifyError('Email подарочная карта (T-Bank)', 'Не удалось отправить письмо с подарочной картой', emailErr.message);
             }
           }
         } else if (OrderId.startsWith("PREORDER-MULTI-")) {
@@ -4917,6 +4923,7 @@ BMGBRAND — официальный производитель и магазин
                     console.log(`[T-Bank Webhook] Order confirmation email sent to ${order.customerEmail}`);
                   } catch (emailErr: any) {
                     console.error(`[T-Bank Webhook] Failed to send order email:`, emailErr.message);
+                    notifyError('Email (T-Bank)', `Заказ #${order.id} — не удалось отправить письмо покупателю`, `${order.customerEmail} | ${emailErr.message}`);
                   }
                 }
                 
@@ -5223,6 +5230,7 @@ BMGBRAND — официальный производитель и магазин
               });
             } catch (emailErr: any) {
               console.error("[OzonPay Webhook] Failed to send email:", emailErr.message);
+              notifyError('Email (Ozon Pay)', `Заказ #${orderId} — не удалось отправить письмо покупателю`, `${order.customerEmail} | ${emailErr.message}`);
             }
 
             const _ozItems = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
@@ -14156,6 +14164,7 @@ BMGBRAND — официальный производитель и магазин
           }
         } catch (emailErr: any) {
           console.error(`[GiftCards] Failed to send activation email:`, emailErr.message);
+          notifyError('Email активация сертификата', `Не удалось отправить письмо получателю`, `${card.recipientEmail} | ${emailErr.message}`);
         }
       }
       
