@@ -6131,51 +6131,41 @@ export default function Admin() {
                                     ) : (
                                       ((sectionSettings.pinnedProductIds as number[]) || []).map((id, idx) => {
                                         const p = (data?.products || []).find((pr: any) => pr.id === id);
-                                        const total = ((sectionSettings.pinnedProductIds as number[]) || []).length;
                                         return (
-                                          <div key={id} className="flex items-center gap-2 p-2 bg-muted/40 rounded border" data-testid={`row-pinned-product-${id}`}>
+                                          <div
+                                            key={id}
+                                            draggable
+                                            onDragStart={(e) => e.dataTransfer.setData("text/plain", String(idx))}
+                                            onDragOver={(e) => e.preventDefault()}
+                                            onDrop={(e) => {
+                                              e.preventDefault();
+                                              const fromIdx = parseInt(e.dataTransfer.getData("text/plain"));
+                                              if (fromIdx === idx) return;
+                                              const ids = [...((sectionSettings.pinnedProductIds as number[]) || [])];
+                                              const [moved] = ids.splice(fromIdx, 1);
+                                              ids.splice(idx, 0, moved);
+                                              setSectionSettings({...sectionSettings, pinnedProductIds: ids});
+                                            }}
+                                            className="flex items-center gap-2 p-2 bg-muted/40 rounded border cursor-grab active:cursor-grabbing active:opacity-60 active:bg-muted"
+                                            data-testid={`row-pinned-product-${id}`}
+                                          >
+                                            <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                             <span className="text-xs text-muted-foreground w-4 text-center shrink-0">{idx + 1}</span>
                                             {p?.images?.[0] && <img src={p.images[0]} className="w-7 h-7 object-cover rounded shrink-0" />}
                                             <div className="flex-1 min-w-0">
                                               <div className="truncate text-xs font-medium">{p?.name || `Товар #${id}`}</div>
                                               <div className="text-xs text-muted-foreground">{p?.sku || `ID: ${id}`}</div>
                                             </div>
-                                            <div className="flex items-center gap-0.5 shrink-0">
-                                              <button
-                                                onClick={() => {
-                                                  const ids = [...((sectionSettings.pinnedProductIds as number[]) || [])];
-                                                  if (idx > 0) { [ids[idx - 1], ids[idx]] = [ids[idx], ids[idx - 1]]; }
-                                                  setSectionSettings({...sectionSettings, pinnedProductIds: ids});
-                                                }}
-                                                disabled={idx === 0}
-                                                className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
-                                                data-testid={`button-pinned-up-${id}`}
-                                              >
-                                                <ArrowUp className="w-3 h-3" />
-                                              </button>
-                                              <button
-                                                onClick={() => {
-                                                  const ids = [...((sectionSettings.pinnedProductIds as number[]) || [])];
-                                                  if (idx < ids.length - 1) { [ids[idx], ids[idx + 1]] = [ids[idx + 1], ids[idx]]; }
-                                                  setSectionSettings({...sectionSettings, pinnedProductIds: ids});
-                                                }}
-                                                disabled={idx === total - 1}
-                                                className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
-                                                data-testid={`button-pinned-down-${id}`}
-                                              >
-                                                <ArrowDown className="w-3 h-3" />
-                                              </button>
-                                              <button
-                                                onClick={() => {
-                                                  const ids = ((sectionSettings.pinnedProductIds as number[]) || []).filter((_, i) => i !== idx);
-                                                  setSectionSettings({...sectionSettings, pinnedProductIds: ids});
-                                                }}
-                                                className="p-0.5 rounded text-muted-foreground hover:text-red-500"
-                                                data-testid={`button-pinned-remove-${id}`}
-                                              >
-                                                <X className="w-3 h-3" />
-                                              </button>
-                                            </div>
+                                            <button
+                                              onClick={() => {
+                                                const ids = ((sectionSettings.pinnedProductIds as number[]) || []).filter((_, i) => i !== idx);
+                                                setSectionSettings({...sectionSettings, pinnedProductIds: ids});
+                                              }}
+                                              className="p-0.5 rounded text-muted-foreground hover:text-red-500 shrink-0"
+                                              data-testid={`button-pinned-remove-${id}`}
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
                                           </div>
                                         );
                                       })
@@ -6420,11 +6410,28 @@ export default function Admin() {
                                     ) : pinnedIds.map((pid, idx) => {
                                       const p = allProds.find((pr: any) => pr.id === pid);
                                       return (
-                                        <div key={pid} className="flex items-center gap-2 p-2 bg-muted/40 rounded border" data-testid={`row-custom-hits-pinned-${pid}`}>
+                                        <div
+                                          key={pid}
+                                          draggable
+                                          onDragStart={(e) => e.dataTransfer.setData("text/plain", String(idx))}
+                                          onDragOver={(e) => e.preventDefault()}
+                                          onDrop={(e) => {
+                                            e.preventDefault();
+                                            const fromIdx = parseInt(e.dataTransfer.getData("text/plain"));
+                                            if (fromIdx === idx) return;
+                                            const ids = [...pinnedIds];
+                                            const [moved] = ids.splice(fromIdx, 1);
+                                            ids.splice(idx, 0, moved);
+                                            setSectionSettings({...sectionSettings, pinnedProductIds: ids});
+                                          }}
+                                          className="flex items-center gap-2 p-2 bg-muted/40 rounded border cursor-grab active:cursor-grabbing active:opacity-60 active:bg-muted"
+                                          data-testid={`row-custom-hits-pinned-${pid}`}
+                                        >
+                                          <GripVertical className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                           <span className="text-xs text-muted-foreground w-4 text-center shrink-0">{idx + 1}</span>
                                           {p?.images?.[0] && <img src={p.images[0]} className="w-7 h-7 object-cover rounded shrink-0" />}
                                           <span className="flex-1 text-xs truncate">{p?.name || `ID: ${pid}`}</span>
-                                          <button onClick={() => setSectionSettings({...sectionSettings, pinnedProductIds: pinnedIds.filter(i => i !== pid)})} className="text-muted-foreground hover:text-destructive" data-testid={`button-remove-custom-hits-${pid}`}><X className="w-3.5 h-3.5" /></button>
+                                          <button onClick={() => setSectionSettings({...sectionSettings, pinnedProductIds: pinnedIds.filter(i => i !== pid)})} className="text-muted-foreground hover:text-destructive shrink-0" data-testid={`button-remove-custom-hits-${pid}`}><X className="w-3.5 h-3.5" /></button>
                                         </div>
                                       );
                                     })}
