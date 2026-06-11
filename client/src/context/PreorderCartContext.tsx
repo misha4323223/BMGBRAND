@@ -18,6 +18,7 @@ interface PreorderCartContextType {
   addOrUpdateItem: (item: PreorderCartItem) => void;
   removeItem: (productId: number) => void;
   updateSizes: (productId: number, sizes: Record<string, number>) => void;
+  updateItemPrice: (productId: number, price: number) => void;
   clearCart: () => void;
   totalCount: number;
   totalQuantity: number;
@@ -59,7 +60,7 @@ export function PreorderCartProvider({ children }: { children: ReactNode }) {
         for (const [size, qty] of Object.entries(newItem.selectedSizes)) {
           merged[size] = (merged[size] || 0) + qty;
         }
-        updated[idx] = { ...prev[idx], selectedSizes: merged };
+        updated[idx] = { ...prev[idx], ...newItem, selectedSizes: merged };
         return updated;
       }
       return [...prev, newItem];
@@ -73,6 +74,12 @@ export function PreorderCartProvider({ children }: { children: ReactNode }) {
   const updateSizes = (productId: number, sizes: Record<string, number>) => {
     setItems(prev =>
       prev.map(i => i.productId === productId ? { ...i, selectedSizes: sizes } : i)
+    );
+  };
+
+  const updateItemPrice = (productId: number, price: number) => {
+    setItems(prev =>
+      prev.map(i => i.productId === productId ? { ...i, price } : i)
     );
   };
 
@@ -90,7 +97,7 @@ export function PreorderCartProvider({ children }: { children: ReactNode }) {
 
   return (
     <PreorderCartContext.Provider
-      value={{ items, addOrUpdateItem, removeItem, updateSizes, clearCart, totalCount, totalQuantity, totalPrice }}
+      value={{ items, addOrUpdateItem, removeItem, updateSizes, updateItemPrice, clearCart, totalCount, totalQuantity, totalPrice }}
     >
       {children}
     </PreorderCartContext.Provider>

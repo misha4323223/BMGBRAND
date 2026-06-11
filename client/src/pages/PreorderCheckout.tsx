@@ -35,10 +35,28 @@ function formatPrice(cents: number): string {
 
 export default function PreorderCheckout() {
   const [, setLocation] = useLocation();
-  const { items, removeItem, updateSizes, clearCart, totalPrice, totalQuantity } = usePreorderCart();
+  const { items, removeItem, updateSizes, updateItemPrice, clearCart, totalPrice, totalQuantity } = usePreorderCart();
   const { data: authData } = useAuth();
   const user = authData?.user;
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (items.length === 0) return;
+    items.forEach(item => {
+      fetch(`/api/products/${item.productId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(p => {
+          if (!p) return;
+          const fixed: number = (p as any).salePrice || 0;
+          const pct: number = (p as any).discountPercent || 0;
+          const correct = fixed > 0 && fixed < p.price
+            ? fixed
+            : (pct > 0 ? Math.round(p.price * (1 - pct / 100)) : p.price);
+          if (correct !== item.price) updateItemPrice(item.productId, correct);
+        })
+        .catch(() => {});
+    });
+  }, []);
 
   const [lastName, setLastName] = useState(user?.name?.split(" ")[0] || "");
   const [firstName, setFirstName] = useState(user?.name?.split(" ")[1] || "");
