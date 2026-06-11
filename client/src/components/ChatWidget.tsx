@@ -472,7 +472,7 @@ export function ChatWidget() {
         const withoutMatchedTemps = prev.filter(m => !m.messageId.startsWith("temp-") || !realClientTexts.has(m.text));
         const fresh = incoming.filter(m => !existingIds.has(m.messageId));
         if (fresh.length === 0 && withoutMatchedTemps.length === prev.length) return prev;
-        const newAdminMsgs = fresh.filter(m => m.sender === "admin");
+        const newAdminMsgs = fresh.filter(m => m.sender === "admin" && m.timestamp > lastSeenTsRef.current);
         if (newAdminMsgs.length > 0 && !openRef.current) setUnreadCount(c => c + newAdminMsgs.length);
         return [...withoutMatchedTemps, ...fresh].sort((a, b) => a.timestamp - b.timestamp);
       });
@@ -487,6 +487,16 @@ export function ChatWidget() {
   useEffect(() => {
     if (open) {
       setUnreadCount(0);
+      setMessages(prev => {
+        if (prev.length > 0) {
+          const maxTs = Math.max(...prev.map(m => m.timestamp));
+          if (maxTs > lastSeenTsRef.current) {
+            lastSeenTsRef.current = maxTs;
+            try { localStorage.setItem("chat_last_seen_ts", String(maxTs)); } catch {}
+          }
+        }
+        return prev;
+      });
     }
     if (open && mode === "manager") {
       loadMessages();
