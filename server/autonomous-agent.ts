@@ -618,6 +618,132 @@ export async function runWeeklyDigest(): Promise<void> {
   }
 }
 
+// ── Cart Abandonment Analysis Job (каждое воскресенье 11:00 МСК) ──────────
+
+const CART_ANALYSIS_AI_SYSTEM = `Ты аналитик для российского стритвир-магазина BOOOMERANGS.
+Тебе дадут список товаров которые покупатели добавляют в корзину, но не покупают.
+Напиши 2-3 конкретных наблюдения на русском языке — что это значит, какие вероятные причины, что стоит сделать.
+Пиши коротко, по-деловому, без воды. Фокус на практических выводах.
+Верни только текст без заголовков и маркеров.`;
+
+export async function runCartAnalysisJob(): Promise<void> {
+  console.log("[AutonomousAgent] Starting cart analysis job...");
+  const db = storage as any;
+  if (typeof db.getAbandonedCartUserSessions !== "function") {
+    console.log("[AutonomousAgent] Cart analysis: YDB not available, skipping.");
+    return;
+  }
+
+  try {
+    // 1. Получаем все сессии пользователей с товарами в корзине
+    const sessions: string[] = await db.getAbandonedCartUserSessions();
+    if (sessions.length === 0) {
+      console.log("[AutonomousAgent] Cart analysis: no sessions with items.");
+      return;
+    }
+
+    // 2. Агрегируем товары из всех корзин
+    const cartMap = new Map<string, { name: string; price: number; cartCount: number; totalQty: number }>();
+
+    for (const sessionId of sessions) {
+      try {
+        const items = await storage.getCartItems(sessionId);
+        for (const item of items) {
+          const key = String(item.productId);
+          const name = (item.product?.name || `Товар ${key}`).slice(0, 50);
+          const price = item.product?.price ?? 0;
+          const existing = cartMap.get(key);
+          if (existing) {
+            existing.cartCount += 1;
+            existing.totalQty += item.quantity;
+          } else {
+            cartMap.set(key, { name, price, cartCount: 1, totalQty: item.quantity });
+          }
+        }
+        await sleep(80); // небольшая пауза — не перегружаем YDB
+      } catch (e: any) {
+        console.warn(`[AutonomousAgent] Cart analysis: error reading session ${sessionId}:`, e?.message);
+      }
+    }
+
+    if (cartMap.size === 0) {
+      console.log("[AutonomousAgent] Cart analysis: no products found in carts.");
+      return;
+    }
+
+    // 3. Получаем оплаченные заказы за последние 30 дней — считаем сколько раз каждый товар купили
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const allOrders = (await storage.getOrders()) as any[];
+    const recentPaid = allOrders.filter((o: any) => {
+      if (!["paid", "shipped", "delivered"].includes(o.status)) return false;
+      const created = o.createdAt ? new Date(String(o.createdAt)).getTime() : 0;
+      return created >= thirtyDaysAgo;
+    });
+
+    const purchaseMap = new Map<string, number>(); // productId → сколько раз купили
+    for (const order of recentPaid) {
+      const items = Array.isArray(order.items) ? order.items : [];
+      for (const item of items) {
+        const key = String(item.productId || "");
+        if (!key) continue;
+        purchaseMap.set(key, (purchaseMap.get(key) ?? 0) + (Number(item.quantity) || 1));
+      }
+    }
+
+    // 4. Сортируем по количеству корзин (убыв.) — топ-15
+    const sorted = [...cartMap.entries()]
+      .sort((a, b) => b[1].cartCount - a[1].cartCount)
+      .slice(0, 15);
+
+    // 5. Формируем текстовую сводку для Qwen
+    const summaryLines = sorted.map(([id, p]) => {
+      const bought = purchaseMap.get(id) ?? 0;
+      const priceRub = Math.round(p.price / 100);
+      return `«${p.name}» — в ${p.cartCount} корзинах, куплен ${bought} раз за 30 дней, цена ${priceRub} ₽`;
+    });
+    const summaryForAi = summaryLines.join("\n");
+
+    // 6. Запрашиваем Qwen (1 запрос, необязательно)
+    let aiComment = "";
+    try {
+      aiComment = await groqComplete(summaryForAi, CART_ANALYSIS_AI_SYSTEM, 300);
+    } catch {
+      // необязательно — продолжаем без AI-комментария
+    }
+
+    // 7. Формируем сообщение
+    const dateStr = new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+
+    const lines = sorted.map(([id, p], i) => {
+      const bought = purchaseMap.get(id) ?? 0;
+      const priceRub = Math.round(p.price / 100).toLocaleString("ru-RU");
+      const boughtLabel = bought === 0 ? "❌ 0 покупок" : `✅ ${bought} покупок`;
+      return `${i + 1}. <b>${p.name}</b>\n   🛒 ${p.cartCount} корзин · ${boughtLabel} за 30 дн. · ${priceRub} ₽`;
+    });
+
+    const text =
+      `🛒 <b>BOOOM AI — Анализ брошенных корзин</b> · ${dateStr}\n\n` +
+      `Товары которые добавляют, но не покупают:\n\n` +
+      lines.join("\n\n") +
+      `\n\n<b>📦 Всего сессий с товарами:</b> ${sessions.length}` +
+      (aiComment ? `\n\n<b>🤖 Вывод:</b>\n${aiComment}` : "");
+
+    await sendAgentDigest(text);
+    vkNotifyAgentDigest(text);
+
+    await addLogEntry({
+      type: "cart_analysis",
+      action: "Анализ брошенных корзин отправлен",
+      summary: `Сессий: ${sessions.length}, уникальных товаров: ${cartMap.size}, топ: «${sorted[0]?.[1].name ?? "—"}» (${sorted[0]?.[1].cartCount ?? 0} корзин)`,
+      isAuto: true,
+    });
+
+    console.log(`[AutonomousAgent] Cart analysis done. Sessions: ${sessions.length}, products: ${cartMap.size}`);
+  } catch (e: any) {
+    console.error("[AutonomousAgent] Cart analysis error:", e?.message);
+  }
+}
+
 // ── Master runner ─────────────────────────────────────────────────────────
 
 let lastRunStatus: { lastRun: string; lastResult: string } = {
@@ -703,7 +829,25 @@ export function initAutonomousAgent(): void {
     setInterval(runMondaySafe, 7 * 24 * 60 * 60 * 1000);
   }, mondayDelayMs);
 
+  // Анализ брошенных корзин — каждое воскресенье в 11:00 МСК (08:00 UTC)
+  const daysUntilSunday = (7 - now.getUTCDay()) % 7;
+  const nextSunday = new Date(now);
+  nextSunday.setUTCDate(now.getUTCDate() + daysUntilSunday);
+  nextSunday.setUTCHours(8, 0, 0, 0); // 11:00 МСК = 08:00 UTC
+  if (nextSunday.getTime() <= nowMs) nextSunday.setUTCDate(nextSunday.getUTCDate() + 7);
+  const sundayDelayMs = nextSunday.getTime() - nowMs;
+
+  const runSundaySafe = () =>
+    runCartAnalysisJob().catch((e: any) =>
+      console.error("[AutonomousAgent] Sunday cart analysis unhandled error:", e?.message)
+    );
+
+  setTimeout(() => {
+    runSundaySafe();
+    setInterval(runSundaySafe, 7 * 24 * 60 * 60 * 1000);
+  }, sundayDelayMs);
+
   console.log(
-    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h`
+    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h, cart analysis next Sunday in ${Math.round(sundayDelayMs / 60000 / 60)}h`
   );
 }
