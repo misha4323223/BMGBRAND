@@ -1176,99 +1176,9 @@ export default function ProductDetail() {
                         </>
                       )}
                     </div>
-                    {!isWholesale && (
-                      <button
-                        data-testid="button-size-advisor"
-                        onClick={() => {
-                          setSizeAdvisorOpen(v => !v);
-                          setSizeAdvisorResult(null);
-                          setSizeAdvisorRecommended(null);
-                        }}
-                        className={`flex items-center gap-1 text-xs font-medium transition-colors shrink-0 ${sizeAdvisorOpen ? 'text-foreground' : 'text-primary hover:text-primary/75'}`}
-                      >
-                        <Ruler className="w-3.5 h-3.5" />
-                        <span>{sizeAdvisorOpen ? 'Свернуть' : 'Подобрать размер'}</span>
-                      </button>
-                    )}
                   </div>
 
                   {/* Inline Size Advisor */}
-                  {sizeAdvisorOpen && (
-                    <div className="mt-3 mb-1 p-3.5 rounded-2xl bg-muted/50 border border-border/60 space-y-2.5">
-                      {sizeAdvisorResult ? (
-                        <>
-                          <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                            <Ruler className="w-3.5 h-3.5 text-primary" />
-                            Рекомендация AI
-                          </p>
-                          <p className="text-sm text-foreground/80 leading-relaxed">{sizeAdvisorResult}</p>
-                          {sizeAdvisorRecommended && (
-                            <button
-                              data-testid="button-size-advisor-apply"
-                              onClick={() => { setSelectedSize(sizeAdvisorRecommended!); setSizeAdvisorOpen(false); }}
-                              className="w-full py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all"
-                            >
-                              Выбрать размер {sizeAdvisorRecommended}
-                            </button>
-                          )}
-                          <button
-                            onClick={() => { setSizeAdvisorResult(null); setSizeAdvisorRecommended(null); }}
-                            className="w-full py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            Ввести другие параметры
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                            <Ruler className="w-3.5 h-3.5 text-primary" />
-                            Подбор размера по параметрам
-                          </p>
-                          <div className="flex gap-2">
-                            <div className="flex-1">
-                              <label className="text-xs text-muted-foreground mb-1 block">Рост (см)</label>
-                              <input
-                                type="number"
-                                placeholder="178"
-                                value={sizeAdvisorHeight}
-                                onChange={e => setSizeAdvisorHeight(e.target.value)}
-                                data-testid="input-size-advisor-height"
-                                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors"
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <label className="text-xs text-muted-foreground mb-1 block">
-                                {(() => {
-                                  const m = (product.measurements as SizeMeasurement[]) || [];
-                                  return m.some((x: SizeMeasurement) => !!x.waist) ? 'Талия (см)' : 'Грудь (см)';
-                                })()}
-                              </label>
-                              <input
-                                type="number"
-                                placeholder="96"
-                                value={sizeAdvisorMeasure}
-                                onChange={e => setSizeAdvisorMeasure(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && handleSizeAdvisorSubmit()}
-                                data-testid="input-size-advisor-measure"
-                                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors"
-                              />
-                            </div>
-                          </div>
-                          <button
-                            onClick={handleSizeAdvisorSubmit}
-                            disabled={!sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || sizeAdvisorLoading}
-                            data-testid="button-size-advisor-submit-inline"
-                            className="w-full py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                          >
-                            {sizeAdvisorLoading
-                              ? <><Loader2 className="w-4 h-4 animate-spin" /> Подбираем…</>
-                              : 'Подобрать размер'}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-
                   <div className="flex flex-wrap gap-2">
                     {(() => {
                       const sizeStock = (product as any).sizeStock;
@@ -1367,6 +1277,99 @@ export default function ProductDetail() {
                       });
                     })()}
                     </div>
+
+                  {/* Size Advisor trigger button — under size grid, not wholesale */}
+                  {!isWholesale && (
+                    <button
+                      data-testid="button-size-advisor"
+                      onClick={() => {
+                        setSizeAdvisorOpen(v => !v);
+                        setSizeAdvisorResult(null);
+                        setSizeAdvisorRecommended(null);
+                      }}
+                      className="mt-2 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border hover:border-foreground/40 bg-muted/40 hover:bg-muted/70 transition-all text-sm font-medium text-foreground/70 hover:text-foreground"
+                    >
+                      <Ruler className="w-4 h-4 shrink-0" />
+                      <span>{sizeAdvisorOpen ? 'Свернуть подбор размера' : 'Не знаете свой размер? Подобрать с AI'}</span>
+                    </button>
+                  )}
+
+                  {/* Inline Size Advisor panel */}
+                  {sizeAdvisorOpen && !isWholesale && (
+                    <div className="mt-2 p-4 rounded-2xl bg-muted/50 border border-border/60 space-y-3">
+                      {sizeAdvisorResult ? (
+                        <>
+                          <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                            <Ruler className="w-3.5 h-3.5 text-primary" />
+                            Рекомендация AI
+                          </p>
+                          <p className="text-sm text-foreground/80 leading-relaxed">{sizeAdvisorResult}</p>
+                          {sizeAdvisorRecommended && (
+                            <button
+                              data-testid="button-size-advisor-apply"
+                              onClick={() => { setSelectedSize(sizeAdvisorRecommended!); setSizeAdvisorOpen(false); }}
+                              className="w-full py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all"
+                            >
+                              Выбрать размер {sizeAdvisorRecommended}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { setSizeAdvisorResult(null); setSizeAdvisorRecommended(null); }}
+                            className="w-full py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            Ввести другие параметры
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                            <Ruler className="w-4 h-4 text-primary" />
+                            Подбор размера по параметрам
+                          </p>
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <label className="text-xs text-muted-foreground mb-1 block">Рост (см)</label>
+                              <input
+                                type="number"
+                                placeholder="178"
+                                value={sizeAdvisorHeight}
+                                onChange={e => setSizeAdvisorHeight(e.target.value)}
+                                data-testid="input-size-advisor-height"
+                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-xs text-muted-foreground mb-1 block">
+                                {(() => {
+                                  const m = (product.measurements as SizeMeasurement[]) || [];
+                                  return m.some((x: SizeMeasurement) => !!x.waist) ? 'Талия (см)' : 'Грудь (см)';
+                                })()}
+                              </label>
+                              <input
+                                type="number"
+                                placeholder="96"
+                                value={sizeAdvisorMeasure}
+                                onChange={e => setSizeAdvisorMeasure(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleSizeAdvisorSubmit()}
+                                data-testid="input-size-advisor-measure"
+                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors"
+                              />
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleSizeAdvisorSubmit}
+                            disabled={!sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || sizeAdvisorLoading}
+                            data-testid="button-size-advisor-submit-inline"
+                            className="w-full py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            {sizeAdvisorLoading
+                              ? <><Loader2 className="w-4 h-4 animate-spin" /> Подбираем…</>
+                              : 'Подобрать размер'}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   {notifySize && !notifySubmitted.has(notifySize) && (
                     <div className="mt-3 space-y-2" data-testid="block-stock-notify">
