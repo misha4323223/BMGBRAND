@@ -354,7 +354,7 @@ export async function runStaleProductsJob(): Promise<void> {
   let queued = 0;
   for (const p of staleCandidates.slice(0, MAX_QUEUE_PER_RUN)) {
     try {
-      const item = await addToQueue({
+      await addToQueue({
         type: "hide_product",
         title: `Скрыть товар без остатка: «${p.name}»`,
         description: `Товар «${p.name}» (ID: ${p.id}) имеет нулевой остаток. Рекомендую скрыть с сайта до появления товара.`,
@@ -362,7 +362,6 @@ export async function runStaleProductsJob(): Promise<void> {
         tool: "hide_product",
       });
 
-      await notifyAgentQueueItem(item);
       queued++;
 
       await sleep(500);
@@ -373,6 +372,7 @@ export async function runStaleProductsJob(): Promise<void> {
 
   if (queued > 0) {
     console.log(`[AutonomousAgent] Stale products queued: ${queued}`);
+    await sendAgentAlert(`👁 <b>BOOOM AI:</b> Найдено ${queued} товаров с нулевым остатком — ожидают проверки в очереди.`);
   }
 }
 
@@ -419,7 +419,7 @@ ${isDesign ? "Это товар с уникальным принтом." : ""}
       if (!description || description.length < 20) continue;
 
       const flagForReview = isDesign;
-      const item = await addToQueue({
+      await addToQueue({
         type: "description",
         title: `Описание для «${product.name}»${flagForReview ? " ⚠️ проверь принт" : ""}`,
         description: `Предлагаю описание для товара #${product.id}:\n\n${description}`,
@@ -427,7 +427,6 @@ ${isDesign ? "Это товар с уникальным принтом." : ""}
         tool: "update_product",
       });
 
-      await notifyAgentQueueItem(item);
       queued++;
     } catch (e: any) {
       console.error(`[AutonomousAgent] Description error for ${product.id}:`, e?.message);
@@ -435,6 +434,9 @@ ${isDesign ? "Это товар с уникальным принтом." : ""}
   }
 
   console.log(`[AutonomousAgent] Description job done: queued=${queued}`);
+  if (queued > 0) {
+    await sendAgentAlert(`📝 <b>BOOOM AI:</b> Готово ${queued} описаний для товаров — ожидают проверки в очереди.`);
+  }
 }
 
 // ── Weekly Digest ─────────────────────────────────────────────────────────
