@@ -639,6 +639,12 @@ export async function runCartAnalysisJob(): Promise<void> {
     const sessions: string[] = await db.getAbandonedCartUserSessions();
     if (sessions.length === 0) {
       console.log("[AutonomousAgent] Cart analysis: no sessions with items.");
+      await addLogEntry({
+        type: "cart_analysis",
+        action: "Анализ брошенных корзин: корзины пусты",
+        summary: "Нет сессий с товарами в корзине — брошенных корзин не обнаружено.",
+        isAuto: false,
+      });
       return;
     }
 

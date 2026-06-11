@@ -3509,7 +3509,8 @@ BMGBRAND — официальный производитель и магазин
       else if (job === "digest") runWeeklyDigest().catch(e => console.error("[AutonomousAgent] manual digest error:", e?.message));
       else if (job === "descriptions") runDescriptionJob().catch(e => console.error("[AutonomousAgent] manual descriptions error:", e?.message));
       else if (job === "cart_analysis") runCartAnalysisJob().catch(e => console.error("[AutonomousAgent] manual cart analysis error:", e?.message));
-      else runAutonomousAgent().catch(e => console.error("[AutonomousAgent] manual run error:", e?.message));
+      else if (job === "all") runAutonomousAgent().catch(e => console.error("[AutonomousAgent] manual full run error:", e?.message));
+      else console.warn("[AutonomousAgent] Unknown job:", job);
     } catch (e: any) {
       res.status(500).json({ error: e?.message });
     }

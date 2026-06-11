@@ -244,6 +244,13 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
         body: JSON.stringify({ job }),
       });
       toast({ title: "Запущено", description: "Задача выполняется в фоне" });
+      // После запуска анализа корзин — переходим на Лог и обновляем его через 3 сек
+      if (job === "cart_analysis") {
+        setTimeout(() => {
+          setActiveTab("log");
+          refetchLog();
+        }, 3000);
+      }
     } catch (e: any) {
       toast({ title: "Ошибка", description: e.message, variant: "destructive" });
     } finally {
