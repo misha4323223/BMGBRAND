@@ -1,6 +1,32 @@
 import crypto from 'crypto';
+import { createHmac } from 'crypto';
 import { storage } from './storage';
 import { sendEmail, getAbandonedCartEmailHtml } from './email';
+
+const UNSUB_KEY = 'abandoned_cart_unsub';
+
+async function isAbandonedCartUnsubscribed(email: string): Promise<boolean> {
+  try {
+    const raw = await (storage as any).getBonusSetting(UNSUB_KEY);
+    if (!raw) return false;
+    const list: string[] = JSON.parse(raw);
+    return list.map((e: string) => e.toLowerCase()).includes(email.toLowerCase());
+  } catch { return false; }
+}
+
+export async function addAbandonedCartUnsub(email: string): Promise<void> {
+  try {
+    const raw = await (storage as any).getBonusSetting(UNSUB_KEY);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    const normalized = email.toLowerCase();
+    if (!list.map((e: string) => e.toLowerCase()).includes(normalized)) {
+      list.push(normalized);
+      await (storage as any).setBonusSetting(UNSUB_KEY, JSON.stringify(list));
+    }
+  } catch (err: any) {
+    console.error('[AbandonedCart] addAbandonedCartUnsub error:', err?.message);
+  }
+}
 
 const COOLDOWN_MS = 4 * 24 * 60 * 60 * 1000; // повтор не чаще раза в 4 дня
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // каждые 24 часа
@@ -66,6 +92,10 @@ export async function runAbandonedCartCheck(): Promise<void> {
         const user = await db.getUserEmailById(userId);
         if (!user?.email) { noEmail++; continue; }
 
+        // Проверяем — не отписался ли пользователь от напоминаний о корзине
+        const unsubbed = await isAbandonedCartUnsubscribed(user.email);
+        if (unsubbed) { skipped++; continue; }
+
         // Считаем сумму
         const totalKopecks = cartItems.reduce(
           (sum, item) => sum + item.product.price * item.quantity,
@@ -73,7 +103,7 @@ export async function runAbandonedCartCheck(): Promise<void> {
         );
 
         // Отправляем письмо
-        const html = getAbandonedCartEmailHtml(user.name || '', cartItems, totalKopecks);
+        const html = getAbandonedCartEmailHtml(user.name || '', cartItems, totalKopecks, user.email);
         const ok = await sendEmail({
           to: user.email,
           subject: 'Вы кое-что забыли в корзине',

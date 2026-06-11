@@ -938,8 +938,11 @@ export function getStockNotificationEmailHtml(productName: string, size: string,
                   <p style="margin: 0 0 4px; font-size: 11px; color: #999;">
                     Вы получили это письмо, потому что подписались на уведомление о поступлении товара.
                   </p>
-                  <p style="margin: 0; font-size: 11px; color: #bbb;">
+                  <p style="margin: 0 0 4px; font-size: 11px; color: #bbb;">
                     &copy; ${year} BOOOMERANGS. Все права защищены.
+                  </p>
+                  <p style="margin: 0; font-size: 11px;">
+                    <a href="https://www.booomerangs.ru/profile" style="color:#bbb;text-decoration:underline;">Управлять уведомлениями</a>
                   </p>
                 </td>
               </tr>
@@ -1512,10 +1515,14 @@ export function getPostPurchaseEmailHtml(opts: {
 export function getAbandonedCartEmailHtml(
   userName: string,
   cartItems: Array<{ product: { name: string; imageUrl?: string; thumbnailUrl?: string; price: number }; quantity: number; size: string | null; color: string | null }>,
-  totalKopecks: number
+  totalKopecks: number,
+  email: string = ''
 ): string {
   const siteUrl = 'https://www.booomerangs.ru';
   const cartUrl = `${siteUrl}/cart`;
+  const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
+  const cartUnsubToken = email ? createHmac('sha256', jwtSecret).update(email.toLowerCase()).digest('hex').slice(0, 32) : '';
+  const cartUnsubUrl = email ? `${siteUrl}/api/abandoned-cart/unsubscribe?email=${encodeURIComponent(email)}&token=${cartUnsubToken}` : `${siteUrl}/profile`;
   const totalRub = Math.round(totalKopecks / 100).toLocaleString('ru-RU');
 
   const itemsHtml = cartItems.map(item => {
@@ -1587,7 +1594,8 @@ export function getAbandonedCartEmailHtml(
       <tr>
         <td style="padding:20px 32px;border-top:1px solid #eee;font-size:11px;color:#999;">
           &copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.<br>
-          Вы получили это письмо, потому что оставили товары в корзине на <a href="${siteUrl}" style="color:#999;">booomerangs.ru</a>
+          Вы получили это письмо, потому что оставили товары в корзине на <a href="${siteUrl}" style="color:#999;">booomerangs.ru</a><br>
+          <a href="${cartUnsubUrl}" style="color:#bbb;text-decoration:underline;">Отписаться от напоминаний о корзине</a>
         </td>
       </tr>
     </table>
@@ -1705,7 +1713,7 @@ export function getNewProductsNewsletterHtml(
 export function getPreorderNewsletterHtml(
   products: any[],
   totalNewCount: number
-): string {
+): (email: string) => string {
   const MAX = 3;
   const siteUrl = 'https://www.booomerangs.ru';
   const displayProducts = products.slice(0, MAX);
@@ -1753,7 +1761,12 @@ export function getPreorderNewsletterHtml(
     ? `Открылось ${totalNewCount} новых предзаказов — вот несколько из них.`
     : `В магазине ${opened} ${count} новых ${countWord}. Количество мест ограничено — успей забронировать раньше всех.`;
 
-  return `<!DOCTYPE html>
+  return (email: string): string => {
+    const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
+    const token = createHmac('sha256', jwtSecret).update(email.toLowerCase()).digest('hex').slice(0, 32);
+    const unsubUrl = `${siteUrl}/api/preorder/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`;
+
+    return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -1793,7 +1806,7 @@ export function getPreorderNewsletterHtml(
         <td style="padding:20px 32px;border-top:1px solid #eee;font-size:11px;color:#999;">
           &copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.<br>
           Вы получили это письмо, потому что подписались на уведомления о предзаказах на <a href="${siteUrl}" style="color:#999;">booomerangs.ru</a><br>
-          <a href="${siteUrl}/profile" style="color:#bbb;text-decoration:underline;">Отписаться от уведомлений о предзаказах</a>
+          <a href="${unsubUrl}" style="color:#bbb;text-decoration:underline;">Отписаться</a>
         </td>
       </tr>
     </table>
@@ -1801,4 +1814,5 @@ export function getPreorderNewsletterHtml(
 </table>
 </body>
 </html>`;
+  };
 }

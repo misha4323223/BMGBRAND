@@ -22,9 +22,9 @@ import { ozonDeliveryOAuth, OZON_OAUTH_KEYS, OZON_OAUTH_REDIRECT_URI } from "./o
 import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PVZ_CODE, CDEK_DEFAULT_PACKAGE, CDEK_TARIFFS, isTariffToDoor, isTariffFromPvz } from "./cdek";
 import { yandexDeliveryService } from "./yandex-delivery";
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
-import { runAbandonedCartCheck } from "./abandoned-cart";
+import { runAbandonedCartCheck, addAbandonedCartUnsub } from "./abandoned-cart";
 import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow } from "./new-products-notifier";
-import { enqueuePreorderProduct } from "./preorder-notifier";
+import { enqueuePreorderProduct, getPreorderQueueStatus } from "./preorder-notifier";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
 import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
@@ -7305,6 +7305,7 @@ BMGBRAND — официальный производитель и магазин
         measurements, images, imageUrl, sku, color, stock, sizeStock,
         wholesalePrice, discountPercent, sizeDiscounts, seoTitle, seoDescription, imageAlts,
         additionalCategories,
+        preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate, preorderNote,
       } = req.body;
       
       if (!name || !price || !category) {
@@ -7353,11 +7354,22 @@ BMGBRAND — официальный производитель и магазин
         seoDescription: seoDescription || '',
         imageAlts: Array.isArray(imageAlts) ? imageAlts : [],
         additionalCategories: Array.isArray(additionalCategories) ? additionalCategories : [],
+        preorderEnabled: preorderEnabled === true || preorderEnabled === 'true' || false,
+        preorderGoal: preorderGoal ? parseInt(preorderGoal) : null,
+        preorderDeadline: preorderDeadline || null,
+        preorderProductionDate: preorderProductionDate || null,
+        preorderShippingDate: preorderShippingDate || null,
+        preorderNote: preorderNote || null,
+        preorderStatus: (preorderEnabled === true || preorderEnabled === 'true') ? 'collecting' : null,
       };
       
       const product = await storage.createProduct(productData);
       console.log(`[Admin] Created new product: ${name} (ID: ${product.id})`);
-      enqueueNewProduct(product.id).catch(() => {});
+      if (preorderEnabled === true || preorderEnabled === 'true') {
+        enqueuePreorderProduct(product.id).catch(() => {});
+      } else {
+        enqueueNewProduct(product.id).catch(() => {});
+      }
       res.json({ success: true, product });
     } catch (error) {
       console.error("[Admin] Error creating product:", error);
@@ -11587,6 +11599,80 @@ BMGBRAND — официальный производитель и магазин
       <div style="font-size:40px;margin-bottom:16px;">✓</div>
       <h2 style="margin:0 0 12px;font-size:20px;color:#1C1C1C;">Вы отписались от рассылки</h2>
       <p style="margin:0 0 28px;font-size:14px;color:#666;">Вы больше не будете получать письма о новинках. Если захотите снова подписаться — это можно сделать на сайте.</p>
+      <a href="https://www.booomerangs.ru" style="display:inline-block;padding:12px 32px;background:#1C1C1C;color:#fff;text-decoration:none;font-size:13px;font-weight:600;border-radius:6px;">Перейти на сайт</a>
+    </div>
+  </td></tr>
+</table>
+</body></html>`);
+    } catch (err: any) {
+      res.status(500).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ошибка сервера</h2></body></html>');
+    }
+  });
+
+  // One-click unsubscribe for preorder newsletter emails
+  app.get("/api/preorder/unsubscribe", async (req, res) => {
+    try {
+      const email = String(req.query.email || '').toLowerCase().trim();
+      const token = String(req.query.token || '');
+      if (!email || !token) {
+        return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна</h2></body></html>');
+      }
+      const crypto = await import('crypto');
+      const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
+      const expected = crypto.createHmac('sha256', jwtSecret).update(email).digest('hex').slice(0, 32);
+      if (token !== expected) {
+        return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна или устарела</h2></body></html>');
+      }
+      await storage.updatePreorderSubscriberStatus(email, false);
+      console.log(`[PreorderNotifier] Unsubscribed via token: ${email}`);
+      res.send(`<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Вы отписались</title></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="min-height:100vh;">
+  <tr><td align="center" style="padding:60px 20px;">
+    <div style="max-width:480px;background:#fff;border-radius:10px;padding:48px 40px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+      <div style="font-size:22px;font-weight:900;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px;">BOOOMERANGS</div>
+      <div style="font-size:40px;margin-bottom:16px;">✓</div>
+      <h2 style="margin:0 0 12px;font-size:20px;color:#1C1C1C;">Вы отписались от уведомлений о предзаказах</h2>
+      <p style="margin:0 0 28px;font-size:14px;color:#666;">Вы больше не будете получать письма о новых предзаказах. Если захотите снова подписаться — это можно сделать на сайте.</p>
+      <a href="https://www.booomerangs.ru" style="display:inline-block;padding:12px 32px;background:#1C1C1C;color:#fff;text-decoration:none;font-size:13px;font-weight:600;border-radius:6px;">Перейти на сайт</a>
+    </div>
+  </td></tr>
+</table>
+</body></html>`);
+    } catch (err: any) {
+      res.status(500).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ошибка сервера</h2></body></html>');
+    }
+  });
+
+  // One-click unsubscribe for abandoned cart emails
+  app.get("/api/abandoned-cart/unsubscribe", async (req, res) => {
+    try {
+      const email = String(req.query.email || '').toLowerCase().trim();
+      const token = String(req.query.token || '');
+      if (!email || !token) {
+        return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна</h2></body></html>');
+      }
+      const crypto = await import('crypto');
+      const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
+      const expected = crypto.createHmac('sha256', jwtSecret).update(email).digest('hex').slice(0, 32);
+      if (token !== expected) {
+        return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна или устарела</h2></body></html>');
+      }
+      await addAbandonedCartUnsub(email);
+      console.log(`[AbandonedCart] Unsubscribed via token: ${email}`);
+      res.send(`<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Вы отписались</title></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="min-height:100vh;">
+  <tr><td align="center" style="padding:60px 20px;">
+    <div style="max-width:480px;background:#fff;border-radius:10px;padding:48px 40px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+      <div style="font-size:22px;font-weight:900;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px;">BOOOMERANGS</div>
+      <div style="font-size:40px;margin-bottom:16px;">✓</div>
+      <h2 style="margin:0 0 12px;font-size:20px;color:#1C1C1C;">Вы отписались от напоминаний о корзине</h2>
+      <p style="margin:0 0 28px;font-size:14px;color:#666;">Вы больше не будете получать письма о забытых товарах в корзине.</p>
       <a href="https://www.booomerangs.ru" style="display:inline-block;padding:12px 32px;background:#1C1C1C;color:#fff;text-decoration:none;font-size:13px;font-weight:600;border-radius:6px;">Перейти на сайт</a>
     </div>
   </td></tr>

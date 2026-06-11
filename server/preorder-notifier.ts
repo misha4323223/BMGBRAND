@@ -98,7 +98,7 @@ export async function runPreorderNotifierCheck(): Promise<void> {
       return;
     }
 
-    const html = getPreorderNewsletterHtml(products, productIds.length);
+    const htmlFn = getPreorderNewsletterHtml(products, productIds.length);
     const subject = products.length === 1
       ? `Открыт предзаказ: ${products[0].name} — BOOOMERANGS`
       : `Открылось ${productIds.length} новых предзаказов — BOOOMERANGS`;
@@ -109,7 +109,7 @@ export async function runPreorderNotifierCheck(): Promise<void> {
       const email = (sub as any).email;
       if (!email) continue;
       try {
-        const ok = await sendEmail({ to: email, subject, html });
+        const ok = await sendEmail({ to: email, subject, html: htmlFn(email) });
         if (ok) sent++;
         else failed++;
       } catch {
@@ -147,7 +147,7 @@ export async function triggerPreorderNotifierNow(): Promise<{ sent: number; fail
   const subscribers = allSubscribers.filter(s => s.isActive);
   if (subscribers.length === 0) return { sent: 0, failed: 0, products: products.length, total: productIds.length };
 
-  const html = getPreorderNewsletterHtml(products, productIds.length);
+  const htmlFn = getPreorderNewsletterHtml(products, productIds.length);
   const subject = products.length === 1
     ? `Открыт предзаказ: ${products[0].name} — BOOOMERANGS`
     : `Открылось ${productIds.length} новых предзаказов — BOOOMERANGS`;
@@ -158,7 +158,7 @@ export async function triggerPreorderNotifierNow(): Promise<{ sent: number; fail
     const email = (sub as any).email;
     if (!email) continue;
     try {
-      const ok = await sendEmail({ to: email, subject, html });
+      const ok = await sendEmail({ to: email, subject, html: htmlFn(email) });
       if (ok) sent++;
       else failed++;
     } catch {
