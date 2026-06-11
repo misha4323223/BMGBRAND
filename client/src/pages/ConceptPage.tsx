@@ -291,9 +291,12 @@ export default function ConceptPage() {
                 const isLocked = status !== "collecting";
 
                 const inCart = !!cartPreorderItems.find(i => i.productId === product.id);
+                const productFixedPrice: number = (product as any).salePrice || 0;
                 const discountPct = product.discountPercent;
-                const hasDiscount = !!discountPct && discountPct > 0;
-                const salePrice = hasDiscount ? Math.round(product.price * (1 - discountPct / 100)) : product.price;
+                const hasDiscount = (productFixedPrice > 0 && productFixedPrice < product.price) || (!!discountPct && discountPct > 0);
+                const salePrice = productFixedPrice > 0 && productFixedPrice < product.price
+                  ? productFixedPrice
+                  : (discountPct && discountPct > 0 ? Math.round(product.price * (1 - discountPct / 100)) : product.price);
 
                 return (
                   <Link
