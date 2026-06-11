@@ -1390,7 +1390,7 @@ Pre-drop — это возможность заказать вещь ещё до
 
 // Bump this string any time you update AI_KNOWLEDGE_DEFAULTS — on next server
 // start all blocks will be re-written from code to the database automatically.
-const AI_KNOWLEDGE_VERSION = "v3";
+const AI_KNOWLEDGE_VERSION = "v4";
 
 const aiKnowledgeCache = new Map<AiKnowledgeKey, string>();
 let aiKnowledgeCacheLastLoad = 0;
