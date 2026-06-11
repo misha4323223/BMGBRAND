@@ -1605,6 +1605,78 @@ export function getAbandonedCartEmailHtml(
 </html>`;
 }
 
+export function getCartPromoEmailHtml({
+  userName,
+  promoCode,
+  discountPercent,
+  validityHours,
+  topItem,
+}: {
+  userName: string;
+  promoCode: string;
+  discountPercent: number;
+  validityHours: number;
+  topItem: string;
+}): string {
+  const siteUrl = 'https://www.booomerangs.ru';
+  const cartUrl = `${siteUrl}/cart`;
+  const validDays = validityHours >= 24 ? `${Math.round(validityHours / 24)} дня` : `${validityHours} часов`;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 0;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fff;border-radius:12px;overflow:hidden;">
+      <tr>
+        <td style="background:#1C1C1C;padding:24px 32px;">
+          <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:2px;text-transform:uppercase;">
+            BOO<span style="color:#E53935;">O</span>MERANGS
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:32px 32px 0;">
+          <div style="font-size:22px;font-weight:800;color:#1C1C1C;margin-bottom:8px;">
+            Персональная скидка для вас 🎁
+          </div>
+          <p style="font-size:14px;color:#555;margin:0 0 24px;">
+            ${userName ? `${userName}, мы` : 'Мы'} заметили, что вы присматривались к <b>${topItem}</b>. Держите персональный промокод — только для вас.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border:2px dashed #1C1C1C;border-radius:10px;margin-bottom:24px;">
+            <tr>
+              <td style="padding:20px;text-align:center;">
+                <div style="font-size:12px;color:#888;margin-bottom:8px;letter-spacing:1px;text-transform:uppercase;">Ваш промокод</div>
+                <div style="font-size:28px;font-weight:900;color:#1C1C1C;letter-spacing:4px;">${promoCode}</div>
+                <div style="font-size:13px;color:#E53935;font-weight:700;margin-top:8px;">Скидка ${discountPercent}% на весь заказ</div>
+                <div style="font-size:11px;color:#999;margin-top:4px;">Действует ${validDays} · Однократное применение</div>
+              </td>
+            </tr>
+          </table>
+          <div style="text-align:center;margin:0 0 28px;">
+            <a href="${cartUrl}" style="display:inline-block;padding:14px 40px;background:#1C1C1C;color:#fff;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase;border-radius:6px;">
+              Вернуться в корзину
+            </a>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:20px 32px;border-top:1px solid #eee;font-size:11px;color:#999;">
+          &copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.<br>
+          <a href="${siteUrl}" style="color:#999;">booomerangs.ru</a>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
 export function getNewProductsNewsletterHtml(
   products: any[],
   totalNewCount: number

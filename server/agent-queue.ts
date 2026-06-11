@@ -14,7 +14,8 @@ export type QueueItemType =
   | "seo"
   | "blog_draft"
   | "review_reply"
-  | "promo_code";
+  | "promo_code"
+  | "cart_promo";
 
 export interface QueueItem {
   id: string;

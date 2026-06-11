@@ -7103,6 +7103,25 @@ export class DatabaseStorage implements IStorage {
     return result || [];
   }
 
+  async getCartSessionDates(): Promise<Record<string, number>> {
+    const result = await this.safeQuery(async (session) => {
+      const { resultSets } = await session.executeQuery(
+        `SELECT session_id, MIN(created_at) AS oldest FROM cart_items WHERE String::StartsWith(session_id, 'user_') GROUP BY session_id`
+      );
+      const rows = this.parseResultSet<{ sessionId: string; oldest: any }>(resultSets[0]);
+      const map: Record<string, number> = {};
+      for (const r of rows) {
+        if (!r.sessionId) continue;
+        const ts = r.oldest;
+        if (ts == null) continue;
+        const num = typeof ts === 'number' ? ts * 1000 : new Date(String(ts)).getTime();
+        if (!isNaN(num)) map[r.sessionId] = num;
+      }
+      return map;
+    });
+    return result || {};
+  }
+
   async getUserEmailById(userId: number): Promise<{ name: string; email: string } | null> {
     const result = await this.safeQuery(async (session) => {
       const { TypedValues } = await import('ydb-sdk');

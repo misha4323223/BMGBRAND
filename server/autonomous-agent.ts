@@ -622,9 +622,19 @@ export async function runWeeklyDigest(): Promise<void> {
 
 const CART_ANALYSIS_AI_SYSTEM = `Ты аналитик для российского стритвир-магазина BOOOMERANGS.
 Тебе дадут список товаров которые покупатели добавляют в корзину, но не покупают.
-Напиши 2-3 конкретных наблюдения на русском языке — что это значит, какие вероятные причины, что стоит сделать.
-Пиши коротко, по-деловому, без воды. Фокус на практических выводах.
-Верни только текст без заголовков и маркеров.`;
+Для КАЖДОГО товара напиши ОДНУ краткую рекомендацию (макс. 10 слов): что делать — снизить цену, запустить акцию, пополнить склад, улучшить фото, или другое.
+Формат ответа — строго JSON-массив строк, без пояснений, без markdown:
+["рекомендация для товара 1","рекомендация для товара 2",...]
+Количество элементов = количеству товаров на входе.`;
+
+function cartAgeLabel(ms: number): string {
+  const days = Math.floor(ms / (24 * 60 * 60 * 1000));
+  if (days === 0) return "сегодня";
+  if (days === 1) return "1 день";
+  if (days < 7) return `${days} дн.`;
+  if (days < 30) return `${Math.floor(days / 7)} нед.`;
+  return `${Math.floor(days / 30)} мес.`;
+}
 
 export async function runCartAnalysisJob(): Promise<void> {
   console.log("[AutonomousAgent] Starting cart analysis job...");
@@ -648,25 +658,43 @@ export async function runCartAnalysisJob(): Promise<void> {
       return;
     }
 
-    // 2. Агрегируем товары из всех корзин
-    const cartMap = new Map<string, { name: string; price: number; cartCount: number; totalQty: number }>();
+    // 2. Получаем возраст корзин (когда добавлен первый товар)
+    let sessionDates: Record<string, number> = {};
+    if (typeof db.getCartSessionDates === "function") {
+      sessionDates = await db.getCartSessionDates();
+    }
+
+    // 3. Агрегируем товары из всех корзин + собираем кто именно держит товар
+    const cartMap = new Map<string, {
+      name: string;
+      price: number;
+      cartCount: number;
+      totalQty: number;
+      sizeStock: Record<string, number> | null;
+    }>();
+    // sessionId → userId для рассылки
+    const sessionUserIds = new Map<string, number>();
 
     for (const sessionId of sessions) {
       try {
+        const userId = parseInt(sessionId.replace("user_", ""), 10);
+        if (!isNaN(userId)) sessionUserIds.set(sessionId, userId);
+
         const items = await storage.getCartItems(sessionId);
         for (const item of items) {
           const key = String(item.productId);
           const name = (item.product?.name || `Товар ${key}`).slice(0, 50);
           const price = item.product?.price ?? 0;
+          const sizeStock = (item.product as any)?.sizeStock ?? null;
           const existing = cartMap.get(key);
           if (existing) {
             existing.cartCount += 1;
             existing.totalQty += item.quantity;
           } else {
-            cartMap.set(key, { name, price, cartCount: 1, totalQty: item.quantity });
+            cartMap.set(key, { name, price, cartCount: 1, totalQty: item.quantity, sizeStock });
           }
         }
-        await sleep(80); // небольшая пауза — не перегружаем YDB
+        await sleep(80);
       } catch (e: any) {
         console.warn(`[AutonomousAgent] Cart analysis: error reading session ${sessionId}:`, e?.message);
       }
@@ -674,10 +702,16 @@ export async function runCartAnalysisJob(): Promise<void> {
 
     if (cartMap.size === 0) {
       console.log("[AutonomousAgent] Cart analysis: no products found in carts.");
+      await addLogEntry({
+        type: "cart_analysis",
+        action: "Анализ брошенных корзин: нет товаров",
+        summary: "Сессии найдены, но корзины оказались пустыми.",
+        isAuto: false,
+      });
       return;
     }
 
-    // 3. Получаем оплаченные заказы за последние 30 дней — считаем сколько раз каждый товар купили
+    // 4. Оплаченные заказы за 30 дней — сколько раз купили каждый товар
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const allOrders = (await storage.getOrders()) as any[];
     const recentPaid = allOrders.filter((o: any) => {
@@ -686,65 +720,111 @@ export async function runCartAnalysisJob(): Promise<void> {
       return created >= thirtyDaysAgo;
     });
 
-    const purchaseMap = new Map<string, number>(); // productId → сколько раз купили
+    const purchaseMap = new Map<string, number>();
     for (const order of recentPaid) {
-      const items = Array.isArray(order.items) ? order.items : [];
-      for (const item of items) {
+      for (const item of (Array.isArray(order.items) ? order.items : [])) {
         const key = String(item.productId || "");
         if (!key) continue;
         purchaseMap.set(key, (purchaseMap.get(key) ?? 0) + (Number(item.quantity) || 1));
       }
     }
 
-    // 4. Сортируем по количеству корзин (убыв.) — топ-15
+    // 5. Топ-15 по количеству корзин
     const sorted = [...cartMap.entries()]
       .sort((a, b) => b[1].cartCount - a[1].cartCount)
       .slice(0, 15);
 
-    // 5. Формируем текстовую сводку для Qwen
-    const summaryLines = sorted.map(([id, p]) => {
-      const bought = purchaseMap.get(id) ?? 0;
-      const priceRub = Math.round(p.price / 100);
-      return `«${p.name}» — в ${p.cartCount} корзинах, куплен ${bought} раз за 30 дней, цена ${priceRub} ₽`;
-    });
-    const summaryForAi = summaryLines.join("\n");
-
-    // 6. Запрашиваем Qwen (1 запрос, необязательно)
-    let aiComment = "";
+    // 6. AI-рекомендации на каждый товар одним запросом
+    let aiRecs: string[] = [];
     try {
-      aiComment = await groqComplete(summaryForAi, CART_ANALYSIS_AI_SYSTEM, 300);
+      const inputLines = sorted.map(([id, p]) => {
+        const bought = purchaseMap.get(id) ?? 0;
+        return `${p.name} (${p.cartCount} корзин, ${bought} покупок за 30 дн., ${Math.round(p.price / 100)} ₽)`;
+      });
+      const raw = await groqComplete(inputLines.join("\n"), CART_ANALYSIS_AI_SYSTEM, 600);
+      const cleaned = raw.replace(/```(?:json)?|```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed)) aiRecs = parsed.map(String);
     } catch {
-      // необязательно — продолжаем без AI-комментария
+      // продолжаем без AI-рекомендаций
     }
 
-    // 7. Формируем сообщение
+    // 7. Возраст корзин — средний по сессиям содержащим данный товар (упрощение: средний по всем сессиям)
+    const now = Date.now();
+    const sessionAges = sessions.map(s => sessionDates[s] ? now - sessionDates[s] : 0).filter(Boolean);
+    const avgAgeMs = sessionAges.length > 0 ? sessionAges.reduce((a, b) => a + b, 0) / sessionAges.length : 0;
+
+    // 8. Формируем Telegram-сообщение
     const dateStr = new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 
     const lines = sorted.map(([id, p], i) => {
       const bought = purchaseMap.get(id) ?? 0;
       const priceRub = Math.round(p.price / 100).toLocaleString("ru-RU");
       const boughtLabel = bought === 0 ? "❌ 0 покупок" : `✅ ${bought} покупок`;
-      return `${i + 1}. <b>${p.name}</b>\n   🛒 ${p.cartCount} корзин · ${boughtLabel} за 30 дн. · ${priceRub} ₽`;
+
+      // Остатки на складе
+      let stockLabel = "";
+      if (p.sizeStock) {
+        const totalStock = Object.values(p.sizeStock).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+        stockLabel = totalStock === 0 ? " · 🚫 нет в наличии" : totalStock <= 3 ? ` · ⚠️ осталось ${totalStock} шт.` : ` · 📦 ${totalStock} шт.`;
+      }
+
+      const rec = aiRecs[i] ? `\n   💡 ${aiRecs[i]}` : "";
+      return `${i + 1}. <b>${p.name}</b>\n   🛒 ${p.cartCount} корзин · ${boughtLabel} за 30 дн. · ${priceRub} ₽${stockLabel}${rec}`;
     });
 
     const text =
       `🛒 <b>BOOOM AI — Анализ брошенных корзин</b> · ${dateStr}\n\n` +
       `Товары которые добавляют, но не покупают:\n\n` +
       lines.join("\n\n") +
-      `\n\n<b>📦 Всего сессий с товарами:</b> ${sessions.length}` +
-      (aiComment ? `\n\n<b>🤖 Вывод:</b>\n${aiComment}` : "");
+      `\n\n<b>📦 Сессий с товарами:</b> ${sessions.length}` +
+      (avgAgeMs > 0 ? `  ·  <b>⏱ Средний возраст корзины:</b> ${cartAgeLabel(avgAgeMs)}` : "");
 
     await sendAgentDigest(text);
     vkNotifyAgentDigest(text);
 
+    // 9. Собираем список клиентов с email для возможной рассылки промокодов
+    const promoTargets: Array<{ userId: number; name: string; email: string; topItem: string }> = [];
+    for (const [sessionId, userId] of sessionUserIds.entries()) {
+      try {
+        const userInfo = await db.getUserEmailById(userId);
+        if (userInfo?.email) {
+          // Найдём главный товар этого пользователя (первый в его корзине из топа)
+          const userItems = await storage.getCartItems(sessionId);
+          const topUserItem = userItems.find(it =>
+            sorted.some(([id]) => String(it.productId) === id)
+          );
+          const topItemName = topUserItem?.product?.name ?? sorted[0]?.[1].name ?? "";
+          promoTargets.push({ userId, name: userInfo.name || "Покупатель", email: userInfo.email, topItem: topItemName });
+        }
+      } catch { /* пропускаем */ }
+      await sleep(30);
+    }
+
+    // 10. Добавляем задачу рассылки промокодов в очередь (если есть кому слать)
+    if (promoTargets.length > 0) {
+      const queueItem = await addToQueue({
+        type: "cart_promo",
+        title: `Разослать промокоды по брошенным корзинам (${promoTargets.length} клиентов)`,
+        description:
+          `Клиенты с товарами в корзине:\n` +
+          promoTargets.slice(0, 10).map(u => `• ${u.name} — ${u.topItem}`).join("\n") +
+          (promoTargets.length > 10 ? `\n...и ещё ${promoTargets.length - 10}` : "") +
+          `\n\nБудет отправлен персональный промокод на скидку 10% на 48 часов.`,
+        params: { users: promoTargets, discount: 10, validityHours: 48 },
+        tool: "send_cart_promos",
+      });
+      await notifyAgentQueueItem(queueItem);
+    }
+
     await addLogEntry({
       type: "cart_analysis",
       action: "Анализ брошенных корзин отправлен",
-      summary: `Сессий: ${sessions.length}, уникальных товаров: ${cartMap.size}, топ: «${sorted[0]?.[1].name ?? "—"}» (${sorted[0]?.[1].cartCount ?? 0} корзин)`,
+      summary: `Сессий: ${sessions.length}, товаров: ${cartMap.size}, топ: «${sorted[0]?.[1].name ?? "—"}» (${sorted[0]?.[1].cartCount ?? 0} корзин), к рассылке: ${promoTargets.length}`,
       isAuto: true,
     });
 
-    console.log(`[AutonomousAgent] Cart analysis done. Sessions: ${sessions.length}, products: ${cartMap.size}`);
+    console.log(`[AutonomousAgent] Cart analysis done. Sessions: ${sessions.length}, products: ${cartMap.size}, promo targets: ${promoTargets.length}`);
   } catch (e: any) {
     console.error("[AutonomousAgent] Cart analysis error:", e?.message);
   }

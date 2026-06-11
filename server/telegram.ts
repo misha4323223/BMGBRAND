@@ -660,6 +660,7 @@ export async function notifyAgentQueueItem(item: {
     blog_draft: "✍️",
     review_reply: "💬",
     promo_code: "🎟",
+    cart_promo: "📧",
   };
   const emoji = typeEmoji[item.type] || "🤖";
 

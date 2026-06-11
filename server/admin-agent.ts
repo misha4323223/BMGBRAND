@@ -226,6 +226,48 @@ export async function executeWriteTool(tool: string, params: any): Promise<strin
       return `✅ Статус заказа №${params.id} изменён на «${STATUS_LABELS[params.status] || params.status}».`;
     }
 
+    case "send_cart_promos": {
+      const { sendEmail } = await import("./email");
+      const { getCartPromoEmailHtml } = await import("./email");
+      const users: Array<{ userId: number; name: string; email: string; topItem: string }> = params.users || [];
+      const discount: number = params.discount ?? 10;
+      const validityHours: number = params.validityHours ?? 48;
+      let sent = 0;
+      const errors: string[] = [];
+      for (const u of users) {
+        try {
+          const suffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+          const promoCode = `CART-${suffix}`;
+          const expiresAt = new Date(Date.now() + validityHours * 60 * 60 * 1000);
+          await storage.createPromoCode({
+            code: promoCode,
+            discountPercent: discount,
+            maxUses: 1,
+            expiresAt,
+            isActive: true,
+          } as any);
+          const html = getCartPromoEmailHtml({
+            userName: u.name,
+            promoCode,
+            discountPercent: discount,
+            validityHours,
+            topItem: u.topItem,
+          });
+          const ok = await sendEmail({
+            to: u.email,
+            subject: `Персональная скидка ${discount}% — специально для вас 🎁`,
+            html,
+          });
+          if (ok) sent++;
+          else errors.push(u.email);
+        } catch (e: any) {
+          errors.push(u.email);
+        }
+      }
+      return `✅ Промокоды отправлены: ${sent} из ${users.length} клиентов.` +
+        (errors.length > 0 ? ` Ошибки: ${errors.join(", ")}` : "");
+    }
+
     default:
       throw new Error(`Неизвестный инструмент изменения: ${tool}`);
   }
