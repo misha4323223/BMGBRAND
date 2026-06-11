@@ -381,7 +381,18 @@ export default function ProductDetail() {
   const [priceDropDialogOpen, setPriceDropDialogOpen] = useState(false);
   const [priceDropEmail, setPriceDropEmail] = useState("");
   const [isSubscribingPriceDrop, setIsSubscribingPriceDrop] = useState(false);
-  
+
+  const [sizeAdvisorOpen, setSizeAdvisorOpen] = useState(false);
+  const [sizeAdvisorHeight, setSizeAdvisorHeight] = useState(() => {
+    try { return localStorage.getItem('sa_height') || ''; } catch { return ''; }
+  });
+  const [sizeAdvisorMeasure, setSizeAdvisorMeasure] = useState(() => {
+    try { return localStorage.getItem('sa_measure') || ''; } catch { return ''; }
+  });
+  const [sizeAdvisorLoading, setSizeAdvisorLoading] = useState(false);
+  const [sizeAdvisorResult, setSizeAdvisorResult] = useState<string | null>(null);
+  const [sizeAdvisorRecommended, setSizeAdvisorRecommended] = useState<string | null>(null);
+
   const { data: priceDropCheckData } = useQuery<{ subscribed: boolean }>({
     queryKey: ['/api/price-drop-notify/check', product?.id, authUser?.email],
     enabled: !!product?.id && !!authUser?.email,
@@ -467,6 +478,46 @@ export default function ProductDetail() {
       </div>
     );
   }
+
+  const handleSizeAdvisorSubmit = async () => {
+    if (!sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || sizeAdvisorLoading) return;
+    setSizeAdvisorLoading(true);
+    setSizeAdvisorResult(null);
+    setSizeAdvisorRecommended(null);
+    try {
+      localStorage.setItem('sa_height', sizeAdvisorHeight.trim());
+      localStorage.setItem('sa_measure', sizeAdvisorMeasure.trim());
+    } catch {}
+    const measurements = (product.measurements as SizeMeasurement[]) || [];
+    const hasWaist = measurements.some((m: SizeMeasurement) => !!m.waist);
+    const measureLabel = hasWaist ? 'обхват талии' : 'обхват груди';
+    const msgText = `Подберите мне размер для товара "${product.name}". Мой рост: ${sizeAdvisorHeight} см, ${measureLabel}: ${sizeAdvisorMeasure} см.`;
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: msgText }],
+          productId: product.id,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setSizeAdvisorResult('Не удалось получить рекомендацию. Попробуйте ещё раз.'); return; }
+      const text: string = data.reply || '';
+      setSizeAdvisorResult(text);
+      const sizeStock = (product as any).sizeStock;
+      const availableSizes: string[] = product.sizes?.length > 0
+        ? product.sizes
+        : (sizeStock ? Object.keys(sizeStock) : []);
+      const upperText = text.toUpperCase();
+      const found = availableSizes.find(s => new RegExp(`\\b${s.toUpperCase()}\\b`).test(upperText));
+      if (found) setSizeAdvisorRecommended(found);
+    } catch {
+      setSizeAdvisorResult('Не удалось получить рекомендацию. Попробуйте ещё раз.');
+    } finally {
+      setSizeAdvisorLoading(false);
+    }
+  };
 
   const handleAddToCart = () => {
     // If product has sizes but none are selected, block
@@ -1129,25 +1180,95 @@ export default function ProductDetail() {
                       <button
                         data-testid="button-size-advisor"
                         onClick={() => {
-                          const measurements = (product.measurements as SizeMeasurement[]) || [];
-                          const hasWaist = measurements.some((m: SizeMeasurement) => !!m.waist);
-                          window.dispatchEvent(new CustomEvent("open-size-advisor", {
-                            detail: {
-                              id: product.id,
-                              productName: product.name,
-                              subcategory: product.subcategory,
-                              hasMeasurements: measurements.length > 0,
-                              hasWaist,
-                            } satisfies { id: number; name: string; subcategory?: string; hasMeasurements: boolean; hasWaist: boolean },
-                          }));
+                          setSizeAdvisorOpen(v => !v);
+                          setSizeAdvisorResult(null);
+                          setSizeAdvisorRecommended(null);
                         }}
-                        className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/75 transition-colors shrink-0"
+                        className={`flex items-center gap-1 text-xs font-medium transition-colors shrink-0 ${sizeAdvisorOpen ? 'text-foreground' : 'text-primary hover:text-primary/75'}`}
                       >
                         <Ruler className="w-3.5 h-3.5" />
-                        <span>Подобрать размер</span>
+                        <span>{sizeAdvisorOpen ? 'Свернуть' : 'Подобрать размер'}</span>
                       </button>
                     )}
                   </div>
+
+                  {/* Inline Size Advisor */}
+                  {sizeAdvisorOpen && (
+                    <div className="mt-3 mb-1 p-3.5 rounded-2xl bg-muted/50 border border-border/60 space-y-2.5">
+                      {sizeAdvisorResult ? (
+                        <>
+                          <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                            <Ruler className="w-3.5 h-3.5 text-primary" />
+                            Рекомендация AI
+                          </p>
+                          <p className="text-sm text-foreground/80 leading-relaxed">{sizeAdvisorResult}</p>
+                          {sizeAdvisorRecommended && (
+                            <button
+                              data-testid="button-size-advisor-apply"
+                              onClick={() => { setSelectedSize(sizeAdvisorRecommended!); setSizeAdvisorOpen(false); }}
+                              className="w-full py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all"
+                            >
+                              Выбрать размер {sizeAdvisorRecommended}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { setSizeAdvisorResult(null); setSizeAdvisorRecommended(null); }}
+                            className="w-full py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            Ввести другие параметры
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                            <Ruler className="w-3.5 h-3.5 text-primary" />
+                            Подбор размера по параметрам
+                          </p>
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <label className="text-xs text-muted-foreground mb-1 block">Рост (см)</label>
+                              <input
+                                type="number"
+                                placeholder="178"
+                                value={sizeAdvisorHeight}
+                                onChange={e => setSizeAdvisorHeight(e.target.value)}
+                                data-testid="input-size-advisor-height"
+                                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-xs text-muted-foreground mb-1 block">
+                                {(() => {
+                                  const m = (product.measurements as SizeMeasurement[]) || [];
+                                  return m.some((x: SizeMeasurement) => !!x.waist) ? 'Талия (см)' : 'Грудь (см)';
+                                })()}
+                              </label>
+                              <input
+                                type="number"
+                                placeholder="96"
+                                value={sizeAdvisorMeasure}
+                                onChange={e => setSizeAdvisorMeasure(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleSizeAdvisorSubmit()}
+                                data-testid="input-size-advisor-measure"
+                                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors"
+                              />
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleSizeAdvisorSubmit}
+                            disabled={!sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || sizeAdvisorLoading}
+                            data-testid="button-size-advisor-submit-inline"
+                            className="w-full py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            {sizeAdvisorLoading
+                              ? <><Loader2 className="w-4 h-4 animate-spin" /> Подбираем…</>
+                              : 'Подобрать размер'}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap gap-2">
                     {(() => {
                       const sizeStock = (product as any).sizeStock;
