@@ -22,6 +22,7 @@ import { initPostPurchaseEmailJob } from "./post-purchase-email";
 import { initAutonomousAgent } from "./autonomous-agent";
 import { startNewProductsNotifierJob } from "./new-products-notifier";
 import { startPreorderNotifierJob } from "./preorder-notifier";
+import { notifyError } from "./error-monitor";
 
 // Last-resort safety net: if a YDB-related promise escapes try/catch (e.g.
 // a fire-and-forget background task), proactively trigger driver reconnect
@@ -35,9 +36,21 @@ process.on('unhandledRejection', (reason: any) => {
   if (shouldReconnectYdb(reason)) {
     console.log('[Process] Detected YDB transport/auth failure → triggering reconnect');
     reconnectYdb().catch(err => {
-      console.error('[Process] YDB reconnect from unhandledRejection failed:', err?.message || err);
+      const errMsg = err?.message || String(err);
+      console.error('[Process] YDB reconnect from unhandledRejection failed:', errMsg);
+      notifyError('YDB Reconnect Failed', errMsg);
     });
+  } else {
+    // Не-YDB необработанный reject — сообщаем в мессенджеры
+    notifyError('Unhandled Rejection', message);
   }
+});
+
+process.on('uncaughtException', (err: Error) => {
+  console.error('[Process] Uncaught exception:', err.message, err.stack);
+  notifyError('💥 Crash (uncaughtException)', err.message, err.stack?.slice(0, 400));
+  // Даём 2 секунды чтобы уведомление успело отправиться, потом завершаем процесс
+  setTimeout(() => process.exit(1), 2000);
 });
 
 const app = express();
@@ -351,7 +364,11 @@ async function seedDefaultLegalDocuments() {
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+
+    // Уведомляем только о серверных ошибках (5xx), клиентские (4xx) игнорируем
+    if (status >= 500) {
+      notifyError('Express 500', message, err.stack?.slice(0, 400));
+    }
   });
 
   // importantly only setup vite in development and after

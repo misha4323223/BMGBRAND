@@ -13,6 +13,7 @@ import { mapProductCategory, isOnSale, extractColorFromName, extractSizesFromNam
 import { CATEGORIES, normalizeCategories, transliterateToSlug, insertPromoCodeSchema, insertLoyaltyTierSchema, insertNewsletterSubscriptionSchema, insertBonusSettingSchema, PARTNER_COOKIE_NAME, PARTNER_DEFAULT_COMMISSION_PERCENT, getProgressiveCommissionRate } from "@shared/schema";
 import type { SubcategoryConfig, CategoryConfig } from "@shared/schema";
 import authRoutes, { authMiddleware, requireAdminRole, type AuthRequest } from "./auth-routes";
+import { notifyError } from "./error-monitor";
 import partnerRoutes, { partnerRefQueryMiddleware, partnerRefRedirectHandler, getApprovedPartnerCached, getGlobalPartnerCommissionPercentCached, getGlobalPartnerHoldDaysCached } from "./partner-routes";
 import adminPartnerRoutes from "./admin-partner-routes";
 import { authStorage } from "./auth-storage";
@@ -11233,6 +11234,7 @@ BMGBRAND — официальный производитель и магазин
           console.log(`[Payment] T-Bank payment created for order ${order.id}: ${paymentUrl}`);
         } else {
           console.error(`[Payment] T-Bank payment failed:`, paymentResult.error);
+          notifyError('Оплата T-Bank', `Заказ #${order.id} — не удалось создать платёж`, `Клиент: ${input.customerEmail} | Сумма: ${(amountToPay/100).toFixed(0)} ₽ | Ошибка: ${paymentResult.error}`);
         }
       } else if (paymentMethod === "yookassa" && paymentService.isYooKassaEnabled()) {
         const baseUrl = process.env.APP_DOMAIN || `https://${req.get('host')}`;
@@ -11259,6 +11261,7 @@ BMGBRAND — официальный производитель и магазин
           console.log(`[Payment] YooKassa redirect payment created for order ${order.id}: ${paymentUrl}`);
         } else {
           console.error(`[Payment] YooKassa payment failed:`, paymentResult.error);
+          notifyError('Оплата YooKassa', `Заказ #${order.id} — не удалось создать платёж`, `Клиент: ${input.customerEmail} | Сумма: ${(amountToPay/100).toFixed(0)} ₽ | Ошибка: ${paymentResult.error}`);
         }
       } else if (paymentMethod === "ozon-pay" && ozonPayService.isEnabled()) {
         const baseUrl = process.env.APP_DOMAIN || `https://${req.get("host")}`;
@@ -11294,14 +11297,16 @@ BMGBRAND — официальный производитель и магазин
           console.log(`[OzonPay] Payment link created for order ${order.id}: ${paymentUrl}`);
         } else {
           console.error("[OzonPay] Payment creation failed:", ozonResult.error);
+          notifyError('Оплата Ozon Pay', `Заказ #${order.id} — не удалось создать платёж`, `Клиент: ${input.customerEmail} | Сумма: ${(amountToPay/100).toFixed(0)} ₽ | Ошибка: ${ozonResult.error}`);
         }
       }
 
       if (amountToPay > 0 && !paymentUrl && !confirmationToken && (paymentMethod === "yookassa" || paymentMethod === "tbank" || paymentMethod === "ozon-pay")) {
         console.error(`[Payment] No payment info generated for order ${order.id}, method: ${paymentMethod}`);
+        notifyError('Платёж не создан', `Заказ #${order.id} удалён — платёжный URL не получен`, `Метод: ${paymentMethod} | Клиент: ${input.customerEmail} | Сумма: ${(amountToPay/100).toFixed(0)} ₽`);
         // Delete the created order to avoid orphaned unpaid orders
         try { await storage.deleteOrder(order.id); } catch {}
-        return res.status(500).json({ message: "Не удалось создать платёж через Ozon Pay. Попробуйте ещё раз или выберите другой способ оплаты." });
+        return res.status(500).json({ message: "Не удалось создать платёж. Попробуйте ещё раз или выберите другой способ оплаты." });
       }
 
       // Clear cart
