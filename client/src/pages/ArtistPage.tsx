@@ -321,7 +321,14 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
 
   const imageUrl: string = (product.images?.[0] || product.imageUrl || product.thumbnailUrl || '');
   const discountPct: number = product.discountPercent || 0;
-  const salePrice = discountPct > 0 ? Math.round(product.price * (1 - discountPct / 100)) : product.price;
+  const productFixedPrice: number = (product as any).salePrice || 0;
+  const hasDiscount = (productFixedPrice > 0 && productFixedPrice < product.price) || discountPct > 0;
+  const salePrice = productFixedPrice > 0 && productFixedPrice < product.price
+    ? productFixedPrice
+    : (discountPct > 0 ? Math.round(product.price * (1 - discountPct / 100)) : product.price);
+  const badgePct = productFixedPrice > 0 && productFixedPrice < product.price
+    ? Math.round((1 - productFixedPrice / product.price) * 100)
+    : discountPct;
 
   function formatDeadline(dateStr?: string | null) {
     if (!dateStr) return null;
@@ -413,9 +420,9 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         )}
-        {discountPct > 0 && (
+        {hasDiscount && badgePct > 0 && (
           <span className="absolute top-2 right-2 bg-black/80 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full tracking-widest uppercase backdrop-blur-sm">
-            -{discountPct}%
+            -{badgePct}%
           </span>
         )}
         {/* Десктоп: hover-оверлей — только для обычных товаров */}
@@ -509,12 +516,12 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
         </Link>
         <div className="flex items-center gap-2">
           <span
-            className={`text-sm font-black tracking-tight ${discountPct > 0 ? 'text-red-500' : ''}`}
-            style={tc.text && discountPct === 0 ? { color: tc.text } : {}}
+            className={`text-sm font-black tracking-tight ${hasDiscount ? 'text-red-500' : ''}`}
+            style={tc.text && !hasDiscount ? { color: tc.text } : {}}
           >
             {formatPrice(salePrice)}
           </span>
-          {discountPct > 0 && (
+          {hasDiscount && (
             <span className="text-[11px] line-through" style={tc.textMuted ? { color: tc.textMuted } : { color: 'var(--muted-foreground)' }}>
               {formatPrice(product.price)}
             </span>
