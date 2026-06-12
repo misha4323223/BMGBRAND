@@ -1291,7 +1291,7 @@ export default function ArtistPage() {
                         style={isColored ? { color: tc.accent } : {}}
                         data-testid="button-load-more-artist-products"
                       >
-                        {settings.productsLinkText || "Показать ещё"} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        Показать ещё <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                       </button>
                     </div>
                   )}
