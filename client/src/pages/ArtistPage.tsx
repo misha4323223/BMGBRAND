@@ -580,6 +580,7 @@ export default function ArtistPage() {
   const [shareCopied, setShareCopied] = useState(false);
   const [galleryExpanded, setGalleryExpanded] = useState(false);
   const [promoCopied, setPromoCopied] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(0);
   const viewTrackedRef = useRef(false);
 
   useEffect(() => {
@@ -636,16 +637,21 @@ export default function ArtistPage() {
 
   const productsLimit = settings.productsLimit ?? 8;
 
+  useEffect(() => {
+    setVisibleCount(productsLimit);
+  }, [productsLimit]);
+
   const { data: slugProducts, isLoading: slugLoading } = useQuery<any[]>({
-    queryKey: ["/api/products/by-artist", slug, productsLimit],
+    queryKey: ["/api/products/by-artist", slug],
     queryFn: async () => {
-      const res = await fetch(`/api/products/by-artist/${slug}?limit=${productsLimit}`);
+      const res = await fetch(`/api/products/by-artist/${slug}`);
       return res.json();
     },
     enabled: settings.productsVisible !== false && !!slug,
   });
 
-  const products = (slugProducts || []).slice(0, productsLimit);
+  const products = slugProducts || [];
+  const visibleProducts = products.slice(0, visibleCount || productsLimit);
 
   const productsQueryLoading = slugLoading;
 
@@ -1273,20 +1279,20 @@ export default function ArtistPage() {
               ) : (
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {products.slice(0, productsLimit).map((product: any, index: number) => (
+                    {visibleProducts.map((product: any, index: number) => (
                       <ArtistProductCard key={product.id} product={product} priority={index < 4} theme={tc} />
                     ))}
                   </div>
-                  {products.length > 0 && (
+                  {visibleCount < products.length && (
                     <div className="flex justify-center mt-10">
-                      <Link
-                        href="/products"
+                      <button
+                        onClick={() => setVisibleCount(v => v + productsLimit)}
                         className="text-base flex items-center gap-2 group transition-colors font-bold"
                         style={isColored ? { color: tc.accent } : {}}
-                        data-testid="link-all-artist-products"
+                        data-testid="button-load-more-artist-products"
                       >
-                        {settings.productsLinkText || "Все товары"} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                      </Link>
+                        {settings.productsLinkText || "Показать ещё"} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </button>
                     </div>
                   )}
                 </>
