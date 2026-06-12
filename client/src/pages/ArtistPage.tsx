@@ -1357,12 +1357,6 @@ export default function ArtistPage() {
 
                   {/* Контент */}
                   <div className="flex flex-col justify-center gap-3 p-6 sm:py-8 sm:pr-8" style={settings.featuredPartnerImage ? {} : { paddingLeft: '2rem' }}>
-                    <div
-                      className="text-xs font-bold uppercase tracking-[0.25em]"
-                      style={{ color: isColored ? tc.accent : 'var(--muted-foreground)' }}
-                    >
-                      Специальный гость
-                    </div>
                     <h3
                       className="text-xl sm:text-2xl font-black tracking-tight leading-tight"
                       style={isColored ? { color: tc.text } : {}}
