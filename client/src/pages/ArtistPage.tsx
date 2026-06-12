@@ -814,12 +814,12 @@ export default function ArtistPage() {
 
             {/* Cinematic overlays */}
             <div
-              className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/10"
-              style={{ opacity: Number(heroOpacity) + 0.15 }}
+              className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"
+              style={{ opacity: Math.min(Number(heroOpacity), 0.7) }}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/25 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/10 to-transparent" />
             {/* Subtle vignette */}
-            <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 30% 100%, rgba(0,0,0,0.5) 0%, transparent 70%)' }} />
+            <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 30% 100%, rgba(0,0,0,0.25) 0%, transparent 70%)' }} />
 
             <div className="relative z-10 w-full px-4 sm:px-6 lg:px-12 pb-0">
               <motion.div
