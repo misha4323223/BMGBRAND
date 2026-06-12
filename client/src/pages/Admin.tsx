@@ -1573,7 +1573,7 @@ export default function Admin() {
   const preorderSubscribersQuery = useQuery<{ subscribers: Array<{ id: string; email: string; name: string | null; subscribedAt: string; isActive: boolean }>; count: number }>({
     queryKey: ["/api/admin/preorder-subscribers"],
     queryFn: async () => adminFetch("/api/admin/preorder-subscribers", apiKey),
-    enabled: !!apiKey && activeTab === "bonuses" && bonusesSubTab === "preorder-subscribers",
+    enabled: !!apiKey && activeTab === "bonuses" && (bonusesSubTab === "preorder-subscribers" || bonusesSubTab === "mailings"),
   });
 
   const loyaltyUsersQuery = useQuery<{ users: any[] }>({
