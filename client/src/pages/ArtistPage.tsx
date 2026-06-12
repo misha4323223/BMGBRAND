@@ -715,8 +715,8 @@ export default function ArtistPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold">Артист не найден</h1>
-          <p className="text-muted-foreground">Страница ещё не настроена</p>
+          <h1 className="text-2xl font-bold">Страница не найдена</h1>
+          <p className="text-muted-foreground">Такой страницы не существует</p>
           <Link href="/">
             <Button variant="outline" data-testid="button-back-home">
               <ArrowLeft className="w-4 h-4 mr-2" /> На главную
