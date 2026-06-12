@@ -7399,6 +7399,11 @@ export default function Admin() {
                             seoTitle: "",
                             seoDescription: "",
                             slug: "",
+                            featuredPartnerSlug: "",
+                            featuredPartnerTitle: "",
+                            featuredPartnerDescription: "",
+                            featuredPartnerImage: "",
+                            featuredPartnerVisible: false,
                           });
                           toast({ title: "Артист создан", description: "Заполните настройки нового артиста" });
                         } catch (err: any) {
@@ -7522,6 +7527,11 @@ export default function Admin() {
                                               seoTitle: "",
                                               seoDescription: "",
                                               slug: "",
+                                              featuredPartnerSlug: "",
+                                              featuredPartnerTitle: "",
+                                              featuredPartnerDescription: "",
+                                              featuredPartnerImage: "",
+                                              featuredPartnerVisible: false,
                                               ...existing,
                                             });
                                           }}
@@ -7921,6 +7931,41 @@ export default function Admin() {
                             value={artistPageSettings.productsLinkText || ""}
                             onChange={(e) => setArtistPageSettings({...artistPageSettings, productsLinkText: e.target.value})}
                             placeholder="Текст ссылки (Все товары)"
+                          />
+                        </CardContent>
+                      </Card>
+
+                      {/* Featured Partner Section */}
+                      <Card>
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <Label className="font-medium">Партнёрский бренд</Label>
+                            <Switch
+                              checked={artistPageSettings.featuredPartnerVisible !== false && !!artistPageSettings.featuredPartnerSlug}
+                              onCheckedChange={(v) => setArtistPageSettings({...artistPageSettings, featuredPartnerVisible: v})}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">Кликабельная карточка со ссылкой на страницу другого артиста. Отображается после товаров коллекции.</p>
+                          <Input
+                            value={artistPageSettings.featuredPartnerSlug || ""}
+                            onChange={(e) => setArtistPageSettings({...artistPageSettings, featuredPartnerSlug: e.target.value})}
+                            placeholder="Слаг артиста (например: mark-i-monti)"
+                          />
+                          <Input
+                            value={artistPageSettings.featuredPartnerTitle || ""}
+                            onChange={(e) => setArtistPageSettings({...artistPageSettings, featuredPartnerTitle: e.target.value})}
+                            placeholder="Название бренда (Марк и Монти)"
+                          />
+                          <textarea
+                            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            value={artistPageSettings.featuredPartnerDescription || ""}
+                            onChange={(e) => setArtistPageSettings({...artistPageSettings, featuredPartnerDescription: e.target.value})}
+                            placeholder="Описание (например: продукция будет представлена на фестивале)"
+                          />
+                          <Input
+                            value={artistPageSettings.featuredPartnerImage || ""}
+                            onChange={(e) => setArtistPageSettings({...artistPageSettings, featuredPartnerImage: e.target.value})}
+                            placeholder="URL картинки (опционально)"
                           />
                         </CardContent>
                       </Card>

@@ -32,6 +32,11 @@ interface ArtistSettings {
   productsTitle?: string;
   productsLimit?: number;
   productsLinkText?: string;
+  featuredPartnerSlug?: string;
+  featuredPartnerTitle?: string;
+  featuredPartnerDescription?: string;
+  featuredPartnerImage?: string;
+  featuredPartnerVisible?: boolean;
   logoUrl?: string;
   quoteText?: string;
   quoteAuthor?: string;
@@ -1300,6 +1305,73 @@ export default function ArtistPage() {
             </div>
           </section>
         )}
+        {/* Партнёрский бренд */}
+        {settings.featuredPartnerSlug && settings.featuredPartnerVisible !== false && (
+          <section
+            className="py-12 sm:py-16"
+            style={{ background: isColored ? tc.bgMuted : 'hsl(var(--muted) / 0.3)' }}
+            data-testid="section-artist-featured-partner"
+          >
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <Link
+                href={`/@${settings.featuredPartnerSlug}`}
+                className="group block"
+                data-testid="link-featured-partner"
+              >
+                <div
+                  className="flex flex-col sm:flex-row gap-6 rounded-2xl overflow-hidden border transition-all duration-300 group-hover:shadow-lg"
+                  style={{
+                    background: isColored ? tc.bg : 'hsl(var(--background))',
+                    borderColor: isColored ? `${tc.accent}30` : 'hsl(var(--border))',
+                  }}
+                >
+                  {/* Изображение */}
+                  {settings.featuredPartnerImage && (
+                    <div className="sm:w-56 sm:flex-shrink-0">
+                      <img
+                        src={settings.featuredPartnerImage}
+                        alt={settings.featuredPartnerTitle || settings.featuredPartnerSlug}
+                        className="w-full h-48 sm:h-full object-cover"
+                      />
+                    </div>
+                  )}
+
+                  {/* Контент */}
+                  <div className="flex flex-col justify-center gap-3 p-6 sm:py-8 sm:pr-8" style={settings.featuredPartnerImage ? {} : { paddingLeft: '2rem' }}>
+                    <div
+                      className="text-xs font-bold uppercase tracking-[0.25em]"
+                      style={{ color: isColored ? tc.accent : 'var(--muted-foreground)' }}
+                    >
+                      Специальный гость
+                    </div>
+                    <h3
+                      className="text-xl sm:text-2xl font-black tracking-tight leading-tight"
+                      style={isColored ? { color: tc.text } : {}}
+                    >
+                      {settings.featuredPartnerTitle || settings.featuredPartnerSlug}
+                    </h3>
+                    {settings.featuredPartnerDescription && (
+                      <p
+                        className="text-sm leading-relaxed max-w-md"
+                        style={{ color: isColored ? tc.textMuted : 'var(--muted-foreground)' }}
+                      >
+                        {settings.featuredPartnerDescription}
+                      </p>
+                    )}
+                    <div
+                      className="flex items-center gap-2 text-sm font-bold mt-1 transition-gap duration-200"
+                      style={{ color: isColored ? tc.accent : 'hsl(var(--primary))' }}
+                    >
+                      Перейти на страницу
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </section>
+        )}
+
         {/* Промокод партнёра — купон-билет */}
         {promoData?.promoCode && (() => {
           const ticketBg = isColored ? tc.accent : '#111111';
