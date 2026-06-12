@@ -1350,7 +1350,7 @@ export default function ArtistPage() {
                       <img
                         src={settings.featuredPartnerImage}
                         alt={settings.featuredPartnerTitle || settings.featuredPartnerSlug}
-                        className="w-full h-48 sm:h-full object-cover"
+                        className="w-full h-72 sm:h-full object-cover"
                       />
                     </div>
                   )}
