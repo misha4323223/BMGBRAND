@@ -57,6 +57,11 @@ async function clearQueue(): Promise<void> {
 
 export async function runPreorderNotifierCheck(): Promise<void> {
   try {
+    const enabled = await storage.getBonusSetting('newsletter_preorder_enabled');
+    if (enabled === 'false') {
+      console.log('[PreorderNotifier] Disabled via admin settings, skipping');
+      return;
+    }
     const queue = await readQueue();
     if (!queue || queue.productIds.length === 0) return;
 
@@ -170,10 +175,10 @@ export async function triggerPreorderNotifierNow(): Promise<{ sent: number; fail
   return { sent, failed, products: products.length, total: productIds.length };
 }
 
-export async function getPreorderQueueStatus(): Promise<{ count: number; firstAddedAt: string | null; lastAddedAt: string | null; minutesUntilSend: number | null }> {
+export async function getPreorderQueueStatus(): Promise<{ count: number; firstAddedAt: string | null; lastAddedAt: string | null; minutesUntilSend: number | null; productIds: number[] }> {
   const queue = await readQueue();
   if (!queue || queue.productIds.length === 0) {
-    return { count: 0, firstAddedAt: null, lastAddedAt: null, minutesUntilSend: null };
+    return { count: 0, firstAddedAt: null, lastAddedAt: null, minutesUntilSend: null, productIds: [] };
   }
   const now = Date.now();
   const lastAdded = new Date(queue.lastAddedAt).getTime();
@@ -183,6 +188,7 @@ export async function getPreorderQueueStatus(): Promise<{ count: number; firstAd
     firstAddedAt: queue.firstAddedAt,
     lastAddedAt: queue.lastAddedAt,
     minutesUntilSend: Math.ceil(remaining / 60000),
+    productIds: queue.productIds,
   };
 }
 

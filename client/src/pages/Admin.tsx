@@ -904,7 +904,7 @@ export default function Admin() {
   const [setPasswordValue, setSetPasswordValue] = useState("");
   const [inlinePasswordUserId, setInlinePasswordUserId] = useState<number | null>(null);
   const [inlinePasswordValue, setInlinePasswordValue] = useState("");
-  const [bonusesSubTab, setBonusesSubTab] = useState<"promo" | "giftcards" | "loyalty" | "newsletter" | "stock-notify" | "price-drop" | "preorder-subscribers" | "settings">("promo");
+  const [bonusesSubTab, setBonusesSubTab] = useState<"promo" | "giftcards" | "loyalty" | "newsletter" | "stock-notify" | "price-drop" | "preorder-subscribers" | "mailings" | "settings">("promo");
   const [popupPromoForm, setPopupPromoForm] = useState({
     popupId: null as number | null,
     popupCode: "",
@@ -1580,6 +1580,26 @@ export default function Admin() {
     queryKey: ["/api/admin/loyalty-users"],
     queryFn: async () => adminFetch("/api/admin/loyalty-users", apiKey),
     enabled: isAuthenticated && activeTab === "bonuses",
+  });
+
+  const newsletterQueueStatusQuery = useQuery<{ count: number; firstAddedAt: string | null; lastAddedAt: string | null; minutesUntilSend: number | null; productIds: number[] }>({
+    queryKey: ["/api/admin/newsletter-queue-status"],
+    queryFn: async () => adminFetch("/api/admin/newsletter-queue-status", apiKey),
+    enabled: !!apiKey && activeTab === "bonuses" && bonusesSubTab === "mailings",
+    refetchInterval: 30000,
+  });
+
+  const preorderQueueStatusQuery = useQuery<{ count: number; firstAddedAt: string | null; lastAddedAt: string | null; minutesUntilSend: number | null; productIds: number[] }>({
+    queryKey: ["/api/admin/preorder-queue-status"],
+    queryFn: async () => adminFetch("/api/admin/preorder-queue-status", apiKey),
+    enabled: !!apiKey && activeTab === "bonuses" && bonusesSubTab === "mailings",
+    refetchInterval: 30000,
+  });
+
+  const mailingsSettingsQuery = useQuery<{ newProductsEnabled: boolean; preorderEnabled: boolean }>({
+    queryKey: ["/api/admin/mailings-settings"],
+    queryFn: async () => adminFetch("/api/admin/mailings-settings", apiKey),
+    enabled: !!apiKey && activeTab === "bonuses" && bonusesSubTab === "mailings",
   });
 
   // Page settings query
@@ -2388,6 +2408,38 @@ export default function Admin() {
     onError: (err: any) => {
       toast({ title: "Ошибка", description: err.message, variant: "destructive" });
     },
+  });
+
+  const triggerNewProductsMutation = useMutation({
+    mutationFn: async () => adminFetch("/api/admin/newsletter-trigger-now", apiKey, { method: "POST" }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/newsletter-queue-status"] });
+      toast({ title: "Рассылка новинок отправлена", description: `Отправлено: ${data.sent}, товаров: ${data.products}` });
+    },
+    onError: (err: any) => toast({ title: "Ошибка", description: err.message, variant: "destructive" }),
+  });
+
+  const triggerPreorderMutation = useMutation({
+    mutationFn: async () => adminFetch("/api/admin/preorder-trigger-now", apiKey, { method: "POST" }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/preorder-queue-status"] });
+      toast({ title: "Рассылка предзаказов отправлена", description: `Отправлено: ${data.sent}, товаров: ${data.products}` });
+    },
+    onError: (err: any) => toast({ title: "Ошибка", description: err.message, variant: "destructive" }),
+  });
+
+  const updateMailingsSettingsMutation = useMutation({
+    mutationFn: async (settings: { newProductsEnabled?: boolean; preorderEnabled?: boolean }) =>
+      adminFetch("/api/admin/mailings-settings", apiKey, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/mailings-settings"] });
+      toast({ title: "Настройки рассылок сохранены" });
+    },
+    onError: (err: any) => toast({ title: "Ошибка", description: err.message, variant: "destructive" }),
   });
 
   const createPromoMutation = useMutation({
@@ -3678,6 +3730,21 @@ export default function Admin() {
                 )}
               </Button>
               <Button
+                variant={bonusesSubTab === "mailings" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setBonusesSubTab("mailings")}
+                className="h-8"
+                data-testid="button-subtab-mailings"
+              >
+                <Send className="w-4 h-4 mr-1" />
+                Рассылки новинок
+                {((newsletterQueueStatusQuery.data?.count ?? 0) + (preorderQueueStatusQuery.data?.count ?? 0)) > 0 && bonusesSubTab !== "mailings" && (
+                  <Badge variant="outline" className="ml-1 h-5 px-1.5 text-xs">
+                    {(newsletterQueueStatusQuery.data?.count ?? 0) + (preorderQueueStatusQuery.data?.count ?? 0)}
+                  </Badge>
+                )}
+              </Button>
+              <Button
                 variant={bonusesSubTab === "settings" ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setBonusesSubTab("settings")}
@@ -4654,6 +4721,185 @@ export default function Admin() {
                         </tbody>
                       </table>
                     )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Mailings Sub-tab */}
+            {bonusesSubTab === "mailings" && (
+              <div className="space-y-6" data-testid="section-mailings">
+                {/* Новинки */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Package className="w-5 h-5 text-primary" />
+                        <div>
+                          <CardTitle className="text-base">Новинки</CardTitle>
+                          <CardDescription className="text-xs mt-0.5">
+                            Автоматическая рассылка новых товаров подписчикам. Отправка через 5 ч тишины (макс. 12 ч).
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="new-products-enabled" className="text-sm text-muted-foreground">
+                          {mailingsSettingsQuery.data?.newProductsEnabled !== false ? "Вкл" : "Выкл"}
+                        </Label>
+                        <Switch
+                          id="new-products-enabled"
+                          checked={mailingsSettingsQuery.data?.newProductsEnabled !== false}
+                          disabled={updateMailingsSettingsMutation.isPending || mailingsSettingsQuery.isLoading}
+                          onCheckedChange={(checked) => updateMailingsSettingsMutation.mutate({ newProductsEnabled: checked })}
+                          data-testid="switch-new-products-enabled"
+                        />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {newsletterQueueStatusQuery.isLoading ? (
+                      <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Загрузка...
+                      </div>
+                    ) : newsletterQueueStatusQuery.data?.count === 0 ? (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40 text-sm text-muted-foreground">
+                        <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                        Очередь пуста — нет новинок для отправки
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                            <Package className="w-3.5 h-3.5" />
+                            {newsletterQueueStatusQuery.data?.count} товаров в очереди
+                          </div>
+                          {newsletterQueueStatusQuery.data?.minutesUntilSend !== null && newsletterQueueStatusQuery.data?.minutesUntilSend !== undefined && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-600 text-sm">
+                              <Clock className="w-3.5 h-3.5" />
+                              До отправки: ~{newsletterQueueStatusQuery.data.minutesUntilSend < 60
+                                ? `${newsletterQueueStatusQuery.data.minutesUntilSend} мин`
+                                : `${Math.round(newsletterQueueStatusQuery.data.minutesUntilSend / 60)} ч`}
+                            </div>
+                          )}
+                        </div>
+                        {newsletterQueueStatusQuery.data?.firstAddedAt && (
+                          <div className="text-xs text-muted-foreground">
+                            Первый товар добавлен: {new Date(newsletterQueueStatusQuery.data.firstAddedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            {newsletterQueueStatusQuery.data.lastAddedAt && newsletterQueueStatusQuery.data.lastAddedAt !== newsletterQueueStatusQuery.data.firstAddedAt && (
+                              <span className="ml-2">· Последний: {new Date(newsletterQueueStatusQuery.data.lastAddedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                            )}
+                          </div>
+                        )}
+                        {newsletterQueueStatusQuery.data?.productIds && newsletterQueueStatusQuery.data.productIds.length > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            ID товаров: {newsletterQueueStatusQuery.data.productIds.slice(0, 8).join(', ')}{newsletterQueueStatusQuery.data.productIds.length > 8 ? ` +${newsletterQueueStatusQuery.data.productIds.length - 8} ещё` : ''}
+                          </div>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => triggerNewProductsMutation.mutate()}
+                          disabled={triggerNewProductsMutation.isPending}
+                          data-testid="button-trigger-new-products"
+                        >
+                          {triggerNewProductsMutation.isPending ? (
+                            <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Отправляем...</>
+                          ) : (
+                            <><Send className="w-3.5 h-3.5 mr-1.5" />Отправить сейчас</>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                    <div className="text-xs text-muted-foreground border-t pt-3">
+                      Подписчиков: <span className="font-medium text-foreground">{newsletterStatsQuery.data?.count ?? '—'}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Предзаказы */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Bell className="w-5 h-5 text-primary" />
+                        <div>
+                          <CardTitle className="text-base">Предзаказы</CardTitle>
+                          <CardDescription className="text-xs mt-0.5">
+                            Уведомление подписчиков при открытии нового предзаказа. Отправка через 5 ч тишины (макс. 12 ч).
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="preorder-enabled" className="text-sm text-muted-foreground">
+                          {mailingsSettingsQuery.data?.preorderEnabled !== false ? "Вкл" : "Выкл"}
+                        </Label>
+                        <Switch
+                          id="preorder-enabled"
+                          checked={mailingsSettingsQuery.data?.preorderEnabled !== false}
+                          disabled={updateMailingsSettingsMutation.isPending || mailingsSettingsQuery.isLoading}
+                          onCheckedChange={(checked) => updateMailingsSettingsMutation.mutate({ preorderEnabled: checked })}
+                          data-testid="switch-preorder-enabled"
+                        />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {preorderQueueStatusQuery.isLoading ? (
+                      <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Загрузка...
+                      </div>
+                    ) : preorderQueueStatusQuery.data?.count === 0 ? (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40 text-sm text-muted-foreground">
+                        <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                        Очередь пуста — нет предзаказов для отправки
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                            <Bell className="w-3.5 h-3.5" />
+                            {preorderQueueStatusQuery.data?.count} предзаказов в очереди
+                          </div>
+                          {preorderQueueStatusQuery.data?.minutesUntilSend !== null && preorderQueueStatusQuery.data?.minutesUntilSend !== undefined && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-600 text-sm">
+                              <Clock className="w-3.5 h-3.5" />
+                              До отправки: ~{preorderQueueStatusQuery.data.minutesUntilSend < 60
+                                ? `${preorderQueueStatusQuery.data.minutesUntilSend} мин`
+                                : `${Math.round(preorderQueueStatusQuery.data.minutesUntilSend / 60)} ч`}
+                            </div>
+                          )}
+                        </div>
+                        {preorderQueueStatusQuery.data?.firstAddedAt && (
+                          <div className="text-xs text-muted-foreground">
+                            Первый товар добавлен: {new Date(preorderQueueStatusQuery.data.firstAddedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            {preorderQueueStatusQuery.data.lastAddedAt && preorderQueueStatusQuery.data.lastAddedAt !== preorderQueueStatusQuery.data.firstAddedAt && (
+                              <span className="ml-2">· Последний: {new Date(preorderQueueStatusQuery.data.lastAddedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                            )}
+                          </div>
+                        )}
+                        {preorderQueueStatusQuery.data?.productIds && preorderQueueStatusQuery.data.productIds.length > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            ID товаров: {preorderQueueStatusQuery.data.productIds.slice(0, 8).join(', ')}{preorderQueueStatusQuery.data.productIds.length > 8 ? ` +${preorderQueueStatusQuery.data.productIds.length - 8} ещё` : ''}
+                          </div>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => triggerPreorderMutation.mutate()}
+                          disabled={triggerPreorderMutation.isPending}
+                          data-testid="button-trigger-preorder"
+                        >
+                          {triggerPreorderMutation.isPending ? (
+                            <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Отправляем...</>
+                          ) : (
+                            <><Send className="w-3.5 h-3.5 mr-1.5" />Отправить сейчас</>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                    <div className="text-xs text-muted-foreground border-t pt-3">
+                      Подписчиков предзаказов: <span className="font-medium text-foreground">{preorderSubscribersQuery.data?.count ?? '—'}</span>
+                    </div>
                   </CardContent>
                 </Card>
               </div>

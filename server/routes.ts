@@ -25,7 +25,7 @@ import { yandexDeliveryService } from "./yandex-delivery";
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
 import { runAbandonedCartCheck, addAbandonedCartUnsub } from "./abandoned-cart";
 import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow } from "./new-products-notifier";
-import { enqueuePreorderProduct, getPreorderQueueStatus } from "./preorder-notifier";
+import { enqueuePreorderProduct, getPreorderQueueStatus, triggerPreorderNotifierNow } from "./preorder-notifier";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
 import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
@@ -13102,6 +13102,68 @@ BMGBRAND — официальный производитель и магазин
     try {
       const result = await triggerNewProductsNotifierNow();
       res.json({ success: true, ...result });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Preorder queue status
+  app.get("/api/admin/preorder-queue-status", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const status = await getPreorderQueueStatus();
+      res.json(status);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Force-send preorder newsletter now
+  app.post("/api/admin/preorder-trigger-now", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const result = await triggerPreorderNotifierNow();
+      res.json({ success: true, ...result });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Get mailings enabled/disabled settings
+  app.get("/api/admin/mailings-settings", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const [npRaw, preRaw] = await Promise.all([
+        storage.getBonusSetting('newsletter_new_products_enabled'),
+        storage.getBonusSetting('newsletter_preorder_enabled'),
+      ]);
+      res.json({
+        newProductsEnabled: npRaw !== 'false',
+        preorderEnabled: preRaw !== 'false',
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Save mailings enabled/disabled settings
+  app.patch("/api/admin/mailings-settings", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const { newProductsEnabled, preorderEnabled } = req.body;
+      const ops: Promise<void>[] = [];
+      if (typeof newProductsEnabled === 'boolean') {
+        ops.push(storage.setBonusSetting('newsletter_new_products_enabled', String(newProductsEnabled)));
+      }
+      if (typeof preorderEnabled === 'boolean') {
+        ops.push(storage.setBonusSetting('newsletter_preorder_enabled', String(preorderEnabled)));
+      }
+      await Promise.all(ops);
+      res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
