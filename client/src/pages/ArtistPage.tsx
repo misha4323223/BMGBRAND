@@ -287,7 +287,7 @@ function ArtistLikeButton({ slug, theme }: { slug: string; theme?: ArtistThemeCo
             strokeWidth={2}
           />
         </motion.span>
-        <span>{liked ? 'Спасибо! ❤️' : 'Нравится артист'}</span>
+        <span>{liked ? 'Спасибо! ❤️' : 'Нравится'}</span>
         {count > 0 && (
           <span
             className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
