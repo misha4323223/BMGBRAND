@@ -173,6 +173,12 @@ function getSocialIcon(key: string, url?: string): any {
 const formatPrice = (cents: number) =>
   new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 }).format(cents / 100);
 
+function ensureAbsoluteUrl(url?: string): string {
+  if (!url) return '#';
+  if (/^https?:\/\//i.test(url)) return url;
+  return `https://${url}`;
+}
+
 function ArtistMarquee({ text, bg, fg }: { text: string; bg: string; fg: string }) {
   const SEP = ' ★ ';
   const chunk = text + SEP;
@@ -889,29 +895,30 @@ export default function ArtistPage() {
               <div className="flex flex-wrap items-center gap-2">
                 {settings.socialsVisible !== false && socials.map((s) => {
                   const Icon = getSocialIcon(s.key, s.url);
+                  const btnBg = isColored ? `${tc.accent}18` : 'rgba(255,255,255,0.07)';
+                  const btnBorder = isColored ? `${tc.accent}45` : 'rgba(255,255,255,0.18)';
+                  const btnColor = isColored ? tc.text : '#fff';
+                  const btnBgHover = isColored ? `${tc.accent}30` : 'rgba(255,255,255,0.16)';
+                  const btnBorderHover = isColored ? `${tc.accent}70` : 'rgba(255,255,255,0.35)';
                   return (
                     <a
                       key={s.key}
-                      href={s.url}
+                      href={ensureAbsoluteUrl(s.url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       data-testid={`link-social-bar-${s.key}`}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[0.13em] transition-all duration-200"
-                      style={{
-                        background: 'rgba(255,255,255,0.07)',
-                        border: '1px solid rgba(255,255,255,0.18)',
-                        color: '#fff',
-                      }}
+                      style={{ background: btnBg, border: `1px solid ${btnBorder}`, color: btnColor }}
                       onMouseEnter={e => {
                         const el = e.currentTarget as HTMLElement;
-                        el.style.background = 'rgba(255,255,255,0.16)';
-                        el.style.borderColor = 'rgba(255,255,255,0.35)';
+                        el.style.background = btnBgHover;
+                        el.style.borderColor = btnBorderHover;
                         el.style.transform = 'translateY(-1px)';
                       }}
                       onMouseLeave={e => {
                         const el = e.currentTarget as HTMLElement;
-                        el.style.background = 'rgba(255,255,255,0.07)';
-                        el.style.borderColor = 'rgba(255,255,255,0.18)';
+                        el.style.background = btnBg;
+                        el.style.borderColor = btnBorder;
                         el.style.transform = 'translateY(0)';
                       }}
                     >
@@ -922,30 +929,40 @@ export default function ArtistPage() {
                 })}
 
                 {socials.length > 0 && (
-                  <div className="h-4 w-px bg-white/10 hidden sm:block" />
+                  <div
+                    className="h-4 w-px hidden sm:block"
+                    style={{ background: isColored ? `${tc.accent}25` : 'rgba(255,255,255,0.1)' }}
+                  />
                 )}
 
                 {/* Кнопка «Поделиться» */}
+                {(() => {
+                  const btnBg = isColored ? `${tc.accent}18` : 'rgba(255,255,255,0.07)';
+                  const btnBorder = isColored ? `${tc.accent}45` : 'rgba(255,255,255,0.18)';
+                  const btnColor = isColored ? tc.text : '#fff';
+                  const btnBgHover = isColored ? `${tc.accent}30` : 'rgba(255,255,255,0.16)';
+                  const btnBorderHover = isColored ? `${tc.accent}70` : 'rgba(255,255,255,0.35)';
+                  return (
                 <button
                   data-testid="button-artist-share-bar"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[0.13em] transition-all duration-200"
                   style={{
-                    background: shareCopied ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.07)',
-                    border: `1px solid ${shareCopied ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.18)'}`,
-                    color: '#fff',
+                    background: shareCopied ? btnBgHover : btnBg,
+                    border: `1px solid ${shareCopied ? btnBorderHover : btnBorder}`,
+                    color: btnColor,
                   }}
                   onMouseEnter={e => {
                     if (shareCopied) return;
                     const el = e.currentTarget as HTMLElement;
-                    el.style.background = 'rgba(255,255,255,0.16)';
-                    el.style.borderColor = 'rgba(255,255,255,0.35)';
+                    el.style.background = btnBgHover;
+                    el.style.borderColor = btnBorderHover;
                     el.style.transform = 'translateY(-1px)';
                   }}
                   onMouseLeave={e => {
                     if (shareCopied) return;
                     const el = e.currentTarget as HTMLElement;
-                    el.style.background = 'rgba(255,255,255,0.07)';
-                    el.style.borderColor = 'rgba(255,255,255,0.18)';
+                    el.style.background = btnBg;
+                    el.style.borderColor = btnBorder;
                     el.style.transform = 'translateY(0)';
                   }}
                   onClick={async () => {
@@ -967,6 +984,8 @@ export default function ArtistPage() {
                   <Share2 className="w-3 h-3 shrink-0" />
                   <span>{shareCopied ? 'Скопировано!' : 'Поделиться'}</span>
                 </button>
+                  );
+                })()}
               </div>
             </div>
           </div>
