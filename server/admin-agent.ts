@@ -230,8 +230,10 @@ export async function executeWriteTool(tool: string, params: any): Promise<strin
       const { sendEmail } = await import("./email");
       const { getCartPromoEmailHtml } = await import("./email");
       const users: Array<{ userId: number; name: string; email: string; topItem: string }> = params.users || [];
-      const discount: number = params.discount ?? 10;
+      const discount: number = params.discount ?? 12;
       const validityHours: number = params.validityHours ?? 48;
+      const emailSubject: string = params.emailSubject || `Персональная скидка ${discount}% — специально для вас 🎁`;
+      const emailBody: string | undefined = params.emailBody;
       let sent = 0;
       const errors: string[] = [];
       for (const u of users) {
@@ -246,16 +248,22 @@ export async function executeWriteTool(tool: string, params: any): Promise<strin
             expiresAt,
             isActive: true,
           } as any);
+          const resolvedBody = emailBody
+            ? emailBody
+                .replace(/\{name\}/g, u.name || "")
+                .replace(/\{item\}/g, u.topItem || "")
+            : undefined;
           const html = getCartPromoEmailHtml({
             userName: u.name,
             promoCode,
             discountPercent: discount,
             validityHours,
             topItem: u.topItem,
+            customBody: resolvedBody,
           });
           const ok = await sendEmail({
             to: u.email,
-            subject: `Персональная скидка ${discount}% — специально для вас 🎁`,
+            subject: emailSubject,
             html,
           });
           if (ok) sent++;

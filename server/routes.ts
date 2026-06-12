@@ -3428,7 +3428,11 @@ BMGBRAND — официальный производитель и магазин
 
       await updateQueueItemStatus(id, "approved");
       try {
-        const result = await executeWriteTool(item.tool, item.params);
+        const bodyData = req.body as any;
+        const paramsToUse = bodyData?.paramsOverride
+          ? { ...item.params, ...bodyData.paramsOverride }
+          : item.params;
+        const result = await executeWriteTool(item.tool, paramsToUse);
         await updateQueueItemStatus(id, "executed", { executedAt: new Date().toISOString() });
         await addLogEntry({ type: item.type, action: `Подтверждено: ${item.title}`, summary: result.slice(0, 100), isAuto: false });
         res.json({ ok: true, result });

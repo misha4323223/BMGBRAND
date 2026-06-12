@@ -810,8 +810,14 @@ export async function runCartAnalysisJob(): Promise<void> {
           `Клиенты с товарами в корзине:\n` +
           promoTargets.slice(0, 10).map(u => `• ${u.name} — ${u.topItem}`).join("\n") +
           (promoTargets.length > 10 ? `\n...и ещё ${promoTargets.length - 10}` : "") +
-          `\n\nБудет отправлен персональный промокод на скидку 10% на 48 часов.`,
-        params: { users: promoTargets, discount: 10, validityHours: 48 },
+          `\n\nБудет отправлен персональный промокод на скидку 12% на 48 часов.`,
+        params: {
+          users: promoTargets,
+          discount: 12,
+          validityHours: 48,
+          emailSubject: `Персональная скидка 12% — специально для вас 🎁`,
+          emailBody: `{name}, мы заметили, что вы присматривались к {item}. Держите персональный промокод — только для вас.`,
+        },
         tool: "send_cart_promos",
       });
       await notifyAgentQueueItem(queueItem);

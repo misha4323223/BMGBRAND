@@ -648,6 +648,7 @@ export async function notifyAgentQueueItem(item: {
   title: string;
   description: string;
   type: string;
+  params?: any;
 }): Promise<void> {
   const { token, chatId } = getConfig();
   if (!token || !chatId) return;
@@ -668,10 +669,22 @@ export async function notifyAgentQueueItem(item: {
     ? item.description.slice(0, 400) + "…"
     : item.description;
 
-  const text =
+  let text =
     `${emoji} <b>BOOOM AI предлагает:</b>\n\n` +
     `<b>${item.title}</b>\n\n` +
     `${desc}`;
+
+  if (item.type === "cart_promo" && item.params) {
+    const d = item.params.discount ?? 12;
+    const h = item.params.validityHours ?? 48;
+    const subj = item.params.emailSubject || `Персональная скидка ${d}%`;
+    text +=
+      `\n\n💰 <b>Скидка:</b> ${d}%` +
+      `\n⏱ <b>Срок действия:</b> ${h} ч.` +
+      `\n📧 <b>Тема письма:</b> <i>${subj}</i>` +
+      `\n🔖 <b>Формат промокода:</b> CART-XXXXX (уникальный для каждого)` +
+      `\n\n✏️ <i>Редактировать письмо: Админка → ИИ → Очередь</i>`;
+  }
 
   const buttons = [[
     { text: "✅ Подтвердить", callback_data: `agent_approve:${item.id}` },

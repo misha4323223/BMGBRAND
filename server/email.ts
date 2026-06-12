@@ -1611,12 +1611,14 @@ export function getCartPromoEmailHtml({
   discountPercent,
   validityHours,
   topItem,
+  customBody,
 }: {
   userName: string;
   promoCode: string;
   discountPercent: number;
   validityHours: number;
   topItem: string;
+  customBody?: string;
 }): string {
   const siteUrl = 'https://www.booomerangs.ru';
   const cartUrl = `${siteUrl}/cart`;
@@ -1645,7 +1647,9 @@ export function getCartPromoEmailHtml({
             Персональная скидка для вас 🎁
           </div>
           <p style="font-size:14px;color:#555;margin:0 0 24px;">
-            ${userName ? `${userName}, мы` : 'Мы'} заметили, что вы присматривались к <b>${topItem}</b>. Держите персональный промокод — только для вас.
+            ${customBody
+              ? customBody
+              : `${userName ? `${userName}, мы` : 'Мы'} заметили, что вы присматривались к <b>${topItem}</b>. Держите персональный промокод — только для вас.`}
           </p>
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border:2px dashed #1C1C1C;border-radius:10px;margin-bottom:24px;">
             <tr>
