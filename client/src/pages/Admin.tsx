@@ -7962,10 +7962,12 @@ export default function Admin() {
                             onChange={(e) => setArtistPageSettings({...artistPageSettings, featuredPartnerDescription: e.target.value})}
                             placeholder="Описание (например: продукция будет представлена на фестивале)"
                           />
-                          <Input
+                          <ImageUploadField
                             value={artistPageSettings.featuredPartnerImage || ""}
-                            onChange={(e) => setArtistPageSettings({...artistPageSettings, featuredPartnerImage: e.target.value})}
-                            placeholder="URL картинки (опционально)"
+                            onChange={(url) => setArtistPageSettings({...artistPageSettings, featuredPartnerImage: url})}
+                            apiKey={apiKey}
+                            placeholder="Фото коллаба (опционально)"
+                            hint="Рекомендуется 800×600 px, JPG/WebP"
                           />
                         </CardContent>
                       </Card>
