@@ -84,6 +84,7 @@ export default function ConceptPage() {
   const [sizePopupId, setSizePopupId] = useState<number | null>(null);
   const [popupSizes, setPopupSizes] = useState<string[]>([]);
   const [popupSizeStock, setPopupSizeStock] = useState<Record<string, number>>({});
+  const [popupSizeQty, setPopupSizeQty] = useState<Record<string, number>>({});
   const [popupLoadingId, setPopupLoadingId] = useState<number | null>(null);
 
   const SIZE_ORDER = ["XXS","XS","S","M","L","XL","XXL","XXXL","ONE SIZE","OS"];
@@ -98,11 +99,6 @@ export default function ConceptPage() {
   async function openSizePopup(e: React.MouseEvent, product: PreorderProduct) {
     e.preventDefault();
     e.stopPropagation();
-    const already = cartPreorderItems.find(i => i.productId === product.id);
-    if (already) {
-      setLocation("/predrop/checkout");
-      return;
-    }
     setPopupLoadingId(product.id);
     const effectivePrice = getEffectivePrice(product);
     try {
@@ -137,6 +133,7 @@ export default function ConceptPage() {
         toast({ title: "Добавлено в корзину предзаказов", description: product.name });
       } else {
         setPopupSizes(sorted);
+        setPopupSizeQty({});
         setSizePopupId(product.id);
       }
     } catch {
@@ -409,49 +406,80 @@ export default function ConceptPage() {
                               className="absolute bottom-full mb-2 left-0 right-0 z-30 bg-background border border-border rounded-xl shadow-xl p-3"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Выберите размер</p>
-                              <div className="flex flex-wrap gap-1.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Размер и количество</p>
+                              <div className="flex flex-col gap-1.5">
                                 {popupSizes.map((size) => {
                                   const stockLimit = popupSizeStock[size];
-                                  const alreadyInCart = cartPreorderItems.find(i => i.productId === product.id)?.selectedSizes[size] || 0;
-                                  const isExhausted = stockLimit !== undefined && alreadyInCart >= stockLimit;
+                                  const inCartQty = cartPreorderItems.find(i => i.productId === product.id)?.selectedSizes[size] || 0;
+                                  const maxAllowed = stockLimit !== undefined ? stockLimit - inCartQty : 99;
+                                  const qty = popupSizeQty[size] || 0;
+                                  const isExhausted = maxAllowed <= 0;
                                   return (
-                                    <button
+                                    <div
                                       key={size}
-                                      disabled={isExhausted}
-                                      className={`px-2.5 py-1.5 text-xs font-medium border rounded-lg transition-colors ${
-                                        isExhausted
-                                          ? "border-border text-muted-foreground line-through cursor-not-allowed opacity-50"
-                                          : "hover:border-primary hover:text-primary"
+                                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-colors ${
+                                        isExhausted ? "opacity-40 border-border" : qty > 0 ? "border-primary bg-primary/5" : "border-border"
                                       }`}
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        if (isExhausted) return;
-                                        if (stockLimit !== undefined && alreadyInCart + 1 > stockLimit) {
-                                          toast({ title: "Нет в наличии", description: `Доступно ${stockLimit} шт., в корзине уже ${alreadyInCart}`, variant: "destructive" });
-                                          return;
-                                        }
-                                        addOrUpdateItem({
-                                          productId: product.id,
-                                          productName: product.name,
-                                          price: salePrice,
-                                          imageUrl,
-                                          selectedSizes: { [size]: 1 },
-                                        });
-                                        setSizePopupId(null);
-                                        toast({ title: "Добавлено в корзину предзаказов", description: `${product.name} — ${size}` });
-                                      }}
-                                      data-testid={`size-option-${product.id}-${size}`}
                                     >
-                                      {size}
-                                    </button>
+                                      <span className={`text-xs font-semibold ${isExhausted ? "line-through text-muted-foreground" : qty > 0 ? "text-primary" : ""}`}>
+                                        {size}
+                                        {isExhausted && <span className="text-[9px] ml-1 font-normal">нет</span>}
+                                      </span>
+                                      <div className="flex items-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPopupSizeQty(prev => { const n = Math.max(0, (prev[size] || 0) - 1); const u = { ...prev, [size]: n }; if (n === 0) delete u[size]; return u; }); }}
+                                          disabled={qty === 0}
+                                          className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none bg-muted disabled:opacity-20 hover:bg-muted/70 transition-colors"
+                                          data-testid={`qty-minus-${product.id}-${size}`}
+                                        >−</button>
+                                        <span className="w-4 text-center text-xs font-bold tabular-nums">{qty}</span>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (isExhausted || qty >= maxAllowed) return; setPopupSizeQty(prev => ({ ...prev, [size]: (prev[size] || 0) + 1 })); }}
+                                          disabled={isExhausted || qty >= maxAllowed}
+                                          className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none bg-muted disabled:opacity-20 hover:bg-muted/70 transition-colors"
+                                          data-testid={`qty-plus-${product.id}-${size}`}
+                                        >+</button>
+                                      </div>
+                                    </div>
                                   );
                                 })}
                               </div>
+                              {(() => {
+                                const totalQty = Object.values(popupSizeQty).reduce((s, q) => s + q, 0);
+                                return (
+                                  <button
+                                    className={`mt-2.5 w-full py-2 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all ${
+                                      totalQty > 0
+                                        ? "bg-foreground text-background hover:bg-foreground/85"
+                                        : "bg-muted text-muted-foreground cursor-not-allowed"
+                                    }`}
+                                    disabled={totalQty === 0}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (totalQty === 0) return;
+                                      addOrUpdateItem({
+                                        productId: product.id,
+                                        productName: product.name,
+                                        price: salePrice,
+                                        imageUrl,
+                                        selectedSizes: { ...popupSizeQty },
+                                      });
+                                      setSizePopupId(null);
+                                      setPopupSizeQty({});
+                                      toast({ title: "Добавлено в корзину предзаказов", description: `${product.name} · ${totalQty} шт.` });
+                                    }}
+                                    data-testid={`button-popup-confirm-${product.id}`}
+                                  >
+                                    {totalQty > 0 ? `В предзаказ · ${totalQty} шт.` : "Выберите количество"}
+                                  </button>
+                                );
+                              })()}
                               <button
-                                className="mt-2 w-full text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                                onClick={() => setSizePopupId(null)}
+                                className="mt-1 w-full text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={() => { setSizePopupId(null); setPopupSizeQty({}); }}
                               >
                                 Отмена
                               </button>

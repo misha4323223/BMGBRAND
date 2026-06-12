@@ -2167,10 +2167,6 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
   const alreadyInCart = preorderCartItems.some(i => i.productId === product.id);
 
   function handleAddToCart() {
-    if (alreadyInCart) {
-      setLocation("/predrop/checkout");
-      return;
-    }
     if (availableSizes.length === 0) {
       addOrUpdateItem({
         productId: product.id,
@@ -2186,7 +2182,11 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
       return;
     }
     if (totalItems === 0) {
-      toast({ title: "Выберите размер", variant: "destructive" });
+      if (alreadyInCart) {
+        setLocation("/predrop/checkout");
+      } else {
+        toast({ title: "Выберите размер", variant: "destructive" });
+      }
       return;
     }
     addOrUpdateItem({
@@ -2197,6 +2197,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
       selectedSizes: { ...sizeQuantities },
       selectedColor: selectedColor || undefined,
     });
+    setSizeQuantities({});
     toast({ title: "Добавлено в корзину предзаказов", description: product.name });
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 1800);
@@ -2262,20 +2263,22 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
             <Check className="w-4 h-4 mr-2" />
             Добавлено в корзину предзаказов
           </>
+        ) : totalItems > 0 ? (
+          <>
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            {alreadyInCart
+              ? `Добавить ещё ${totalItems} шт. — ${(totalItems * salePrice / 100).toLocaleString("ru-RU")} ₽`
+              : `В корзину предзаказов — ${(totalItems * salePrice / 100).toLocaleString("ru-RU")} ₽`}
+          </>
         ) : alreadyInCart ? (
           <>
             <ShoppingCart className="w-4 h-4 mr-2" />
             Перейти к оформлению →
           </>
-        ) : availableSizes.length > 0 && totalItems === 0 ? (
+        ) : availableSizes.length > 0 ? (
           <>
             <ShoppingCart className="w-4 h-4 mr-2" />
             Выберите размер
-          </>
-        ) : totalItems > 0 ? (
-          <>
-            <ShoppingCart className="w-4 h-4 mr-2" />
-            {`В корзину предзаказов — ${(totalItems * salePrice / 100).toLocaleString("ru-RU")} ₽`}
           </>
         ) : (
           <>
