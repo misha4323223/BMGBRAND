@@ -322,19 +322,47 @@ export default function PreorderCheckout() {
               <div className="space-y-3">
                 {items.map(item => {
                   const qty = Object.values(item.selectedSizes).reduce((s, q) => s + q, 0);
+                  const sizes = Object.entries(item.selectedSizes).filter(([, q]) => q > 0);
+                  function changeSizeQty(size: string, delta: number) {
+                    const cur = item.selectedSizes[size] || 0;
+                    const next = Math.max(0, cur + delta);
+                    const updated = { ...item.selectedSizes, [size]: next };
+                    if (next === 0) delete updated[size];
+                    if (Object.keys(updated).length === 0) {
+                      removeItem(item.productId);
+                    } else {
+                      updateSizes(item.productId, updated);
+                    }
+                  }
                   return (
-                    <div key={item.productId} className="flex items-center gap-4 p-4 border border-border rounded-xl bg-card">
+                    <div key={item.productId} className="flex items-start gap-4 p-4 border border-border rounded-xl bg-card">
                       {item.imageUrl && (
                         <img src={item.imageUrl} alt={item.productName} className="w-16 h-20 object-cover rounded-md shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm leading-tight">{item.productName}</p>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {Object.entries(item.selectedSizes).filter(([, q]) => q > 0).map(([size, q]) => (
-                            <span key={size} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs font-medium">
-                              {size === "ONE SIZE" ? "One Size" : size}
-                              {q > 1 && <span className="text-muted-foreground">×{q}</span>}
-                            </span>
+                        <div className="flex flex-col gap-1.5 mt-2">
+                          {sizes.map(([size, q]) => (
+                            <div key={size} className="flex items-center gap-2">
+                              <span className="text-xs font-semibold w-10 shrink-0">
+                                {size === "ONE SIZE" ? "OS" : size}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => changeSizeQty(size, -1)}
+                                  className="w-6 h-6 flex items-center justify-center rounded-full bg-muted text-sm hover:bg-muted/70 transition-colors"
+                                  data-testid={`qty-minus-cart-${item.productId}-${size}`}
+                                >−</button>
+                                <span className="w-5 text-center text-sm font-bold tabular-nums">{q}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => changeSizeQty(size, +1)}
+                                  className="w-6 h-6 flex items-center justify-center rounded-full bg-muted text-sm hover:bg-muted/70 transition-colors"
+                                  data-testid={`qty-plus-cart-${item.productId}-${size}`}
+                                >+</button>
+                              </div>
+                            </div>
                           ))}
                         </div>
                         <p className="text-sm font-bold mt-2">{formatPrice(item.price * qty)}</p>
