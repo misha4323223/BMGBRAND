@@ -15037,6 +15037,37 @@ ${offersXml}
         return res.status(400).json({ error: "Нет товаров с ненулевым количеством" });
       }
 
+      // Проверяем остатки — только если sizeStock явно задан (не чистый предзаказ без стока)
+      const preorderStockIssues: { productName: string; requested: number; available: number; size?: string }[] = [];
+      for (const item of orderItems) {
+        try {
+          const product = await storage.getProduct(item.productId);
+          if (!product) continue;
+          const sizeStockMap = (product as any).sizeStock as Record<string, number> | null;
+          if (!sizeStockMap || Object.keys(sizeStockMap).length === 0) continue;
+          const sizeKey = item.size || "ONE SIZE";
+          const avail = resolveSizeStock(sizeStockMap, sizeKey);
+          if (avail !== undefined && item.quantity > avail) {
+            preorderStockIssues.push({
+              productName: item.productName,
+              requested: item.quantity,
+              available: avail,
+              size: item.size || undefined,
+            });
+          }
+        } catch { continue; }
+      }
+      if (preorderStockIssues.length > 0) {
+        const details = preorderStockIssues.map(si =>
+          `${si.productName}${si.size ? ` (${si.size})` : ''}: запрошено ${si.requested}, в наличии ${si.available}`
+        ).join('; ');
+        return res.status(400).json({
+          message: `Недостаточно товара: ${details}`,
+          code: "STOCK_INSUFFICIENT",
+          stockIssues: preorderStockIssues,
+        });
+      }
+
       const totalPrice = orderItems.reduce((s: number, i: any) => s + i.price * i.quantity, 0) + deliveryCost;
 
       const order = await storage.createOrder({

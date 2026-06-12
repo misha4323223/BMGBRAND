@@ -83,6 +83,7 @@ export default function ConceptPage() {
   const { toast } = useToast();
   const [sizePopupId, setSizePopupId] = useState<number | null>(null);
   const [popupSizes, setPopupSizes] = useState<string[]>([]);
+  const [popupSizeStock, setPopupSizeStock] = useState<Record<string, number>>({});
   const [popupLoadingId, setPopupLoadingId] = useState<number | null>(null);
 
   const SIZE_ORDER = ["XXS","XS","S","M","L","XL","XXL","XXXL","ONE SIZE","OS"];
@@ -107,7 +108,7 @@ export default function ConceptPage() {
     try {
       const res = await fetch(`/api/products/${product.id}`);
       const data = await res.json();
-      const sizeStockData = data.sizeStock || {};
+      const sizeStockData: Record<string, number> = data.sizeStock || {};
       const fromStock = Object.keys(sizeStockData).filter(k => (sizeStockData[k] ?? 0) > 0);
       const fromSizes: string[] = data.sizes || [];
       const all = Array.from(new Set([...fromSizes, ...fromStock]));
@@ -117,8 +118,15 @@ export default function ConceptPage() {
         if (ia === -1) return 1; if (ib === -1) return -1;
         return ia - ib;
       });
+      setPopupSizeStock(sizeStockData);
       if (sorted.length <= 1) {
         const onlySize = sorted[0] || "ONE SIZE";
+        const stockLimit = sizeStockData[onlySize];
+        const alreadyInCart = cartPreorderItems.find(i => i.productId === product.id)?.selectedSizes[onlySize] || 0;
+        if (stockLimit !== undefined && alreadyInCart + 1 > stockLimit) {
+          toast({ title: "Нет в наличии", description: `Доступно ${stockLimit} шт., в корзине уже ${alreadyInCart}`, variant: "destructive" });
+          return;
+        }
         addOrUpdateItem({
           productId: product.id,
           productName: product.name,
@@ -403,28 +411,43 @@ export default function ConceptPage() {
                             >
                               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Выберите размер</p>
                               <div className="flex flex-wrap gap-1.5">
-                                {popupSizes.map((size) => (
-                                  <button
-                                    key={size}
-                                    className="px-2.5 py-1.5 text-xs font-medium border rounded-lg hover:border-primary hover:text-primary transition-colors"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      addOrUpdateItem({
-                                        productId: product.id,
-                                        productName: product.name,
-                                        price: salePrice,
-                                        imageUrl,
-                                        selectedSizes: { [size]: 1 },
-                                      });
-                                      setSizePopupId(null);
-                                      toast({ title: "Добавлено в корзину предзаказов", description: `${product.name} — ${size}` });
-                                    }}
-                                    data-testid={`size-option-${product.id}-${size}`}
-                                  >
-                                    {size}
-                                  </button>
-                                ))}
+                                {popupSizes.map((size) => {
+                                  const stockLimit = popupSizeStock[size];
+                                  const alreadyInCart = cartPreorderItems.find(i => i.productId === product.id)?.selectedSizes[size] || 0;
+                                  const isExhausted = stockLimit !== undefined && alreadyInCart >= stockLimit;
+                                  return (
+                                    <button
+                                      key={size}
+                                      disabled={isExhausted}
+                                      className={`px-2.5 py-1.5 text-xs font-medium border rounded-lg transition-colors ${
+                                        isExhausted
+                                          ? "border-border text-muted-foreground line-through cursor-not-allowed opacity-50"
+                                          : "hover:border-primary hover:text-primary"
+                                      }`}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (isExhausted) return;
+                                        if (stockLimit !== undefined && alreadyInCart + 1 > stockLimit) {
+                                          toast({ title: "Нет в наличии", description: `Доступно ${stockLimit} шт., в корзине уже ${alreadyInCart}`, variant: "destructive" });
+                                          return;
+                                        }
+                                        addOrUpdateItem({
+                                          productId: product.id,
+                                          productName: product.name,
+                                          price: salePrice,
+                                          imageUrl,
+                                          selectedSizes: { [size]: 1 },
+                                        });
+                                        setSizePopupId(null);
+                                        toast({ title: "Добавлено в корзину предзаказов", description: `${product.name} — ${size}` });
+                                      }}
+                                      data-testid={`size-option-${product.id}-${size}`}
+                                    >
+                                      {size}
+                                    </button>
+                                  );
+                                })}
                               </div>
                               <button
                                 className="mt-2 w-full text-[10px] text-muted-foreground hover:text-foreground transition-colors"

@@ -243,6 +243,23 @@ export default function PreorderCheckout() {
       }
     },
     onError: (err: any) => {
+      try {
+        const jsonMatch = err.message?.match(/^\d+: (.+)$/s);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[1]);
+          if (parsed.code === "STOCK_INSUFFICIENT" && parsed.stockIssues?.length) {
+            const lines = parsed.stockIssues.map((si: any) =>
+              `• ${si.productName}${si.size ? ` (${si.size})` : ''}: доступно ${si.available} шт., запрошено ${si.requested}`
+            ).join("\n");
+            setOrderError(`Недостаточно товаров на складе:\n${lines}`);
+            return;
+          }
+          if (parsed.error || parsed.message) {
+            setOrderError(parsed.error || parsed.message);
+            return;
+          }
+        }
+      } catch {}
       setOrderError(err.message || "Ошибка при создании предзаказа");
     },
   });
