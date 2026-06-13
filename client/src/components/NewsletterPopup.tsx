@@ -52,6 +52,7 @@ export function NewsletterPopup() {
   const [promoCode, setPromoCode] = useState("WELCOME10");
   const [consent, setConsent] = useState(false);
   const [pushStatus, setPushStatus] = useState<PushStatus>("idle");
+  const [pushError, setPushError] = useState<string>("");
 
   const { data: promoData } = useQuery<{ popup: any; homepage: any }>({
     queryKey: ["/api/subscription-promos"],
@@ -126,15 +127,32 @@ export function NewsletterPopup() {
 
   const handlePushSubscribe = async () => {
     if (pushStatus === "subscribed" || pushStatus === "pending") return;
+    // При повторной попытке из denied сбрасываем состояние
     setPushStatus("pending");
+    setPushError("");
+
+    // Таймаут на случай если браузер завис на подписке
+    const timeoutId = setTimeout(() => {
+      setPushStatus("idle");
+      setPushError("Браузер не ответил. Попробуйте ещё раз.");
+    }, 15000);
+
     const result = await subscribeToPush();
+    clearTimeout(timeoutId);
+
     if (result.success) {
       setPushStatus("subscribed");
+      setPushError("");
       localStorage.setItem("push-subscribed", "true");
-    } else if (result.error === "denied" || result.error === "unsupported") {
-      setPushStatus(result.error === "unsupported" ? "unsupported" : "denied");
+    } else if (result.error === "unsupported") {
+      setPushStatus("unsupported");
+    } else if (result.error === "denied") {
+      setPushStatus("denied");
+      setPushError("Разрешите уведомления в настройках браузера");
     } else {
+      // Любая другая ошибка — сбрасываем в idle чтобы можно было попробовать снова
       setPushStatus("idle");
+      setPushError(result.error || "Не удалось подключить. Попробуйте ещё раз.");
     }
   };
 
@@ -144,7 +162,7 @@ export function NewsletterPopup() {
       : pushStatus === "pending"
       ? "Подключение..."
       : pushStatus === "denied"
-      ? "Уведомления заблокированы"
+      ? "Попробовать снова"
       : "Подписаться на уведомления";
 
   const showPushBlock = pushStatus !== "unsupported";
@@ -292,8 +310,7 @@ export function NewsletterPopup() {
                           onClick={handlePushSubscribe}
                           disabled={
                             pushStatus === "subscribed" ||
-                            pushStatus === "pending" ||
-                            pushStatus === "denied"
+                            pushStatus === "pending"
                           }
                           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.98]"
                           style={{
@@ -301,39 +318,37 @@ export function NewsletterPopup() {
                               pushStatus === "subscribed"
                                 ? "1px solid rgba(34,197,94,0.35)"
                                 : pushStatus === "denied"
-                                ? "1px solid rgba(255,255,255,0.06)"
+                                ? "1px solid rgba(239,68,68,0.25)"
                                 : "1px solid rgba(255,255,255,0.12)",
                             background:
                               pushStatus === "subscribed"
                                 ? "rgba(34,197,94,0.08)"
+                                : pushStatus === "denied"
+                                ? "rgba(239,68,68,0.06)"
                                 : "rgba(255,255,255,0.04)",
                             color:
                               pushStatus === "subscribed"
                                 ? "rgba(134,239,172,0.9)"
                                 : pushStatus === "denied"
-                                ? "rgba(255,255,255,0.2)"
+                                ? "rgba(255,150,150,0.8)"
                                 : "rgba(255,255,255,0.55)",
-                            cursor:
-                              pushStatus === "subscribed" || pushStatus === "denied"
-                                ? "default"
-                                : "pointer",
+                            cursor: pushStatus === "subscribed" ? "default" : "pointer",
                           }}
                           data-testid="button-push-subscribe"
                         >
                           {pushStatus === "subscribed" ? (
                             <Check className="w-4 h-4 text-green-400" />
                           ) : pushStatus === "denied" ? (
-                            <BellOff className="w-4 h-4" />
+                            <Bell className="w-4 h-4" />
                           ) : (
                             <Bell className="w-4 h-4" />
                           )}
                           <span>{pushLabel}</span>
                         </button>
 
-                        {pushStatus === "denied" && (
-                          <p className="text-white/20 text-[10px] text-center leading-relaxed">
-                            Разрешите уведомления в настройках браузера, чтобы
-                            подключить их
+                        {pushError && (
+                          <p className="text-red-400/60 text-[10px] text-center leading-relaxed">
+                            {pushError}
                           </p>
                         )}
                       </div>
