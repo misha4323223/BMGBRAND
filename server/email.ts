@@ -1612,6 +1612,7 @@ export function getCartPromoEmailHtml({
   validityHours,
   topItem,
   customBody,
+  cartItems,
 }: {
   userName: string;
   promoCode: string;
@@ -1619,6 +1620,7 @@ export function getCartPromoEmailHtml({
   validityHours: number;
   topItem: string;
   customBody?: string;
+  cartItems?: string[];
 }): string {
   const siteUrl = 'https://www.booomerangs.ru';
   const cartUrl = `${siteUrl}/cart`;
@@ -1646,11 +1648,16 @@ export function getCartPromoEmailHtml({
           <div style="font-size:22px;font-weight:800;color:#1C1C1C;margin-bottom:8px;">
             Персональная скидка для вас 🎁
           </div>
-          <p style="font-size:14px;color:#555;margin:0 0 24px;">
+          <p style="font-size:14px;color:#555;margin:0 0 ${cartItems && cartItems.length > 1 ? '16px' : '24px'};">
             ${customBody
               ? customBody
               : `${userName ? `${userName}, мы` : 'Мы'} заметили, что вы присматривались к <b>${topItem}</b>. Держите персональный промокод — только для вас.`}
           </p>
+          ${cartItems && cartItems.length > 1 ? `
+          <div style="margin-bottom:24px;border:1px solid #eee;border-radius:8px;overflow:hidden;">
+            <div style="background:#f5f5f5;padding:8px 16px;font-size:11px;color:#888;letter-spacing:1px;text-transform:uppercase;font-weight:700;">Товары в вашей корзине</div>
+            ${cartItems.map((item, i) => `<div style="padding:8px 16px;font-size:13px;color:#1C1C1C;${i < cartItems!.length - 1 ? 'border-bottom:1px solid #f0f0f0;' : ''}">• ${item}</div>`).join('')}
+          </div>` : ''}
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border:2px dashed #1C1C1C;border-radius:10px;margin-bottom:24px;">
             <tr>
               <td style="padding:20px;text-align:center;">

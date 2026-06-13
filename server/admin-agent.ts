@@ -260,6 +260,7 @@ export async function executeWriteTool(tool: string, params: any): Promise<strin
             validityHours,
             topItem: u.topItem,
             customBody: resolvedBody,
+            cartItems: (u as any).cartItems,
           });
           const ok = await sendEmail({
             to: u.email,

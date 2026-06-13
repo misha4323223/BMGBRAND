@@ -783,20 +783,41 @@ export async function runCartAnalysisJob(): Promise<void> {
     await sendAgentDigest(text);
     vkNotifyAgentDigest(text);
 
-    // 9. Собираем список клиентов с email для возможной рассылки промокодов
-    const promoTargets: Array<{ userId: number; name: string; email: string; topItem: string }> = [];
+    // 9. Собираем список клиентов с email — дедупликация по userId (один человек = одно письмо)
+    const userSessionsMap = new Map<number, string[]>();
     for (const [sessionId, userId] of sessionUserIds.entries()) {
+      const arr = userSessionsMap.get(userId) ?? [];
+      arr.push(sessionId);
+      userSessionsMap.set(userId, arr);
+    }
+
+    const promoTargets: Array<{ userId: number; name: string; email: string; topItem: string; cartItems: string[] }> = [];
+    for (const [userId, userSessions] of userSessionsMap.entries()) {
       try {
         const userInfo = await db.getUserEmailById(userId);
-        if (userInfo?.email) {
-          // Найдём главный товар этого пользователя (первый в его корзине из топа)
-          const userItems = await storage.getCartItems(sessionId);
-          const topUserItem = userItems.find(it =>
-            sorted.some(([id]) => String(it.productId) === id)
-          );
-          const topItemName = topUserItem?.product?.name ?? sorted[0]?.[1].name ?? "";
-          promoTargets.push({ userId, name: userInfo.name || "Покупатель", email: userInfo.email, topItem: topItemName });
+        if (!userInfo?.email) continue;
+
+        // Собираем все уникальные товары из всех сессий пользователя
+        const seenNames = new Set<string>();
+        const cartItems: string[] = [];
+        let topItemName = "";
+        for (const sid of userSessions) {
+          const items = await storage.getCartItems(sid);
+          for (const it of items) {
+            const name: string = (it as any).product?.name ?? String(it.productId);
+            if (!name || seenNames.has(name)) continue;
+            seenNames.add(name);
+            cartItems.push(name);
+            // topItem — первый товар из топа брошенных
+            if (!topItemName && sorted.some(([id]) => String(it.productId) === id)) {
+              topItemName = name;
+            }
+          }
         }
+        if (!topItemName && cartItems.length > 0) topItemName = cartItems[0];
+        if (!topItemName) topItemName = sorted[0]?.[1].name ?? "";
+
+        promoTargets.push({ userId, name: userInfo.name || "Покупатель", email: userInfo.email, topItem: topItemName, cartItems });
       } catch { /* пропускаем */ }
       await sleep(30);
     }
