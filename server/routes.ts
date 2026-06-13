@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { getAdminPushSubs, saveAdminPushSubs } from './push-service';
+import { getPushSubs, savePushSubs, sendPushToAll as _sendPushToAllSvc, getAdminPushSubs, saveAdminPushSubs } from './push-service';
 import type { Server } from "http";
 import { storage, warmRatingsCache } from "./storage";
 import { api } from "@shared/routes";
@@ -11570,37 +11570,7 @@ BMGBRAND — официальный производитель и магазин
   });
 
   // ─── Web Push Notifications ─────────────────────────────────────────────────
-
-  let _webPushReady = false;
-  function getWebPush() {
-    const pub = process.env.VAPID_PUBLIC_KEY;
-    const priv = process.env.VAPID_PRIVATE_KEY;
-    if (!pub || !priv) return null;
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const wp = require('web-push');
-    if (!_webPushReady) {
-      wp.setVapidDetails(
-        process.env.VAPID_EMAIL || 'mailto:info@booomerangs.ru',
-        pub,
-        priv,
-      );
-      _webPushReady = true;
-    }
-    return wp;
-  }
-
-  const PUSH_SUBS_KEY = 'push_subscriptions';
-
-  async function getPushSubs(): Promise<any[]> {
-    try {
-      const raw = await storage.getBonusSetting(PUSH_SUBS_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
-  }
-
-  async function savePushSubs(subs: any[]): Promise<void> {
-    await storage.setBonusSetting(PUSH_SUBS_KEY, JSON.stringify(subs));
-  }
+  // Функции getPushSubs / savePushSubs / sendPushToAll импортированы из push-service.ts
 
   // Публичный — отдаём VAPID public key браузеру
   app.get('/api/push/vapid-public-key', (_req, res) => {
@@ -11642,41 +11612,32 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // Middleware: сессия admin ИЛИ API-ключ (для push-роутов)
+  function requireAdminOrApiKey(req: AuthRequest, res: any, next: any) {
+    const apiKey = req.headers['x-api-key'] as string;
+    if (checkAdminKey(apiKey)) return next();
+    if (req.user?.role === 'admin') return next();
+    return res.status(401).json({ error: 'Требуется авторизация' });
+  }
+
   // Admin: разослать пуш всем подписчикам
-  app.post('/api/admin/push/send', requireAdminRole, async (req, res) => {
-    const wp = getWebPush();
-    if (!wp) return res.status(503).json({ error: 'Push не настроен (нет VAPID ключей)' });
+  app.post('/api/admin/push/send', requireAdminOrApiKey, async (req, res) => {
+    if (!process.env.VAPID_PUBLIC_KEY) return res.status(503).json({ error: 'Push не настроен (нет VAPID ключей)' });
     try {
-      const { title, body, url, icon } = req.body;
+      const { title, body, url, tag } = req.body;
       if (!title || !body) return res.status(400).json({ error: 'title и body обязательны' });
       const subs = await getPushSubs();
-      if (subs.length === 0) return res.json({ sent: 0, failed: 0, total: 0 });
-      const payload = JSON.stringify({ title, body, url: url || 'https://booomerangs.ru', icon });
-      let sent = 0, failed = 0;
-      const toRemove: string[] = [];
-      for (const sub of subs) {
-        try {
-          await wp.sendNotification(sub, payload);
-          sent++;
-        } catch (err: any) {
-          failed++;
-          if (err.statusCode === 410 || err.statusCode === 404) toRemove.push(sub.endpoint);
-        }
-        await new Promise(r => setTimeout(r, 20));
-      }
-      if (toRemove.length > 0) {
-        const cleaned = subs.filter((s: any) => !toRemove.includes(s.endpoint));
-        await savePushSubs(cleaned);
-      }
-      console.log(`[WebPush] Sent: ${sent}, Failed: ${failed}, Removed: ${toRemove.length}`);
-      res.json({ sent, failed, total: subs.length });
+      const total = subs.length;
+      if (total === 0) return res.json({ sent: 0, failed: 0, total: 0 });
+      const result = await _sendPushToAllSvc({ title, body, url, tag });
+      res.json({ sent: result.sent, failed: result.failed, total });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
 
   // Admin: статистика подписчиков
-  app.get('/api/admin/push/stats', requireAdminRole, async (_req, res) => {
+  app.get('/api/admin/push/stats', requireAdminOrApiKey, async (_req, res) => {
     try {
       const subs = await getPushSubs();
       res.json({ total: subs.length });
@@ -11690,7 +11651,7 @@ BMGBRAND — официальный производитель и магазин
   // Используется автономным агентом для алертов (низкий сток, дайджест, очередь).
 
   // Подписать браузер администратора
-  app.post('/api/admin/push/admin-subscribe', requireAdminRole, async (req, res) => {
+  app.post('/api/admin/push/admin-subscribe', requireAdminOrApiKey, async (req, res) => {
     try {
       const { subscription } = req.body;
       if (!subscription?.endpoint || !subscription?.keys) {
@@ -11710,7 +11671,7 @@ BMGBRAND — официальный производитель и магазин
   });
 
   // Отписать браузер администратора
-  app.delete('/api/admin/push/admin-unsubscribe', requireAdminRole, async (req, res) => {
+  app.delete('/api/admin/push/admin-unsubscribe', requireAdminOrApiKey, async (req, res) => {
     try {
       const { endpoint } = req.body;
       if (!endpoint) return res.status(400).json({ error: 'endpoint обязателен' });
@@ -11723,7 +11684,7 @@ BMGBRAND — официальный производитель и магазин
   });
 
   // Статистика подписок администраторов
-  app.get('/api/admin/push/admin-stats', requireAdminRole, async (_req, res) => {
+  app.get('/api/admin/push/admin-stats', requireAdminOrApiKey, async (_req, res) => {
     try {
       const subs = await getAdminPushSubs();
       res.json({ total: subs.length });

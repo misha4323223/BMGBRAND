@@ -1,27 +1,24 @@
 import { storage } from './storage';
+import webpush from 'web-push';
 
 const CLIENT_PUSH_KEY = 'push_subscriptions';
 const ADMIN_PUSH_KEY = 'admin_push_subscriptions';
 
-let _webPushReady = false;
-let _wp: any = null;
+let _vapidReady = false;
 
-function getWebPush(): any | null {
+function getWebPush(): typeof webpush | null {
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
   if (!pub || !priv) return null;
-  if (!_wp) {
-    _wp = require('web-push');
-  }
-  if (!_webPushReady) {
-    _wp.setVapidDetails(
+  if (!_vapidReady) {
+    webpush.setVapidDetails(
       process.env.VAPID_EMAIL || 'mailto:info@booomerangs.ru',
       pub,
       priv,
     );
-    _webPushReady = true;
+    _vapidReady = true;
   }
-  return _wp;
+  return webpush;
 }
 
 export async function getPushSubs(): Promise<any[]> {
