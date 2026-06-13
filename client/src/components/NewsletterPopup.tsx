@@ -1,8 +1,47 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Copy } from "lucide-react";
+import { X, Check, Copy, Bell, BellOff } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+
+type PushStatus = "idle" | "pending" | "subscribed" | "denied" | "unsupported";
+
+async function subscribeToPush(): Promise<{ success: boolean; error?: string }> {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    return { success: false, error: "unsupported" };
+  }
+  try {
+    const keyRes = await fetch("/api/push/vapid-public-key");
+    if (!keyRes.ok) return { success: false, error: "no_vapid" };
+    const { publicKey } = await keyRes.json();
+
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") return { success: false, error: "denied" };
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    }
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription: sub.toJSON() }),
+    });
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
 
 export function NewsletterPopup() {
   const [isVisible, setIsVisible] = useState(false);
@@ -12,6 +51,7 @@ export function NewsletterPopup() {
   const [error, setError] = useState("");
   const [promoCode, setPromoCode] = useState("WELCOME10");
   const [consent, setConsent] = useState(false);
+  const [pushStatus, setPushStatus] = useState<PushStatus>("idle");
 
   const { data: promoData } = useQuery<{ popup: any; homepage: any }>({
     queryKey: ["/api/subscription-promos"],
@@ -21,15 +61,34 @@ export function NewsletterPopup() {
   useEffect(() => {
     const dismissed = localStorage.getItem("newsletter-popup-dismissed");
     const subscribed = localStorage.getItem("newsletter-subscribed");
-    if (!dismissed && !subscribed) {
-      const timer = setTimeout(() => setIsVisible(true), popupPromo?.settings?.delay || 4000);
-      return () => clearTimeout(timer);
-    }
+    const pushSubscribed = localStorage.getItem("push-subscribed");
+    if (dismissed || subscribed || pushSubscribed) return;
+
+    const timer = setTimeout(
+      () => setIsVisible(true),
+      popupPromo?.settings?.delay || 4000
+    );
+    return () => clearTimeout(timer);
   }, [popupPromo?.settings?.delay]);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setPushStatus("unsupported");
+      return;
+    }
+    if (localStorage.getItem("push-subscribed")) {
+      setPushStatus("subscribed");
+    } else if (Notification.permission === "denied") {
+      setPushStatus("denied");
+    }
+  }, []);
 
   const subscribeMutation = useMutation({
     mutationFn: async (emailAddr: string) => {
-      const res = await apiRequest("POST", "/api/newsletter/subscribe", { email: emailAddr, source: "popup" });
+      const res = await apiRequest("POST", "/api/newsletter/subscribe", {
+        email: emailAddr,
+        source: "popup",
+      });
       return res.json();
     },
     onSuccess: (data: { promoCode?: string }) => {
@@ -43,21 +102,52 @@ export function NewsletterPopup() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!email || !email.includes("@")) { setError("Введите корректный email"); return; }
-    if (!consent) { setError("Необходимо дать согласие на обработку данных"); return; }
+    if (!email || !email.includes("@")) {
+      setError("Введите корректный email");
+      return;
+    }
+    if (!consent) {
+      setError("Необходимо дать согласие на обработку данных");
+      return;
+    }
     subscribeMutation.mutate(email);
   };
 
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     localStorage.setItem("newsletter-popup-dismissed", "true");
     setIsVisible(false);
-  };
+  }, []);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(popupPromo?.code || promoCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const handlePushSubscribe = async () => {
+    if (pushStatus === "subscribed" || pushStatus === "pending") return;
+    setPushStatus("pending");
+    const result = await subscribeToPush();
+    if (result.success) {
+      setPushStatus("subscribed");
+      localStorage.setItem("push-subscribed", "true");
+    } else if (result.error === "denied" || result.error === "unsupported") {
+      setPushStatus(result.error === "unsupported" ? "unsupported" : "denied");
+    } else {
+      setPushStatus("idle");
+    }
+  };
+
+  const pushLabel =
+    pushStatus === "subscribed"
+      ? "Уведомления включены ✓"
+      : pushStatus === "pending"
+      ? "Подключение..."
+      : pushStatus === "denied"
+      ? "Уведомления заблокированы"
+      : "Подписаться на уведомления";
+
+  const showPushBlock = pushStatus !== "unsupported";
 
   return (
     <AnimatePresence>
@@ -80,7 +170,8 @@ export function NewsletterPopup() {
             transition={{ type: "spring", stiffness: 380, damping: 32 }}
             className="fixed inset-0 flex items-center justify-center z-[201] p-4"
           >
-            <div className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
+            <div
+              className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
               style={{
                 background: "rgba(10, 10, 10, 0.88)",
                 backdropFilter: "blur(24px) saturate(180%)",
@@ -108,7 +199,10 @@ export function NewsletterPopup() {
                     <div className="text-center">
                       <div
                         className="text-6xl sm:text-7xl font-black text-primary leading-none mb-3 select-none"
-                        style={{ textShadow: "0 0 48px rgba(220,38,38,0.45), 0 0 80px rgba(220,38,38,0.2)" }}
+                        style={{
+                          textShadow:
+                            "0 0 48px rgba(220,38,38,0.45), 0 0 80px rgba(220,38,38,0.2)",
+                        }}
                       >
                         -{popupPromo?.discountPercent || 10}%
                       </div>
@@ -116,11 +210,12 @@ export function NewsletterPopup() {
                         {popupPromo?.settings?.title || "Эксклюзивное предложение"}
                       </h3>
                       <p className="text-white/40 text-[13px] leading-relaxed">
-                        {popupPromo?.settings?.description || "Скидка на первый заказ при подписке на рассылку. Будьте первыми, кто узнаёт о новых дропах."}
+                        {popupPromo?.settings?.description ||
+                          "Скидка на первый заказ при подписке на рассылку. Будьте первыми, кто узнаёт о новых дропах."}
                       </p>
                     </div>
 
-                    {/* Form */}
+                    {/* Email Form */}
                     <form onSubmit={handleSubmit} className="space-y-3">
                       <input
                         type="email"
@@ -141,14 +236,19 @@ export function NewsletterPopup() {
                         className="w-full bg-primary hover:bg-primary/85 active:scale-[0.98] text-white font-bold tracking-wider uppercase text-sm py-3.5 rounded-xl transition-all disabled:opacity-60"
                         data-testid="button-subscribe-newsletter"
                       >
-                        {subscribeMutation.isPending ? "..." : (popupPromo?.settings?.buttonText || "Получить скидку")}
+                        {subscribeMutation.isPending
+                          ? "..."
+                          : popupPromo?.settings?.buttonText || "Получить скидку"}
                       </button>
 
                       {error && (
                         <p className="text-red-400 text-xs text-center">{error}</p>
                       )}
 
-                      <label className="flex items-start gap-2.5 cursor-pointer" data-testid="label-newsletter-consent">
+                      <label
+                        className="flex items-start gap-2.5 cursor-pointer"
+                        data-testid="label-newsletter-consent"
+                      >
                         <input
                           type="checkbox"
                           checked={consent}
@@ -157,19 +257,97 @@ export function NewsletterPopup() {
                           data-testid="checkbox-newsletter-consent"
                         />
                         <span className="text-white/25 text-[11px] leading-relaxed">
-                          Я соглашаюсь на обработку персональных данных и получение рассылки в соответствии с{" "}
-                          <a href="/privacy" className="underline hover:text-white/50 transition-colors" target="_blank">
+                          Я соглашаюсь на обработку персональных данных и получение
+                          рассылки в соответствии с{" "}
+                          <a
+                            href="/privacy"
+                            className="underline hover:text-white/50 transition-colors"
+                            target="_blank"
+                          >
                             политикой конфиденциальности
                           </a>
                         </span>
                       </label>
                     </form>
+
+                    {/* Push block — разделитель и кнопка подписки на push */}
+                    {showPushBlock && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="flex-1 h-px"
+                            style={{ background: "rgba(255,255,255,0.08)" }}
+                          />
+                          <span className="text-white/20 text-[11px] uppercase tracking-widest shrink-0">
+                            или
+                          </span>
+                          <div
+                            className="flex-1 h-px"
+                            style={{ background: "rgba(255,255,255,0.08)" }}
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handlePushSubscribe}
+                          disabled={
+                            pushStatus === "subscribed" ||
+                            pushStatus === "pending" ||
+                            pushStatus === "denied"
+                          }
+                          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.98]"
+                          style={{
+                            border:
+                              pushStatus === "subscribed"
+                                ? "1px solid rgba(34,197,94,0.35)"
+                                : pushStatus === "denied"
+                                ? "1px solid rgba(255,255,255,0.06)"
+                                : "1px solid rgba(255,255,255,0.12)",
+                            background:
+                              pushStatus === "subscribed"
+                                ? "rgba(34,197,94,0.08)"
+                                : "rgba(255,255,255,0.04)",
+                            color:
+                              pushStatus === "subscribed"
+                                ? "rgba(134,239,172,0.9)"
+                                : pushStatus === "denied"
+                                ? "rgba(255,255,255,0.2)"
+                                : "rgba(255,255,255,0.55)",
+                            cursor:
+                              pushStatus === "subscribed" || pushStatus === "denied"
+                                ? "default"
+                                : "pointer",
+                          }}
+                          data-testid="button-push-subscribe"
+                        >
+                          {pushStatus === "subscribed" ? (
+                            <Check className="w-4 h-4 text-green-400" />
+                          ) : pushStatus === "denied" ? (
+                            <BellOff className="w-4 h-4" />
+                          ) : (
+                            <Bell className="w-4 h-4" />
+                          )}
+                          <span>{pushLabel}</span>
+                        </button>
+
+                        {pushStatus === "denied" && (
+                          <p className="text-white/20 text-[10px] text-center leading-relaxed">
+                            Разрешите уведомления в настройках браузера, чтобы
+                            подключить их
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
+                  // ── Email success screen ──────────────────────────────────
                   <div className="text-center space-y-5">
                     <div
                       className="w-14 h-14 rounded-full flex items-center justify-center mx-auto"
-                      style={{ border: "1px solid rgba(220,38,38,0.4)", boxShadow: "0 0 24px rgba(220,38,38,0.2)" }}
+                      style={{
+                        border: "1px solid rgba(220,38,38,0.4)",
+                        boxShadow: "0 0 24px rgba(220,38,38,0.2)",
+                      }}
                     >
                       <Check className="w-7 h-7 text-primary" />
                     </div>
@@ -179,14 +357,19 @@ export function NewsletterPopup() {
                         {popupPromo?.settings?.successTitle || "Добро пожаловать!"}
                       </h3>
                       <p className="text-white/40 text-sm">
-                        {popupPromo?.settings?.successText || "Ваш промокод на скидку"} {popupPromo?.discountPercent || 10}%
+                        {popupPromo?.settings?.successText ||
+                          "Ваш промокод на скидку"}{" "}
+                        {popupPromo?.discountPercent || 10}%
                       </p>
                     </div>
 
                     <div
                       onClick={handleCopyCode}
                       className="cursor-pointer rounded-xl p-4 transition-all group hover:border-primary/40"
-                      style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)" }}
+                      style={{
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        background: "rgba(255,255,255,0.03)",
+                      }}
                       data-testid="button-copy-promo-code"
                     >
                       <div className="flex items-center justify-center gap-3">
@@ -196,14 +379,44 @@ export function NewsletterPopup() {
                         >
                           {popupPromo?.code || promoCode}
                         </span>
-                        {copied
-                          ? <Check className="w-4 h-4 text-green-400" />
-                          : <Copy className="w-4 h-4 text-white/25 group-hover:text-primary transition-colors" />}
+                        {copied ? (
+                          <Check className="w-4 h-4 text-green-400" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-white/25 group-hover:text-primary transition-colors" />
+                        )}
                       </div>
                       <p className="text-white/25 text-[11px] mt-1">
                         {copied ? "Скопировано!" : "Нажмите, чтобы скопировать"}
                       </p>
                     </div>
+
+                    {/* Push option на экране успеха */}
+                    {showPushBlock && pushStatus !== "subscribed" && pushStatus !== "denied" && (
+                      <button
+                        type="button"
+                        onClick={handlePushSubscribe}
+                        disabled={pushStatus === "pending"}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium transition-all"
+                        style={{
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          background: "rgba(255,255,255,0.03)",
+                          color: "rgba(255,255,255,0.4)",
+                        }}
+                        data-testid="button-push-subscribe-success"
+                      >
+                        <Bell className="w-3.5 h-3.5" />
+                        <span>
+                          {pushStatus === "pending"
+                            ? "Подключение..."
+                            : "Также включить push-уведомления"}
+                        </span>
+                      </button>
+                    )}
+                    {showPushBlock && pushStatus === "subscribed" && (
+                      <p className="text-green-400/70 text-[11px] flex items-center justify-center gap-1.5">
+                        <Check className="w-3.5 h-3.5" /> Push-уведомления включены
+                      </p>
+                    )}
 
                     <button
                       onClick={handleDismiss}

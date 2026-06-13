@@ -151,6 +151,13 @@ function Router() {
 function DeferredComponents() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
+    // Регистрируем Service Worker для web push уведомлений
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(err =>
+        console.warn('[SW] Registration failed:', err?.message)
+      );
+    }
+
     if (typeof requestIdleCallback === 'function') {
       const t = requestIdleCallback(() => setReady(true), { timeout: 3000 });
       return () => cancelIdleCallback(t);
