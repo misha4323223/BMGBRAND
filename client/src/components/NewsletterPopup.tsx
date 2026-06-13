@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Copy, Bell, BellOff } from "lucide-react";
+import { X, Check, Copy, Bell, BellOff, Zap, Tag, Sparkles } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -53,6 +53,7 @@ export function NewsletterPopup() {
   const [consent, setConsent] = useState(false);
   const [pushStatus, setPushStatus] = useState<PushStatus>("idle");
   const [pushError, setPushError] = useState<string>("");
+  const [showPrePrompt, setShowPrePrompt] = useState(false);
 
   const { data: promoData } = useQuery<{ popup: any; homepage: any }>({
     queryKey: ["/api/subscription-promos"],
@@ -125,13 +126,18 @@ export function NewsletterPopup() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePushSubscribe = async () => {
+  // Клик на кнопку → показываем наш красивый пре-попап
+  const handlePushSubscribe = () => {
     if (pushStatus === "subscribed" || pushStatus === "pending") return;
-    // При повторной попытке из denied сбрасываем состояние
+    setShowPrePrompt(true);
+  };
+
+  // Подтверждение в пре-попапе → реальная подписка
+  const handlePrePromptConfirm = async () => {
+    setShowPrePrompt(false);
     setPushStatus("pending");
     setPushError("");
 
-    // Таймаут на случай если браузер завис на подписке
     const timeoutId = setTimeout(() => {
       setPushStatus("idle");
       setPushError("Браузер не ответил. Попробуйте ещё раз.");
@@ -150,7 +156,6 @@ export function NewsletterPopup() {
       setPushStatus("denied");
       setPushError("Разрешите уведомления в настройках браузера");
     } else {
-      // Любая другая ошибка — сбрасываем в idle чтобы можно было попробовать снова
       setPushStatus("idle");
       setPushError(result.error || "Не удалось подключить. Попробуйте ещё раз.");
     }
@@ -168,6 +173,116 @@ export function NewsletterPopup() {
   const showPushBlock = pushStatus !== "unsupported";
 
   return (
+    <>
+    {/* ── Пре-попап разрешения на уведомления ─────────────────────── */}
+    <AnimatePresence>
+      {showPrePrompt && (
+        <>
+          <motion.div
+            key="pre-prompt-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-md z-[300]"
+            onClick={() => setShowPrePrompt(false)}
+          />
+          <motion.div
+            key="pre-prompt-card"
+            initial={{ opacity: 0, scale: 0.88, y: 24 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 16 }}
+            transition={{ type: "spring", stiffness: 420, damping: 30 }}
+            className="fixed inset-0 flex items-center justify-center z-[301] p-6"
+          >
+            <div
+              className="relative w-full max-w-[320px] rounded-2xl overflow-hidden"
+              style={{
+                background: "rgba(12, 12, 12, 0.96)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow: "0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04)",
+              }}
+            >
+              {/* Красная линия сверху */}
+              <div className="h-[3px] w-full bg-gradient-to-r from-transparent via-red-600 to-transparent" />
+
+              <div className="px-6 pt-6 pb-7 space-y-5">
+                {/* Иконка */}
+                <div className="flex justify-center">
+                  <div
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                    style={{
+                      background: "rgba(220,38,38,0.12)",
+                      border: "1px solid rgba(220,38,38,0.25)",
+                      boxShadow: "0 0 32px rgba(220,38,38,0.15)",
+                    }}
+                  >
+                    <Bell className="w-7 h-7 text-red-500" />
+                  </div>
+                </div>
+
+                {/* Текст */}
+                <div className="text-center space-y-2">
+                  <h3 className="text-white font-bold text-[17px] leading-snug">
+                    Узнавай о новинках первым
+                  </h3>
+                  <p className="text-white/45 text-[13px] leading-relaxed">
+                    Включи уведомления — мы напишем когда выйдут новые дропы, скидки и эксклюзивные предложения
+                  </p>
+                </div>
+
+                {/* Что будет приходить */}
+                <div className="space-y-2">
+                  {[
+                    { icon: <Zap className="w-3.5 h-3.5 text-red-400 shrink-0" />, text: "Новые дропы и коллекции" },
+                    { icon: <Tag className="w-3.5 h-3.5 text-red-400 shrink-0" />, text: "Скидки и акции" },
+                    { icon: <Sparkles className="w-3.5 h-3.5 text-red-400 shrink-0" />, text: "Эксклюзивные предложения" },
+                  ].map(({ icon, text }) => (
+                    <div key={text} className="flex items-center gap-2.5">
+                      <div
+                        className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
+                        style={{ background: "rgba(220,38,38,0.1)" }}
+                      >
+                        {icon}
+                      </div>
+                      <span className="text-white/55 text-[12px]">{text}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Кнопки */}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => setShowPrePrompt(false)}
+                    className="flex-1 py-3 rounded-xl text-sm font-medium text-white/35 transition-all hover:text-white/55"
+                    style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+                    data-testid="button-push-preprompt-decline"
+                  >
+                    Нет, позже
+                  </button>
+                  <button
+                    onClick={handlePrePromptConfirm}
+                    className="flex-1 py-3 rounded-xl text-sm font-bold text-white transition-all active:scale-[0.97]"
+                    style={{
+                      background: "linear-gradient(135deg, #dc2626, #b91c1c)",
+                      boxShadow: "0 4px 16px rgba(220,38,38,0.35)",
+                    }}
+                    data-testid="button-push-preprompt-confirm"
+                  >
+                    Да, хочу! 🔔
+                  </button>
+                </div>
+
+                <p className="text-white/18 text-[10px] text-center">
+                  Отписаться можно в любой момент
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+
+    {/* ── Основной попап рассылки ───────────────────────────────────── */}
     <AnimatePresence>
       {isVisible && (
         <>
@@ -449,5 +564,6 @@ export function NewsletterPopup() {
         </>
       )}
     </AnimatePresence>
+    </>
   );
 }
