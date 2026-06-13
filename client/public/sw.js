@@ -1,5 +1,5 @@
 // BOOOMERANGS Service Worker — Web Push Notifications
-const CACHE_VERSION = 'booom-sw-v1';
+const CACHE_VERSION = 'booom-sw-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
@@ -15,15 +15,24 @@ self.addEventListener('push', function (event) {
   }
 
   const title = data.title || 'BOOOMERANGS';
+  const body  = data.body  || 'Новое сообщение от BOOOMERANGS';
+  const url   = data.url   || 'https://booomerangs.ru';
+
   const options = {
-    body: data.body || 'Новое сообщение от BOOOMERANGS',
-    icon: data.icon || '/favicon.ico',
-    badge: '/favicon.ico',
+    body,
+    icon:  data.icon  || '/notification-icon.png',
+    badge: data.badge || '/notification-badge.png',
     image: data.image || undefined,
-    data: { url: data.url || 'https://booomerangs.ru' },
-    vibrate: [100, 50, 100],
+    data:  { url },
+    vibrate: [200, 100, 200],
     requireInteraction: false,
+    silent: false,
     tag: data.tag || 'booom-push',
+    renotify: true,
+    actions: [
+      { action: 'open',    title: '👀 Смотреть' },
+      { action: 'dismiss', title: '✕ Закрыть'  },
+    ],
   };
 
   event.waitUntil(
@@ -33,17 +42,22 @@ self.addEventListener('push', function (event) {
 
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
+
+  if (event.action === 'dismiss') return;
+
   const url = (event.notification.data && event.notification.data.url)
     ? event.notification.data.url
     : 'https://booomerangs.ru';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      // Если вкладка с нужным URL уже открыта — фокусируемся на ней
       for (const client of clients) {
-        if (client.url === url && 'focus' in client) {
+        if (client.url.startsWith(url.replace(/\/$/, '')) && 'focus' in client) {
           return client.focus();
         }
       }
+      // Иначе открываем новую вкладку
       if (self.clients.openWindow) {
         return self.clients.openWindow(url);
       }

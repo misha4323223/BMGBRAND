@@ -64,7 +64,8 @@ async function sendToList(
     title: payload.title,
     body: payload.body,
     url: payload.url || 'https://booomerangs.ru',
-    icon: payload.icon || '/favicon.ico',
+    icon: payload.icon || '/notification-icon.png',
+    badge: '/notification-badge.png',
     tag: payload.tag || 'booom-push',
     image: payload.image,
   });
