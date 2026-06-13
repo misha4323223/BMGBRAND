@@ -131,6 +131,7 @@ export async function runNewProductsNotifierCheck(): Promise<void> {
         title: '🆕 Новинки в магазине',
         body: `«${firstName}»${more} — смотри первым!`,
         url: 'https://booomerangs.ru/products',
+        image: '/push-banner.png',
         tag: 'booom-new-products',
       }).catch(() => {});
     }
