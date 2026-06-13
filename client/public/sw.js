@@ -20,7 +20,7 @@ self.addEventListener('push', function (event) {
 
   const options = {
     body,
-    icon:  data.icon  || '/notification-icon.png',
+    icon:  data.icon  || '/icon-192.png',
     badge: data.badge || '/notification-badge.png',
     image: data.image || undefined,
     data:  { url },
