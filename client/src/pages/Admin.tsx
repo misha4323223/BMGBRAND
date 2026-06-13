@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import PushNotificationsPanel from "@/components/admin/PushNotificationsPanel";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -2512,7 +2513,6 @@ export default function Admin() {
   const [broadcastSubject, setBroadcastSubject] = useState("");
   const [broadcastBody, setBroadcastBody] = useState("");
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
-
   const broadcastMutation = useMutation({
     mutationFn: async (data: { subject: string; html: string; emails: string[] }) => {
       return adminFetch("/api/admin/newsletter-broadcast", apiKey, {
@@ -4487,6 +4487,17 @@ export default function Admin() {
                     )}
                   </CardContent>
                 </Card>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Bell className="w-4 h-4" />
+                    Push-уведомления
+                  </h3>
+                  <PushNotificationsPanel
+                    apiKey={apiKey}
+                    isActive={bonusesSubTab === "newsletter"}
+                  />
+                </div>
               </div>
             )}
 

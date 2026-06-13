@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { getAdminPushSubs, saveAdminPushSubs } from './push-service';
 import type { Server } from "http";
 import { storage, warmRatingsCache } from "./storage";
 import { api } from "@shared/routes";
@@ -11678,6 +11679,53 @@ BMGBRAND — официальный производитель и магазин
   app.get('/api/admin/push/stats', requireAdminRole, async (_req, res) => {
     try {
       const subs = await getPushSubs();
+      res.json({ total: subs.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ─── Admin Push (owner devices) ──────────────────────────────────────────────
+  // Отдельный список подписок для владельцев/администраторов сайта.
+  // Используется автономным агентом для алертов (низкий сток, дайджест, очередь).
+
+  // Подписать браузер администратора
+  app.post('/api/admin/push/admin-subscribe', requireAdminRole, async (req, res) => {
+    try {
+      const { subscription } = req.body;
+      if (!subscription?.endpoint || !subscription?.keys) {
+        return res.status(400).json({ error: 'Некорректная подписка' });
+      }
+      const subs = await getAdminPushSubs();
+      const idx = subs.findIndex((s: any) => s.endpoint === subscription.endpoint);
+      const entry = { ...subscription, createdAt: Date.now() };
+      if (idx >= 0) subs[idx] = entry; else subs.push(entry);
+      await saveAdminPushSubs(subs);
+      console.log(`[WebPush] Admin subscription saved. Total admins: ${subs.length}`);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('[WebPush] Admin subscribe error:', err.message);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  });
+
+  // Отписать браузер администратора
+  app.delete('/api/admin/push/admin-unsubscribe', requireAdminRole, async (req, res) => {
+    try {
+      const { endpoint } = req.body;
+      if (!endpoint) return res.status(400).json({ error: 'endpoint обязателен' });
+      const subs = await getAdminPushSubs();
+      await saveAdminPushSubs(subs.filter((s: any) => s.endpoint !== endpoint));
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  });
+
+  // Статистика подписок администраторов
+  app.get('/api/admin/push/admin-stats', requireAdminRole, async (_req, res) => {
+    try {
+      const subs = await getAdminPushSubs();
       res.json({ total: subs.length });
     } catch (err: any) {
       res.status(500).json({ error: err.message });

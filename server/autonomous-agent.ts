@@ -6,6 +6,7 @@ import {
 } from "./agent-queue";
 import { notifyAgentQueueItem, sendAgentAlert, sendAgentDigest } from "./telegram";
 import { vkNotifyAgentAlert, vkNotifyAgentDigest } from "./vk";
+import { sendPushToAdmins } from "./push-service";
 
 const MONDAY_SENT_KEY = "agent_monday_sent_date";
 
@@ -314,6 +315,12 @@ export async function runAlertsJob(): Promise<void> {
       (p) => `• <b>${p.name}</b> — осталось ${p.total} шт. (ID: ${p.id})`
     );
     await sendAlertChunked("⚠️ <b>BOOOM AI: Заканчивается товар</b>", lines);
+    sendPushToAdmins({
+      title: '⚠️ BOOOM AI: Заканчивается товар',
+      body: `${lowStock.length} поз. на критическом остатке. Топ: «${lowStock[0].name}» — ${lowStock[0].total} шт.`,
+      url: 'https://booomerangs.ru/admin',
+      tag: 'booom-low-stock',
+    }).catch(() => {});
     console.log(`[AutonomousAgent] Low stock alert: ${lowStock.length} products`);
   }
 
@@ -328,6 +335,12 @@ export async function runAlertsJob(): Promise<void> {
       (p: any) => `• <b>${p.name}</b> (ID: ${p.id})`
     );
     await sendAlertChunked("📷 <b>BOOOM AI: Товары без фото</b>", lines);
+    sendPushToAdmins({
+      title: '📷 BOOOM AI: Товары без фото',
+      body: `${noPhoto.length} товаров опубликованы без фотографий`,
+      url: 'https://booomerangs.ru/admin',
+      tag: 'booom-no-photo',
+    }).catch(() => {});
     console.log(`[AutonomousAgent] No-photo alert: ${noPhoto.length} products`);
   }
 
@@ -380,6 +393,12 @@ export async function runStaleProductsJob(): Promise<void> {
   if (queued > 0) {
     console.log(`[AutonomousAgent] Stale products queued: ${queued}`);
     await sendAgentAlert(`👁 <b>BOOOM AI:</b> Найдено ${queued} товаров с нулевым остатком — ожидают проверки в очереди.`);
+    sendPushToAdmins({
+      title: '👁 BOOOM AI: Залежавшиеся товары',
+      body: `${queued} товаров с нулевым остатком ожидают проверки в очереди`,
+      url: 'https://booomerangs.ru/admin',
+      tag: 'booom-stale',
+    }).catch(() => {});
   }
 }
 
@@ -443,6 +462,12 @@ ${isDesign ? "Это товар с уникальным принтом." : ""}
   console.log(`[AutonomousAgent] Description job done: queued=${queued}`);
   if (queued > 0) {
     await sendAgentAlert(`📝 <b>BOOOM AI:</b> Готово ${queued} описаний для товаров — ожидают проверки в очереди.`);
+    sendPushToAdmins({
+      title: '📝 BOOOM AI: Описания готовы',
+      body: `${queued} AI-описаний товаров ожидают проверки в очереди`,
+      url: 'https://booomerangs.ru/admin',
+      tag: 'booom-descriptions',
+    }).catch(() => {});
   }
 }
 
@@ -606,6 +631,12 @@ export async function runWeeklyDigest(): Promise<void> {
 
     await sendAgentDigest(text);
     vkNotifyAgentDigest(text);
+    sendPushToAdmins({
+      title: '📊 BOOOM AI: Дайджест готов',
+      body: `Заказов: ${weekOrders.length}, выручка: ${Math.round(weekRevenue / 100).toLocaleString('ru-RU')} ₽, конверсия: ${conversion}%`,
+      url: 'https://booomerangs.ru/admin',
+      tag: 'booom-digest',
+    }).catch(() => {});
 
     await addLogEntry({
       type: "digest",
@@ -782,6 +813,12 @@ export async function runCartAnalysisJob(): Promise<void> {
 
     await sendAgentDigest(text);
     vkNotifyAgentDigest(text);
+    sendPushToAdmins({
+      title: '🛒 BOOOM AI: Анализ корзин',
+      body: `${sessions.length} брошенных корзин. Топ: «${sorted[0]?.[1].name ?? '—'}» (${sorted[0]?.[1].cartCount ?? 0} корзин)`,
+      url: 'https://booomerangs.ru/admin',
+      tag: 'booom-cart-analysis',
+    }).catch(() => {});
 
     // 9. Собираем список клиентов с email — дедупликация по userId (один человек = одно письмо)
     const userSessionsMap = new Map<number, string[]>();
