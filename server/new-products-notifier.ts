@@ -130,7 +130,7 @@ export async function runNewProductsNotifierCheck(): Promise<void> {
       sendPushToAll({
         title: '🆕 Новинки в магазине',
         body: `«${firstName}»${more} — смотри первым!`,
-        url: 'https://booomerangs.ru/catalog',
+        url: 'https://booomerangs.ru/products',
         tag: 'booom-new-products',
       }).catch(() => {});
     }
@@ -185,7 +185,7 @@ export async function triggerNewProductsNotifierNow(): Promise<{ sent: number; f
     sendPushToAll({
       title: '🆕 Новинки в магазине',
       body: `«${firstName}»${more} — смотри первым!`,
-      url: 'https://booomerangs.ru/catalog',
+      url: 'https://booomerangs.ru/products',
       tag: 'booom-new-products',
     }).catch(() => {});
   }
