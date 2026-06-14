@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell, BellOff, Send, Users, ShieldAlert } from "lucide-react";
+import { Bell, BellOff, Send, Users, ShieldAlert, FlaskConical, History, Image } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
 
 const adminFetch = async (url: string, apiKey: string, options: RequestInit = {}) => {
   const res = await fetch(url, {
@@ -32,7 +39,7 @@ export default function PushNotificationsPanel({ apiKey, isActive }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [pushForm, setPushForm] = useState({ title: "", body: "", url: "" });
+  const [pushForm, setPushForm] = useState({ title: "", body: "", url: "", image: "" });
   const [adminPushStatus, setAdminPushStatus] = useState<AdminPushStatus>("idle");
   const [currentSub, setCurrentSub] = useState<PushSubscription | null>(null);
 
@@ -46,6 +53,16 @@ export default function PushNotificationsPanel({ apiKey, isActive }: Props) {
     queryKey: ["/api/admin/push/admin-stats"],
     queryFn: () => adminFetch("/api/admin/push/admin-stats", apiKey),
     enabled: !!apiKey && isActive,
+  });
+
+  const historyQuery = useQuery<Array<{
+    title: string; body: string; url?: string; image?: string; tag?: string;
+    sentAt: string; sent: number; failed: number; total: number;
+  }>>({
+    queryKey: ["/api/admin/push/history"],
+    queryFn: () => adminFetch("/api/admin/push/history", apiKey),
+    enabled: !!apiKey && isActive,
+    refetchInterval: 30_000,
   });
 
   useEffect(() => {
@@ -66,7 +83,7 @@ export default function PushNotificationsPanel({ apiKey, isActive }: Props) {
   }, [isActive]);
 
   const pushSendMutation = useMutation({
-    mutationFn: (data: { title: string; body: string; url?: string }) =>
+    mutationFn: (data: { title: string; body: string; url?: string; image?: string }) =>
       adminFetch("/api/admin/push/send", apiKey, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -74,10 +91,24 @@ export default function PushNotificationsPanel({ apiKey, isActive }: Props) {
       }),
     onSuccess: (data: any) => {
       toast({ title: `✅ Push отправлен: ${data.sent} из ${data.total} подписчиков` });
-      setPushForm({ title: "", body: "", url: "" });
+      setPushForm({ title: "", body: "", url: "", image: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/push/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/push/history"] });
     },
     onError: (err: any) => toast({ title: "Ошибка отправки", description: err.message, variant: "destructive" }),
+  });
+
+  const pushTestMutation = useMutation({
+    mutationFn: (data: { title: string; body: string; url?: string; image?: string }) =>
+      adminFetch("/api/admin/push/test", apiKey, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (data: any) => {
+      toast({ title: `🧪 Тест-пуш отправлен: ${data.sent} admin-браузер(ов)`, description: "Проверьте уведомление на своём устройстве" });
+    },
+    onError: (err: any) => toast({ title: "Ошибка тест-пуша", description: err.message, variant: "destructive" }),
   });
 
   const adminSubscribeMutation = useMutation({
@@ -126,10 +157,14 @@ export default function PushNotificationsPanel({ apiKey, isActive }: Props) {
       }
       const vapidRes = await fetch("/api/push/vapid-public-key");
       const { publicKey } = await vapidRes.json();
-      const reg = await navigator.serviceWorker.ready;
+      // Таймаут на serviceWorker.ready — если SW не зарегистрировался, не зависаем вечно
+      const swReadyTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Service Worker не готов. Обновите страницу.")), 10_000)
+      );
+      const reg = await Promise.race([navigator.serviceWorker.ready, swReadyTimeout]);
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: publicKey,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
       setCurrentSub(sub);
       await adminSubscribeMutation.mutateAsync(sub.toJSON());
@@ -156,7 +191,25 @@ export default function PushNotificationsPanel({ apiKey, isActive }: Props) {
     }
     const total = clientStatsQuery.data?.total ?? 0;
     if (!confirm(`Отправить push-уведомление ${total} клиентам?`)) return;
-    pushSendMutation.mutate({ title: pushForm.title, body: pushForm.body, url: pushForm.url || undefined });
+    pushSendMutation.mutate({
+      title: pushForm.title,
+      body: pushForm.body,
+      url: pushForm.url || undefined,
+      image: pushForm.image || undefined,
+    });
+  };
+
+  const handleTestPush = () => {
+    if (!pushForm.title.trim() || !pushForm.body.trim()) {
+      toast({ title: "Заполните заголовок и текст", variant: "destructive" });
+      return;
+    }
+    pushTestMutation.mutate({
+      title: pushForm.title,
+      body: pushForm.body,
+      url: pushForm.url || undefined,
+      image: pushForm.image || undefined,
+    });
   };
 
   return (
@@ -281,16 +334,75 @@ export default function PushNotificationsPanel({ apiKey, isActive }: Props) {
               data-testid="input-push-url"
             />
           </div>
-          <Button
-            onClick={handleSendPush}
-            disabled={pushSendMutation.isPending}
-            data-testid="button-push-send"
-          >
-            <Send className="w-4 h-4 mr-2" />
-            {pushSendMutation.isPending ? "Отправка…" : `Отправить push (${clientStatsQuery.data?.total ?? "…"} подписчиков)`}
-          </Button>
+          <div>
+            <label className="text-sm font-medium mb-1 flex items-center gap-1.5">
+              <Image className="w-3.5 h-3.5" />
+              Картинка (необязательно)
+            </label>
+            <Input
+              value={pushForm.image}
+              onChange={(e) => setPushForm(f => ({ ...f, image: e.target.value }))}
+              placeholder="/push-banner.png или https://..."
+              data-testid="input-push-image"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Отображается под текстом уведомления. Используйте /push-banner.png для баннера.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button
+              onClick={handleSendPush}
+              disabled={pushSendMutation.isPending || pushTestMutation.isPending}
+              data-testid="button-push-send"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {pushSendMutation.isPending ? "Отправка…" : `Отправить всем (${clientStatsQuery.data?.total ?? "…"})`}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleTestPush}
+              disabled={pushSendMutation.isPending || pushTestMutation.isPending}
+              data-testid="button-push-test"
+            >
+              <FlaskConical className="w-4 h-4 mr-2" />
+              {pushTestMutation.isPending ? "Отправка…" : "Тест на себя"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      {/* История рассылок */}
+      {(historyQuery.data?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm text-muted-foreground">
+              <History className="w-4 h-4" />
+              История рассылок (последние {historyQuery.data?.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {historyQuery.data?.map((entry, i) => (
+              <div key={i} className="flex items-start justify-between gap-3 text-sm border-b last:border-0 pb-2 last:pb-0">
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{entry.title}</p>
+                  <p className="text-muted-foreground truncate text-xs">{entry.body}</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">
+                    {new Date(entry.sentAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  <Badge variant="secondary" className="text-green-700 bg-green-100 dark:bg-green-950 dark:text-green-400 text-xs">
+                    ✓ {entry.sent}
+                  </Badge>
+                  {entry.failed > 0 && (
+                    <Badge variant="secondary" className="text-red-700 bg-red-100 dark:bg-red-950 dark:text-red-400 text-xs">
+                      ✗ {entry.failed}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

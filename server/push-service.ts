@@ -4,6 +4,26 @@ import webpush from 'web-push';
 const CLIENT_PUSH_KEY = 'push_subscriptions';
 const ADMIN_PUSH_KEY = 'admin_push_subscriptions';
 
+// ─── In-memory locks ──────────────────────────────────────────────────────────
+// Защита от race condition при одновременных подписках/отписках.
+// Тот же паттерн что в partner-routes.ts (payoutUploadLocks, payoutRequestLocks)
+// и admin-partner-routes.ts (payoutCreateLocks).
+// ВНИМАНИЕ: in-memory — работает только в single-instance Yandex Cloud Container.
+const _pushSubsLocks = new Map<'client' | 'admin', number>();
+const PUSH_LOCK_TTL_MS = 10_000; // 10 сек достаточно для read→modify→write
+
+export function acquirePushLock(type: 'client' | 'admin'): boolean {
+  const now = Date.now();
+  const existing = _pushSubsLocks.get(type);
+  if (existing && now - existing < PUSH_LOCK_TTL_MS) return false;
+  _pushSubsLocks.set(type, now);
+  return true;
+}
+
+export function releasePushLock(type: 'client' | 'admin'): void {
+  _pushSubsLocks.delete(type);
+}
+
 let _vapidReady = false;
 
 function getWebPush(): typeof webpush | null {
@@ -95,6 +115,41 @@ async function sendToList(
   return { sent, failed };
 }
 
+// ─── История рассылок (последние 20) ──────────────────────────────────────────
+export interface PushHistoryEntry {
+  title: string;
+  body: string;
+  url?: string;
+  image?: string;
+  tag?: string;
+  sentAt: string;   // ISO
+  sent: number;
+  failed: number;
+  total: number;
+}
+
+const _pushHistory: PushHistoryEntry[] = [];
+const MAX_HISTORY = 20;
+
+export function getPushHistory(): PushHistoryEntry[] {
+  return [..._pushHistory].reverse(); // новые первыми
+}
+
+function addToHistory(payload: PushPayload, result: { sent: number; failed: number }, total: number): void {
+  _pushHistory.push({
+    title: payload.title,
+    body: payload.body,
+    url: payload.url,
+    image: payload.image,
+    tag: payload.tag,
+    sentAt: new Date().toISOString(),
+    sent: result.sent,
+    failed: result.failed,
+    total,
+  });
+  if (_pushHistory.length > MAX_HISTORY) _pushHistory.shift();
+}
+
 export async function sendPushToAll(payload: PushPayload): Promise<{ sent: number; failed: number }> {
   try {
     const subs = await getPushSubs();
@@ -102,6 +157,7 @@ export async function sendPushToAll(payload: PushPayload): Promise<{ sent: numbe
     if (result.sent > 0 || result.failed > 0) {
       console.log(`[WebPush] Client push "${payload.title}": sent=${result.sent}, failed=${result.failed}`);
     }
+    addToHistory(payload, result, subs.length);
     return result;
   } catch (err: any) {
     console.error('[WebPush] sendPushToAll error:', err?.message);

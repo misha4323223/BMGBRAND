@@ -15,7 +15,10 @@ async function subscribeToPush(): Promise<{ success: boolean; error?: string }> 
     if (!keyRes.ok) return { success: false, error: "no_vapid" };
     const { publicKey } = await keyRes.json();
 
-    const reg = await navigator.serviceWorker.ready;
+    const swReadyTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), 10_000)
+    );
+    const reg = await Promise.race([navigator.serviceWorker.ready, swReadyTimeout]);
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
       const permission = await Notification.requestPermission();

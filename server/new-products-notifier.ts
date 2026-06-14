@@ -187,6 +187,7 @@ export async function triggerNewProductsNotifierNow(): Promise<{ sent: number; f
       title: '🆕 Новинки в магазине',
       body: `«${firstName}»${more} — смотри первым!`,
       url: 'https://booomerangs.ru/products',
+      image: '/push-banner.png',
       tag: 'booom-new-products',
     }).catch(() => {});
   }

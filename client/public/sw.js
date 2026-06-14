@@ -22,7 +22,7 @@ self.addEventListener('push', function (event) {
     body,
     icon:  data.icon  || '/icon-192.png',
     badge: data.badge || '/notification-badge.png',
-    image: data.image || undefined,
+    ...(data.image ? { image: data.image } : {}),
     data:  { url },
     vibrate: [200, 100, 200],
     requireInteraction: false,

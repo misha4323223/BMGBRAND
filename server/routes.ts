@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { getPushSubs, savePushSubs, sendPushToAll as _sendPushToAllSvc, getAdminPushSubs, saveAdminPushSubs } from './push-service';
+import { getPushSubs, savePushSubs, sendPushToAll as _sendPushToAllSvc, getAdminPushSubs, saveAdminPushSubs, sendPushToAdmins as _sendPushToAdminsSvc, acquirePushLock, releasePushLock, getPushHistory } from './push-service';
 import type { Server } from "http";
 import { storage, warmRatingsCache } from "./storage";
 import { api } from "@shared/routes";
@@ -11581,6 +11581,9 @@ BMGBRAND — официальный производитель и магазин
 
   // Сохраняем подписку браузера
   app.post('/api/push/subscribe', async (req, res) => {
+    if (!acquirePushLock('client')) {
+      return res.status(429).json({ error: 'Подождите, идёт сохранение подписки' });
+    }
     try {
       const { subscription } = req.body;
       if (!subscription?.endpoint || !subscription?.keys) {
@@ -11596,11 +11599,16 @@ BMGBRAND — официальный производитель и магазин
     } catch (err: any) {
       console.error('[WebPush] Subscribe error:', err.message);
       res.status(500).json({ error: 'Ошибка сервера' });
+    } finally {
+      releasePushLock('client');
     }
   });
 
   // Удаляем подписку (отписка)
   app.delete('/api/push/unsubscribe', async (req, res) => {
+    if (!acquirePushLock('client')) {
+      return res.status(429).json({ error: 'Подождите, идёт обновление подписок' });
+    }
     try {
       const { endpoint } = req.body;
       if (!endpoint) return res.status(400).json({ error: 'endpoint обязателен' });
@@ -11609,6 +11617,8 @@ BMGBRAND — официальный производитель и магазин
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: 'Ошибка сервера' });
+    } finally {
+      releasePushLock('client');
     }
   });
 
@@ -11624,12 +11634,12 @@ BMGBRAND — официальный производитель и магазин
   app.post('/api/admin/push/send', requireAdminOrApiKey, async (req, res) => {
     if (!process.env.VAPID_PUBLIC_KEY) return res.status(503).json({ error: 'Push не настроен (нет VAPID ключей)' });
     try {
-      const { title, body, url, tag } = req.body;
+      const { title, body, url, tag, image } = req.body;
       if (!title || !body) return res.status(400).json({ error: 'title и body обязательны' });
       const subs = await getPushSubs();
       const total = subs.length;
       if (total === 0) return res.json({ sent: 0, failed: 0, total: 0 });
-      const result = await _sendPushToAllSvc({ title, body, url, tag });
+      const result = await _sendPushToAllSvc({ title, body, url, tag, image });
       res.json({ sent: result.sent, failed: result.failed, total });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -11646,12 +11656,39 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // Admin: история последних рассылок (in-memory, max 20)
+  app.get('/api/admin/push/history', requireAdminOrApiKey, (_req, res) => {
+    res.json(getPushHistory());
+  });
+
+  // Admin: тест-пуш только на admin-браузеры (не трогает клиентов)
+  app.post('/api/admin/push/test', requireAdminOrApiKey, async (req, res) => {
+    if (!process.env.VAPID_PUBLIC_KEY) return res.status(503).json({ error: 'Push не настроен (нет VAPID ключей)' });
+    try {
+      const { title, body, url, image } = req.body;
+      if (!title || !body) return res.status(400).json({ error: 'title и body обязательны' });
+      const result = await _sendPushToAdminsSvc({
+        title: `[ТЕСТ] ${title}`,
+        body,
+        url: url || 'https://booomerangs.ru',
+        image,
+        tag: 'booom-push-test',
+      });
+      res.json({ sent: result.sent, failed: result.failed });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ─── Admin Push (owner devices) ──────────────────────────────────────────────
   // Отдельный список подписок для владельцев/администраторов сайта.
   // Используется автономным агентом для алертов (низкий сток, дайджест, очередь).
 
   // Подписать браузер администратора
   app.post('/api/admin/push/admin-subscribe', requireAdminOrApiKey, async (req, res) => {
+    if (!acquirePushLock('admin')) {
+      return res.status(429).json({ error: 'Подождите, идёт сохранение подписки' });
+    }
     try {
       const { subscription } = req.body;
       if (!subscription?.endpoint || !subscription?.keys) {
@@ -11667,11 +11704,16 @@ BMGBRAND — официальный производитель и магазин
     } catch (err: any) {
       console.error('[WebPush] Admin subscribe error:', err.message);
       res.status(500).json({ error: 'Ошибка сервера' });
+    } finally {
+      releasePushLock('admin');
     }
   });
 
   // Отписать браузер администратора
   app.delete('/api/admin/push/admin-unsubscribe', requireAdminOrApiKey, async (req, res) => {
+    if (!acquirePushLock('admin')) {
+      return res.status(429).json({ error: 'Подождите, идёт обновление подписок' });
+    }
     try {
       const { endpoint } = req.body;
       if (!endpoint) return res.status(400).json({ error: 'endpoint обязателен' });
@@ -11680,6 +11722,8 @@ BMGBRAND — официальный производитель и магазин
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: 'Ошибка сервера' });
+    } finally {
+      releasePushLock('admin');
     }
   });
 
