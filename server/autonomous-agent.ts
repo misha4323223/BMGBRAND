@@ -380,7 +380,7 @@ export async function runStaleProductsJob(): Promise<void> {
   console.log("[AutonomousAgent] Starting stale products job...");
   const settings = await getAgentSettings();
   if (!settings.enabled) return;
-  if (!await acquireJobLock('job_lock_stale_products', 20 * 60 * 60 * 1000)) return;
+  if (!await acquireJobLock('job_lock_stale_products', 6 * 24 * 60 * 60 * 1000)) return;
 
   const allProducts = (await storage.getProducts()) as any[];
   const staleDate = new Date(Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000);
@@ -943,7 +943,6 @@ export async function runAutonomousAgent(): Promise<void> {
 
   try {
     await runSeoJob();
-    await runStaleProductsJob();
 
     // Пауза 30 минут после SEO — даём Groq остыть и сбрасываем счётчик
     console.log("[AutonomousAgent] Waiting 30 min before description job...");
@@ -990,11 +989,11 @@ export function initAutonomousAgent(): void {
     setInterval(runSeoSafe, 24 * 60 * 60 * 1000);
   }, seoDelayMs);
 
-  // Алерты + дайджест — каждый понедельник в 09:00 МСК (06:00 UTC)
+  // Алерты + дайджест — каждый понедельник в 10:00 МСК (07:00 UTC)
   const daysUntilMonday = (8 - now.getUTCDay()) % 7 || 7;
   const nextMonday = new Date(now);
   nextMonday.setUTCDate(now.getUTCDate() + daysUntilMonday);
-  nextMonday.setUTCHours(6, 0, 0, 0); // 09:00 МСК
+  nextMonday.setUTCHours(7, 0, 0, 0); // 10:00 МСК
   const mondayDelayMs = nextMonday.getTime() - nowMs;
 
   const runMondaySafe = () =>
@@ -1011,23 +1010,40 @@ export function initAutonomousAgent(): void {
 
   // Анализ брошенных корзин — каждое воскресенье в 11:00 МСК (08:00 UTC)
   const daysUntilSunday = (7 - now.getUTCDay()) % 7;
-  const nextSunday = new Date(now);
-  nextSunday.setUTCDate(now.getUTCDate() + daysUntilSunday);
-  nextSunday.setUTCHours(8, 0, 0, 0); // 11:00 МСК = 08:00 UTC
-  if (nextSunday.getTime() <= nowMs) nextSunday.setUTCDate(nextSunday.getUTCDate() + 7);
-  const sundayDelayMs = nextSunday.getTime() - nowMs;
+  const nextSundayCart = new Date(now);
+  nextSundayCart.setUTCDate(now.getUTCDate() + daysUntilSunday);
+  nextSundayCart.setUTCHours(8, 0, 0, 0); // 11:00 МСК = 08:00 UTC
+  if (nextSundayCart.getTime() <= nowMs) nextSundayCart.setUTCDate(nextSundayCart.getUTCDate() + 7);
+  const sundayCartDelayMs = nextSundayCart.getTime() - nowMs;
 
-  const runSundaySafe = () =>
+  const runCartSafe = () =>
     runCartAnalysisJob().catch((e: any) =>
       console.error("[AutonomousAgent] Sunday cart analysis unhandled error:", e?.message)
     );
 
   setTimeout(() => {
-    runSundaySafe();
-    setInterval(runSundaySafe, 7 * 24 * 60 * 60 * 1000);
-  }, sundayDelayMs);
+    runCartSafe();
+    setInterval(runCartSafe, 7 * 24 * 60 * 60 * 1000);
+  }, sundayCartDelayMs);
+
+  // Уведомление о нулевых остатках — каждое воскресенье в 17:00 МСК (14:00 UTC)
+  const nextSundayStale = new Date(now);
+  nextSundayStale.setUTCDate(now.getUTCDate() + daysUntilSunday);
+  nextSundayStale.setUTCHours(14, 0, 0, 0); // 17:00 МСК = 14:00 UTC
+  if (nextSundayStale.getTime() <= nowMs) nextSundayStale.setUTCDate(nextSundayStale.getUTCDate() + 7);
+  const sundayStaleDelayMs = nextSundayStale.getTime() - nowMs;
+
+  const runStaleSafe = () =>
+    runStaleProductsJob().catch((e: any) =>
+      console.error("[AutonomousAgent] Sunday stale products unhandled error:", e?.message)
+    );
+
+  setTimeout(() => {
+    runStaleSafe();
+    setInterval(runStaleSafe, 7 * 24 * 60 * 60 * 1000);
+  }, sundayStaleDelayMs);
 
   console.log(
-    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h, cart analysis next Sunday in ${Math.round(sundayDelayMs / 60000 / 60)}h`
+    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h, cart analysis next Sunday in ${Math.round(sundayCartDelayMs / 60000 / 60)}h, stale products next Sunday in ${Math.round(sundayStaleDelayMs / 60000 / 60)}h`
   );
 }
