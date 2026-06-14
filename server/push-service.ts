@@ -165,6 +165,67 @@ export async function sendPushToAll(payload: PushPayload): Promise<{ sent: numbe
   }
 }
 
+// ─── Отправка пуша конкретному пользователю по userId ─────────────────────────
+export async function sendPushToUser(userId: string, payload: PushPayload): Promise<void> {
+  try {
+    const allSubs = await getPushSubs();
+    const userSubs = allSubs.filter((s: any) => s.userId === userId);
+    if (userSubs.length === 0) return;
+
+    const wp = getWebPush();
+    if (!wp) return;
+
+    const payloadStr = JSON.stringify({
+      title: payload.title,
+      body: payload.body,
+      url: payload.url || 'https://booomerangs.ru',
+      icon: payload.icon || '/icon-192.png',
+      badge: '/notification-badge.png',
+      tag: payload.tag || 'order-status',
+    });
+
+    const toRemove: string[] = [];
+    for (const sub of userSubs) {
+      try {
+        await wp.sendNotification(sub, payloadStr);
+        console.log(`[WebPush] Order push sent to user ${userId}`);
+      } catch (err: any) {
+        if (err.statusCode === 410 || err.statusCode === 404) toRemove.push(sub.endpoint);
+      }
+    }
+    if (toRemove.length > 0) {
+      await savePushSubs(allSubs.filter((s: any) => !toRemove.includes(s.endpoint)));
+    }
+  } catch (err: any) {
+    console.error('[WebPush] sendPushToUser error:', err?.message);
+  }
+}
+
+// Текст пуша по статусу заказа (null — не отправлять для данного статуса)
+export function orderStatusPushPayload(
+  orderId: number,
+  status: string,
+): { title: string; body: string; url: string; tag: string } | null {
+  const url = `/account`;
+  const tag = `order-${orderId}`;
+  switch (status) {
+    case 'paid':
+      return { title: 'Заказ оплачен ✓', body: `Заказ #${orderId} оплачен и передан в обработку.`, url, tag };
+    case 'processing':
+      return { title: 'Заказ в обработке', body: `Заказ #${orderId} принят и комплектуется.`, url, tag };
+    case 'shipped':
+      return { title: 'Заказ отправлен 📦', body: `Заказ #${orderId} передан в службу доставки.`, url, tag };
+    case 'delivered':
+      return { title: 'Заказ доставлен ✓', body: `Заказ #${orderId} доставлен. Спасибо за покупку!`, url, tag };
+    case 'ready_for_pickup':
+      return { title: 'Готов к выдаче! 📍', body: `Заказ #${orderId} ждёт в пункте выдачи.`, url, tag };
+    case 'cancelled':
+      return { title: 'Заказ отменён', body: `Заказ #${orderId} был отменён.`, url, tag };
+    default:
+      return null;
+  }
+}
+
 export async function sendPushToAdmins(payload: PushPayload): Promise<{ sent: number; failed: number }> {
   try {
     const subs = await getAdminPushSubs();

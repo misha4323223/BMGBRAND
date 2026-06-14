@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { getPushSubs, savePushSubs, sendPushToAll as _sendPushToAllSvc, getAdminPushSubs, saveAdminPushSubs, sendPushToAdmins as _sendPushToAdminsSvc, acquirePushLock, releasePushLock, getPushHistory } from './push-service';
+import { getPushSubs, savePushSubs, sendPushToAll as _sendPushToAllSvc, getAdminPushSubs, saveAdminPushSubs, sendPushToAdmins as _sendPushToAdminsSvc, acquirePushLock, releasePushLock, getPushHistory, sendPushToUser, orderStatusPushPayload } from './push-service';
 import type { Server } from "http";
 import { storage, warmRatingsCache } from "./storage";
 import { api } from "@shared/routes";
@@ -11591,7 +11591,8 @@ BMGBRAND — официальный производитель и магазин
       }
       const subs = await getPushSubs();
       const idx = subs.findIndex((s: any) => s.endpoint === subscription.endpoint);
-      const entry = { ...subscription, createdAt: Date.now() };
+      const userId = (req as any).user?.id || null;
+      const entry = { ...subscription, userId, createdAt: Date.now() };
       if (idx >= 0) subs[idx] = entry; else subs.push(entry);
       await savePushSubs(subs);
       console.log(`[WebPush] Subscription saved. Total: ${subs.length}`);
@@ -12972,6 +12973,12 @@ BMGBRAND — официальный производитель и магазин
       }
       const orderId = Number(req.params.id);
       const order = await storage.updateOrderStatus(orderId, status);
+
+      // Push-уведомление пользователю о смене статуса
+      if (order?.userId) {
+        const pushData = orderStatusPushPayload(orderId, status);
+        if (pushData) sendPushToUser(String(order.userId), pushData).catch(() => {});
+      }
 
       storage.getOrderBitrixDealId(orderId).then(dealId => {
         if (!dealId) return;

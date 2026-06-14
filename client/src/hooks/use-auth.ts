@@ -100,6 +100,23 @@ export function useLogin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      // Привязываем анонимную push-подписку к аккаунту пользователя
+      try {
+        if ("serviceWorker" in navigator && "PushManager" in window) {
+          navigator.serviceWorker.ready.then((reg) =>
+            reg.pushManager.getSubscription().then((sub) => {
+              if (sub) {
+                fetch("/api/push/subscribe", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ subscription: sub.toJSON() }),
+                  credentials: "include",
+                }).catch(() => {});
+              }
+            })
+          ).catch(() => {});
+        }
+      } catch {}
     },
   });
 }
