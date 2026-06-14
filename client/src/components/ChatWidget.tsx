@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { X, Send, ArrowRight, ImagePlus, Loader2, Bot, UserRound, Sparkles, Ruler } from "lucide-react";
 
 // Renders AI message text with clickable markdown links [text](url)
-function AiMessageContent({ text }: { text: string }) {
+function AiMessageContent({ text, streaming }: { text: string; streaming?: boolean }) {
   const parts = text.split(/(\[([^\]]+)\]\((https?:\/\/[^)]+)\))/g);
   const result: React.ReactNode[] = [];
   let i = 0;
@@ -30,7 +30,12 @@ function AiMessageContent({ text }: { text: string }) {
       i++;
     }
   }
-  return <p className="leading-snug whitespace-pre-wrap">{result}</p>;
+  return (
+    <p className="leading-snug whitespace-pre-wrap">
+      {result}
+      {streaming && <span className="animate-pulse">▌</span>}
+    </p>
+  );
 }
 
 type ChatMode = "ai" | "manager";
@@ -56,6 +61,7 @@ interface AiMessage {
   role: "user" | "assistant";
   content: string;
   products?: ProductCard[];
+  streaming?: boolean;
 }
 
 interface ProductPageContext {
@@ -378,37 +384,80 @@ export function ChatWidget() {
       : productPageCtx ? "product"
       : "other";
 
+    const streamMsgId = `a-${Date.now()}`;
+
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          stream: true,
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
           pageContext: cartRemovedProductRef.current
             ? { pageType: "cart_remove", removedProductName: cartRemovedProductRef.current, product: productPageCtx ?? undefined, activeTrigger: lastTriggerRef.current }
             : { pageType, product: productPageCtx ?? undefined, artist: artistPageCtx ?? undefined, activeTrigger: lastTriggerRef.current },
         }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setAiMessages(prev => [...prev, {
-          id: `err-${Date.now()}`,
-          role: "assistant",
-          content: "__tired__",
-        }]);
+
+      if (!res.ok || !res.body) {
+        setAiMessages(prev => [...prev, { id: `err-${Date.now()}`, role: "assistant", content: "__tired__" }]);
         return;
       }
-      const reply = data.reply || "Извините, не удалось получить ответ. Напишите нашему менеджеру.";
-      const products: ProductCard[] = data.products || [];
-      setAiMessages(prev => [...prev, { id: `a-${Date.now()}`, role: "assistant", content: reply, products }]);
+
+      // Show streaming placeholder — dots disappear, cursor appears
+      setAiMessages(prev => [...prev, { id: streamMsgId, role: "assistant", content: "", streaming: true }]);
+      setAiLoading(false);
+      scrollAiToBottom();
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split("\n");
+        sseBuffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const evt = JSON.parse(line.slice(6).trim());
+            if (evt.error) {
+              setAiMessages(prev => prev.map(m =>
+                m.id === streamMsgId ? { ...m, content: "__tired__", streaming: false } : m
+              ));
+              return;
+            }
+            if (evt.chunk) {
+              setAiMessages(prev => prev.map(m =>
+                m.id === streamMsgId ? { ...m, content: m.content + evt.chunk } : m
+              ));
+              scrollAiToBottom();
+            }
+            if (evt.done) {
+              setAiMessages(prev => prev.map(m =>
+                m.id === streamMsgId ? { ...m, streaming: false, products: evt.products ?? [] } : m
+              ));
+              scrollAiToBottom();
+            }
+          } catch {}
+        }
+      }
     } catch {
-      setAiMessages(prev => [...prev, {
-        id: `err-${Date.now()}`,
-        role: "assistant",
-        content: "__tired__",
-      }]);
+      setAiMessages(prev => {
+        const hasPlaceholder = prev.some(m => m.id === streamMsgId);
+        if (hasPlaceholder) {
+          return prev.map(m => m.id === streamMsgId ? { ...m, content: "__tired__", streaming: false } : m);
+        }
+        return [...prev, { id: `err-${Date.now()}`, role: "assistant", content: "__tired__" }];
+      });
     } finally {
       setAiLoading(false);
+      // Safety: ensure no message stays in streaming state
+      setAiMessages(prev => prev.map(m =>
+        m.streaming ? { ...m, streaming: false, content: m.content || "__tired__" } : m
+      ));
       scrollAiToBottom();
     }
   };
@@ -431,27 +480,78 @@ export function ChatWidget() {
     setAiMessages(newMessages);
     setAiLoading(true);
     scrollAiToBottom();
+
+    const streamMsgId = `a-${Date.now()}`;
+
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          stream: true,
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
           productId,
           pageContext: { pageType: "product", product: productPageCtx ?? undefined, artist: artistPageCtx ?? undefined },
         }),
       });
-      const data = await res.json();
-      if (!res.ok) {
+
+      if (!res.ok || !res.body) {
         setAiMessages(prev => [...prev, { id: `err-${Date.now()}`, role: "assistant", content: "__tired__" }]);
         return;
       }
-      const reply = data.reply || "Не удалось получить ответ. Напишите нашему менеджеру.";
-      setAiMessages(prev => [...prev, { id: `a-${Date.now()}`, role: "assistant", content: reply, products: [] }]);
+
+      setAiMessages(prev => [...prev, { id: streamMsgId, role: "assistant", content: "", streaming: true }]);
+      setAiLoading(false);
+      scrollAiToBottom();
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split("\n");
+        sseBuffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const evt = JSON.parse(line.slice(6).trim());
+            if (evt.error) {
+              setAiMessages(prev => prev.map(m =>
+                m.id === streamMsgId ? { ...m, content: "__tired__", streaming: false } : m
+              ));
+              return;
+            }
+            if (evt.chunk) {
+              setAiMessages(prev => prev.map(m =>
+                m.id === streamMsgId ? { ...m, content: m.content + evt.chunk } : m
+              ));
+              scrollAiToBottom();
+            }
+            if (evt.done) {
+              setAiMessages(prev => prev.map(m =>
+                m.id === streamMsgId ? { ...m, streaming: false, products: evt.products ?? [] } : m
+              ));
+              scrollAiToBottom();
+            }
+          } catch {}
+        }
+      }
     } catch {
-      setAiMessages(prev => [...prev, { id: `err-${Date.now()}`, role: "assistant", content: "__tired__" }]);
+      setAiMessages(prev => {
+        const hasPlaceholder = prev.some(m => m.id === streamMsgId);
+        if (hasPlaceholder) {
+          return prev.map(m => m.id === streamMsgId ? { ...m, content: "__tired__", streaming: false } : m);
+        }
+        return [...prev, { id: `err-${Date.now()}`, role: "assistant", content: "__tired__" }];
+      });
     } finally {
       setAiLoading(false);
+      setAiMessages(prev => prev.map(m =>
+        m.streaming ? { ...m, streaming: false, content: m.content || "__tired__" } : m
+      ));
       scrollAiToBottom();
     }
   };
@@ -763,7 +863,7 @@ export function ChatWidget() {
                             }`}>
                             {msg.role === "user"
                               ? <p className="leading-snug">{msg.content}</p>
-                              : <AiMessageContent text={msg.content} />
+                              : <AiMessageContent text={msg.content} streaming={msg.streaming} />
                             }
                           </div>
                         )}
@@ -799,7 +899,7 @@ export function ChatWidget() {
                     </div>
                   ))}
 
-                  {aiLoading && (
+                  {aiLoading && !aiMessages.some(m => m.streaming) && (
                     <div className="flex justify-start">
                       <div className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center mr-2 flex-shrink-0">
                         <Bot className="w-3.5 h-3.5" />
@@ -835,18 +935,18 @@ export function ChatWidget() {
                     value={aiInput}
                     onChange={e => setAiInput(e.target.value)}
                     onKeyDown={handleAiKeyDown}
-                    disabled={aiLoading}
+                    disabled={aiLoading || aiMessages.some(m => m.streaming)}
                     className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-black/12 text-sm text-black placeholder-black/30 bg-black/[0.02] outline-none focus:border-black transition-colors disabled:opacity-50"
                     data-testid="input-ai-message"
                     style={{ fontSize: "16px" }}
                   />
                   <button
                     onClick={() => sendAiMessage(aiInput)}
-                    disabled={!aiInput.trim() || aiLoading}
+                    disabled={!aiInput.trim() || aiLoading || aiMessages.some(m => m.streaming)}
                     className="w-9 h-9 rounded-xl bg-black text-white flex items-center justify-center hover:bg-black/80 active:scale-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
                     data-testid="button-ai-send"
                   >
-                    {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {(aiLoading || aiMessages.some(m => m.streaming)) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   </button>
                 </div>
               </>

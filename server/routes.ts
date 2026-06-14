@@ -3270,18 +3270,119 @@ BMGBRAND — официальный производитель и магазин
 
       const groqHeaders: Record<string, string> = { "Content-Type": "application/json" };
       if (apiKey) groqHeaders["Authorization"] = `Bearer ${apiKey}`;
+
+      // Product cards computed once — shared by both paths
+      const productCards = matched.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price ? Math.round(p.price / 100) : null,
+        imageUrl: p.imageUrl || null,
+        url: `/${p.slug || p.id}`,
+      }));
+
+      const groqBody = {
+        model: "qwen/qwen3-32b",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages.slice(-10),
+        ],
+        max_tokens: 600,
+        temperature: 0.6,
+      };
+
+      // ── SSE streaming path ──────────────────────────────────────────────────
+      if (req.body.stream === true) {
+        res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("X-Accel-Buffering", "no");
+        res.flushHeaders();
+
+        const streamRes = await fetch(`${groqBase}/openai/v1/chat/completions`, {
+          method: "POST",
+          headers: groqHeaders,
+          body: JSON.stringify({ ...groqBody, stream: true }),
+        });
+
+        if (!streamRes.ok || !streamRes.body) {
+          const errCode = streamRes.status === 429 ? "rate_limit" : "ai_unavailable";
+          res.write(`data: ${JSON.stringify({ error: errCode })}\n\n`);
+          res.end();
+          return;
+        }
+
+        const reader = (streamRes.body as any).getReader();
+        const decoder = new TextDecoder();
+        let sseBuffer = "";
+        // Think-tag filter state
+        let inThink = false;
+        let thinkBuf = ""; // partial-tag lookahead buffer
+
+        const pushChunk = (text: string) => {
+          if (text) res.write(`data: ${JSON.stringify({ chunk: text })}\n\n`);
+        };
+
+        const filterAndSend = (raw: string) => {
+          thinkBuf += raw;
+          while (thinkBuf.length > 0) {
+            if (inThink) {
+              const end = thinkBuf.indexOf("</think>");
+              if (end === -1) {
+                // Keep last 8 chars in case tag spans chunk boundary
+                if (thinkBuf.length > 8) thinkBuf = thinkBuf.slice(-8);
+                break;
+              }
+              inThink = false;
+              thinkBuf = thinkBuf.slice(end + 8);
+            } else {
+              const start = thinkBuf.indexOf("<think>");
+              if (start === -1) {
+                // No think tag — safe to send all but last 7 chars (lookahead)
+                const safe = thinkBuf.length > 7 ? thinkBuf.slice(0, -7) : "";
+                if (safe) pushChunk(safe);
+                thinkBuf = thinkBuf.slice(safe.length);
+                break;
+              }
+              pushChunk(thinkBuf.slice(0, start));
+              inThink = true;
+              thinkBuf = thinkBuf.slice(start + 7);
+            }
+          }
+        };
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            sseBuffer += decoder.decode(value, { stream: true });
+            const lines = sseBuffer.split("\n");
+            sseBuffer = lines.pop() ?? "";
+            for (const line of lines) {
+              if (!line.startsWith("data: ")) continue;
+              const payload = line.slice(6).trim();
+              if (payload === "[DONE]") continue;
+              try {
+                const chunk = JSON.parse(payload);
+                const content: string = chunk.choices?.[0]?.delta?.content ?? "";
+                if (content) filterAndSend(content);
+              } catch {}
+            }
+          }
+          // Flush remaining lookahead buffer
+          if (!inThink && thinkBuf) pushChunk(thinkBuf);
+        } catch (streamErr: any) {
+          console.error("[AI Chat] Stream read error:", streamErr.message);
+        }
+
+        res.write(`data: ${JSON.stringify({ done: true, products: productCards })}\n\n`);
+        res.end();
+        return;
+      }
+
+      // ── Non-streaming path (original, unchanged) ───────────────────────────
       const response = await fetch(`${groqBase}/openai/v1/chat/completions`, {
         method: "POST",
         headers: groqHeaders,
-        body: JSON.stringify({
-          model: "qwen/qwen3-32b",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...messages.slice(-10),
-          ],
-          max_tokens: 600,
-          temperature: 0.6,
-        }),
+        body: JSON.stringify(groqBody),
       });
 
       if (!response.ok) {
@@ -3302,16 +3403,6 @@ BMGBRAND — официальный производитель и магазин
         .replace(/<think>[\s\S]*?<\/think>/gi, "")
         .replace(/<think>[\s\S]*/gi, "")
         .trim();
-
-      // Return matched products as structured data (not embedded in text)
-      const SITE_BASE = "https://booomerangs.ru";
-      const productCards = matched.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price ? Math.round(p.price / 100) : null,
-        imageUrl: p.imageUrl || null,
-        url: `/${p.slug || p.id}`,
-      }));
 
       res.json({ reply, products: productCards });
     } catch (err: any) {
