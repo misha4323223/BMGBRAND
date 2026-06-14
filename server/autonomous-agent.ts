@@ -15,6 +15,30 @@ async function markMondaySentToday(): Promise<void> {
   await (storage as any).setBonusSetting(MONDAY_SENT_KEY, today);
 }
 
+// Distributed job lock via YDB bonus_settings.
+// Returns true  → lock acquired, job should proceed.
+// Returns false → another server already ran this job within windowMs, skip.
+// Fail-open: if YDB is unavailable, returns true so the job still runs.
+async function acquireJobLock(key: string, windowMs: number): Promise<boolean> {
+  try {
+    const raw = await (storage as any).getBonusSetting(key);
+    if (raw) {
+      const lastRun = new Date(raw).getTime();
+      if (!isNaN(lastRun) && (Date.now() - lastRun) < windowMs) {
+        console.log(
+          `[AutonomousAgent] Job lock "${key}": already ran ${Math.round((Date.now() - lastRun) / 60000)} min ago — skipping (duplicate guard)`
+        );
+        return false;
+      }
+    }
+    await (storage as any).setBonusSetting(key, new Date().toISOString());
+    return true;
+  } catch (err: any) {
+    console.warn(`[AutonomousAgent] Job lock "${key}" error (proceeding anyway):`, err?.message);
+    return true; // fail-open: не блокируем джоб если YDB недоступна
+  }
+}
+
 const MAX_SEO_PER_RUN = 20;          // снижено с 50 — меньше нагрузка на Groq
 const MAX_QUEUE_PER_RUN = 20;
 const LOW_STOCK_THRESHOLD = 2;
@@ -195,6 +219,7 @@ export async function runSeoJob(): Promise<{ processed: number; skipped: number;
     console.log("[AutonomousAgent] SEO job disabled, skipping.");
     return { processed: 0, skipped: 0, errors: 0 };
   }
+  if (!await acquireJobLock('job_lock_seo', 20 * 60 * 60 * 1000)) return { processed: 0, skipped: 0, errors: 0 };
 
   resetRequestCounter();
   const allProducts = (await storage.getProducts()) as any[];
@@ -292,6 +317,7 @@ export async function runAlertsJob(): Promise<void> {
   console.log("[AutonomousAgent] Starting alerts job...");
   const settings = await getAgentSettings();
   if (!settings.enabled || !settings.alertsEnabled) return;
+  if (!await acquireJobLock('job_lock_alerts', 6 * 24 * 60 * 60 * 1000)) return;
 
   const allProducts = (await storage.getProducts()) as any[];
   const visibleProducts = allProducts.filter((p) => !p.isHidden);
@@ -354,6 +380,7 @@ export async function runStaleProductsJob(): Promise<void> {
   console.log("[AutonomousAgent] Starting stale products job...");
   const settings = await getAgentSettings();
   if (!settings.enabled) return;
+  if (!await acquireJobLock('job_lock_stale_products', 20 * 60 * 60 * 1000)) return;
 
   const allProducts = (await storage.getProducts()) as any[];
   const staleDate = new Date(Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000);
@@ -415,6 +442,7 @@ export async function runDescriptionJob(): Promise<void> {
   console.log("[AutonomousAgent] Starting description job...");
   const settings = await getAgentSettings();
   if (!settings.enabled) return;
+  if (!await acquireJobLock('job_lock_description', 20 * 60 * 60 * 1000)) return;
 
   const allProducts = (await storage.getProducts()) as any[];
   const needsDesc = allProducts.filter(
@@ -482,6 +510,7 @@ export async function runWeeklyDigest(): Promise<void> {
   console.log("[AutonomousAgent] Starting weekly digest...");
   const settings = await getAgentSettings();
   if (!settings.enabled || !settings.digestEnabled) return;
+  if (!await acquireJobLock('job_lock_weekly_digest', 6 * 24 * 60 * 60 * 1000)) return;
 
   try {
     const [products, orders] = await Promise.all([
@@ -674,6 +703,7 @@ export async function runCartAnalysisJob(): Promise<void> {
     console.log("[AutonomousAgent] Cart analysis: YDB not available, skipping.");
     return;
   }
+  if (!await acquireJobLock('job_lock_cart_analysis', 6 * 24 * 60 * 60 * 1000)) return;
 
   try {
     // 1. Получаем все сессии пользователей с товарами в корзине
