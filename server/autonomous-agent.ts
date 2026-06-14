@@ -1026,10 +1026,10 @@ export function initAutonomousAgent(): void {
     setInterval(runCartSafe, 7 * 24 * 60 * 60 * 1000);
   }, sundayCartDelayMs);
 
-  // Уведомление о нулевых остатках — каждое воскресенье в 17:00 МСК (14:00 UTC)
+  // Уведомление о нулевых остатках — каждое воскресенье в 11:00 МСК (08:00 UTC)
   const nextSundayStale = new Date(now);
   nextSundayStale.setUTCDate(now.getUTCDate() + daysUntilSunday);
-  nextSundayStale.setUTCHours(14, 0, 0, 0); // 17:00 МСК = 14:00 UTC
+  nextSundayStale.setUTCHours(8, 0, 0, 0); // 11:00 МСК = 08:00 UTC
   if (nextSundayStale.getTime() <= nowMs) nextSundayStale.setUTCDate(nextSundayStale.getUTCDate() + 7);
   const sundayStaleDelayMs = nextSundayStale.getTime() - nowMs;
 
