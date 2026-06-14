@@ -11656,6 +11656,53 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // Admin: загрузить push-баннер в S3 (фиксированный ключ push/push-banner.png)
+  app.post('/api/admin/push/upload-banner', requireAdminOrApiKey, async (req, res) => {
+    try {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(Buffer.from(chunk));
+      const buffer = Buffer.concat(chunks);
+      if (buffer.length === 0) return res.status(400).json({ error: 'Пустой файл' });
+
+      const sharp = (await import('sharp')).default;
+      // Оптимальный размер push-баннера: ширина 1080px, соотношение ~2:1, PNG
+      const pngBuffer = await sharp(buffer)
+        .resize(1080, null, { withoutEnlargement: true, kernel: 'lanczos3' })
+        .png({ quality: 90, compressionLevel: 8 })
+        .toBuffer();
+
+      const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || 'bmg';
+      const s3Key = 'push/push-banner.png'; // фиксированный ключ — каждая загрузка перезаписывает
+
+      const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+      const s3 = new S3Client({
+        region: 'ru-central1',
+        endpoint: 'https://storage.yandexcloud.net',
+        credentials: {
+          accessKeyId: process.env.YANDEX_STORAGE_ACCESS_KEY || '',
+          secretAccessKey: process.env.YANDEX_STORAGE_SECRET_KEY || '',
+        },
+      });
+
+      await s3.send(new PutObjectCommand({
+        Bucket: bucketName,
+        Key: s3Key,
+        Body: pngBuffer,
+        ContentType: 'image/png',
+        ACL: 'public-read',
+        CacheControl: 'public, max-age=3600',
+      }));
+
+      // Добавляем cache-buster чтобы браузер не отдавал старый кэш
+      const url = `https://storage.yandexcloud.net/${bucketName}/${s3Key}?v=${Date.now()}`;
+      console.log(`[WebPush] Banner uploaded: ${url}`);
+      res.json({ url, success: true });
+    } catch (err: any) {
+      console.error('[WebPush] Banner upload error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Admin: история последних рассылок (in-memory, max 20)
   app.get('/api/admin/push/history', requireAdminOrApiKey, (_req, res) => {
     res.json(getPushHistory());

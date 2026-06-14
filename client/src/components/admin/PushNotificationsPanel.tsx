@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell, BellOff, Send, Users, ShieldAlert, FlaskConical, History, Image } from "lucide-react";
+import { Bell, BellOff, Send, Users, ShieldAlert, FlaskConical, History, Image, Upload, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,8 @@ export default function PushNotificationsPanel({ apiKey, isActive }: Props) {
   const [pushForm, setPushForm] = useState({ title: "", body: "", url: "", image: "" });
   const [adminPushStatus, setAdminPushStatus] = useState<AdminPushStatus>("idle");
   const [currentSub, setCurrentSub] = useState<PushSubscription | null>(null);
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const clientStatsQuery = useQuery<{ total: number }>({
     queryKey: ["/api/admin/push/stats"],
@@ -199,6 +201,39 @@ export default function PushNotificationsPanel({ apiKey, isActive }: Props) {
     });
   };
 
+  const handleBannerUpload = async (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Только изображения", description: "Загрузите PNG, JPG или WebP файл", variant: "destructive" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Файл слишком большой", description: "Максимум 10 МБ", variant: "destructive" });
+      return;
+    }
+    setBannerUploading(true);
+    try {
+      const res = await fetch("/api/admin/push/upload-banner", {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "Content-Type": file.type,
+          "x-filename": encodeURIComponent(file.name),
+        },
+        body: file,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка загрузки");
+      setPushForm(f => ({ ...f, image: data.url }));
+      toast({ title: "✅ Баннер загружен", description: "URL подставлен в поле картинки" });
+    } catch (err: any) {
+      toast({ title: "Ошибка загрузки баннера", description: err.message, variant: "destructive" });
+    } finally {
+      setBannerUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleTestPush = () => {
     if (!pushForm.title.trim() || !pushForm.body.trim()) {
       toast({ title: "Заполните заголовок и текст", variant: "destructive" });
@@ -335,17 +370,68 @@ export default function PushNotificationsPanel({ apiKey, isActive }: Props) {
             />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 flex items-center gap-1.5">
+            <label className="text-sm font-medium mb-2 flex items-center gap-1.5">
               <Image className="w-3.5 h-3.5" />
-              Картинка (необязательно)
+              Баннер уведомления (необязательно)
             </label>
-            <Input
-              value={pushForm.image}
-              onChange={(e) => setPushForm(f => ({ ...f, image: e.target.value }))}
-              placeholder="/push-banner.png или https://..."
-              data-testid="input-push-image"
+            {/* Скрытый file input — работает на мобильном и ПК */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleBannerUpload(file);
+              }}
             />
-            <p className="text-xs text-muted-foreground mt-1">Отображается под текстом уведомления. Используйте /push-banner.png для баннера.</p>
+            <div className="flex gap-2">
+              <Input
+                value={pushForm.image}
+                onChange={(e) => setPushForm(f => ({ ...f, image: e.target.value }))}
+                placeholder="https://... или загрузите файл →"
+                data-testid="input-push-image"
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={bannerUploading}
+                onClick={() => fileInputRef.current?.click()}
+                data-testid="button-push-banner-upload"
+                className="shrink-0"
+              >
+                <Upload className="w-4 h-4 mr-1.5" />
+                {bannerUploading ? "Загрузка…" : "Файл"}
+              </Button>
+              {pushForm.image && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPushForm(f => ({ ...f, image: "" }))}
+                  className="shrink-0 px-2"
+                  data-testid="button-push-image-clear"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+            {/* Превью баннера */}
+            {pushForm.image && pushForm.image.startsWith("http") && (
+              <div className="mt-2 rounded-md overflow-hidden border max-w-xs">
+                <img
+                  src={pushForm.image}
+                  alt="Push banner preview"
+                  className="w-full h-auto object-cover"
+                  onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground mt-1.5">
+              PNG/JPG/WebP · до 10 МБ · оптимально 1080×540px (2:1). Файл загружается в S3 и перезаписывает предыдущий баннер.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button
