@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Copy, Bell, Zap, Tag, Sparkles } from "lucide-react";
+import { X, Check, Copy, Bell, Zap, Tag, Sparkles, PackageCheck } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -175,23 +175,24 @@ export function NewsletterPopup() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 backdrop-blur-md z-[300]"
+              transition={{ duration: 0.18 }}
+              className="fixed inset-0 bg-black/75 z-[300]"
               onClick={() => setShowPrePrompt(false)}
             />
             <motion.div
               key="pre-prompt-card"
-              initial={{ opacity: 0, scale: 0.88, y: 24 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 16 }}
-              transition={{ type: "spring", stiffness: 420, damping: 30 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               className="fixed inset-0 flex items-center justify-center z-[301] p-6"
             >
               <div
                 className="relative w-full max-w-[320px] rounded-2xl overflow-hidden"
                 style={{
-                  background: "rgba(12, 12, 12, 0.96)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  boxShadow: "0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04)",
+                  background: "#0d0d0d",
+                  border: "1px solid rgba(255,255,255,0.09)",
+                  boxShadow: "0 16px 40px rgba(0,0,0,0.6)",
                 }}
               >
                 <div className="h-[3px] w-full bg-gradient-to-r from-transparent via-red-600 to-transparent" />
@@ -202,7 +203,6 @@ export function NewsletterPopup() {
                       style={{
                         background: "rgba(220,38,38,0.12)",
                         border: "1px solid rgba(220,38,38,0.25)",
-                        boxShadow: "0 0 32px rgba(220,38,38,0.15)",
                       }}
                     >
                       <Bell className="w-7 h-7 text-red-500" />
@@ -221,6 +221,7 @@ export function NewsletterPopup() {
                       { icon: <Zap className="w-3.5 h-3.5 text-red-400 shrink-0" />, text: "Новые дропы и коллекции" },
                       { icon: <Tag className="w-3.5 h-3.5 text-red-400 shrink-0" />, text: "Скидки и акции" },
                       { icon: <Sparkles className="w-3.5 h-3.5 text-red-400 shrink-0" />, text: "Эксклюзивные предложения" },
+                      { icon: <PackageCheck className="w-3.5 h-3.5 text-red-400 shrink-0" />, text: "Статус заказа в реальном времени" },
                     ].map(({ icon, text }) => (
                       <div key={text} className="flex items-center gap-2.5">
                         <div
@@ -236,7 +237,7 @@ export function NewsletterPopup() {
                   <div className="flex gap-2 pt-1">
                     <button
                       onClick={() => setShowPrePrompt(false)}
-                      className="flex-1 py-3 rounded-xl text-sm font-medium text-white/35 transition-all hover:text-white/55"
+                      className="flex-1 py-3 rounded-xl text-sm font-medium text-white/35 transition-colors hover:text-white/55"
                       style={{ border: "1px solid rgba(255,255,255,0.07)" }}
                       data-testid="button-push-preprompt-decline"
                     >
@@ -244,11 +245,8 @@ export function NewsletterPopup() {
                     </button>
                     <button
                       onClick={handlePrePromptConfirm}
-                      className="flex-1 py-3 rounded-xl text-sm font-bold text-white transition-all active:scale-[0.97]"
-                      style={{
-                        background: "linear-gradient(135deg, #dc2626, #b91c1c)",
-                        boxShadow: "0 4px 16px rgba(220,38,38,0.35)",
-                      }}
+                      className="flex-1 py-3 rounded-xl text-sm font-bold text-white"
+                      style={{ background: "#dc2626" }}
                       data-testid="button-push-preprompt-confirm"
                     >
                       Да, хочу! 🔔
@@ -272,24 +270,24 @@ export function NewsletterPopup() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]"
+              transition={{ duration: 0.18 }}
+              className="fixed inset-0 bg-black/70 z-[200]"
               onClick={handleDismiss}
             />
 
             <motion.div
-              initial={{ opacity: 0, y: 48, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 32, scale: 0.97 }}
-              transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 16 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
               className="fixed inset-0 flex items-center justify-center z-[201] p-4"
             >
               <div
-                className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
+                className="relative w-full max-w-sm rounded-2xl overflow-hidden"
                 style={{
-                  background: "rgba(10, 10, 10, 0.88)",
-                  backdropFilter: "blur(24px) saturate(180%)",
-                  WebkitBackdropFilter: "blur(24px) saturate(180%)",
+                  background: "#0d0d0d",
                   border: "1px solid rgba(255,255,255,0.07)",
+                  boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
                 }}
               >
                 {/* Red accent line top */}
@@ -312,10 +310,6 @@ export function NewsletterPopup() {
                       <div className="text-center">
                         <div
                           className="text-6xl sm:text-7xl font-black text-primary leading-none mb-3 select-none"
-                          style={{
-                            textShadow:
-                              "0 0 48px rgba(220,38,38,0.45), 0 0 80px rgba(220,38,38,0.2)",
-                          }}
                         >
                           -{popupPromo?.discountPercent || 10}%
                         </div>
