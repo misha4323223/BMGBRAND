@@ -413,36 +413,79 @@ export function ChatWidget() {
       const decoder = new TextDecoder();
       let sseBuffer = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        sseBuffer += decoder.decode(value, { stream: true });
-        const lines = sseBuffer.split("\n");
-        sseBuffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const evt = JSON.parse(line.slice(6).trim());
-            if (evt.error) {
-              setAiMessages(prev => prev.map(m =>
-                m.id === streamMsgId ? { ...m, content: "__tired__", streaming: false } : m
-              ));
-              return;
-            }
-            if (evt.chunk) {
-              setAiMessages(prev => prev.map(m =>
-                m.id === streamMsgId ? { ...m, content: m.content + evt.chunk } : m
-              ));
-              scrollAiToBottom();
-            }
-            if (evt.done) {
-              setAiMessages(prev => prev.map(m =>
-                m.id === streamMsgId ? { ...m, streaming: false, products: evt.products ?? [] } : m
-              ));
-              scrollAiToBottom();
-            }
-          } catch {}
+      // --- Typewriter display buffer ---
+      // SSE chunks land here; drain timer reveals them at ~60 chars/sec
+      let displayBuf = "";
+      let sseFinished = false;
+      let finalProducts: ProductCard[] = [];
+      let hasError = false;
+      const TICK_MS = 32;   // ms between display ticks
+      const CHARS_PER_TICK = 2; // chars revealed per tick → ~62 chars/sec
+
+      const drainHandle = setInterval(() => {
+        if (hasError) { clearInterval(drainHandle); return; }
+        if (displayBuf.length > 0) {
+          const toShow = displayBuf.slice(0, CHARS_PER_TICK);
+          displayBuf = displayBuf.slice(CHARS_PER_TICK);
+          setAiMessages(prev => prev.map(m =>
+            m.id === streamMsgId ? { ...m, content: m.content + toShow } : m
+          ));
+          if (displayBuf.length % 20 === 0) scrollAiToBottom();
+        } else if (sseFinished) {
+          clearInterval(drainHandle);
+          setAiMessages(prev => prev.map(m =>
+            m.id === streamMsgId ? { ...m, streaming: false, products: finalProducts } : m
+          ));
+          scrollAiToBottom();
         }
+      }, TICK_MS);
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          sseBuffer += decoder.decode(value, { stream: true });
+          const lines = sseBuffer.split("\n");
+          sseBuffer = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const evt = JSON.parse(line.slice(6).trim());
+              if (evt.error) {
+                hasError = true;
+                clearInterval(drainHandle);
+                setAiMessages(prev => prev.map(m =>
+                  m.id === streamMsgId ? { ...m, content: "__tired__", streaming: false } : m
+                ));
+                return;
+              }
+              if (evt.chunk) displayBuf += evt.chunk;
+              if (evt.done) {
+                sseFinished = true;
+                finalProducts = evt.products ?? [];
+              }
+            } catch {}
+          }
+        }
+        sseFinished = true; // ensure drain completes even without explicit done event
+      } catch {
+        hasError = true;
+        clearInterval(drainHandle);
+        setAiMessages(prev => {
+          const hasPlaceholder = prev.some(m => m.id === streamMsgId);
+          if (hasPlaceholder) {
+            return prev.map(m => m.id === streamMsgId ? { ...m, content: "__tired__", streaming: false } : m);
+          }
+          return [...prev, { id: `err-${Date.now()}`, role: "assistant", content: "__tired__" }];
+        });
+      } finally {
+        setAiLoading(false);
+        // Safety: ensure no message stays in streaming state (drain handles the normal case)
+        setTimeout(() => {
+          setAiMessages(prev => prev.map(m =>
+            m.streaming ? { ...m, streaming: false, content: m.content || "__tired__" } : m
+          ));
+        }, 30000); // 30s safety timeout — drain should finish way before this
       }
     } catch {
       setAiMessages(prev => {
@@ -454,10 +497,6 @@ export function ChatWidget() {
       });
     } finally {
       setAiLoading(false);
-      // Safety: ensure no message stays in streaming state
-      setAiMessages(prev => prev.map(m =>
-        m.streaming ? { ...m, streaming: false, content: m.content || "__tired__" } : m
-      ));
       scrollAiToBottom();
     }
   };
@@ -508,36 +547,76 @@ export function ChatWidget() {
       const decoder = new TextDecoder();
       let sseBuffer = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        sseBuffer += decoder.decode(value, { stream: true });
-        const lines = sseBuffer.split("\n");
-        sseBuffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const evt = JSON.parse(line.slice(6).trim());
-            if (evt.error) {
-              setAiMessages(prev => prev.map(m =>
-                m.id === streamMsgId ? { ...m, content: "__tired__", streaming: false } : m
-              ));
-              return;
-            }
-            if (evt.chunk) {
-              setAiMessages(prev => prev.map(m =>
-                m.id === streamMsgId ? { ...m, content: m.content + evt.chunk } : m
-              ));
-              scrollAiToBottom();
-            }
-            if (evt.done) {
-              setAiMessages(prev => prev.map(m =>
-                m.id === streamMsgId ? { ...m, streaming: false, products: evt.products ?? [] } : m
-              ));
-              scrollAiToBottom();
-            }
-          } catch {}
+      let displayBuf = "";
+      let sseFinished = false;
+      let finalProducts: ProductCard[] = [];
+      let hasError = false;
+      const TICK_MS = 32;
+      const CHARS_PER_TICK = 2;
+
+      const drainHandle = setInterval(() => {
+        if (hasError) { clearInterval(drainHandle); return; }
+        if (displayBuf.length > 0) {
+          const toShow = displayBuf.slice(0, CHARS_PER_TICK);
+          displayBuf = displayBuf.slice(CHARS_PER_TICK);
+          setAiMessages(prev => prev.map(m =>
+            m.id === streamMsgId ? { ...m, content: m.content + toShow } : m
+          ));
+          if (displayBuf.length % 20 === 0) scrollAiToBottom();
+        } else if (sseFinished) {
+          clearInterval(drainHandle);
+          setAiMessages(prev => prev.map(m =>
+            m.id === streamMsgId ? { ...m, streaming: false, products: finalProducts } : m
+          ));
+          scrollAiToBottom();
         }
+      }, TICK_MS);
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          sseBuffer += decoder.decode(value, { stream: true });
+          const lines = sseBuffer.split("\n");
+          sseBuffer = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const evt = JSON.parse(line.slice(6).trim());
+              if (evt.error) {
+                hasError = true;
+                clearInterval(drainHandle);
+                setAiMessages(prev => prev.map(m =>
+                  m.id === streamMsgId ? { ...m, content: "__tired__", streaming: false } : m
+                ));
+                return;
+              }
+              if (evt.chunk) displayBuf += evt.chunk;
+              if (evt.done) {
+                sseFinished = true;
+                finalProducts = evt.products ?? [];
+              }
+            } catch {}
+          }
+        }
+        sseFinished = true;
+      } catch {
+        hasError = true;
+        clearInterval(drainHandle);
+        setAiMessages(prev => {
+          const hasPlaceholder = prev.some(m => m.id === streamMsgId);
+          if (hasPlaceholder) {
+            return prev.map(m => m.id === streamMsgId ? { ...m, content: "__tired__", streaming: false } : m);
+          }
+          return [...prev, { id: `err-${Date.now()}`, role: "assistant", content: "__tired__" }];
+        });
+      } finally {
+        setAiLoading(false);
+        setTimeout(() => {
+          setAiMessages(prev => prev.map(m =>
+            m.streaming ? { ...m, streaming: false, content: m.content || "__tired__" } : m
+          ));
+        }, 30000);
       }
     } catch {
       setAiMessages(prev => {
@@ -549,9 +628,6 @@ export function ChatWidget() {
       });
     } finally {
       setAiLoading(false);
-      setAiMessages(prev => prev.map(m =>
-        m.streaming ? { ...m, streaming: false, content: m.content || "__tired__" } : m
-      ));
       scrollAiToBottom();
     }
   };
