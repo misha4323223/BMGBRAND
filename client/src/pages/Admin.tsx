@@ -13227,10 +13227,37 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
           <Target className="w-5 h-5" />
           Управление предзаказами
         </h2>
-        <Button size="sm" variant="outline" onClick={() => { refetch(); refetchOrders(); }} data-testid="button-refresh-preorders">
-          <RefreshCw className="w-4 h-4 mr-1" />
-          Обновить
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            data-testid="button-preorders-csv"
+            onClick={() => {
+              const url = `/api/admin/preorder/orders/csv`;
+              const a = document.createElement("a");
+              a.href = url;
+              a.setAttribute("x-api-key", apiKey);
+              fetch(url, { headers: { "x-api-key": apiKey } })
+                .then(r => r.blob())
+                .then(blob => {
+                  const blobUrl = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = blobUrl;
+                  const date = new Date().toISOString().slice(0, 10);
+                  link.download = `preorders-${date}.csv`;
+                  link.click();
+                  URL.revokeObjectURL(blobUrl);
+                });
+            }}
+          >
+            <FileText className="w-4 h-4 mr-1" />
+            Скачать CSV
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => { refetch(); refetchOrders(); }} data-testid="button-refresh-preorders">
+            <RefreshCw className="w-4 h-4 mr-1" />
+            Обновить
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-2 border-b pb-2 flex-wrap">

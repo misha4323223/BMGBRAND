@@ -15738,6 +15738,56 @@ ${offersXml}
     }
   });
 
+  app.get("/api/admin/preorder/orders/csv", async (req: any, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const allOrders = await storage.getOrders();
+      const preorderOrders = allOrders.filter((o: any) => o.isPreorder === true);
+
+      const agg: Record<string, { productName: string; color: string; size: string; quantity: number }> = {};
+
+      for (const order of preorderOrders) {
+        if (order.status === "cancelled") continue;
+        const items: any[] = Array.isArray(order.items)
+          ? order.items
+          : (() => { try { return JSON.parse(String(order.items) || "[]"); } catch { return []; } })();
+        for (const item of items) {
+          const productName = (item.productName || item.name || "—").trim();
+          const color = (item.color || "—").trim();
+          const size = (item.size || "ONE SIZE").trim();
+          const qty = Number(item.quantity) || 1;
+          const key = `${productName}|||${color}|||${size}`;
+          if (!agg[key]) agg[key] = { productName, color, size, quantity: 0 };
+          agg[key].quantity += qty;
+        }
+      }
+
+      const rows = Object.values(agg).sort((a, b) =>
+        a.productName.localeCompare(b.productName, "ru") ||
+        a.color.localeCompare(b.color, "ru") ||
+        a.size.localeCompare(b.size, "ru")
+      );
+
+      const BOM = "\uFEFF";
+      const header = "Товар;Цвет;Размер;Количество\r\n";
+      const body = rows.map(r =>
+        [r.productName, r.color, r.size, r.quantity]
+          .map(v => `"${String(v).replace(/"/g, '""')}"`)
+          .join(";")
+      ).join("\r\n");
+
+      const csv = BOM + header + body;
+      const date = new Date().toISOString().slice(0, 10);
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="preorders-${date}.csv"`);
+      res.send(csv);
+    } catch (err: any) {
+      console.error("[Admin] Preorder CSV error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/admin/preorder/order/:orderId/status", async (req: any, res) => {
     const apiKey = req.headers["x-api-key"];
     if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
