@@ -15762,8 +15762,12 @@ ${offersXml}
           : (() => { try { return JSON.parse(String(order.items) || "[]"); } catch { return []; } })();
         for (const item of items) {
           const productName = (item.productName || item.name || "—").trim();
-          const color = (item.color || productColorMap[Number(item.productId)] || "—").trim();
-          const size = (item.size || "ONE SIZE").trim();
+          // Try: item.color → product catalog color → parse from product name (last parenthesized text)
+          const rawColor = item.color || productColorMap[Number(item.productId)] || "";
+          const colorFromName = productName.match(/\(([^)]+)\)\s*$/)?.[1]?.trim() || "";
+          const color = (rawColor || colorFromName || "—").trim();
+          // Strip surrounding parens from size values like "(OneSize)"
+          const size = (item.size || "ONE SIZE").trim().replace(/^\((.+)\)$/, "$1");
           const qty = Number(item.quantity) || 1;
           const key = `${productName}|||${color}|||${size}`;
           if (!agg[key]) agg[key] = { productName, color, size, quantity: 0 };
