@@ -15738,10 +15738,11 @@ ${offersXml}
     }
   });
 
-  app.get("/api/admin/preorder/orders/csv", async (req: any, res) => {
+  app.get("/api/admin/preorder/orders/xlsx", async (req: any, res) => {
     const apiKey = req.headers["x-api-key"];
     if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
     try {
+      const XLSX = await import("xlsx");
       const allOrders = await storage.getOrders();
       const preorderOrders = allOrders.filter((o: any) => o.isPreorder === true);
 
@@ -15769,21 +15770,22 @@ ${offersXml}
         a.size.localeCompare(b.size, "ru")
       );
 
-      const BOM = "\uFEFF";
-      const header = "Товар;Цвет;Размер;Количество\r\n";
-      const body = rows.map(r =>
-        [r.productName, r.color, r.size, r.quantity]
-          .map(v => `"${String(v).replace(/"/g, '""')}"`)
-          .join(";")
-      ).join("\r\n");
+      const wsData = [
+        ["Товар", "Цвет", "Размер", "Количество"],
+        ...rows.map(r => [r.productName, r.color, r.size, r.quantity]),
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws["!cols"] = [{ wch: 40 }, { wch: 20 }, { wch: 12 }, { wch: 14 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Предзаказы");
 
-      const csv = BOM + header + body;
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
       const date = new Date().toISOString().slice(0, 10);
-      res.setHeader("Content-Type", "text/csv; charset=utf-8");
-      res.setHeader("Content-Disposition", `attachment; filename="preorders-${date}.csv"`);
-      res.send(csv);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="preorders-${date}.xlsx"`);
+      res.send(buf);
     } catch (err: any) {
-      console.error("[Admin] Preorder CSV error:", err);
+      console.error("[Admin] Preorder XLSX error:", err);
       res.status(500).json({ error: err.message });
     }
   });

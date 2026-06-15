@@ -13233,25 +13233,21 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
             variant="outline"
             data-testid="button-preorders-csv"
             onClick={() => {
-              const url = `/api/admin/preorder/orders/csv`;
-              const a = document.createElement("a");
-              a.href = url;
-              a.setAttribute("x-api-key", apiKey);
-              fetch(url, { headers: { "x-api-key": apiKey } })
+              fetch("/api/admin/preorder/orders/xlsx", { headers: { "x-api-key": apiKey } })
                 .then(r => r.blob())
                 .then(blob => {
                   const blobUrl = URL.createObjectURL(blob);
                   const link = document.createElement("a");
                   link.href = blobUrl;
                   const date = new Date().toISOString().slice(0, 10);
-                  link.download = `preorders-${date}.csv`;
+                  link.download = `preorders-${date}.xlsx`;
                   link.click();
                   URL.revokeObjectURL(blobUrl);
                 });
             }}
           >
             <FileText className="w-4 h-4 mr-1" />
-            Скачать CSV
+            Скачать Excel
           </Button>
           <Button size="sm" variant="outline" onClick={() => { refetch(); refetchOrders(); }} data-testid="button-refresh-preorders">
             <RefreshCw className="w-4 h-4 mr-1" />
