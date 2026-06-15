@@ -15743,19 +15743,26 @@ ${offersXml}
     if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
     try {
       const XLSX = await import("xlsx");
-      const allOrders = await storage.getOrders();
-      const preorderOrders = allOrders.filter((o: any) => o.isPreorder === true);
+      const [preorderOrders, allProducts] = await Promise.all([
+        storage.getAllRetailPreorderOrders(),
+        storage.getProducts(),
+      ]);
+
+      // productId → color lookup from product catalog
+      const productColorMap: Record<number, string> = {};
+      for (const p of allProducts as any[]) {
+        if (p.id && p.color) productColorMap[Number(p.id)] = p.color;
+      }
 
       const agg: Record<string, { productName: string; color: string; size: string; quantity: number }> = {};
 
       for (const order of preorderOrders) {
-        if (order.status === "cancelled") continue;
         const items: any[] = Array.isArray(order.items)
           ? order.items
           : (() => { try { return JSON.parse(String(order.items) || "[]"); } catch { return []; } })();
         for (const item of items) {
           const productName = (item.productName || item.name || "—").trim();
-          const color = (item.color || "—").trim();
+          const color = (item.color || productColorMap[Number(item.productId)] || "—").trim();
           const size = (item.size || "ONE SIZE").trim();
           const qty = Number(item.quantity) || 1;
           const key = `${productName}|||${color}|||${size}`;

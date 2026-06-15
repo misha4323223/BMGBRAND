@@ -330,6 +330,7 @@ export interface IStorage {
   createPreorderOrder(order: InsertOrder & { items: any[], total: number, userId?: number, depositAmount: number }): Promise<Order>;
   updateOrderPreorderFields(orderId: number, fields: { depositPaid?: boolean; remainingAmount?: number; preorderPaymentId?: string; isPreorder?: boolean }): Promise<void>;
   getPreorderOrdersByUser(userId: number): Promise<Order[]>;
+  getAllRetailPreorderOrders(): Promise<Order[]>;
   saveOrderInvoiceNumber(orderId: number, invoiceNumber: number): Promise<void>;
   deleteOrder(id: number): Promise<boolean>;
   deleteExpiredDraftOrders(maxAgeMinutes: number): Promise<number>;
@@ -2020,6 +2021,41 @@ export class DatabaseStorage implements IStorage {
     }) as any;
   }
   
+  async getAllRetailPreorderOrders(): Promise<Order[]> {
+    if (!driver) return [];
+    const result = await this.safeQuery(async (session) => {
+      const query = `
+        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, created_at, is_wholesale, transport_company, is_preorder, deposit_paid, remaining_amount, user_id, cdek_data, partner_id
+        FROM orders
+        WHERE is_preorder = true AND (is_wholesale = false OR is_wholesale IS NULL) AND status != 'awaiting_payment' AND status != 'cancelled'
+        ORDER BY created_at DESC;
+      `;
+      const queryResult = await session.executeQuery(query);
+      return queryResult.resultSets[0]?.rows || [];
+    });
+    if (!result) return [];
+    return result.map((row: any) => ({
+      id: Number(this.extractTypedValue(row.items[0])),
+      sessionId: this.extractTypedValue(row.items[1]),
+      customerName: this.extractTypedValue(row.items[2]),
+      customerEmail: this.extractTypedValue(row.items[3]),
+      customerPhone: this.extractTypedValue(row.items[4]),
+      address: this.extractTypedValue(row.items[5]),
+      total: Number(this.extractTypedValue(row.items[6])),
+      items: JSON.parse(this.extractTypedValue(row.items[7]) || '[]'),
+      status: this.extractTypedValue(row.items[8]),
+      createdAt: this.extractTypedValue(row.items[9]),
+      isWholesale: this.extractTypedValue(row.items[10]) === true,
+      transportCompany: this.extractTypedValue(row.items[11]) || undefined,
+      isPreorder: this.extractTypedValue(row.items[12]) === true,
+      depositPaid: this.extractTypedValue(row.items[13]) === true,
+      remainingAmount: Number(this.extractTypedValue(row.items[14])) || 0,
+      userId: Number(this.extractTypedValue(row.items[15])) || undefined,
+      cdekData: this.extractTypedValue(row.items[16]) || undefined,
+      partnerId: deserializeOrderPartnerId(this.extractTypedValue(row.items[17])),
+    })) as any;
+  }
+
   async getOrderAnalytics(): Promise<{ month: string; retailCount: number; wholesaleCount: number; retailRevenue: number; wholesaleRevenue: number }[]> {
     if (!driver) return [];
     const result = await this.safeQuery(async (session) => {
