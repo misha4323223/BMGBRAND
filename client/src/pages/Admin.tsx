@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import * as XLSX from 'xlsx';
 import PushNotificationsPanel from "@/components/admin/PushNotificationsPanel";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -10,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, RefreshCw, Lock, Search, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Image, MoveRight, MoreVertical, Settings, CheckSquare, Building2, Check, X, Users, Package, EyeOff, Eye, Gift, ShoppingCart, Clock, Truck, CreditCard, Ban, Star, Mail, TrendingUp, TrendingDown, Tag, Save, Plus, Pencil, Loader2, Layout, Type, ImageIcon, DollarSign, Upload, MessageSquare, Send, CheckCircle2, LogOut, Heart, Copy, Target, GripVertical, Bell, Phone, User, ChevronDown, ChevronRight, PlusCircle, MinusCircle, FileText, Ruler } from "lucide-react";
+import { Trash2, RefreshCw, Lock, Search, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Image, MoveRight, MoreVertical, Settings, CheckSquare, Building2, Check, X, Users, Package, EyeOff, Eye, Gift, ShoppingCart, Clock, Truck, CreditCard, Ban, Star, Mail, TrendingUp, TrendingDown, Tag, Save, Plus, Pencil, Loader2, Layout, Type, ImageIcon, DollarSign, Upload, MessageSquare, Send, CheckCircle2, LogOut, Heart, Copy, Target, GripVertical, Bell, Phone, User, ChevronDown, ChevronRight, PlusCircle, MinusCircle, FileText, Ruler, Download } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -1046,6 +1047,114 @@ function AbandonedCartTriggerButton() {
       <p className="text-sm text-muted-foreground">Результат появится в логах сервера</p>
     </div>
   );
+}
+
+function downloadOrderExcel(order: any) {
+  const statusMap: Record<string, string> = {
+    pending: 'Ожидает оплаты',
+    paid: 'Оплачен',
+    shipped: 'Отправлен',
+    delivered: 'Доставлен',
+    cancelled: 'Отменён',
+  };
+  const paymentMap: Record<string, string> = {
+    yookassa: 'ЮKassa',
+    tbank: 'Т-Банк',
+    ozon: 'Ozon Pay',
+    cash: 'Наличные',
+    transfer: 'Перевод',
+    invoice: 'Счёт',
+  };
+
+  // Разбираем cdekData для доставки
+  let deliveryService = '';
+  let deliveryType = '';
+  let deliveryPoint = '';
+  let deliveryAddress = '';
+  let trackingNumber = '';
+  if (order.cdekData) {
+    try {
+      const d = typeof order.cdekData === 'string' ? JSON.parse(order.cdekData) : order.cdekData;
+      deliveryService = d.deliveryService === 'yandex' ? 'Яндекс Доставка' : d.deliveryService === 'cdek' ? 'СДЭК' : d.deliveryService || '';
+      deliveryType = d.deliveryType === 'door' ? 'Курьер до двери' : d.deliveryType === 'pickup' ? 'ПВЗ' : d.deliveryType || '';
+      deliveryPoint = d.ydPointName || d.pointCode || '';
+      if (d.doorAddress) {
+        deliveryAddress = [d.doorAddress.street, d.doorAddress.house, d.doorAddress.flat && `кв. ${d.doorAddress.flat}`, d.doorAddress.entrance && `подъезд ${d.doorAddress.entrance}`, d.doorAddress.floor && `эт. ${d.doorAddress.floor}`].filter(Boolean).join(', ');
+      }
+      trackingNumber = d.cdekTrackingNumber || d.trackingNumber || '';
+    } catch { /* ignore */ }
+  }
+
+  // Лист 1 — основная информация о заказе
+  const infoData = [
+    ['Заказ №', String(order.id)],
+    ['Дата', order.createdAt ? new Date(order.createdAt).toLocaleString('ru-RU') : ''],
+    ['Статус', statusMap[order.status] || order.status],
+    ['', ''],
+    ['ПОКУПАТЕЛЬ', ''],
+    ['Имя', order.customerName || ''],
+    ['Email', order.customerEmail || ''],
+    ['Телефон', order.customerPhone || ''],
+    ['Адрес', order.address || ''],
+    ['', ''],
+    ['ДОСТАВКА', ''],
+    ['Служба доставки', deliveryService],
+    ['Тип доставки', deliveryType],
+    ['ПВЗ / точка выдачи', deliveryPoint],
+    ['Адрес курьера', deliveryAddress],
+    ['Трек-номер', trackingNumber],
+    ['ТК (опт)', order.transportCompany || ''],
+    ['', ''],
+    ['ОПЛАТА', ''],
+    ['Способ оплаты', paymentMap[order.paymentMethod] || order.paymentMethod || ''],
+    ['', ''],
+    ['ИТОГ', ''],
+    ['Сумма заказа', Number((order.total / 100).toFixed(2))],
+    ['Скидка', order.discount ? Number((order.discount / 100).toFixed(2)) : 0],
+    ['Промокод', order.promoCode || ''],
+    ['Стоимость доставки', order.deliveryCost ? Number((order.deliveryCost / 100).toFixed(2)) : 0],
+    ['', ''],
+    ['КОММЕНТАРИЙ', ''],
+    ['Комментарий', order.comment || ''],
+  ];
+
+  const wsInfo = XLSX.utils.aoa_to_sheet(infoData);
+  wsInfo['!cols'] = [{ wch: 22 }, { wch: 45 }];
+
+  // Лист 2 — товары
+  const items: any[] = Array.isArray(order.items) ? order.items : [];
+  const itemRows = [['Артикул / ID', 'Название', 'Размер', 'Цвет', 'Кол-во', 'Цена за шт., ₽', 'Сумма, ₽']];
+  for (const item of items) {
+    const price = item.price != null ? Number((item.price / 100).toFixed(2)) : '';
+    const qty = item.quantity ?? 1;
+    const total = price !== '' ? Number((price * qty).toFixed(2)) : '';
+    itemRows.push([
+      item.sku || item.productId || '',
+      item.name || '',
+      item.size || '',
+      item.color || '',
+      qty,
+      price,
+      total,
+    ]);
+  }
+  // Итоговая строка
+  if (items.length > 0) {
+    const grandTotal = items.reduce((sum: number, item: any) => {
+      const p = item.price != null ? item.price / 100 : 0;
+      return sum + p * (item.quantity ?? 1);
+    }, 0);
+    itemRows.push(['', '', '', '', '', 'ИТОГО:', Number(grandTotal.toFixed(2))]);
+  }
+
+  const wsItems = XLSX.utils.aoa_to_sheet(itemRows);
+  wsItems['!cols'] = [{ wch: 16 }, { wch: 40 }, { wch: 10 }, { wch: 14 }, { wch: 8 }, { wch: 16 }, { wch: 14 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsInfo, 'Заказ');
+  XLSX.utils.book_append_sheet(wb, wsItems, 'Товары');
+
+  XLSX.writeFile(wb, `order_${order.id}.xlsx`);
 }
 
 export default function Admin() {
@@ -13153,6 +13262,15 @@ export default function Admin() {
                               <SelectItem value="cancelled">Отменен</SelectItem>
                             </SelectContent>
                           </Select>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => downloadOrderExcel(order)}
+                            data-testid={`button-download-order-${order.id}`}
+                          >
+                            <Download className="w-4 h-4 mr-1" />
+                            Excel
+                          </Button>
                           <Button
                             size="sm"
                             variant="destructive"
