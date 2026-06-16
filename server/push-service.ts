@@ -152,7 +152,19 @@ function addToHistory(payload: PushPayload, result: { sent: number; failed: numb
 
 export async function sendPushToAll(payload: PushPayload): Promise<{ sent: number; failed: number }> {
   try {
-    const subs = await getPushSubs();
+    const allSubs = await getPushSubs();
+
+    // Фильтруем кривые подписки: если у подписки задан origin и он не booomerangs.ru — пропускаем.
+    // Подписки без origin (старые легаси) — отправляем, т.к. они созданы до добавления поля.
+    const subs = allSubs.filter((s: any) => {
+      if (!s.origin) return true;
+      return s.origin.includes('booomerangs.ru');
+    });
+
+    if (subs.length < allSubs.length) {
+      console.log(`[WebPush] Filtered out ${allSubs.length - subs.length} non-production subscriptions`);
+    }
+
     const result = await sendToList(subs, savePushSubs, payload);
     if (result.sent > 0 || result.failed > 0) {
       console.log(`[WebPush] Client push "${payload.title}": sent=${result.sent}, failed=${result.failed}`);
