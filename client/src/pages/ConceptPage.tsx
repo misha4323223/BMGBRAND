@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowRight, Package, Bell, CheckCircle2, ShoppingCart, X, ArrowLeft } from "lucide-react";
+import { ArrowRight, Package, Bell, CheckCircle2, ShoppingCart, X, ArrowLeft, AlertTriangle, Info, Megaphone, Flame } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -74,6 +74,14 @@ export default function ConceptPage() {
 
   const heroBannerDesktop: string = conceptSettings?.hero?.heroImage || "";
   const heroBannerMobile: string = conceptSettings?.hero?.heroImageMobile || "";
+
+  const promoBanner = conceptSettings?.promo_banner || {};
+  const bannerEnabled: boolean = !!promoBanner.enabled;
+  const bannerStyle: string = promoBanner.style || "neutral";
+  const bannerTitle: string = promoBanner.title || "";
+  const bannerText: string = promoBanner.text || "";
+  const bannerButtonText: string = promoBanner.buttonText || "";
+  const bannerButtonUrl: string = promoBanner.buttonUrl || "";
 
   const [subEmail, setSubEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -256,6 +264,50 @@ export default function ConceptPage() {
           </div>
         </div>
       </section>
+
+      {/* Promo banner */}
+      {bannerEnabled && (bannerTitle || bannerText) && (() => {
+        const styleMap: Record<string, { wrap: string; icon: string; iconBg: string; btn: string }> = {
+          neutral:   { wrap: "bg-zinc-900 border-zinc-700/50",           icon: "text-white/80",      iconBg: "bg-white/10",         btn: "bg-white text-black hover:bg-white/90" },
+          urgent:    { wrap: "bg-red-950/70 border-red-800/50",           icon: "text-red-400",       iconBg: "bg-red-500/20",       btn: "bg-red-500 text-white hover:bg-red-600" },
+          info:      { wrap: "bg-blue-950/70 border-blue-800/50",         icon: "text-blue-400",      iconBg: "bg-blue-500/20",      btn: "bg-blue-500 text-white hover:bg-blue-600" },
+          highlight: { wrap: "bg-[#161a00] border-[#D7FF00]/25",          icon: "text-[#D7FF00]",     iconBg: "bg-[#D7FF00]/15",     btn: "bg-[#D7FF00] text-black hover:bg-[#c8ef00]" },
+        };
+        const s = styleMap[bannerStyle] || styleMap.neutral;
+        const IconComp = bannerStyle === "urgent" ? AlertTriangle : bannerStyle === "info" ? Info : bannerStyle === "highlight" ? Flame : Megaphone;
+        return (
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 sm:pt-10">
+            <div className={`rounded-2xl border px-5 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 ${s.wrap}`}>
+              <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${s.iconBg}`}>
+                <IconComp className={`w-5 h-5 ${s.icon}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                {bannerTitle && (
+                  <p className="text-sm sm:text-base font-semibold text-white leading-snug">{bannerTitle}</p>
+                )}
+                {bannerText && (
+                  <p className="text-xs sm:text-sm text-white/65 mt-1 leading-relaxed">{bannerText}</p>
+                )}
+              </div>
+              {bannerButtonText && (
+                bannerButtonUrl ? (
+                  <a
+                    href={bannerButtonUrl}
+                    className={`shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold px-5 py-2 rounded-full transition-colors ${s.btn}`}
+                  >
+                    {bannerButtonText}
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
+                ) : (
+                  <span className={`shrink-0 text-xs font-semibold px-5 py-2 rounded-full ${s.btn}`}>
+                    {bannerButtonText}
+                  </span>
+                )
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Products */}
       <section className="py-14 sm:py-20 relative overflow-hidden">
