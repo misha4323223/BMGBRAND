@@ -1073,6 +1073,7 @@ export default function Admin() {
   const [filterCategory, setFilterCategory] = useState<CategorySlug | "all">("all");
   const [filterSubcategory, setFilterSubcategory] = useState<string | null>(null);
   const [ordersSubTab, setOrdersSubTab] = useState<"retail" | "wholesale" | "drafts">("retail");
+  const [expandedOrderItems, setExpandedOrderItems] = useState<Set<string | number>>(new Set());
   const [wholesalePreorderSearch, setWholesalePreorderSearch] = useState("");
   const [pdfUploading, setPdfUploading] = useState(false);
   const [wholesalePreorderDates, setWholesalePreorderDates] = useState<Record<number, { deadline: string; shipping: string; production: string }>>({});
@@ -13093,16 +13094,41 @@ export default function Admin() {
                             <div className="text-xs text-muted-foreground mt-2">
                               <strong>Товары:</strong>
                               <ul className="list-disc list-inside">
-                                {order.items.filter((i: any) => !i._discountDetails).slice(0, 3).map((item: any, idx: number) => (
-                                  <li key={idx}>
-                                    {item.name || item.productName}
-                                    {(item.size || item.color) && (
-                                      <span className="text-muted-foreground"> ({[item.size, item.color].filter(Boolean).join(', ')})</span>
-                                    )}
-                                    {' '}x{item.quantity}
-                                  </li>
-                                ))}
-                                {order.items.filter((i: any) => !i._discountDetails).length > 3 && <li>... и еще {order.items.filter((i: any) => !i._discountDetails).length - 3}</li>}
+                                {(() => {
+                                  const visibleItems = order.items.filter((i: any) => !i._discountDetails);
+                                  const isExpanded = expandedOrderItems.has(order.id);
+                                  const displayItems = isExpanded ? visibleItems : visibleItems.slice(0, 3);
+                                  const hiddenCount = visibleItems.length - 3;
+                                  return (
+                                    <>
+                                      {displayItems.map((item: any, idx: number) => (
+                                        <li key={idx}>
+                                          {item.name || item.productName}
+                                          {(item.size || item.color) && (
+                                            <span className="text-muted-foreground"> ({[item.size, item.color].filter(Boolean).join(', ')})</span>
+                                          )}
+                                          {' '}x{item.quantity}
+                                        </li>
+                                      ))}
+                                      {!isExpanded && hiddenCount > 0 && (
+                                        <li
+                                          className="cursor-pointer text-primary hover:underline select-none"
+                                          onClick={() => setExpandedOrderItems(prev => new Set([...prev, order.id]))}
+                                        >
+                                          … и ещё {hiddenCount}
+                                        </li>
+                                      )}
+                                      {isExpanded && visibleItems.length > 3 && (
+                                        <li
+                                          className="cursor-pointer text-primary hover:underline select-none"
+                                          onClick={() => setExpandedOrderItems(prev => { const s = new Set(prev); s.delete(order.id); return s; })}
+                                        >
+                                          Свернуть
+                                        </li>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </ul>
                             </div>
                           )}
@@ -13194,6 +13220,7 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
   const [wholesaleOrderSearch, setWholesaleOrderSearch] = useState("");
   const [wholesaleOrderStatusFilter, setWholesaleOrderStatusFilter] = useState<string>("all");
   const [wholesaleOrderTypeFilter, setWholesaleOrderTypeFilter] = useState<"all" | "preorder" | "order">("all");
+  const [expandedOrderItems, setExpandedOrderItems] = useState<Set<string | number>>(new Set());
   const [expandedWholesaleOrderId, setExpandedWholesaleOrderId] = useState<number | null>(null);
 
   const { data: preorderProducts, isLoading, refetch } = useQuery<any[]>({
