@@ -114,6 +114,7 @@ async function groqComplete(
         ],
         temperature: 0.3,
         max_tokens: maxTokens,
+        thinking: { type: "disabled" },
       }),
     });
 
@@ -624,8 +625,8 @@ export async function runWeeklyDigest(force = false): Promise<void> {
         `Топ товар по продажам: ${sortedByQty[0]?.name || "—"} (${sortedByQty[0]?.qty || 0} шт.). ` +
         `Критический остаток (1 шт.): ${criticalStock} товаров.`;
       aiComment = await groqComplete(digestSummaryForAi, DIGEST_AI_SYSTEM, 200);
-    } catch {
-      // AI-комментарий необязателен — продолжаем без него
+    } catch (aiErr: any) {
+      console.warn("[AutonomousAgent] Weekly digest: AI comment failed —", aiErr?.message);
     }
 
     const dateStr = new Date().toLocaleDateString("ru-RU", {
