@@ -506,11 +506,12 @@ const DIGEST_AI_SYSTEM = `Ты аналитик для российского с
 Пиши живо, по-человечески, без воды. Только факты и выводы. Не повторяй цифры из сводки дословно.
 Верни только текст наблюдений без заголовков и маркеров.`;
 
-export async function runWeeklyDigest(): Promise<void> {
+export async function runWeeklyDigest(force = false): Promise<void> {
   console.log("[AutonomousAgent] Starting weekly digest...");
   const settings = await getAgentSettings();
   if (!settings.enabled || !settings.digestEnabled) return;
-  if (!await acquireJobLock('job_lock_weekly_digest', 6 * 24 * 60 * 60 * 1000)) return;
+  if (!force && !await acquireJobLock('job_lock_weekly_digest', 6 * 24 * 60 * 60 * 1000)) return;
+  if (force) console.log("[AutonomousAgent] Weekly digest: force=true, bypassing duplicate guard");
 
   try {
     const [products, orders] = await Promise.all([

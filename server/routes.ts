@@ -3602,7 +3602,7 @@ BMGBRAND — официальный производитель и магазин
       res.json({ ok: true, message: "Запущено в фоне" });
       if (job === "seo") runSeoJob().catch(e => console.error("[AutonomousAgent] manual seo error:", e?.message));
       else if (job === "alerts") runAlertsJob().catch(e => console.error("[AutonomousAgent] manual alerts error:", e?.message));
-      else if (job === "digest") runWeeklyDigest().catch(e => console.error("[AutonomousAgent] manual digest error:", e?.message));
+      else if (job === "digest") runWeeklyDigest(true).catch(e => console.error("[AutonomousAgent] manual digest error:", e?.message));
       else if (job === "descriptions") runDescriptionJob().catch(e => console.error("[AutonomousAgent] manual descriptions error:", e?.message));
       else if (job === "cart_analysis") runCartAnalysisJob().catch(e => console.error("[AutonomousAgent] manual cart analysis error:", e?.message));
       else if (job === "all") runAutonomousAgent().catch(e => console.error("[AutonomousAgent] manual full run error:", e?.message));
