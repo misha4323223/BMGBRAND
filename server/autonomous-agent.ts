@@ -114,7 +114,6 @@ async function groqComplete(
         ],
         temperature: 0.3,
         max_tokens: maxTokens,
-        thinking: { type: "disabled" },
       }),
     });
 
@@ -470,7 +469,7 @@ ${isDesign ? "Это товар с уникальным принтом." : ""}
 
 Напиши описание товара для сайта.`;
 
-      const description = await groqComplete(prompt, DESC_SYSTEM, 400);
+      const description = await groqComplete(prompt, DESC_SYSTEM, 1024);
       if (!description || description.length < 20) continue;
 
       const flagForReview = isDesign;
@@ -624,7 +623,7 @@ export async function runWeeklyDigest(force = false): Promise<void> {
         `новых покупателей: ${newBuyers}, повторных: ${returningBuyers}. ` +
         `Топ товар по продажам: ${sortedByQty[0]?.name || "—"} (${sortedByQty[0]?.qty || 0} шт.). ` +
         `Критический остаток (1 шт.): ${criticalStock} товаров.`;
-      aiComment = await groqComplete(digestSummaryForAi, DIGEST_AI_SYSTEM, 200);
+      aiComment = await groqComplete(digestSummaryForAi, DIGEST_AI_SYSTEM, 1024);
     } catch (aiErr: any) {
       console.warn("[AutonomousAgent] Weekly digest: AI comment failed —", aiErr?.message);
     }
