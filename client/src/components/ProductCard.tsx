@@ -880,7 +880,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                     <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-3 space-y-1.5">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold tracking-widest uppercase text-amber-800 bg-amber-200 px-2 py-0.5 rounded-sm">Предзаказ</span>
-                        {(activeProduct as any).preorderStatus === "collecting" && (
+                        {((activeProduct as any).preorderStatus === "collecting" || !(activeProduct as any).preorderStatus) && (
                           <span className="text-[10px] text-amber-700">· Сбор заявок</span>
                         )}
                         {(activeProduct as any).preorderStatus === "production" && (
@@ -889,32 +889,53 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                         {(activeProduct as any).preorderStatus === "shipping" && (
                           <span className="text-[10px] text-amber-700">· Отправка</span>
                         )}
+                        {(activeProduct as any).preorderStatus === "shipped" && (
+                          <span className="text-[10px] text-amber-700">· Отправлено</span>
+                        )}
                       </div>
-                      <p className="text-[11px] text-amber-900/75 leading-relaxed">
-                        Товар доступен только по предзаказу — оформите заявку на странице товара.
-                      </p>
-                      {(activeProduct as any).preorderDeadline && (
-                        <p className="text-[11px] text-amber-800">
-                          <span className="font-semibold">Приём заявок до:</span>{" "}
-                          {new Date((activeProduct as any).preorderDeadline).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
-                        </p>
-                      )}
-                      {(activeProduct as any).preorderShippingDate && (
-                        <p className="text-[11px] text-amber-800">
-                          <span className="font-semibold">Ориентировочная отправка:</span>{" "}
-                          {new Date((activeProduct as any).preorderShippingDate).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
-                        </p>
+                      {/* Описание и даты — только при сборе заявок */}
+                      {((activeProduct as any).preorderStatus === "collecting" || !(activeProduct as any).preorderStatus) && (
+                        <>
+                          <p className="text-[11px] text-amber-900/75 leading-relaxed">
+                            Товар доступен только по предзаказу — оформите заявку на странице товара.
+                          </p>
+                          {(activeProduct as any).preorderDeadline && (
+                            <p className="text-[11px] text-amber-800">
+                              <span className="font-semibold">Приём заявок до:</span>{" "}
+                              {new Date((activeProduct as any).preorderDeadline).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
+                            </p>
+                          )}
+                          {(activeProduct as any).preorderShippingDate && (
+                            <p className="text-[11px] text-amber-800">
+                              <span className="font-semibold">Ориентировочная отправка:</span>{" "}
+                              {new Date((activeProduct as any).preorderShippingDate).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
-                    <Link
-                      href={`/${activeProduct.slug || activeProduct.id}`}
-                      onClick={() => setIsModalOpen(false)}
-                      className="flex items-center justify-center gap-1.5 w-full h-9 sm:h-12 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white text-xs sm:text-sm font-semibold tracking-widest uppercase transition-all rounded-none"
-                      data-testid={`button-modal-go-preorder-${activeProduct.id}`}
-                    >
-                      Перейти к предзаказу
-                      <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    </Link>
+                    {/* Кнопка: "Перейти к предзаказу" только при сборе, иначе нейтральная */}
+                    {((activeProduct as any).preorderStatus === "collecting" || !(activeProduct as any).preorderStatus) ? (
+                      <Link
+                        href={`/${activeProduct.slug || activeProduct.id}`}
+                        onClick={() => setIsModalOpen(false)}
+                        className="flex items-center justify-center gap-1.5 w-full h-9 sm:h-12 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white text-xs sm:text-sm font-semibold tracking-widest uppercase transition-all rounded-none"
+                        data-testid={`button-modal-go-preorder-${activeProduct.id}`}
+                      >
+                        Перейти к предзаказу
+                        <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/${activeProduct.slug || activeProduct.id}`}
+                        onClick={() => setIsModalOpen(false)}
+                        className="flex items-center justify-center gap-1.5 w-full h-9 sm:h-12 bg-muted hover:bg-muted/80 active:scale-[0.98] text-muted-foreground text-xs sm:text-sm font-semibold tracking-widest uppercase transition-all rounded-none"
+                        data-testid={`button-modal-view-product-${activeProduct.id}`}
+                      >
+                        Открыть страницу товара
+                        <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </Link>
+                    )}
                   </div>
                 ) : isActiveProductOutOfStock ? (
                   <>

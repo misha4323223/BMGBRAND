@@ -312,6 +312,9 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
   const { toast } = useToast();
 
   const isPreorder = !!(product.preorderEnabled);
+  const preorderStatus: string = (product as any).preorderStatus || "collecting";
+  // Кнопка "В предзаказ" активна только при сборе заявок
+  const isPreorderCollecting = isPreorder && preorderStatus === "collecting";
 
   const sizeStock: Record<string, number> | null = product.sizeStock || null;
   const sizes: string[] = product.noSize
@@ -469,29 +472,37 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
           <div className="rounded-xl border border-amber-300/60 bg-amber-50/80 px-3 py-2 mb-2" style={tc.bg ? { background: `${tc.accent}10`, borderColor: `${tc.accent}40` } : {}}>
             <div className="flex items-center gap-1.5 mb-1">
               <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-amber-400 text-white">ПРЕДЗАКАЗ</span>
-              <span className="text-[10px] text-amber-700 font-medium">· Сбор заявок</span>
+              {preorderStatus === "collecting" && <span className="text-[10px] text-amber-700 font-medium">· Сбор заявок</span>}
+              {preorderStatus === "production" && <span className="text-[10px] text-amber-700 font-medium">· Производство</span>}
+              {preorderStatus === "shipping"   && <span className="text-[10px] text-amber-700 font-medium">· Отправка</span>}
+              {preorderStatus === "shipped"    && <span className="text-[10px] text-amber-700 font-medium">· Отправлено</span>}
+              {preorderStatus === "cancelled"  && <span className="text-[10px] text-amber-700 font-medium">· Отменено</span>}
             </div>
-            {deadlineStr && (
+            {/* Даты показываем только при сборе заявок */}
+            {isPreorderCollecting && deadlineStr && (
               <p className="text-[11px] text-amber-800 leading-snug">
                 Приём заявок до: <span className="font-semibold">{deadlineStr}</span>
               </p>
             )}
-            {shippingStr && (
+            {isPreorderCollecting && shippingStr && (
               <p className="text-[11px] text-amber-800 leading-snug">
                 Ориентировочная отправка: <span className="font-semibold">{shippingStr}</span>
               </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={handlePreorderClick}
-            className="w-full flex items-center justify-center gap-1.5 text-[11px] font-bold py-2.5 rounded-xl transition-all active:scale-95"
-            style={{ background: accentBg, color: accentFg }}
-            data-testid={`button-artist-preorder-${product.id}`}
-          >
-            <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
-            В предзаказ
-          </button>
+          {/* Кнопка «В предзаказ» — только при сборе заявок */}
+          {isPreorderCollecting && (
+            <button
+              type="button"
+              onClick={handlePreorderClick}
+              className="w-full flex items-center justify-center gap-1.5 text-[11px] font-bold py-2.5 rounded-xl transition-all active:scale-95"
+              style={{ background: accentBg, color: accentFg }}
+              data-testid={`button-artist-preorder-${product.id}`}
+            >
+              <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+              В предзаказ
+            </button>
+          )}
         </div>
       ) : (
         /* Обычный товар: мобильные кнопки */
