@@ -223,7 +223,7 @@ interface PreorderNotification {
   customerEmail: string;
   depositAmount: number;
   totalAmount: number;
-  items?: Array<{ size?: string; quantity: number }>;
+  items?: Array<{ name?: string; size?: string; color?: string; quantity: number }>;
   color?: string;
   shippingDate?: string | null;
   paymentMethod?: string;
@@ -232,12 +232,21 @@ interface PreorderNotification {
 
 export function vkNotifyPreorderDeposit(data: PreorderNotification): void {
   let text = `🎯 ПРЕДЗАКАЗ #${data.orderId}\n`;
-  text += `${data.productName}`;
-  if (data.color) text += ` — ${data.color}`;
-  text += `\n`;
   if (data.items && data.items.length > 0) {
-    const sizeParts = data.items.filter(i => i.quantity > 0).map(i => i.size ? `${i.size} × ${i.quantity}` : `× ${i.quantity}`);
-    if (sizeParts.length > 0) text += `📐 ${sizeParts.join(", ")}\n`;
+    const parts = data.items.filter(i => i.quantity > 0).map(i => {
+      let part = i.name || data.productName;
+      const color = i.color || data.color;
+      if (color) part += ` (${color})`;
+      const size = i.size && i.size !== 'OneSize' && i.size !== '(OneSize)' ? i.size : null;
+      if (size) part += ` ${size}`;
+      part += ` × ${i.quantity}`;
+      return part;
+    });
+    text += parts.join(', ') + '\n';
+  } else {
+    text += `${data.productName}`;
+    if (data.color) text += ` (${data.color})`;
+    text += '\n';
   }
   text += `👤 ${data.customerName}  |  ${data.customerEmail}`;
   text += `\n💰 Оплачено: ${price(data.depositAmount)}`;

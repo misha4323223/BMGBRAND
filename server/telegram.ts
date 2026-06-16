@@ -320,7 +320,7 @@ interface PreorderNotification {
   customerEmail: string;
   depositAmount: number;
   totalAmount: number;
-  items?: Array<{ size?: string; quantity: number }>;
+  items?: Array<{ name?: string; size?: string; color?: string; quantity: number }>;
   color?: string;
   shippingDate?: string | null;
   paymentMethod?: string;
@@ -329,12 +329,21 @@ interface PreorderNotification {
 
 export function notifyPreorderDeposit(data: PreorderNotification): void {
   let text = `🎯 <b>ПРЕДЗАКАЗ #${data.orderId}</b>\n`;
-  text += `${esc(data.productName)}`;
-  if (data.color) text += ` — ${esc(data.color)}`;
-  text += `\n`;
   if (data.items && data.items.length > 0) {
-    const sizeParts = data.items.filter(i => i.quantity > 0).map(i => i.size ? `${esc(i.size)} × ${i.quantity}` : `× ${i.quantity}`);
-    if (sizeParts.length > 0) text += `📐 ${sizeParts.join(", ")}\n`;
+    const parts = data.items.filter(i => i.quantity > 0).map(i => {
+      let part = esc(i.name || data.productName);
+      const color = i.color || data.color;
+      if (color) part += ` (${esc(color)})`;
+      const size = i.size && i.size !== 'OneSize' && i.size !== '(OneSize)' ? i.size : null;
+      if (size) part += ` ${esc(size)}`;
+      part += ` × ${i.quantity}`;
+      return part;
+    });
+    text += parts.join(', ') + '\n';
+  } else {
+    text += `${esc(data.productName)}`;
+    if (data.color) text += ` (${esc(data.color)})`;
+    text += '\n';
   }
   text += `👤 ${esc(data.customerName)}  |  ${esc(data.customerEmail)}`;
   text += `\n💰 Оплачено: <b>${price(data.depositAmount)}</b>`;
