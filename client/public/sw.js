@@ -20,8 +20,8 @@ self.addEventListener('push', function (event) {
 
   const options = {
     body,
-    icon:  data.icon  || '/icon-192.png',
-    badge: data.badge || '/notification-badge.png',
+    icon:  data.icon  || 'https://booomerangs.ru/icon-192.png',
+    badge: data.badge || 'https://booomerangs.ru/notification-badge.png',
     ...(data.image ? { image: data.image } : {}),
     data:  { url },
     vibrate: [200, 100, 200],

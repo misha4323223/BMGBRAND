@@ -84,8 +84,8 @@ async function sendToList(
     title: payload.title,
     body: payload.body,
     url: payload.url || 'https://booomerangs.ru',
-    icon: payload.icon || '/icon-192.png',
-    badge: '/notification-badge.png',
+    icon: payload.icon || 'https://booomerangs.ru/icon-192.png',
+    badge: 'https://booomerangs.ru/notification-badge.png',
     tag: payload.tag || 'booom-push',
     image: payload.image,
   });
@@ -179,8 +179,8 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
       title: payload.title,
       body: payload.body,
       url: payload.url || 'https://booomerangs.ru',
-      icon: payload.icon || '/icon-192.png',
-      badge: '/notification-badge.png',
+      icon: payload.icon || 'https://booomerangs.ru/icon-192.png',
+      badge: 'https://booomerangs.ru/notification-badge.png',
       tag: payload.tag || 'order-status',
     });
 

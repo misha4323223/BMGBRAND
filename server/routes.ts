@@ -11680,10 +11680,19 @@ BMGBRAND — официальный производитель и магазин
       if (!subscription?.endpoint || !subscription?.keys) {
         return res.status(400).json({ error: 'Некорректная подписка' });
       }
+
+      // Принимаем подписки только с продакшн-домена
+      const origin = req.headers['origin'] || req.headers['referer'] || '';
+      const isProduction = origin.includes('booomerangs.ru');
+      if (origin && !isProduction) {
+        console.warn(`[WebPush] Blocked subscription from non-production origin: ${origin}`);
+        return res.json({ success: true }); // не сохраняем, но не ругаемся
+      }
+
       const subs = await getPushSubs();
       const idx = subs.findIndex((s: any) => s.endpoint === subscription.endpoint);
       const userId = (req as any).user?.id || null;
-      const entry = { ...subscription, userId, createdAt: Date.now() };
+      const entry = { ...subscription, userId, origin: 'https://booomerangs.ru', createdAt: Date.now() };
       if (idx >= 0) subs[idx] = entry; else subs.push(entry);
       await savePushSubs(subs);
       console.log(`[WebPush] Subscription saved. Total: ${subs.length}`);
@@ -11871,6 +11880,25 @@ BMGBRAND — официальный производитель и магазин
     try {
       const subs = await getAdminPushSubs();
       res.json({ total: subs.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Очистка кривых подписок (не с booomerangs.ru)
+  app.post('/api/admin/push/clean-dev-subs', requireAdminOrApiKey, async (_req, res) => {
+    try {
+      const subs = await getPushSubs();
+      const before = subs.length;
+      // Оставляем только те, у которых origin = booomerangs.ru или origin не задан (старые легаси)
+      const cleaned = subs.filter((s: any) => {
+        if (!s.origin) return true; // легаси без поля — оставляем
+        return s.origin.includes('booomerangs.ru');
+      });
+      await savePushSubs(cleaned);
+      const removed = before - cleaned.length;
+      console.log(`[WebPush] Cleaned ${removed} dev subscriptions. Remaining: ${cleaned.length}`);
+      res.json({ before, after: cleaned.length, removed });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
