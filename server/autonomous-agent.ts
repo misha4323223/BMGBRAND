@@ -1064,16 +1064,144 @@ export async function runChatGapAnalysisJob(): Promise<void> {
     });
 
     if (queued > 0) {
-      await sendAgentAlert(
+      const gapMsg =
         `🧠 <b>BOOOM AI — Пробелы в знаниях</b>\n\n` +
         `За неделю покупатели ${recent.length} раз задавали вопросы вне базы знаний.\n` +
-        `Найдено ${queued} новых тем. Черновики ждут в очереди модерации.`
-      );
+        `Найдено ${queued} новых тем. Черновики ждут в очереди модерации.`;
+      await sendAgentAlert(gapMsg);
+      vkNotifyAgentAlert(gapMsg);
     }
 
     console.log(`[AutonomousAgent] Chat gap done. Unmatched: ${recent.length}, queued: ${queued}`);
   } catch (e: any) {
     console.error("[AutonomousAgent] Chat gap analysis error:", e?.message);
+  }
+}
+
+// ── Predictive Retention Job ─────────────────────────────────────────────────
+
+interface RetentionUser {
+  email: string;
+  name: string;
+  topItem: string;
+  daysSinceLast: number;
+  avgInterval: number;
+  orderCount: number;
+}
+
+const RETENTION_SEGMENT_LABELS: Record<string, string> = {
+  hot: "🔥 Готовы купить",
+  at_risk: "⚠️ Уходят",
+  new: "💫 Вернуть после 1-й покупки",
+};
+
+export async function runPredictiveRetentionJob(): Promise<void> {
+  console.log("[AutonomousAgent] Starting predictive retention job...");
+  if (!await acquireJobLock('job_lock_retention', 6 * 24 * 60 * 60 * 1000)) {
+    console.log("[AutonomousAgent] Retention: skipped (lock active).");
+    return;
+  }
+
+  try {
+    const allOrders = await storage.getOrders() as any[];
+    const paidOrders = allOrders.filter((o: any) =>
+      ["paid", "shipped", "delivered"].includes(o.status) && !o.isWholesale
+    );
+
+    if (paidOrders.length < 5) {
+      console.log("[AutonomousAgent] Retention: not enough orders, skipping.");
+      return;
+    }
+
+    // Группируем по email
+    const byEmail = new Map<string, { name: string; orders: Array<{ ts: number; topItem: string }> }>();
+    for (const order of paidOrders) {
+      const email = (order.customerEmail || "").toLowerCase().trim();
+      if (!email || !email.includes("@")) continue;
+      const ts = order.createdAt ? new Date(String(order.createdAt)).getTime() : 0;
+      if (!ts) continue;
+      const items = Array.isArray(order.items) ? order.items : [];
+      const topItem = (items[0]?.name || items[0]?.productName || "товар").slice(0, 50);
+      const existing = byEmail.get(email);
+      if (existing) {
+        existing.orders.push({ ts, topItem });
+      } else {
+        byEmail.set(email, { name: order.customerName || "", orders: [{ ts, topItem }] });
+      }
+    }
+
+    const now = Date.now();
+    const hotUsers: RetentionUser[] = [];
+    const atRiskUsers: RetentionUser[] = [];
+    const newUsers: RetentionUser[] = [];
+
+    for (const [email, data] of byEmail) {
+      const sorted = data.orders.sort((a, b) => b.ts - a.ts);
+      const daysSinceLast = (now - sorted[0].ts) / (24 * 60 * 60 * 1000);
+      if (daysSinceLast < 14) continue; // слишком свежие
+
+      const topItem = sorted[0].topItem;
+      const name = data.name;
+      const orderCount = sorted.length;
+
+      if (orderCount >= 2) {
+        // Считаем средний интервал
+        const intervals: number[] = [];
+        for (let i = 0; i < sorted.length - 1; i++) {
+          intervals.push((sorted[i].ts - sorted[i + 1].ts) / (24 * 60 * 60 * 1000));
+        }
+        const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+        if (avgInterval < 5) continue; // аномально частые покупки — пропускаем
+
+        const user: RetentionUser = { email, name, topItem, daysSinceLast: Math.round(daysSinceLast), avgInterval: Math.round(avgInterval), orderCount };
+
+        if (daysSinceLast >= avgInterval * 0.85 && daysSinceLast <= avgInterval * 1.4) {
+          hotUsers.push(user);
+        } else if (daysSinceLast > avgInterval * 1.5 && daysSinceLast < avgInterval * 3) {
+          atRiskUsers.push(user);
+        }
+      } else if (orderCount === 1) {
+        // Один заказ 30–75 дней назад → попробовать вернуть
+        if (daysSinceLast >= 30 && daysSinceLast <= 75) {
+          newUsers.push({ email, name, topItem, daysSinceLast: Math.round(daysSinceLast), avgInterval: 45, orderCount: 1 });
+        }
+      }
+    }
+
+    const segments: Array<{ segment: string; label: string; users: RetentionUser[]; discount: number; validityHours: number }> = [];
+    if (hotUsers.length > 0) segments.push({ segment: "hot", label: RETENTION_SEGMENT_LABELS.hot, users: hotUsers.slice(0, 50), discount: 10, validityHours: 72 });
+    if (atRiskUsers.length > 0) segments.push({ segment: "at_risk", label: RETENTION_SEGMENT_LABELS.at_risk, users: atRiskUsers.slice(0, 50), discount: 15, validityHours: 48 });
+    if (newUsers.length > 0) segments.push({ segment: "new", label: RETENTION_SEGMENT_LABELS.new, users: newUsers.slice(0, 30), discount: 12, validityHours: 72 });
+
+    if (segments.length === 0) {
+      console.log("[AutonomousAgent] Retention: no actionable segments.");
+      await addLogEntry({ type: "retention", action: "Предиктивный анализ клиентов", summary: `Проанализировано ${byEmail.size} покупателей — нет подходящих для рассылки.`, isAuto: true });
+      return;
+    }
+
+    const totalUsers = segments.reduce((s, seg) => s + seg.users.length, 0);
+    const segSummary = segments.map(s => `${s.label}: ${s.users.length} чел.`).join("\n");
+
+    await addToQueue({
+      type: "retention_offer",
+      title: `Удержание клиентов: ${totalUsers} чел. (${segments.map(s => `${s.label.replace(/^[^\s]+ /, "")} ${s.users.length}`).join(", ")})`,
+      description: `Предиктивный анализ выявил ${totalUsers} клиентов:\n${segSummary}\n\nСкидки и сроки настраиваются перед отправкой.`,
+      params: { segments },
+      tool: "send_retention_offers",
+    });
+
+    await addLogEntry({ type: "retention", action: "Предиктивный анализ клиентов завершён", summary: `Проанализировано ${byEmail.size} покупателей, в очередь: ${totalUsers} чел. по ${segments.length} сегментам.`, isAuto: true });
+
+    const retMsg =
+      `🎯 <b>BOOOM AI — Предиктивный движок</b>\n\n` +
+      `Проанализировано ${byEmail.size} покупателей.\n\n${segSummary}\n\n` +
+      `Итого ${totalUsers} чел. ждут в очереди — зайди и подтверди рассылку.`;
+    await sendAgentAlert(retMsg);
+    vkNotifyAgentAlert(retMsg);
+
+    console.log(`[AutonomousAgent] Retention done: ${totalUsers} users in ${segments.length} segments.`);
+  } catch (e: any) {
+    console.error("[AutonomousAgent] Retention job error:", e?.message);
   }
 }
 
@@ -1170,7 +1298,25 @@ export function initAutonomousAgent(): void {
     setInterval(runGapSafe, 7 * 24 * 60 * 60 * 1000);
   }, sundayGapDelayMs);
 
+  // Предиктивный retention — каждый четверг в 12:00 МСК (09:00 UTC)
+  const daysUntilThursday = (4 - now.getUTCDay() + 7) % 7 || 7;
+  const nextThursday = new Date(now);
+  nextThursday.setUTCDate(now.getUTCDate() + daysUntilThursday);
+  nextThursday.setUTCHours(9, 0, 0, 0); // 12:00 МСК = 09:00 UTC
+  if (nextThursday.getTime() <= nowMs) nextThursday.setUTCDate(nextThursday.getUTCDate() + 7);
+  const thursdayDelayMs = nextThursday.getTime() - nowMs;
+
+  const runRetentionSafe = () =>
+    runPredictiveRetentionJob().catch((e: any) =>
+      console.error("[AutonomousAgent] Retention job unhandled error:", e?.message)
+    );
+
+  setTimeout(() => {
+    runRetentionSafe();
+    setInterval(runRetentionSafe, 7 * 24 * 60 * 60 * 1000);
+  }, thursdayDelayMs);
+
   console.log(
-    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h, cart analysis next Sunday in ${Math.round(sundayCartDelayMs / 60000 / 60)}h, stale products next Sunday in ${Math.round(sundayStaleDelayMs / 60000 / 60)}h, chat gap analysis next Sunday 12:00 МСК in ${Math.round(sundayGapDelayMs / 60000 / 60)}h`
+    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h, cart analysis next Sunday in ${Math.round(sundayCartDelayMs / 60000 / 60)}h, stale products next Sunday in ${Math.round(sundayStaleDelayMs / 60000 / 60)}h, chat gap analysis next Sunday 12:00 МСК in ${Math.round(sundayGapDelayMs / 60000 / 60)}h, retention next Thursday 12:00 МСК in ${Math.round(thursdayDelayMs / 60000 / 60)}h`
   );
 }

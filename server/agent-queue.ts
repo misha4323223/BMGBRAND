@@ -16,7 +16,8 @@ export type QueueItemType =
   | "review_reply"
   | "promo_code"
   | "cart_promo"
-  | "knowledge_gap";
+  | "knowledge_gap"
+  | "retention_offer";
 
 export interface QueueItem {
   id: string;

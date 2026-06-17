@@ -287,6 +287,56 @@ export async function executeWriteTool(tool: string, params: any): Promise<strin
         (errors.length > 0 ? ` Ошибки: ${errors.join(", ")}` : "");
     }
 
+    case "send_retention_offers": {
+      const { sendEmail } = await import("./email");
+      const { getCartPromoEmailHtml } = await import("./email");
+      const segments: Array<{
+        segment: string; label: string;
+        users: Array<{ email: string; name: string; topItem: string }>;
+        discount: number; validityHours: number;
+      }> = params.segments ?? [];
+
+      let totalSent = 0;
+      const segResults: string[] = [];
+
+      for (const seg of segments) {
+        let sent = 0;
+        const PREFIX = seg.segment === "hot" ? "HOT" : seg.segment === "at_risk" ? "RISK" : "NEW";
+        for (const u of seg.users) {
+          try {
+            const suffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+            const promoCode = `RET-${PREFIX}-${suffix}`;
+            const expiresAt = new Date(Date.now() + seg.validityHours * 60 * 60 * 1000);
+            await (storage as any).createPromoCode({
+              code: promoCode, discountPercent: seg.discount,
+              maxUses: 1, expiresAt, isActive: true,
+            });
+            const html = getCartPromoEmailHtml({
+              userName: u.name,
+              promoCode,
+              discountPercent: seg.discount,
+              validityHours: seg.validityHours,
+              topItem: u.topItem,
+            });
+            const subjectMap: Record<string, string> = {
+              hot: `${u.name ? u.name.split(" ")[0] + ", в" : "В"}ы давно не заходили — держите подарок 🎁`,
+              at_risk: `Мы скучаем! Персональная скидка ${seg.discount}% только для вас`,
+              new: `Ваша первая покупка была крутой — вот ещё ${seg.discount}% на следующую`,
+            };
+            const ok = await sendEmail({
+              to: u.email,
+              subject: subjectMap[seg.segment] ?? `Персональная скидка ${seg.discount}% от BOOOMERANGS`,
+              html,
+            });
+            if (ok) sent++;
+          } catch {}
+        }
+        totalSent += sent;
+        segResults.push(`${seg.label}: ${sent}/${seg.users.length}`);
+      }
+      return `✅ Retention-рассылка завершена: ${totalSent} писем. Детали по сегментам: ${segResults.join(", ")}.`;
+    }
+
     default:
       throw new Error(`Неизвестный инструмент изменения: ${tool}`);
   }

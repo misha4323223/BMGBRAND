@@ -120,6 +120,10 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
   const [cartPromoShowAll, setCartPromoShowAll] = useState<Record<string, boolean>>({});
   const [cartPromoShowPreview, setCartPromoShowPreview] = useState<Record<string, boolean>>({});
 
+  // ── retention_offer editor state ──
+  const [retentionEdits, setRetentionEdits] = useState<Record<string, Array<{ discount: number; validityHours: number }>>>({});
+  const [retentionShowAll, setRetentionShowAll] = useState<Record<string, number | null>>({});
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -247,6 +251,19 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
     setCartPromoEdits(prev => {
       const base = prev[itemId] ?? getCartEdit(allItems.find(i => i.id === itemId)!);
       return { ...prev, [itemId]: { ...base, ...patch } };
+    });
+  }
+
+  // ── retention_offer helpers ──
+  function getRetentionEdit(item: QueueItem): Array<{ discount: number; validityHours: number }> {
+    return retentionEdits[item.id] ?? (item.params?.segments ?? []).map((s: any) => ({ discount: s.discount ?? 12, validityHours: s.validityHours ?? 48 }));
+  }
+
+  function setRetentionSegmentEdit(itemId: string, segIdx: number, patch: { discount?: number; validityHours?: number }) {
+    setRetentionEdits(prev => {
+      const base = prev[itemId] ?? getRetentionEdit(allItems.find(i => i.id === itemId)!);
+      const updated = base.map((s, i) => i === segIdx ? { ...s, ...patch } : s);
+      return { ...prev, [itemId]: updated };
     });
   }
 
@@ -450,13 +467,16 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
             <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
               {allItems.map((item) => {
                 const isCartPromo = item.type === "cart_promo";
+                const isRetentionOffer = item.type === "retention_offer";
                 const edit = isCartPromo ? getCartEdit(item) : null;
+                const retEdit = isRetentionOffer ? getRetentionEdit(item) : null;
                 const users: Array<{ name: string; email: string; topItem: string }> = item.params?.users ?? [];
                 const showAll = cartPromoShowAll[item.id] ?? false;
                 const showPreview = cartPromoShowPreview[item.id] ?? false;
+                const retSegments: Array<{ segment: string; label: string; users: any[]; discount: number; validityHours: number }> = item.params?.segments ?? [];
 
                 return (
-                  <div key={item.id} className={`border rounded-lg p-3 space-y-2 text-xs ${isCartPromo && item.status === "pending" ? "border-amber-300 bg-amber-50/30" : ""}`}>
+                  <div key={item.id} className={`border rounded-lg p-3 space-y-2 text-xs ${isCartPromo && item.status === "pending" ? "border-amber-300 bg-amber-50/30" : ""} ${isRetentionOffer && item.status === "pending" ? "border-blue-300 bg-blue-50/20" : ""}`}>
                     {/* Header row */}
                     <div className="flex items-start justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2">
@@ -614,6 +634,81 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
                                 emailSubject: edit.emailSubject,
                                 emailBody: edit.emailBody,
                               })}
+                              data-testid={`button-queue-approve-${item.id}`}>
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Подтвердить и отправить
+                            </Button>
+                            <Button size="sm" variant="outline"
+                              className="h-7 px-3 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
+                              onClick={() => handleQueueAction(item.id, "reject")}
+                              data-testid={`button-queue-reject-${item.id}`}>
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Отклонить
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : isRetentionOffer && retEdit ? (
+                      /* ── retention_offer special UI ── */
+                      <div className="space-y-3 pt-1">
+                        {retSegments.map((seg, segIdx) => {
+                          const segEdit = retEdit[segIdx] ?? { discount: seg.discount, validityHours: seg.validityHours };
+                          const showSegUsers = retentionShowAll[item.id] === segIdx;
+                          return (
+                            <div key={seg.segment} className="border rounded-md p-2.5 space-y-2 bg-muted/10">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-foreground">{seg.label}</span>
+                                <span className="text-[10px] text-muted-foreground">👥 {seg.users.length} чел.</span>
+                              </div>
+                              <div className="flex flex-wrap gap-3 items-end">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Скидка</label>
+                                  <div className="flex items-center gap-1">
+                                    <Input type="number" min={1} max={99} value={segEdit.discount}
+                                      onChange={e => setRetentionSegmentEdit(item.id, segIdx, { discount: Number(e.target.value) })}
+                                      className="h-7 w-16 text-xs px-2" disabled={item.status !== "pending"}
+                                      data-testid={`input-retention-discount-${item.id}-${segIdx}`} />
+                                    <Percent className="w-3 h-3 text-muted-foreground" />
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Срок (часов)</label>
+                                  <Input type="number" min={1} max={720} value={segEdit.validityHours}
+                                    onChange={e => setRetentionSegmentEdit(item.id, segIdx, { validityHours: Number(e.target.value) })}
+                                    className="h-7 w-20 text-xs px-2" disabled={item.status !== "pending"}
+                                    data-testid={`input-retention-hours-${item.id}-${segIdx}`} />
+                                </div>
+                              </div>
+                              <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={() => setRetentionShowAll(p => ({ ...p, [item.id]: showSegUsers ? null : segIdx }))}>
+                                <Users className="w-3 h-3" />
+                                {showSegUsers ? "Скрыть список" : `Показать клиентов (${seg.users.length})`}
+                                {showSegUsers ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                              </button>
+                              {showSegUsers && (
+                                <div className="max-h-28 overflow-y-auto border rounded-md bg-muted/20 divide-y text-[11px]">
+                                  {seg.users.map((u: any, i: number) => (
+                                    <div key={i} className="px-2 py-1.5 flex justify-between gap-2">
+                                      <span className="font-medium truncate">{u.name || "—"}</span>
+                                      <span className="text-muted-foreground truncate">{u.email}</span>
+                                      <span className="text-muted-foreground shrink-0">{u.daysSinceLast}д. назад</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {item.error && <p className="text-red-500 text-[10px]">Ошибка: {item.error}</p>}
+                        {item.status === "pending" && (
+                          <div className="flex gap-2 pt-1">
+                            <Button size="sm" className="h-7 px-3 text-xs bg-blue-600 hover:bg-blue-700"
+                              onClick={() => {
+                                const updatedSegments = retSegments.map((seg, i) => ({
+                                  ...seg, ...(retEdit[i] ?? {}),
+                                }));
+                                handleQueueAction(item.id, "approve", { segments: updatedSegments });
+                              }}
                               data-testid={`button-queue-approve-${item.id}`}>
                               <CheckCircle2 className="w-3 h-3 mr-1" />
                               Подтвердить и отправить
