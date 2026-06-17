@@ -808,40 +808,44 @@ export function ChatWidget() {
             bg-white rounded-2xl overflow-hidden shadow-[0_8px_48px_rgba(0,0,0,0.22)] border border-black/10">
 
             {/* Header */}
-            <div className="flex-shrink-0 bg-black text-white px-4 pt-3.5 pb-3 sm:px-5">
-              <div className="flex items-start gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  {mode === "ai" ? <Bot className="w-4 h-4" /> : <ChatIcon />}
+            <div className="flex-shrink-0 bg-[#111111] text-white px-4 pt-3.5 pb-3 sm:px-5 border-b border-white/8">
+              {/* top red accent line */}
+              <div className="absolute top-0 left-8 right-8 h-[1px] bg-gradient-to-r from-transparent via-red-500/60 to-transparent" />
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-red-600 flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_rgba(229,57,53,0.4)]">
+                  {mode === "ai" ? <BrainCog className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} /> : <ChatIcon />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm tracking-wide leading-tight">
-                    {mode === "ai" ? "AI-ассистент" : "Онлайн-чат"}
+                  <p className="font-bold text-sm leading-tight">
+                    {mode === "ai" ? "BOOOM AI" : "Онлайн-чат"}
                   </p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${mode === "ai" ? "bg-violet-400 animate-pulse" : "bg-emerald-400 animate-pulse"}`} />
-                    <p className="text-[10px] text-white/60">
-                      {mode === "ai" ? "BOOOM AI · отвечает мгновенно" : "Менеджер · пн–пт 11:00–19:00"}
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${mode === "ai" ? "bg-red-400 animate-pulse" : "bg-emerald-400 animate-pulse"}`} />
+                    <p className="text-[10px] text-white/50">
+                      {mode === "ai" ? "Ассистент BOOOMERANGS · мгновенно" : "Менеджер · пн–пт 11:00–19:00"}
                     </p>
                   </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button
                     onClick={() => setMode(m => m === "ai" ? "manager" : "ai")}
-                    className="flex items-center gap-1 mt-1.5 text-[11px] text-white/70 hover:text-white transition-colors"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/8 hover:bg-white/15 text-[11px] text-white/70 hover:text-white transition-all active:scale-95"
                     data-testid="button-chat-switch-mode"
                   >
                     {mode === "ai" ? (
-                      <><UserRound className="w-2.5 h-2.5" /> Связь с менеджером</>
+                      <><UserRound className="w-3 h-3" /> Менеджер</>
                     ) : (
-                      <><Bot className="w-2.5 h-2.5" /> Перейти к AI-помощнику</>
+                      <><BrainCog className="w-3 h-3" /> AI</>
                     )}
                   </button>
+                  <button
+                    onClick={() => setOpen(false)}
+                    className="w-8 h-8 rounded-lg bg-white/8 hover:bg-white/15 flex items-center justify-center flex-shrink-0 active:scale-90 transition-all"
+                    aria-label="Закрыть"
+                  >
+                    <X className="w-3.5 h-3.5 text-white/70" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setOpen(false)}
-                  className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center flex-shrink-0 active:scale-90 transition-all"
-                  aria-label="Закрыть"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
               </div>
             </div>
 
@@ -851,19 +855,19 @@ export function ChatWidget() {
                 <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0 bg-[#f7f7f7]">
                   {aiMessages.length === 0 && !sizeAdvisorProduct && (
                     <div className="flex flex-col items-center gap-3 pt-2 pb-1">
-                      <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-white">
-                        <Sparkles className="w-5 h-5" />
+                      <div className="w-12 h-12 rounded-2xl bg-red-600 flex items-center justify-center text-white shadow-[0_0_16px_rgba(229,57,53,0.4)]">
+                        <BrainCog className="w-6 h-6" />
                       </div>
                       <div className="text-center">
-                        <p className="font-semibold text-sm text-black">Привет! Я AI-ассистент</p>
+                        <p className="font-bold text-sm text-black">Привет! Я BOOOM AI</p>
                         <p className="text-xs text-black/40 mt-1">Отвечу на вопросы о доставке,<br />оплате, возврате, размерах и мерче</p>
                       </div>
-                      <div className="w-full flex flex-col gap-2 mt-1">
+                      <div className="w-full flex flex-col gap-1.5 mt-1">
                         {QUICK_QUESTIONS.map(q => (
                           <button
                             key={q}
                             onClick={() => sendAiMessage(q)}
-                            className="w-full text-left px-3.5 py-2.5 rounded-xl bg-white border border-black/10 text-xs text-black/70 hover:border-black/30 hover:bg-black/[0.02] active:scale-[0.98] transition-all shadow-sm"
+                            className="w-full text-left px-3.5 py-2.5 rounded-xl bg-[#1a1a1a] border border-white/8 text-xs text-white/75 hover:bg-[#222] hover:border-red-500/30 hover:text-white active:scale-[0.98] transition-all"
                             data-testid={`button-quick-question-${q}`}
                           >
                             {q}
@@ -1021,7 +1025,7 @@ export function ChatWidget() {
                   <div ref={aiBottomRef} />
                 </div>
 
-                <div className="flex-shrink-0 bg-white border-t border-black/8 flex items-center gap-1.5"
+                <div className="flex-shrink-0 bg-[#111111] border-t border-white/8 flex items-center gap-1.5"
                   style={{ padding: "10px 12px", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}>
                   <input
                     ref={aiInputRef}
@@ -1030,14 +1034,14 @@ export function ChatWidget() {
                     onChange={e => setAiInput(e.target.value)}
                     onKeyDown={handleAiKeyDown}
                     disabled={aiLoading || aiMessages.some(m => m.streaming)}
-                    className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-black/12 text-sm text-black placeholder-black/30 bg-black/[0.02] outline-none focus:border-black transition-colors disabled:opacity-50"
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-white/10 text-sm text-white placeholder-white/30 bg-white/6 outline-none focus:border-red-500/50 transition-colors disabled:opacity-50"
                     data-testid="input-ai-message"
                     style={{ fontSize: "16px" }}
                   />
                   <button
                     onClick={() => sendAiMessage(aiInput)}
                     disabled={!aiInput.trim() || aiLoading || aiMessages.some(m => m.streaming)}
-                    className="w-9 h-9 rounded-xl bg-black text-white flex items-center justify-center hover:bg-black/80 active:scale-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+                    className="w-9 h-9 rounded-xl bg-red-600 text-white flex items-center justify-center hover:bg-red-700 active:scale-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 shadow-[0_2px_8px_rgba(229,57,53,0.35)]"
                     data-testid="button-ai-send"
                   >
                     {(aiLoading || aiMessages.some(m => m.streaming)) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
