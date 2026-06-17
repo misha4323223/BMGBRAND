@@ -802,8 +802,8 @@ export function ChatWidget() {
           <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setOpen(false)} />
 
           <div className="fixed z-50 flex flex-col
-            bottom-[88px] right-4 w-[calc(100vw-2rem)] max-w-[300px] h-[420px]
-            sm:bottom-24 sm:right-6 sm:w-[340px] sm:h-[480px]
+            bottom-[82px] left-3 right-3 h-[calc(100vh-148px)]
+            sm:bottom-24 sm:left-auto sm:right-6 sm:w-[340px] sm:h-[480px]
             md:w-[360px] md:h-[520px]
             bg-[#0f0f0f] rounded-2xl overflow-hidden shadow-[0_8px_48px_rgba(0,0,0,0.55)] border border-white/10">
 
