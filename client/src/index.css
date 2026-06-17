@@ -236,6 +236,60 @@ body.lb-open nav {
   animation: hero-curtain-reveal 1.2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
 }
 
+/* ── Holo AI Chat Button ─────────────────────────────────────────────────── */
+@keyframes holo-sweep {
+  0%   { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateX(320%) skewX(-20deg); opacity: 0; }
+}
+@keyframes holo-glow-pulse {
+  0%, 100% { box-shadow: 0 0 16px 2px rgba(229,57,53,0.25), 0 4px 24px rgba(0,0,0,0.5); }
+  50%       { box-shadow: 0 0 28px 6px rgba(229,57,53,0.45), 0 8px 32px rgba(0,0,0,0.6); }
+}
+@keyframes holo-icon-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%       { opacity: 0.7; transform: scale(1.15); }
+}
+.chat-holo-btn {
+  position: relative;
+  background: #0e0e0e;
+  animation: holo-glow-pulse 2.8s ease-in-out infinite;
+  overflow: hidden;
+}
+.chat-holo-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(240,237,232,0.10) 38%,
+    rgba(229,57,53,0.22)   48%,
+    rgba(240,237,232,0.12) 58%,
+    transparent 76%
+  );
+  animation: holo-sweep 3.2s cubic-bezier(0.4,0,0.6,1) infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+.chat-holo-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(229,57,53,0.25);
+  pointer-events: none;
+  z-index: 2;
+}
+.chat-holo-btn > * {
+  position: relative;
+  z-index: 3;
+}
+.chat-holo-icon {
+  animation: holo-icon-pulse 2.8s ease-in-out infinite;
+}
+
 /* Мобильный навбар: скрыть при скролле вниз (только < 1024px) */
 @media (max-width: 1023px) {
   .navbar-hidden-mobile {

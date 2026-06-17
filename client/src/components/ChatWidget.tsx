@@ -1201,14 +1201,14 @@ export function ChatWidget() {
           onClick={() => setOpen(o => !o)}
           data-testid="button-chat-toggle"
           aria-label="Открыть чат"
-          className={`relative h-14 rounded-2xl bg-black text-white shadow-[0_4px_24px_rgba(0,0,0,0.35)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.45)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-2 overflow-hidden
+          className={`chat-holo-btn h-14 rounded-2xl text-white hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-2
             ${open ? 'w-14' : btnExpanded ? 'w-40 px-4' : 'w-14'}`}
         >
           {open ? (
             <X className="w-5 h-5 flex-shrink-0" />
           ) : (
             <>
-              <Sparkles className={`w-5 h-5 flex-shrink-0 transition-all duration-300 ${btnExpanded ? 'text-violet-300' : ''}`} />
+              <Sparkles className={`chat-holo-icon w-5 h-5 flex-shrink-0 transition-colors duration-300 ${btnExpanded ? 'text-red-400' : 'text-white'}`} />
               <span className={`text-sm font-semibold whitespace-nowrap transition-all duration-300 ${btnExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
                 Спроси AI
               </span>
