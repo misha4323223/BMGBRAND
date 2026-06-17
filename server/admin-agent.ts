@@ -226,6 +226,16 @@ export async function executeWriteTool(tool: string, params: any): Promise<strin
       return `✅ Статус заказа №${params.id} изменён на «${STATUS_LABELS[params.status] || params.status}».`;
     }
 
+    case "update_ai_knowledge_draft": {
+      const { draftContent, topicWord } = params;
+      if (!draftContent) throw new Error("draftContent required");
+      const currentBase = await (storage as any).getBonusSetting("ai_prompt_base") ?? "";
+      const separator = `\n\n---\n## Дополнение (тема: ${topicWord || "неизвестная"})\n`;
+      const updated = currentBase + separator + draftContent;
+      await (storage as any).setBonusSetting("ai_prompt_base", updated);
+      return `✅ Черновик по теме «${topicWord}» добавлен в базовый блок знаний. Кэш обновится в течение 5 минут.`;
+    }
+
     case "send_cart_promos": {
       const { sendEmail } = await import("./email");
       const { getCartPromoEmailHtml } = await import("./email");

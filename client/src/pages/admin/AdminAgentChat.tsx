@@ -69,6 +69,7 @@ const TYPE_LABELS: Record<string, string> = {
   promo_code: "🎟 Промокод",
   seo_batch: "🔍 SEO батч",
   digest: "📊 Дайджест",
+  knowledge_gap: "🧠 Пробел в знаниях",
 };
 
 const STATUS_COLORS: Record<string, string> = {

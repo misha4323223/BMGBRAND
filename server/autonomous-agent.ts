@@ -968,6 +968,115 @@ export async function runAutonomousAgent(): Promise<void> {
   }
 }
 
+// ── Chat Gap Analysis Job ────────────────────────────────────────────────────
+
+const CHAT_TOPIC_LOG_KEY = "chat_topic_log";
+
+const GAP_SYSTEM = `Ты эксперт по базам знаний для интернет-магазина BOOOMERANGS (российский стритвир-бренд).
+Тебе дадут список вопросов, которые покупатели задавали в чате, но на которые у ИИ не было готового ответа.
+Сгенерируй КРАТКИЙ информационный блок (3-5 предложений) который поможет ИИ отвечать на эти вопросы в будущем.
+Пиши на русском, конкретно, без лишних слов. Верни только текст блока — без заголовков и метаданных.`;
+
+export async function runChatGapAnalysisJob(): Promise<void> {
+  console.log("[AutonomousAgent] Starting chat gap analysis job...");
+  if (!await acquireJobLock('job_lock_chat_gap', 6 * 24 * 60 * 60 * 1000)) {
+    console.log("[AutonomousAgent] Chat gap: skipped (lock active).");
+    return;
+  }
+
+  try {
+    const raw = await storage.getBonusSetting(CHAT_TOPIC_LOG_KEY);
+    if (!raw) {
+      console.log("[AutonomousAgent] Chat gap: no log data yet.");
+      return;
+    }
+
+    const log: Array<{ q: string; topic: string | null; ts: number }> = JSON.parse(raw);
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recent = log.filter(e => e.ts >= sevenDaysAgo && !e.topic);
+
+    if (recent.length < 3) {
+      console.log(`[AutonomousAgent] Chat gap: only ${recent.length} unmatched queries, skipping.`);
+      return;
+    }
+
+    // Кластеризация по частоте значимых слов
+    const stopWords = new Set(["что", "как", "где", "когда", "сколько", "можно", "есть", "это", "хочу", "нужно", "нужен", "нужна", "скажи", "расскажи", "помоги", "подскажи", "ваш", "вас", "мне", "вы", "я", "а", "и", "или", "не", "ли", "про", "о", "об", "бы", "же"]);
+
+    const wordFreq = new Map<string, { count: number; queries: string[] }>();
+    for (const entry of recent) {
+      const words = entry.q.toLowerCase().split(/\s+/).filter(w => w.length >= 4 && !stopWords.has(w));
+      for (const word of words) {
+        const existing = wordFreq.get(word);
+        if (existing) {
+          existing.count++;
+          if (!existing.queries.includes(entry.q)) existing.queries.push(entry.q);
+        } else {
+          wordFreq.set(word, { count: 1, queries: [entry.q] });
+        }
+      }
+    }
+
+    // Берём кластеры с 3+ повторениями, сортируем по частоте
+    const clusters = [...wordFreq.entries()]
+      .filter(([, v]) => v.count >= 3)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5);
+
+    if (clusters.length === 0) {
+      console.log("[AutonomousAgent] Chat gap: no significant clusters found.");
+      await addLogEntry({
+        type: "chat_gap",
+        action: "Анализ пробелов в знаниях",
+        summary: `Проанализировано ${recent.length} неизвестных запросов за 7 дней — значимых кластеров не найдено.`,
+        isAuto: true,
+      });
+      return;
+    }
+
+    let queued = 0;
+    for (const [word, data] of clusters) {
+      const sampleQueries = data.queries.slice(0, 5).map(q => `• "${q}"`).join("\n");
+      const prompt = `Покупатели ${data.count} раз за неделю задавали похожие вопросы. Примеры:\n${sampleQueries}\n\nСоздай блок знаний для ИИ-ассистента.`;
+
+      try {
+        const draftContent = await groqComplete(prompt, GAP_SYSTEM, 600);
+        if (!draftContent || draftContent.length < 20) continue;
+
+        await addToQueue({
+          type: "knowledge_gap",
+          title: `Пробел в знаниях: «${word}» (${data.count} вопросов за неделю)`,
+          description: `Покупатели часто спрашивали о теме «${word}», но в базе знаний нет подходящего блока.\n\nПримеры вопросов:\n${sampleQueries}\n\n---\nЧерновик нового блока знаний:\n\n${draftContent}`,
+          params: { draftContent, topicWord: word, queryCount: data.count },
+          tool: "update_ai_knowledge_draft",
+        });
+        queued++;
+      } catch (e: any) {
+        console.error(`[AutonomousAgent] Chat gap draft error for "${word}":`, e?.message);
+      }
+    }
+
+    await addLogEntry({
+      type: "chat_gap",
+      action: "Анализ пробелов в знаниях завершён",
+      summary: `Неизвестных запросов: ${recent.length}, кластеров: ${clusters.length}, добавлено в очередь: ${queued}`,
+      isAuto: true,
+    });
+
+    if (queued > 0) {
+      await sendAgentAlert(
+        `🧠 <b>BOOOM AI — Пробелы в знаниях</b>\n\n` +
+        `За неделю покупатели ${recent.length} раз задавали вопросы вне базы знаний.\n` +
+        `Найдено ${queued} новых тем. Черновики ждут в очереди модерации.`
+      );
+    }
+
+    console.log(`[AutonomousAgent] Chat gap done. Unmatched: ${recent.length}, queued: ${queued}`);
+  } catch (e: any) {
+    console.error("[AutonomousAgent] Chat gap analysis error:", e?.message);
+  }
+}
+
 // ── Scheduler ─────────────────────────────────────────────────────────────
 
 export function initAutonomousAgent(): void {
@@ -1044,7 +1153,24 @@ export function initAutonomousAgent(): void {
     setInterval(runStaleSafe, 7 * 24 * 60 * 60 * 1000);
   }, sundayStaleDelayMs);
 
+  // Анализ пробелов в знаниях чата — каждое воскресенье в 12:00 МСК (09:00 UTC)
+  const nextSundayGap = new Date(now);
+  nextSundayGap.setUTCDate(now.getUTCDate() + (daysUntilSunday || 7));
+  nextSundayGap.setUTCHours(9, 0, 0, 0); // 12:00 МСК = 09:00 UTC
+  if (nextSundayGap.getTime() <= nowMs) nextSundayGap.setUTCDate(nextSundayGap.getUTCDate() + 7);
+  const sundayGapDelayMs = nextSundayGap.getTime() - nowMs;
+
+  const runGapSafe = () =>
+    runChatGapAnalysisJob().catch((e: any) =>
+      console.error("[AutonomousAgent] Chat gap analysis unhandled error:", e?.message)
+    );
+
+  setTimeout(() => {
+    runGapSafe();
+    setInterval(runGapSafe, 7 * 24 * 60 * 60 * 1000);
+  }, sundayGapDelayMs);
+
   console.log(
-    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h, cart analysis next Sunday in ${Math.round(sundayCartDelayMs / 60000 / 60)}h, stale products next Sunday in ${Math.round(sundayStaleDelayMs / 60000 / 60)}h`
+    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h, cart analysis next Sunday in ${Math.round(sundayCartDelayMs / 60000 / 60)}h, stale products next Sunday in ${Math.round(sundayStaleDelayMs / 60000 / 60)}h, chat gap analysis next Sunday 12:00 МСК in ${Math.round(sundayGapDelayMs / 60000 / 60)}h`
   );
 }

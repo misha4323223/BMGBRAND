@@ -1467,6 +1467,26 @@ function detectAiTopic(query: string): AiKnowledgeKey | null {
   }
   return null;
 }
+
+// ─── Chat Topic Logging ──────────────────────────────────────────────────────
+const CHAT_TOPIC_LOG_KEY = "chat_topic_log";
+const MAX_CHAT_LOG_ENTRIES = 1000;
+
+function logChatTopic(query: string, topic: string | null): void {
+  const entry = { q: query.slice(0, 100), topic, ts: Date.now() };
+  Promise.resolve().then(async () => {
+    try {
+      const raw = await storage.getBonusSetting(CHAT_TOPIC_LOG_KEY);
+      const log: typeof entry[] = raw ? JSON.parse(raw) : [];
+      log.push(entry);
+      // Удаляем записи старше 30 дней
+      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const trimmed = log.filter(e => e.ts >= cutoff);
+      if (trimmed.length > MAX_CHAT_LOG_ENTRIES) trimmed.splice(0, trimmed.length - MAX_CHAT_LOG_ENTRIES);
+      await storage.setBonusSetting(CHAT_TOPIC_LOG_KEY, JSON.stringify(trimmed));
+    } catch {}
+  });
+}
 // ─── End AI Knowledge Cache ─────────────────────────────────────────────────
 
 export async function registerRoutes(
@@ -3258,6 +3278,7 @@ BMGBRAND — официальный производитель и магазин
       await loadAiKnowledgeIfNeeded();
       const topicKey = detectAiTopic(lastUserMsg?.content || '');
       console.log(`[AI Chat] query="${(lastUserMsg?.content || '').substring(0, 60)}" topic=${topicKey || 'none'}`);
+      logChatTopic(lastUserMsg?.content || '', topicKey);
       let systemPrompt = getAiKnowledgeCached('ai_prompt_base');
       if (topicKey) {
         const topicBlock = getAiKnowledgeCached(topicKey);
