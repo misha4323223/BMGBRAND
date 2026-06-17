@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { X, Send, ArrowRight, ImagePlus, Loader2, Bot, UserRound, Sparkles, Ruler, BrainCircuit } from "lucide-react";
+import { X, Send, ArrowRight, ImagePlus, Loader2, Bot, UserRound, Sparkles, Ruler, BrainCog } from "lucide-react";
 
 // Renders AI message text with clickable markdown links [text](url)
 function AiMessageContent({ text, streaming }: { text: string; streaming?: boolean }) {
@@ -1208,7 +1208,7 @@ export function ChatWidget() {
             <X className="w-5 h-5 flex-shrink-0" />
           ) : (
             <>
-              <BrainCircuit className={`chat-holo-icon w-5 h-5 flex-shrink-0 transition-colors duration-300 ${btnExpanded ? 'text-red-400' : 'text-white'}`} />
+              <BrainCog className={`chat-holo-icon w-5 h-5 flex-shrink-0 transition-colors duration-300 ${btnExpanded ? 'text-red-400' : 'text-white'}`} />
               <span className={`text-sm font-semibold whitespace-nowrap transition-all duration-300 ${btnExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
                 BOOO AI
               </span>
