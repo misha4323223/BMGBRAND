@@ -236,6 +236,10 @@ export async function executeWriteTool(tool: string, params: any): Promise<strin
       return `✅ Черновик по теме «${topicWord}» добавлен в базовый блок знаний. Кэш обновится в течение 5 минут.`;
     }
 
+    case "acknowledge_chat_insights": {
+      return `✅ Отчёт по конверсии чата принят к сведению.`;
+    }
+
     case "send_cart_promos": {
       const { sendEmail } = await import("./email");
       const { getCartPromoEmailHtml } = await import("./email");

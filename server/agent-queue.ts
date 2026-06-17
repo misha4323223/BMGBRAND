@@ -17,7 +17,8 @@ export type QueueItemType =
   | "promo_code"
   | "cart_promo"
   | "knowledge_gap"
-  | "retention_offer";
+  | "retention_offer"
+  | "chat_conversion_insight";
 
 export interface QueueItem {
   id: string;

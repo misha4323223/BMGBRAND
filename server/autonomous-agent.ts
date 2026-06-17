@@ -1078,6 +1078,110 @@ export async function runChatGapAnalysisJob(): Promise<void> {
   }
 }
 
+// ── Chat Conversion Analysis Job ─────────────────────────────────────────────
+
+const CONVERSION_SYSTEM = `Ты аналитик интернет-магазина BOOOMERANGS (российский стритвир-бренд).
+Тебе дадут статистику по чату: сколько сессий с чатом привели к покупке, а сколько нет.
+Также — список тем, которые обсуждались в чате за этот период.
+Напиши КРАТКИЙ отчёт (5-7 предложений) с конкретными выводами и 2-3 действиями для улучшения конверсии.
+Пиши на русском, конкретно, без воды. Не придумывай цифры — используй только те, что переданы.`;
+
+export async function runChatConversionAnalysisJob(): Promise<void> {
+  console.log("[AutonomousAgent] Starting chat conversion analysis job...");
+  if (!await acquireJobLock('job_lock_chat_conversion', 6 * 24 * 60 * 60 * 1000)) {
+    console.log("[AutonomousAgent] Chat conversion: skipped (lock active).");
+    return;
+  }
+
+  try {
+    const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
+
+    // 1. Получаем все оплаченные заказы за 14 дней
+    const allOrders = await storage.getOrders() as any[];
+    const recentPaid = allOrders.filter((o: any) => {
+      const ts = new Date(o.createdAt || 0).getTime();
+      return ts >= fourteenDaysAgo && o.status !== 'pending' && !o.isWholesale && o.sessionId;
+    });
+
+    if (recentPaid.length === 0) {
+      console.log("[AutonomousAgent] Chat conversion: no paid orders in last 14 days.");
+      return;
+    }
+
+    // 2. Получаем все сессии с чатом → строим Set session_id
+    const chatSessions = await storage.getChatSessions();
+    const chatSessionIds = new Set(chatSessions.map((s: any) => s.sessionId));
+
+    // 3. Кросс-матч: заказы из сессий с чатом vs без
+    const ordersWithChat = recentPaid.filter((o: any) => chatSessionIds.has(o.sessionId));
+    const ordersWithoutChat = recentPaid.filter((o: any) => !chatSessionIds.has(o.sessionId));
+
+    const totalChatSessions = chatSessions.length;
+    const convertedSessions = ordersWithChat.length;
+    const conversionRate = totalChatSessions > 0
+      ? ((convertedSessions / totalChatSessions) * 100).toFixed(1)
+      : "0";
+
+    // 4. Темы из лога чата за 14 дней
+    const raw = await storage.getBonusSetting(CHAT_TOPIC_LOG_KEY);
+    const topicLog: Array<{ q: string; topic: string | null; ts: number }> = raw ? JSON.parse(raw) : [];
+    const recentTopics = topicLog.filter(e => e.ts >= fourteenDaysAgo);
+    const topicCounts = new Map<string, number>();
+    for (const e of recentTopics) {
+      const t = e.topic || "неизвестная тема";
+      topicCounts.set(t, (topicCounts.get(t) ?? 0) + 1);
+    }
+    const topTopics = [...topicCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 7)
+      .map(([t, c]) => `${t}: ${c} запросов`)
+      .join(", ");
+
+    // 5. Генерируем инсайт через AI
+    const statsText =
+      `За 14 дней:\n` +
+      `— Всего сессий с чатом: ${totalChatSessions}\n` +
+      `— Оплаченных заказов: ${recentPaid.length} (из них ${convertedSessions} из сессий с чатом, ${ordersWithoutChat.length} без чата)\n` +
+      `— Конверсия чат→покупка: ${conversionRate}%\n` +
+      `— Топ тем в чате: ${topTopics || "данных нет"}`;
+
+    const insight = await groqComplete(statsText, CONVERSION_SYSTEM, 600);
+    if (!insight || insight.length < 20) {
+      console.log("[AutonomousAgent] Chat conversion: AI returned empty insight.");
+      return;
+    }
+
+    // 6. Кладём в очередь
+    await addToQueue({
+      type: "chat_conversion_insight",
+      title: `📈 Конверсия чата: ${conversionRate}% (${convertedSessions} из ${totalChatSessions} сессий → покупка)`,
+      description: `${statsText}\n\n---\n🤖 Анализ ИИ:\n\n${insight}`,
+      params: { conversionRate, convertedSessions, totalChatSessions, ordersWithChat: convertedSessions, ordersWithoutChat: ordersWithoutChat.length, insight },
+      tool: "acknowledge_chat_insights",
+    });
+
+    await addLogEntry({
+      type: "chat_conversion",
+      action: "Анализ конверсии чата завершён",
+      summary: `Сессий с чатом: ${totalChatSessions}, конверсия: ${conversionRate}%, заказов: ${recentPaid.length}`,
+      isAuto: true,
+    });
+
+    // 7. Уведомление
+    const alertMsg =
+      `📈 <b>BOOOM AI — Конверсия чата</b>\n\n` +
+      `За 14 дней: ${totalChatSessions} сессий с чатом\n` +
+      `Конверсия в покупку: <b>${conversionRate}%</b> (${convertedSessions} заказов)\n\n` +
+      `Отчёт ждёт в очереди агента.`;
+    await sendAgentAlert(alertMsg);
+    vkNotifyAgentAlert(alertMsg);
+
+    console.log(`[AutonomousAgent] Chat conversion done. Sessions: ${totalChatSessions}, rate: ${conversionRate}%`);
+  } catch (e: any) {
+    console.error("[AutonomousAgent] Chat conversion analysis error:", e?.message);
+  }
+}
+
 // ── Predictive Retention Job ─────────────────────────────────────────────────
 
 interface RetentionUser {
@@ -1316,7 +1420,25 @@ export function initAutonomousAgent(): void {
     setInterval(runRetentionSafe, 7 * 24 * 60 * 60 * 1000);
   }, thursdayDelayMs);
 
+  // Анализ конверсии чата — каждую среду в 13:00 МСК (10:00 UTC)
+  const daysUntilWednesday = (3 - now.getUTCDay() + 7) % 7 || 7;
+  const nextWednesday = new Date(now);
+  nextWednesday.setUTCDate(now.getUTCDate() + daysUntilWednesday);
+  nextWednesday.setUTCHours(10, 0, 0, 0); // 13:00 МСК = 10:00 UTC
+  if (nextWednesday.getTime() <= nowMs) nextWednesday.setUTCDate(nextWednesday.getUTCDate() + 7);
+  const wednesdayDelayMs = nextWednesday.getTime() - nowMs;
+
+  const runConversionSafe = () =>
+    runChatConversionAnalysisJob().catch((e: any) =>
+      console.error("[AutonomousAgent] Chat conversion unhandled error:", e?.message)
+    );
+
+  setTimeout(() => {
+    runConversionSafe();
+    setInterval(runConversionSafe, 7 * 24 * 60 * 60 * 1000);
+  }, wednesdayDelayMs);
+
   console.log(
-    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h, cart analysis next Sunday in ${Math.round(sundayCartDelayMs / 60000 / 60)}h, stale products next Sunday in ${Math.round(sundayStaleDelayMs / 60000 / 60)}h, chat gap analysis next Sunday 12:00 МСК in ${Math.round(sundayGapDelayMs / 60000 / 60)}h, retention next Thursday 12:00 МСК in ${Math.round(thursdayDelayMs / 60000 / 60)}h`
+    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h, cart analysis next Sunday in ${Math.round(sundayCartDelayMs / 60000 / 60)}h, stale products next Sunday in ${Math.round(sundayStaleDelayMs / 60000 / 60)}h, chat gap analysis next Sunday 12:00 МСК in ${Math.round(sundayGapDelayMs / 60000 / 60)}h, retention next Thursday 12:00 МСК in ${Math.round(thursdayDelayMs / 60000 / 60)}h, chat conversion next Wednesday 13:00 МСК in ${Math.round(wednesdayDelayMs / 60000 / 60)}h`
   );
 }

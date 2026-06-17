@@ -70,6 +70,7 @@ const TYPE_LABELS: Record<string, string> = {
   seo_batch: "🔍 SEO батч",
   digest: "📊 Дайджест",
   knowledge_gap: "🧠 Пробел в знаниях",
+  chat_conversion_insight: "📈 Конверсия чата",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -468,6 +469,7 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
               {allItems.map((item) => {
                 const isCartPromo = item.type === "cart_promo";
                 const isRetentionOffer = item.type === "retention_offer";
+                const isConversionInsight = item.type === "chat_conversion_insight";
                 const edit = isCartPromo ? getCartEdit(item) : null;
                 const retEdit = isRetentionOffer ? getRetentionEdit(item) : null;
                 const users: Array<{ name: string; email: string; topItem: string }> = item.params?.users ?? [];
@@ -476,7 +478,7 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
                 const retSegments: Array<{ segment: string; label: string; users: any[]; discount: number; validityHours: number }> = item.params?.segments ?? [];
 
                 return (
-                  <div key={item.id} className={`border rounded-lg p-3 space-y-2 text-xs ${isCartPromo && item.status === "pending" ? "border-amber-300 bg-amber-50/30" : ""} ${isRetentionOffer && item.status === "pending" ? "border-blue-300 bg-blue-50/20" : ""}`}>
+                  <div key={item.id} className={`border rounded-lg p-3 space-y-2 text-xs ${isCartPromo && item.status === "pending" ? "border-amber-300 bg-amber-50/30" : ""} ${isRetentionOffer && item.status === "pending" ? "border-blue-300 bg-blue-50/20" : ""} ${isConversionInsight && item.status === "pending" ? "border-emerald-300 bg-emerald-50/20" : ""}`}>
                     {/* Header row */}
                     <div className="flex items-start justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2">
@@ -712,6 +714,47 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
                               data-testid={`button-queue-approve-${item.id}`}>
                               <CheckCircle2 className="w-3 h-3 mr-1" />
                               Подтвердить и отправить
+                            </Button>
+                            <Button size="sm" variant="outline"
+                              className="h-7 px-3 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
+                              onClick={() => handleQueueAction(item.id, "reject")}
+                              data-testid={`button-queue-reject-${item.id}`}>
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Отклонить
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : isConversionInsight ? (
+                      /* ── chat_conversion_insight UI ── */
+                      <div className="space-y-2 pt-1">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="border rounded-md p-2 bg-muted/10 text-center">
+                            <div className="text-base font-bold text-emerald-600">{item.params?.conversionRate ?? "—"}%</div>
+                            <div className="text-[10px] text-muted-foreground">конверсия</div>
+                          </div>
+                          <div className="border rounded-md p-2 bg-muted/10 text-center">
+                            <div className="text-base font-bold">{item.params?.convertedSessions ?? "—"}</div>
+                            <div className="text-[10px] text-muted-foreground">заказов из чата</div>
+                          </div>
+                          <div className="border rounded-md p-2 bg-muted/10 text-center">
+                            <div className="text-base font-bold">{item.params?.totalChatSessions ?? "—"}</div>
+                            <div className="text-[10px] text-muted-foreground">сессий с чатом</div>
+                          </div>
+                        </div>
+                        {item.params?.insight && (
+                          <div className="bg-muted/20 rounded-md p-2.5 text-[11px] leading-relaxed whitespace-pre-wrap text-foreground/80">
+                            {item.params.insight}
+                          </div>
+                        )}
+                        {item.error && <p className="text-red-500 text-[10px]">Ошибка: {item.error}</p>}
+                        {item.status === "pending" && (
+                          <div className="flex gap-2 pt-1">
+                            <Button size="sm" className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700"
+                              onClick={() => handleQueueAction(item.id, "approve")}
+                              data-testid={`button-queue-approve-${item.id}`}>
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Принято
                             </Button>
                             <Button size="sm" variant="outline"
                               className="h-7 px-3 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
