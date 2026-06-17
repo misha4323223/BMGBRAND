@@ -805,7 +805,7 @@ export function ChatWidget() {
             bottom-[88px] right-4 w-[calc(100vw-2rem)] max-w-[300px] h-[420px]
             sm:bottom-24 sm:right-6 sm:w-[340px] sm:h-[480px]
             md:w-[360px] md:h-[520px]
-            bg-white rounded-2xl overflow-hidden shadow-[0_8px_48px_rgba(0,0,0,0.22)] border border-black/10">
+            bg-[#0f0f0f] rounded-2xl overflow-hidden shadow-[0_8px_48px_rgba(0,0,0,0.55)] border border-white/10">
 
             {/* Header */}
             <div className="flex-shrink-0 bg-[#111111] text-white px-4 pt-3.5 pb-3 sm:px-5 border-b border-white/8">
@@ -852,15 +852,15 @@ export function ChatWidget() {
             {/* AI mode */}
             {mode === "ai" && (
               <>
-                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0 bg-[#f7f7f7]">
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0 bg-[#0f0f0f]">
                   {aiMessages.length === 0 && !sizeAdvisorProduct && (
                     <div className="flex flex-col items-center gap-3 pt-2 pb-1">
-                      <div className="w-12 h-12 rounded-2xl bg-red-600 flex items-center justify-center text-white shadow-[0_0_16px_rgba(229,57,53,0.4)]">
+                      <div className="w-12 h-12 rounded-2xl bg-red-600 flex items-center justify-center text-white shadow-[0_0_20px_rgba(229,57,53,0.5)]">
                         <BrainCog className="w-6 h-6" />
                       </div>
                       <div className="text-center">
-                        <p className="font-bold text-sm text-black">Привет! Я BOOOM AI</p>
-                        <p className="text-xs text-black/40 mt-1">Отвечу на вопросы о доставке,<br />оплате, возврате, размерах и мерче</p>
+                        <p className="font-bold text-sm text-white">Привет! Я BOOOM AI</p>
+                        <p className="text-xs text-white/40 mt-1">Отвечу на вопросы о доставке,<br />оплате, возврате, размерах и мерче</p>
                       </div>
                       <div className="w-full flex flex-col gap-1.5 mt-1">
                         {QUICK_QUESTIONS.map(q => (
@@ -937,18 +937,18 @@ export function ChatWidget() {
                     <div key={msg.id} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
                       <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full`}>
                         {msg.role === "assistant" && (
-                          <div className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center mr-2 flex-shrink-0 mt-auto mb-0.5">
-                            <Bot className="w-3.5 h-3.5" />
+                          <div className="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center mr-2 flex-shrink-0 mt-auto mb-0.5">
+                            <BrainCog className="w-3.5 h-3.5" />
                           </div>
                         )}
                         {msg.role === "assistant" && msg.content === "__tired__" ? (
-                          <div className="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm bg-amber-50 border border-amber-200 rounded-bl-md">
-                            <p className="text-sm text-amber-900 leading-snug mb-2.5">
+                          <div className="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm bg-[#1e1e1e] border border-white/10 rounded-bl-md">
+                            <p className="text-sm text-white/80 leading-snug mb-2.5">
                               😴 Наш помощник устал — напишите нам напрямую, поможем!
                             </p>
                             <button
                               onClick={() => setMode("manager")}
-                              className="w-full py-1.5 px-3 rounded-lg bg-black text-white text-xs font-medium hover:bg-black/80 active:scale-95 transition-all"
+                              className="w-full py-1.5 px-3 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 active:scale-95 transition-all"
                             >
                               Написать менеджеру
                             </button>
@@ -956,8 +956,8 @@ export function ChatWidget() {
                         ) : (
                           <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words shadow-sm
                             ${msg.role === "user"
-                              ? "bg-black text-white rounded-br-md"
-                              : "bg-white text-black rounded-bl-md border border-black/8"
+                              ? "bg-red-600 text-white rounded-br-md shadow-[0_2px_10px_rgba(229,57,53,0.3)]"
+                              : "bg-[#1e1e1e] text-white/90 rounded-bl-md border border-white/8"
                             }`}>
                             {msg.role === "user"
                               ? <p className="leading-snug">{msg.content}</p>
@@ -974,7 +974,7 @@ export function ChatWidget() {
                               href={p.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center gap-2.5 bg-white border border-black/10 rounded-xl px-3 py-2 shadow-sm hover:shadow-md hover:border-black/25 transition-all group text-left no-underline"
+                              className="flex items-center gap-2.5 bg-[#1a1a1a] border border-white/10 rounded-xl px-3 py-2 hover:border-red-500/30 hover:bg-[#222] transition-all group text-left no-underline"
                             >
                               {p.imageUrl ? (
                                 <img src={p.imageUrl} alt={p.name} className="w-11 h-11 object-cover rounded-lg flex-shrink-0 bg-gray-100" />
@@ -982,12 +982,12 @@ export function ChatWidget() {
                                 <div className="w-11 h-11 rounded-lg bg-gray-100 flex-shrink-0" />
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-black leading-snug line-clamp-2 group-hover:underline">{p.name}</p>
+                                <p className="text-xs font-medium text-white/85 leading-snug line-clamp-2 group-hover:text-white">{p.name}</p>
                                 {p.price && (
-                                  <p className="text-xs text-gray-500 mt-0.5">{p.price.toLocaleString("ru-RU")} ₽</p>
+                                  <p className="text-xs text-white/40 mt-0.5">{p.price.toLocaleString("ru-RU")} ₽</p>
                                 )}
                               </div>
-                              <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg className="w-3.5 h-3.5 text-white/30 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                               </svg>
                             </a>
@@ -999,13 +999,13 @@ export function ChatWidget() {
 
                   {aiLoading && !aiMessages.some(m => m.streaming) && (
                     <div className="flex justify-start">
-                      <div className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center mr-2 flex-shrink-0">
-                        <Bot className="w-3.5 h-3.5" />
+                      <div className="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center mr-2 flex-shrink-0">
+                        <BrainCog className="w-3.5 h-3.5" />
                       </div>
-                      <div className="bg-white border border-black/8 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 bg-black/30 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <span className="w-1.5 h-1.5 bg-black/30 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <span className="w-1.5 h-1.5 bg-black/30 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                      <div className="bg-[#1e1e1e] border border-white/8 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                       </div>
                     </div>
                   )}
@@ -1015,7 +1015,7 @@ export function ChatWidget() {
                     <div className="flex justify-center">
                       <button
                         onClick={() => setMode("manager")}
-                        className="text-xs text-black/40 hover:text-black/70 underline underline-offset-2 transition-colors"
+                        className="text-xs text-white/30 hover:text-white/60 underline underline-offset-2 transition-colors"
                       >
                         Хотите поговорить с менеджером?
                       </button>
@@ -1034,7 +1034,7 @@ export function ChatWidget() {
                     onChange={e => setAiInput(e.target.value)}
                     onKeyDown={handleAiKeyDown}
                     disabled={aiLoading || aiMessages.some(m => m.streaming)}
-                    className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-white/10 text-sm text-white placeholder-white/30 bg-white/6 outline-none focus:border-red-500/50 transition-colors disabled:opacity-50"
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-white/10 text-sm text-white placeholder-white/30 bg-[#1a1a1a] outline-none focus:border-red-500/50 transition-colors disabled:opacity-50"
                     data-testid="input-ai-message"
                     style={{ fontSize: "16px" }}
                   />
