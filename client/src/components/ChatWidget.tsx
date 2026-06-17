@@ -1210,7 +1210,7 @@ export function ChatWidget() {
             <>
               <BrainCog className={`chat-holo-icon w-5 h-5 flex-shrink-0 transition-colors duration-300 ${btnExpanded ? 'text-red-400' : 'text-white'}`} />
               <span className={`text-sm font-semibold whitespace-nowrap transition-all duration-300 ${btnExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
-                BOOO AI
+                BOOOM AI
               </span>
             </>
           )}
