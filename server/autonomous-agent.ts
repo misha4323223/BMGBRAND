@@ -1298,11 +1298,11 @@ export function initAutonomousAgent(): void {
     setInterval(runGapSafe, 7 * 24 * 60 * 60 * 1000);
   }, sundayGapDelayMs);
 
-  // Предиктивный retention — каждый четверг в 12:00 МСК (09:00 UTC)
+  // Предиктивный retention — каждый четверг в 12:30 МСК (09:30 UTC)
   const daysUntilThursday = (4 - now.getUTCDay() + 7) % 7 || 7;
   const nextThursday = new Date(now);
   nextThursday.setUTCDate(now.getUTCDate() + daysUntilThursday);
-  nextThursday.setUTCHours(9, 0, 0, 0); // 12:00 МСК = 09:00 UTC
+  nextThursday.setUTCHours(9, 30, 0, 0); // 12:30 МСК = 09:30 UTC
   if (nextThursday.getTime() <= nowMs) nextThursday.setUTCDate(nextThursday.getUTCDate() + 7);
   const thursdayDelayMs = nextThursday.getTime() - nowMs;
 
