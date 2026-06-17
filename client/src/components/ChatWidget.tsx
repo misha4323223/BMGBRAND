@@ -1153,55 +1153,66 @@ export function ChatWidget() {
 
       {/* Proactive peek bubble */}
       {peekMessage && (
-        <div className={`fixed bottom-[100px] right-6 z-50 max-w-[260px] transition-all duration-300 ${peekAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3 pointer-events-none'}`}>
-          <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.18)] border border-black/8 p-3.5 relative">
+        <div className={`fixed bottom-[82px] md:bottom-[96px] right-4 z-50 w-[min(300px,calc(100vw-32px))] transition-all duration-300 ${peekAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+          <div className="bg-[#111111] rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.55)] border border-white/10 p-4 relative overflow-hidden">
+            {/* top red accent line */}
+            <div className="absolute top-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-red-500/70 to-transparent" />
+
+            {/* Close button — large touch target */}
             <button
               onClick={() => {
                 if (peekTrigger) fetch('/api/ai/proactive-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trigger: peekTrigger, event: 'dismissed' }) }).catch(() => {});
                 localStorage.setItem('proactive_dismissed_until', String(Date.now() + 7 * 24 * 60 * 60 * 1000));
                 hidePeek();
               }}
-              className="absolute top-2 right-2 w-5 h-5 rounded-full bg-black/6 hover:bg-black/12 flex items-center justify-center transition-colors flex-shrink-0"
+              className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/8 hover:bg-white/15 flex items-center justify-center transition-colors"
               data-testid="button-peek-dismiss"
               aria-label="Закрыть"
             >
-              <X className="w-3 h-3 text-black/50" />
+              <X className="w-3.5 h-3.5 text-white/60" />
             </button>
-            <div className="flex items-start gap-2.5 pr-5">
-              <div className="w-7 h-7 rounded-xl bg-black flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Sparkles className="w-3.5 h-3.5 text-violet-300" />
+
+            {/* Header */}
+            <div className="flex items-center gap-2.5 pr-10 mb-3">
+              <div className="w-9 h-9 rounded-xl bg-red-600 flex items-center justify-center flex-shrink-0 shadow-[0_0_12px_rgba(229,57,53,0.5)]">
+                <BrainCog className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-semibold text-black/40 uppercase tracking-wide mb-1">AI-ассистент BOOOMERANGS</p>
-                <p className="text-xs text-black leading-snug">{peekMessage}</p>
-                <div className="mt-2.5 flex gap-1.5">
-                  <button
-                    onClick={() => {
-                      if (peekTrigger) fetch('/api/ai/proactive-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trigger: peekTrigger, event: 'clicked' }) }).catch(() => {});
-                      const msg = peekMessage;
-                      hidePeek();
-                      setMode('ai');
-                      if (msg) setAiMessages([{ id: `proactive-${Date.now()}`, role: 'assistant', content: msg, products: [] }]);
-                      setOpen(true);
-                    }}
-                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-black text-white text-[11px] font-medium hover:bg-black/80 active:scale-95 transition-all"
-                    data-testid="button-peek-open-ai"
-                  >
-                    <Sparkles className="w-3 h-3" /> AI
-                  </button>
-                  <button
-                    onClick={() => {
-                      hidePeek();
-                      setMode('manager');
-                      setOpen(true);
-                    }}
-                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-black/8 text-black text-[11px] font-medium hover:bg-black/15 active:scale-95 transition-all"
-                    data-testid="button-peek-open-manager"
-                  >
-                    <UserRound className="w-3 h-3" /> Менеджер
-                  </button>
-                </div>
+              <div>
+                <p className="text-[11px] font-bold text-white leading-tight">BOOOM AI</p>
+                <p className="text-[10px] text-white/40 leading-tight">Ассистент BOOOMERANGS</p>
               </div>
+            </div>
+
+            {/* Message */}
+            <p className="text-[13px] text-white/85 leading-snug mb-4">{peekMessage}</p>
+
+            {/* CTA buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (peekTrigger) fetch('/api/ai/proactive-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trigger: peekTrigger, event: 'clicked' }) }).catch(() => {});
+                  const msg = peekMessage;
+                  hidePeek();
+                  setMode('ai');
+                  if (msg) setAiMessages([{ id: `proactive-${Date.now()}`, role: 'assistant', content: msg, products: [] }]);
+                  setOpen(true);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[12px] font-semibold active:scale-95 transition-all shadow-[0_2px_12px_rgba(229,57,53,0.35)]"
+                data-testid="button-peek-open-ai"
+              >
+                <BrainCog className="w-3.5 h-3.5" /> BOOOM AI
+              </button>
+              <button
+                onClick={() => {
+                  hidePeek();
+                  setMode('manager');
+                  setOpen(true);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/16 text-white text-[12px] font-semibold active:scale-95 transition-all"
+                data-testid="button-peek-open-manager"
+              >
+                <UserRound className="w-3.5 h-3.5" /> Менеджер
+              </button>
             </div>
           </div>
         </div>
