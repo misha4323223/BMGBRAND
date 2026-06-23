@@ -177,6 +177,7 @@ export const products = pgTable("products", {
   preorderStatus: text("preorder_status"), // collecting | confirmed | shipped | cancelled
   artistSlug: text("artist_slug"), // Slug артиста-партнёра (если товар принадлежит артисту)
   artistOnly: boolean("artist_only").default(false), // Товар создан артистом — виден только на его странице, не в общем каталоге
+  videoUrl: text("video_url"), // URL видео-ролика для галереи на странице товара (MP4/WebM)
   // Оптовый предзаказ (отдельный B2B-флоу с РРЦ и оптовой ценой)
   wholesalePreorderEnabled: boolean("wholesale_preorder_enabled").default(false),
   wholesalePreorderSizes: jsonb("wholesale_preorder_sizes").$type<string[]>(), // Размеры, доступные на оптовый предзаказ

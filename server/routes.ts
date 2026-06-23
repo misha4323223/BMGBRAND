@@ -7222,6 +7222,30 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // Add video_url column to products table (migration)
+  app.post("/api/migrate-video-url-column", async (req, res) => {
+    const expectedKey = getAdminKey();
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (apiKey !== expectedKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const ydb = await import("ydb-sdk");
+      const ydbDriver = await waitForDriver();
+      if (!ydbDriver) return res.status(503).json({ error: "YDB not available" });
+      await ydbDriver.tableClient.withSession(async (session: any) => {
+        await session.executeQuery(`ALTER TABLE products ADD COLUMN video_url Utf8`);
+      });
+      res.json({ success: true, message: "products.video_url: added" });
+    } catch (err: any) {
+      const msg = err.message || String(err);
+      if (msg.includes("already exists") || msg.includes("Member not found")) {
+        return res.json({ success: true, message: "products.video_url: already exists" });
+      }
+      res.status(500).json({ error: msg });
+    }
+  });
+
   // Backfill slugs for all products that don't have one
   app.post("/api/backfill-slugs", async (req, res) => {
     const expectedKey = getAdminKey();

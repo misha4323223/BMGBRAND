@@ -437,6 +437,7 @@ export default function ProductDetail() {
   // Reset image index when product changes or images array changes
   useEffect(() => {
     setCurrentImageIndex(0);
+    setPairIdx(0);
     if (product?.id) addViewed(product.id);
   }, [product?.id]);
   
@@ -449,6 +450,17 @@ export default function ProductDetail() {
   
   // Guard against out-of-bounds index
   const safeImageIndex = allImages.length > 0 ? Math.min(currentImageIndex, allImages.length - 1) : 0;
+
+  // Video + 2-up gallery for desktop
+  const videoUrl = (product as any)?.videoUrl || null;
+  const mediaItems = useMemo<Array<{type: 'video'|'image', url: string}>>(() => {
+    const items: Array<{type: 'video'|'image', url: string}> = [];
+    if (videoUrl) items.push({ type: 'video', url: videoUrl });
+    allImages.forEach(url => items.push({ type: 'image', url }));
+    return items;
+  }, [videoUrl, allImages]);
+  const pairCount = Math.ceil(mediaItems.length / 2) || 1;
+  const [pairIdx, setPairIdx] = useState(0);
   
   const nextImage = () => {
     if (allImages.length > 1) {
@@ -814,7 +826,7 @@ export default function ProductDetail() {
         </Breadcrumb>
       </div>
       <div className="pt-3 sm:pt-5 pb-8 max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 lg:gap-12">
+        <div className="flex flex-col lg:grid lg:grid-cols-[3fr_2fr] gap-6 lg:gap-10">
           
           {/* Mobile Image Gallery - Top on mobile */}
           <motion.div 
@@ -1780,112 +1792,83 @@ export default function ProductDetail() {
             </Accordion>
           </motion.div>
           
-          {/* Image Gallery - Hidden on mobile, left on desktop */}
+          {/* Image Gallery - Hidden on mobile, 2-up layout on desktop */}
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="hidden lg:block order-2 lg:order-1"
           >
-            <div
-              className={`relative aspect-[3/4] w-full overflow-hidden rounded-lg group ${zoomEnabled ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
-              onMouseMove={(e) => {
-                if (!zoomEnabled) return;
-                const rect = e.currentTarget.getBoundingClientRect();
-                setZoomPos({
-                  x: ((e.clientX - rect.left) / rect.width) * 100,
-                  y: ((e.clientY - rect.top) / rect.height) * 100,
-                });
-              }}
-              onMouseLeave={() => { if (zoomEnabled) setZoomPos(null); }}
-              onClick={() => {
-                if (zoomEnabled) {
-                  setZoomEnabled(false);
-                  setZoomPos(null);
-                } else {
-                  setZoomEnabled(true);
-                }
-              }}
-              data-testid="desktop-image-zoom-container"
-            >
-              {safeImageIndex === 0 ? (
-                <img
-                  ref={el => { if (el) el.setAttribute('fetchpriority', 'high'); }}
-                  src={allImages[0] || product.imageUrl}
-                  alt={getImageAlt(0)}
-                  title={getImageTitle(0)}
-                  loading="eager"
-                  decoding="sync"
-                  sizes="(max-width: 1024px) 50vw, 40vw"
-                  className="w-full h-full object-cover transition-transform duration-75"
-                  style={zoomPos ? {
-                    transform: 'scale(2.5)',
-                    transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
-                  } : undefined}
-                  data-testid="img-product-desktop-0"
-                />
-              ) : (
-                <AnimatePresence mode="wait">
-                  <motion.img
-                    key={currentImageIndex}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    src={allImages[safeImageIndex] || product.imageUrl}
-                    alt={getImageAlt(safeImageIndex)}
-                    title={getImageTitle(safeImageIndex)}
-                    className="w-full h-full object-cover transition-transform duration-75"
-                    style={zoomPos ? {
-                      transform: 'scale(2.5)',
-                      transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
-                    } : undefined}
-                    data-testid={`img-product-desktop-${currentImageIndex}`}
-                  />
-                </AnimatePresence>
-              )}
-
-              {/* Zoom toggle icon */}
-              <div className="absolute bottom-3 right-3 w-8 h-8 bg-foreground/80 text-background rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md">
-                {zoomEnabled
-                  ? <ZoomOut className="w-4 h-4" />
-                  : <ZoomIn className="w-4 h-4" />
-                }
-              </div>
-
-              {allImages.length > 1 && !zoomEnabled && (
-                <>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); prevImage(); }}
-                    data-testid="button-prev-image-desktop"
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-foreground/10 text-foreground rounded-full flex items-center justify-center hover:bg-foreground/20 transition-colors opacity-0 group-hover:opacity-100"
-                  >
-                    <ChevronLeft className="w-6 h-6" />
-                  </button>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); nextImage(); }}
-                    data-testid="button-next-image-desktop"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-foreground/10 text-foreground rounded-full flex items-center justify-center hover:bg-foreground/20 transition-colors opacity-0 group-hover:opacity-100"
-                  >
-                    <ChevronRight className="w-6 h-6" />
-                  </button>
-                </>
-              )}
-              
-            </div>
-            
-            {allImages.length > 1 && (
-              <div className="flex gap-2 mt-4 overflow-x-auto pb-1 scrollbar-hide">
-                {allImages.map((img, idx) => (
+            {(() => {
+              const leftItem = mediaItems[pairIdx * 2];
+              const rightItem = mediaItems[pairIdx * 2 + 1];
+              const isSingle = !rightItem;
+              const getAlt = (itemIdx: number) => {
+                const imgIdx = videoUrl ? itemIdx - 1 : itemIdx;
+                return imgIdx >= 0 ? getImageAlt(imgIdx) : '';
+              };
+              const renderItem = (item: {type: 'video'|'image', url: string}, itemIdx: number, key: string) => (
+                <div key={key} className={`${isSingle ? 'w-full' : 'flex-1'} aspect-[3/4] overflow-hidden`}>
+                  {item.type === 'video' ? (
+                    <video
+                      src={item.url}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="w-full h-full object-cover"
+                      data-testid={`video-product-desktop-${key}`}
+                    />
+                  ) : (
+                    <img
+                      ref={itemIdx === 0 ? (el => { if (el) el.setAttribute('fetchpriority', 'high'); }) : undefined}
+                      src={item.url}
+                      alt={getAlt(itemIdx)}
+                      loading={itemIdx === 0 ? "eager" : "lazy"}
+                      decoding={itemIdx === 0 ? "sync" : "async"}
+                      className="w-full h-full object-cover"
+                      data-testid={`img-product-desktop-${key}`}
+                    />
+                  )}
+                </div>
+              );
+              return (
+                <div className="relative">
+                  <div className="flex gap-1">
+                    {leftItem && renderItem(leftItem, pairIdx * 2, 'left')}
+                    {rightItem && renderItem(rightItem, pairIdx * 2 + 1, 'right')}
+                  </div>
+                  {pairCount > 1 && (
+                    <>
+                      <button
+                        onClick={() => setPairIdx(i => Math.max(0, i - 1))}
+                        disabled={pairIdx === 0}
+                        data-testid="button-prev-pair-desktop"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-background/80 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center hover:bg-background transition-colors disabled:opacity-0 shadow-md"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setPairIdx(i => Math.min(pairCount - 1, i + 1))}
+                        disabled={pairIdx === pairCount - 1}
+                        data-testid="button-next-pair-desktop"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-background/80 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center hover:bg-background transition-colors disabled:opacity-0 shadow-md"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+            {pairCount > 1 && (
+              <div className="flex justify-center gap-1.5 mt-3">
+                {Array.from({ length: pairCount }).map((_, i) => (
                   <button
-                    key={idx}
-                    onClick={() => setCurrentImageIndex(idx)}
-                    data-testid={`button-thumb-desktop-${idx}`}
-                    className={`flex-shrink-0 w-20 h-24 rounded-md overflow-hidden border-2 transition-all ${
-                      idx === safeImageIndex ? 'border-primary opacity-100' : 'border-transparent opacity-50 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={getThumbForImage(img)} alt={getImageAlt(idx)} title={getImageTitle(idx)} className="w-full h-full object-cover" onError={(e) => { if (img && e.currentTarget.src !== img) e.currentTarget.src = img; }} />
-                  </button>
+                    key={i}
+                    onClick={() => setPairIdx(i)}
+                    data-testid={`button-pair-dot-${i}`}
+                    className={`rounded-full transition-all duration-200 ${i === pairIdx ? 'w-5 h-1.5 bg-foreground' : 'w-1.5 h-1.5 bg-foreground/30 hover:bg-foreground/50'}`}
+                  />
                 ))}
               </div>
             )}

@@ -1301,6 +1301,7 @@ export default function Admin() {
     noSize: boolean;
     additionalCategories: Array<{category: string, subcategory: string}>;
     artistSlug: string;
+    videoUrl: string;
   }>({
     name: "",
     description: "",
@@ -1337,6 +1338,7 @@ export default function Admin() {
     noSize: false,
     additionalCategories: [],
     artistSlug: "",
+    videoUrl: "",
   });
   const [uploadingImages, setUploadingImages] = useState(false);
   const dragImageIdxRef = useRef<number | null>(null);
@@ -2478,6 +2480,7 @@ export default function Admin() {
       noSize: false,
       additionalCategories: [],
       artistSlug: "",
+      videoUrl: "",
     });
     setEditingProductId(null);
     setLookSearchQuery("");
@@ -2522,6 +2525,7 @@ export default function Admin() {
         noSize: product.noSize || false,
         additionalCategories: product.additionalCategories || [],
         artistSlug: product.artistSlug || "",
+        videoUrl: (product as any).videoUrl || "",
       });
       setEditingProductId(productId);
       setIsCreatingProduct(false);
@@ -9929,6 +9933,37 @@ export default function Admin() {
                         </div>
                       </div>
 
+                      {/* Video URL */}
+                      <div>
+                        <Label className="text-sm mb-1.5 block">Видео товара (MP4/WebM)</Label>
+                        <Input
+                          placeholder="https://... URL видео для галереи на странице товара"
+                          value={productForm.videoUrl}
+                          onChange={(e) => setProductForm({ ...productForm, videoUrl: e.target.value })}
+                          data-testid="input-product-video-url"
+                        />
+                        {productForm.videoUrl && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <video
+                              src={productForm.videoUrl}
+                              className="w-20 h-24 object-cover rounded"
+                              muted
+                              playsInline
+                              onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
+                              onMouseLeave={e => { (e.currentTarget as HTMLVideoElement).pause(); (e.currentTarget as HTMLVideoElement).currentTime = 0; }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setProductForm({ ...productForm, videoUrl: "" })}
+                              className="text-xs text-destructive hover:underline"
+                              data-testid="button-remove-video"
+                            >
+                              Удалить видео
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
                       {/* Sizes */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
@@ -10640,6 +10675,7 @@ export default function Admin() {
                               sizeStock: Object.keys(productForm.sizeStock).length > 0 ? productForm.sizeStock : undefined,
                               sizeDiscounts: productForm.sizeDiscounts,
                               artistSlug: productForm.artistSlug || null,
+                              videoUrl: productForm.videoUrl || null,
                             };
                             
                             console.log('[Save] isCreating:', isCreatingProduct, 'editingId:', editingProductId, 'lookProducts:', data.lookProducts, 'lookCategory:', data.lookCategory, 'lookSubcategory:', data.lookSubcategory);

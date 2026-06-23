@@ -827,6 +827,7 @@ export class DatabaseStorage implements IStorage {
       returnPolicy: data.return_policy || null,
       artistSlug: data.artist_slug ? String(data.artist_slug) : null,
       artistOnly: data.artist_only === true,
+      videoUrl: data.video_url ? String(data.video_url) : null,
     } as unknown as Product;
   }
 
@@ -1500,6 +1501,12 @@ export class DatabaseStorage implements IStorage {
         const artistSlugValue = (p as any).artistSlug || '';
         params.$artist_slug = TypedValues.fromNative(Types.UTF8, artistSlugValue);
         console.log(`[YDB] updateProduct id=${id}: setting artist_slug="${artistSlugValue}"`);
+      }
+
+      if ((p as any).videoUrl !== undefined) {
+        declareStatements += 'DECLARE $video_url AS Utf8;\n';
+        setClauses.push('video_url = $video_url');
+        params.$video_url = TypedValues.fromNative(Types.UTF8, (p as any).videoUrl || '');
       }
       
       if (setClauses.length === 0) return null;
@@ -3717,6 +3724,17 @@ export class DatabaseStorage implements IStorage {
         results.push(err.message?.includes("already exists") || err.message?.includes("Member not found")
           ? "products.artist_slug: exists"
           : `products.artist_slug: ${err.message}`);
+      }
+
+      try {
+        await driver.tableClient.withSession(async (session: ydb.Session) => {
+          await session.executeQuery(`ALTER TABLE products ADD COLUMN video_url Utf8`);
+        });
+        results.push("products.video_url: added");
+      } catch (err: any) {
+        results.push(err.message?.includes("already exists") || err.message?.includes("Member not found")
+          ? "products.video_url: exists"
+          : `products.video_url: ${err.message}`);
       }
 
       return { success: true, message: results.join("; ") };
