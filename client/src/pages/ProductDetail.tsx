@@ -455,10 +455,9 @@ export default function ProductDetail() {
   const videoUrl = (product as any)?.videoUrl || null;
   const mediaItems = useMemo<Array<{type: 'video'|'image', url: string}>>(() => {
     const items: Array<{type: 'video'|'image', url: string}> = [];
-    if (videoUrl) items.push({ type: 'video', url: videoUrl });
     allImages.forEach(url => items.push({ type: 'image', url }));
     return items;
-  }, [videoUrl, allImages]);
+  }, [allImages]);
   const pairCount = Math.ceil(mediaItems.length / 2) || 1;
   const [pairIdx, setPairIdx] = useState(0);
   
@@ -863,18 +862,18 @@ export default function ProductDetail() {
                   />
                 </AnimatePresence>
               )}
-              
+
               {/* Navigation arrows */}
               {allImages.length > 1 && (
                 <>
-                  <button 
+                  <button
                     onClick={prevImage}
                     data-testid="button-prev-image-mobile"
                     className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-foreground/10 text-foreground rounded-full flex items-center justify-center hover:bg-foreground/20 transition-colors"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-                  <button 
+                  <button
                     onClick={nextImage}
                     data-testid="button-next-image-mobile"
                     className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-foreground/10 text-foreground rounded-full flex items-center justify-center hover:bg-foreground/20 transition-colors"
@@ -883,7 +882,6 @@ export default function ProductDetail() {
                   </button>
                 </>
               )}
-              
             </div>
             {allImages.length > 1 && (
               <div className="grid grid-cols-4 gap-1.5 mt-3">
@@ -899,6 +897,21 @@ export default function ProductDetail() {
                     <img src={getThumbForImage(img)} alt={getImageAlt(idx)} title={getImageTitle(idx)} className="w-full h-full object-cover" onError={(e) => { if (img && e.currentTarget.src !== img) e.currentTarget.src = img; }} />
                   </button>
                 ))}
+              </div>
+            )}
+            {/* Mobile video block */}
+            {videoUrl && (
+              <div className="mt-3">
+                <video
+                  src={videoUrl}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  controls
+                  className="w-full rounded-lg object-cover"
+                  data-testid="video-product-mobile"
+                />
               </div>
             )}
           </motion.div>
@@ -1803,8 +1816,7 @@ export default function ProductDetail() {
               const rightItem = mediaItems[pairIdx * 2 + 1];
               const isSingle = !rightItem;
               const getAlt = (itemIdx: number) => {
-                const imgIdx = videoUrl ? itemIdx - 1 : itemIdx;
-                return imgIdx >= 0 ? getImageAlt(imgIdx) : '';
+                return itemIdx >= 0 ? getImageAlt(itemIdx) : '';
               };
               const renderItem = (item: {type: 'video'|'image', url: string}, itemIdx: number, key: string) => (
                 <div key={key} className={`${isSingle ? 'w-full' : 'flex-1'} aspect-[3/4] overflow-hidden`}>
@@ -1870,6 +1882,21 @@ export default function ProductDetail() {
                     className={`rounded-full transition-all duration-200 ${i === pairIdx ? 'w-5 h-1.5 bg-foreground' : 'w-1.5 h-1.5 bg-foreground/30 hover:bg-foreground/50'}`}
                   />
                 ))}
+              </div>
+            )}
+            {/* Desktop video block */}
+            {videoUrl && (
+              <div className="mt-4">
+                <video
+                  src={videoUrl}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  controls
+                  className="w-full rounded-lg object-cover"
+                  data-testid="video-product-desktop"
+                />
               </div>
             )}
           </motion.div>
