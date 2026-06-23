@@ -9933,35 +9933,17 @@ export default function Admin() {
                         </div>
                       </div>
 
-                      {/* Video URL */}
+                      {/* Video Upload */}
                       <div>
                         <Label className="text-sm mb-1.5 block">Видео товара (MP4/WebM)</Label>
-                        <Input
-                          placeholder="https://... URL видео для галереи на странице товара"
+                        <MediaUploadField
                           value={productForm.videoUrl}
-                          onChange={(e) => setProductForm({ ...productForm, videoUrl: e.target.value })}
-                          data-testid="input-product-video-url"
+                          onChange={(url) => setProductForm({ ...productForm, videoUrl: url })}
+                          apiKey={apiKey}
+                          type="video"
+                          placeholder="Вставьте ссылку или загрузите файл"
+                          hint="Перетащите файл или нажмите для выбора (MP4, WebM, до 100 MB)"
                         />
-                        {productForm.videoUrl && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <video
-                              src={productForm.videoUrl}
-                              className="w-20 h-24 object-cover rounded"
-                              muted
-                              playsInline
-                              onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
-                              onMouseLeave={e => { (e.currentTarget as HTMLVideoElement).pause(); (e.currentTarget as HTMLVideoElement).currentTime = 0; }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setProductForm({ ...productForm, videoUrl: "" })}
-                              className="text-xs text-destructive hover:underline"
-                              data-testid="button-remove-video"
-                            >
-                              Удалить видео
-                            </button>
-                          </div>
-                        )}
                       </div>
 
                       {/* Sizes */}
