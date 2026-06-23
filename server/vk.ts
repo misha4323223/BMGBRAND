@@ -463,6 +463,7 @@ async function runLongPoll(
   }
 
   let { key, server, ts } = lpParams;
+  let consecutiveFailed = 0;
 
   while (true) {
     try {
@@ -473,13 +474,24 @@ async function runLongPoll(
       if (data.failed) {
         if (data.failed === 1) {
           ts = String(data.ts);
+          consecutiveFailed = 0;
         } else {
-          console.log(`[VK LongPoll] Failed=${data.failed}, refreshing server params`);
-          ({ key, server, ts } = await getLongPollServer());
+          // Exponential backoff: 0ms → 1s → 2s → 4s (cap) on consecutive failed=2/3
+          const delayMs = consecutiveFailed === 0 ? 0 : Math.min(1000 * Math.pow(2, consecutiveFailed - 1), 4000);
+          if (delayMs > 0) await new Promise(r => setTimeout(r, delayMs));
+          consecutiveFailed++;
+          console.log(`[VK LongPoll] Failed=${data.failed}, refreshing server params (attempt ${consecutiveFailed}, backoff ${delayMs}ms)`);
+          try {
+            ({ key, server, ts } = await getLongPollServer());
+          } catch (err: any) {
+            console.error("[VK LongPoll] getLongPollServer error:", err.message);
+            await new Promise(r => setTimeout(r, 5000));
+          }
         }
         continue;
       }
 
+      consecutiveFailed = 0;
       ts = String(data.ts);
 
       const updates = data.updates || [];
