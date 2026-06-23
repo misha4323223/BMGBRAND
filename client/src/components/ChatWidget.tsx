@@ -703,7 +703,7 @@ export function ChatWidget() {
   }, [open, mode, loadMessages]);
 
   useEffect(() => {
-    const interval = (open && mode === "manager") ? 3000 : 30000;
+    const interval = (open && mode === "manager") ? 3000 : 60000;
     pollRef.current = setInterval(() => loadMessages(lastTsRef.current || undefined), interval);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [loadMessages, open, mode]);

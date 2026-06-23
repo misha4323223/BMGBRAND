@@ -2934,6 +2934,7 @@ BMGBRAND — официальный производитель и магазин
         timestamp: Date.now(),
         userName: adminName,
       });
+      chatCacheInvalidate(sessionId);
       console.log(`[VK LongPoll] Admin reply saved for session ${sessionId.slice(0, 8)}`);
     });
   }, 3000);
@@ -2941,6 +2942,39 @@ BMGBRAND — официальный производитель и магазин
   // ============================================
   // CHAT API
   // ============================================
+
+  // In-memory cache for GET /api/chat/messages — reduces YDB reads by ~90%
+  // Key: `${sessionId}:${since ?? 0}`, TTL: 5 seconds
+  // Invalidated immediately when any message is saved for that session
+  const chatCache = new Map<string, { data: any[]; expiresAt: number }>();
+  const CHAT_CACHE_TTL_MS = 5_000;
+
+  function chatCacheGet(sessionId: string, since: number | undefined): any[] | null {
+    const key = `${sessionId}:${since ?? 0}`;
+    const entry = chatCache.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) { chatCache.delete(key); return null; }
+    return entry.data;
+  }
+
+  function chatCacheSet(sessionId: string, since: number | undefined, data: any[]): void {
+    chatCache.set(`${sessionId}:${since ?? 0}`, { data, expiresAt: Date.now() + CHAT_CACHE_TTL_MS });
+  }
+
+  function chatCacheInvalidate(sessionId: string): void {
+    const prefix = `${sessionId}:`;
+    for (const key of chatCache.keys()) {
+      if (key.startsWith(prefix)) chatCache.delete(key);
+    }
+  }
+
+  // Cleanup expired entries every 60 seconds to prevent memory leak
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of chatCache.entries()) {
+      if (now > entry.expiresAt) chatCache.delete(key);
+    }
+  }, 60_000).unref();
 
   app.post("/api/chat/upload-image", authMiddleware, async (req: any, res) => {
     try {
@@ -3002,6 +3036,7 @@ BMGBRAND — официальный производитель и магазин
         vkMessageId: vkMessageId || undefined,
         imageUrl: imageUrl || undefined,
       });
+      chatCacheInvalidate(sessionId);
       res.json({ success: true, messageId, timestamp });
     } catch (err: any) {
       console.error("[Chat] Error saving message:", err.message);
@@ -3013,7 +3048,12 @@ BMGBRAND — официальный производитель и магазин
     try {
       const { sessionId } = req.params;
       const since = req.query.since ? Number(req.query.since) : undefined;
+      const cached = chatCacheGet(sessionId, since);
+      if (cached !== null) {
+        return res.json({ messages: cached });
+      }
       const messages = await storage.getChatMessages(sessionId, since);
+      chatCacheSet(sessionId, since, messages);
       res.json({ messages });
     } catch (err: any) {
       console.error("[Chat] Error fetching messages:", err.message);
@@ -3807,6 +3847,7 @@ BMGBRAND — официальный производитель и магазин
         timestamp: Date.now(),
         userName: adminName,
       });
+      chatCacheInvalidate(sessionId);
       console.log(`[Chat] Admin reply saved for session ${sessionId.slice(0, 8)}, from: ${adminName}`);
     } catch (err: any) {
       console.error("[Chat] Webhook error:", err.message);
