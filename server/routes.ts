@@ -4541,6 +4541,11 @@ BMGBRAND — официальный производитель и магазин
                 await storage.updateOrderStatus(numericId, "paid");
                 await storage.updateOrderPaymentId(numericId, paymentId);
                 console.log(`[YooKassa Webhook] Order ${numericId} marked as paid`);
+                if (order.sessionId) {
+                  storage.clearCart(order.sessionId).catch(err =>
+                    console.error(`[YooKassa Webhook] clearCart failed for order ${numericId}:`, err?.message)
+                  );
+                }
                 updateCoPurchaseIndex(order.items);
 
                 try {
@@ -5007,6 +5012,12 @@ BMGBRAND — официальный производитель и магазин
 
                 const order = await storage.getOrder(numericId);
 
+                if (order?.sessionId) {
+                  storage.clearCart(order.sessionId).catch(err =>
+                    console.error(`[T-Bank Webhook] clearCart failed for order ${numericId}:`, err?.message)
+                  );
+                }
+
                 try {
                   const itemsForStock = order && (typeof order.items === 'string' ? JSON.parse(order.items) : order.items);
                   await decrementStockForOrderItems(Array.isArray(itemsForStock) ? itemsForStock : []);
@@ -5302,6 +5313,11 @@ BMGBRAND — официальный производитель и магазин
           await storage.updateOrderStatus(orderId, "paid");
           if (orderID) await storage.updateOrderPaymentId(orderId, orderID);
           console.log(`[OzonPay Webhook] Order ${orderId} marked as paid`);
+          if (order.sessionId) {
+            storage.clearCart(order.sessionId).catch(err =>
+              console.error(`[OzonPay Webhook] clearCart failed for order ${orderId}:`, err?.message)
+            );
+          }
           updateCoPurchaseIndex(order.items);
 
           try {
@@ -11438,8 +11454,13 @@ BMGBRAND — официальный производитель и магазин
         return res.status(500).json({ message: "Не удалось создать платёж. Попробуйте ещё раз или выберите другой способ оплаты." });
       }
 
-      // Clear cart
-      await storage.clearCart(input.sessionId);
+      // Clear cart — only for non-online-payment orders.
+      // For tbank/yookassa/ozon-pay: cart is cleared in the payment webhook after confirmed payment.
+      // This prevents the cart from being wiped when user navigates back from the payment page.
+      const isOnlinePayment = (['tbank', 'yookassa', 'ozon-pay'] as string[]).includes(paymentMethod) && amountToPay > 0;
+      if (!isOnlinePayment) {
+        await storage.clearCart(input.sessionId);
+      }
 
       res.status(201).json({ ...order, paymentUrl, confirmationToken });
     } catch (err) {
