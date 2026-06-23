@@ -7811,7 +7811,7 @@ BMGBRAND — официальный производитель и магазин
         measurements, images, imageUrl, sku, color, wholesalePrice,
         isNew, badgeText, lookProducts, lookCategory, lookSubcategory,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate,
-        stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice
+        stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl
       } = req.body;
       
       const updateData: any = {};
@@ -7907,6 +7907,7 @@ BMGBRAND — официальный производитель и магазин
         console.log(`[Admin] Auto-generated slug for product ${id}: ${updateData.slug}`);
       }
       if (noSize !== undefined) updateData.noSize = noSize;
+      if (videoUrl !== undefined) updateData.videoUrl = videoUrl || null;
       if (req.body.artistSlug !== undefined) {
         updateData.artistSlug = req.body.artistSlug || null;
         console.log(`[Admin] product ${id} artistSlug from request: "${req.body.artistSlug}" → stored as: "${updateData.artistSlug}"`);
