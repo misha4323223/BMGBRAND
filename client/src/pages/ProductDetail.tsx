@@ -1833,7 +1833,7 @@ export default function ProductDetail() {
               );
               return (
                 <div className="relative">
-                  <div className="flex gap-1">
+                  <div className="flex">
                     {leftItem && renderItem(leftItem, pairIdx * 2, 'left')}
                     {rightItem && renderItem(rightItem, pairIdx * 2 + 1, 'right')}
                   </div>
