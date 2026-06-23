@@ -38,17 +38,17 @@ process.on('unhandledRejection', (reason: any) => {
     reconnectYdb().catch(err => {
       const errMsg = err?.message || String(err);
       console.error('[Process] YDB reconnect from unhandledRejection failed:', errMsg);
-      notifyError('YDB Reconnect Failed', errMsg);
+      notifyError('YDB: сбой переподключения', errMsg);
     });
   } else {
     // Не-YDB необработанный reject — сообщаем в мессенджеры
-    notifyError('Unhandled Rejection', message);
+    notifyError('Необработанная ошибка', message);
   }
 });
 
 process.on('uncaughtException', (err: Error) => {
   console.error('[Process] Uncaught exception:', err.message, err.stack);
-  notifyError('💥 Crash (uncaughtException)', err.message, err.stack?.slice(0, 400));
+  notifyError('💥 Критический сбой', err.message, err.stack?.slice(0, 400));
   // Даём 2 секунды чтобы уведомление успело отправиться, потом завершаем процесс
   setTimeout(() => process.exit(1), 2000);
 });

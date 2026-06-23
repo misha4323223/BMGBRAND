@@ -24,9 +24,9 @@ function emoji(category: string): string {
   if (category.includes("payment") || category.includes("оплат")) return "💳";
   if (category.includes("ydb") || category.includes("database") || category.includes("база")) return "🗄";
   if (category.includes("cdek") || category.includes("доставк")) return "📦";
-  if (category.includes("crash") || category.includes("uncaught")) return "💥";
-  if (category.includes("unhandled")) return "⚠️";
-  if (category.includes("500") || category.includes("express")) return "🔴";
+  if (category.includes("crash") || category.includes("uncaught") || category.includes("критич") || category.includes("сбой")) return "💥";
+  if (category.includes("unhandled") || category.includes("необработ")) return "⚠️";
+  if (category.includes("500") || category.includes("express") || category.includes("сервер")) return "🔴";
   if (category.includes("auth") || category.includes("взлом") || category.includes("brute")) return "🔐";
   return "❌";
 }
