@@ -3230,19 +3230,34 @@ BMGBRAND — официальный производитель и магазин
         const allProducts = await storage.getProducts() as any[];
         const MAX_PRODUCTS = 20;
 
+        // Clothing-type stems — generic words that map to a subcategory, not a product name
+        const clothingStems = ["футболк", "толстов", "худи", "свитшот", "свитер", "лонгслив", "шорт", "брюк", "штан", "бомбер", "куртк", "носк", "sock", "кепк", "шапк", "бейсболк", "сумк", "рюкзак", "аксессуар"];
+        // Specific keywords = name keywords that are NOT clothing-type words
+        const specificKeywords = nameKeywords.filter(kw =>
+          !clothingStems.some(stem => kw.includes(stem) || stem.includes(kw))
+        );
+
         if (nameKeywords.length > 0 || matchedSubStr || matchedCatSlug) {
-          matched = allProducts.filter((p: any) => {
-            // Skip hidden products only
-            if (p.isHidden) return false;
-            const nameLower = (p.name || "").toLowerCase();
-            const subLower  = (p.subcategory || "").toLowerCase();
-            // Match by subcategory (most precise)
-            if (matchedSubStr && subLower.includes(matchedSubStr.toLowerCase())) return true;
-            // Match by category fallback
-            if (!matchedSubStr && matchedCatSlug && p.category === matchedCatSlug) return true;
-            // Match by keywords in product name
-            return nameKeywords.some(kw => nameLower.includes(kw));
-          }).slice(0, MAX_PRODUCTS);
+          // Step 1: search by specific name keywords (e.g. "молодость", "внутри", "bmg")
+          if (specificKeywords.length > 0) {
+            matched = allProducts.filter((p: any) => {
+              if (p.isHidden) return false;
+              const nameLower = (p.name || "").toLowerCase();
+              return specificKeywords.some(kw => nameLower.includes(kw));
+            }).slice(0, MAX_PRODUCTS);
+          }
+
+          // Step 2: if nothing found — fall back to subcategory / category / name keywords
+          if (matched.length === 0) {
+            matched = allProducts.filter((p: any) => {
+              if (p.isHidden) return false;
+              const nameLower = (p.name || "").toLowerCase();
+              const subLower  = (p.subcategory || "").toLowerCase();
+              if (matchedSubStr && subLower.includes(matchedSubStr.toLowerCase())) return true;
+              if (!matchedSubStr && matchedCatSlug && p.category === matchedCatSlug) return true;
+              return nameKeywords.some(kw => nameLower.includes(kw));
+            }).slice(0, MAX_PRODUCTS);
+          }
         }
 
         if (matched.length > 0) {
@@ -3350,6 +3365,7 @@ BMGBRAND — официальный производитель и магазин
         ],
         max_tokens: 600,
         temperature: 0.6,
+        thinking_budget: 0,  // disable Qwen3 thinking — faster responses, no <think> leak
       };
 
       // ── SSE streaming path ──────────────────────────────────────────────────
