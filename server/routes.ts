@@ -3406,33 +3406,36 @@ BMGBRAND — официальный производитель и магазин
         // Think-tag filter state
         let inThink = false;
         let thinkBuf = "";
-        // [NO_ANSWER] detection state
-        let fullText = "";
+        // [NO_ANSWER] detection — runs on VISIBLE output (after think-strip),
+        // because model outputs <think>...</think>[NO_ANSWER]text
+        let fullText = "";      // raw accumulator (for admin notification)
+        let outputBuf = "";     // visible text accumulator
         let noAnswerDetected = false;
-        let noAnswerChecked = false;
+        let noAnswerOutputChecked = false;
         const NO_ANSWER_TAG = "[NO_ANSWER]";
 
+        // pushChunk: buffers beginning of visible output to detect [NO_ANSWER] tag,
+        // then streams to client
         const pushChunk = (text: string) => {
-          if (text) res.write(`data: ${JSON.stringify({ chunk: text })}\n\n`);
+          if (!text) return;
+          outputBuf += text;
+          if (!noAnswerOutputChecked) {
+            if (outputBuf.length < NO_ANSWER_TAG.length) return; // buffer more
+            noAnswerOutputChecked = true;
+            if (outputBuf.startsWith(NO_ANSWER_TAG)) {
+              noAnswerDetected = true;
+              const rest = outputBuf.slice(NO_ANSWER_TAG.length);
+              if (rest) res.write(`data: ${JSON.stringify({ chunk: rest })}\n\n`);
+            } else {
+              res.write(`data: ${JSON.stringify({ chunk: outputBuf })}\n\n`);
+            }
+            return;
+          }
+          res.write(`data: ${JSON.stringify({ chunk: text })}\n\n`);
         };
 
         const filterAndSend = (raw: string) => {
           fullText += raw;
-          if (!noAnswerChecked) {
-            if (fullText.length < NO_ANSWER_TAG.length) {
-              // Still buffering — need more chars to detect tag
-              return;
-            }
-            noAnswerChecked = true;
-            if (fullText.startsWith(NO_ANSWER_TAG)) {
-              noAnswerDetected = true;
-              // Use everything after the tag as the text to process
-              raw = fullText.slice(NO_ANSWER_TAG.length);
-            } else {
-              // No tag — flush everything accumulated so far
-              raw = fullText;
-            }
-          }
           thinkBuf += raw;
           while (thinkBuf.length > 0) {
             if (inThink) {
@@ -3451,7 +3454,7 @@ BMGBRAND — официальный производитель и магазин
                 thinkBuf = thinkBuf.slice(safe.length);
                 break;
               }
-              pushChunk(thinkBuf.slice(0, start));
+              if (start > 0) pushChunk(thinkBuf.slice(0, start));
               inThink = true;
               thinkBuf = thinkBuf.slice(start + 7);
             }
@@ -3478,10 +3481,10 @@ BMGBRAND — официальный производитель и магазин
           }
           // Flush remaining lookahead buffer
           if (!inThink && thinkBuf) pushChunk(thinkBuf);
-          // If [NO_ANSWER] was detected — notify admin
+          // If [NO_ANSWER] was detected — notify admin (use outputBuf = visible reply without the tag)
           if (noAnswerDetected) {
             const question = lastUserMsg?.content || "(вопрос не определён)";
-            const botReply = fullText.replace(NO_ANSWER_TAG, "").trim();
+            const botReply = outputBuf.replace(NO_ANSWER_TAG, "").trim();
             sendAgentAlert(`❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${botReply}`).catch(() => {});
             storage.setBonusSetting(`ai_no_answer_${Date.now()}`, JSON.stringify({ question, botReply, ts: Date.now() })).catch(() => {});
           }
