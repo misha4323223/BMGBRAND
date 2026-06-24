@@ -3390,20 +3390,20 @@ BMGBRAND — официальный производитель и магазин
 
         const filterAndSend = (raw: string) => {
           fullText += raw;
-          // Buffer first 20 chars to detect [NO_ANSWER] tag before sending
-          if (!noAnswerChecked && fullText.length >= NO_ANSWER_TAG.length) {
+          if (!noAnswerChecked) {
+            if (fullText.length < NO_ANSWER_TAG.length) {
+              // Still buffering — need more chars to detect tag
+              return;
+            }
             noAnswerChecked = true;
             if (fullText.startsWith(NO_ANSWER_TAG)) {
               noAnswerDetected = true;
-              // Strip the tag from thinkBuf too so it won't be sent
-              raw = raw.replace(NO_ANSWER_TAG, "");
+              // Use everything after the tag as the text to process
+              raw = fullText.slice(NO_ANSWER_TAG.length);
+            } else {
+              // No tag — flush everything accumulated so far
+              raw = fullText;
             }
-          } else if (!noAnswerChecked) {
-            // Still buffering, don't send yet
-            return;
-          }
-          if (noAnswerDetected && !raw.includes(NO_ANSWER_TAG)) {
-            // Already stripped, proceed normally
           }
           thinkBuf += raw;
           while (thinkBuf.length > 0) {
