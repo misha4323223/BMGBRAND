@@ -3365,7 +3365,6 @@ BMGBRAND — официальный производитель и магазин
         ],
         max_tokens: 600,
         temperature: 0.6,
-        thinking_budget: 0,  // disable Qwen3 thinking — faster responses, no <think> leak
       };
 
       // ── SSE streaming path ──────────────────────────────────────────────────
