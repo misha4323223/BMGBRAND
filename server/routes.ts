@@ -31,7 +31,7 @@ import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getO
 import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
-import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notifyPreorderStatusChange, registerWholesaleWebhook, sendChatNotification, registerChatWebhook, notifyNewReview, notifyMerchOrder, answerCallbackQuery, editMessageText } from "./telegram";
+import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notifyPreorderStatusChange, registerWholesaleWebhook, sendChatNotification, registerChatWebhook, notifyNewReview, notifyMerchOrder, answerCallbackQuery, editMessageText, sendAgentAlert } from "./telegram";
 import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyNewReview, vkNotifyMerchOrder, verifyActionLink, sendVkChatNotification, startVkLongPoll } from "./vk";
 import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
 
@@ -3228,12 +3228,12 @@ BMGBRAND — официальный производитель и магазин
 
         // Search products from cache
         const allProducts = await storage.getProducts() as any[];
-        const MAX_PRODUCTS = 5;
+        const MAX_PRODUCTS = 20;
 
         if (nameKeywords.length > 0 || matchedSubStr || matchedCatSlug) {
           matched = allProducts.filter((p: any) => {
-            // Skip hidden or artist-only products
-            if (p.isHidden || p.artistOnly) return false;
+            // Skip hidden products only
+            if (p.isHidden) return false;
             const nameLower = (p.name || "").toLowerCase();
             const subLower  = (p.subcategory || "").toLowerCase();
             // Match by subcategory (most precise)
@@ -3246,7 +3246,7 @@ BMGBRAND — официальный производитель и магазин
         }
 
         if (matched.length > 0) {
-          const productNames = matched.map((p: any) => p.name).join(", ");
+          const productNames = matched.map((p: any) => `${p.name}${p.artistOnly ? " (артист)" : ""}`).join(", ");
           productContext = `\n\n## Найденные товары\nПо запросу пользователя найдены товары: ${productNames}. Карточки этих товаров будут показаны автоматически — НЕ включай ссылки в текст ответа. Просто упомяни что нашёл товары и предложи посмотреть.`;
         }
       }
@@ -3328,6 +3328,7 @@ BMGBRAND — официальный производитель и магазин
       if (pageContextStr) systemPrompt += pageContextStr;
       if (productContext) systemPrompt += productContext;
       if (sizeAdvisorContext) systemPrompt += sizeAdvisorContext;
+      systemPrompt += `\n\n## ВАЖНО: если не знаешь ответа\nЕсли вопрос выходит за рамки твоих данных и ты не можешь дать точный ответ — начни ответ ровно с тега [NO_ANSWER] (без пробела после), затем напиши вежливый ответ клиенту. Пример: "[NO_ANSWER]Уточните, пожалуйста, у менеджера — он ответит быстро." Используй [NO_ANSWER] только когда действительно не знаешь. НЕ используй его если информация есть в данных выше.`;
 
       const groqHeaders: Record<string, string> = { "Content-Type": "application/json" };
       if (apiKey) groqHeaders["Authorization"] = `Bearer ${apiKey}`;
@@ -3376,19 +3377,39 @@ BMGBRAND — официальный производитель и магазин
         let sseBuffer = "";
         // Think-tag filter state
         let inThink = false;
-        let thinkBuf = ""; // partial-tag lookahead buffer
+        let thinkBuf = "";
+        // [NO_ANSWER] detection state
+        let fullText = "";
+        let noAnswerDetected = false;
+        let noAnswerChecked = false;
+        const NO_ANSWER_TAG = "[NO_ANSWER]";
 
         const pushChunk = (text: string) => {
           if (text) res.write(`data: ${JSON.stringify({ chunk: text })}\n\n`);
         };
 
         const filterAndSend = (raw: string) => {
+          fullText += raw;
+          // Buffer first 20 chars to detect [NO_ANSWER] tag before sending
+          if (!noAnswerChecked && fullText.length >= NO_ANSWER_TAG.length) {
+            noAnswerChecked = true;
+            if (fullText.startsWith(NO_ANSWER_TAG)) {
+              noAnswerDetected = true;
+              // Strip the tag from thinkBuf too so it won't be sent
+              raw = raw.replace(NO_ANSWER_TAG, "");
+            }
+          } else if (!noAnswerChecked) {
+            // Still buffering, don't send yet
+            return;
+          }
+          if (noAnswerDetected && !raw.includes(NO_ANSWER_TAG)) {
+            // Already stripped, proceed normally
+          }
           thinkBuf += raw;
           while (thinkBuf.length > 0) {
             if (inThink) {
               const end = thinkBuf.indexOf("</think>");
               if (end === -1) {
-                // Keep last 8 chars in case tag spans chunk boundary
                 if (thinkBuf.length > 8) thinkBuf = thinkBuf.slice(-8);
                 break;
               }
@@ -3397,7 +3418,6 @@ BMGBRAND — официальный производитель и магазин
             } else {
               const start = thinkBuf.indexOf("<think>");
               if (start === -1) {
-                // No think tag — safe to send all but last 7 chars (lookahead)
                 const safe = thinkBuf.length > 7 ? thinkBuf.slice(0, -7) : "";
                 if (safe) pushChunk(safe);
                 thinkBuf = thinkBuf.slice(safe.length);
@@ -3430,6 +3450,13 @@ BMGBRAND — официальный производитель и магазин
           }
           // Flush remaining lookahead buffer
           if (!inThink && thinkBuf) pushChunk(thinkBuf);
+          // If [NO_ANSWER] was detected — notify admin
+          if (noAnswerDetected) {
+            const question = lastUserMsg?.content || "(вопрос не определён)";
+            const botReply = fullText.replace(NO_ANSWER_TAG, "").trim();
+            sendAgentAlert(`❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${botReply}`).catch(() => {});
+            storage.setBonusSetting(`ai_no_answer_${Date.now()}`, JSON.stringify({ question, botReply, ts: Date.now() })).catch(() => {});
+          }
         } catch (streamErr: any) {
           console.error("[AI Chat] Stream read error:", streamErr.message);
         }
@@ -3439,7 +3466,7 @@ BMGBRAND — официальный производитель и магазин
         return;
       }
 
-      // ── Non-streaming path (original, unchanged) ───────────────────────────
+      // ── Non-streaming path ─────────────────────────────────────────────────
       const response = await fetch(`${groqBase}/openai/v1/chat/completions`, {
         method: "POST",
         headers: groqHeaders,
@@ -3449,7 +3476,6 @@ BMGBRAND — официальный производитель и магазин
       if (!response.ok) {
         const errText = await response.text();
         console.error("[AI Chat] Groq API error:", response.status, errText);
-        // Rate limit / quota exhausted
         if (response.status === 429) {
           return res.status(429).json({ error: "rate_limit" });
         }
@@ -3458,12 +3484,19 @@ BMGBRAND — официальный производитель и магазин
 
       const data = await response.json() as any;
       const rawReply = data.choices?.[0]?.message?.content || "Извините, не могу ответить прямо сейчас. Напишите нашему менеджеру.";
-      // Strip <think>...</think> blocks (Qwen3 chain-of-thought)
-      // Handle both closed (<think>...</think>) and unclosed (<think>... to end) variants
-      const reply = rawReply
+      const cleanedReply = rawReply
         .replace(/<think>[\s\S]*?<\/think>/gi, "")
         .replace(/<think>[\s\S]*/gi, "")
         .trim();
+
+      // Detect [NO_ANSWER] tag — notify admin, strip from client reply
+      let reply = cleanedReply;
+      if (cleanedReply.startsWith("[NO_ANSWER]")) {
+        reply = cleanedReply.slice("[NO_ANSWER]".length).trim();
+        const question = lastUserMsg?.content || "(вопрос не определён)";
+        sendAgentAlert(`❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${reply}`).catch(() => {});
+        storage.setBonusSetting(`ai_no_answer_${Date.now()}`, JSON.stringify({ question, botReply: reply, ts: Date.now() })).catch(() => {});
+      }
 
       res.json({ reply, products: productCards });
     } catch (err: any) {
