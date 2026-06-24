@@ -3419,16 +3419,19 @@ BMGBRAND — официальный производитель и магазин
         const NO_ANSWER_TAG = "[NO_ANSWER]";
 
         // pushChunk: buffers beginning of visible output to detect [NO_ANSWER] tag,
-        // then streams to client
+        // then streams to client.
+        // NOTE: model (Qwen3) emits "\n" after </think> before [NO_ANSWER], so
+        // we check trimStart() to handle leading whitespace before the tag.
         const pushChunk = (text: string) => {
           if (!text) return;
           outputBuf += text;
           if (!noAnswerOutputChecked) {
-            if (outputBuf.length < NO_ANSWER_TAG.length) return; // buffer more
+            const trimmed = outputBuf.trimStart();
+            if (trimmed.length < NO_ANSWER_TAG.length) return; // buffer more
             noAnswerOutputChecked = true;
-            if (outputBuf.startsWith(NO_ANSWER_TAG)) {
+            if (trimmed.startsWith(NO_ANSWER_TAG)) {
               noAnswerDetected = true;
-              const rest = outputBuf.slice(NO_ANSWER_TAG.length);
+              const rest = trimmed.slice(NO_ANSWER_TAG.length);
               if (rest) res.write(`data: ${JSON.stringify({ chunk: rest })}\n\n`);
             } else {
               res.write(`data: ${JSON.stringify({ chunk: outputBuf })}\n\n`);
@@ -3536,9 +3539,11 @@ BMGBRAND — официальный производитель и магазин
         .trim();
 
       // Detect [NO_ANSWER] tag — notify admin, strip from client reply
+      // trimStart() handles the "\n" Qwen3 emits after </think> before the tag
+      const cleanedTrimmed = cleanedReply.trimStart();
       let reply = cleanedReply;
-      if (cleanedReply.startsWith("[NO_ANSWER]")) {
-        reply = cleanedReply.slice("[NO_ANSWER]".length).trim();
+      if (cleanedTrimmed.startsWith("[NO_ANSWER]")) {
+        reply = cleanedTrimmed.slice("[NO_ANSWER]".length).trim();
         const question = lastUserMsg?.content || "(вопрос не определён)";
         const alertText = `❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${reply}`;
         sendAgentAlert(alertText).catch(() => {});
