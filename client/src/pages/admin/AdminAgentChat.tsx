@@ -125,6 +125,21 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
   const [retentionEdits, setRetentionEdits] = useState<Record<string, Array<{ discount: number; validityHours: number }>>>({});
   const [retentionShowAll, setRetentionShowAll] = useState<Record<string, number | null>>({});
 
+  // ── knowledge_gap editor state ──
+  const [knowledgeGapEdits, setKnowledgeGapEdits] = useState<Record<string, { answer: string; targetBlock: string }>>({});
+  function getKnowledgeGapEdit(item: QueueItem) {
+    return knowledgeGapEdits[item.id] ?? {
+      answer: "",
+      targetBlock: item.params?.targetBlock || "ai_block_delivery",
+    };
+  }
+  function setKnowledgeGapEdit(itemId: string, patch: { answer?: string; targetBlock?: string }) {
+    setKnowledgeGapEdits(prev => {
+      const base = prev[itemId] ?? getKnowledgeGapEdit(allItems.find(i => i.id === itemId)!);
+      return { ...prev, [itemId]: { ...base, ...patch } };
+    });
+  }
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -470,15 +485,17 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
                 const isCartPromo = item.type === "cart_promo";
                 const isRetentionOffer = item.type === "retention_offer";
                 const isConversionInsight = item.type === "chat_conversion_insight";
+                const isKnowledgeGap = item.type === "knowledge_gap";
                 const edit = isCartPromo ? getCartEdit(item) : null;
                 const retEdit = isRetentionOffer ? getRetentionEdit(item) : null;
+                const kgEdit = isKnowledgeGap ? getKnowledgeGapEdit(item) : null;
                 const users: Array<{ name: string; email: string; topItem: string }> = item.params?.users ?? [];
                 const showAll = cartPromoShowAll[item.id] ?? false;
                 const showPreview = cartPromoShowPreview[item.id] ?? false;
                 const retSegments: Array<{ segment: string; label: string; users: any[]; discount: number; validityHours: number }> = item.params?.segments ?? [];
 
                 return (
-                  <div key={item.id} className={`border rounded-lg p-3 space-y-2 text-xs ${isCartPromo && item.status === "pending" ? "border-amber-300 bg-amber-50/30" : ""} ${isRetentionOffer && item.status === "pending" ? "border-blue-300 bg-blue-50/20" : ""} ${isConversionInsight && item.status === "pending" ? "border-emerald-300 bg-emerald-50/20" : ""}`}>
+                  <div key={item.id} className={`border rounded-lg p-3 space-y-2 text-xs ${isCartPromo && item.status === "pending" ? "border-amber-300 bg-amber-50/30" : ""} ${isRetentionOffer && item.status === "pending" ? "border-blue-300 bg-blue-50/20" : ""} ${isConversionInsight && item.status === "pending" ? "border-emerald-300 bg-emerald-50/20" : ""} ${isKnowledgeGap && item.status === "pending" ? "border-purple-300 bg-purple-50/20" : ""}`}>
                     {/* Header row */}
                     <div className="flex items-start justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2">
@@ -714,6 +731,80 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
                               data-testid={`button-queue-approve-${item.id}`}>
                               <CheckCircle2 className="w-3 h-3 mr-1" />
                               Подтвердить и отправить
+                            </Button>
+                            <Button size="sm" variant="outline"
+                              className="h-7 px-3 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
+                              onClick={() => handleQueueAction(item.id, "reject")}
+                              data-testid={`button-queue-reject-${item.id}`}>
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Отклонить
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : isKnowledgeGap && kgEdit ? (
+                      /* ── knowledge_gap UI ── */
+                      <div className="space-y-2 pt-1">
+                        <div className="bg-muted/20 rounded-md p-2.5 text-[11px] leading-relaxed whitespace-pre-wrap text-foreground/80">
+                          {item.params?.question && <><span className="font-semibold text-foreground">Вопрос клиента:</span> {item.params.question}<br/></>}
+                          {item.params?.botReply && <><span className="font-semibold text-muted-foreground">Бот ответил:</span> {item.params.botReply}</>}
+                        </div>
+                        {item.status === "pending" && (
+                          <>
+                            <div className="space-y-1">
+                              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Правильный ответ (будет добавлен в базу знаний бота)</label>
+                              <Textarea
+                                value={kgEdit.answer}
+                                onChange={e => setKnowledgeGapEdit(item.id, { answer: e.target.value })}
+                                placeholder="Введи правильный ответ на этот вопрос…"
+                                rows={3}
+                                className="resize-none text-xs"
+                                data-testid={`input-knowledge-gap-answer-${item.id}`}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Блок знаний</label>
+                              <select
+                                value={kgEdit.targetBlock}
+                                onChange={e => setKnowledgeGapEdit(item.id, { targetBlock: e.target.value })}
+                                className="h-7 text-xs border rounded px-2 bg-background w-full"
+                                data-testid={`select-knowledge-gap-block-${item.id}`}
+                              >
+                                <option value="ai_prompt_base">🧠 Базовый блок (общее)</option>
+                                <option value="ai_block_delivery">🚚 Доставка</option>
+                                <option value="ai_block_payment">💳 Оплата</option>
+                                <option value="ai_block_returns">↩️ Возврат и обмен</option>
+                                <option value="ai_block_sizing">📏 Размеры</option>
+                                <option value="ai_block_merch_order">🎨 Мерч на заказ</option>
+                                <option value="ai_block_partner">🤝 Партнёрская программа</option>
+                                <option value="ai_block_artist">🎤 Артисты и блогеры</option>
+                                <option value="ai_block_wholesale">📦 Опт</option>
+                                <option value="ai_block_giftcards">🎁 Сертификаты</option>
+                                <option value="ai_block_predrop">⏳ Pre-drop</option>
+                                <option value="ai_block_loyalty">⭐ Лояльность</option>
+                                <option value="ai_block_promo">🎟 Промокоды</option>
+                                <option value="ai_block_account">👤 Личный кабинет</option>
+                                <option value="ai_block_vacancies">💼 Вакансии</option>
+                              </select>
+                            </div>
+                          </>
+                        )}
+                        {item.status !== "pending" && item.params?.botReply && (
+                          <div className="text-[10px] text-muted-foreground">Вопрос обработан.</div>
+                        )}
+                        {item.error && <p className="text-red-500 text-[10px]">Ошибка: {item.error}</p>}
+                        {item.status === "pending" && (
+                          <div className="flex gap-2 pt-1">
+                            <Button size="sm" className="h-7 px-3 text-xs bg-purple-600 hover:bg-purple-700"
+                              onClick={() => handleQueueAction(item.id, "approve", {
+                                suggestedAnswer: kgEdit.answer,
+                                targetBlock: kgEdit.targetBlock,
+                                question: item.params?.question,
+                              })}
+                              disabled={!kgEdit.answer.trim()}
+                              data-testid={`button-queue-approve-${item.id}`}>
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Сохранить в базу знаний
                             </Button>
                             <Button size="sm" variant="outline"
                               className="h-7 px-3 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"

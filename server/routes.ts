@@ -32,7 +32,7 @@ import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
 import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notifyPreorderStatusChange, registerWholesaleWebhook, sendChatNotification, registerChatWebhook, notifyNewReview, notifyMerchOrder, answerCallbackQuery, editMessageText, sendAgentAlert } from "./telegram";
-import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyNewReview, vkNotifyMerchOrder, verifyActionLink, sendVkChatNotification, startVkLongPoll } from "./vk";
+import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyNewReview, vkNotifyMerchOrder, verifyActionLink, sendVkChatNotification, startVkLongPoll, vkNotifyAgentAlert } from "./vk";
 import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
 
 // ==================== Admin Auth ====================
@@ -1399,6 +1399,10 @@ const AI_KNOWLEDGE_VERSION = "v5";
 
 const aiKnowledgeCache = new Map<AiKnowledgeKey, string>();
 let aiKnowledgeCacheLastLoad = 0;
+
+export function resetAiKnowledgeCache(): void {
+  aiKnowledgeCacheLastLoad = 0;
+}
 
 export async function migrateAiKnowledgeDefaults(): Promise<void> {
   try {
@@ -3485,8 +3489,19 @@ BMGBRAND — официальный производитель и магазин
           if (noAnswerDetected) {
             const question = lastUserMsg?.content || "(вопрос не определён)";
             const botReply = outputBuf.replace(NO_ANSWER_TAG, "").trim();
-            sendAgentAlert(`❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${botReply}`).catch(() => {});
-            storage.setBonusSetting(`ai_no_answer_${Date.now()}`, JSON.stringify({ question, botReply, ts: Date.now() })).catch(() => {});
+            const alertText = `❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${botReply}`;
+            sendAgentAlert(alertText).catch(() => {});
+            vkNotifyAgentAlert(alertText);
+            // Add to admin queue so admin can provide the correct answer
+            import("./agent-queue").then(({ addToQueue }) => {
+              addToQueue({
+                type: "knowledge_gap",
+                title: `❓ Бот не знает: ${question.slice(0, 80)}`,
+                description: `Клиент спросил: ${question}\n\nБот ответил: ${botReply}`,
+                tool: "update_ai_knowledge_draft",
+                params: { question, botReply, suggestedAnswer: "", targetBlock: topicKey || "ai_block_delivery" },
+              }).catch(() => {});
+            }).catch(() => {});
           }
         } catch (streamErr: any) {
           console.error("[AI Chat] Stream read error:", streamErr.message);
@@ -3525,8 +3540,18 @@ BMGBRAND — официальный производитель и магазин
       if (cleanedReply.startsWith("[NO_ANSWER]")) {
         reply = cleanedReply.slice("[NO_ANSWER]".length).trim();
         const question = lastUserMsg?.content || "(вопрос не определён)";
-        sendAgentAlert(`❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${reply}`).catch(() => {});
-        storage.setBonusSetting(`ai_no_answer_${Date.now()}`, JSON.stringify({ question, botReply: reply, ts: Date.now() })).catch(() => {});
+        const alertText = `❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${reply}`;
+        sendAgentAlert(alertText).catch(() => {});
+        vkNotifyAgentAlert(alertText);
+        import("./agent-queue").then(({ addToQueue }) => {
+          addToQueue({
+            type: "knowledge_gap",
+            title: `❓ Бот не знает: ${question.slice(0, 80)}`,
+            description: `Клиент спросил: ${question}\n\nБот ответил: ${reply}`,
+            tool: "update_ai_knowledge_draft",
+            params: { question, botReply: reply, suggestedAnswer: "", targetBlock: topicKey || "ai_block_delivery" },
+          }).catch(() => {});
+        }).catch(() => {});
       }
 
       res.json({ reply, products: productCards });
@@ -3652,6 +3677,8 @@ BMGBRAND — официальный производитель и магазин
         const result = await executeWriteTool(item.tool, paramsToUse);
         await updateQueueItemStatus(id, "executed", { executedAt: new Date().toISOString() });
         await addLogEntry({ type: item.type, action: `Подтверждено: ${item.title}`, summary: result.slice(0, 100), isAuto: false });
+        // Reset AI knowledge cache so next chat request picks up the new content
+        if (item.tool === "update_ai_knowledge_draft") resetAiKnowledgeCache();
         res.json({ ok: true, result });
       } catch (execErr: any) {
         await updateQueueItemStatus(id, "approved", { error: execErr.message });

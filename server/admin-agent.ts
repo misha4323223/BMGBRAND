@@ -238,7 +238,19 @@ export async function executeWriteTool(tool: string, params: any): Promise<strin
     }
 
     case "update_ai_knowledge_draft": {
-      const { draftContent, topicWord } = params;
+      // Supports two modes:
+      // 1. Old agent mode: { draftContent, topicWord } → append to ai_prompt_base
+      // 2. knowledge_gap approve mode: { suggestedAnswer, targetBlock, question } → append to specific block
+      const { draftContent, topicWord, suggestedAnswer, targetBlock, question } = params;
+      if (suggestedAnswer !== undefined) {
+        // knowledge_gap approval flow
+        if (!suggestedAnswer || !suggestedAnswer.trim()) throw new Error("Введите ответ перед сохранением");
+        const blockKey = targetBlock || "ai_prompt_base";
+        const current = await (storage as any).getBonusSetting(blockKey) ?? "";
+        const entry = `\n\n---\n### Вопрос: ${question || "?"}\n${suggestedAnswer.trim()}`;
+        await (storage as any).setBonusSetting(blockKey, current + entry);
+        return `✅ Ответ сохранён в блок «${blockKey}». При следующем вопросе бот уже будет знать.`;
+      }
       if (!draftContent) throw new Error("draftContent required");
       const currentBase = await (storage as any).getBonusSetting("ai_prompt_base") ?? "";
       const separator = `\n\n---\n## Дополнение (тема: ${topicWord || "неизвестная"})\n`;
