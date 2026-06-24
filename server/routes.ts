@@ -3237,11 +3237,24 @@ BMGBRAND — официальный производитель и магазин
           !clothingStems.some(stem => kw.includes(stem) || stem.includes(kw))
         );
 
+        // Helper: skip products without real CDN image, price, or stock
+        const isAiVisible = (p: any) => {
+          if (p.isHidden) return false;
+          const img = (p.imageUrl || "").trim();
+          if (!img || !img.startsWith("https://")) return false;
+          if (!p.price || Number(p.price) <= 0) return false;
+          const totalStock = p.stock != null
+            ? Number(p.stock)
+            : Object.values(p.sizeStock || {}).reduce((s: number, q) => s + Number(q), 0);
+          if (totalStock <= 0) return false;
+          return true;
+        };
+
         if (nameKeywords.length > 0 || matchedSubStr || matchedCatSlug) {
           // Step 1: search by specific name keywords (e.g. "молодость", "внутри", "bmg")
           if (specificKeywords.length > 0) {
             matched = allProducts.filter((p: any) => {
-              if (p.isHidden) return false;
+              if (!isAiVisible(p)) return false;
               const nameLower = (p.name || "").toLowerCase();
               return specificKeywords.some(kw => nameLower.includes(kw));
             }).slice(0, MAX_PRODUCTS);
@@ -3250,7 +3263,7 @@ BMGBRAND — официальный производитель и магазин
           // Step 2: if nothing found — fall back to subcategory / category / name keywords
           if (matched.length === 0) {
             matched = allProducts.filter((p: any) => {
-              if (p.isHidden) return false;
+              if (!isAiVisible(p)) return false;
               const nameLower = (p.name || "").toLowerCase();
               const subLower  = (p.subcategory || "").toLowerCase();
               if (matchedSubStr && subLower.includes(matchedSubStr.toLowerCase())) return true;
