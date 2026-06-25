@@ -7,6 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartDrawerProvider } from "@/components/CartDrawer";
 import { captureRefFromUrl } from "@/lib/partner-ref";
 import { PreorderCartProvider } from "@/context/PreorderCartContext";
+import { PlayerProvider } from "@/context/PlayerContext";
+import { GlobalPlayer } from "@/components/GlobalPlayer";
 
 const CookieConsent = lazy(() => import("@/components/CookieConsent").then(m => ({ default: m.CookieConsent })));
 const NewsletterPopup = lazy(() => import("@/components/NewsletterPopup").then(m => ({ default: m.NewsletterPopup })));
@@ -181,14 +183,17 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <CartDrawerProvider>
-          <PreorderCartProvider>
-            <ScrollToTop />
-            <PartnerRefCapture />
-            <PromoCapture />
-            <Toaster />
-            <DeferredComponents />
-            <Router />
-          </PreorderCartProvider>
+          <PlayerProvider>
+            <PreorderCartProvider>
+              <ScrollToTop />
+              <PartnerRefCapture />
+              <PromoCapture />
+              <Toaster />
+              <DeferredComponents />
+              <Router />
+              <GlobalPlayer />
+            </PreorderCartProvider>
+          </PlayerProvider>
         </CartDrawerProvider>
       </TooltipProvider>
     </QueryClientProvider>

@@ -554,6 +554,17 @@ async function initUsersTable() {
         }
       }
 
+      // ─────────────────────────────────────────────────────────────────────
+      // artist_tracks — таблица создана вручную в YDB Console.
+      // Здесь только idempotent-проверка существования.
+      // ─────────────────────────────────────────────────────────────────────
+      try {
+        await session.describeTable("artist_tracks");
+        console.log("[YDB] artist_tracks table OK");
+      } catch {
+        console.warn("[YDB] artist_tracks table not found — run CREATE TABLE from docs");
+      }
+
       try {
         const desc = await session.describeTable("orders");
         const partnerIdCol = desc.columns?.find((c: any) => c.name === "partner_id");

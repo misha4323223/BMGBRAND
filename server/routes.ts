@@ -9658,6 +9658,133 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // ─── Artist Tracks API ──────────────────────────────────────────────────────
+
+  // GET /api/artists/:slug/tracks — public: get active tracks
+  app.get("/api/artists/:slug/tracks", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const tracks = await storage.getArtistTracks(slug, false);
+      res.json({ tracks });
+    } catch (err: any) {
+      console.error("[tracks] get error:", err.message);
+      res.json({ tracks: [] });
+    }
+  });
+
+  // GET /api/admin/artists/:slug/tracks — admin: get all tracks (incl. inactive)
+  app.get("/api/admin/artists/:slug/tracks", requireAdminOrApiKey, async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const tracks = await storage.getArtistTracks(slug, true);
+      res.json({ tracks });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/admin/artists/:slug/tracks — admin: create track (JSON body with URLs)
+  app.post("/api/admin/artists/:slug/tracks", requireAdminOrApiKey, async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const { title, audioUrl, coverUrl, duration, trackOrder } = req.body || {};
+      if (!title || !audioUrl) return res.status(400).json({ error: "title and audioUrl required" });
+      const track = await storage.createArtistTrack({
+        artistSlug: slug,
+        title: String(title),
+        audioUrl: String(audioUrl),
+        coverUrl: String(coverUrl || ""),
+        duration: Number(duration) || 0,
+        trackOrder: Number(trackOrder) || 0,
+      });
+      res.json({ track });
+    } catch (err: any) {
+      console.error("[tracks] create error:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // PATCH /api/admin/artists/tracks/:id — admin: update track metadata
+  app.patch("/api/admin/artists/tracks/:id", requireAdminOrApiKey, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!id) return res.status(400).json({ error: "Invalid id" });
+      const { title, audioUrl, coverUrl, duration, trackOrder, isActive } = req.body || {};
+      await storage.updateArtistTrack(id, { title, audioUrl, coverUrl, duration, trackOrder, isActive });
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // DELETE /api/admin/artists/tracks/:id — admin: delete track
+  app.delete("/api/admin/artists/tracks/:id", requireAdminOrApiKey, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!id) return res.status(400).json({ error: "Invalid id" });
+      await storage.deleteArtistTrack(id);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/artists/tracks/:id/play — public: batch-increment play count
+  app.post("/api/artists/tracks/:id/play", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const count = Math.min(Math.max(Number(req.body?.count) || 1, 1), 100);
+      if (id > 0) await storage.incrementTrackPlays(id, count);
+      res.json({ ok: true });
+    } catch {
+      res.json({ ok: true });
+    }
+  });
+
+  // POST /api/admin/artists/:slug/upload-audio — admin: upload MP3/M4A to YOS
+  app.post("/api/admin/artists/:slug/upload-audio", requireAdminOrApiKey, async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const contentType = (req.headers["content-type"] || "audio/mpeg").split(";")[0].trim();
+      const rawFilename = (req.headers["x-filename"] as string) || `audio_${Date.now()}.mp3`;
+      const filename = (() => { try { return decodeURIComponent(rawFilename); } catch { return rawFilename; } })();
+
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(Buffer.from(chunk));
+      const buffer = Buffer.concat(chunks);
+      if (buffer.length === 0) return res.status(400).json({ error: "Empty file" });
+
+      const { uploadAudioToYOS } = await import("./lib/storage-s3");
+      const url = await uploadAudioToYOS(buffer, slug, filename, contentType);
+      if (!url) return res.status(500).json({ error: "Upload failed — check YOS credentials" });
+      res.json({ url });
+    } catch (err: any) {
+      console.error("[upload-audio]", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/admin/artists/:slug/upload-track-cover — admin: upload track cover to YOS
+  app.post("/api/admin/artists/:slug/upload-track-cover", requireAdminOrApiKey, async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const contentType = (req.headers["content-type"] || "image/jpeg").split(";")[0].trim();
+
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(Buffer.from(chunk));
+      const buffer = Buffer.concat(chunks);
+      if (buffer.length === 0) return res.status(400).json({ error: "Empty file" });
+
+      const { uploadTrackCoverToYOS } = await import("./lib/storage-s3");
+      const url = await uploadTrackCoverToYOS(buffer, slug, contentType);
+      if (!url) return res.status(500).json({ error: "Upload failed — check YOS credentials" });
+      res.json({ url });
+    } catch (err: any) {
+      console.error("[upload-track-cover]", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/products/by-ids", async (req, res) => {
     try {
       const idsParam = req.query.ids as string;

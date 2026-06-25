@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, RefreshCw, Lock, Search, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Image, MoveRight, MoreVertical, Settings, CheckSquare, Building2, Check, X, Users, Package, EyeOff, Eye, Gift, ShoppingCart, Clock, Truck, CreditCard, Ban, Star, Mail, TrendingUp, TrendingDown, Tag, Save, Plus, Pencil, Loader2, Layout, Type, ImageIcon, DollarSign, Upload, MessageSquare, Send, CheckCircle2, LogOut, Heart, Copy, Target, GripVertical, Bell, Phone, User, ChevronDown, ChevronRight, PlusCircle, MinusCircle, FileText, Ruler, Download } from "lucide-react";
+import { Trash2, RefreshCw, Lock, Search, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Image, MoveRight, MoreVertical, Settings, CheckSquare, Building2, Check, X, Users, Package, EyeOff, Eye, Gift, ShoppingCart, Clock, Truck, CreditCard, Ban, Star, Mail, TrendingUp, TrendingDown, Tag, Save, Plus, Pencil, Loader2, Layout, Type, ImageIcon, DollarSign, Upload, MessageSquare, Send, CheckCircle2, LogOut, Heart, Copy, Target, GripVertical, Bell, Phone, User, ChevronDown, ChevronRight, PlusCircle, MinusCircle, FileText, Ruler, Download, Music, Headphones } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -1245,7 +1245,13 @@ export default function Admin() {
   // Artist page editor state
   const [editingArtistSlug, setEditingArtistSlug] = useState<string | null>(null);
   const [artistPageSettings, setArtistPageSettings] = useState<Record<string, any>>({});
-  
+  const [trackFormOpen, setTrackFormOpen] = useState(false);
+  const [trackNewTitle, setTrackNewTitle] = useState("");
+  const [trackNewOrder, setTrackNewOrder] = useState(1);
+  const [trackUploading, setTrackUploading] = useState(false);
+  const [trackAudioFile, setTrackAudioFile] = useState<File | null>(null);
+  const [trackCoverFile, setTrackCoverFile] = useState<File | null>(null);
+
   // Blog post detail editor state
   const [editingBlogIndex, setEditingBlogIndex] = useState<number | null>(null);
   const [blogPostSettings, setBlogPostSettings] = useState<Record<string, any>>({});
@@ -1919,6 +1925,44 @@ export default function Admin() {
       return res.json();
     },
     enabled: isAuthenticated && activeTab === "pages" && selectedPage === "artist_pages",
+  });
+
+  const artistTracksQuery = useQuery<{ tracks: any[] }>({
+    queryKey: ["/api/admin/artists", editingArtistSlug ?? "_none_", "tracks"],
+    queryFn: async () => {
+      if (!editingArtistSlug) return { tracks: [] };
+      const res = await fetch(`/api/admin/artists/${editingArtistSlug}/tracks`, {
+        headers: { "x-api-key": apiKey || "" },
+      });
+      if (!res.ok) throw new Error("Ошибка загрузки треков");
+      return res.json();
+    },
+    enabled: !!editingArtistSlug && isAuthenticated,
+  });
+
+  const deleteTrackMutation = useMutation({
+    mutationFn: async (trackId: number) => {
+      return adminFetch(`/api/admin/artists/tracks/${trackId}`, apiKey, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/artists", editingArtistSlug ?? "_none_", "tracks"] });
+      toast({ title: "Трек удалён" });
+    },
+    onError: (e: Error) => toast({ title: "Ошибка", description: e.message, variant: "destructive" }),
+  });
+
+  const toggleTrackMutation = useMutation({
+    mutationFn: async ({ trackId, isActive }: { trackId: number; isActive: boolean }) => {
+      return adminFetch(`/api/admin/artists/tracks/${trackId}`, apiKey, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/artists", editingArtistSlug ?? "_none_", "tracks"] });
+    },
+    onError: (e: Error) => toast({ title: "Ошибка", description: e.message, variant: "destructive" }),
   });
 
   const saveArtistPageMutation = useMutation({
@@ -8335,6 +8379,244 @@ export default function Admin() {
                             placeholder="SEO описание (meta description)"
                             rows={2}
                           />
+                        </CardContent>
+                      </Card>
+
+                      {/* ── Треки артиста ── */}
+                      <Card>
+                        <CardContent className="p-4 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Music className="w-4 h-4" />
+                              <Label className="font-medium">Треки</Label>
+                              {artistTracksQuery.data?.tracks?.length ? (
+                                <span className="text-xs text-muted-foreground">({artistTracksQuery.data.tracks.length})</span>
+                              ) : null}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={trackFormOpen ? "secondary" : "outline"}
+                              onClick={() => setTrackFormOpen(v => !v)}
+                              data-testid="button-track-form-toggle"
+                            >
+                              <Plus className="w-3.5 h-3.5 mr-1" />
+                              {trackFormOpen ? "Отмена" : "Добавить трек"}
+                            </Button>
+                          </div>
+
+                          {/* Add track form */}
+                          {trackFormOpen && (
+                            <div className="space-y-3 p-3 rounded-lg border border-dashed bg-muted/30">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="col-span-2">
+                                  <Label className="text-xs mb-1 block">Название трека *</Label>
+                                  <Input
+                                    value={trackNewTitle}
+                                    onChange={e => setTrackNewTitle(e.target.value)}
+                                    placeholder="Название трека"
+                                    data-testid="input-track-title"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs mb-1 block">Порядок</Label>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    value={trackNewOrder}
+                                    onChange={e => setTrackNewOrder(Number(e.target.value))}
+                                    data-testid="input-track-order"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label className="text-xs">Аудио файл * (MP3 / M4A)</Label>
+                                <div className="flex items-center gap-2">
+                                  <label className="flex-1 flex items-center gap-2 px-3 py-2 rounded-md border border-dashed cursor-pointer hover:bg-accent/10 transition-colors text-sm">
+                                    <Upload className="w-4 h-4 shrink-0" />
+                                    <span className="truncate text-muted-foreground">
+                                      {trackAudioFile ? trackAudioFile.name : "Выбрать MP3/M4A"}
+                                    </span>
+                                    <input
+                                      type="file"
+                                      accept="audio/mpeg,audio/mp4,audio/x-m4a,.mp3,.m4a,.aac"
+                                      className="sr-only"
+                                      data-testid="input-track-audio"
+                                      onChange={e => setTrackAudioFile(e.target.files?.[0] || null)}
+                                    />
+                                  </label>
+                                  {trackAudioFile && (
+                                    <button onClick={() => setTrackAudioFile(null)} className="text-muted-foreground hover:text-destructive">
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label className="text-xs">Обложка (необязательно)</Label>
+                                <div className="flex items-center gap-2">
+                                  <label className="flex-1 flex items-center gap-2 px-3 py-2 rounded-md border border-dashed cursor-pointer hover:bg-accent/10 transition-colors text-sm">
+                                    <Image className="w-4 h-4 shrink-0" />
+                                    <span className="truncate text-muted-foreground">
+                                      {trackCoverFile ? trackCoverFile.name : "Выбрать обложку"}
+                                    </span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="sr-only"
+                                      data-testid="input-track-cover"
+                                      onChange={e => setTrackCoverFile(e.target.files?.[0] || null)}
+                                    />
+                                  </label>
+                                  {trackCoverFile && (
+                                    <button onClick={() => setTrackCoverFile(null)} className="text-muted-foreground hover:text-destructive">
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              <Button
+                                size="sm"
+                                className="w-full"
+                                disabled={!trackNewTitle.trim() || !trackAudioFile || trackUploading}
+                                data-testid="button-track-upload"
+                                onClick={async () => {
+                                  if (!trackAudioFile || !trackNewTitle.trim() || !editingArtistSlug) return;
+                                  setTrackUploading(true);
+                                  try {
+                                    // 1. Upload audio
+                                    const audioResp = await fetch(`/api/admin/artists/${editingArtistSlug}/upload-audio`, {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": trackAudioFile.type || "audio/mpeg",
+                                        "x-api-key": apiKey || "",
+                                        "x-filename": encodeURIComponent(trackAudioFile.name),
+                                      },
+                                      body: trackAudioFile,
+                                    });
+                                    const audioData = await audioResp.json();
+                                    if (!audioResp.ok || audioData.error) throw new Error(audioData.error || "Ошибка загрузки аудио");
+
+                                    // 2. Get duration via HTML5 Audio
+                                    const duration = await new Promise<number>((resolve) => {
+                                      const a = new Audio();
+                                      const url = URL.createObjectURL(trackAudioFile);
+                                      a.src = url;
+                                      a.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve(Math.round(a.duration) || 0); };
+                                      a.onerror = () => { URL.revokeObjectURL(url); resolve(0); };
+                                      setTimeout(() => { URL.revokeObjectURL(url); resolve(0); }, 8000);
+                                    });
+
+                                    // 3. Upload cover (optional)
+                                    let coverUrl = "";
+                                    if (trackCoverFile) {
+                                      const coverResp = await fetch(`/api/admin/artists/${editingArtistSlug}/upload-track-cover`, {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": trackCoverFile.type || "image/jpeg",
+                                          "x-api-key": apiKey || "",
+                                        },
+                                        body: trackCoverFile,
+                                      });
+                                      const coverData = await coverResp.json();
+                                      if (coverResp.ok && !coverData.error) coverUrl = coverData.url || "";
+                                    }
+
+                                    // 4. Create track record
+                                    await adminFetch(`/api/admin/artists/${editingArtistSlug}/tracks`, apiKey, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ title: trackNewTitle.trim(), audioUrl: audioData.url, coverUrl, duration, trackOrder: trackNewOrder }),
+                                    });
+
+                                    queryClient.invalidateQueries({ queryKey: ["/api/admin/artists", editingArtistSlug, "tracks"] });
+                                    queryClient.invalidateQueries({ queryKey: [`/api/artists/${editingArtistSlug}/tracks`] });
+                                    toast({ title: "Трек добавлен" });
+                                    setTrackNewTitle(""); setTrackNewOrder(prev => prev + 1); setTrackAudioFile(null); setTrackCoverFile(null); setTrackFormOpen(false);
+                                  } catch (err: any) {
+                                    toast({ title: "Ошибка загрузки", description: err.message, variant: "destructive" });
+                                  } finally {
+                                    setTrackUploading(false);
+                                  }
+                                }}
+                              >
+                                {trackUploading ? (
+                                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Загрузка...</>
+                                ) : (
+                                  <><Upload className="w-4 h-4 mr-2" />Загрузить и сохранить</>
+                                )}
+                              </Button>
+                            </div>
+                          )}
+
+                          {/* Tracks list */}
+                          {artistTracksQuery.isLoading ? (
+                            <div className="text-sm text-muted-foreground text-center py-2">
+                              <Loader2 className="w-4 h-4 animate-spin inline mr-2" />Загрузка треков...
+                            </div>
+                          ) : artistTracksQuery.data?.tracks?.length === 0 ? (
+                            <div className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-lg">
+                              <Music className="w-6 h-6 mx-auto mb-1 opacity-30" />
+                              Треков пока нет. Добавьте первый.
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {(artistTracksQuery.data?.tracks || []).map((track: any) => (
+                                <div
+                                  key={track.id}
+                                  data-testid={`admin-track-row-${track.id}`}
+                                  className="flex items-center gap-3 p-2.5 rounded-lg border bg-card"
+                                >
+                                  {/* Cover */}
+                                  <div className="w-10 h-10 rounded-md overflow-hidden flex-shrink-0 bg-muted">
+                                    {track.coverUrl ? (
+                                      <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <Music className="w-4 h-4 text-muted-foreground" />
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Info */}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{track.title}</p>
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                      {track.duration > 0 && (
+                                        <span>{Math.floor(track.duration / 60)}:{String(track.duration % 60).padStart(2, "0")}</span>
+                                      )}
+                                      <span className="flex items-center gap-0.5">
+                                        <Headphones className="w-3 h-3" />{track.plays}
+                                      </span>
+                                      <span>#{track.trackOrder}</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Active toggle */}
+                                  <Switch
+                                    checked={track.isActive}
+                                    onCheckedChange={(checked) => toggleTrackMutation.mutate({ trackId: track.id, isActive: checked })}
+                                    data-testid={`switch-track-active-${track.id}`}
+                                  />
+
+                                  {/* Delete */}
+                                  <button
+                                    className="text-muted-foreground hover:text-destructive transition-colors"
+                                    onClick={() => {
+                                      if (confirm(`Удалить трек "${track.title}"?`)) {
+                                        deleteTrackMutation.mutate(track.id);
+                                      }
+                                    }}
+                                    data-testid={`button-delete-track-${track.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     </div>

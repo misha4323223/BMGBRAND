@@ -12,6 +12,7 @@ import SEO from "@/components/SEO";
 import { useAddToCart } from "@/hooks/use-cart";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { useToast } from "@/hooks/use-toast";
+import { TrackList } from "@/components/TrackList";
 
 interface ArtistSettings {
   heroImage?: string;
@@ -1086,6 +1087,17 @@ export default function ArtistPage() {
             </div>
             <div className="w-full h-px" style={{ background: isColored ? `${tc.accent}28` : 'rgba(255,255,255,0.06)' }} />
           </section>
+        )}
+
+        {/* ── Треки ── */}
+        {slug && (
+          <TrackList
+            artistSlug={slug}
+            accentColor={isColored ? tc.accent : undefined}
+            textColor={isColored ? tc.text : undefined}
+            bgColor={isColored ? tc.bg : undefined}
+            isColored={isColored}
+          />
         )}
 
         {/* ── Галерея ── */}

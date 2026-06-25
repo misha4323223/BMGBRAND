@@ -257,6 +257,119 @@ export async function downloadPayoutDocument(
   }
 }
 
+// ─── Загрузка аудиофайлов треков артистов ────────────────────────────────────
+// Prefix: artists/{slug}/tracks/
+// ACL: public-read (треки публичные)
+// Без конвертации — MP3/M4A загружаем как есть.
+export async function uploadAudioToYOS(
+  fileBuffer: Buffer,
+  artistSlug: string,
+  originalName: string,
+  contentType: string,
+): Promise<string | null> {
+  const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME;
+  const accessKey = process.env.YANDEX_STORAGE_ACCESS_KEY;
+  const secretKey = process.env.YANDEX_STORAGE_SECRET_KEY;
+
+  if (!bucketName || !accessKey || !secretKey) {
+    console.warn("[S3 audio] Storage credentials not set, skipping upload");
+    return null;
+  }
+
+  const safeSlug = artistSlug.replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+  const ext = originalName.split(".").pop()?.toLowerCase() || "mp3";
+  const safeExt = ["mp3", "m4a", "aac", "ogg", "wav", "flac"].includes(ext) ? ext : "mp3";
+  const ts = Date.now();
+  const key = `artists/${safeSlug}/tracks/audio-${ts}.${safeExt}`;
+
+  const md5Hash = crypto.createHash("md5").update(fileBuffer).digest("base64");
+  console.log(`[S3 audio] Uploading: ${key}, size: ${fileBuffer.length}, type: ${contentType}`);
+
+  try {
+    const putCommand = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: fileBuffer,
+      ContentType: contentType,
+      ContentMD5: md5Hash,
+      ACL: "public-read",
+      CacheControl: "public, max-age=31536000, immutable",
+    });
+    await s3Client.send(putCommand);
+
+    const head = await s3Client.send(new HeadObjectCommand({ Bucket: bucketName, Key: key }));
+    if ((head.ContentLength || 0) !== fileBuffer.length) {
+      console.error(`[S3 audio] SIZE MISMATCH for ${key}`);
+      return null;
+    }
+
+    const url = `https://storage.yandexcloud.net/${bucketName}/${key}`;
+    console.log(`[S3 audio] Uploaded OK: ${url}`);
+    return url;
+  } catch (error: any) {
+    console.error(`[S3 audio] Upload FAILED for ${key}:`, error.message || error);
+    throw error;
+  }
+}
+
+// ─── Загрузка обложки трека (WebP через sharp) ───────────────────────────────
+export async function uploadTrackCoverToYOS(
+  fileBuffer: Buffer,
+  artistSlug: string,
+  contentType: string,
+): Promise<string | null> {
+  const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME;
+  const accessKey = process.env.YANDEX_STORAGE_ACCESS_KEY;
+  const secretKey = process.env.YANDEX_STORAGE_SECRET_KEY;
+
+  if (!bucketName || !accessKey || !secretKey) {
+    console.warn("[S3 cover] Storage credentials not set, skipping upload");
+    return null;
+  }
+
+  let processedBuffer = fileBuffer;
+  let finalContentType = contentType;
+
+  // Convert to WebP if it's a raster image
+  if (!contentType.includes("svg")) {
+    try {
+      const sharp = (await import("sharp")).default;
+      processedBuffer = await sharp(fileBuffer)
+        .resize(800, 800, { fit: "cover", position: "center" })
+        .webp({ quality: 88 })
+        .toBuffer();
+      finalContentType = "image/webp";
+    } catch (e: any) {
+      console.warn("[S3 cover] sharp conversion failed, uploading original:", e.message);
+    }
+  }
+
+  const safeSlug = artistSlug.replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+  const ext = finalContentType.includes("webp") ? "webp" : finalContentType.includes("svg") ? "svg" : "jpg";
+  const ts = Date.now();
+  const key = `artists/${safeSlug}/tracks/cover-${ts}.${ext}`;
+
+  const md5Hash = crypto.createHash("md5").update(processedBuffer).digest("base64");
+
+  try {
+    await s3Client.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: processedBuffer,
+      ContentType: finalContentType,
+      ContentMD5: md5Hash,
+      ACL: "public-read",
+      CacheControl: "public, max-age=31536000, immutable",
+    }));
+    const url = `https://storage.yandexcloud.net/${bucketName}/${key}`;
+    console.log(`[S3 cover] Uploaded OK: ${url}`);
+    return url;
+  } catch (error: any) {
+    console.error(`[S3 cover] Upload FAILED for ${key}:`, error.message || error);
+    throw error;
+  }
+}
+
 // Check if file exists in Object Storage
 export async function checkFileExistsInYandexStorage(key: string): Promise<boolean> {
   if (!process.env.YANDEX_STORAGE_BUCKET_NAME) {
