@@ -8490,29 +8490,45 @@ export default function Admin() {
                                   if (!trackAudioFile || !trackNewTitle.trim() || !editingArtistSlug) return;
                                   setTrackUploading(true);
                                   try {
-                                    // 1. Get presigned URL from server
-                                    const presignResp = await fetch(`/api/admin/artists/${editingArtistSlug}/presign-audio`, {
-                                      method: "POST",
-                                      headers: {
-                                        "Content-Type": "application/json",
-                                        "x-api-key": apiKey || "",
-                                      },
-                                      body: JSON.stringify({
-                                        filename: trackAudioFile.name,
-                                        contentType: trackAudioFile.type || "audio/mpeg",
-                                      }),
-                                    });
-                                    const presignData = await presignResp.json();
-                                    if (!presignResp.ok || presignData.error) throw new Error(presignData.error || "Ошибка получения URL для загрузки");
-
-                                    // 2. Upload file directly to Yandex Object Storage (bypasses API Gateway)
-                                    const s3Resp = await fetch(presignData.uploadUrl, {
-                                      method: "PUT",
-                                      headers: { "Content-Type": trackAudioFile.type || "audio/mpeg" },
-                                      body: trackAudioFile,
-                                    });
-                                    if (!s3Resp.ok) throw new Error(`Ошибка загрузки в хранилище: ${s3Resp.status}`);
-                                    const audioData = { url: presignData.publicUrl };
+                                    // 1. Upload audio (presigned URL on production, direct upload on dev)
+                                    const isProduction = window.location.hostname === "booomerangs.ru";
+                                    let audioData: { url: string };
+                                    if (isProduction) {
+                                      // Production: upload directly to S3 via presigned URL (bypasses API Gateway 3MB limit)
+                                      const presignResp = await fetch(`/api/admin/artists/${editingArtistSlug}/presign-audio`, {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                          "x-api-key": apiKey || "",
+                                        },
+                                        body: JSON.stringify({
+                                          filename: trackAudioFile.name,
+                                          contentType: trackAudioFile.type || "audio/mpeg",
+                                        }),
+                                      });
+                                      const presignData = await presignResp.json();
+                                      if (!presignResp.ok || presignData.error) throw new Error(presignData.error || "Ошибка получения URL для загрузки");
+                                      const s3Resp = await fetch(presignData.uploadUrl, {
+                                        method: "PUT",
+                                        headers: { "Content-Type": trackAudioFile.type || "audio/mpeg" },
+                                        body: trackAudioFile,
+                                      });
+                                      if (!s3Resp.ok) throw new Error(`Ошибка загрузки в хранилище: ${s3Resp.status}`);
+                                      audioData = { url: presignData.publicUrl };
+                                    } else {
+                                      // Dev (Replit): send file through server as before (up to 20MB)
+                                      const audioResp = await fetch(`/api/admin/artists/${editingArtistSlug}/upload-audio`, {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": trackAudioFile.type || "audio/mpeg",
+                                          "x-api-key": apiKey || "",
+                                          "x-filename": encodeURIComponent(trackAudioFile.name),
+                                        },
+                                        body: trackAudioFile,
+                                      });
+                                      audioData = await audioResp.json();
+                                      if (!audioResp.ok || (audioData as any).error) throw new Error((audioData as any).error || "Ошибка загрузки аудио");
+                                    }
 
                                     // 3. Get duration via HTML5 Audio
                                     const duration = await new Promise<number>((resolve) => {
