@@ -1251,6 +1251,10 @@ export default function Admin() {
   const [trackUploading, setTrackUploading] = useState(false);
   const [trackAudioFile, setTrackAudioFile] = useState<File | null>(null);
   const [trackCoverFile, setTrackCoverFile] = useState<File | null>(null);
+  const [trackEditingId, setTrackEditingId] = useState<number | null>(null);
+  const [trackEditTitle, setTrackEditTitle] = useState("");
+  const [trackEditOrder, setTrackEditOrder] = useState(1);
+  const [trackEditSaving, setTrackEditSaving] = useState(false);
 
   // Blog post detail editor state
   const [editingBlogIndex, setEditingBlogIndex] = useState<number | null>(null);
@@ -8564,55 +8568,144 @@ export default function Admin() {
                           ) : (
                             <div className="space-y-2">
                               {(artistTracksQuery.data?.tracks || []).map((track: any) => (
-                                <div
-                                  key={track.id}
-                                  data-testid={`admin-track-row-${track.id}`}
-                                  className="flex items-center gap-3 p-2.5 rounded-lg border bg-card"
-                                >
-                                  {/* Cover */}
-                                  <div className="w-10 h-10 rounded-md overflow-hidden flex-shrink-0 bg-muted">
-                                    {track.coverUrl ? (
-                                      <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        <Music className="w-4 h-4 text-muted-foreground" />
+                                <div key={track.id} data-testid={`admin-track-row-${track.id}`}>
+                                  {trackEditingId === track.id ? (
+                                    /* ── Inline edit form ── */
+                                    <div className="p-3 rounded-lg border border-primary/30 bg-muted/30 space-y-3">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0 bg-muted">
+                                          {track.coverUrl ? (
+                                            <img src={track.coverUrl} alt="" className="w-full h-full object-cover" />
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                              <Music className="w-3 h-3 text-muted-foreground" />
+                                            </div>
+                                          )}
+                                        </div>
+                                        <span className="text-xs text-muted-foreground">Редактирование трека</span>
                                       </div>
-                                    )}
-                                  </div>
-
-                                  {/* Info */}
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{track.title}</p>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      {track.duration > 0 && (
-                                        <span>{Math.floor(track.duration / 60)}:{String(track.duration % 60).padStart(2, "0")}</span>
-                                      )}
-                                      <span className="flex items-center gap-0.5">
-                                        <Headphones className="w-3 h-3" />{track.plays}
-                                      </span>
-                                      <span>#{track.trackOrder}</span>
+                                      <div className="grid grid-cols-[1fr_80px] gap-2">
+                                        <div>
+                                          <Label className="text-xs mb-1 block">Название</Label>
+                                          <Input
+                                            value={trackEditTitle}
+                                            onChange={e => setTrackEditTitle(e.target.value)}
+                                            autoFocus
+                                            data-testid={`input-track-edit-title-${track.id}`}
+                                          />
+                                        </div>
+                                        <div>
+                                          <Label className="text-xs mb-1 block">Порядок</Label>
+                                          <Input
+                                            type="number"
+                                            min={1}
+                                            value={trackEditOrder}
+                                            onChange={e => setTrackEditOrder(Number(e.target.value))}
+                                            data-testid={`input-track-edit-order-${track.id}`}
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Button
+                                          size="sm"
+                                          className="flex-1"
+                                          disabled={!trackEditTitle.trim() || trackEditSaving}
+                                          data-testid={`button-track-edit-save-${track.id}`}
+                                          onClick={async () => {
+                                            setTrackEditSaving(true);
+                                            try {
+                                              await adminFetch(`/api/admin/artists/tracks/${track.id}`, apiKey, {
+                                                method: "PATCH",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ title: trackEditTitle.trim(), trackOrder: trackEditOrder }),
+                                              });
+                                              queryClient.invalidateQueries({ queryKey: ["/api/admin/artists", editingArtistSlug, "tracks"] });
+                                              queryClient.invalidateQueries({ queryKey: [`/api/artists/${editingArtistSlug}/tracks`] });
+                                              toast({ title: "Трек обновлён" });
+                                              setTrackEditingId(null);
+                                            } catch (err: any) {
+                                              toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+                                            } finally {
+                                              setTrackEditSaving(false);
+                                            }
+                                          }}
+                                        >
+                                          {trackEditSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1" />}
+                                          Сохранить
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => setTrackEditingId(null)}
+                                          data-testid={`button-track-edit-cancel-${track.id}`}
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </div>
                                     </div>
-                                  </div>
+                                  ) : (
+                                    /* ── Normal row ── */
+                                    <div className="flex items-center gap-3 p-2.5 rounded-lg border bg-card">
+                                      {/* Cover */}
+                                      <div className="w-10 h-10 rounded-md overflow-hidden flex-shrink-0 bg-muted">
+                                        {track.coverUrl ? (
+                                          <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover" />
+                                        ) : (
+                                          <div className="w-full h-full flex items-center justify-center">
+                                            <Music className="w-4 h-4 text-muted-foreground" />
+                                          </div>
+                                        )}
+                                      </div>
 
-                                  {/* Active toggle */}
-                                  <Switch
-                                    checked={track.isActive}
-                                    onCheckedChange={(checked) => toggleTrackMutation.mutate({ trackId: track.id, isActive: checked })}
-                                    data-testid={`switch-track-active-${track.id}`}
-                                  />
+                                      {/* Info */}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{track.title}</p>
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                          {track.duration > 0 && (
+                                            <span>{Math.floor(track.duration / 60)}:{String(track.duration % 60).padStart(2, "0")}</span>
+                                          )}
+                                          <span className="flex items-center gap-0.5">
+                                            <Headphones className="w-3 h-3" />{track.plays}
+                                          </span>
+                                          <span>#{track.trackOrder}</span>
+                                        </div>
+                                      </div>
 
-                                  {/* Delete */}
-                                  <button
-                                    className="text-muted-foreground hover:text-destructive transition-colors"
-                                    onClick={() => {
-                                      if (confirm(`Удалить трек "${track.title}"?`)) {
-                                        deleteTrackMutation.mutate(track.id);
-                                      }
-                                    }}
-                                    data-testid={`button-delete-track-${track.id}`}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
+                                      {/* Active toggle */}
+                                      <Switch
+                                        checked={track.isActive}
+                                        onCheckedChange={(checked) => toggleTrackMutation.mutate({ trackId: track.id, isActive: checked })}
+                                        data-testid={`switch-track-active-${track.id}`}
+                                      />
+
+                                      {/* Edit */}
+                                      <button
+                                        className="text-muted-foreground hover:text-foreground transition-colors"
+                                        onClick={() => {
+                                          setTrackEditingId(track.id);
+                                          setTrackEditTitle(track.title);
+                                          setTrackEditOrder(track.trackOrder);
+                                        }}
+                                        data-testid={`button-edit-track-${track.id}`}
+                                        title="Редактировать"
+                                      >
+                                        <Pencil className="w-4 h-4" />
+                                      </button>
+
+                                      {/* Delete */}
+                                      <button
+                                        className="text-muted-foreground hover:text-destructive transition-colors"
+                                        onClick={() => {
+                                          if (confirm(`Удалить трек "${track.title}"?`)) {
+                                            deleteTrackMutation.mutate(track.id);
+                                          }
+                                        }}
+                                        data-testid={`button-delete-track-${track.id}`}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
