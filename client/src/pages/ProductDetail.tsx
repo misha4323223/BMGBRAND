@@ -442,7 +442,6 @@ export default function ProductDetail() {
   // Reset image index when product changes or images array changes
   useEffect(() => {
     setCurrentImageIndex(0);
-    setPairIdx(0);
     if (product?.id) addViewed(product.id);
   }, [product?.id]);
   
@@ -458,14 +457,6 @@ export default function ProductDetail() {
 
   // Video + 2-up gallery for desktop
   const videoUrl = (product as any)?.videoUrl || null;
-  const mediaItems = useMemo<Array<{type: 'video'|'image', url: string}>>(() => {
-    const items: Array<{type: 'video'|'image', url: string}> = [];
-    allImages.forEach(url => items.push({ type: 'image', url }));
-    return items;
-  }, [allImages]);
-  const pairCount = Math.ceil(mediaItems.length / 2) || 1;
-  const [pairIdx, setPairIdx] = useState(0);
-  const [slideDir, setSlideDir] = useState<1 | -1>(1);
   
   const nextImage = () => {
     if (allImages.length > 1) {
@@ -1885,137 +1876,56 @@ export default function ProductDetail() {
             className="hidden lg:block order-2 lg:order-1"
           >
             {(() => {
-              const leftItem = mediaItems[pairIdx * 2];
-              const rightItem = mediaItems[pairIdx * 2 + 1];
-              const isSingle = !rightItem;
-              const getAlt = (itemIdx: number) => {
-                return itemIdx >= 0 ? getImageAlt(itemIdx) : '';
-              };
-              const ZOOM_STEPS = [1, 2, 3];
-              const renderItem = (item: {type: 'video'|'image', url: string}, itemIdx: number, key: string) => {
-                const currentZoom = zoomLevels[key] ?? 1;
-                const isZoomed = currentZoom > 1;
-                const zoomStepIdx = ZOOM_STEPS.indexOf(currentZoom);
-                const atMax = zoomStepIdx === ZOOM_STEPS.length - 1;
-                const panX = imgZoom?.key === key ? imgZoom.x : 50;
-                const panY = imgZoom?.key === key ? imgZoom.y : 50;
-                const cursorVisible = zoomCursor?.key === key;
-                const cursorPx = cursorVisible ? zoomCursor!.px : 0;
-                const cursorPy = cursorVisible ? zoomCursor!.py : 0;
-
-                const handleMouseMove = item.type === 'image' ? (e: React.MouseEvent<HTMLDivElement>) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const px = e.clientX - rect.left;
-                  const py = e.clientY - rect.top;
-                  const x = (px / rect.width) * 100;
-                  const y = (py / rect.height) * 100;
-                  setZoomCursor({ key, px, py });
-                  if (isZoomed) setImgZoom({ key, x, y });
-                } : undefined;
-
-                const handleMouseLeave = item.type === 'image' ? () => {
-                  setZoomCursor(null);
-                } : undefined;
-
-                const handleClick = item.type === 'image' ? (e: React.MouseEvent<HTMLDivElement>) => {
-                  e.stopPropagation();
-                  if (atMax) {
-                    setZoomLevels(prev => ({ ...prev, [key]: 1 }));
-                    setImgZoom(null);
-                  } else {
-                    const nextZoom = ZOOM_STEPS[zoomStepIdx + 1];
-                    setZoomLevels(prev => ({ ...prev, [key]: nextZoom }));
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const x = ((e.clientX - rect.left) / rect.width) * 100;
-                    const y = ((e.clientY - rect.top) / rect.height) * 100;
-                    setImgZoom({ key, x, y });
-                  }
-                } : undefined;
-
-                return (
-                  <div
-                    key={key}
-                    className={`${isSingle ? 'w-full' : 'flex-1'} aspect-[3/4] overflow-hidden relative select-none`}
-                    style={item.type === 'image' ? { cursor: 'none' } : undefined}
-                    onMouseMove={handleMouseMove}
-                    onMouseLeave={handleMouseLeave}
-                    onClick={handleClick}
-                    data-testid={`img-container-desktop-${key}`}
-                  >
-                    {item.type === 'video' ? (
-                      <video
-                        src={item.url}
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        className="w-full h-full object-cover"
-                        data-testid={`video-product-desktop-${key}`}
-                      />
-                    ) : (
-                      <img
-                        ref={itemIdx === 0 ? (el => { if (el) el.setAttribute('fetchpriority', 'high'); }) : undefined}
-                        src={item.url}
-                        alt={getAlt(itemIdx)}
-                        loading={itemIdx === 0 ? "eager" : "lazy"}
-                        decoding={itemIdx === 0 ? "sync" : "async"}
-                        className="w-full h-full object-cover pointer-events-none"
-                        style={isZoomed
-                          ? { transform: `scale(${currentZoom})`, transformOrigin: `${panX}% ${panY}%`, transition: 'transform 0.2s ease-out' }
-                          : { transform: 'scale(1)', transition: 'transform 0.25s ease-out' }
-                        }
-                        data-testid={`img-product-desktop-${key}`}
-                      />
-                    )}
-                    {item.type === 'image' && cursorVisible && (
-                      <div
-                        className="absolute z-20 pointer-events-none flex items-center justify-center w-9 h-9 rounded-full bg-black/50 backdrop-blur-sm text-white shadow-lg"
-                        style={{ left: cursorPx - 18, top: cursorPy - 18, transition: 'left 0.04s, top 0.04s' }}
-                      >
-                        {atMax
-                          ? <ZoomOut className="w-4 h-4" />
-                          : <ZoomIn className="w-4 h-4" />
-                        }
-                      </div>
-                    )}
-                  </div>
-                );
-              };
+              const n = allImages.length;
+              if (n === 0) return null;
+              const maxIdx = Math.max(0, n - 2);
+              const displayIdx = Math.min(safeImageIndex, maxIdx);
               return (
-                <div className="relative overflow-hidden">
-                  <AnimatePresence initial={false} custom={slideDir} mode="popLayout">
-                    <motion.div
-                      key={pairIdx}
-                      custom={slideDir}
-                      variants={{
-                        enter: (d: number) => ({ x: d > 0 ? '100%' : '-100%', opacity: 0 }),
-                        center: { x: 0, opacity: 1 },
-                        exit: (d: number) => ({ x: d > 0 ? '-100%' : '100%', opacity: 0 }),
-                      }}
-                      initial="enter"
-                      animate="center"
-                      exit="exit"
-                      transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+                <div className="relative">
+                  <div className="overflow-hidden w-full">
+                    <div
                       className="flex"
+                      style={{
+                        transform: `translateX(-${(displayIdx / n) * 100}%)`,
+                        transition: 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)',
+                        width: `${n * 50}%`,
+                      }}
                     >
-                      {leftItem && renderItem(leftItem, pairIdx * 2, 'left')}
-                      {rightItem && renderItem(rightItem, pairIdx * 2 + 1, 'right')}
-                    </motion.div>
-                  </AnimatePresence>
-                  {pairCount > 1 && (
+                      {allImages.map((imgUrl, i) => (
+                        <div
+                          key={i}
+                          className="flex-shrink-0 aspect-[3/4] overflow-hidden"
+                          style={{ width: `${100 / n}%` }}
+                          data-testid={`img-container-desktop-${i}`}
+                        >
+                          <img
+                            ref={i === 0 ? (el => { if (el) el.setAttribute('fetchpriority', 'high'); }) : undefined}
+                            src={imgUrl}
+                            alt={getImageAlt(i)}
+                            loading={i <= 1 ? "eager" : "lazy"}
+                            decoding={i <= 1 ? "sync" : "async"}
+                            className="w-full h-full object-cover cursor-zoom-in"
+                            onClick={() => { setLightboxImgIdx(i); setLightboxOpen(true); }}
+                            data-testid={`img-product-desktop-${i}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {n > 2 && (
                     <>
                       <button
-                        onClick={() => { setSlideDir(-1); setPairIdx(i => Math.max(0, i - 1)); }}
-                        disabled={pairIdx === 0}
-                        data-testid="button-prev-pair-desktop"
+                        onClick={prevImage}
+                        disabled={displayIdx === 0}
+                        data-testid="button-prev-desktop"
                         className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-background/80 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center hover:bg-background transition-colors disabled:opacity-0 shadow-md z-10"
                       >
                         <ChevronLeft className="w-5 h-5" />
                       </button>
                       <button
-                        onClick={() => { setSlideDir(1); setPairIdx(i => Math.min(pairCount - 1, i + 1)); }}
-                        disabled={pairIdx === pairCount - 1}
-                        data-testid="button-next-pair-desktop"
+                        onClick={nextImage}
+                        disabled={displayIdx >= maxIdx}
+                        data-testid="button-next-desktop"
                         className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-background/80 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center hover:bg-background transition-colors disabled:opacity-0 shadow-md z-10"
                       >
                         <ChevronRight className="w-5 h-5" />
@@ -2025,14 +1935,14 @@ export default function ProductDetail() {
                 </div>
               );
             })()}
-            {pairCount > 1 && (
+            {allImages.length > 2 && (
               <div className="flex justify-center gap-1.5 mt-3">
-                {Array.from({ length: pairCount }).map((_, i) => (
+                {Array.from({ length: allImages.length - 1 }).map((_, i) => (
                   <button
                     key={i}
-                    onClick={() => setPairIdx(i)}
-                    data-testid={`button-pair-dot-${i}`}
-                    className={`rounded-full transition-all duration-200 ${i === pairIdx ? 'w-5 h-1.5 bg-foreground' : 'w-1.5 h-1.5 bg-foreground/30 hover:bg-foreground/50'}`}
+                    onClick={() => setCurrentImageIndex(i)}
+                    data-testid={`button-dot-desktop-${i}`}
+                    className={`rounded-full transition-all duration-200 ${i === Math.min(safeImageIndex, allImages.length - 2) ? 'w-5 h-1.5 bg-foreground' : 'w-1.5 h-1.5 bg-foreground/30 hover:bg-foreground/50'}`}
                   />
                 ))}
               </div>
