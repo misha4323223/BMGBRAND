@@ -1254,6 +1254,7 @@ export default function Admin() {
   const [trackCoverFile, setTrackCoverFile] = useState<File | null>(null);
   const [trackEditingId, setTrackEditingId] = useState<number | null>(null);
   const [trackEditTitle, setTrackEditTitle] = useState("");
+  const [trackEditSubtitle, setTrackEditSubtitle] = useState("");
   const [trackEditOrder, setTrackEditOrder] = useState(1);
   const [trackEditSaving, setTrackEditSaving] = useState(false);
 
@@ -8641,6 +8642,15 @@ export default function Admin() {
                                             data-testid={`input-track-edit-order-${track.id}`}
                                           />
                                         </div>
+                                        <div className="col-span-2">
+                                          <Label className="text-xs mb-1 block">Исполнитель</Label>
+                                          <Input
+                                            value={trackEditSubtitle}
+                                            onChange={e => setTrackEditSubtitle(e.target.value)}
+                                            placeholder="Например: МОЛОДОСТЬ ВНУТРИ"
+                                            data-testid={`input-track-edit-subtitle-${track.id}`}
+                                          />
+                                        </div>
                                       </div>
                                       <div className="flex gap-2">
                                         <Button
@@ -8654,7 +8664,7 @@ export default function Admin() {
                                               await adminFetch(`/api/admin/artists/tracks/${track.id}`, apiKey, {
                                                 method: "PATCH",
                                                 headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({ title: trackEditTitle.trim(), trackOrder: trackEditOrder }),
+                                                body: JSON.stringify({ title: trackEditTitle.trim(), subtitle: trackEditSubtitle.trim(), trackOrder: trackEditOrder }),
                                               });
                                               queryClient.invalidateQueries({ queryKey: ["/api/admin/artists", editingArtistSlug, "tracks"] });
                                               queryClient.invalidateQueries({ queryKey: [`/api/artists/${editingArtistSlug}/tracks`] });
@@ -8721,6 +8731,7 @@ export default function Admin() {
                                         onClick={() => {
                                           setTrackEditingId(track.id);
                                           setTrackEditTitle(track.title);
+                                          setTrackEditSubtitle(track.subtitle || "");
                                           setTrackEditOrder(track.trackOrder);
                                         }}
                                         data-testid={`button-edit-track-${track.id}`}
