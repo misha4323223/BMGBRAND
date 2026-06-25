@@ -207,10 +207,20 @@ export function GlobalPlayer() {
             {/* BOOOM AI shortcut */}
             <button
               onClick={() => window.dispatchEvent(new CustomEvent("open-booom-ai"))}
-              className="hidden sm:flex w-8 h-8 items-center justify-center rounded-lg transition-all flex-shrink-0 active:scale-90 gap-1"
-              style={{ color: "rgba(255,255,255,0.38)", background: "rgba(255,255,255,0.06)" }}
-              onMouseEnter={e => { e.currentTarget.style.color = "#fff"; e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
-              onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.38)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+              className="hidden sm:flex w-8 h-8 items-center justify-center rounded-lg transition-all flex-shrink-0 active:scale-90"
+              style={{
+                color: "hsl(var(--primary))",
+                background: "hsla(var(--primary)/0.15)",
+                boxShadow: "0 0 10px hsla(var(--primary)/0.25)",
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = "hsla(var(--primary)/0.28)";
+                e.currentTarget.style.boxShadow = "0 0 16px hsla(var(--primary)/0.5)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = "hsla(var(--primary)/0.15)";
+                e.currentTarget.style.boxShadow = "0 0 10px hsla(var(--primary)/0.25)";
+              }}
               data-testid="player-open-ai"
               aria-label="BOOOM AI"
               title="BOOOM AI"

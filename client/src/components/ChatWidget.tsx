@@ -188,10 +188,15 @@ export function ChatWidget() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Open chat from player's AI button
+  // Toggle chat from player's AI button
   const { currentTrack } = usePlayer();
   useEffect(() => {
-    const handler = () => { setMode("ai"); setOpen(true); };
+    const handler = () => {
+      setOpen(o => {
+        if (!o) setMode("ai");
+        return !o;
+      });
+    };
     window.addEventListener("open-booom-ai", handler);
     return () => window.removeEventListener("open-booom-ai", handler);
   }, []);
