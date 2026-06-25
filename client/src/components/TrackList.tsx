@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { usePlayer, type ArtistTrack } from "@/context/PlayerContext";
-import { Play, Pause, Music, Headphones } from "lucide-react";
+import { Play, Pause, Music, Eye } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 function formatDuration(secs: number): string {
@@ -194,7 +194,7 @@ export function TrackList({ artistSlug, accentColor, textColor, bgColor, isColor
 
                   {/* Plays */}
                   <div className="hidden sm:flex items-center gap-1 text-xs opacity-40 flex-shrink-0">
-                    <Headphones className="w-3 h-3" />
+                    <Eye className="w-3 h-3" />
                     <span style={textColor ? { color: textColor } : {}}>{formatPlays(track.plays)}</span>
                   </div>
 
