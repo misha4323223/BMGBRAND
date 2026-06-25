@@ -296,6 +296,7 @@ export interface ArtistTrack {
   id: number;
   artistSlug: string;
   title: string;
+  subtitle: string;
   audioUrl: string;
   coverUrl: string;
   duration: number;
@@ -560,8 +561,8 @@ export interface IStorage {
 
   // Artist tracks
   getArtistTracks(artistSlug: string, adminMode?: boolean): Promise<ArtistTrack[]>;
-  createArtistTrack(data: { artistSlug: string; title: string; audioUrl: string; coverUrl: string; duration: number; trackOrder: number }): Promise<ArtistTrack>;
-  updateArtistTrack(id: number, data: Partial<{ title: string; audioUrl: string; coverUrl: string; duration: number; trackOrder: number; isActive: boolean }>): Promise<void>;
+  createArtistTrack(data: { artistSlug: string; title: string; subtitle?: string; audioUrl: string; coverUrl: string; duration: number; trackOrder: number }): Promise<ArtistTrack>;
+  updateArtistTrack(id: number, data: Partial<{ title: string; subtitle: string; audioUrl: string; coverUrl: string; duration: number; trackOrder: number; isActive: boolean }>): Promise<void>;
   deleteArtistTrack(id: number): Promise<void>;
   incrementTrackPlays(id: number, count?: number): Promise<void>;
 }
@@ -7262,7 +7263,7 @@ export class DatabaseStorage implements IStorage {
       const whereActive = adminMode ? '' : 'AND is_active = true';
       const { resultSets } = await session.executeQuery(
         `DECLARE $artist_slug AS Utf8;
-         SELECT id, artist_slug, title, audio_url, cover_url, duration, track_order, plays, is_active, created_at
+         SELECT id, artist_slug, title, subtitle, audio_url, cover_url, duration, track_order, plays, is_active, created_at
          FROM artist_tracks
          WHERE artist_slug = $artist_slug ${whereActive}
          ORDER BY track_order ASC, id ASC`,
@@ -7273,6 +7274,7 @@ export class DatabaseStorage implements IStorage {
         id: Number(r.id ?? 0),
         artistSlug: String(r.artistSlug ?? ''),
         title: String(r.title ?? ''),
+        subtitle: String(r.subtitle ?? ''),
         audioUrl: String(r.audioUrl ?? ''),
         coverUrl: String(r.coverUrl ?? ''),
         duration: Number(r.duration ?? 0),
@@ -7285,7 +7287,7 @@ export class DatabaseStorage implements IStorage {
     return result || [];
   }
 
-  async createArtistTrack(data: { artistSlug: string; title: string; audioUrl: string; coverUrl: string; duration: number; trackOrder: number }): Promise<ArtistTrack> {
+  async createArtistTrack(data: { artistSlug: string; title: string; subtitle?: string; audioUrl: string; coverUrl: string; duration: number; trackOrder: number }): Promise<ArtistTrack> {
     const id = Date.now();
     const now = new Date();
     await this.safeQuery(async (session) => {
@@ -7294,6 +7296,7 @@ export class DatabaseStorage implements IStorage {
         `DECLARE $id AS Uint64;
          DECLARE $artist_slug AS Utf8;
          DECLARE $title AS Utf8;
+         DECLARE $subtitle AS Utf8;
          DECLARE $audio_url AS Utf8;
          DECLARE $cover_url AS Utf8;
          DECLARE $duration AS Int32;
@@ -7301,12 +7304,13 @@ export class DatabaseStorage implements IStorage {
          DECLARE $plays AS Int64;
          DECLARE $is_active AS Bool;
          DECLARE $created_at AS Timestamp;
-         UPSERT INTO artist_tracks (id, artist_slug, title, audio_url, cover_url, duration, track_order, plays, is_active, created_at)
-         VALUES ($id, $artist_slug, $title, $audio_url, $cover_url, $duration, $track_order, $plays, $is_active, $created_at)`,
+         UPSERT INTO artist_tracks (id, artist_slug, title, subtitle, audio_url, cover_url, duration, track_order, plays, is_active, created_at)
+         VALUES ($id, $artist_slug, $title, $subtitle, $audio_url, $cover_url, $duration, $track_order, $plays, $is_active, $created_at)`,
         {
           '$id': TypedValues.uint64(id),
           '$artist_slug': TypedValues.utf8(data.artistSlug),
           '$title': TypedValues.utf8(data.title),
+          '$subtitle': TypedValues.utf8(data.subtitle || ''),
           '$audio_url': TypedValues.utf8(data.audioUrl),
           '$cover_url': TypedValues.utf8(data.coverUrl),
           '$duration': TypedValues.int32(data.duration),
@@ -7321,6 +7325,7 @@ export class DatabaseStorage implements IStorage {
       id,
       artistSlug: data.artistSlug,
       title: data.title,
+      subtitle: data.subtitle || '',
       audioUrl: data.audioUrl,
       coverUrl: data.coverUrl,
       duration: data.duration,
@@ -7331,10 +7336,11 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async updateArtistTrack(id: number, data: Partial<{ title: string; audioUrl: string; coverUrl: string; duration: number; trackOrder: number; isActive: boolean }>): Promise<void> {
+  async updateArtistTrack(id: number, data: Partial<{ title: string; subtitle: string; audioUrl: string; coverUrl: string; duration: number; trackOrder: number; isActive: boolean }>): Promise<void> {
     type FieldDef = [string, string, any];
     const fields: FieldDef[] = [];
     if (data.title !== undefined) fields.push(['title', 'Utf8', data.title]);
+    if (data.subtitle !== undefined) fields.push(['subtitle', 'Utf8', data.subtitle]);
     if (data.audioUrl !== undefined) fields.push(['audio_url', 'Utf8', data.audioUrl]);
     if (data.coverUrl !== undefined) fields.push(['cover_url', 'Utf8', data.coverUrl]);
     if (data.duration !== undefined) fields.push(['duration', 'Int32', data.duration]);

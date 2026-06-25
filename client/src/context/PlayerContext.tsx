@@ -4,6 +4,7 @@ export interface ArtistTrack {
   id: number;
   artistSlug: string;
   title: string;
+  subtitle: string;
   audioUrl: string;
   coverUrl: string;
   duration: number;

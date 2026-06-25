@@ -9687,11 +9687,12 @@ BMGBRAND — официальный производитель и магазин
   app.post("/api/admin/artists/:slug/tracks", requireAdminOrApiKey, async (req, res) => {
     try {
       const { slug } = req.params;
-      const { title, audioUrl, coverUrl, duration, trackOrder } = req.body || {};
+      const { title, subtitle, audioUrl, coverUrl, duration, trackOrder } = req.body || {};
       if (!title || !audioUrl) return res.status(400).json({ error: "title and audioUrl required" });
       const track = await storage.createArtistTrack({
         artistSlug: slug,
         title: String(title),
+        subtitle: String(subtitle || ""),
         audioUrl: String(audioUrl),
         coverUrl: String(coverUrl || ""),
         duration: Number(duration) || 0,
@@ -9709,8 +9710,8 @@ BMGBRAND — официальный производитель и магазин
     try {
       const id = Number(req.params.id);
       if (!id) return res.status(400).json({ error: "Invalid id" });
-      const { title, audioUrl, coverUrl, duration, trackOrder, isActive } = req.body || {};
-      await storage.updateArtistTrack(id, { title, audioUrl, coverUrl, duration, trackOrder, isActive });
+      const { title, subtitle, audioUrl, coverUrl, duration, trackOrder, isActive } = req.body || {};
+      await storage.updateArtistTrack(id, { title, subtitle, audioUrl, coverUrl, duration, trackOrder, isActive });
       res.json({ ok: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });

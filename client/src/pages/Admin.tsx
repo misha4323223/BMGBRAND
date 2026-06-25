@@ -1247,6 +1247,7 @@ export default function Admin() {
   const [artistPageSettings, setArtistPageSettings] = useState<Record<string, any>>({});
   const [trackFormOpen, setTrackFormOpen] = useState(false);
   const [trackNewTitle, setTrackNewTitle] = useState("");
+  const [trackNewSubtitle, setTrackNewSubtitle] = useState("");
   const [trackNewOrder, setTrackNewOrder] = useState(1);
   const [trackUploading, setTrackUploading] = useState(false);
   const [trackAudioFile, setTrackAudioFile] = useState<File | null>(null);
@@ -8417,8 +8418,17 @@ export default function Admin() {
                                   <Input
                                     value={trackNewTitle}
                                     onChange={e => setTrackNewTitle(e.target.value)}
-                                    placeholder="Название трека"
+                                    placeholder="Например: Под дождём"
                                     data-testid="input-track-title"
+                                  />
+                                </div>
+                                <div className="col-span-2">
+                                  <Label className="text-xs mb-1 block">Исполнитель</Label>
+                                  <Input
+                                    value={trackNewSubtitle}
+                                    onChange={e => setTrackNewSubtitle(e.target.value)}
+                                    placeholder="Например: МОЛОДОСТЬ ВНУТРИ"
+                                    data-testid="input-track-subtitle"
                                   />
                                 </div>
                                 <div>
@@ -8559,13 +8569,13 @@ export default function Admin() {
                                     await adminFetch(`/api/admin/artists/${editingArtistSlug}/tracks`, apiKey, {
                                       method: "POST",
                                       headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ title: trackNewTitle.trim(), audioUrl: audioData.url, coverUrl, duration, trackOrder: trackNewOrder }),
+                                      body: JSON.stringify({ title: trackNewTitle.trim(), subtitle: trackNewSubtitle.trim(), audioUrl: audioData.url, coverUrl, duration, trackOrder: trackNewOrder }),
                                     });
 
                                     queryClient.invalidateQueries({ queryKey: ["/api/admin/artists", editingArtistSlug, "tracks"] });
                                     queryClient.invalidateQueries({ queryKey: [`/api/artists/${editingArtistSlug}/tracks`] });
                                     toast({ title: "Трек добавлен" });
-                                    setTrackNewTitle(""); setTrackNewOrder(prev => prev + 1); setTrackAudioFile(null); setTrackCoverFile(null); setTrackFormOpen(false);
+                                    setTrackNewTitle(""); setTrackNewSubtitle(""); setTrackNewOrder(prev => prev + 1); setTrackAudioFile(null); setTrackCoverFile(null); setTrackFormOpen(false);
                                   } catch (err: any) {
                                     toast({ title: "Ошибка загрузки", description: err.message, variant: "destructive" });
                                   } finally {

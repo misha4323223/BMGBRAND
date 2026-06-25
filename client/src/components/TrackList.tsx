@@ -183,7 +183,7 @@ export function TrackList({ artistSlug, artistName, accentColor, textColor, bgCo
                     )}
                   </div>
 
-                  {/* Title + Artist */}
+                  {/* Title + Subtitle */}
                   <div className="flex-1 min-w-0">
                     <p
                       className="font-semibold text-sm leading-snug transition-colors line-clamp-2"
@@ -191,9 +191,9 @@ export function TrackList({ artistSlug, artistName, accentColor, textColor, bgCo
                     >
                       {track.title}
                     </p>
-                    {artistName && (
+                    {(track.subtitle || artistName) && (
                       <p className="text-xs mt-0.5 opacity-50 truncate" style={textColor ? { color: textColor } : {}}>
-                        {artistName}
+                        {track.subtitle || artistName}
                       </p>
                     )}
                   </div>
