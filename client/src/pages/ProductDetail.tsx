@@ -939,9 +939,7 @@ export default function ProductDetail() {
           </motion.div>
 
           {/* Details */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+          <div
             className="detail-panel flex flex-col order-1 lg:order-2 lg:fixed lg:top-[72px] lg:right-8 lg:w-[360px] lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:z-20 lg:bg-background/96 lg:backdrop-blur-md lg:border lg:border-border/30 lg:rounded-2xl lg:shadow-2xl lg:px-5 lg:pt-4 lg:pb-6 scrollbar-hide"
           >
             <div className="flex flex-col mb-4 sm:mb-6">
@@ -1877,7 +1875,7 @@ export default function ProductDetail() {
               </AccordionItem>
               )}
             </Accordion>
-          </motion.div>
+          </div>
           
           {/* Image Gallery - Hidden on mobile, 2-up layout on desktop */}
           <motion.div 
