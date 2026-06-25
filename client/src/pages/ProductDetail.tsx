@@ -380,6 +380,8 @@ export default function ProductDetail() {
   const [zoomCursor, setZoomCursor] = useState<{key: string, px: number, py: number} | null>(null);
   const zoomCursorEls = useRef<Map<number, HTMLDivElement | null>>(new Map());
   const zoomImgEls = useRef<Map<number, HTMLImageElement | null>>(new Map());
+  const galleryRef = useRef<HTMLDivElement>(null);
+  const lastWheelRef = useRef(0);
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifySize, setNotifySize] = useState<string | null>(null);
   const [notifySubmitted, setNotifySubmitted] = useState<Set<string>>(new Set());
@@ -482,6 +484,24 @@ export default function ProductDetail() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [lightboxOpen, allImages.length]);
+
+  useEffect(() => {
+    const el = galleryRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastWheelRef.current < 350) return;
+      lastWheelRef.current = now;
+      setCurrentImageIndex(prev => {
+        const maxIdx = Math.max(0, allImages.length - 2);
+        if (e.deltaY > 0) return Math.min(prev + 1, maxIdx);
+        return Math.max(prev - 1, 0);
+      });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [allImages.length]);
 
   if (isLoading) {
     return (
@@ -1883,7 +1903,7 @@ export default function ProductDetail() {
               const maxIdx = Math.max(0, n - 2);
               const displayIdx = Math.min(safeImageIndex, maxIdx);
               return (
-                <div className="relative">
+                <div ref={galleryRef} className="relative">
                   <div className="overflow-hidden w-full">
                     <div
                       className="flex"
