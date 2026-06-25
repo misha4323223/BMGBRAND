@@ -9741,7 +9741,23 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
-  // POST /api/admin/artists/:slug/upload-audio — admin: upload MP3/M4A to YOS
+  // POST /api/admin/artists/:slug/presign-audio — admin: get presigned URL for direct S3 upload
+  app.post("/api/admin/artists/:slug/presign-audio", requireAdminOrApiKey, async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const { filename, contentType } = req.body || {};
+      if (!filename || !contentType) return res.status(400).json({ error: "filename and contentType required" });
+      const { generateAudioPresignedUrl } = await import("./lib/storage-s3");
+      const result = await generateAudioPresignedUrl(slug, filename, contentType);
+      if (!result) return res.status(500).json({ error: "Failed to generate presigned URL — check YOS credentials" });
+      res.json(result);
+    } catch (err: any) {
+      console.error("[presign-audio]", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/admin/artists/:slug/upload-audio — admin: upload MP3/M4A to YOS (legacy, kept for compatibility)
   app.post("/api/admin/artists/:slug/upload-audio", requireAdminOrApiKey, async (req, res) => {
     try {
       const { slug } = req.params;

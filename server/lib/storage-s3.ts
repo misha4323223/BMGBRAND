@@ -1,4 +1,5 @@
 import { S3Client, GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Upload } from "@aws-sdk/lib-storage";
 import crypto from "crypto";
 
@@ -392,4 +393,36 @@ export async function checkFileExistsInYandexStorage(key: string): Promise<boole
     console.error(`Failed to check existence of ${key}:`, error.name || error);
     return false;
   }
+}
+
+export async function generateAudioPresignedUrl(
+  artistSlug: string,
+  originalName: string,
+  contentType: string,
+): Promise<{ uploadUrl: string; publicUrl: string } | null> {
+  const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME;
+  const accessKey = process.env.YANDEX_STORAGE_ACCESS_KEY;
+  const secretKey = process.env.YANDEX_STORAGE_SECRET_KEY;
+
+  if (!bucketName || !accessKey || !secretKey) {
+    console.warn("[S3 presign] Storage credentials not set");
+    return null;
+  }
+
+  const safeSlug = artistSlug.replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+  const ext = originalName.split(".").pop()?.toLowerCase() || "mp3";
+  const safeExt = ["mp3", "m4a", "aac", "ogg", "wav", "flac"].includes(ext) ? ext : "mp3";
+  const key = `artists/${safeSlug}/tracks/audio-${Date.now()}.${safeExt}`;
+
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    ContentType: contentType,
+    ACL: "public-read",
+    CacheControl: "public, max-age=31536000, immutable",
+  });
+
+  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 600 });
+  const publicUrl = `https://storage.yandexcloud.net/${bucketName}/${key}`;
+  return { uploadUrl, publicUrl };
 }
