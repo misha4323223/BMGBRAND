@@ -991,60 +991,84 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {/* ── Десктопная раскладка: оригинал ── */}
-              <div className="hidden sm:flex items-start justify-between gap-3">
-                <h1 className="text-3xl font-semibold leading-tight text-foreground" data-testid={`text-product-name-${product.id}`}>
+              {/* ── Десктопная раскладка: Вариант В — монолит ── */}
+              <div className="hidden sm:flex items-start gap-3 min-w-0">
+                {/* Название — занимает всё свободное место */}
+                <h1
+                  className="flex-1 min-w-0 text-[13px] font-bold uppercase tracking-[0.16em] text-foreground leading-snug"
+                  data-testid={`text-product-name-${product.id}`}
+                >
                   {displayName(product.name)}
                 </h1>
-                <button
-                  onClick={() => toggleFavorite(product.id)}
-                  className="shrink-0 mt-1 w-10 h-10 flex items-center justify-center rounded-full border border-border/60 hover:border-foreground/40 transition-all duration-200"
-                  data-testid={`button-favorite-detail-${product.id}`}
-                >
-                  <Heart className={`w-5 h-5 transition-colors duration-200 ${isFavorite(product.id) ? 'fill-primary text-primary' : 'text-foreground/60'}`} />
-                </button>
-                <button
-                  onClick={async () => {
-                    const url = window.location.href;
-                    if (navigator.share) { try { await navigator.share({ title: product.name, url }); } catch {} }
-                    else { await navigator.clipboard.writeText(url); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }
-                  }}
-                  className="shrink-0 mt-1 w-10 h-10 flex items-center justify-center rounded-full border border-border/60 hover:border-foreground/40 transition-all duration-200"
-                  data-testid={`button-share-product-${product.id}`}
-                  title="Поделиться"
-                >
-                  {linkCopied ? <Check className="w-5 h-5 text-primary" /> : <Share2 className="w-5 h-5 text-foreground/60" />}
-                </button>
-                {!isWholesale && (
+                {/* Цена inline */}
+                <div className="shrink-0 flex items-baseline gap-1.5 pt-px">
+                  {showPreorderPriceLabels && (
+                    <span className="text-[10px] text-foreground/50 uppercase tracking-wide self-center">Предпродажная</span>
+                  )}
+                  <span className={`text-xl font-bold leading-none ${hasDiscount ? 'text-red-600' : isWholesale ? 'text-primary' : 'text-foreground'}`}>
+                    {hasDiscount ? formatPrice(salePrice) : displayPrice}
+                  </span>
+                  {hasDiscount && (
+                    <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
+                  )}
+                  {isWholesale && wholesalePriceValue && (
+                    <>
+                      <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
+                      <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">ОПТ</Badge>
+                    </>
+                  )}
+                </div>
+                {/* Кнопки действий — только иконки */}
+                <div className="flex items-center gap-1 shrink-0 pt-px">
+                  <button
+                    onClick={() => toggleFavorite(product.id)}
+                    className="w-7 h-7 flex items-center justify-center rounded-full border border-border/50 hover:border-foreground/40 transition-all"
+                    data-testid={`button-favorite-detail-${product.id}`}
+                    title="В избранное"
+                  >
+                    <Heart className={`w-3.5 h-3.5 transition-colors ${isFavorite(product.id) ? 'fill-primary text-primary' : 'text-foreground/50'}`} />
+                  </button>
                   <button
                     onClick={async () => {
-                      const url = `${window.location.origin}${window.location.pathname}?hint=1`;
-                      await navigator.clipboard.writeText(url);
-                      setHintCopied(true);
-                      setTimeout(() => setHintCopied(false), 2000);
+                      const url = window.location.href;
+                      if (navigator.share) { try { await navigator.share({ title: product.name, url }); } catch {} }
+                      else { await navigator.clipboard.writeText(url); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }
                     }}
-                    className="shrink-0 mt-1 flex items-center gap-2 px-4 h-11 rounded-full border border-border/60 transition-all duration-200 text-sm font-medium text-foreground/70 hover:text-foreground hover:border-foreground/40"
-                    data-testid={`button-hint-product-${product.id}`}
-                    title="Намекнуть"
+                    className="w-7 h-7 flex items-center justify-center rounded-full border border-border/50 hover:border-foreground/40 transition-all"
+                    data-testid={`button-share-product-${product.id}`}
+                    title="Поделиться"
                   >
-                    {hintCopied ? <Check className="w-5 h-5 text-primary" /> : <Gift className="w-5 h-5" />}
-                    {hintCopied ? "Ссылка скопирована" : "Намекнуть"}
+                    {linkCopied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Share2 className="w-3.5 h-3.5 text-foreground/50" />}
                   </button>
-                )}
+                  {!isWholesale && (
+                    <button
+                      onClick={async () => {
+                        const url = `${window.location.origin}${window.location.pathname}?hint=1`;
+                        await navigator.clipboard.writeText(url);
+                        setHintCopied(true);
+                        setTimeout(() => setHintCopied(false), 2000);
+                      }}
+                      className="w-7 h-7 flex items-center justify-center rounded-full border border-border/50 hover:border-foreground/40 transition-all"
+                      data-testid={`button-hint-product-${product.id}`}
+                      title={hintCopied ? 'Ссылка скопирована' : 'Намекнуть'}
+                    >
+                      {hintCopied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Gift className="w-3.5 h-3.5 text-foreground/50" />}
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="border-t border-border my-3 sm:my-4"></div>
-              <div className="space-y-1" data-testid={`text-product-price-${product.id}`}>
+              <div className="border-t border-border my-3 sm:my-2"></div>
+              {/* Цена — скрыта на десктопе (переехала в шапку) */}
+              <div className="sm:hidden space-y-1" data-testid={`text-product-price-${product.id}`}>
                 {showPreorderPriceLabels && (
                   <p className="text-xs font-medium text-foreground uppercase tracking-wide">Предпродажная цена</p>
                 )}
                 <div className="flex items-center gap-3 flex-wrap">
-                  <p className={`text-2xl sm:text-3xl font-bold ${hasDiscount ? 'text-red-600' : isWholesale ? 'text-primary' : 'text-foreground'}`}>
+                  <p className={`text-2xl font-bold ${hasDiscount ? 'text-red-600' : isWholesale ? 'text-primary' : 'text-foreground'}`}>
                     {hasDiscount ? formatPrice(salePrice) : displayPrice}
                   </p>
                   {hasDiscount && (
-                    <>
-                      <span className="text-lg font-semibold text-red-400 line-through">{retailPrice}</span>
-                    </>
+                    <span className="text-lg font-semibold text-red-400 line-through">{retailPrice}</span>
                   )}
                   {isWholesale && wholesalePriceValue && (
                     <>
@@ -1059,20 +1083,23 @@ export default function ProductDetail() {
                   </p>
                 )}
               </div>
+              {/* Dolyame на мобиле — рядом с ценой */}
               {!isWholesale && salePrice >= 300000 && salePrice <= 3000000 && (
-                <DolyameWidget
-                  price={salePrice}
-                  isDark={false}
-                  isMinta={false}
-                  productId={product.id}
-                />
+                <div className="sm:hidden">
+                  <DolyameWidget
+                    price={salePrice}
+                    isDark={false}
+                    isMinta={false}
+                    productId={product.id}
+                  />
+                </div>
               )}
             </div>
             
 
             {/* Compact Selectors Grid - always show size selector */}
             {(hasColorVariants || product.colors.length > 0 || !hasMultipleSizeRanges) && (
-            <div className="space-y-6 mb-8">
+            <div className="space-y-4 sm:space-y-3 mb-6 sm:mb-4">
               <div className="flex flex-col gap-4">
                 {/* Color variants grouped by size range */}
                 {hasColorVariants ? (
@@ -1334,10 +1361,10 @@ export default function ProductDetail() {
                         setSizeAdvisorResult(null);
                         setSizeAdvisorRecommended(null);
                       }}
-                      className="mt-2 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border hover:border-foreground/40 bg-muted/40 hover:bg-muted/70 transition-all text-sm font-medium text-foreground/70 hover:text-foreground"
+                      className="mt-2 sm:mt-1 flex items-center gap-1.5 px-3 sm:px-2.5 py-2 sm:py-1 rounded-xl sm:rounded-lg border border-border/70 hover:border-foreground/40 bg-muted/30 hover:bg-muted/60 transition-all text-xs font-medium text-foreground/55 hover:text-foreground"
                     >
-                      <Ruler className="w-4 h-4 shrink-0" />
-                      <span>{sizeAdvisorOpen ? 'Свернуть подбор размера' : 'Не знаете свой размер? Подобрать с AI'}</span>
+                      <Ruler className="w-3.5 h-3.5 shrink-0" />
+                      <span>{sizeAdvisorOpen ? 'Свернуть' : 'Не знаете размер? Подобрать с AI'}</span>
                     </button>
                   )}
 
@@ -1687,28 +1714,53 @@ export default function ProductDetail() {
 
             {/* Price Drop Subscription — hidden for active preorders */}
             {!((product as any).preorderEnabled && (product as any).preorderStatus === "collecting") && (
-              <div className="mb-6">
-                {priceDropSubscribed ? (
-                  <div className="flex items-center justify-center gap-2 py-2 text-sm text-green-600 dark:text-green-400">
-                    <Bell className="w-4 h-4 fill-current" />
-                    <span>Вы подписаны на снижение цены — отменить можно в личном кабинете</span>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handlePriceDropClick}
-                    disabled={isSubscribingPriceDrop}
-                    data-testid="button-price-drop-notify"
-                    className="w-full flex items-center justify-center gap-2 py-2.5 text-base font-medium text-foreground border border-dashed border-border/60 hover:border-foreground/40 rounded-full transition-all"
-                  >
-                    {isSubscribingPriceDrop ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <TrendingDown className="w-4 h-4" />
-                    )}
-                    Уведомить о снижении цены
-                  </button>
-                )}
-              </div>
+              <>
+                {/* Мобиль: полноразмерная кнопка */}
+                <div className="sm:hidden mb-6">
+                  {priceDropSubscribed ? (
+                    <div className="flex items-center justify-center gap-2 py-2 text-sm text-green-600 dark:text-green-400">
+                      <Bell className="w-4 h-4 fill-current" />
+                      <span>Вы подписаны на снижение цены — отменить можно в личном кабинете</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handlePriceDropClick}
+                      disabled={isSubscribingPriceDrop}
+                      data-testid="button-price-drop-notify"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 text-base font-medium text-foreground border border-dashed border-border/60 hover:border-foreground/40 rounded-full transition-all"
+                    >
+                      {isSubscribingPriceDrop ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingDown className="w-4 h-4" />}
+                      Уведомить о снижении цены
+                    </button>
+                  )}
+                </div>
+
+                {/* Десктоп: компактная footer-строка с Dolyame + уведомление */}
+                <div className="hidden sm:flex items-center gap-2 text-[11px] text-foreground/45 mb-5 mt-1 flex-wrap">
+                  {!isWholesale && salePrice >= 300000 && salePrice <= 3000000 && (
+                    <>
+                      <span>4 × {formatPrice(Math.round(salePrice / 4))} через Долями</span>
+                      <span className="text-foreground/25">·</span>
+                    </>
+                  )}
+                  {priceDropSubscribed ? (
+                    <span className="text-green-600 flex items-center gap-1">
+                      <Bell className="w-3 h-3 fill-current" />
+                      Подписаны на снижение цены
+                    </span>
+                  ) : (
+                    <button
+                      onClick={handlePriceDropClick}
+                      disabled={isSubscribingPriceDrop}
+                      data-testid="button-price-drop-notify-desktop"
+                      className="flex items-center gap-1 hover:text-foreground/80 transition-colors disabled:opacity-50"
+                    >
+                      {isSubscribingPriceDrop ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingDown className="w-3 h-3" />}
+                      Уведомить о снижении цены
+                    </button>
+                  )}
+                </div>
+              </>
             )}
 
             {/* Product Info Accordion */}
