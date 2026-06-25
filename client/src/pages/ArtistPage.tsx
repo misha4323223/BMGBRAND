@@ -1093,6 +1093,7 @@ export default function ArtistPage() {
         {slug && (
           <TrackList
             artistSlug={slug}
+            artistName={artistName}
             accentColor={isColored ? tc.accent : undefined}
             textColor={isColored ? tc.text : undefined}
             bgColor={isColored ? tc.bg : undefined}

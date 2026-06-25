@@ -44,13 +44,14 @@ function extractDominantColor(imgUrl: string): Promise<[number, number, number]>
 
 interface TrackListProps {
   artistSlug: string;
+  artistName?: string;
   accentColor?: string;
   textColor?: string;
   bgColor?: string;
   isColored?: boolean;
 }
 
-export function TrackList({ artistSlug, accentColor, textColor, bgColor, isColored }: TrackListProps) {
+export function TrackList({ artistSlug, artistName, accentColor, textColor, bgColor, isColored }: TrackListProps) {
   const { data, isLoading } = useQuery<{ tracks: ArtistTrack[] }>({
     queryKey: [`/api/artists/${artistSlug}/tracks`],
   });
@@ -182,14 +183,19 @@ export function TrackList({ artistSlug, accentColor, textColor, bgColor, isColor
                     )}
                   </div>
 
-                  {/* Title */}
+                  {/* Title + Artist */}
                   <div className="flex-1 min-w-0">
                     <p
-                      className="font-semibold text-sm truncate transition-colors"
+                      className="font-semibold text-sm leading-snug transition-colors line-clamp-2"
                       style={{ color: isActive ? accent : (textColor || "") }}
                     >
                       {track.title}
                     </p>
+                    {artistName && (
+                      <p className="text-xs mt-0.5 opacity-50 truncate" style={textColor ? { color: textColor } : {}}>
+                        {artistName}
+                      </p>
+                    )}
                   </div>
 
                   {/* Plays */}
