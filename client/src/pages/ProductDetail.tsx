@@ -465,6 +465,7 @@ export default function ProductDetail() {
   }, [allImages]);
   const pairCount = Math.ceil(mediaItems.length / 2) || 1;
   const [pairIdx, setPairIdx] = useState(0);
+  const [slideDir, setSlideDir] = useState<1 | -1>(1);
   
   const nextImage = () => {
     if (allImages.length > 1) {
@@ -1981,26 +1982,41 @@ export default function ProductDetail() {
                 );
               };
               return (
-                <div className="relative">
-                  <div className="flex">
-                    {leftItem && renderItem(leftItem, pairIdx * 2, 'left')}
-                    {rightItem && renderItem(rightItem, pairIdx * 2 + 1, 'right')}
-                  </div>
+                <div className="relative overflow-hidden">
+                  <AnimatePresence initial={false} custom={slideDir} mode="popLayout">
+                    <motion.div
+                      key={pairIdx}
+                      custom={slideDir}
+                      variants={{
+                        enter: (d: number) => ({ x: d > 0 ? '100%' : '-100%', opacity: 0 }),
+                        center: { x: 0, opacity: 1 },
+                        exit: (d: number) => ({ x: d > 0 ? '-100%' : '100%', opacity: 0 }),
+                      }}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+                      className="flex"
+                    >
+                      {leftItem && renderItem(leftItem, pairIdx * 2, 'left')}
+                      {rightItem && renderItem(rightItem, pairIdx * 2 + 1, 'right')}
+                    </motion.div>
+                  </AnimatePresence>
                   {pairCount > 1 && (
                     <>
                       <button
-                        onClick={() => setPairIdx(i => Math.max(0, i - 1))}
+                        onClick={() => { setSlideDir(-1); setPairIdx(i => Math.max(0, i - 1)); }}
                         disabled={pairIdx === 0}
                         data-testid="button-prev-pair-desktop"
-                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-background/80 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center hover:bg-background transition-colors disabled:opacity-0 shadow-md"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-background/80 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center hover:bg-background transition-colors disabled:opacity-0 shadow-md z-10"
                       >
                         <ChevronLeft className="w-5 h-5" />
                       </button>
                       <button
-                        onClick={() => setPairIdx(i => Math.min(pairCount - 1, i + 1))}
+                        onClick={() => { setSlideDir(1); setPairIdx(i => Math.min(pairCount - 1, i + 1)); }}
                         disabled={pairIdx === pairCount - 1}
                         data-testid="button-next-pair-desktop"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-background/80 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center hover:bg-background transition-colors disabled:opacity-0 shadow-md"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-background/80 backdrop-blur-sm text-foreground rounded-full flex items-center justify-center hover:bg-background transition-colors disabled:opacity-0 shadow-md z-10"
                       >
                         <ChevronRight className="w-5 h-5" />
                       </button>
