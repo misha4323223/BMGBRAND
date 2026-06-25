@@ -377,6 +377,7 @@ export default function ProductDetail() {
   const [lightboxImgIdx, setLightboxImgIdx] = useState(0);
   const [imgZoom, setImgZoom] = useState<{key: string, x: number, y: number} | null>(null);
   const [zoomLevels, setZoomLevels] = useState<Record<string, number>>({});
+  const [zoomCursor, setZoomCursor] = useState<{key: string, px: number, py: number} | null>(null);
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifySize, setNotifySize] = useState<string | null>(null);
   const [notifySubmitted, setNotifySubmitted] = useState<Set<string>>(new Set());
@@ -1844,36 +1845,51 @@ export default function ProductDetail() {
                 const currentZoom = zoomLevels[key] ?? 1;
                 const isZoomed = currentZoom > 1;
                 const zoomStepIdx = ZOOM_STEPS.indexOf(currentZoom);
-                const canZoomIn = item.type === 'image' && zoomStepIdx < ZOOM_STEPS.length - 1;
-                const canZoomOut = item.type === 'image' && zoomStepIdx > 0;
+                const atMax = zoomStepIdx === ZOOM_STEPS.length - 1;
                 const panX = imgZoom?.key === key ? imgZoom.x : 50;
                 const panY = imgZoom?.key === key ? imgZoom.y : 50;
+                const cursorVisible = zoomCursor?.key === key;
+                const cursorPx = cursorVisible ? zoomCursor!.px : 0;
+                const cursorPy = cursorVisible ? zoomCursor!.py : 0;
 
-                const handleZoomIn = (e: React.MouseEvent) => {
+                const handleMouseMove = item.type === 'image' ? (e: React.MouseEvent<HTMLDivElement>) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const px = e.clientX - rect.left;
+                  const py = e.clientY - rect.top;
+                  const x = (px / rect.width) * 100;
+                  const y = (py / rect.height) * 100;
+                  setZoomCursor({ key, px, py });
+                  if (isZoomed) setImgZoom({ key, x, y });
+                } : undefined;
+
+                const handleMouseLeave = item.type === 'image' ? () => {
+                  setZoomCursor(null);
+                } : undefined;
+
+                const handleClick = item.type === 'image' ? (e: React.MouseEvent<HTMLDivElement>) => {
                   e.stopPropagation();
-                  if (!canZoomIn) return;
-                  const nextZoom = ZOOM_STEPS[zoomStepIdx + 1];
-                  setZoomLevels(prev => ({ ...prev, [key]: nextZoom }));
-                  if (!isZoomed) setImgZoom({ key, x: 50, y: 50 });
-                };
-                const handleZoomOut = (e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  if (!canZoomOut) return;
-                  const prevZoom = ZOOM_STEPS[zoomStepIdx - 1];
-                  setZoomLevels(prev => ({ ...prev, [key]: prevZoom }));
-                  if (prevZoom === 1) setImgZoom(null);
-                };
+                  if (atMax) {
+                    setZoomLevels(prev => ({ ...prev, [key]: 1 }));
+                    setImgZoom(null);
+                  } else {
+                    const nextZoom = ZOOM_STEPS[zoomStepIdx + 1];
+                    setZoomLevels(prev => ({ ...prev, [key]: nextZoom }));
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                    setImgZoom({ key, x, y });
+                  }
+                } : undefined;
 
                 return (
                   <div
                     key={key}
-                    className={`${isSingle ? 'w-full' : 'flex-1'} aspect-[3/4] overflow-hidden relative${item.type === 'image' ? (isZoomed ? ' cursor-crosshair' : '') : ''}`}
-                    onMouseMove={item.type === 'image' && isZoomed ? (e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const x = ((e.clientX - rect.left) / rect.width) * 100;
-                      const y = ((e.clientY - rect.top) / rect.height) * 100;
-                      setImgZoom({ key, x, y });
-                    } : undefined}
+                    className={`${isSingle ? 'w-full' : 'flex-1'} aspect-[3/4] overflow-hidden relative select-none`}
+                    style={item.type === 'image' ? { cursor: 'none' } : undefined}
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={handleMouseLeave}
+                    onClick={handleClick}
+                    data-testid={`img-container-desktop-${key}`}
                   >
                     {item.type === 'video' ? (
                       <video
@@ -1892,7 +1908,7 @@ export default function ProductDetail() {
                         alt={getAlt(itemIdx)}
                         loading={itemIdx === 0 ? "eager" : "lazy"}
                         decoding={itemIdx === 0 ? "sync" : "async"}
-                        className="w-full h-full object-cover select-none"
+                        className="w-full h-full object-cover pointer-events-none"
                         style={isZoomed
                           ? { transform: `scale(${currentZoom})`, transformOrigin: `${panX}% ${panY}%`, transition: 'transform 0.2s ease-out' }
                           : { transform: 'scale(1)', transition: 'transform 0.25s ease-out' }
@@ -1900,26 +1916,15 @@ export default function ProductDetail() {
                         data-testid={`img-product-desktop-${key}`}
                       />
                     )}
-                    {item.type === 'image' && (
-                      <div className="absolute bottom-3 right-3 flex flex-col gap-1.5 z-10">
-                        <button
-                          onClick={handleZoomIn}
-                          disabled={!canZoomIn}
-                          data-testid={`button-zoom-in-${key}`}
-                          title="Увеличить"
-                          className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white transition-opacity hover:bg-black/60 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <ZoomIn className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={handleZoomOut}
-                          disabled={!canZoomOut}
-                          data-testid={`button-zoom-out-${key}`}
-                          title="Уменьшить"
-                          className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white transition-opacity hover:bg-black/60 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <ZoomOut className="w-4 h-4" />
-                        </button>
+                    {item.type === 'image' && cursorVisible && (
+                      <div
+                        className="absolute z-20 pointer-events-none flex items-center justify-center w-9 h-9 rounded-full bg-black/50 backdrop-blur-sm text-white shadow-lg"
+                        style={{ left: cursorPx - 18, top: cursorPy - 18, transition: 'left 0.04s, top 0.04s' }}
+                      >
+                        {atMax
+                          ? <ZoomOut className="w-4 h-4" />
+                          : <ZoomIn className="w-4 h-4" />
+                        }
                       </div>
                     )}
                   </div>
