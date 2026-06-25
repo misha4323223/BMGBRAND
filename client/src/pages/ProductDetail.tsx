@@ -373,6 +373,9 @@ export default function ProductDetail() {
   const [hintBannerVisible, setHintBannerVisible] = useState(true);
   const [zoomPos, setZoomPos] = useState<{ x: number; y: number } | null>(null);
   const [zoomEnabled, setZoomEnabled] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImgIdx, setLightboxImgIdx] = useState(0);
+  const [imgZoom, setImgZoom] = useState<{key: string, x: number, y: number} | null>(null);
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifySize, setNotifySize] = useState<string | null>(null);
   const [notifySubmitted, setNotifySubmitted] = useState<Set<string>>(new Set());
@@ -472,6 +475,17 @@ export default function ProductDetail() {
       setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
     }
   };
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxOpen(false);
+      if (e.key === 'ArrowRight') setLightboxImgIdx(i => Math.min(i + 1, allImages.length - 1));
+      if (e.key === 'ArrowLeft') setLightboxImgIdx(i => Math.max(i - 1, 0));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxOpen, allImages.length]);
 
   if (isLoading) {
     return (
@@ -833,7 +847,10 @@ export default function ProductDetail() {
             animate={{ opacity: 1 }}
             className="lg:hidden mb-4"
           >
-            <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg">
+            <div
+              className="relative aspect-[3/4] w-full overflow-hidden rounded-lg cursor-zoom-in"
+              onClick={() => { setLightboxImgIdx(safeImageIndex); setLightboxOpen(true); }}
+            >
               {safeImageIndex === 0 ? (
                 <img
                   ref={el => { if (el) el.setAttribute('fetchpriority', 'high'); }}
@@ -862,6 +879,9 @@ export default function ProductDetail() {
                   />
                 </AnimatePresence>
               )}
+              <div className="absolute bottom-3 right-3 bg-black/30 backdrop-blur-sm rounded-full p-1.5 pointer-events-none">
+                <ZoomIn className="w-4 h-4 text-white/80" />
+              </div>
 
               {/* Navigation arrows */}
               {allImages.length > 1 && (
@@ -1818,31 +1838,48 @@ export default function ProductDetail() {
               const getAlt = (itemIdx: number) => {
                 return itemIdx >= 0 ? getImageAlt(itemIdx) : '';
               };
-              const renderItem = (item: {type: 'video'|'image', url: string}, itemIdx: number, key: string) => (
-                <div key={key} className={`${isSingle ? 'w-full' : 'flex-1'} aspect-[3/4] overflow-hidden`}>
-                  {item.type === 'video' ? (
-                    <video
-                      src={item.url}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      className="w-full h-full object-cover"
-                      data-testid={`video-product-desktop-${key}`}
-                    />
-                  ) : (
-                    <img
-                      ref={itemIdx === 0 ? (el => { if (el) el.setAttribute('fetchpriority', 'high'); }) : undefined}
-                      src={item.url}
-                      alt={getAlt(itemIdx)}
-                      loading={itemIdx === 0 ? "eager" : "lazy"}
-                      decoding={itemIdx === 0 ? "sync" : "async"}
-                      className="w-full h-full object-cover"
-                      data-testid={`img-product-desktop-${key}`}
-                    />
-                  )}
-                </div>
-              );
+              const renderItem = (item: {type: 'video'|'image', url: string}, itemIdx: number, key: string) => {
+                const isZoomed = imgZoom?.key === key;
+                return (
+                  <div
+                    key={key}
+                    className={`${isSingle ? 'w-full' : 'flex-1'} aspect-[3/4] overflow-hidden relative${item.type === 'image' ? (isZoomed ? ' cursor-crosshair' : ' cursor-zoom-in') : ''}`}
+                    onMouseMove={item.type === 'image' ? (e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = ((e.clientX - rect.left) / rect.width) * 100;
+                      const y = ((e.clientY - rect.top) / rect.height) * 100;
+                      setImgZoom({ key, x, y });
+                    } : undefined}
+                    onMouseLeave={item.type === 'image' ? () => setImgZoom(null) : undefined}
+                  >
+                    {item.type === 'video' ? (
+                      <video
+                        src={item.url}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        className="w-full h-full object-cover"
+                        data-testid={`video-product-desktop-${key}`}
+                      />
+                    ) : (
+                      <img
+                        ref={itemIdx === 0 ? (el => { if (el) el.setAttribute('fetchpriority', 'high'); }) : undefined}
+                        src={item.url}
+                        alt={getAlt(itemIdx)}
+                        loading={itemIdx === 0 ? "eager" : "lazy"}
+                        decoding={itemIdx === 0 ? "sync" : "async"}
+                        className="w-full h-full object-cover select-none"
+                        style={isZoomed && imgZoom
+                          ? { transform: 'scale(2.8)', transformOrigin: `${imgZoom.x}% ${imgZoom.y}%`, transition: 'transform 0.15s ease-out' }
+                          : { transform: 'scale(1)', transition: 'transform 0.25s ease-out' }
+                        }
+                        data-testid={`img-product-desktop-${key}`}
+                      />
+                    )}
+                  </div>
+                );
+              };
               return (
                 <div className="relative">
                   <div className="flex">
@@ -1902,6 +1939,68 @@ export default function ProductDetail() {
           </motion.div>
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/92 flex items-center justify-center"
+          onClick={() => setLightboxOpen(false)}
+          data-testid="lightbox-overlay"
+        >
+          <button
+            className="absolute top-4 right-4 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2.5 transition-colors z-10"
+            onClick={() => setLightboxOpen(false)}
+            data-testid="button-lightbox-close"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          <div
+            className="max-w-[92vw] max-h-[92vh] flex items-center justify-center"
+            onClick={e => e.stopPropagation()}
+          >
+            <img
+              src={allImages[lightboxImgIdx]}
+              alt={getImageAlt(lightboxImgIdx)}
+              className="max-w-[92vw] max-h-[92vh] object-contain select-none rounded-sm"
+              data-testid="lightbox-image"
+            />
+          </div>
+
+          {lightboxImgIdx > 0 && (
+            <button
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2.5 transition-colors"
+              onClick={e => { e.stopPropagation(); setLightboxImgIdx(i => i - 1); }}
+              data-testid="button-lightbox-prev"
+            >
+              <ChevronLeft className="w-7 h-7" />
+            </button>
+          )}
+
+          {lightboxImgIdx < allImages.length - 1 && (
+            <button
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2.5 transition-colors"
+              onClick={e => { e.stopPropagation(); setLightboxImgIdx(i => i + 1); }}
+              data-testid="button-lightbox-next"
+            >
+              <ChevronRight className="w-7 h-7" />
+            </button>
+          )}
+
+          {allImages.length > 1 && (
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2">
+              {allImages.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={e => { e.stopPropagation(); setLightboxImgIdx(i); }}
+                  className={`rounded-full transition-all duration-200 ${i === lightboxImgIdx ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40 hover:bg-white/70'}`}
+                  data-testid={`button-lightbox-dot-${i}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Price Drop Email Dialog */}
       <Dialog open={priceDropDialogOpen} onOpenChange={setPriceDropDialogOpen}>
