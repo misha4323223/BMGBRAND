@@ -378,6 +378,8 @@ export default function ProductDetail() {
   const [imgZoom, setImgZoom] = useState<{key: string, x: number, y: number} | null>(null);
   const [zoomLevels, setZoomLevels] = useState<Record<string, number>>({});
   const [zoomCursor, setZoomCursor] = useState<{key: string, px: number, py: number} | null>(null);
+  const zoomCursorEls = useRef<Map<number, HTMLDivElement | null>>(new Map());
+  const zoomImgEls = useRef<Map<number, HTMLImageElement | null>>(new Map());
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifySize, setNotifySize] = useState<string | null>(null);
   const [notifySubmitted, setNotifySubmitted] = useState<Set<string>>(new Set());
@@ -1898,59 +1900,75 @@ export default function ProductDetail() {
                         const isZoomed = currentZoom > 1;
                         const zoomStepIdx = ZOOM_STEPS.indexOf(currentZoom);
                         const atMax = zoomStepIdx === ZOOM_STEPS.length - 1;
-                        const panX = imgZoom?.key === key ? imgZoom.x : 50;
-                        const panY = imgZoom?.key === key ? imgZoom.y : 50;
-                        const cursorVisible = zoomCursor?.key === key;
-                        const cursorPx = cursorVisible ? zoomCursor!.px : 0;
-                        const cursorPy = cursorVisible ? zoomCursor!.py : 0;
                         return (
                           <div
                             key={i}
                             className="flex-shrink-0 aspect-[3/4] overflow-hidden relative select-none"
                             style={{ width: `${100 / n}%`, cursor: 'none' }}
+                            onMouseEnter={() => {
+                              const el = zoomCursorEls.current.get(i);
+                              if (el) el.style.display = 'flex';
+                            }}
                             onMouseMove={(e) => {
                               const rect = e.currentTarget.getBoundingClientRect();
                               const px = e.clientX - rect.left;
                               const py = e.clientY - rect.top;
-                              setZoomCursor({ key, px, py });
-                              if (isZoomed) setImgZoom({ key, x: (px / rect.width) * 100, y: (py / rect.height) * 100 });
+                              const cursorEl = zoomCursorEls.current.get(i);
+                              if (cursorEl) {
+                                cursorEl.style.left = `${px - 16}px`;
+                                cursorEl.style.top = `${py - 16}px`;
+                              }
+                              if (isZoomed) {
+                                const imgEl = zoomImgEls.current.get(i);
+                                if (imgEl) imgEl.style.transformOrigin = `${(px / rect.width) * 100}% ${(py / rect.height) * 100}%`;
+                              }
                             }}
-                            onMouseLeave={() => setZoomCursor(null)}
+                            onMouseLeave={() => {
+                              const el = zoomCursorEls.current.get(i);
+                              if (el) el.style.display = 'none';
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const ox = ((e.clientX - rect.left) / rect.width) * 100;
+                              const oy = ((e.clientY - rect.top) / rect.height) * 100;
                               if (atMax) {
                                 setZoomLevels(prev => ({ ...prev, [key]: 1 }));
-                                setImgZoom(null);
+                                const imgEl = zoomImgEls.current.get(i);
+                                if (imgEl) imgEl.style.transformOrigin = '50% 50%';
                               } else {
                                 const nextZoom = ZOOM_STEPS[zoomStepIdx + 1];
                                 setZoomLevels(prev => ({ ...prev, [key]: nextZoom }));
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setImgZoom({ key, x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 });
+                                const imgEl = zoomImgEls.current.get(i);
+                                if (imgEl) imgEl.style.transformOrigin = `${ox}% ${oy}%`;
                               }
                             }}
                             data-testid={`img-container-desktop-${i}`}
                           >
                             <img
-                              ref={i === 0 ? (el => { if (el) el.setAttribute('fetchpriority', 'high'); }) : undefined}
+                              ref={(el) => {
+                                zoomImgEls.current.set(i, el);
+                                if (el && i === 0) el.setAttribute('fetchpriority', 'high');
+                              }}
                               src={imgUrl}
                               alt={getImageAlt(i)}
                               loading={i <= 1 ? "eager" : "lazy"}
                               decoding={i <= 1 ? "sync" : "async"}
                               className="w-full h-full object-cover pointer-events-none"
-                              style={isZoomed
-                                ? { transform: `scale(${currentZoom})`, transformOrigin: `${panX}% ${panY}%`, transition: 'transform 0.2s ease-out' }
-                                : { transform: 'scale(1)', transition: 'transform 0.25s ease-out' }
-                              }
+                              style={{
+                                transform: `scale(${currentZoom})`,
+                                transformOrigin: '50% 50%',
+                                transition: 'transform 0.2s ease-out',
+                              }}
                               data-testid={`img-product-desktop-${i}`}
                             />
-                            {cursorVisible && (
-                              <div
-                                className="absolute z-20 pointer-events-none flex items-center justify-center w-8 h-8 rounded-full bg-black/60 text-white"
-                                style={{ left: cursorPx - 16, top: cursorPy - 16 }}
-                              >
-                                {atMax ? <ZoomOut className="w-4 h-4" /> : <ZoomIn className="w-4 h-4" />}
-                              </div>
-                            )}
+                            <div
+                              ref={(el) => zoomCursorEls.current.set(i, el)}
+                              className="absolute z-20 pointer-events-none items-center justify-center w-8 h-8 rounded-full bg-black/60 text-white"
+                              style={{ display: 'none', position: 'absolute', left: 0, top: 0 }}
+                            >
+                              {atMax ? <ZoomOut className="w-4 h-4" /> : <ZoomIn className="w-4 h-4" />}
+                            </div>
                           </div>
                         );
                       })}
