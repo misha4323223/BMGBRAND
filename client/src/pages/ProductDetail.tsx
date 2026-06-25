@@ -1783,9 +1783,11 @@ export default function ProductDetail() {
                   Описание
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
-                  <p className="text-sm text-foreground/80 leading-relaxed">
-                    {product.description}
-                  </p>
+                  <div className="max-h-[220px] overflow-y-auto pr-1">
+                    <p className="text-sm text-foreground/80 leading-relaxed">
+                      {product.description}
+                    </p>
+                  </div>
                 </AccordionContent>
               </AccordionItem>
 
@@ -1796,7 +1798,7 @@ export default function ProductDetail() {
                     Таблица размеров
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <div className="overflow-x-auto">
+                    <div className="max-h-[220px] overflow-auto">
                       <table className="w-full text-sm">
                         {(() => {
                           const rows = product.measurements as SizeMeasurement[];
@@ -1849,7 +1851,7 @@ export default function ProductDetail() {
                   Состав и уход
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
-                  <div className="space-y-3 text-sm text-foreground/80">
+                  <div className="max-h-[220px] overflow-y-auto pr-1 space-y-3 text-sm text-foreground/80">
                     {product.composition && (
                       <p><span className="text-foreground font-medium">Состав:</span> {product.composition}</p>
                     )}
@@ -1868,7 +1870,7 @@ export default function ProductDetail() {
                   Примечание
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
-                  <div className="text-sm text-foreground/80 whitespace-pre-line">
+                  <div className="max-h-[220px] overflow-y-auto pr-1 text-sm text-foreground/80 whitespace-pre-line">
                     {(product as any).note}
                   </div>
                 </AccordionContent>
@@ -1881,7 +1883,7 @@ export default function ProductDetail() {
                   Доставка и возврат
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
-                  <div className="space-y-3 text-sm text-foreground/80">
+                  <div className="max-h-[220px] overflow-y-auto pr-1 space-y-3 text-sm text-foreground/80">
                     <p><span className="text-foreground font-medium">Доставка:</span> {(product as any).delivery || "По всей России от 2-х дней. Бесплатно при заказе от 5000 ₽"}</p>
                     <p><span className="text-foreground font-medium">Возврат:</span> {(product as any).returnPolicy || "14 дней на возврат товара надлежащего качества"}</p>
                   </div>
