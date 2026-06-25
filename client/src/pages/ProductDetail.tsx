@@ -1945,8 +1945,8 @@ export default function ProductDetail() {
                             />
                             {cursorVisible && (
                               <div
-                                className="absolute z-20 pointer-events-none flex items-center justify-center w-9 h-9 rounded-full bg-black/50 backdrop-blur-sm text-white shadow-lg"
-                                style={{ left: cursorPx - 18, top: cursorPy - 18, transition: 'left 0.04s, top 0.04s' }}
+                                className="absolute z-20 pointer-events-none flex items-center justify-center w-8 h-8 rounded-full bg-black/60 text-white"
+                                style={{ left: cursorPx - 16, top: cursorPy - 16 }}
                               >
                                 {atMax ? <ZoomOut className="w-4 h-4" /> : <ZoomIn className="w-4 h-4" />}
                               </div>
