@@ -296,3 +296,11 @@ body.lb-open nav {
     transform: translateX(-50%) translateY(calc(-100% - 20px)) !important;
   }
 }
+
+/* Product detail floating card — force dark readable text on desktop */
+@media (min-width: 1024px) {
+  .detail-panel [class*="text-foreground/"],
+  .detail-panel .text-muted-foreground {
+    color: hsl(var(--foreground) / 0.82) !important;
+  }
+}

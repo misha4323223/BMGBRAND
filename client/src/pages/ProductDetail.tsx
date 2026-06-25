@@ -942,10 +942,10 @@ export default function ProductDetail() {
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col order-1 lg:order-2 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:z-10 lg:bg-background/96 lg:backdrop-blur-md lg:border lg:border-border/30 lg:rounded-2xl lg:shadow-2xl lg:px-5 lg:pt-4 lg:pb-6 scrollbar-hide"
+            className="detail-panel flex flex-col order-1 lg:order-2 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:z-10 lg:bg-background/96 lg:backdrop-blur-md lg:border lg:border-border/30 lg:rounded-2xl lg:shadow-2xl lg:px-5 lg:pt-4 lg:pb-6 scrollbar-hide"
           >
             <div className="flex flex-col mb-4 sm:mb-6">
-              <span className="font-mono text-muted-foreground text-[10px] uppercase tracking-[0.3em] block mb-2" data-testid={`text-category-${product.id}`}>{product.category}</span>
+              <span className="lg:hidden font-mono text-muted-foreground text-[10px] uppercase tracking-[0.3em] block mb-2" data-testid={`text-category-${product.id}`}>{product.category}</span>
 
               {/* ── Мобильная раскладка: заголовок + 3 равных кнопки ── */}
               <div className="sm:hidden">
@@ -1026,7 +1026,7 @@ export default function ProductDetail() {
                     data-testid={`button-favorite-detail-${product.id}`}
                     title="В избранное"
                   >
-                    <Heart className={`w-3.5 h-3.5 transition-colors ${isFavorite(product.id) ? 'fill-primary text-primary' : 'text-foreground/50'}`} />
+                    <Heart className={`w-3.5 h-3.5 transition-colors ${isFavorite(product.id) ? 'fill-primary text-primary' : 'text-foreground'}`} />
                   </button>
                   <button
                     onClick={async () => {
@@ -1038,7 +1038,7 @@ export default function ProductDetail() {
                     data-testid={`button-share-product-${product.id}`}
                     title="Поделиться"
                   >
-                    {linkCopied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Share2 className="w-3.5 h-3.5 text-foreground/50" />}
+                    {linkCopied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Share2 className="w-3.5 h-3.5 text-foreground" />}
                   </button>
                   {!isWholesale && (
                     <button
@@ -1052,7 +1052,7 @@ export default function ProductDetail() {
                       data-testid={`button-hint-product-${product.id}`}
                       title={hintCopied ? 'Ссылка скопирована' : 'Намекнуть'}
                     >
-                      {hintCopied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Gift className="w-3.5 h-3.5 text-foreground/50" />}
+                      {hintCopied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Gift className="w-3.5 h-3.5 text-foreground" />}
                     </button>
                   )}
                 </div>
@@ -1361,7 +1361,7 @@ export default function ProductDetail() {
                         setSizeAdvisorResult(null);
                         setSizeAdvisorRecommended(null);
                       }}
-                      className="mt-2 sm:mt-1 flex items-center gap-1.5 px-3 sm:px-2.5 py-2 sm:py-1 rounded-xl sm:rounded-lg border border-border/70 hover:border-foreground/40 bg-muted/30 hover:bg-muted/60 transition-all text-xs font-medium text-foreground/55 hover:text-foreground"
+                      className="mt-2 sm:mt-1 flex items-center gap-1.5 px-3 sm:px-2.5 py-2 sm:py-1 rounded-xl sm:rounded-lg border border-border/70 hover:border-foreground/40 bg-muted/30 hover:bg-muted/60 transition-all text-xs font-medium text-foreground/70 hover:text-foreground"
                     >
                       <Ruler className="w-3.5 h-3.5 shrink-0" />
                       <span>{sizeAdvisorOpen ? 'Свернуть' : 'Не знаете размер? Подобрать с AI'}</span>
@@ -1736,7 +1736,7 @@ export default function ProductDetail() {
                 </div>
 
                 {/* Десктоп: компактная footer-строка с Dolyame + уведомление */}
-                <div className="hidden sm:flex items-center gap-2 text-[11px] text-foreground/45 mb-5 mt-1 flex-wrap">
+                <div className="hidden sm:flex items-center gap-2 text-[11px] text-foreground/80 mb-5 mt-1 flex-wrap">
                   {!isWholesale && salePrice >= 300000 && salePrice <= 3000000 && (
                     <>
                       <span>4 × {formatPrice(Math.round(salePrice / 4))} через Долями</span>
