@@ -1,5 +1,5 @@
 import { usePlayer } from "@/context/PlayerContext";
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Music } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Music, BrainCog } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -203,6 +203,20 @@ export function GlobalPlayer() {
                 data-testid="player-volume"
               />
             </div>
+
+            {/* BOOOM AI shortcut */}
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("open-booom-ai"))}
+              className="hidden sm:flex w-8 h-8 items-center justify-center rounded-lg transition-all flex-shrink-0 active:scale-90 gap-1"
+              style={{ color: "rgba(255,255,255,0.38)", background: "rgba(255,255,255,0.06)" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "#fff"; e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.38)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+              data-testid="player-open-ai"
+              aria-label="BOOOM AI"
+              title="BOOOM AI"
+            >
+              <BrainCog className="w-4 h-4" />
+            </button>
 
             {/* Close */}
             <button

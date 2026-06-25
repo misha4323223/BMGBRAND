@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { X, Send, ArrowRight, ImagePlus, Loader2, Bot, UserRound, Sparkles, Ruler, BrainCog } from "lucide-react";
+import { usePlayer } from "@/context/PlayerContext";
 
 // Renders AI message text with clickable markdown links [text](url)
 function AiMessageContent({ text, streaming }: { text: string; streaming?: boolean }) {
@@ -185,6 +186,14 @@ export function ChatWidget() {
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Open chat from player's AI button
+  const { currentTrack } = usePlayer();
+  useEffect(() => {
+    const handler = () => { setMode("ai"); setOpen(true); };
+    window.addEventListener("open-booom-ai", handler);
+    return () => window.removeEventListener("open-booom-ai", handler);
   }, []);
 
   useEffect(() => {
@@ -1222,8 +1231,8 @@ export function ChatWidget() {
         </div>
       )}
 
-      {/* Toggle button */}
-      <div className={`fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 transition-transform duration-300 ease-in-out ${btnHidden && !open ? 'translate-y-[88px]' : 'translate-y-0'}`}>
+      {/* Toggle button — скрывается когда плеер активен (AI встроен в панель плеера) */}
+      <div className={`fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 transition-all duration-300 ease-in-out ${(btnHidden && !open) || (!!currentTrack && !open) ? 'translate-y-[160px] opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
         {!open && unreadCount > 0 && (
           <div className="flex items-center gap-1.5 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-300">
             <span className="w-1.5 h-1.5 rounded-full bg-white/70 flex-shrink-0" />
