@@ -1891,25 +1891,69 @@ export default function ProductDetail() {
                         width: `${n * 50}%`,
                       }}
                     >
-                      {allImages.map((imgUrl, i) => (
-                        <div
-                          key={i}
-                          className="flex-shrink-0 aspect-[3/4] overflow-hidden"
-                          style={{ width: `${100 / n}%` }}
-                          data-testid={`img-container-desktop-${i}`}
-                        >
-                          <img
-                            ref={i === 0 ? (el => { if (el) el.setAttribute('fetchpriority', 'high'); }) : undefined}
-                            src={imgUrl}
-                            alt={getImageAlt(i)}
-                            loading={i <= 1 ? "eager" : "lazy"}
-                            decoding={i <= 1 ? "sync" : "async"}
-                            className="w-full h-full object-cover cursor-zoom-in"
-                            onClick={() => { setLightboxImgIdx(i); setLightboxOpen(true); }}
-                            data-testid={`img-product-desktop-${i}`}
-                          />
-                        </div>
-                      ))}
+                      {allImages.map((imgUrl, i) => {
+                        const key = `img-${i}`;
+                        const ZOOM_STEPS = [1, 2, 3];
+                        const currentZoom = zoomLevels[key] ?? 1;
+                        const isZoomed = currentZoom > 1;
+                        const zoomStepIdx = ZOOM_STEPS.indexOf(currentZoom);
+                        const atMax = zoomStepIdx === ZOOM_STEPS.length - 1;
+                        const panX = imgZoom?.key === key ? imgZoom.x : 50;
+                        const panY = imgZoom?.key === key ? imgZoom.y : 50;
+                        const cursorVisible = zoomCursor?.key === key;
+                        const cursorPx = cursorVisible ? zoomCursor!.px : 0;
+                        const cursorPy = cursorVisible ? zoomCursor!.py : 0;
+                        return (
+                          <div
+                            key={i}
+                            className="flex-shrink-0 aspect-[3/4] overflow-hidden relative select-none"
+                            style={{ width: `${100 / n}%`, cursor: 'none' }}
+                            onMouseMove={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const px = e.clientX - rect.left;
+                              const py = e.clientY - rect.top;
+                              setZoomCursor({ key, px, py });
+                              if (isZoomed) setImgZoom({ key, x: (px / rect.width) * 100, y: (py / rect.height) * 100 });
+                            }}
+                            onMouseLeave={() => setZoomCursor(null)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (atMax) {
+                                setZoomLevels(prev => ({ ...prev, [key]: 1 }));
+                                setImgZoom(null);
+                              } else {
+                                const nextZoom = ZOOM_STEPS[zoomStepIdx + 1];
+                                setZoomLevels(prev => ({ ...prev, [key]: nextZoom }));
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setImgZoom({ key, x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 });
+                              }
+                            }}
+                            data-testid={`img-container-desktop-${i}`}
+                          >
+                            <img
+                              ref={i === 0 ? (el => { if (el) el.setAttribute('fetchpriority', 'high'); }) : undefined}
+                              src={imgUrl}
+                              alt={getImageAlt(i)}
+                              loading={i <= 1 ? "eager" : "lazy"}
+                              decoding={i <= 1 ? "sync" : "async"}
+                              className="w-full h-full object-cover pointer-events-none"
+                              style={isZoomed
+                                ? { transform: `scale(${currentZoom})`, transformOrigin: `${panX}% ${panY}%`, transition: 'transform 0.2s ease-out' }
+                                : { transform: 'scale(1)', transition: 'transform 0.25s ease-out' }
+                              }
+                              data-testid={`img-product-desktop-${i}`}
+                            />
+                            {cursorVisible && (
+                              <div
+                                className="absolute z-20 pointer-events-none flex items-center justify-center w-9 h-9 rounded-full bg-black/50 backdrop-blur-sm text-white shadow-lg"
+                                style={{ left: cursorPx - 18, top: cursorPy - 18, transition: 'left 0.04s, top 0.04s' }}
+                              >
+                                {atMax ? <ZoomOut className="w-4 h-4" /> : <ZoomIn className="w-4 h-4" />}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                   {n > 2 && (
