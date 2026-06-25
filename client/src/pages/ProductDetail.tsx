@@ -841,7 +841,7 @@ export default function ProductDetail() {
         </Breadcrumb>
       </div>
       <div className="pt-3 sm:pt-5 pb-8 max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:grid lg:grid-cols-[3fr_2fr] gap-6 lg:gap-10">
+        <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-0 gap-6">
           
           {/* Mobile Image Gallery - Top on mobile */}
           <motion.div 
@@ -942,7 +942,7 @@ export default function ProductDetail() {
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col order-1 lg:order-2"
+            className="flex flex-col order-1 lg:order-2 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:-ml-28 lg:z-10 lg:bg-background/96 lg:backdrop-blur-md lg:border lg:border-border/30 lg:rounded-2xl lg:shadow-2xl lg:px-5 lg:pt-4 lg:pb-6 scrollbar-hide"
           >
             <div className="flex flex-col mb-4 sm:mb-6">
               <span className="font-mono text-muted-foreground text-[10px] uppercase tracking-[0.3em] block mb-2" data-testid={`text-category-${product.id}`}>{product.category}</span>
