@@ -376,6 +376,7 @@ export default function ProductDetail() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxImgIdx, setLightboxImgIdx] = useState(0);
   const [imgZoom, setImgZoom] = useState<{key: string, x: number, y: number} | null>(null);
+  const [zoomLevels, setZoomLevels] = useState<Record<string, number>>({});
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifySize, setNotifySize] = useState<string | null>(null);
   const [notifySubmitted, setNotifySubmitted] = useState<Set<string>>(new Set());
@@ -1838,19 +1839,41 @@ export default function ProductDetail() {
               const getAlt = (itemIdx: number) => {
                 return itemIdx >= 0 ? getImageAlt(itemIdx) : '';
               };
+              const ZOOM_STEPS = [1, 2, 3];
               const renderItem = (item: {type: 'video'|'image', url: string}, itemIdx: number, key: string) => {
-                const isZoomed = imgZoom?.key === key;
+                const currentZoom = zoomLevels[key] ?? 1;
+                const isZoomed = currentZoom > 1;
+                const zoomStepIdx = ZOOM_STEPS.indexOf(currentZoom);
+                const canZoomIn = item.type === 'image' && zoomStepIdx < ZOOM_STEPS.length - 1;
+                const canZoomOut = item.type === 'image' && zoomStepIdx > 0;
+                const panX = imgZoom?.key === key ? imgZoom.x : 50;
+                const panY = imgZoom?.key === key ? imgZoom.y : 50;
+
+                const handleZoomIn = (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  if (!canZoomIn) return;
+                  const nextZoom = ZOOM_STEPS[zoomStepIdx + 1];
+                  setZoomLevels(prev => ({ ...prev, [key]: nextZoom }));
+                  if (!isZoomed) setImgZoom({ key, x: 50, y: 50 });
+                };
+                const handleZoomOut = (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  if (!canZoomOut) return;
+                  const prevZoom = ZOOM_STEPS[zoomStepIdx - 1];
+                  setZoomLevels(prev => ({ ...prev, [key]: prevZoom }));
+                  if (prevZoom === 1) setImgZoom(null);
+                };
+
                 return (
                   <div
                     key={key}
-                    className={`${isSingle ? 'w-full' : 'flex-1'} aspect-[3/4] overflow-hidden relative${item.type === 'image' ? (isZoomed ? ' cursor-crosshair' : ' cursor-zoom-in') : ''}`}
-                    onMouseMove={item.type === 'image' ? (e) => {
+                    className={`${isSingle ? 'w-full' : 'flex-1'} aspect-[3/4] overflow-hidden relative${item.type === 'image' ? (isZoomed ? ' cursor-crosshair' : '') : ''}`}
+                    onMouseMove={item.type === 'image' && isZoomed ? (e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       const x = ((e.clientX - rect.left) / rect.width) * 100;
                       const y = ((e.clientY - rect.top) / rect.height) * 100;
                       setImgZoom({ key, x, y });
                     } : undefined}
-                    onMouseLeave={item.type === 'image' ? () => setImgZoom(null) : undefined}
                   >
                     {item.type === 'video' ? (
                       <video
@@ -1870,12 +1893,34 @@ export default function ProductDetail() {
                         loading={itemIdx === 0 ? "eager" : "lazy"}
                         decoding={itemIdx === 0 ? "sync" : "async"}
                         className="w-full h-full object-cover select-none"
-                        style={isZoomed && imgZoom
-                          ? { transform: 'scale(2.8)', transformOrigin: `${imgZoom.x}% ${imgZoom.y}%`, transition: 'transform 0.15s ease-out' }
+                        style={isZoomed
+                          ? { transform: `scale(${currentZoom})`, transformOrigin: `${panX}% ${panY}%`, transition: 'transform 0.2s ease-out' }
                           : { transform: 'scale(1)', transition: 'transform 0.25s ease-out' }
                         }
                         data-testid={`img-product-desktop-${key}`}
                       />
+                    )}
+                    {item.type === 'image' && (
+                      <div className="absolute bottom-3 right-3 flex flex-col gap-1.5 z-10">
+                        <button
+                          onClick={handleZoomIn}
+                          disabled={!canZoomIn}
+                          data-testid={`button-zoom-in-${key}`}
+                          title="Увеличить"
+                          className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white transition-opacity hover:bg-black/60 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ZoomIn className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={handleZoomOut}
+                          disabled={!canZoomOut}
+                          data-testid={`button-zoom-out-${key}`}
+                          title="Уменьшить"
+                          className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white transition-opacity hover:bg-black/60 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ZoomOut className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
