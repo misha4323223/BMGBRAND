@@ -1178,6 +1178,9 @@ export default function Admin() {
   const [selectedWholesaleClientId, setSelectedWholesaleClientId] = useState<number | null>(null);
   const [problemsFilter, setProblemsFilter] = useState<"all" | "hidden" | "noimage" | "zeroprice">("all");
   const [problemsSearch, setProblemsSearch] = useState("");
+  const [selectedProblems, setSelectedProblems] = useState<Set<number>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [thumbProgress, setThumbProgress] = useState<{ generated: number; failed: number; remaining: number; nextOffset: number } | null>(null);
   const [filterCategory, setFilterCategory] = useState<CategorySlug | "all">("all");
   const [filterSubcategory, setFilterSubcategory] = useState<string | null>(null);
@@ -11781,6 +11784,110 @@ export default function Admin() {
               </div>
             </div>
 
+            {/* Selection toolbar */}
+            {(() => {
+              const allVisible = [
+                ...(problemsFilter === "all" || problemsFilter === "hidden" ? hiddenProducts : []),
+                ...(problemsFilter === "all" || problemsFilter === "noimage" ? noImageProducts : []),
+                ...(problemsFilter === "all" || problemsFilter === "zeroprice" ? zeroPriceProducts : []),
+              ].filter(p => !problemsSearch || p.name?.toLowerCase().includes(problemsSearch.toLowerCase()));
+              const uniqueVisible = [...new Map(allVisible.map(p => [p.id, p])).values()];
+              const allSelected = uniqueVisible.length > 0 && uniqueVisible.every(p => selectedProblems.has(p.id));
+              return (
+                <div className="flex items-center gap-2 flex-wrap py-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      if (allSelected) {
+                        setSelectedProblems(new Set());
+                      } else {
+                        setSelectedProblems(new Set(uniqueVisible.map(p => p.id)));
+                      }
+                    }}
+                    data-testid="button-select-all-problems"
+                  >
+                    {allSelected ? "Снять выбор" : `Выбрать все (${uniqueVisible.length})`}
+                  </Button>
+                  {selectedProblems.size > 0 && (
+                    <>
+                      <span className="text-xs text-muted-foreground">Выбрано: {selectedProblems.size}</span>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setBulkDeleteConfirm(true)}
+                        data-testid="button-bulk-delete-problems"
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Удалить выбранные ({selectedProblems.size})
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setSelectedProblems(new Set())}
+                      >
+                        <X className="w-3 h-3 mr-1" />
+                        Сбросить
+                      </Button>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Bulk delete confirmation dialog */}
+            {bulkDeleteConfirm && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="bg-background rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                      <Trash2 className="w-5 h-5 text-destructive" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">Удалить {selectedProblems.size} товар(ов)?</h3>
+                      <p className="text-sm text-muted-foreground">Записи из БД и файлы из S3-хранилища будут удалены безвозвратно.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" size="sm" onClick={() => setBulkDeleteConfirm(false)} disabled={bulkDeleting}>
+                      Отмена
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={bulkDeleting}
+                      data-testid="button-confirm-bulk-delete"
+                      onClick={async () => {
+                        setBulkDeleting(true);
+                        try {
+                          const result = await adminFetch("/api/admin/products/bulk-delete", apiKey, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ ids: [...selectedProblems] }),
+                          });
+                          toast({ title: `Удалено ${result.deleted} товаров, файлов из S3: ${result.s3Deleted}` });
+                          setSelectedProblems(new Set());
+                          setBulkDeleteConfirm(false);
+                          refetchHidden();
+                          refetchNoImage();
+                          refetchZeroPrice();
+                        } catch (err: any) {
+                          toast({ title: "Ошибка удаления", description: err.message, variant: "destructive" });
+                        } finally {
+                          setBulkDeleting(false);
+                        }
+                      }}
+                    >
+                      {bulkDeleting ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />Удаление...</> : "Удалить"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Thumbnail Regeneration Card */}
             <Card>
               <CardContent className="p-4">
@@ -11879,52 +11986,61 @@ export default function Admin() {
                     );
                   };
 
-                  const renderProductCard = (product: Product, keyPrefix: string) => (
-                    <Card key={`${keyPrefix}-${product.id}`} className="overflow-hidden" data-testid={`card-problem-${product.id}`}>
-                      <div className="relative aspect-square bg-muted">
-                        {product.imageUrl ? (
-                          <img src={product.thumbnailUrl || product.imageUrl} alt={product.name} className={`w-full h-full object-cover ${product.isHidden ? 'opacity-50' : ''}`} />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                            <Package className="w-12 h-12 opacity-50" />
-                          </div>
-                        )}
-                        {product.isHidden && <Badge variant="destructive" className="absolute top-2 right-2">Скрыт</Badge>}
-                        {(!product.price || product.price <= 0) && <Badge variant="secondary" className="absolute top-2 left-2">0 ₽</Badge>}
-                      </div>
-                      <CardContent className="p-3">
-                        <div className="space-y-2">
-                          <h3 className="font-medium text-sm line-clamp-2">{product.name}</h3>
-                          {problemsFilter === "all" && renderReasonBadges(product)}
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>{product.sku}</span>
-                            {keyPrefix === 'zeroprice' ? (
-                              <span>Остаток: {(product as any).stock || 0}</span>
-                            ) : (
-                              <span>{(product.price / 100).toLocaleString('ru-RU')} ₽</span>
-                            )}
-                          </div>
-                          {keyPrefix === 'hidden' ? (
-                            <Button variant="default" size="sm" className="w-full" onClick={() => hideProductMutation.mutate({ productId: product.id, hidden: false })} disabled={hideProductMutation.isPending} data-testid={`button-toggle-visibility-${product.id}`}>
-                              <Check className="w-4 h-4 mr-1" />
-                              Показать
-                            </Button>
+                  const renderProductCard = (product: Product, keyPrefix: string) => {
+                    const isSelected = selectedProblems.has(product.id);
+                    return (
+                      <Card
+                        key={`${keyPrefix}-${product.id}`}
+                        className={`overflow-hidden cursor-pointer transition-all ${isSelected ? 'ring-2 ring-destructive' : ''}`}
+                        data-testid={`card-problem-${product.id}`}
+                        onClick={() => setSelectedProblems(prev => {
+                          const next = new Set(prev);
+                          if (next.has(product.id)) next.delete(product.id); else next.add(product.id);
+                          return next;
+                        })}
+                      >
+                        <div className="relative aspect-square bg-muted">
+                          {product.imageUrl ? (
+                            <img src={product.thumbnailUrl || product.imageUrl} alt={product.name} className={`w-full h-full object-cover ${product.isHidden ? 'opacity-50' : ''}`} />
                           ) : (
+                            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                              <Package className="w-12 h-12 opacity-50" />
+                            </div>
+                          )}
+                          {/* Checkbox indicator */}
+                          <div className={`absolute top-2 left-2 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-destructive border-destructive' : 'bg-background/80 border-muted-foreground/50'}`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          {product.isHidden && <Badge variant="destructive" className="absolute top-2 right-2">Скрыт</Badge>}
+                          {(!product.price || product.price <= 0) && <Badge variant="secondary" className="absolute bottom-2 left-2">0 ₽</Badge>}
+                        </div>
+                        <CardContent className="p-3">
+                          <div className="space-y-2">
+                            <h3 className="font-medium text-sm line-clamp-2">{product.name}</h3>
+                            {problemsFilter === "all" && renderReasonBadges(product)}
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>{product.sku}</span>
+                              {keyPrefix === 'zeroprice' ? (
+                                <span>Остаток: {(product as any).stock || 0}</span>
+                              ) : (
+                                <span>{(product.price / 100).toLocaleString('ru-RU')} ₽</span>
+                              )}
+                            </div>
                             <Button
                               variant={product.isHidden ? "default" : "outline"}
                               size="sm"
                               className="w-full"
-                              onClick={() => hideProductMutation.mutate({ productId: product.id, hidden: !product.isHidden })}
+                              onClick={(e) => { e.stopPropagation(); hideProductMutation.mutate({ productId: product.id, hidden: !product.isHidden }); }}
                               disabled={hideProductMutation.isPending}
                               data-testid={`button-toggle-visibility-${product.id}`}
                             >
                               {product.isHidden ? <><Eye className="w-4 h-4 mr-1" />Показать</> : <><EyeOff className="w-4 h-4 mr-1" />Скрыть</>}
                             </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  };
 
                   return (
                     <>

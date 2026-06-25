@@ -7470,6 +7470,62 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // Bulk delete products completely (YDB + S3 images) — admin only
+  app.post("/api/admin/products/bulk-delete", requireAdminOrApiKey, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "ids must be a non-empty array" });
+      }
+      const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || "";
+      const bucketPrefix = `https://storage.yandexcloud.net/${bucketName}/`;
+      let deleted = 0;
+      let s3Deleted = 0;
+      const errors: string[] = [];
+
+      for (const rawId of ids) {
+        const id = Number(rawId);
+        if (!id) continue;
+        try {
+          // Fetch product to get image URLs before deleting
+          const product = await storage.getProduct(id);
+          if (product) {
+            // Collect all image URLs (images array + thumbnailUrl + hoverThumbnailUrl)
+            const urlsToDelete: string[] = [];
+            const prod = product as any;
+            const imagesArr: string[] = Array.isArray(prod.images) ? prod.images : [];
+            for (const url of imagesArr) {
+              if (typeof url === "string" && url.startsWith(bucketPrefix)) urlsToDelete.push(url);
+            }
+            if (prod.imageUrl && prod.imageUrl.startsWith(bucketPrefix)) urlsToDelete.push(prod.imageUrl);
+            if (prod.thumbnailUrl && prod.thumbnailUrl.startsWith(bucketPrefix)) urlsToDelete.push(prod.thumbnailUrl);
+            if (prod.hoverThumbnailUrl && prod.hoverThumbnailUrl.startsWith(bucketPrefix)) urlsToDelete.push(prod.hoverThumbnailUrl);
+
+            // Deduplicate
+            const uniqueUrls = [...new Set(urlsToDelete)];
+            for (const url of uniqueUrls) {
+              const key = url.replace(bucketPrefix, "");
+              const ok = await deleteFromYandexStorage(key);
+              if (ok) s3Deleted++;
+              console.log(`[BulkDelete] S3 ${ok ? "OK" : "FAIL"}: ${key}`);
+            }
+          }
+          // Delete from YDB
+          await storage.deleteProduct(id);
+          deleted++;
+        } catch (err: any) {
+          console.error(`[BulkDelete] Error for product ${id}:`, err.message);
+          errors.push(`${id}: ${err.message}`);
+        }
+      }
+
+      res.json({ ok: true, deleted, s3Deleted, errors });
+    } catch (err: any) {
+      console.error("[BulkDelete] Fatal:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Hide/show product (admin only)
   app.post("/api/products/:id/hide", async (req, res) => {
     const expectedKey = getAdminKey();
