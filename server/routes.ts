@@ -3280,6 +3280,36 @@ BMGBRAND — официальный производитель и магазин
         if (matched.length > 0) {
           const productNames = matched.map((p: any) => `${p.name}${p.artistOnly ? " (артист)" : ""}`).join(", ");
           productContext = `\n\n## Найденные товары\nПо запросу пользователя найдены товары: ${productNames}. Карточки этих товаров будут показаны автоматически — НЕ включай ссылки в текст ответа. Просто упомяни что нашёл товары и предложи посмотреть.`;
+
+          // Auto-inject size table if user is asking about sizing and no explicit sizeProductId
+          if (!sizeAdvisorContext) {
+            const sizeKeywords = ["размер", "подбер", "мерк", "грудь", "обхват", "рост", "cm", "см", "xxl", "xl ", " xl", "подойдёт", "подойдет", "велик", "мал", "сядет", "сидит", "оверсайз", "велика", "размера"];
+            const queryLow = query.toLowerCase();
+            const isSizeQuery = sizeKeywords.some(kw => queryLow.includes(kw));
+            if (isSizeQuery) {
+              // Pick the best-matched product (first one, or one with measurements)
+              const withMeasurements = matched.find((p: any) => Array.isArray(p.measurements) && p.measurements.length > 0);
+              const sizeTarget = withMeasurements || matched[0];
+              const productName = sizeTarget.name || "товар";
+              const measurements = (sizeTarget.measurements || []) as any[];
+              if (measurements.length > 0) {
+                const rows = measurements.map((m: any) => {
+                  const parts: string[] = [`${m.size}:`];
+                  if (m.chest) parts.push(`грудь ${m.chest} см`);
+                  if (m.waist) parts.push(`талия ${m.waist} см`);
+                  if (m.hips) parts.push(`бёдра ${m.hips} см`);
+                  if (m.shoulders) parts.push(`плечи ${m.shoulders} см`);
+                  if (m.sleeves) parts.push(`рукав ${m.sleeves} см`);
+                  if (m.length) parts.push(`длина ${m.length} см`);
+                  return parts.join(" ");
+                }).join("\n");
+                sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\n\nПРАВИЛА (строго соблюдай):\n1. Если покупатель уже указал параметры тела (рост, грудь, талия и т.п.) — НЕ задавай дополнительных вопросов, сразу называй конкретный размер.\n2. Если параметры ещё не указаны — попроси только обхват груди и рост.\n3. НЕ перенаправляй к менеджеру, если таблица замеров доступна.\n\nКАК ПОДБИРАТЬ (замеры в таблице — это замеры ИЗДЕЛИЯ, а не тела):\n- Найди строку, где обхват груди изделия = обхват груди тела + 10–15 см (стандартный свободный крой, streetwear)\n- Если изделие явно оверсайз — прибавляй 15–25 см\n- Если покупатель не уточнил силуэт — рекомендуй размер для свободного кроя (+12 см) и кратко поясни\n- Всегда называй КОНКРЕТНЫЙ размер и объясни выбор в 1–2 предложениях\n\n### Таблица замеров изделия:\n${rows}`;
+                console.log(`[AI Chat] Auto-injected size table for "${productName}" (${measurements.length} rows)`);
+              } else {
+                sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\nТочная таблица замеров для этого товара ещё не заполнена. Ответь пользователю ДОСЛОВНО: "Точная таблица замеров для этого товара ещё не заполнена — рекомендую написать менеджеру" и предложи переключиться на чат с менеджером.`;
+              }
+            }
+          }
         }
       }
 
