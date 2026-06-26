@@ -285,6 +285,7 @@ export default function ProductDetail() {
         category: (product as any).category || "",
         subcategory: (product as any).subcategory || "",
         measurements: (product as any).measurements || [],
+        measurementSections: (product as any).measurementSections || [],
         preorderEnabled: (product as any).preorderEnabled || false,
         preorderStatus: (product as any).preorderStatus || null,
         preorderDeadline: (product as any).preorderDeadline || null,
@@ -398,6 +399,9 @@ export default function ProductDetail() {
   });
   const [sizeAdvisorMeasure, setSizeAdvisorMeasure] = useState(() => {
     try { return localStorage.getItem('sa_measure') || ''; } catch { return ''; }
+  });
+  const [sizeAdvisorHips, setSizeAdvisorHips] = useState(() => {
+    try { return localStorage.getItem('sa_hips') || ''; } catch { return ''; }
   });
   const [sizeAdvisorLoading, setSizeAdvisorLoading] = useState(false);
   const [sizeAdvisorResult, setSizeAdvisorResult] = useState<string | null>(null);
@@ -522,18 +526,26 @@ export default function ProductDetail() {
   }
 
   const handleSizeAdvisorSubmit = async () => {
+    const isSuit = ((product as any).measurementSections?.length ?? 0) > 0;
     if (!sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || sizeAdvisorLoading) return;
+    if (isSuit && !sizeAdvisorHips.trim()) return;
     setSizeAdvisorLoading(true);
     setSizeAdvisorResult(null);
     setSizeAdvisorRecommended(null);
     try {
       localStorage.setItem('sa_height', sizeAdvisorHeight.trim());
       localStorage.setItem('sa_measure', sizeAdvisorMeasure.trim());
+      if (isSuit) localStorage.setItem('sa_hips', sizeAdvisorHips.trim());
     } catch {}
-    const measurements = (product.measurements as SizeMeasurement[]) || [];
-    const hasWaist = measurements.some((m: SizeMeasurement) => !!m.waist);
-    const measureLabel = hasWaist ? 'обхват талии' : 'обхват груди';
-    const msgText = `Подберите мне размер для товара "${product.name}". Мой рост: ${sizeAdvisorHeight} см, ${measureLabel}: ${sizeAdvisorMeasure} см.`;
+    let msgText: string;
+    if (isSuit) {
+      msgText = `Подберите мне размер для товара "${product.name}". Мой рост: ${sizeAdvisorHeight} см, обхват груди: ${sizeAdvisorMeasure} см, обхват бёдер: ${sizeAdvisorHips} см.`;
+    } else {
+      const measurements = (product.measurements as SizeMeasurement[]) || [];
+      const hasWaist = measurements.some((m: SizeMeasurement) => !!m.waist);
+      const measureLabel = hasWaist ? 'обхват талии' : 'обхват груди';
+      msgText = `Подберите мне размер для товара "${product.name}". Мой рост: ${sizeAdvisorHeight} см, ${measureLabel}: ${sizeAdvisorMeasure} см.`;
+    }
     try {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
@@ -1413,39 +1425,64 @@ export default function ProductDetail() {
                             <Ruler className="w-4 h-4 text-primary" />
                             Подбор размера по параметрам
                           </p>
-                          <div className="flex gap-2">
-                            <div className="flex-1">
-                              <label className="text-xs text-muted-foreground mb-1 block">Рост (см)</label>
-                              <input
-                                type="number"
-                                placeholder="178"
-                                value={sizeAdvisorHeight}
-                                onChange={e => setSizeAdvisorHeight(e.target.value)}
-                                data-testid="input-size-advisor-height"
-                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors"
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <label className="text-xs text-muted-foreground mb-1 block">
-                                {(() => {
-                                  const m = (product.measurements as SizeMeasurement[]) || [];
-                                  return m.some((x: SizeMeasurement) => !!x.waist) ? 'Талия (см)' : 'Грудь (см)';
-                                })()}
-                              </label>
-                              <input
-                                type="number"
-                                placeholder="96"
-                                value={sizeAdvisorMeasure}
-                                onChange={e => setSizeAdvisorMeasure(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && handleSizeAdvisorSubmit()}
-                                data-testid="input-size-advisor-measure"
-                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors"
-                              />
-                            </div>
-                          </div>
+                          {(() => {
+                            const isSuit = ((product as any).measurementSections?.length ?? 0) > 0;
+                            const hasWaistInFlat = !isSuit && ((product.measurements as SizeMeasurement[]) || []).some((m: SizeMeasurement) => !!m.waist);
+                            return (
+                              <>
+                                <div className="flex gap-2">
+                                  <div className="flex-1">
+                                    <label className="text-xs text-muted-foreground mb-1 block">Рост (см)</label>
+                                    <input
+                                      type="number"
+                                      placeholder="178"
+                                      value={sizeAdvisorHeight}
+                                      onChange={e => setSizeAdvisorHeight(e.target.value)}
+                                      data-testid="input-size-advisor-height"
+                                      className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors"
+                                    />
+                                  </div>
+                                  <div className="flex-1">
+                                    <label className="text-xs text-muted-foreground mb-1 block">
+                                      {isSuit ? 'Грудь (см)' : hasWaistInFlat ? 'Талия (см)' : 'Грудь (см)'}
+                                    </label>
+                                    <input
+                                      type="number"
+                                      placeholder="96"
+                                      value={sizeAdvisorMeasure}
+                                      onChange={e => setSizeAdvisorMeasure(e.target.value)}
+                                      onKeyDown={e => !isSuit && e.key === 'Enter' && handleSizeAdvisorSubmit()}
+                                      data-testid="input-size-advisor-measure"
+                                      className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors"
+                                    />
+                                  </div>
+                                </div>
+                                {isSuit && (
+                                  <div className="flex gap-2">
+                                    <div className="flex-1">
+                                      <label className="text-xs text-muted-foreground mb-1 block">Бёдра (см)</label>
+                                      <input
+                                        type="number"
+                                        placeholder="100"
+                                        value={sizeAdvisorHips}
+                                        onChange={e => setSizeAdvisorHips(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleSizeAdvisorSubmit()}
+                                        data-testid="input-size-advisor-hips"
+                                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors"
+                                      />
+                                    </div>
+                                    <div className="flex-1" />
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                           <button
                             onClick={handleSizeAdvisorSubmit}
-                            disabled={!sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || sizeAdvisorLoading}
+                            disabled={(() => {
+                              const isSuit = ((product as any).measurementSections?.length ?? 0) > 0;
+                              return !sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || (isSuit && !sizeAdvisorHips.trim()) || sizeAdvisorLoading;
+                            })()}
                             data-testid="button-size-advisor-submit-inline"
                             className="w-full py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                           >

@@ -47,6 +47,7 @@ interface SizeAdvisorProduct {
   subcategory?: string;
   hasMeasurements: boolean;
   hasWaist: boolean;
+  hasSections: boolean;
 }
 
 interface ProductCard {
@@ -76,7 +77,8 @@ interface ProductPageContext {
   stock?: number;
   category?: string;
   subcategory?: string;
-  measurements?: Array<{ size: string; chest?: string; waist?: string; hips?: string; shoulders?: string; sleeves?: string; length?: string }>;
+  measurements?: Array<{ size: string; chest?: string; waist?: string; hips?: string; shoulders?: string; sleeves?: string; length?: string; sideLength?: string; bottomWidth?: string }>;
+  measurementSections?: Array<{ title: string; rows: Array<{ size: string; chest?: string; waist?: string; hips?: string; shoulders?: string; sleeves?: string; length?: string; sideLength?: string; bottomWidth?: string }> }>;
 }
 
 interface ArtistPageContext {
@@ -138,6 +140,7 @@ export function ChatWidget() {
   const [sizeAdvisorProduct, setSizeAdvisorProduct] = useState<SizeAdvisorProduct | null>(null);
   const [sizeHeight, setSizeHeight] = useState("");
   const [sizeMeasure, setSizeMeasure] = useState("");
+  const [sizeHips, setSizeHips] = useState("");
 
   // Manager chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -360,6 +363,7 @@ export function ChatWidget() {
       setSizeAdvisorProduct(ev.detail);
       setSizeHeight("");
       setSizeMeasure("");
+      setSizeHips("");
       setAiMessages([]);
       setMode("ai");
       setOpen(true);
@@ -541,9 +545,14 @@ export function ChatWidget() {
   // --- Size advisor submit ---
   const sendSizeAdvisorMessage = async () => {
     if (!sizeAdvisorProduct || !sizeHeight.trim() || !sizeMeasure.trim() || aiLoading) return;
-    const isBottoms = sizeAdvisorProduct.hasWaist;
-    const measureLabel = isBottoms ? "обхват талии" : "обхват груди";
-    const msgText = `Подберите мне размер для товара "${sizeAdvisorProduct.name}". Мой рост: ${sizeHeight} см, ${measureLabel}: ${sizeMeasure} см.`;
+    if (sizeAdvisorProduct.hasSections && !sizeHips.trim()) return;
+    let msgText: string;
+    if (sizeAdvisorProduct.hasSections) {
+      msgText = `Подберите мне размер для товара "${sizeAdvisorProduct.name}". Мой рост: ${sizeHeight} см, обхват груди: ${sizeMeasure} см, обхват бёдер: ${sizeHips} см.`;
+    } else {
+      const measureLabel = sizeAdvisorProduct.hasWaist ? "обхват талии" : "обхват груди";
+      msgText = `Подберите мне размер для товара "${sizeAdvisorProduct.name}". Мой рост: ${sizeHeight} см, ${measureLabel}: ${sizeMeasure} см.`;
+    }
     const productId = sizeAdvisorProduct.id;
     setSizeAdvisorProduct(null);
 
@@ -918,7 +927,7 @@ export function ChatWidget() {
                         </div>
                         <div>
                           <label className="text-xs text-black/50 mb-1 block">
-                            {sizeAdvisorProduct.hasWaist ? "Обхват талии (см)" : "Обхват груди (см)"}
+                            {sizeAdvisorProduct.hasSections ? "Обхват груди (см)" : sizeAdvisorProduct.hasWaist ? "Обхват талии (см)" : "Обхват груди (см)"}
                           </label>
                           <input
                             type="number"
@@ -926,13 +935,27 @@ export function ChatWidget() {
                             value={sizeMeasure}
                             onChange={e => setSizeMeasure(e.target.value)}
                             data-testid="input-size-measure"
-                            onKeyDown={e => { if (e.key === "Enter") sendSizeAdvisorMessage(); }}
+                            onKeyDown={e => { if (e.key === "Enter" && !sizeAdvisorProduct.hasSections) sendSizeAdvisorMessage(); }}
                             className="w-full px-3 py-2 rounded-xl border border-black/12 text-sm text-black placeholder-black/25 bg-black/[0.02] outline-none focus:border-black transition-colors"
                           />
                         </div>
+                        {sizeAdvisorProduct.hasSections && (
+                          <div>
+                            <label className="text-xs text-black/50 mb-1 block">Обхват бёдер (см)</label>
+                            <input
+                              type="number"
+                              placeholder="например, 100"
+                              value={sizeHips}
+                              onChange={e => setSizeHips(e.target.value)}
+                              data-testid="input-size-hips"
+                              onKeyDown={e => { if (e.key === "Enter") sendSizeAdvisorMessage(); }}
+                              className="w-full px-3 py-2 rounded-xl border border-black/12 text-sm text-black placeholder-black/25 bg-black/[0.02] outline-none focus:border-black transition-colors"
+                            />
+                          </div>
+                        )}
                         <button
                           onClick={sendSizeAdvisorMessage}
-                          disabled={!sizeHeight.trim() || !sizeMeasure.trim() || aiLoading}
+                          disabled={!sizeHeight.trim() || !sizeMeasure.trim() || (sizeAdvisorProduct.hasSections && !sizeHips.trim()) || aiLoading}
                           data-testid="button-size-advisor-submit"
                           className="w-full py-2.5 rounded-xl bg-black text-white text-sm font-medium hover:bg-black/80 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >
