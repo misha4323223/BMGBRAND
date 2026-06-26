@@ -10073,12 +10073,29 @@ export default function Admin() {
                         </div>
                         <div>
                           <Label className="text-sm">Подкатегория</Label>
-                          <Input
-                            value={productForm.subcategory}
-                            onChange={(e) => setProductForm({...productForm, subcategory: e.target.value})}
-                            placeholder="Футболки"
-                            data-testid="input-product-subcategory"
-                          />
+                          {productForm.category && mergedSubcategoriesFor(productForm.category).length > 0 ? (
+                            <Select
+                              value={productForm.subcategory || "__none__"}
+                              onValueChange={(v) => setProductForm({...productForm, subcategory: v === "__none__" ? "" : v})}
+                            >
+                              <SelectTrigger data-testid="select-product-subcategory">
+                                <SelectValue placeholder="Без подкатегории" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">Без подкатегории</SelectItem>
+                                {mergedSubcategoriesFor(productForm.category).map((sub) => (
+                                  <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              value={productForm.subcategory}
+                              onChange={(e) => setProductForm({...productForm, subcategory: e.target.value})}
+                              placeholder="Футболки"
+                              data-testid="input-product-subcategory"
+                            />
+                          )}
                         </div>
                       </div>
 
