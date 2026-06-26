@@ -8008,7 +8008,7 @@ BMGBRAND — официальный производитель и магазин
       const { 
         name, description, price, category, subcategory, additionalCategories,
         sizes, colors, composition, careInstructions, note, delivery, returnPolicy,
-        measurements, images, imageUrl, sku, color, wholesalePrice,
+        measurements, measurementSections, images, imageUrl, sku, color, wholesalePrice,
         isNew, badgeText, lookProducts, lookCategory, lookSubcategory,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate,
         stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl
@@ -8032,6 +8032,7 @@ BMGBRAND — официальный производитель и магазин
       if (delivery !== undefined) updateData.delivery = delivery;
       if (returnPolicy !== undefined) updateData.returnPolicy = returnPolicy;
       if (measurements !== undefined) updateData.measurements = measurements;
+      if (measurementSections !== undefined) updateData.measurementSections = Array.isArray(measurementSections) ? measurementSections : [];
       if (sku !== undefined) updateData.sku = sku;
       if (color !== undefined) updateData.color = color;
       if (wholesalePrice !== undefined) updateData.wholesalePrice = parseInt(wholesalePrice);
