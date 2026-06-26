@@ -312,6 +312,7 @@ export interface IStorage {
   getProductBySku(sku: string): Promise<Product | undefined>;
   getColorVariantsBySku(sku: string, excludeId?: number): Promise<Product[]>; // Get all color variants for same SKU
   getProducts(): Promise<Product[]>;
+  getAllProductsForAdmin(): Promise<Product[]>;
   getProduct(id: number): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product>;
@@ -935,6 +936,15 @@ export class DatabaseStorage implements IStorage {
       productsCache.set("all", products);
     }
     return products.filter((p: any) => !p.artistOnly);
+  }
+
+  async getAllProductsForAdmin(): Promise<Product[]> {
+    if (!driver) return devProducts;
+    const cached = productsCache.get("all");
+    if (cached) return cached;
+    const products = await this.fetchProductsFromYdb();
+    if (products.length > 0) productsCache.set("all", products);
+    return products;
   }
 
   async getProduct(id: number): Promise<Product | undefined> {

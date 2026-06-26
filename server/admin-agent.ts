@@ -69,7 +69,7 @@ export type AgentResponse = AgentWriteAction | AgentReadResult | AgentAnswer;
 async function executeReadTool(tool: string, params: any): Promise<string> {
   switch (tool) {
     case "search_products": {
-      const all = (await storage.getProducts()) as any[];
+      const all = (await storage.getAllProductsForAdmin()) as any[];
       const q = (params.query || "").toLowerCase();
       const found = all
         .filter(
