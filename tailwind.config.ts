@@ -6,8 +6,8 @@ export default {
   theme: {
     extend: {
       maxWidth: {
-        '8xl': '1440px',
-        '9xl': '1600px',
+        '8xl': '1920px',
+        '9xl': '2560px',
       },
       borderRadius: {
         lg: ".5625rem", /* 9px */
