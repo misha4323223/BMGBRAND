@@ -11375,7 +11375,12 @@ BMGBRAND — официальный производитель и магазин
                 const product = cartItems[idx]?.product;
                 const cat = (product?.category || '').toLowerCase().trim();
                 const sub = (product?.subcategory || '').toLowerCase().trim();
-                if (cats.includes(cat) || cats.includes(sub)) {
+                const addlCats = (product?.additionalCategories || []) as Array<{category: string, subcategory: string}>;
+                const addlMatch = addlCats.some((ac: any) =>
+                  cats.includes((ac.category || '').toLowerCase().trim()) ||
+                  cats.includes((ac.subcategory || '').toLowerCase().trim())
+                );
+                if (cats.includes(cat) || cats.includes(sub) || addlMatch) {
                   return sum + (item.price * item.quantity);
                 }
                 return sum;
@@ -13160,7 +13165,12 @@ BMGBRAND — официальный производитель и магазин
         eligibleAmount = cartItems.reduce((sum: number, item: any) => {
           const cat = (item.category || '').toLowerCase().trim();
           const sub = (item.subcategory || '').toLowerCase().trim();
-          if (cats.includes(cat) || cats.includes(sub)) {
+          const addlCats = (item.additionalCategories || []) as Array<{category: string, subcategory: string}>;
+          const addlMatch = addlCats.some((ac: any) =>
+            cats.includes((ac.category || '').toLowerCase().trim()) ||
+            cats.includes((ac.subcategory || '').toLowerCase().trim())
+          );
+          if (cats.includes(cat) || cats.includes(sub) || addlMatch) {
             return sum + (item.price * item.quantity);
           }
           return sum;
