@@ -1335,6 +1335,7 @@ export default function Admin() {
     returnPolicy: "",
     images: [],
     measurements: [],
+    measurementSections: [],
     lookProducts: [],
     lookCategory: "",
     lookSubcategory: "",
@@ -1426,6 +1427,18 @@ export default function Admin() {
         { size: "L",  waist: "41", hips: "53", length: "22", shoulders: "50", chest: "26" },
         { size: "XL", waist: "44", hips: "56", length: "23", shoulders: "52", chest: "27" },
         { size: "XXL",waist: "47", hips: "59", length: "24", shoulders: "54", chest: "28" },
+      ],
+    },
+    pants_suit: {
+      label: "Низ костюма / Брюки",
+      columns: ["waist", "hips", "sideLength", "bottomWidth"],
+      sizes: [
+        { size: "XS", waist: "34", hips: "46", sideLength: "98", bottomWidth: "20" },
+        { size: "S",  waist: "36", hips: "48", sideLength: "100", bottomWidth: "21" },
+        { size: "M",  waist: "38", hips: "50", sideLength: "102", bottomWidth: "22" },
+        { size: "L",  waist: "41", hips: "53", sideLength: "104", bottomWidth: "23" },
+        { size: "XL", waist: "44", hips: "56", sideLength: "106", bottomWidth: "24" },
+        { size: "XXL",waist: "47", hips: "59", sideLength: "108", bottomWidth: "25" },
       ],
     },
   };
@@ -2515,6 +2528,7 @@ export default function Admin() {
       returnPolicy: "",
       images: [],
       measurements: [],
+      measurementSections: [],
       lookProducts: [],
       lookCategory: "",
       lookSubcategory: "",
@@ -2560,6 +2574,7 @@ export default function Admin() {
         returnPolicy: product.returnPolicy || "",
         images: product.images || (product.imageUrl ? [product.imageUrl] : []),
         measurements: product.measurements || [],
+        measurementSections: product.measurementSections || [],
         lookProducts: product.lookProducts || [],
         lookCategory: product.lookCategory || "",
         lookSubcategory: product.lookSubcategory || "",
@@ -10509,127 +10524,241 @@ export default function Admin() {
 
                       {/* Measurements table */}
                       <div>
-                        <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                        {/* Mode toggle */}
+                        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                           <Label className="text-sm">Таблица обмеров</Label>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button type="button" variant="outline" size="sm" data-testid="button-measurement-template">
-                                  <Layout className="w-3 h-3 mr-1" />
-                                  Шаблон
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent>
-                                {Object.entries(MEASUREMENT_TEMPLATES).map(([key, tmpl]) => (
-                                  <DropdownMenuItem
-                                    key={key}
-                                    onClick={() => setProductForm({ ...productForm, measurements: tmpl.sizes.map(s => ({ ...s })) })}
-                                    data-testid={`menu-template-${key}`}
-                                  >
-                                    {tmpl.label}
-                                  </DropdownMenuItem>
-                                ))}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => setProductForm({ ...productForm, measurements: [] })}
-                                  className="text-destructive"
-                                  data-testid="menu-template-clear"
-                                >
-                                  Очистить таблицу
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                            <Button
+                          <div className="flex border rounded-md overflow-hidden text-xs">
+                            <button
                               type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => { setShowMeasurementCopy(true); setMeasurementCopySearch(""); }}
-                              data-testid="button-copy-measurements"
-                            >
-                              <Copy className="w-3 h-3 mr-1" />
-                              Скопировать
-                            </Button>
-                            <Button
+                              className={`px-3 py-1.5 transition-colors ${productForm.measurementSections.length === 0 ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                              onClick={() => setProductForm({ ...productForm, measurementSections: [] })}
+                            >Одна таблица</button>
+                            <button
                               type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setProductForm({
-                                ...productForm,
-                                measurements: [...productForm.measurements, { size: "" }]
-                              })}
-                              data-testid="button-add-measurement"
-                            >
-                              <Plus className="w-3 h-3 mr-1" />
-                              Строка
-                            </Button>
+                              className={`px-3 py-1.5 border-l transition-colors ${productForm.measurementSections.length > 0 ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                              onClick={() => {
+                                if (productForm.measurementSections.length === 0) {
+                                  setProductForm({ ...productForm, measurements: [], measurementSections: [{ title: "Верх", rows: [] }, { title: "Низ", rows: [] }] });
+                                }
+                              }}
+                            >Верх + Низ (костюм)</button>
                           </div>
                         </div>
-                        {productForm.measurements.length > 0 && (() => {
-                          const hasCol = (col: string) => productForm.measurements.some((r: any) => r[col]);
+
+                        {/* ── Single table mode ── */}
+                        {productForm.measurementSections.length === 0 && (() => {
+                          const rows = productForm.measurements;
+                          const hasCol = (col: string) => rows.some((r: any) => r[col]);
                           const hasAnyData = hasCol("length") || hasCol("chest") || hasCol("shoulders") || hasCol("sleeves") || hasCol("waist") || hasCol("hips");
                           const isPants = hasCol("waist") && !hasCol("sleeves");
                           const showLength = hasCol("length") || !hasAnyData;
-                          const showChest = hasCol("chest") || (!isPants && (hasCol("shoulders") || hasCol("sleeves") || !hasAnyData));
+                          const showChest = hasCol("chest") || (!isPants && !hasAnyData);
                           const showShoulders = hasCol("shoulders") || (!isPants && !hasAnyData);
                           const showSleeves = hasCol("sleeves") || (!isPants && !hasAnyData);
                           const showWaist = hasCol("waist") || !hasAnyData;
                           const showHips = hasCol("hips") || !hasAnyData;
+                          const showSideLength = hasCol("sideLength");
+                          const showBottomWidth = hasCol("bottomWidth");
                           return (
-                          <div className="border rounded-lg overflow-x-auto">
-                            <table className="w-full text-sm">
-                              <thead className="bg-muted">
-                                <tr>
-                                  <th className="p-2 text-left font-medium min-w-[70px]">Размер</th>
-                                  {showWaist && <th className="p-2 text-left font-medium min-w-[100px]">{isPants ? "Шир. по талии" : "Талия"}</th>}
-                                  {showHips && <th className="p-2 text-left font-medium min-w-[100px]">{isPants ? "Шир. по бёдрам" : "Бёдра"}</th>}
-                                  {showLength && <th className="p-2 text-left font-medium min-w-[110px]">{isPants ? "Дл. внутр. шва" : "Длина"}</th>}
-                                  {showShoulders && <th className="p-2 text-left font-medium min-w-[110px]">{isPants ? "Дл. бокового шва" : "Плечи"}</th>}
-                                  {showChest && <th className="p-2 text-left font-medium min-w-[110px]">{isPants ? "Шир. по низу" : "Грудь"}</th>}
-                                  {showSleeves && !isPants && <th className="p-2 text-left font-medium min-w-[70px]">Рукав</th>}
-                                  <th className="p-2 w-10"></th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {productForm.measurements.map((row, idx) => {
-                                  const updateRow = (field: string, value: string) => {
-                                    const newM = [...productForm.measurements];
-                                    newM[idx] = { ...row, [field]: value };
-                                    setProductForm({ ...productForm, measurements: newM });
-                                  };
-                                  return (
-                                  <tr key={idx} className="border-t">
-                                    <td className="p-1"><Input value={row.size} onChange={(e) => updateRow("size", e.target.value)} className="h-8" data-testid={`input-measurement-size-${idx}`} /></td>
-                                    {showWaist && <td className="p-1"><Input value={row.waist || ""} onChange={(e) => updateRow("waist", e.target.value)} className="h-8" placeholder="см" /></td>}
-                                    {showHips && <td className="p-1"><Input value={row.hips || ""} onChange={(e) => updateRow("hips", e.target.value)} className="h-8" placeholder="см" /></td>}
-                                    {showLength && <td className="p-1"><Input value={row.length || ""} onChange={(e) => updateRow("length", e.target.value)} className="h-8" placeholder="см" /></td>}
-                                    {showShoulders && <td className="p-1"><Input value={row.shoulders || ""} onChange={(e) => updateRow("shoulders", e.target.value)} className="h-8" placeholder="см" /></td>}
-                                    {showChest && <td className="p-1"><Input value={row.chest || ""} onChange={(e) => updateRow("chest", e.target.value)} className="h-8" placeholder="см" /></td>}
-                                    {showSleeves && !isPants && <td className="p-1"><Input value={row.sleeves || ""} onChange={(e) => updateRow("sleeves", e.target.value)} className="h-8" placeholder="см" /></td>}
-                                    <td className="p-1">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => setProductForm({
-                                          ...productForm,
-                                          measurements: productForm.measurements.filter((_, i) => i !== idx)
-                                        })}
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </Button>
-                                    </td>
-                                  </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button type="button" variant="outline" size="sm" data-testid="button-measurement-template">
+                                      <Layout className="w-3 h-3 mr-1" />Шаблон
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                    {Object.entries(MEASUREMENT_TEMPLATES).map(([key, tmpl]) => (
+                                      <DropdownMenuItem key={key} onClick={() => setProductForm({ ...productForm, measurements: tmpl.sizes.map(s => ({ ...s })) })} data-testid={`menu-template-${key}`}>
+                                        {tmpl.label}
+                                      </DropdownMenuItem>
+                                    ))}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => setProductForm({ ...productForm, measurements: [] })} className="text-destructive" data-testid="menu-template-clear">
+                                      Очистить таблицу
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                                <Button type="button" variant="outline" size="sm" onClick={() => { setShowMeasurementCopy(true); setMeasurementCopySearch(""); }} data-testid="button-copy-measurements">
+                                  <Copy className="w-3 h-3 mr-1" />Скопировать
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setProductForm({ ...productForm, measurements: [...productForm.measurements, { size: "" }] })} data-testid="button-add-measurement">
+                                  <Plus className="w-3 h-3 mr-1" />Строка
+                                </Button>
+                              </div>
+                              {rows.length > 0 ? (
+                                <div className="border rounded-lg overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead className="bg-muted">
+                                      <tr>
+                                        <th className="p-2 text-left font-medium min-w-[70px]">Размер</th>
+                                        {showWaist && <th className="p-2 text-left font-medium min-w-[110px]">Шир. в поясе</th>}
+                                        {showHips && <th className="p-2 text-left font-medium min-w-[110px]">Шир. в бёдрах</th>}
+                                        {showSideLength && <th className="p-2 text-left font-medium min-w-[110px]">Дл. по боковому</th>}
+                                        {showBottomWidth && <th className="p-2 text-left font-medium min-w-[110px]">Шир. входа в низу</th>}
+                                        {showLength && <th className="p-2 text-left font-medium min-w-[80px]">Длина</th>}
+                                        {showShoulders && !isPants && <th className="p-2 text-left font-medium min-w-[80px]">Плечи</th>}
+                                        {showChest && !isPants && <th className="p-2 text-left font-medium min-w-[80px]">Грудь</th>}
+                                        {showSleeves && !isPants && <th className="p-2 text-left font-medium min-w-[70px]">Рукав</th>}
+                                        <th className="p-2 w-10"></th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {rows.map((row: any, idx: number) => {
+                                        const updateRow = (field: string, value: string) => {
+                                          const newM = [...productForm.measurements];
+                                          newM[idx] = { ...row, [field]: value };
+                                          setProductForm({ ...productForm, measurements: newM });
+                                        };
+                                        return (
+                                          <tr key={idx} className="border-t">
+                                            <td className="p-1"><Input value={row.size} onChange={(e) => updateRow("size", e.target.value)} className="h-8" data-testid={`input-measurement-size-${idx}`} /></td>
+                                            {showWaist && <td className="p-1"><Input value={row.waist || ""} onChange={(e) => updateRow("waist", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                            {showHips && <td className="p-1"><Input value={row.hips || ""} onChange={(e) => updateRow("hips", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                            {showSideLength && <td className="p-1"><Input value={row.sideLength || ""} onChange={(e) => updateRow("sideLength", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                            {showBottomWidth && <td className="p-1"><Input value={row.bottomWidth || ""} onChange={(e) => updateRow("bottomWidth", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                            {showLength && <td className="p-1"><Input value={row.length || ""} onChange={(e) => updateRow("length", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                            {showShoulders && !isPants && <td className="p-1"><Input value={row.shoulders || ""} onChange={(e) => updateRow("shoulders", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                            {showChest && !isPants && <td className="p-1"><Input value={row.chest || ""} onChange={(e) => updateRow("chest", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                            {showSleeves && !isPants && <td className="p-1"><Input value={row.sleeves || ""} onChange={(e) => updateRow("sleeves", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                            <td className="p-1">
+                                              <Button type="button" variant="ghost" size="icon" onClick={() => setProductForm({ ...productForm, measurements: productForm.measurements.filter((_, i) => i !== idx) })}>
+                                                <Trash2 className="w-3 h-3" />
+                                              </Button>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">Выберите шаблон или добавьте строки вручную</p>
+                              )}
+                            </div>
                           );
                         })()}
-                        {productForm.measurements.length === 0 && (
-                          <p className="text-xs text-muted-foreground">Выберите шаблон или добавьте строки вручную</p>
+
+                        {/* ── Multi-section mode (suits: top + bottom) ── */}
+                        {productForm.measurementSections.length > 0 && (
+                          <div className="space-y-4">
+                            {productForm.measurementSections.map((section: any, sIdx: number) => {
+                              const updateSection = (patch: any) => {
+                                const newSections = [...productForm.measurementSections];
+                                newSections[sIdx] = { ...section, ...patch };
+                                setProductForm({ ...productForm, measurementSections: newSections });
+                              };
+                              const updateSectionRow = (rIdx: number, field: string, value: string) => {
+                                const newRows = [...section.rows];
+                                newRows[rIdx] = { ...newRows[rIdx], [field]: value };
+                                updateSection({ rows: newRows });
+                              };
+                              const isBottom = section.rows.some((r: any) => r.waist || r.hips || r.sideLength || r.bottomWidth) && !section.rows.some((r: any) => r.sleeves || r.chest);
+                              const hasAny = section.rows.some((r: any) => r.waist || r.hips || r.sideLength || r.bottomWidth || r.length || r.chest || r.shoulders || r.sleeves);
+                              const showWaist = section.rows.some((r: any) => r.waist) || isBottom || !hasAny;
+                              const showHips = section.rows.some((r: any) => r.hips) || isBottom || !hasAny;
+                              const showSideLength = section.rows.some((r: any) => r.sideLength) || isBottom || !hasAny;
+                              const showBottomWidth = section.rows.some((r: any) => r.bottomWidth) || isBottom || !hasAny;
+                              const showLength = section.rows.some((r: any) => r.length) || (!isBottom && !hasAny);
+                              const showShoulders = section.rows.some((r: any) => r.shoulders) || (!isBottom && !hasAny);
+                              const showChest = section.rows.some((r: any) => r.chest) || (!isBottom && !hasAny);
+                              const showSleeves = section.rows.some((r: any) => r.sleeves) || (!isBottom && !hasAny);
+                              return (
+                                <div key={sIdx} className="border rounded-lg p-3 space-y-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Input
+                                      value={section.title}
+                                      onChange={(e) => updateSection({ title: e.target.value })}
+                                      className="h-8 w-32 font-medium text-sm"
+                                      placeholder="Название секции"
+                                    />
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button type="button" variant="outline" size="sm">
+                                          <Layout className="w-3 h-3 mr-1" />Шаблон
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent>
+                                        {Object.entries(MEASUREMENT_TEMPLATES).map(([key, tmpl]) => (
+                                          <DropdownMenuItem key={key} onClick={() => updateSection({ rows: tmpl.sizes.map(s => ({ ...s })) })}>
+                                            {tmpl.label}
+                                          </DropdownMenuItem>
+                                        ))}
+                                        <DropdownMenuItem onClick={() => updateSection({ rows: MEASUREMENT_TEMPLATES.pants_suit.sizes.map(s => ({ ...s })) })}>
+                                          {MEASUREMENT_TEMPLATES.pants_suit.label}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => updateSection({ rows: [] })} className="text-destructive">
+                                          Очистить
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => updateSection({ rows: [...section.rows, { size: "" }] })}>
+                                      <Plus className="w-3 h-3 mr-1" />Строка
+                                    </Button>
+                                    <Button
+                                      type="button" variant="ghost" size="sm" className="ml-auto text-destructive"
+                                      onClick={() => setProductForm({ ...productForm, measurementSections: productForm.measurementSections.filter((_: any, i: number) => i !== sIdx) })}
+                                    >
+                                      <Trash2 className="w-3 h-3 mr-1" />Удалить секцию
+                                    </Button>
+                                  </div>
+                                  {section.rows.length > 0 ? (
+                                    <div className="border rounded overflow-x-auto">
+                                      <table className="w-full text-sm">
+                                        <thead className="bg-muted">
+                                          <tr>
+                                            <th className="p-2 text-left font-medium min-w-[70px]">Размер</th>
+                                            {showWaist && <th className="p-2 text-left font-medium min-w-[110px]">Шир. в поясе</th>}
+                                            {showHips && <th className="p-2 text-left font-medium min-w-[110px]">Шир. в бёдрах</th>}
+                                            {showSideLength && <th className="p-2 text-left font-medium min-w-[120px]">Дл. по боковому</th>}
+                                            {showBottomWidth && <th className="p-2 text-left font-medium min-w-[130px]">Шир. входа в низу</th>}
+                                            {showLength && <th className="p-2 text-left font-medium min-w-[80px]">Длина</th>}
+                                            {showShoulders && <th className="p-2 text-left font-medium min-w-[80px]">Плечи</th>}
+                                            {showChest && <th className="p-2 text-left font-medium min-w-[80px]">Грудь</th>}
+                                            {showSleeves && <th className="p-2 text-left font-medium min-w-[70px]">Рукав</th>}
+                                            <th className="p-2 w-10"></th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {section.rows.map((row: any, rIdx: number) => (
+                                            <tr key={rIdx} className="border-t">
+                                              <td className="p-1"><Input value={row.size} onChange={(e) => updateSectionRow(rIdx, "size", e.target.value)} className="h-8" /></td>
+                                              {showWaist && <td className="p-1"><Input value={row.waist || ""} onChange={(e) => updateSectionRow(rIdx, "waist", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                              {showHips && <td className="p-1"><Input value={row.hips || ""} onChange={(e) => updateSectionRow(rIdx, "hips", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                              {showSideLength && <td className="p-1"><Input value={row.sideLength || ""} onChange={(e) => updateSectionRow(rIdx, "sideLength", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                              {showBottomWidth && <td className="p-1"><Input value={row.bottomWidth || ""} onChange={(e) => updateSectionRow(rIdx, "bottomWidth", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                              {showLength && <td className="p-1"><Input value={row.length || ""} onChange={(e) => updateSectionRow(rIdx, "length", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                              {showShoulders && <td className="p-1"><Input value={row.shoulders || ""} onChange={(e) => updateSectionRow(rIdx, "shoulders", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                              {showChest && <td className="p-1"><Input value={row.chest || ""} onChange={(e) => updateSectionRow(rIdx, "chest", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                              {showSleeves && <td className="p-1"><Input value={row.sleeves || ""} onChange={(e) => updateSectionRow(rIdx, "sleeves", e.target.value)} className="h-8" placeholder="см" /></td>}
+                                              <td className="p-1">
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => updateSection({ rows: section.rows.filter((_: any, i: number) => i !== rIdx) })}>
+                                                  <Trash2 className="w-3 h-3" />
+                                                </Button>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">Выберите шаблон или добавьте строки вручную</p>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            <Button
+                              type="button" variant="outline" size="sm"
+                              onClick={() => setProductForm({ ...productForm, measurementSections: [...productForm.measurementSections, { title: "Секция", rows: [] }] })}
+                            >
+                              <Plus className="w-3 h-3 mr-1" />Добавить секцию
+                            </Button>
+                          </div>
                         )}
-                        {showMeasurementCopy && (
+
+                        {showMeasurementCopy && productForm.measurementSections.length === 0 && (
                           <div className="mt-3 border rounded-lg p-3 space-y-2">
                             <div className="flex items-center justify-between gap-2">
                               <Label className="text-sm">Скопировать обмеры из товара</Label>
@@ -10657,10 +10786,7 @@ export default function Admin() {
                                     type="button"
                                     className="w-full text-left p-2 rounded text-sm hover-elevate flex items-center justify-between gap-2"
                                     onClick={() => {
-                                      setProductForm({
-                                        ...productForm,
-                                        measurements: (p.measurements as any[]).map((m: any) => ({ ...m }))
-                                      });
+                                      setProductForm({ ...productForm, measurements: (p.measurements as any[]).map((m: any) => ({ ...m })) });
                                       setShowMeasurementCopy(false);
                                       toast({ title: `Обмеры скопированы из "${p.name}"` });
                                     }}
@@ -11068,7 +11194,8 @@ export default function Admin() {
                               wholesalePrice: parseInt(productForm.wholesalePrice) || undefined,
                               discountPercent: productForm.discountPercent ? parseInt(productForm.discountPercent) : 0,
                               salePrice: productForm.salePrice ? parseInt(productForm.salePrice) : null,
-                              measurements: productForm.measurements.length > 0 ? productForm.measurements : undefined,
+                              measurements: productForm.measurementSections.length > 0 ? [] : (productForm.measurements.length > 0 ? productForm.measurements : undefined),
+                              measurementSections: productForm.measurementSections.length > 0 ? productForm.measurementSections : [],
                               lookProducts: productForm.lookProducts.length > 0 ? productForm.lookProducts : [],
                               lookCategory: productForm.lookCategory || null,
                               lookSubcategory: productForm.lookSubcategory || null,

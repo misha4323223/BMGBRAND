@@ -114,8 +114,16 @@ export type SizeMeasurement = {
   chest?: string;       // Обхват груди
   shoulders?: string;   // Ширина плеч
   sleeves?: string;     // Длина рукава
-  waist?: string;       // Обхват талии
-  hips?: string;        // Обхват бёдер
+  waist?: string;       // Ширина в поясе
+  hips?: string;        // Ширина в бёдрах
+  sideLength?: string;  // Длина по боковому шву
+  bottomWidth?: string; // Ширина входа в низу
+};
+
+// Type for multi-section size table (e.g. suits: top + bottom)
+export type MeasurementSection = {
+  title: string;        // "Верх", "Низ", etc.
+  rows: SizeMeasurement[];
 };
 
 export const products = pgTable("products", {
@@ -148,7 +156,8 @@ export const products = pgTable("products", {
   sizeStock: jsonb("size_stock").$type<Record<string, number>>(), // Stock per size: {"XS": 1, "S": 4, "M": 6}
   sizeDiscounts: jsonb("size_discounts").$type<Record<string, number>>(), // Discounts per size in %: {"XS": 30, "L": 20}
   // Measurements & Care info (for clothing only)
-  measurements: jsonb("measurements").$type<SizeMeasurement[]>(), // Size chart with measurements
+  measurements: jsonb("measurements").$type<SizeMeasurement[]>(), // Size chart with measurements (single table)
+  measurementSections: jsonb("measurement_sections").$type<MeasurementSection[]>(), // Multi-section size chart (e.g. top + bottom for suits)
   composition: text("composition"), // e.g. "100% хлопок" - состав
   careInstructions: text("care_instructions"), // e.g. "Машинная стирка при 30°" - уход
   note: text("note"), // Примечание к товару

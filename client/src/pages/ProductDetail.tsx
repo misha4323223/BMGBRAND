@@ -1792,55 +1792,116 @@ export default function ProductDetail() {
                 </AccordionContent>
               </AccordionItem>
 
-              {/* Measurements - show for any product that has measurements data */}
-              {product.measurements && (product.measurements as SizeMeasurement[]).length > 0 && (
+              {/* Measurements - multi-section (suits) or single table */}
+              {((product as any).measurementSections?.length > 0 || (product.measurements && (product.measurements as SizeMeasurement[]).length > 0)) && (
                 <AccordionItem value="measurements" className="border-b border-border">
                   <AccordionTrigger className="py-4 text-sm font-medium text-foreground hover:no-underline" data-testid="accordion-measurements">
                     Таблица размеров
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <div className="max-h-[220px] overflow-auto">
-                      <table className="w-full text-sm">
-                        {(() => {
-                          const rows = product.measurements as SizeMeasurement[];
-                          const hasLength = rows.some(r => r.length);
-                          const hasChest = rows.some(r => r.chest);
-                          const hasShoulders = rows.some(r => r.shoulders);
-                          const hasSleeves = rows.some(r => r.sleeves);
+                    {(product as any).measurementSections?.length > 0 ? (
+                      /* Multi-section: Верх + Низ (костюм) */
+                      <div className="space-y-4">
+                        {((product as any).measurementSections as Array<{ title: string; rows: SizeMeasurement[] }>).map((section, sIdx) => {
+                          const rows = section.rows;
                           const hasWaist = rows.some(r => r.waist);
                           const hasHips = rows.some(r => r.hips);
-                          const isPants = hasWaist && !hasSleeves;
+                          const hasSideLength = rows.some(r => r.sideLength);
+                          const hasBottomWidth = rows.some(r => r.bottomWidth);
+                          const hasLength = rows.some(r => r.length);
+                          const hasShoulders = rows.some(r => r.shoulders);
+                          const hasChest = rows.some(r => r.chest);
+                          const hasSleeves = rows.some(r => r.sleeves);
                           return (
-                            <>
-                              <thead>
-                                <tr className="border-b border-border">
-                                  <th className="py-2 pr-4 text-left font-medium text-foreground">Размер</th>
-                                  {hasWaist && <th className="py-2 px-2 text-left font-medium text-foreground">{isPants ? "Шир. по талии" : "Талия"}</th>}
-                                  {hasHips && <th className="py-2 px-2 text-left font-medium text-foreground">{isPants ? "Шир. по бёдрам" : "Бёдра"}</th>}
-                                  {hasLength && <th className="py-2 px-2 text-left font-medium text-foreground">{isPants ? "Дл. внутр. шва" : "Длина"}</th>}
-                                  {hasShoulders && <th className="py-2 px-2 text-left font-medium text-foreground">{isPants ? "Дл. бокового шва" : "Плечи"}</th>}
-                                  {hasChest && <th className="py-2 px-2 text-left font-medium text-foreground">{isPants ? "Шир. по низу" : "Грудь"}</th>}
-                                  {hasSleeves && !isPants && <th className="py-2 px-2 text-left font-medium text-foreground">Рукав</th>}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {rows.map((row) => (
-                                  <tr key={row.size} className="border-b border-border/50">
-                                    <td className="py-2 pr-4 font-medium text-foreground">{row.size}</td>
-                                    {hasWaist && <td className="py-2 px-2 text-foreground/75">{row.waist || "—"}</td>}
-                                    {hasHips && <td className="py-2 px-2 text-foreground/75">{row.hips || "—"}</td>}
-                                    {hasLength && <td className="py-2 px-2 text-foreground/75">{row.length || "—"}</td>}
-                                    {hasShoulders && <td className="py-2 px-2 text-foreground/75">{row.shoulders || "—"}</td>}
-                                    {hasChest && <td className="py-2 px-2 text-foreground/75">{row.chest || "—"}</td>}
-                                    {hasSleeves && !isPants && <td className="py-2 px-2 text-foreground/75">{row.sleeves || "—"}</td>}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </>
+                            <div key={sIdx}>
+                              <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wide mb-2">{section.title}</p>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b border-border">
+                                      <th className="py-2 pr-4 text-left font-medium text-foreground">Размер</th>
+                                      {hasWaist && <th className="py-2 px-2 text-left font-medium text-foreground">Шир. в поясе</th>}
+                                      {hasHips && <th className="py-2 px-2 text-left font-medium text-foreground">Шир. в бёдрах</th>}
+                                      {hasSideLength && <th className="py-2 px-2 text-left font-medium text-foreground">Дл. по боковому</th>}
+                                      {hasBottomWidth && <th className="py-2 px-2 text-left font-medium text-foreground">Шир. входа в низу</th>}
+                                      {hasLength && <th className="py-2 px-2 text-left font-medium text-foreground">Длина</th>}
+                                      {hasShoulders && <th className="py-2 px-2 text-left font-medium text-foreground">Плечи</th>}
+                                      {hasChest && <th className="py-2 px-2 text-left font-medium text-foreground">Грудь</th>}
+                                      {hasSleeves && <th className="py-2 px-2 text-left font-medium text-foreground">Рукав</th>}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {rows.map((row, rIdx) => (
+                                      <tr key={rIdx} className="border-b border-border/50">
+                                        <td className="py-2 pr-4 font-medium text-foreground">{row.size}</td>
+                                        {hasWaist && <td className="py-2 px-2 text-foreground/75">{row.waist || "—"}</td>}
+                                        {hasHips && <td className="py-2 px-2 text-foreground/75">{row.hips || "—"}</td>}
+                                        {hasSideLength && <td className="py-2 px-2 text-foreground/75">{row.sideLength || "—"}</td>}
+                                        {hasBottomWidth && <td className="py-2 px-2 text-foreground/75">{row.bottomWidth || "—"}</td>}
+                                        {hasLength && <td className="py-2 px-2 text-foreground/75">{row.length || "—"}</td>}
+                                        {hasShoulders && <td className="py-2 px-2 text-foreground/75">{row.shoulders || "—"}</td>}
+                                        {hasChest && <td className="py-2 px-2 text-foreground/75">{row.chest || "—"}</td>}
+                                        {hasSleeves && <td className="py-2 px-2 text-foreground/75">{row.sleeves || "—"}</td>}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
                           );
-                        })()}
-                      </table>
-                    </div>
+                        })}
+                      </div>
+                    ) : (
+                      /* Single table */
+                      <div className="max-h-[220px] overflow-auto">
+                        <table className="w-full text-sm">
+                          {(() => {
+                            const rows = product.measurements as SizeMeasurement[];
+                            const hasLength = rows.some(r => r.length);
+                            const hasChest = rows.some(r => r.chest);
+                            const hasShoulders = rows.some(r => r.shoulders);
+                            const hasSleeves = rows.some(r => r.sleeves);
+                            const hasWaist = rows.some(r => r.waist);
+                            const hasHips = rows.some(r => r.hips);
+                            const hasSideLength = rows.some(r => r.sideLength);
+                            const hasBottomWidth = rows.some(r => r.bottomWidth);
+                            const isPants = hasWaist && !hasSleeves;
+                            return (
+                              <>
+                                <thead>
+                                  <tr className="border-b border-border">
+                                    <th className="py-2 pr-4 text-left font-medium text-foreground">Размер</th>
+                                    {hasWaist && <th className="py-2 px-2 text-left font-medium text-foreground">Шир. в поясе</th>}
+                                    {hasHips && <th className="py-2 px-2 text-left font-medium text-foreground">Шир. в бёдрах</th>}
+                                    {hasSideLength && <th className="py-2 px-2 text-left font-medium text-foreground">Дл. по боковому</th>}
+                                    {hasBottomWidth && <th className="py-2 px-2 text-left font-medium text-foreground">Шир. входа в низу</th>}
+                                    {hasLength && <th className="py-2 px-2 text-left font-medium text-foreground">{isPants ? "Длина" : "Длина"}</th>}
+                                    {hasShoulders && <th className="py-2 px-2 text-left font-medium text-foreground">Плечи</th>}
+                                    {hasChest && <th className="py-2 px-2 text-left font-medium text-foreground">Грудь</th>}
+                                    {hasSleeves && !isPants && <th className="py-2 px-2 text-left font-medium text-foreground">Рукав</th>}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {rows.map((row, idx) => (
+                                    <tr key={idx} className="border-b border-border/50">
+                                      <td className="py-2 pr-4 font-medium text-foreground">{row.size}</td>
+                                      {hasWaist && <td className="py-2 px-2 text-foreground/75">{row.waist || "—"}</td>}
+                                      {hasHips && <td className="py-2 px-2 text-foreground/75">{row.hips || "—"}</td>}
+                                      {hasSideLength && <td className="py-2 px-2 text-foreground/75">{row.sideLength || "—"}</td>}
+                                      {hasBottomWidth && <td className="py-2 px-2 text-foreground/75">{row.bottomWidth || "—"}</td>}
+                                      {hasLength && <td className="py-2 px-2 text-foreground/75">{row.length || "—"}</td>}
+                                      {hasShoulders && <td className="py-2 px-2 text-foreground/75">{row.shoulders || "—"}</td>}
+                                      {hasChest && <td className="py-2 px-2 text-foreground/75">{row.chest || "—"}</td>}
+                                      {hasSleeves && !isPants && <td className="py-2 px-2 text-foreground/75">{row.sleeves || "—"}</td>}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </>
+                            );
+                          })()}
+                        </table>
+                      </div>
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               )}

@@ -786,6 +786,16 @@ export class DatabaseStorage implements IStorage {
         }
         return [];
       })(),
+      measurementSections: (() => {
+        if (data.measurement_sections) {
+          if (typeof data.measurement_sections === 'string') {
+            try { return JSON.parse(data.measurement_sections); } catch { return []; }
+          } else if (Array.isArray(data.measurement_sections)) {
+            return data.measurement_sections;
+          }
+        }
+        return [];
+      })(),
       lookProducts: (() => {
         if (data.look_products) {
           if (typeof data.look_products === 'string') {
@@ -1386,6 +1396,12 @@ export class DatabaseStorage implements IStorage {
         declareStatements += 'DECLARE $measurements AS Json;\n';
         setClauses.push('measurements = $measurements');
         params.$measurements = TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).measurements));
+      }
+
+      if ((p as any).measurementSections !== undefined) {
+        declareStatements += 'DECLARE $measurement_sections AS Json;\n';
+        setClauses.push('measurement_sections = $measurement_sections');
+        params.$measurement_sections = TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).measurementSections));
       }
       
       if ((p as any).composition !== undefined) {
