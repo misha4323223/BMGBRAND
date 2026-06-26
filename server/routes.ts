@@ -9611,21 +9611,113 @@ BMGBRAND — официальный производитель и магазин
         return true;
       });
       
-      // Search filter (priority - works across all products)
+      // Smart search filter with synonym expansion and relevance scoring
       if (search && search.trim().length >= 2) {
-        const searchTerms = search.toLowerCase().trim().split(/\s+/);
-        filtered = filtered.filter(p => {
+        // Each group is one semantic concept. Query tokens activate groups; products are
+        // scored by the fraction of activated groups they satisfy.
+        const SYNONYM_GROUPS: string[][] = [
+          // warmth / materials
+          ["тёпл", "тепл", "флис", "fleece", "утепл", "зимн", "шерст", "wool", "плюш", "thick"],
+          ["лёгк", "легк", "летн", "хлопок", "cotton", "тонк"],
+          // categories
+          ["костюм", "suit", "комплект"],
+          ["толстовк", "худи", "hoodie", "свитшот", "sweatshirt"],
+          ["футболк", "tshirt", "t-shirt"],
+          ["свитер", "sweater", "джемпер", "jumper", "кофт"],
+          ["штаны", "брюки", "джоггер", "jogger", "pants", "трек"],
+          ["шорты", "shorts"],
+          ["носки", "носк", "socks"],
+          ["куртк", "jacket", "coat", "пальто"],
+          ["платье", "dress"],
+          ["юбка", "skirt"],
+          // style / fit (deduplicated)
+          ["оверсайз", "oversized", "oversize", "широк", "свободн"],
+          ["базов", "basic", "classic", "класс"],
+          ["винтаж", "vintage", "retro", "ретро"],
+          ["спорт", "sport", "active"],
+          ["slim", "слим", "зауженн", "облегающ"],
+          ["wide-leg", "широкие"],
+          // colours
+          ["черн", "black"],
+          ["бел", "white", "cream", "молочн", "айвор"],
+          ["серый", "grey", "gray"],
+          ["красн", "малинов"],
+          ["синий", "blue", "navy"],
+          ["зелён", "зелен", "хаки", "khaki", "olive", "олив"],
+          ["бежев", "beige", "кремов", "camel", "кэмел"],
+          ["розов", "pink"],
+          ["желт", "yellow"],
+          ["оранж", "orange"],
+          ["фиолет", "purple", "сирен", "лаванд"],
+          ["коричн", "brown", "шоколад"],
+          // prints / art
+          ["принт", "print", "график", "рисунок"],
+          ["вышивк", "embroid", "вышит"],
+          ["полос", "stripe"],
+          ["клетк", "plaid"],
+        ];
+
+        const MIN_TOKEN_LEN_FOR_REVERSE_MATCH = 4; // avoid over-activation on 2–3 char tokens
+
+        const tokens = search.toLowerCase().trim().split(/\s+/);
+        const activatedGroupIndices = new Set<number>();
+        const rawTokensNotInGroups: string[] = [];
+
+        for (const token of tokens) {
+          let matched = false;
+          SYNONYM_GROUPS.forEach((group, idx) => {
+            if (group.some(syn =>
+              token.includes(syn) ||
+              // Allow reverse (syn contains token) only for sufficiently long tokens
+              (token.length >= MIN_TOKEN_LEN_FOR_REVERSE_MATCH && syn.includes(token))
+            )) {
+              activatedGroupIndices.add(idx);
+              matched = true;
+            }
+          });
+          if (!matched) rawTokensNotInGroups.push(token);
+        }
+
+        // Minimum fraction of activated concept-groups a product must satisfy
+        const SCORE_THRESHOLD = 0.5;
+
+        interface ScoredProduct { product: (typeof filtered)[0]; score: number }
+        const scored: ScoredProduct[] = [];
+
+        for (const p of filtered) {
           const searchableText = [
-            p.name,
-            p.description,
-            p.sku,
-            p.category,
-            p.subcategory,
-            p.color
+            p.name, p.description, p.sku, p.category, p.subcategory, p.color
           ].filter(Boolean).join(' ').toLowerCase();
-          
-          return searchTerms.every(term => searchableText.includes(term));
-        });
+
+          // All raw (non-synonym) tokens must be present literally
+          if (!rawTokensNotInGroups.every(t => searchableText.includes(t))) continue;
+
+          const totalGroups = activatedGroupIndices.size;
+          if (totalGroups === 0) {
+            // No synonym groups activated — pure literal match, include as-is
+            scored.push({ product: p, score: 1 });
+            continue;
+          }
+
+          let groupHits = 0;
+          for (const idx of activatedGroupIndices) {
+            if (SYNONYM_GROUPS[idx].some(syn => searchableText.includes(syn))) groupHits++;
+          }
+
+          const score = groupHits / totalGroups;
+          if (score >= SCORE_THRESHOLD) scored.push({ product: p, score });
+        }
+
+        if (activatedGroupIndices.size === 0) {
+          // Fallback: classic all-terms literal match
+          filtered = filtered.filter(p => {
+            const text = [p.name, p.description, p.sku, p.category, p.subcategory, p.color]
+              .filter(Boolean).join(' ').toLowerCase();
+            return tokens.every(t => text.includes(t));
+          });
+        } else {
+          filtered = scored.sort((a, b) => b.score - a.score).map(s => s.product);
+        }
       } else if (onSale) {
         filtered = filtered.filter(p => p.onSale === true);
       } else if (category) {

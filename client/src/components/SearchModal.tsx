@@ -106,7 +106,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Поиск товаров..."
+                placeholder="Например: тёплый костюм, чёрные джоггеры..."
                 className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground/60 outline-none text-base sm:text-lg font-normal"
                 data-testid="input-search"
               />
