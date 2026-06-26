@@ -3134,7 +3134,23 @@ BMGBRAND — официальный производитель и магазин
           const progressPart = (p.preorderGoal && p.preorderGoal > 0) ? `, собрано заявок: ${p.preorderCurrent || 0} из ${p.preorderGoal}` : "";
           preorderNote = `\n\nВАЖНО: это товар ПРЕДЗАКАЗА (статус: ${statusLabel}${deadlinePart}${progressPart}). Покупатель оформляет заявку заранее и ждёт производства. Если спрашивают про сроки, как это работает, или когда придёт — объясни схему предзаказа. Не говори что карточка пустая — это нормально для предзаказного товара.`;
         }
-        pageContextStr = `\n\n## Текущий товар (пользователь смотрит эту карточку прямо сейчас)\n- Название: ${p.name}\n- Цена: ${priceStr}\n- Цвет: ${p.color || "не указан"}\n- Состав: ${p.composition || "не указан"}\n- Описание: ${(p.description || "").slice(0, 400)}\n- Наличие по размерам: ${stockStr}\n- Категория: ${category}\n\nЕсли пользователь спрашивает про этот товар (состав, размеры, цвет, наличие) — отвечай на основе этих данных.${triggerNote}${lowStockNote}${crossSellHint}${preorderNote}`;
+        // Build size table section if measurements are available
+        const pageMeasurements = (p.measurements || []) as any[];
+        let pageSizeTableStr = "";
+        if (pageMeasurements.length > 0) {
+          const rows = pageMeasurements.map((m: any) => {
+            const parts: string[] = [`${m.size}:`];
+            if (m.chest) parts.push(`грудь ${m.chest} см`);
+            if (m.waist) parts.push(`талия ${m.waist} см`);
+            if (m.hips) parts.push(`бёдра ${m.hips} см`);
+            if (m.shoulders) parts.push(`плечи ${m.shoulders} см`);
+            if (m.sleeves) parts.push(`рукав ${m.sleeves} см`);
+            if (m.length) parts.push(`длина ${m.length} см`);
+            return parts.join(" ");
+          }).join("\n");
+          pageSizeTableStr = `\n\n### Таблица замеров изделия (замеры самой вещи, НЕ тела):\n${rows}\n\nПРАВИЛА подбора размера:\n1. Если покупатель уже дал свои параметры (рост, грудь и т.п.) — СРАЗУ называй конкретный размер, не задавай дополнительных вопросов.\n2. Обхват груди изделия = обхват груди тела + 10–15 см (streetwear, свободный крой). Оверсайз — +15–25 см.\n3. НЕ отправляй к менеджеру — таблица доступна, используй её.\n4. Всегда называй конкретный размер и объясни выбор в 1–2 предложениях.`;
+        }
+        pageContextStr = `\n\n## Текущий товар (пользователь смотрит эту карточку прямо сейчас)\n- Название: ${p.name}\n- Цена: ${priceStr}\n- Цвет: ${p.color || "не указан"}\n- Состав: ${p.composition || "не указан"}\n- Описание: ${(p.description || "").slice(0, 400)}\n- Наличие по размерам: ${stockStr}\n- Категория: ${category}${pageSizeTableStr}\n\nЕсли пользователь спрашивает про этот товар (состав, размеры, цвет, наличие) — отвечай на основе этих данных.${triggerNote}${lowStockNote}${crossSellHint}${preorderNote}`;
       } else if (pageContext?.pageType === "cart_remove" && pageContext.removedProductName) {
         pageContextStr = `\n\n## Контекст\nПользователь только что удалил товар «${pageContext.removedProductName}» из корзины. Ты написал ему проактивное сообщение с предложением помочь подобрать замену. Теперь пользователь отвечает на это предложение. Помоги ему найти похожие товары или ответь на его вопрос, зная что он искал что-то похожее на «${pageContext.removedProductName}».`;
       } else if (pageContext?.pageType === "cart") {
@@ -3404,13 +3420,15 @@ BMGBRAND — официальный производитель и магазин
         url: `/${p.slug || p.id}`,
       }));
 
+      // Size advisor needs more tokens — qwen3 thinking takes ~400 tokens before visible output
+      const isSizeAdvisor = !!sizeAdvisorContext;
       const groqBody = {
         model: "qwen/qwen3-32b",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages.slice(-10),
         ],
-        max_tokens: 600,
+        max_tokens: isSizeAdvisor ? 1500 : 600,
         temperature: 0.6,
       };
 

@@ -284,6 +284,7 @@ export default function ProductDetail() {
         stock: (product as any).stock ?? 0,
         category: (product as any).category || "",
         subcategory: (product as any).subcategory || "",
+        measurements: (product as any).measurements || [],
         preorderEnabled: (product as any).preorderEnabled || false,
         preorderStatus: (product as any).preorderStatus || null,
         preorderDeadline: (product as any).preorderDeadline || null,

@@ -76,6 +76,7 @@ interface ProductPageContext {
   stock?: number;
   category?: string;
   subcategory?: string;
+  measurements?: Array<{ size: string; chest?: string; waist?: string; hips?: string; shoulders?: string; sleeves?: string; length?: string }>;
 }
 
 interface ArtistPageContext {
