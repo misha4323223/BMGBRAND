@@ -9611,75 +9611,82 @@ BMGBRAND — официальный производитель и магазин
         return true;
       });
       
-      // Smart search filter with synonym expansion and relevance scoring
+      // Smart search filter with synonym expansion and relevance scoring.
+      // Each concept has separate `triggers` (matched against query tokens) and
+      // `productTerms` (matched against product text). This prevents generic roots
+      // like "тёпл" in product descriptions from causing false positives.
       if (search && search.trim().length >= 2) {
-        // Each group is one semantic concept. Query tokens activate groups; products are
-        // scored by the fraction of activated groups they satisfy.
-        const SYNONYM_GROUPS: string[][] = [
-          // warmth / materials
-          ["тёпл", "тепл", "флис", "fleece", "утепл", "зимн", "шерст", "wool", "плюш", "thick"],
-          ["лёгк", "легк", "летн", "хлопок", "cotton", "тонк"],
+        interface Concept {
+          triggers: string[];    // substrings to match in query tokens
+          productTerms: string[]; // substrings to match in product searchable text
+        }
+        const CONCEPTS: Concept[] = [
+          // warmth — triggers are user-facing words; productTerms are specific materials
+          {
+            triggers: ["тёпл", "тепл", "warm", "winter", "зимн"],
+            productTerms: ["флис", "fleece", "утепл", "шерст", "wool", "плюш", "начёс", "начес", "трёхнитк", "трехнитк", "3-х нитк", "3х нитк"],
+          },
+          {
+            triggers: ["лёгк", "легк", "летн", "summer"],
+            productTerms: ["хлопок", "cotton", "тонк", "лёгк", "легк"],
+          },
           // categories
-          ["костюм", "suit", "комплект"],
-          ["толстовк", "худи", "hoodie", "свитшот", "sweatshirt"],
-          ["футболк", "tshirt", "t-shirt"],
-          ["свитер", "sweater", "джемпер", "jumper", "кофт"],
-          ["штаны", "брюки", "джоггер", "jogger", "pants", "трек"],
-          ["шорты", "shorts"],
-          ["носки", "носк", "socks"],
-          ["куртк", "jacket", "coat", "пальто"],
-          ["платье", "dress"],
-          ["юбка", "skirt"],
-          // style / fit (deduplicated)
-          ["оверсайз", "oversized", "oversize", "широк", "свободн"],
-          ["базов", "basic", "classic", "класс"],
-          ["винтаж", "vintage", "retro", "ретро"],
-          ["спорт", "sport", "active"],
-          ["slim", "слим", "зауженн", "облегающ"],
-          ["wide-leg", "широкие"],
+          { triggers: ["костюм", "suit", "комплект"], productTerms: ["костюм", "suit", "комплект"] },
+          { triggers: ["толстовк", "худи", "hoodie", "свитшот", "sweatshirt"], productTerms: ["толстовк", "худи", "hoodie", "свитшот", "sweatshirt"] },
+          { triggers: ["футболк", "tshirt", "t-shirt"], productTerms: ["футболк", "tshirt", "t-shirt"] },
+          { triggers: ["свитер", "sweater", "джемпер", "jumper", "кофт"], productTerms: ["свитер", "sweater", "джемпер", "jumper", "кофт"] },
+          { triggers: ["штаны", "брюки", "джоггер", "jogger", "pants", "трек"], productTerms: ["штаны", "брюки", "джоггер", "jogger", "pants", "трек"] },
+          { triggers: ["шорты", "shorts"], productTerms: ["шорты", "shorts"] },
+          { triggers: ["носки", "носк", "socks"], productTerms: ["носки", "носк", "socks"] },
+          { triggers: ["куртк", "jacket", "coat", "пальто"], productTerms: ["куртк", "jacket", "coat", "пальто"] },
+          { triggers: ["платье", "dress"], productTerms: ["платье", "dress"] },
+          { triggers: ["юбка", "skirt"], productTerms: ["юбка", "skirt"] },
+          // style / fit
+          { triggers: ["оверсайз", "oversized", "oversize", "широк", "свободн"], productTerms: ["оверсайз", "oversized", "oversize", "широк", "свободн"] },
+          { triggers: ["базов", "basic", "classic", "класс"], productTerms: ["базов", "basic", "classic", "класс"] },
+          { triggers: ["винтаж", "vintage", "retro", "ретро"], productTerms: ["винтаж", "vintage", "retro", "ретро"] },
+          { triggers: ["спорт", "sport", "active"], productTerms: ["спорт", "sport", "active"] },
+          { triggers: ["slim", "слим", "зауженн", "облегающ"], productTerms: ["slim", "слим", "зауженн", "облегающ"] },
           // colours
-          ["черн", "black"],
-          ["бел", "white", "cream", "молочн", "айвор"],
-          ["серый", "grey", "gray"],
-          ["красн", "малинов"],
-          ["синий", "blue", "navy"],
-          ["зелён", "зелен", "хаки", "khaki", "olive", "олив"],
-          ["бежев", "beige", "кремов", "camel", "кэмел"],
-          ["розов", "pink"],
-          ["желт", "yellow"],
-          ["оранж", "orange"],
-          ["фиолет", "purple", "сирен", "лаванд"],
-          ["коричн", "brown", "шоколад"],
+          { triggers: ["черн", "black"], productTerms: ["черн", "black"] },
+          { triggers: ["бел", "white", "cream", "молочн", "айвор"], productTerms: ["бел", "white", "cream", "молочн", "айвор"] },
+          { triggers: ["серый", "grey", "gray"], productTerms: ["серый", "серо", "grey", "gray"] },
+          { triggers: ["красн", "малинов", "red"], productTerms: ["красн", "малинов", "red"] },
+          { triggers: ["синий", "blue", "navy"], productTerms: ["синий", "синих", "blue", "navy"] },
+          { triggers: ["зелён", "зелен", "хаки", "khaki", "olive", "олив"], productTerms: ["зелён", "зелен", "хаки", "khaki", "olive", "олив"] },
+          { triggers: ["бежев", "beige", "кремов", "camel", "кэмел"], productTerms: ["бежев", "beige", "кремов", "camel", "кэмел"] },
+          { triggers: ["розов", "pink"], productTerms: ["розов", "pink"] },
+          { triggers: ["желт", "yellow"], productTerms: ["желт", "yellow"] },
+          { triggers: ["оранж", "orange"], productTerms: ["оранж", "orange"] },
+          { triggers: ["фиолет", "purple", "сирен", "лаванд"], productTerms: ["фиолет", "purple", "сирен", "лаванд"] },
+          { triggers: ["коричн", "brown", "шоколад"], productTerms: ["коричн", "brown", "шоколад"] },
           // prints / art
-          ["принт", "print", "график", "рисунок"],
-          ["вышивк", "embroid", "вышит"],
-          ["полос", "stripe"],
-          ["клетк", "plaid"],
+          { triggers: ["принт", "print", "график", "рисунок"], productTerms: ["принт", "print", "график", "рисунок"] },
+          { triggers: ["вышивк", "embroid", "вышит"], productTerms: ["вышивк", "embroid", "вышит"] },
+          { triggers: ["полос", "stripe"], productTerms: ["полос", "stripe"] },
+          { triggers: ["клетк", "plaid"], productTerms: ["клетк", "plaid"] },
         ];
 
-        const MIN_TOKEN_LEN_FOR_REVERSE_MATCH = 4; // avoid over-activation on 2–3 char tokens
+        const MIN_TOKEN_LEN_FOR_REVERSE = 4;
+        const SCORE_THRESHOLD = 0.5;
 
         const tokens = search.toLowerCase().trim().split(/\s+/);
-        const activatedGroupIndices = new Set<number>();
+        const activatedConcepts = new Set<number>();
         const rawTokensNotInGroups: string[] = [];
 
         for (const token of tokens) {
           let matched = false;
-          SYNONYM_GROUPS.forEach((group, idx) => {
-            if (group.some(syn =>
-              token.includes(syn) ||
-              // Allow reverse (syn contains token) only for sufficiently long tokens
-              (token.length >= MIN_TOKEN_LEN_FOR_REVERSE_MATCH && syn.includes(token))
+          CONCEPTS.forEach((concept, idx) => {
+            if (concept.triggers.some(tr =>
+              token.includes(tr) ||
+              (token.length >= MIN_TOKEN_LEN_FOR_REVERSE && tr.includes(token))
             )) {
-              activatedGroupIndices.add(idx);
+              activatedConcepts.add(idx);
               matched = true;
             }
           });
           if (!matched) rawTokensNotInGroups.push(token);
         }
-
-        // Minimum fraction of activated concept-groups a product must satisfy
-        const SCORE_THRESHOLD = 0.5;
 
         interface ScoredProduct { product: (typeof filtered)[0]; score: number }
         const scored: ScoredProduct[] = [];
@@ -9689,27 +9696,25 @@ BMGBRAND — официальный производитель и магазин
             p.name, p.description, p.sku, p.category, p.subcategory, p.color
           ].filter(Boolean).join(' ').toLowerCase();
 
-          // All raw (non-synonym) tokens must be present literally
+          // All literal (non-concept) tokens must be present in product text
           if (!rawTokensNotInGroups.every(t => searchableText.includes(t))) continue;
 
-          const totalGroups = activatedGroupIndices.size;
-          if (totalGroups === 0) {
-            // No synonym groups activated — pure literal match, include as-is
+          const totalConcepts = activatedConcepts.size;
+          if (totalConcepts === 0) {
             scored.push({ product: p, score: 1 });
             continue;
           }
 
-          let groupHits = 0;
-          for (const idx of activatedGroupIndices) {
-            if (SYNONYM_GROUPS[idx].some(syn => searchableText.includes(syn))) groupHits++;
+          let hits = 0;
+          for (const idx of activatedConcepts) {
+            if (CONCEPTS[idx].productTerms.some(term => searchableText.includes(term))) hits++;
           }
 
-          const score = groupHits / totalGroups;
+          const score = hits / totalConcepts;
           if (score >= SCORE_THRESHOLD) scored.push({ product: p, score });
         }
 
-        if (activatedGroupIndices.size === 0) {
-          // Fallback: classic all-terms literal match
+        if (activatedConcepts.size === 0) {
           filtered = filtered.filter(p => {
             const text = [p.name, p.description, p.sku, p.category, p.subcategory, p.color]
               .filter(Boolean).join(' ').toLowerCase();
