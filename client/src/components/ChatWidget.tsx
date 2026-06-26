@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { X, Send, ArrowRight, ImagePlus, Loader2, Bot, UserRound, Sparkles, Ruler, BrainCog } from "lucide-react";
+import { X, Send, ArrowRight, ImagePlus, Loader2, Bot, UserRound, Sparkles, Ruler, BrainCog, Mic, MicOff } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 
 // Renders AI message text with clickable markdown links [text](url)
@@ -169,6 +169,11 @@ export function ChatWidget() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const openRef = useRef(false);
   openRef.current = open;
+
+  // Voice input
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTarget, setRecordingTarget] = useState<"ai" | "manager" | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Animated button expand state
   const [btnExpanded, setBtnExpanded] = useState(false);
@@ -817,6 +822,73 @@ export function ChatWidget() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendManagerMessage(); }
   };
 
+  // Stop recognition on unmount to prevent state-setter calls on dead component
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        try { recognitionRef.current.stop(); } catch (_) {}
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
+
+  const stopVoice = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.onresult = null;
+      recognitionRef.current.onerror = null;
+      recognitionRef.current.onend = null;
+      try { recognitionRef.current.stop(); } catch (_) {}
+      recognitionRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingTarget(null);
+  };
+
+  const startVoice = (target: "ai" | "manager") => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+
+    // If already recording (any target) — stop
+    if (isRecording) {
+      stopVoice();
+      return;
+    }
+
+    const recognition = new SR();
+    recognition.lang = "ru-RU";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: any) => {
+      const transcript: string = event.results[0][0].transcript;
+      if (target === "ai") {
+        setAiInput(prev => (prev ? prev + " " + transcript : transcript));
+        setTimeout(() => aiInputRef.current?.focus(), 50);
+      } else {
+        setInputText(prev => (prev ? prev + " " + transcript : transcript));
+        setTimeout(() => managerInputRef.current?.focus(), 50);
+      }
+    };
+
+    recognition.onerror = () => stopVoice();
+    recognition.onend = () => stopVoice();
+
+    try {
+      recognition.start();
+      recognitionRef.current = recognition;
+      setIsRecording(true);
+      setRecordingTarget(target);
+    } catch (_) {
+      // start() failed (e.g. permission denied before prompt) — stay stopped
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+    }
+  };
+
   if (location === "/wholesale/preorder") return null;
 
   return (
@@ -1065,6 +1137,19 @@ export function ChatWidget() {
 
                 <div className="flex-shrink-0 bg-[#111111] border-t border-white/8 flex items-center gap-1.5"
                   style={{ padding: "10px 12px", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}>
+                  {(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition ? (
+                    <button
+                      onClick={() => startVoice("ai")}
+                      disabled={aiLoading || aiMessages.some(m => m.streaming)}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed
+                        ${isRecording && recordingTarget === "ai"
+                          ? "bg-red-600 text-white animate-pulse"
+                          : "text-white/40 hover:text-white hover:bg-white/8"}`}
+                      aria-label="Голосовой ввод"
+                    >
+                      {isRecording && recordingTarget === "ai" ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    </button>
+                  ) : null}
                   <input
                     ref={aiInputRef}
                     placeholder="Спросите меня..."
@@ -1168,6 +1253,19 @@ export function ChatWidget() {
                       disabled={sending || uploading}
                       className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-black/12 text-sm text-black placeholder-black/30 bg-black/[0.02] outline-none focus:border-black transition-colors disabled:opacity-50"
                       data-testid="input-chat-message" style={{ fontSize: "16px" }} />
+                    {((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) ? (
+                      <button
+                        onClick={() => startVoice("manager")}
+                        disabled={sending || uploading}
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed
+                          ${isRecording && recordingTarget === "manager"
+                            ? "bg-black text-white animate-pulse"
+                            : "text-black/40 hover:text-black hover:bg-black/5"}`}
+                        aria-label="Голосовой ввод"
+                      >
+                        {isRecording && recordingTarget === "manager" ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                      </button>
+                    ) : null}
                     <button onClick={sendManagerMessage} disabled={!inputText.trim() || sending || uploading}
                       className="w-9 h-9 rounded-xl bg-black text-white flex items-center justify-center hover:bg-black/80 active:scale-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
                       data-testid="button-chat-send">
