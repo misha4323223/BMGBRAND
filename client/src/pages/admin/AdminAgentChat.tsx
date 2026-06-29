@@ -1016,6 +1016,8 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
                   { job: "alerts", label: "Алерты" },
                   { job: "digest", label: "Дайджест" },
                   { job: "cart_analysis", label: "Анализ корзин" },
+                  { job: "favorites_analysis", label: "❤️ Избранное" },
+                  { job: "price_drop_analysis", label: "🔔 Снижение цен" },
                 ] as const).map(({ job, label }) => (
                   <Button key={job} variant="outline" size="sm" className="h-8 text-xs"
                     onClick={() => handleRunJob(job)}
@@ -1038,6 +1040,8 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
                 <p>• Алерты — каждые 6 часов</p>
                 <p>• Дайджест — каждый понедельник в 09:00</p>
                 <p>• Анализ корзин — каждое воскресенье в 11:00</p>
+                <p>• ❤️ Анализ избранного — каждый вторник в 10:00 МСК</p>
+                <p>• 🔔 Снижение цен — каждую пятницу в 11:00 МСК</p>
                 <p>• Лимит Groq: ~200 запросов/сутки для агента</p>
               </div>
             </div>
