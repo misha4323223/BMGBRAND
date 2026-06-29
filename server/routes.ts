@@ -40,6 +40,7 @@ import {
   registerAgentQueueRoutes,
   registerAiKnowledgeRoutes,
   resetAiKnowledgeCache,
+  registerProactiveStatsRoutes,
 } from "./ai-chat";
 
 // ==================== Admin Auth ====================
@@ -2768,52 +2769,7 @@ BMGBRAND — официальный производитель и магазин
   registerAiChatRoute(app);
 
   // ─── Proactive chat stats ────────────────────────────────────────────────────
-  const PROACTIVE_STATS_KEY = 'proactive_stats';
-  let _proactiveStats: Record<string, { shown: number; clicked: number; dismissed: number }> = {};
-  let _proactiveStatsLoaded = false;
-
-  async function loadProactiveStatsOnce() {
-    if (_proactiveStatsLoaded) return;
-    _proactiveStatsLoaded = true;
-    try {
-      const raw = await storage.getBonusSetting(PROACTIVE_STATS_KEY);
-      if (raw) _proactiveStats = JSON.parse(raw);
-    } catch {}
-  }
-
-  function persistProactiveStats() {
-    storage.setBonusSetting(PROACTIVE_STATS_KEY, JSON.stringify(_proactiveStats)).catch(() => {});
-  }
-
-  // POST /api/ai/proactive-event — track peek shown/clicked/dismissed
-  app.post("/api/ai/proactive-event", async (req, res) => {
-    const { trigger, event } = req.body;
-    if (!trigger || !['shown', 'clicked', 'dismissed'].includes(event)) {
-      return res.status(400).json({ error: "trigger and event required" });
-    }
-    await loadProactiveStatsOnce();
-    if (!_proactiveStats[trigger]) _proactiveStats[trigger] = { shown: 0, clicked: 0, dismissed: 0 };
-    (_proactiveStats[trigger] as any)[event]++;
-    persistProactiveStats();
-    res.json({ ok: true });
-  });
-
-  // GET /api/admin/ai-proactive-stats
-  app.get("/api/admin/ai-proactive-stats", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
-    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
-    await loadProactiveStatsOnce();
-    res.json({ stats: _proactiveStats });
-  });
-
-  // POST /api/admin/ai-proactive-stats/reset
-  app.post("/api/admin/ai-proactive-stats/reset", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
-    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
-    _proactiveStats = {};
-    persistProactiveStats();
-    res.json({ ok: true });
-  });
+  registerProactiveStatsRoutes(app, checkAdminKey);
   // ─── End Proactive chat stats ────────────────────────────────────────────────
 
   // ─── Admin AI Agent ──────────────────────────────────────────────────────────
