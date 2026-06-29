@@ -36,6 +36,7 @@ import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached,
 import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
 import {
   registerAiChatRoute,
+  registerAgentQueueRoutes,
   AI_KNOWLEDGE_KEYS,
   AI_KNOWLEDGE_DEFAULTS,
   type AiKnowledgeKey,
@@ -2853,129 +2854,7 @@ BMGBRAND — официальный производитель и магазин
   // ─── End Admin AI Agent ──────────────────────────────────────────────────────
 
   // ─── Autonomous Agent Queue ───────────────────────────────────────────────────
-
-  app.get("/api/admin/agent-queue", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
-    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
-    try {
-      const { getQueue } = await import("./agent-queue");
-      const status = req.query.status as string | undefined;
-      const items = await getQueue(status as any);
-      res.json({ items });
-    } catch (e: any) {
-      res.status(500).json({ error: e?.message });
-    }
-  });
-
-  app.post("/api/admin/agent-queue/:id/approve", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
-    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
-    try {
-      const { id } = req.params;
-      const { updateQueueItemStatus, getQueueItemById, addLogEntry } = await import("./agent-queue");
-      const { executeWriteTool } = await import("./admin-agent");
-      const item = await getQueueItemById(id);
-      if (!item) return res.status(404).json({ error: "Not found" });
-      if (item.status !== "pending") return res.status(400).json({ error: `Already ${item.status}` });
-
-      await updateQueueItemStatus(id, "approved");
-      try {
-        const bodyData = req.body as any;
-        const paramsToUse = bodyData?.paramsOverride
-          ? { ...item.params, ...bodyData.paramsOverride }
-          : item.params;
-        const result = await executeWriteTool(item.tool, paramsToUse);
-        await updateQueueItemStatus(id, "executed", { executedAt: new Date().toISOString() });
-        await addLogEntry({ type: item.type, action: `Подтверждено: ${item.title}`, summary: result.slice(0, 100), isAuto: false });
-        // Reset AI knowledge cache so next chat request picks up the new content
-        if (item.tool === "update_ai_knowledge_draft") resetAiKnowledgeCache();
-        res.json({ ok: true, result });
-      } catch (execErr: any) {
-        await updateQueueItemStatus(id, "approved", { error: execErr.message });
-        res.status(500).json({ error: execErr.message });
-      }
-    } catch (e: any) {
-      res.status(500).json({ error: e?.message });
-    }
-  });
-
-  app.post("/api/admin/agent-queue/:id/reject", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
-    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
-    try {
-      const { id } = req.params;
-      const { updateQueueItemStatus, addLogEntry } = await import("./agent-queue");
-      const item = await updateQueueItemStatus(id, "rejected");
-      if (!item) return res.status(404).json({ error: "Not found" });
-      await addLogEntry({ type: item.type, action: `Отклонено: ${item.title}`, summary: item.description.slice(0, 100), isAuto: false });
-      res.json({ ok: true });
-    } catch (e: any) {
-      res.status(500).json({ error: e?.message });
-    }
-  });
-
-  app.get("/api/admin/autonomous-agent/status", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
-    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
-    try {
-      const { getAgentStatus } = await import("./autonomous-agent");
-      const { getAgentSettings, getQueue } = await import("./agent-queue");
-      const [status, settings, pendingItems] = await Promise.all([
-        getAgentStatus(),
-        getAgentSettings(),
-        getQueue("pending"),
-      ]);
-      res.json({ status, settings, pendingCount: pendingItems.length });
-    } catch (e: any) {
-      res.status(500).json({ error: e?.message });
-    }
-  });
-
-  app.get("/api/admin/autonomous-agent/log", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
-    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
-    try {
-      const { getLog } = await import("./agent-queue");
-      const log = await getLog();
-      res.json({ log });
-    } catch (e: any) {
-      res.status(500).json({ error: e?.message });
-    }
-  });
-
-  app.put("/api/admin/autonomous-agent/settings", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
-    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
-    try {
-      const { saveAgentSettings } = await import("./agent-queue");
-      const settings = await saveAgentSettings(req.body);
-      res.json({ ok: true, settings });
-    } catch (e: any) {
-      res.status(500).json({ error: e?.message });
-    }
-  });
-
-  app.post("/api/admin/autonomous-agent/run", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
-    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
-    try {
-      const { runAutonomousAgent, runSeoJob, runAlertsJob, runWeeklyDigest, runDescriptionJob, runCartAnalysisJob, runFavoritesAnalysisJob, runPriceDropAnalysisJob } = await import("./autonomous-agent");
-      const { job } = req.body;
-      res.json({ ok: true, message: "Запущено в фоне" });
-      if (job === "seo") runSeoJob().catch(e => console.error("[AutonomousAgent] manual seo error:", e?.message));
-      else if (job === "alerts") runAlertsJob().catch(e => console.error("[AutonomousAgent] manual alerts error:", e?.message));
-      else if (job === "digest") runWeeklyDigest(true).catch(e => console.error("[AutonomousAgent] manual digest error:", e?.message));
-      else if (job === "descriptions") runDescriptionJob().catch(e => console.error("[AutonomousAgent] manual descriptions error:", e?.message));
-      else if (job === "cart_analysis") runCartAnalysisJob().catch(e => console.error("[AutonomousAgent] manual cart analysis error:", e?.message));
-      else if (job === "favorites_analysis") runFavoritesAnalysisJob().catch(e => console.error("[AutonomousAgent] manual favorites error:", e?.message));
-      else if (job === "price_drop_analysis") runPriceDropAnalysisJob(true).catch(e => console.error("[AutonomousAgent] manual price drop error:", e?.message));
-      else if (job === "all") runAutonomousAgent().catch(e => console.error("[AutonomousAgent] manual full run error:", e?.message));
-      else console.warn("[AutonomousAgent] Unknown job:", job);
-    } catch (e: any) {
-      res.status(500).json({ error: e?.message });
-    }
-  });
-
+  registerAgentQueueRoutes(app, checkAdminKey, resetAiKnowledgeCache);
   // ─── End Autonomous Agent Queue ───────────────────────────────────────────────
 
   // AI Knowledge management (admin)

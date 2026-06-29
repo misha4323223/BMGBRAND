@@ -1,8 +1,34 @@
 import type { Express } from "express";
+import { z } from "zod";
 import { storage } from "./storage";
 import { authMiddleware, type AuthRequest } from "./auth-routes";
 import { sendAgentAlert } from "./telegram";
 import { vkNotifyAgentAlert } from "./vk";
+import {
+  getQueue,
+  getQueueItemById,
+  updateQueueItemStatus,
+  addLogEntry,
+  getAgentSettings,
+  getLog,
+  saveAgentSettings,
+} from "./agent-queue";
+import { executeWriteTool } from "./admin-agent";
+import {
+  getAgentStatus,
+  runAutonomousAgent,
+  runSeoJob,
+  runAlertsJob,
+  runWeeklyDigest,
+  runDescriptionJob,
+  runCartAnalysisJob,
+  runFavoritesAnalysisJob,
+  runPriceDropAnalysisJob,
+  runStaleProductsJob,
+  runChatGapAnalysisJob,
+  runChatConversionAnalysisJob,
+  runPredictiveRetentionJob,
+} from "./autonomous-agent";
 
 // ─── AI Knowledge Constants ───────────────────────────────────────────────────
 
@@ -987,3 +1013,196 @@ export function registerAiChatRoute(app: Express): void {
     }
   });
 }
+
+// ─── Autonomous Agent Queue Routes ────────────────────────────────────────────
+
+// In-memory mutex: prevents double-execution when two requests
+// approve the same queue item simultaneously
+const approveLocks = new Set<string>();
+
+const VALID_JOBS = [
+  "seo",
+  "alerts",
+  "digest",
+  "descriptions",
+  "cart_analysis",
+  "favorites_analysis",
+  "price_drop_analysis",
+  "stale_products",
+  "chat_gap",
+  "chat_conversion",
+  "retention",
+  "all",
+] as const;
+type ValidJob = (typeof VALID_JOBS)[number];
+
+const agentSettingsSchema = z.object({
+  enabled: z.boolean(),
+  seoEnabled: z.boolean(),
+  alertsEnabled: z.boolean(),
+  digestEnabled: z.boolean(),
+}).partial();
+
+export function registerAgentQueueRoutes(
+  app: Express,
+  checkAdminKey: (key: string | undefined) => boolean,
+  resetAiKnowledgeCacheFn: () => void
+): void {
+
+  // GET /api/admin/agent-queue
+  app.get("/api/admin/agent-queue", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const status = req.query.status as string | undefined;
+      const items = await getQueue(status as any);
+      res.json({ items });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  // POST /api/admin/agent-queue/:id/approve
+  app.post("/api/admin/agent-queue/:id/approve", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    const { id } = req.params;
+
+    // Mutex: block double-execution if two requests arrive simultaneously
+    if (approveLocks.has(id)) {
+      return res.status(409).json({ error: "Already processing — try again in a moment" });
+    }
+    approveLocks.add(id);
+
+    try {
+      const item = await getQueueItemById(id);
+      if (!item) return res.status(404).json({ error: "Not found" });
+      if (item.status !== "pending") {
+        return res.status(400).json({ error: `Already ${item.status}` });
+      }
+
+      await updateQueueItemStatus(id, "approved");
+
+      try {
+        const bodyData = req.body as any;
+        const paramsToUse = bodyData?.paramsOverride
+          ? { ...item.params, ...bodyData.paramsOverride }
+          : item.params;
+        const result = await executeWriteTool(item.tool, paramsToUse);
+        await updateQueueItemStatus(id, "executed", { executedAt: new Date().toISOString() });
+        await addLogEntry({
+          type: item.type,
+          action: `Подтверждено: ${item.title}`,
+          summary: result.slice(0, 100),
+          isAuto: false,
+        });
+        if (item.tool === "update_ai_knowledge_draft") resetAiKnowledgeCacheFn();
+        res.json({ ok: true, result });
+      } catch (execErr: any) {
+        // Reset to "pending" so the admin can retry — don't leave stuck in "approved"
+        await updateQueueItemStatus(id, "pending", { error: execErr.message });
+        res.status(500).json({ error: execErr.message });
+      }
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    } finally {
+      approveLocks.delete(id);
+    }
+  });
+
+  // POST /api/admin/agent-queue/:id/reject
+  app.post("/api/admin/agent-queue/:id/reject", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { id } = req.params;
+      const item = await getQueueItemById(id);
+      if (!item) return res.status(404).json({ error: "Not found" });
+      if (item.status !== "pending") {
+        return res.status(400).json({ error: `Already ${item.status}` });
+      }
+      await updateQueueItemStatus(id, "rejected");
+      await addLogEntry({
+        type: item.type,
+        action: `Отклонено: ${item.title}`,
+        summary: item.description.slice(0, 100),
+        isAuto: false,
+      });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  // GET /api/admin/autonomous-agent/status
+  app.get("/api/admin/autonomous-agent/status", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const [status, settings, pendingItems] = await Promise.all([
+        getAgentStatus(),
+        getAgentSettings(),
+        getQueue("pending"),
+      ]);
+      res.json({ status, settings, pendingCount: pendingItems.length });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  // GET /api/admin/autonomous-agent/log
+  app.get("/api/admin/autonomous-agent/log", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const log = await getLog();
+      res.json({ log });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  // PUT /api/admin/autonomous-agent/settings
+  app.put("/api/admin/autonomous-agent/settings", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const parsed = agentSettingsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid settings", details: parsed.error.flatten() });
+      }
+      const settings = await saveAgentSettings(parsed.data);
+      res.json({ ok: true, settings });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  // POST /api/admin/autonomous-agent/run
+  app.post("/api/admin/autonomous-agent/run", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+
+    const { job } = req.body;
+    if (!job || !VALID_JOBS.includes(job as ValidJob)) {
+      return res.status(400).json({ error: `Unknown job: "${job}". Valid: ${VALID_JOBS.join(", ")}` });
+    }
+
+    res.json({ ok: true, message: "Запущено в фоне" });
+
+    const label = `[AutonomousAgent] manual ${job} error:`;
+    if (job === "seo")                  runSeoJob().catch(e => console.error(label, e?.message));
+    else if (job === "alerts")          runAlertsJob().catch(e => console.error(label, e?.message));
+    else if (job === "digest")          runWeeklyDigest(true).catch(e => console.error(label, e?.message));
+    else if (job === "descriptions")    runDescriptionJob().catch(e => console.error(label, e?.message));
+    else if (job === "cart_analysis")   runCartAnalysisJob().catch(e => console.error(label, e?.message));
+    else if (job === "favorites_analysis") runFavoritesAnalysisJob().catch(e => console.error(label, e?.message));
+    else if (job === "price_drop_analysis") runPriceDropAnalysisJob(true).catch(e => console.error(label, e?.message));
+    else if (job === "stale_products")  runStaleProductsJob().catch(e => console.error(label, e?.message));
+    else if (job === "chat_gap")        runChatGapAnalysisJob().catch(e => console.error(label, e?.message));
+    else if (job === "chat_conversion") runChatConversionAnalysisJob().catch(e => console.error(label, e?.message));
+    else if (job === "retention")       runPredictiveRetentionJob().catch(e => console.error(label, e?.message));
+    else if (job === "all")             runAutonomousAgent().catch(e => console.error(label, e?.message));
+  });
+}
+// ─── End Autonomous Agent Queue Routes ────────────────────────────────────────

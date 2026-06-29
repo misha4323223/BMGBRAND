@@ -178,6 +178,35 @@ The application is deployed on Yandex Cloud, leveraging:
 
 ## Changelog
 
+### Рефакторинг routes.ts — Блок 4: Autonomous Agent Queue (июнь 2026)
+
+**Что сделано:** 7 маршрутов Agent Queue вынесены из `routes.ts` в `server/ai-chat.ts` + исправлены найденные баги.
+
+**Маршруты перенесены:**
+- `GET /api/admin/agent-queue`
+- `POST /api/admin/agent-queue/:id/approve`
+- `POST /api/admin/agent-queue/:id/reject`
+- `GET /api/admin/autonomous-agent/status`
+- `GET /api/admin/autonomous-agent/log`
+- `PUT /api/admin/autonomous-agent/settings`
+- `POST /api/admin/autonomous-agent/run`
+
+**Исправленные баги:**
+1. **Race condition в approve**: добавлен in-memory мьютекс (`approveLocks: Set<string>`) — двойной клик по «Одобрить» теперь возвращает 409 вместо двойного выполнения инструмента.
+2. **«Мёртвый» статус**: при ошибке `executeWriteTool` статус сбрасывается обратно в `"pending"` (раньше застревал в `"approved"` навсегда без возможности retry).
+3. **`/run` без валидации job**: теперь неизвестный job возвращает 400 до отправки ответа (раньше возвращал `{ok:true}` и молча ничего не делал).
+4. **4 пропущенных джоба в `/run`**: добавлены `stale_products`, `chat_gap`, `chat_conversion`, `retention`.
+5. **Сортировка `getQueue`**: при фильтрации по статусу результаты теперь тоже сортируются (новые сверху), как и без фильтра.
+6. **Валидация настроек**: `PUT /settings` теперь проверяет тело через Zod-схему вместо прямого `req.body`.
+7. **Статические импорты**: убраны `await import()` внутри обработчиков — всё импортируется статически наверху `ai-chat.ts`.
+
+**Файлы изменены:**
+- `server/ai-chat.ts` — добавлены импорты + `registerAgentQueueRoutes()` в конце файла
+- `server/agent-queue.ts` — фикс сортировки в `getQueue`
+- `server/routes.ts` — 125 строк блока заменены одним вызовом `registerAgentQueueRoutes(app, checkAdminKey, resetAiKnowledgeCache)`
+
+---
+
 ### Партнёрская программа — расширение для блогеров и смена URL артистов (май 2026)
 
 **Что изменилось:**

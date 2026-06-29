@@ -76,7 +76,7 @@ async function writeQueue(items: QueueItem[]): Promise<void> {
 
 export async function getQueue(status?: QueueItemStatus): Promise<QueueItem[]> {
   const items = await readQueue();
-  if (status) return items.filter((i) => i.status === status);
+  if (status) return items.filter((i) => i.status === status).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
