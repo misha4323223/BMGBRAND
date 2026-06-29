@@ -476,7 +476,10 @@ export function ChatWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           stream: true,
-          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          // FIX #4: strip UI-only ctx-* markers before sending to server
+          messages: newMessages
+            .filter(m => !m.id.startsWith('ctx-'))
+            .map(m => ({ role: m.role, content: m.content })),
           productId: productPageCtx?.id ?? undefined,
           visitedProducts: visitedProductsRef.current.size > 1
             ? Array.from(visitedProductsRef.current.values())
@@ -486,6 +489,11 @@ export function ChatWidget() {
             : { pageType, product: productPageCtx ?? undefined, artist: artistPageCtx ?? undefined, activeTrigger: lastTriggerRef.current },
         }),
       });
+
+      // FIX #2: clear trigger — subsequent messages must not inherit this proactive context
+      lastTriggerRef.current = null;
+      // FIX #3: clear cart-remove context — next message on product page gets correct pageType
+      cartRemovedProductRef.current = null;
 
       if (!res.ok || !res.body) {
         setAiMessages(prev => [...prev, { id: `err-${Date.now()}`, role: "assistant", content: "__tired__" }]);

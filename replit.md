@@ -786,3 +786,20 @@ server: {
 Класс `max-w-8xl` используется везде на сайте: Home, ProductDetail, Catalog, Cart, Blog, Navbar, Footer.
 
 **Откат:** вернуть значения обратно — `'8xl': '1440px'`, `'9xl': '1600px'` в `tailwind.config.ts`. На продакшене изменение вступает в силу при следующей сборке `npm run build`.
+
+### AI чат-виджет — вынос в отдельный файл + багфиксы (июнь 2026)
+
+**Рефакторинг:**
+- Весь AI Knowledge Cache (константы, типы, кэш-функции), `detectAiTopic`, `logChatTopic`, `buildMRowStr/buildMRowCompact` и хэндлер `POST /api/ai/chat` вынесены из `server/routes.ts` в `server/ai-chat.ts`
+- `server/routes.ts` теперь вызывает `registerAiChatRoute(app)` вместо 700 строк inline-кода
+- `server/index.ts` импортирует `migrateAiKnowledgeDefaults` из `./ai-chat` (не из `./routes`)
+- Admin-роуты `/api/admin/ai-knowledge` обновлены: используют `setAiKnowledgeCacheEntry()` вместо прямого доступа к `aiKnowledgeCache`
+
+**Исправленные баги (`server/ai-chat.ts`):**
+- **Bug 1** — короткие ответы < 11 символов не доходили до клиента: после SSE-стриминга добавлен force-flush `outputBuf` если `noAnswerOutputChecked === false`
+- **Bug 5** — `max_tokens 600` → `1000` для обычных вопросов, `1500` для size advisor (Qwen3-32B тратит 200–500 токенов на `<think>`)
+
+**Исправленные баги (`client/src/components/ChatWidget.tsx`):**
+- **Bug 2** — `lastTriggerRef.current = null` после `fetch`: проактивный триггер (`exit_intent` и др.) больше не наследуется последующими сообщениями
+- **Bug 3** — `cartRemovedProductRef.current = null` после `fetch`: `cart_remove` контекст не «залипает» при переходе на карточку товара
+- **Bug 4** — `.filter(m => !m.id.startsWith('ctx-'))` перед `.map()` в `messages`: UI-маркеры смены товара не уходят на сервер как `role: "assistant"`
