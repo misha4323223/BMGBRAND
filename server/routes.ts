@@ -37,13 +37,7 @@ import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
 import {
   registerAiChatRoute,
   registerAgentQueueRoutes,
-  AI_KNOWLEDGE_KEYS,
-  AI_KNOWLEDGE_DEFAULTS,
-  type AiKnowledgeKey,
-  loadAiKnowledgeIfNeeded,
-  getAiKnowledgeCached,
-  setAiKnowledgeCacheEntry,
-  invalidateAiKnowledgeCache,
+  registerAiKnowledgeRoutes,
   resetAiKnowledgeCache,
 } from "./ai-chat";
 
@@ -2858,51 +2852,7 @@ BMGBRAND — официальный производитель и магазин
   // ─── End Autonomous Agent Queue ───────────────────────────────────────────────
 
   // AI Knowledge management (admin)
-  app.get("/api/admin/ai-knowledge", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
-    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
-    await loadAiKnowledgeIfNeeded();
-    const result: Record<string, string> = {};
-    for (const k of AI_KNOWLEDGE_KEYS) {
-      result[k] = getAiKnowledgeCached(k);
-    }
-    res.json({ blocks: result, defaults: AI_KNOWLEDGE_DEFAULTS });
-  });
-
-  app.post("/api/admin/ai-knowledge/:key", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
-    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
-    const key = req.params.key as AiKnowledgeKey;
-    if (!(AI_KNOWLEDGE_KEYS as readonly string[]).includes(key)) {
-      return res.status(400).json({ error: "Unknown knowledge key" });
-    }
-    const { value } = req.body;
-    if (typeof value !== "string") return res.status(400).json({ error: "value required" });
-    try {
-      await storage.setBonusSetting(key, value);
-      setAiKnowledgeCacheEntry(key, value);
-      res.json({ ok: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post("/api/admin/ai-knowledge/:key/reset", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
-    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
-    const key = req.params.key as AiKnowledgeKey;
-    if (!(AI_KNOWLEDGE_KEYS as readonly string[]).includes(key)) {
-      return res.status(400).json({ error: "Unknown knowledge key" });
-    }
-    try {
-      const def = AI_KNOWLEDGE_DEFAULTS[key];
-      await storage.setBonusSetting(key, def);
-      setAiKnowledgeCacheEntry(key, def);
-      res.json({ ok: true, value: def });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
+  registerAiKnowledgeRoutes(app, checkAdminKey);
 
   // Telegram webhook for retail bot — receives admin replies
   app.post("/api/telegram/chat-webhook", async (req, res) => {

@@ -1206,3 +1206,61 @@ export function registerAgentQueueRoutes(
   });
 }
 // ─── End Autonomous Agent Queue Routes ────────────────────────────────────────
+
+// ─── AI Knowledge Admin Routes ────────────────────────────────────────────────
+
+export function registerAiKnowledgeRoutes(
+  app: Express,
+  checkAdminKey: (key: string | undefined) => boolean
+): void {
+
+  // GET /api/admin/ai-knowledge — все блоки знаний
+  app.get("/api/admin/ai-knowledge", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    await loadAiKnowledgeIfNeeded();
+    const result: Record<string, string> = {};
+    for (const k of AI_KNOWLEDGE_KEYS) {
+      result[k] = getAiKnowledgeCached(k);
+    }
+    res.json({ blocks: result, defaults: AI_KNOWLEDGE_DEFAULTS });
+  });
+
+  // POST /api/admin/ai-knowledge/:key — обновить блок знаний
+  app.post("/api/admin/ai-knowledge/:key", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    const key = req.params.key as AiKnowledgeKey;
+    if (!(AI_KNOWLEDGE_KEYS as readonly string[]).includes(key)) {
+      return res.status(400).json({ error: "Unknown knowledge key" });
+    }
+    const { value } = req.body;
+    if (typeof value !== "string") return res.status(400).json({ error: "value required" });
+    try {
+      await storage.setBonusSetting(key, value);
+      setAiKnowledgeCacheEntry(key, value);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/admin/ai-knowledge/:key/reset — сбросить до дефолта
+  app.post("/api/admin/ai-knowledge/:key/reset", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    const key = req.params.key as AiKnowledgeKey;
+    if (!(AI_KNOWLEDGE_KEYS as readonly string[]).includes(key)) {
+      return res.status(400).json({ error: "Unknown knowledge key" });
+    }
+    try {
+      const def = AI_KNOWLEDGE_DEFAULTS[key];
+      await storage.setBonusSetting(key, def);
+      setAiKnowledgeCacheEntry(key, def);
+      res.json({ ok: true, value: def });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+}
+// ─── End AI Knowledge Admin Routes ───────────────────────────────────────────
