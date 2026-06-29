@@ -3,6 +3,19 @@ import { useLocation } from "wouter";
 import { X, Send, ArrowRight, ImagePlus, Loader2, Bot, UserRound, Sparkles, Ruler, BrainCog, Mic, MicOff } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 
+// Detects if AI response is redirecting user to manager
+function hasManagerRedirect(text: string): boolean {
+  const t = text.toLowerCase();
+  const managerPhrases = [
+    "уточните у менеджера", "уточни у менеджера", "напишите менеджеру",
+    "напиши менеджеру", "менеджер поможет", "менеджер ответит",
+    "свяжитесь с менеджером", "обратитесь к менеджеру", "спросите у менеджера",
+    "написать менеджеру", "менеджер подскажет", "менеджер расскажет",
+    "менеджеру напишите", "менеджеру напиши",
+  ];
+  return managerPhrases.some(p => t.includes(p));
+}
+
 // Renders AI message text with clickable markdown links [text](url)
 function AiMessageContent({ text, streaming }: { text: string; streaming?: boolean }) {
   const parts = text.split(/(\[([^\]]+)\]\((https?:\/\/[^)]+)\))/g);
@@ -1115,6 +1128,18 @@ export function ChatWidget() {
                           </div>
                         )}
                       </div>
+                      {msg.role === "assistant" && !msg.streaming && hasManagerRedirect(msg.content) && (
+                        <div className="ml-9 mt-1.5">
+                          <button
+                            onClick={() => setMode("manager")}
+                            data-testid="button-switch-to-manager"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/8 hover:bg-white/15 border border-white/10 hover:border-white/20 text-xs text-white/80 hover:text-white transition-all active:scale-95"
+                          >
+                            <UserRound className="w-3.5 h-3.5 flex-shrink-0" />
+                            Перейти в чат с менеджером
+                          </button>
+                        </div>
+                      )}
                       {msg.role === "assistant" && msg.products && msg.products.length > 0 && (
                         <div className="ml-9 mt-2 flex flex-col gap-2 w-[calc(100%-2.25rem)]">
                           {msg.products.map(p => (
