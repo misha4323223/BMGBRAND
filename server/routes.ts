@@ -3111,32 +3111,38 @@ BMGBRAND — официальный производитель и магазин
             const rows = measurements.map(buildMRowStr).join("\n");
             sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\n\nПРАВИЛА (строго соблюдай):\n1. Если покупатель уже указал параметры тела (рост, грудь, талия и т.п.) — НЕ задавай дополнительных вопросов, сразу называй конкретный размер.\n2. Если параметры ещё не указаны — попроси только обхват груди и рост.\n3. НЕ перенаправляй к менеджеру, если таблица замеров доступна.\n\nКАК ПОДБИРАТЬ (замеры в таблице — это замеры ИЗДЕЛИЯ, а не тела):\n- Найди строку, где обхват груди изделия = обхват груди тела + 10–15 см (стандартный свободный крой, streetwear)\n- Если изделие явно оверсайз — прибавляй 15–25 см\n- Если покупатель не уточнил силуэт — рекомендуй размер для свободного кроя (+12 см) и кратко поясни\n- Всегда называй КОНКРЕТНЫЙ размер и объясни выбор в 1–2 предложениях\n\n### Таблица замеров изделия:\n${rows}`;
           } else {
-            // No size table — handle entirely server-side, no Groq needed
-            const noTableReply = "К сожалению, таблица замеров для этого товара пока не заполнена — напишите менеджеру, он поможет подобрать размер.";
-            const clientQuestion = ([...messages].reverse().find((m: any) => m.role === "user") as any)?.content || "(вопрос не определён)";
-            const alertText = `📏 *Таблица замеров не заполнена*\n\nТовар: ${productName}\nВопрос клиента: ${clientQuestion}`;
-            sendAgentAlert(alertText).catch(() => {});
-            vkNotifyAgentAlert(alertText);
-            import("./agent-queue").then(({ addToQueue }) => {
-              addToQueue({
-                type: "knowledge_gap",
-                title: `📏 Нет таблицы замеров: ${productName.slice(0, 60)}`,
-                description: `Клиент запросил подбор размера для "${productName}", но таблица замеров не заполнена.\nВопрос: ${clientQuestion}`,
-                tool: "update_product_measurements",
-                params: { productId: sizeProductId, productName },
+            // No size table — only block if user is actually asking about sizes
+            const clientQuestion = ([...messages].reverse().find((m: any) => m.role === "user") as any)?.content || "";
+            const sizeKeywords = ["размер", "подбер", "мерк", "грудь", "обхват", "рост", "cm", "см", "xxl", "xl ", " xl", "подойдёт", "подойдет", "велик", "мал", "сядет", "сидит", "оверсайз", "велика", "размера", "таблиц", "замер"];
+            const isActuallySizeQuestion = sizeKeywords.some(kw => clientQuestion.toLowerCase().includes(kw));
+            if (isActuallySizeQuestion) {
+              // User is asking about sizes — return canned reply, notify admin
+              const noTableReply = "К сожалению, таблица замеров для этого товара пока не заполнена — напишите менеджеру, он поможет подобрать размер.";
+              const alertText = `📏 *Таблица замеров не заполнена*\n\nТовар: ${productName}\nВопрос клиента: ${clientQuestion}`;
+              sendAgentAlert(alertText).catch(() => {});
+              vkNotifyAgentAlert(alertText);
+              import("./agent-queue").then(({ addToQueue }) => {
+                addToQueue({
+                  type: "knowledge_gap",
+                  title: `📏 Нет таблицы замеров: ${productName.slice(0, 60)}`,
+                  description: `Клиент запросил подбор размера для "${productName}", но таблица замеров не заполнена.\nВопрос: ${clientQuestion}`,
+                  tool: "update_product_measurements",
+                  params: { productId: sizeProductId, productName },
+                }).catch(() => {});
               }).catch(() => {});
-            }).catch(() => {});
-            if (req.body.stream) {
-              res.setHeader("Content-Type", "text/event-stream");
-              res.setHeader("Cache-Control", "no-cache");
-              res.setHeader("Connection", "keep-alive");
-              res.write(`data: ${JSON.stringify({ chunk: noTableReply })}\n\n`);
-              res.write(`data: ${JSON.stringify({ done: true, products: [] })}\n\n`);
-              res.end();
-            } else {
-              res.json({ reply: noTableReply, products: [] });
+              if (req.body.stream) {
+                res.setHeader("Content-Type", "text/event-stream");
+                res.setHeader("Cache-Control", "no-cache");
+                res.setHeader("Connection", "keep-alive");
+                res.write(`data: ${JSON.stringify({ chunk: noTableReply })}\n\n`);
+                res.write(`data: ${JSON.stringify({ done: true, products: [] })}\n\n`);
+                res.end();
+              } else {
+                res.json({ reply: noTableReply, products: [] });
+              }
+              return;
             }
-            return;
+            // Not a size question — let AI answer normally without size advisor context
           }
         }
       }
