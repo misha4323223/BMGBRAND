@@ -1,4 +1,5 @@
 import { storage } from "./storage";
+import { authStorage } from "./auth-storage";
 import {
   addToQueue,
   addLogEntry,
@@ -1309,6 +1310,401 @@ export async function runPredictiveRetentionJob(): Promise<void> {
   }
 }
 
+// ── Favorites Analysis Job ───────────────────────────────────────────────────
+
+const FAVORITES_AI_SYSTEM = `Ты аналитик для российского стритвир-магазина BOOOMERANGS.
+Тебе дадут список товаров которые покупатели добавили в избранное, но не купили — с количеством уникальных пользователей, ценой и данными о складе.
+Для КАЖДОГО товара напиши ОДНУ краткую рекомендацию (макс. 10 слов): что делать — снизить цену, запустить акцию, пополнить склад, улучшить фото, или другое.
+Формат ответа — строго JSON-массив строк, без пояснений, без markdown:
+["рекомендация для товара 1","рекомендация для товара 2",...]
+Количество элементов должно строго совпадать с количеством товаров на входе.`;
+
+const CROSS_JOB_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000; // 3 дня
+
+export async function runFavoritesAnalysisJob(): Promise<void> {
+  console.log("[AutonomousAgent] Starting favorites analysis job...");
+  const db = storage as any;
+
+  if (typeof db.getUserEmailById !== "function") {
+    console.log("[AutonomousAgent] Favorites: YDB not available, skipping.");
+    return;
+  }
+  if (!await acquireJobLock('job_lock_favorites', 6 * 24 * 60 * 60 * 1000)) {
+    console.log("[AutonomousAgent] Favorites: skipped (lock active).");
+    return;
+  }
+
+  try {
+    // 1. Все пары {userId, productId} из избранного
+    const allFavorites = await authStorage.getAllFavorites();
+    if (allFavorites.length === 0) {
+      console.log("[AutonomousAgent] Favorites: no favorites found.");
+      return;
+    }
+
+    // 2. Группируем по userId
+    const userFavMap = new Map<number, Set<number>>();
+    for (const { userId, productId } of allFavorites) {
+      if (!userFavMap.has(userId)) userFavMap.set(userId, new Set());
+      userFavMap.get(userId)!.add(productId);
+    }
+
+    // 3. Оплаченные заказы → email → Set<productId> (купленные)
+    const allOrders = await storage.getOrders() as any[];
+    const purchasedByEmail = new Map<string, Set<number>>();
+    for (const order of allOrders) {
+      if (!["paid", "shipped", "delivered"].includes(order.status)) continue;
+      const email = (order.customerEmail || "").toLowerCase().trim();
+      if (!email) continue;
+      const set = purchasedByEmail.get(email) ?? new Set<number>();
+      for (const item of (Array.isArray(order.items) ? order.items : [])) {
+        const pid = Number(item.productId || 0);
+        if (pid) set.add(pid);
+      }
+      purchasedByEmail.set(email, set);
+    }
+
+    // 4. Агрегируем товары из избранного и кандидатов на рассылку
+    const favCountMap = new Map<number, { name: string; price: number; favCount: number; sizeStock: Record<string, number> | null }>();
+    const promoTargets: Array<{ userId: number; name: string; email: string; topItem: string; cartItems: string[] }> = [];
+
+    for (const [userId, productIds] of userFavMap.entries()) {
+      try {
+        const userInfo = await db.getUserEmailById(userId);
+        if (!userInfo?.email) continue;
+
+        // Кросс-джоб cooldown: если получал marketing-письмо в последние 3 дня — пропустить
+        if (typeof db.getCartReminder === "function") {
+          const lastReminder = await db.getCartReminder(userId);
+          if (lastReminder?.sentAt) {
+            const sentAt = typeof lastReminder.sentAt === 'number'
+              ? lastReminder.sentAt * 1000
+              : new Date(lastReminder.sentAt).getTime();
+            if (Date.now() - sentAt < CROSS_JOB_COOLDOWN_MS) continue;
+          }
+        }
+
+        const purchased = purchasedByEmail.get(userInfo.email.toLowerCase()) ?? new Set<number>();
+        const unpurchasedIds = [...productIds].filter(pid => !purchased.has(pid));
+        if (unpurchasedIds.length === 0) continue;
+
+        const favItemNames: string[] = [];
+        let topItemName = "";
+        for (const pid of unpurchasedIds) {
+          try {
+            const product = await storage.getProduct(pid);
+            if (!product || (product as any).isHidden) continue;
+            const name = (product.name || `Товар ${pid}`).slice(0, 60);
+            const existing = favCountMap.get(pid);
+            if (existing) {
+              existing.favCount++;
+            } else {
+              favCountMap.set(pid, {
+                name,
+                price: product.price ?? 0,
+                favCount: 1,
+                sizeStock: (product as any).sizeStock ?? null,
+              });
+            }
+            favItemNames.push(name);
+            if (!topItemName) topItemName = name;
+          } catch { /* skip */ }
+        }
+
+        if (favItemNames.length === 0) continue;
+        promoTargets.push({
+          userId,
+          name: userInfo.name || "Покупатель",
+          email: userInfo.email,
+          topItem: topItemName,
+          cartItems: favItemNames,
+        });
+      } catch { /* skip user */ }
+      await sleep(60);
+    }
+
+    if (favCountMap.size === 0) {
+      await addLogEntry({ type: "favorites_promo", action: "Анализ избранного: нет данных", summary: "Нет товаров в избранном без покупки.", isAuto: true });
+      return;
+    }
+
+    // 5. Топ-10 по количеству добавлений
+    const sorted = [...favCountMap.entries()]
+      .sort((a, b) => b[1].favCount - a[1].favCount)
+      .slice(0, 10);
+
+    // 6. AI рекомендации
+    let aiRecs: string[] = [];
+    try {
+      const inputLines = sorted.map(([, p]) =>
+        `${p.name} (${p.favCount} в избранном, ${Math.round(p.price / 100)} ₽)`
+      );
+      const raw = await groqComplete(inputLines.join("\n"), FAVORITES_AI_SYSTEM, 400);
+      const cleaned = raw.replace(/```(?:json)?|```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed)) aiRecs = parsed.map(String);
+    } catch { /* без AI */ }
+
+    // 7. Telegram дайджест
+    const dateStr = new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+    const lines = sorted.map(([, p], i) => {
+      const priceRub = Math.round(p.price / 100).toLocaleString("ru-RU");
+      let stockLabel = "";
+      if (p.sizeStock) {
+        const total = Object.values(p.sizeStock).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+        if (total === 0) stockLabel = " · 🚫 нет в наличии";
+        else if (total <= 3) stockLabel = ` · ⚠️ осталось ${total} шт.`;
+        else stockLabel = ` · 📦 ${total} шт.`;
+      }
+      const rec = aiRecs[i] ? `\n   💡 ${aiRecs[i]}` : "";
+      return `${i + 1}. <b>${p.name}</b>\n   ❤️ ${p.favCount} в избранном · ${priceRub} ₽${stockLabel}${rec}`;
+    });
+
+    const text =
+      `❤️ <b>BOOOM AI — Избранное без покупки</b> · ${dateStr}\n\n` +
+      `Товары которые добавляют в избранное, но не покупают:\n\n` +
+      lines.join("\n\n") +
+      `\n\n<b>👥 Уникальных пользователей:</b> ${promoTargets.length}`;
+
+    await sendAgentDigest(text);
+    vkNotifyAgentDigest(text);
+    sendPushToAdmins({
+      title: '❤️ BOOOM AI: Анализ избранного',
+      body: `${promoTargets.length} клиентов добавили в избранное, но не купили. Топ: «${sorted[0]?.[1].name ?? '—'}»`,
+      url: 'https://booomerangs.ru/admin',
+      tag: 'booom-favorites-analysis',
+    }).catch(() => {});
+
+    // 8. Задача в очередь (если есть кандидаты для рассылки)
+    if (promoTargets.length > 0) {
+      const topName = sorted[0]?.[1].name ?? "—";
+      const queueItem = await addToQueue({
+        type: "favorites_promo",
+        title: `Разослать промокоды по избранному (${promoTargets.length} клиентов)`,
+        description:
+          `Клиенты с товарами в избранном без покупки:\n` +
+          promoTargets.slice(0, 10).map(u => `• ${u.name} — ${u.topItem}`).join("\n") +
+          (promoTargets.length > 10 ? `\n...и ещё ${promoTargets.length - 10}` : "") +
+          `\n\nБудет отправлен персональный промокод FAV-XXXXX на скидку 10% на 72 часа.`,
+        params: {
+          users: promoTargets.map(u => ({
+            userId: u.userId,
+            name: u.name,
+            email: u.email,
+            topItem: u.topItem,
+            cartItems: u.cartItems,
+          })),
+          discount: 10,
+          validityHours: 72,
+          emailSubject: `«${topName}» всё ещё в вашем избранном — скидка 10% 🎁`,
+          emailBody: `{name}, мы заметили что <b>{item}</b> до сих пор в вашем избранном. Держите персональный промокод — только для вас.`,
+          isFavorites: true,
+        },
+        tool: "send_favorites_promos",
+      });
+      await notifyAgentQueueItem(queueItem);
+    }
+
+    await addLogEntry({
+      type: "favorites_promo",
+      action: "Анализ избранного завершён",
+      summary: `Пользователей с избранным: ${userFavMap.size}, кандидатов на промо: ${promoTargets.length}, топ товар: «${sorted[0]?.[1].name ?? "—"}»`,
+      isAuto: true,
+    });
+
+    console.log(`[AutonomousAgent] Favorites analysis done. Users: ${userFavMap.size}, promo targets: ${promoTargets.length}`);
+  } catch (e: any) {
+    console.error("[AutonomousAgent] Favorites analysis error:", e?.message);
+  }
+}
+
+// ── Price Drop Analysis Job ──────────────────────────────────────────────────
+
+const PRICE_DROP_AI_SYSTEM = `Ты аналитик для российского стритвир-магазина BOOOMERANGS.
+Тебе дадут список товаров с количеством подписчиков ожидающих снижения цены, текущей ценой и ценой на которую подписались (максимальной желаемой).
+Для КАЖДОГО товара напиши ОДНУ краткую рекомендацию (макс. 12 слов): стоит ли снизить цену, на сколько примерно, и почему.
+Формат ответа — строго JSON-массив строк, без пояснений, без markdown:
+["рекомендация для товара 1","рекомендация для товара 2",...]
+Количество элементов должно строго совпадать с количеством товаров на входе.`;
+
+export async function runPriceDropAnalysisJob(): Promise<void> {
+  console.log("[AutonomousAgent] Starting price drop analysis job...");
+  if (!await acquireJobLock('job_lock_price_drop_analysis', 6 * 24 * 60 * 60 * 1000)) {
+    console.log("[AutonomousAgent] Price drop: skipped (lock active).");
+    return;
+  }
+
+  try {
+    const allSubs = await storage.getAllPriceDropSubscriptions();
+    const activeSubs = allSubs.filter(s => !s.notified);
+
+    if (activeSubs.length === 0) {
+      console.log("[AutonomousAgent] Price drop: no active subscriptions.");
+      return;
+    }
+
+    // Группируем по productId
+    const byProduct = new Map<number, {
+      productName: string;
+      subs: Array<{ id: string; email: string; priceAtSubscription: number }>;
+    }>();
+
+    for (const sub of activeSubs) {
+      const pid = Number(sub.productId);
+      if (!pid) continue;
+      const entry = byProduct.get(pid);
+      if (entry) {
+        entry.subs.push({ id: sub.id, email: sub.email, priceAtSubscription: sub.priceAtSubscription });
+      } else {
+        byProduct.set(pid, {
+          productName: sub.productName,
+          subs: [{ id: sub.id, email: sub.email, priceAtSubscription: sub.priceAtSubscription }],
+        });
+      }
+    }
+
+    // Обогащаем текущей ценой, фильтруем реально ожидающих
+    const enriched: Array<{
+      productId: number;
+      productName: string;
+      currentPrice: number;
+      suggestedPrice: number;
+      subscriberCount: number;
+      subs: Array<{ id: string; email: string; priceAtSubscription: number }>;
+      imageUrl?: string;
+      slug?: string;
+    }> = [];
+
+    for (const [pid, data] of byProduct.entries()) {
+      try {
+        const product = await storage.getProduct(pid);
+        if (!product || (product as any).isHidden) continue;
+
+        const basePrice = product.price ?? 0;
+        const discountPct = (product as any).discountPercent ?? 0;
+        const effectivePrice = discountPct > 0
+          ? Math.round(basePrice * (1 - discountPct / 100))
+          : basePrice;
+
+        // Подписчики, которым текущая цена ещё не подходит (ждут снижения)
+        const waiting = data.subs.filter(s => s.priceAtSubscription < effectivePrice);
+        if (waiting.length === 0) continue; // уже дешевле чем все хотят
+
+        // Минимальная желаемая цена — чтобы разблокировать всех ожидающих
+        const minWanted = Math.min(...waiting.map(s => s.priceAtSubscription));
+
+        enriched.push({
+          productId: pid,
+          productName: data.productName,
+          currentPrice: effectivePrice,
+          suggestedPrice: minWanted,
+          subscriberCount: waiting.length,
+          subs: waiting,
+          imageUrl: (product as any).imageUrl || undefined,
+          slug: (product as any).slug || undefined,
+        });
+      } catch { /* skip */ }
+      await sleep(40);
+    }
+
+    if (enriched.length === 0) {
+      console.log("[AutonomousAgent] Price drop: no actionable subscriptions.");
+      await addLogEntry({
+        type: "price_drop_analysis",
+        action: "Анализ подписок на снижение цены",
+        summary: "Нет товаров с активными подписчиками ожидающими снижения цены.",
+        isAuto: true,
+      });
+      return;
+    }
+
+    // Сортируем по количеству подписчиков, берём топ-10
+    enriched.sort((a, b) => b.subscriberCount - a.subscriberCount);
+    const top = enriched.slice(0, 10);
+
+    // AI рекомендации
+    let aiRecs: string[] = [];
+    try {
+      const inputLines = top.map(p => {
+        const curRub = Math.round(p.currentPrice / 100);
+        const wantRub = Math.round(p.suggestedPrice / 100);
+        const dropPct = Math.round((1 - p.suggestedPrice / p.currentPrice) * 100);
+        return `${p.productName} (${p.subscriberCount} подписчиков, цена ${curRub} ₽, ждут ${wantRub} ₽, скидка ~${dropPct}%)`;
+      });
+      const raw = await groqComplete(inputLines.join("\n"), PRICE_DROP_AI_SYSTEM, 500);
+      const cleaned = raw.replace(/```(?:json)?|```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed)) aiRecs = parsed.map(String);
+    } catch { /* без AI */ }
+
+    // Telegram дайджест
+    const dateStr = new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+    const lines = top.map((p, i) => {
+      const curRub = Math.round(p.currentPrice / 100).toLocaleString("ru-RU");
+      const wantRub = Math.round(p.suggestedPrice / 100).toLocaleString("ru-RU");
+      const dropPct = Math.round((1 - p.suggestedPrice / p.currentPrice) * 100);
+      const rec = aiRecs[i] ? `\n   💡 ${aiRecs[i]}` : "";
+      return `${i + 1}. <b>${p.productName}</b>\n   🔔 ${p.subscriberCount} подписчиков · ${curRub} ₽ → ${wantRub} ₽ (−${dropPct}%)${rec}`;
+    });
+
+    const totalSubs = top.reduce((s, p) => s + p.subscriberCount, 0);
+    const text =
+      `🔔 <b>BOOOM AI — Подписки на снижение цены</b> · ${dateStr}\n\n` +
+      `Товары с активными ожидающими подписчиками:\n\n` +
+      lines.join("\n\n") +
+      `\n\n<b>📊 Всего подписчиков в очереди:</b> ${totalSubs}`;
+
+    await sendAgentDigest(text);
+    vkNotifyAgentDigest(text);
+    sendPushToAdmins({
+      title: '🔔 BOOOM AI: Подписки на снижение цены',
+      body: `${totalSubs} подписчиков ждут снижения цен. Топ: «${top[0].productName}» — ${top[0].subscriberCount} чел.`,
+      url: 'https://booomerangs.ru/admin',
+      tag: 'booom-price-drop-analysis',
+    }).catch(() => {});
+
+    // Задача в очередь для одобрения администратором
+    const queueItem = await addToQueue({
+      type: "price_drop_analysis",
+      title: `Снизить цены и уведомить ${totalSubs} подписчиков (${top.length} товаров)`,
+      description:
+        `Товары с активными подписчиками ожидающими снижения:\n` +
+        top.slice(0, 8).map(p => {
+          const cur = Math.round(p.currentPrice / 100);
+          const want = Math.round(p.suggestedPrice / 100);
+          const drop = Math.round((1 - p.suggestedPrice / p.currentPrice) * 100);
+          return `• ${p.productName} — ${p.subscriberCount} подписчиков, −${drop}% (${cur} → ${want} ₽)`;
+        }).join("\n") +
+        (top.length > 8 ? `\n...и ещё ${top.length - 8} товаров` : ""),
+      params: {
+        products: top.map(p => ({
+          productId: p.productId,
+          productName: p.productName,
+          currentPrice: p.currentPrice,
+          newPrice: p.suggestedPrice,
+          subscriberCount: p.subscriberCount,
+          subscribers: p.subs,
+          imageUrl: p.imageUrl,
+          slug: p.slug,
+        })),
+      },
+      tool: "apply_price_drop_suggestions",
+    });
+    await notifyAgentQueueItem(queueItem);
+
+    await addLogEntry({
+      type: "price_drop_analysis",
+      action: "Анализ подписок на снижение цены завершён",
+      summary: `Товаров с подписчиками: ${enriched.length}, в очередь: ${top.length} товаров, подписчиков: ${totalSubs}`,
+      isAuto: true,
+    });
+
+    console.log(`[AutonomousAgent] Price drop analysis done. Products: ${top.length}, subscribers: ${totalSubs}`);
+  } catch (e: any) {
+    console.error("[AutonomousAgent] Price drop analysis error:", e?.message);
+  }
+}
+
 // ── Scheduler ─────────────────────────────────────────────────────────────
 
 export function initAutonomousAgent(): void {
@@ -1438,7 +1834,43 @@ export function initAutonomousAgent(): void {
     setInterval(runConversionSafe, 7 * 24 * 60 * 60 * 1000);
   }, wednesdayDelayMs);
 
+  // Анализ избранного без покупки — каждый вторник в 10:00 МСК (07:00 UTC)
+  const daysUntilTuesday = (2 - now.getUTCDay() + 7) % 7 || 7;
+  const nextTuesday = new Date(now);
+  nextTuesday.setUTCDate(now.getUTCDate() + daysUntilTuesday);
+  nextTuesday.setUTCHours(7, 0, 0, 0); // 10:00 МСК = 07:00 UTC
+  if (nextTuesday.getTime() <= nowMs) nextTuesday.setUTCDate(nextTuesday.getUTCDate() + 7);
+  const tuesdayDelayMs = nextTuesday.getTime() - nowMs;
+
+  const runFavoritesSafe = () =>
+    runFavoritesAnalysisJob().catch((e: any) =>
+      console.error("[AutonomousAgent] Favorites analysis unhandled error:", e?.message)
+    );
+
+  setTimeout(() => {
+    runFavoritesSafe();
+    setInterval(runFavoritesSafe, 7 * 24 * 60 * 60 * 1000);
+  }, tuesdayDelayMs);
+
+  // Анализ подписок на снижение цены — каждую пятницу в 11:00 МСК (08:00 UTC)
+  const daysUntilFriday = (5 - now.getUTCDay() + 7) % 7 || 7;
+  const nextFriday = new Date(now);
+  nextFriday.setUTCDate(now.getUTCDate() + daysUntilFriday);
+  nextFriday.setUTCHours(8, 0, 0, 0); // 11:00 МСК = 08:00 UTC
+  if (nextFriday.getTime() <= nowMs) nextFriday.setUTCDate(nextFriday.getUTCDate() + 7);
+  const fridayDelayMs = nextFriday.getTime() - nowMs;
+
+  const runPriceDropSafe = () =>
+    runPriceDropAnalysisJob().catch((e: any) =>
+      console.error("[AutonomousAgent] Price drop analysis unhandled error:", e?.message)
+    );
+
+  setTimeout(() => {
+    runPriceDropSafe();
+    setInterval(runPriceDropSafe, 7 * 24 * 60 * 60 * 1000);
+  }, fridayDelayMs);
+
   console.log(
-    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h, cart analysis next Sunday in ${Math.round(sundayCartDelayMs / 60000 / 60)}h, stale products next Sunday in ${Math.round(sundayStaleDelayMs / 60000 / 60)}h, chat gap analysis next Sunday 12:00 МСК in ${Math.round(sundayGapDelayMs / 60000 / 60)}h, retention next Thursday 12:00 МСК in ${Math.round(thursdayDelayMs / 60000 / 60)}h, chat conversion next Wednesday 13:00 МСК in ${Math.round(wednesdayDelayMs / 60000 / 60)}h`
+    `[AutonomousAgent] Scheduled: SEO in ${Math.round(seoDelayMs / 60000)}min, alerts+digest next Monday in ${Math.round(mondayDelayMs / 60000 / 60)}h, cart analysis next Sunday in ${Math.round(sundayCartDelayMs / 60000 / 60)}h, stale products next Sunday in ${Math.round(sundayStaleDelayMs / 60000 / 60)}h, chat gap analysis next Sunday 12:00 МСК in ${Math.round(sundayGapDelayMs / 60000 / 60)}h, retention next Thursday 12:00 МСК in ${Math.round(thursdayDelayMs / 60000 / 60)}h, chat conversion next Wednesday 13:00 МСК in ${Math.round(wednesdayDelayMs / 60000 / 60)}h, favorites next Tuesday 10:00 МСК in ${Math.round(tuesdayDelayMs / 60000 / 60)}h, price drop next Friday 11:00 МСК in ${Math.round(fridayDelayMs / 60000 / 60)}h`
   );
 }

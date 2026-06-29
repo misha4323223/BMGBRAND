@@ -671,6 +671,8 @@ export async function notifyAgentQueueItem(item: {
     review_reply: "💬",
     promo_code: "🎟",
     cart_promo: "📧",
+    favorites_promo: "❤️",
+    price_drop_analysis: "🔔",
   };
   const emoji = typeEmoji[item.type] || "🤖";
 
@@ -693,6 +695,28 @@ export async function notifyAgentQueueItem(item: {
       `\n📧 <b>Тема письма:</b> <i>${subj}</i>` +
       `\n🔖 <b>Формат промокода:</b> CART-XXXXX (уникальный для каждого)` +
       `\n\n✏️ <i>Редактировать письмо: Админка → ИИ → Очередь</i>`;
+  }
+
+  if (item.type === "favorites_promo" && item.params) {
+    const d = item.params.discount ?? 10;
+    const h = item.params.validityHours ?? 72;
+    const subj = item.params.emailSubject || `Персональная скидка ${d}%`;
+    const users = item.params.users ?? [];
+    text +=
+      `\n\n💰 <b>Скидка:</b> ${d}%` +
+      `\n⏱ <b>Срок действия:</b> ${h} ч.` +
+      `\n📧 <b>Тема письма:</b> <i>${subj}</i>` +
+      `\n🔖 <b>Формат промокода:</b> FAV-XXXXX (уникальный для каждого)` +
+      `\n👥 <b>Клиентов:</b> ${users.length}` +
+      `\n\n✏️ <i>Редактировать письмо: Админка → ИИ → Очередь</i>`;
+  }
+
+  if (item.type === "price_drop_analysis" && item.params) {
+    const prods = item.params.products ?? [];
+    const totalSubs = prods.reduce((s: number, p: any) => s + (p.subscriberCount ?? 0), 0);
+    text +=
+      `\n\n📊 <b>Товаров:</b> ${prods.length} · <b>Подписчиков:</b> ${totalSubs}` +
+      `\n\n✏️ <i>Управление: Админка → ИИ → Очередь</i>`;
   }
 
   const buttons = [[

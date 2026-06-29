@@ -71,6 +71,8 @@ const TYPE_LABELS: Record<string, string> = {
   digest: "📊 Дайджест",
   knowledge_gap: "🧠 Пробел в знаниях",
   chat_conversion_insight: "📈 Конверсия чата",
+  favorites_promo: "❤️ Избранное без покупки",
+  price_drop_analysis: "🔔 Подписки на снижение цены",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -482,10 +484,12 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
 
             <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
               {allItems.map((item) => {
-                const isCartPromo = item.type === "cart_promo";
+                const isCartPromo = item.type === "cart_promo" || item.type === "favorites_promo";
+                const isFavoritesPromo = item.type === "favorites_promo";
                 const isRetentionOffer = item.type === "retention_offer";
                 const isConversionInsight = item.type === "chat_conversion_insight";
                 const isKnowledgeGap = item.type === "knowledge_gap";
+                const isPriceDropAnalysis = item.type === "price_drop_analysis";
                 const edit = isCartPromo ? getCartEdit(item) : null;
                 const retEdit = isRetentionOffer ? getRetentionEdit(item) : null;
                 const kgEdit = isKnowledgeGap ? getKnowledgeGapEdit(item) : null;
@@ -495,11 +499,11 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
                 const retSegments: Array<{ segment: string; label: string; users: any[]; discount: number; validityHours: number }> = item.params?.segments ?? [];
 
                 return (
-                  <div key={item.id} className={`border rounded-lg p-3 space-y-2 text-xs ${isCartPromo && item.status === "pending" ? "border-amber-300 bg-amber-50/30" : ""} ${isRetentionOffer && item.status === "pending" ? "border-blue-300 bg-blue-50/20" : ""} ${isConversionInsight && item.status === "pending" ? "border-emerald-300 bg-emerald-50/20" : ""} ${isKnowledgeGap && item.status === "pending" ? "border-purple-300 bg-purple-50/20" : ""}`}>
+                  <div key={item.id} className={`border rounded-lg p-3 space-y-2 text-xs ${item.type === "cart_promo" && item.status === "pending" ? "border-amber-300 bg-amber-50/30" : ""} ${isFavoritesPromo && item.status === "pending" ? "border-pink-300 bg-pink-50/20" : ""} ${isRetentionOffer && item.status === "pending" ? "border-blue-300 bg-blue-50/20" : ""} ${isConversionInsight && item.status === "pending" ? "border-emerald-300 bg-emerald-50/20" : ""} ${isKnowledgeGap && item.status === "pending" ? "border-purple-300 bg-purple-50/20" : ""} ${isPriceDropAnalysis && item.status === "pending" ? "border-cyan-300 bg-cyan-50/20" : ""}`}>
                     {/* Header row */}
                     <div className="flex items-start justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">{isCartPromo ? "📧 Брошенные корзины" : (TYPE_LABELS[item.type] ?? item.type)}</span>
+                        <span className="text-muted-foreground">{TYPE_LABELS[item.type] ?? item.type}</span>
                         <span className={`px-1.5 py-0.5 rounded border text-[10px] font-medium ${STATUS_COLORS[item.status]}`}>
                           {STATUS_LABELS[item.status]}
                         </span>
@@ -542,7 +546,7 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
                             />
                           </div>
                           <div className="text-[10px] text-muted-foreground pb-1">
-                            🔖 Формат: <span className="font-mono font-bold text-foreground">CART-XXXXX</span><br/>
+                            🔖 Формат: <span className="font-mono font-bold text-foreground">{isFavoritesPromo ? "FAV-XXXXX" : "CART-XXXXX"}</span><br/>
                             👥 Клиентов: <b className="text-foreground">{users.length}</b>
                           </div>
                         </div>
@@ -634,7 +638,7 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
                               </div>
                               <div className="text-center">
                                 <span className="inline-block px-4 py-2 bg-[#1C1C1C] text-white text-[10px] font-bold uppercase tracking-wider rounded">
-                                  Вернуться в корзину
+                                  {isFavoritesPromo ? "Перейти к избранному" : "Вернуться в корзину"}
                                 </span>
                               </div>
                             </div>

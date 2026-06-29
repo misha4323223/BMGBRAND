@@ -16,6 +16,8 @@ export type QueueItemType =
   | "review_reply"
   | "promo_code"
   | "cart_promo"
+  | "favorites_promo"
+  | "price_drop_analysis"
   | "knowledge_gap"
   | "retention_offer"
   | "chat_conversion_insight";

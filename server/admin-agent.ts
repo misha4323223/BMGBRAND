@@ -314,6 +314,107 @@ export async function executeWriteTool(tool: string, params: any): Promise<strin
         (errors.length > 0 ? ` Ошибки: ${errors.join(", ")}` : "");
     }
 
+    case "send_favorites_promos": {
+      const { sendEmail, getCartPromoEmailHtml } = await import("./email");
+      const users: Array<{ userId: number; name: string; email: string; topItem: string; cartItems?: string[] }> = params.users || [];
+      const discount: number = params.discount ?? 10;
+      const validityHours: number = params.validityHours ?? 72;
+      const emailSubject: string = params.emailSubject || `Персональная скидка ${discount}% — для вас 🎁`;
+      const emailBody: string | undefined = params.emailBody;
+      const siteUrl = 'https://www.booomerangs.ru';
+      let sent = 0;
+      const errors: string[] = [];
+      for (const u of users) {
+        try {
+          const suffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+          const promoCode = `FAV-${suffix}`;
+          const expiresAt = new Date(Date.now() + validityHours * 60 * 60 * 1000);
+          await (storage as any).createPromoCode({
+            code: promoCode,
+            discountPercent: discount,
+            maxUses: 1,
+            expiresAt,
+            isActive: true,
+          });
+          const resolvedBody = emailBody
+            ? emailBody
+                .replace(/\{name\}/g, u.name || "")
+                .replace(/\{item\}/g, u.topItem || "")
+            : undefined;
+          const html = getCartPromoEmailHtml({
+            userName: u.name,
+            promoCode,
+            discountPercent: discount,
+            validityHours,
+            topItem: u.topItem,
+            customBody: resolvedBody,
+            cartItems: u.cartItems,
+            sectionTitle: 'Товары в вашем избранном',
+            ctaText: 'Перейти к избранному',
+            ctaUrl: `${siteUrl}/favorites`,
+          });
+          const ok = await sendEmail({ to: u.email, subject: emailSubject, html });
+          if (ok) sent++;
+          else errors.push(u.email);
+        } catch (e: any) {
+          errors.push(u.email);
+        }
+      }
+      return `✅ Промокоды по избранному отправлены: ${sent} из ${users.length} клиентов.` +
+        (errors.length > 0 ? ` Ошибки: ${errors.join(", ")}` : "");
+    }
+
+    case "apply_price_drop_suggestions": {
+      const { sendPriceDropEmail } = await import("./email");
+      const products: Array<{
+        productId: number;
+        productName: string;
+        currentPrice: number;
+        newPrice: number;
+        subscriberCount: number;
+        subscribers: Array<{ id: string; email: string; priceAtSubscription: number }>;
+        imageUrl?: string;
+        slug?: string;
+      }> = params.products || [];
+      const siteUrl = 'https://www.booomerangs.ru';
+      let totalSent = 0;
+      const results: string[] = [];
+      for (const p of products) {
+        try {
+          await storage.updateProduct(p.productId, { price: p.newPrice } as any);
+          const subs = p.subscribers ?? [];
+          const notifiedIds: string[] = [];
+          const productUrl = p.slug
+            ? `${siteUrl}/${p.slug}`
+            : `${siteUrl}/product/${p.productId}`;
+          let sent = 0;
+          for (const sub of subs) {
+            try {
+              const ok = await sendPriceDropEmail(
+                sub.email,
+                p.productName,
+                sub.priceAtSubscription,
+                p.newPrice,
+                productUrl,
+                p.imageUrl
+              );
+              if (ok) { sent++; notifiedIds.push(sub.id); }
+            } catch { /* пропускаем */ }
+          }
+          if (notifiedIds.length > 0) {
+            await storage.markPriceDropSubscriptionsNotified(notifiedIds, p.newPrice);
+          }
+          totalSent += sent;
+          const curRub = Math.round(p.currentPrice / 100);
+          const newRub = Math.round(p.newPrice / 100);
+          results.push(`«${p.productName}»: ${curRub} → ${newRub} ₽, уведомлено ${sent}/${subs.length}`);
+        } catch (e: any) {
+          results.push(`«${p.productName}»: ошибка — ${e?.message}`);
+        }
+      }
+      return `✅ Снижение цен применено: ${products.length} товаров, уведомлено ${totalSent} подписчиков.\n${results.join('\n')}`;
+    }
+
     case "send_retention_offers": {
       const { sendEmail } = await import("./email");
       const { getCartPromoEmailHtml } = await import("./email");
