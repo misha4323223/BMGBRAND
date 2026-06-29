@@ -2465,7 +2465,7 @@ BMGBRAND — официальный производитель и магазин
         processedBuffer = await sharp(buffer)
           .resize({ width: 1200, withoutEnlargement: true })
           .webp({ quality: 85 })
-          .toBuffer() as Buffer;
+          .toBuffer() as unknown as Buffer<ArrayBuffer>;
       } catch { /* use original if sharp fails */ }
       const filename = `review_images/${Date.now()}_${user.id}.webp`;
       const url = await uploadToYandexStorage(processedBuffer, filename, "image/webp");

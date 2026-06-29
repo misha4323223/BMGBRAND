@@ -1568,6 +1568,7 @@ export async function runPriceDropAnalysisJob(force = false): Promise<void> {
     const enriched: Array<{
       productId: number;
       productName: string;
+      basePrice: number;
       currentPrice: number;
       suggestedPrice: number;
       subscriberCount: number;

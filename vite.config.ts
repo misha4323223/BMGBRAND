@@ -100,7 +100,7 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: "all",
+    allowedHosts: true,
     fs: {
       strict: true,
       deny: ["**/.*"],
