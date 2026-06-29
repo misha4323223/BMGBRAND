@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { z } from "zod";
-import { storage } from "./storage";
+import { storage, warmRatingsCache } from "./storage";
 import { authMiddleware, type AuthRequest } from "./auth-routes";
-import { sendAgentAlert } from "./telegram";
+import { sendAgentAlert, answerCallbackQuery, editMessageText } from "./telegram";
 import { vkNotifyAgentAlert } from "./vk";
 import {
   getQueue,
@@ -29,6 +29,7 @@ import {
   runChatConversionAnalysisJob,
   runPredictiveRetentionJob,
 } from "./autonomous-agent";
+import { randomUUID } from "crypto";
 
 // ─── AI Knowledge Constants ───────────────────────────────────────────────────
 
@@ -1358,3 +1359,137 @@ export function registerProactiveStatsRoutes(
   });
 }
 // ─── End Proactive AI Stats ───────────────────────────────────────────────────
+
+// ─── Telegram Chat Webhook ────────────────────────────────────────────────────
+
+export function registerTelegramChatWebhook(
+  app: Express,
+  chatCacheInvalidate: (sessionId: string) => void
+): void {
+  // Telegram webhook for retail bot — receives admin replies
+  app.post("/api/telegram/chat-webhook", async (req, res) => {
+    try {
+      res.sendStatus(200);
+      const update = req.body;
+
+      // Handle inline button callbacks for review moderation
+      const callbackQuery = update?.callback_query;
+      if (callbackQuery) {
+        const callbackId = callbackQuery.id;
+        const data: string = callbackQuery.data || '';
+        const chatId = String(callbackQuery.message?.chat?.id || '');
+        const messageId: number = callbackQuery.message?.message_id;
+        const originalText: string = callbackQuery.message?.text || '';
+        const retailToken = process.env.TELEGRAM_BOT_TOKEN || '';
+
+        if (data.startsWith('review_approve:')) {
+          const reviewId = parseInt(data.split(':')[1]);
+          if (!isNaN(reviewId)) {
+            try {
+              await storage.updateReview(reviewId, { isApproved: true });
+              console.log(`[Telegram] Review ${reviewId} approved via Telegram button`);
+              warmRatingsCache(storage).catch(() => {});
+              await answerCallbackQuery(callbackId, '✅ Отзыв одобрен!', retailToken);
+              await editMessageText(chatId, messageId, originalText + '\n\n✅ <b>Одобрен</b> (через Telegram)', retailToken);
+            } catch (e: any) {
+              await answerCallbackQuery(callbackId, '❌ Ошибка при одобрении', retailToken);
+              console.error('[Telegram] Error approving review:', e.message);
+            }
+          }
+        } else if (data.startsWith('review_reject:')) {
+          const reviewId = parseInt(data.split(':')[1]);
+          if (!isNaN(reviewId)) {
+            try {
+              await storage.deleteReview(reviewId);
+              console.log(`[Telegram] Review ${reviewId} rejected via Telegram button`);
+              await answerCallbackQuery(callbackId, '❌ Отзыв отклонён', retailToken);
+              await editMessageText(chatId, messageId, originalText + '\n\n❌ <b>Отклонён</b> (через Telegram)', retailToken);
+            } catch (e: any) {
+              await answerCallbackQuery(callbackId, '❌ Ошибка при отклонении', retailToken);
+              console.error('[Telegram] Error rejecting review:', e.message);
+            }
+          }
+        } else if (data.startsWith('agent_approve:')) {
+          const itemId = data.slice('agent_approve:'.length);
+          try {
+            const item = await getQueueItemById(itemId);
+            if (!item) {
+              await answerCallbackQuery(callbackId, '⚠️ Действие не найдено', retailToken);
+            } else if (item.status !== 'pending') {
+              await answerCallbackQuery(callbackId, `⚠️ Уже обработано: ${item.status}`, retailToken);
+            } else {
+              await updateQueueItemStatus(itemId, 'approved');
+              try {
+                await executeWriteTool(item.tool, item.params);
+                await updateQueueItemStatus(itemId, 'executed', { executedAt: new Date().toISOString() });
+                await addLogEntry({ type: item.type, action: `Подтверждено: ${item.title}`, summary: item.description.slice(0, 100), isAuto: false });
+                await answerCallbackQuery(callbackId, '✅ Выполнено!', retailToken);
+                await editMessageText(chatId, messageId, originalText + '\n\n✅ <b>Подтверждено и выполнено</b>', retailToken);
+                console.log(`[Telegram] Agent action ${itemId} approved & executed`);
+              } catch (execErr: any) {
+                await updateQueueItemStatus(itemId, 'approved', { error: execErr.message });
+                await answerCallbackQuery(callbackId, '⚠️ Одобрено, но выполнить не удалось', retailToken);
+                await editMessageText(chatId, messageId, originalText + `\n\n⚠️ <b>Одобрено, ошибка выполнения:</b> ${execErr.message}`, retailToken);
+              }
+            }
+          } catch (e: any) {
+            await answerCallbackQuery(callbackId, '❌ Ошибка', retailToken);
+            console.error('[Telegram] Agent approve error:', e.message);
+          }
+        } else if (data.startsWith('agent_reject:')) {
+          const itemId = data.slice('agent_reject:'.length);
+          try {
+            const item = await updateQueueItemStatus(itemId, 'rejected');
+            if (!item) {
+              await answerCallbackQuery(callbackId, '⚠️ Действие не найдено', retailToken);
+            } else {
+              await addLogEntry({ type: item.type, action: `Отклонено: ${item.title}`, summary: item.description.slice(0, 100), isAuto: false });
+              await answerCallbackQuery(callbackId, '❌ Отклонено', retailToken);
+              await editMessageText(chatId, messageId, originalText + '\n\n❌ <b>Отклонено</b>', retailToken);
+              console.log(`[Telegram] Agent action ${itemId} rejected`);
+            }
+          } catch (e: any) {
+            await answerCallbackQuery(callbackId, '❌ Ошибка', retailToken);
+            console.error('[Telegram] Agent reject error:', e.message);
+          }
+        }
+        return;
+      }
+
+      // Handle text replies from admin (live chat)
+      const message = update?.message;
+      console.log(`[Chat] Webhook received: message=${!!message}, text=${!!message?.text}, reply_to=${!!message?.reply_to_message}`);
+      if (!message?.text) {
+        if (message) console.log(`[Chat] Skipping: no text (possible photo/sticker/voice reply from admin)`);
+        return;
+      }
+      // Only process replies (admin replying to bot messages)
+      const replyToId = message?.reply_to_message?.message_id;
+      if (!replyToId) {
+        console.log(`[Chat] Skipping: admin message is not a reply (from: ${message.from?.first_name})`);
+        return;
+      }
+      // Find which chat session this reply belongs to
+      const sessionId = await storage.getSessionIdByTgMessageId(replyToId);
+      if (!sessionId) {
+        console.warn(`[Chat] Session not found for tgMessageId=${replyToId} — message may have been saved without tgMessageId`);
+        return;
+      }
+      // Save admin reply
+      const adminName = message.from?.first_name || 'Менеджер';
+      await storage.saveChatMessage({
+        messageId: randomUUID(),
+        sessionId,
+        sender: 'admin',
+        text: message.text,
+        timestamp: Date.now(),
+        userName: adminName,
+      });
+      chatCacheInvalidate(sessionId);
+      console.log(`[Chat] Admin reply saved for session ${sessionId.slice(0, 8)}, from: ${adminName}`);
+    } catch (err: any) {
+      console.error("[Chat] Webhook error:", err.message);
+    }
+  });
+}
+// ─── End Telegram Chat Webhook ────────────────────────────────────────────────
