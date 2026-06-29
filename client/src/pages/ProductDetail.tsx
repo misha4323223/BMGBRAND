@@ -275,6 +275,7 @@ export default function ProductDetail() {
     window.dispatchEvent(new CustomEvent("set-product-context", {
       detail: {
         id: product.id,
+        slug: product.slug || "",
         name: product.name,
         price: product.price ? Math.round(product.price / 100) : 0,
         description: (product as any).description || "",

@@ -68,6 +68,7 @@ interface AiMessage {
 
 interface ProductPageContext {
   id: number;
+  slug?: string;
   name: string;
   price: number;
   description: string;
