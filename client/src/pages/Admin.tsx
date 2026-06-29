@@ -1123,7 +1123,7 @@ function downloadOrderExcel(order: any) {
 
   // Лист 2 — товары
   const items: any[] = Array.isArray(order.items) ? order.items : [];
-  const itemRows = [['Артикул / ID', 'Название', 'Размер', 'Цвет', 'Кол-во', 'Цена за шт., ₽', 'Сумма, ₽']];
+  const itemRows: (string | number)[][] = [['Артикул / ID', 'Название', 'Размер', 'Цвет', 'Кол-во', 'Цена за шт., ₽', 'Сумма, ₽']];
   for (const item of items) {
     const price = item.price != null ? Number((item.price / 100).toFixed(2)) : '';
     const qty = item.quantity ?? 1;
@@ -1296,7 +1296,8 @@ export default function Admin() {
     delivery: string;
     returnPolicy: string;
     images: string[];
-    measurements: Array<{ size: string; length?: string; chest?: string; shoulders?: string; sleeves?: string; waist?: string; hips?: string }>;
+    measurements: Array<{ size: string; length?: string; chest?: string; shoulders?: string; sleeves?: string; waist?: string; hips?: string; sideLength?: string; bottomWidth?: string }>;
+    measurementSections: Array<{ title: string; rows: Array<{ size: string; length?: string; chest?: string; shoulders?: string; sleeves?: string; waist?: string; hips?: string; sideLength?: string; bottomWidth?: string }> }>;
     lookProducts: number[];
     lookCategory: string;
     lookSubcategory: string;
@@ -1369,7 +1370,7 @@ export default function Admin() {
   const [bulkMeasurementsCopyOpen, setBulkMeasurementsCopyOpen] = useState(false);
   const [bulkMeasurementsCopySearch, setBulkMeasurementsCopySearch] = useState("");
 
-  const MEASUREMENT_TEMPLATES: Record<string, { label: string; columns: string[]; sizes: Array<{ size: string; length?: string; chest?: string; shoulders?: string; sleeves?: string; waist?: string; hips?: string }> }> = {
+  const MEASUREMENT_TEMPLATES: Record<string, { label: string; columns: string[]; sizes: Array<{ size: string; length?: string; chest?: string; shoulders?: string; sleeves?: string; waist?: string; hips?: string; sideLength?: string; bottomWidth?: string }> }> = {
     tshirt: {
       label: "Футболки",
       columns: ["length", "chest", "shoulders", "sleeves"],
@@ -2462,6 +2463,8 @@ export default function Admin() {
         noSize: p.noSize || false,
         additionalCategories: p.additionalCategories || [],
         artistSlug: (p as any).artistSlug || "",
+        videoUrl: (p as any).videoUrl || "",
+        measurementSections: (p as any).measurementSections || [],
       });
       setEditingProductId(p.id);
     },
