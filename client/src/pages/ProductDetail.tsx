@@ -528,22 +528,27 @@ export default function ProductDetail() {
 
   const handleSizeAdvisorSubmit = async () => {
     const isSuit = ((product as any).measurementSections?.length ?? 0) > 0;
+    const measurements = (product.measurements as SizeMeasurement[]) || [];
+    const hasWaist = measurements.some((m: SizeMeasurement) => !!m.waist);
+    const hasSleeves = measurements.some((m: SizeMeasurement) => !!m.sleeves);
+    const isPants = !isSuit && hasWaist && !hasSleeves;
+    const needsHips = isSuit || isPants;
     if (!sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || sizeAdvisorLoading) return;
-    if (isSuit && !sizeAdvisorHips.trim()) return;
+    if (needsHips && !sizeAdvisorHips.trim()) return;
     setSizeAdvisorLoading(true);
     setSizeAdvisorResult(null);
     setSizeAdvisorRecommended(null);
     try {
       localStorage.setItem('sa_height', sizeAdvisorHeight.trim());
       localStorage.setItem('sa_measure', sizeAdvisorMeasure.trim());
-      if (isSuit) localStorage.setItem('sa_hips', sizeAdvisorHips.trim());
+      if (needsHips) localStorage.setItem('sa_hips', sizeAdvisorHips.trim());
     } catch {}
     let msgText: string;
     if (isSuit) {
       msgText = `Подберите мне размер для товара "${product.name}". Мой рост: ${sizeAdvisorHeight} см, обхват груди: ${sizeAdvisorMeasure} см, обхват бёдер: ${sizeAdvisorHips} см.`;
+    } else if (isPants) {
+      msgText = `Подберите мне размер для товара "${product.name}". Мой рост: ${sizeAdvisorHeight} см, обхват талии: ${sizeAdvisorMeasure} см, обхват бёдер: ${sizeAdvisorHips} см.`;
     } else {
-      const measurements = (product.measurements as SizeMeasurement[]) || [];
-      const hasWaist = measurements.some((m: SizeMeasurement) => !!m.waist);
       const measureLabel = hasWaist ? 'обхват талии' : 'обхват груди';
       msgText = `Подберите мне размер для товара "${product.name}". Мой рост: ${sizeAdvisorHeight} см, ${measureLabel}: ${sizeAdvisorMeasure} см.`;
     }
@@ -1428,7 +1433,11 @@ export default function ProductDetail() {
                           </p>
                           {(() => {
                             const isSuit = ((product as any).measurementSections?.length ?? 0) > 0;
-                            const hasWaistInFlat = !isSuit && ((product.measurements as SizeMeasurement[]) || []).some((m: SizeMeasurement) => !!m.waist);
+                            const flatMeasurements = (product.measurements as SizeMeasurement[]) || [];
+                            const hasWaistInFlat = !isSuit && flatMeasurements.some((m: SizeMeasurement) => !!m.waist);
+                            const hasSleeveInFlat = flatMeasurements.some((m: SizeMeasurement) => !!m.sleeves);
+                            const isPants = hasWaistInFlat && !hasSleeveInFlat;
+                            const needsHips = isSuit || isPants;
                             return (
                               <>
                                 <div className="flex gap-2">
@@ -1445,20 +1454,20 @@ export default function ProductDetail() {
                                   </div>
                                   <div className="flex-1">
                                     <label className="text-xs text-muted-foreground mb-1 block">
-                                      {isSuit ? 'Грудь (см)' : hasWaistInFlat ? 'Талия (см)' : 'Грудь (см)'}
+                                      {isSuit ? 'Грудь (см)' : (isPants || hasWaistInFlat) ? 'Талия (см)' : 'Грудь (см)'}
                                     </label>
                                     <input
                                       type="number"
                                       placeholder="96"
                                       value={sizeAdvisorMeasure}
                                       onChange={e => setSizeAdvisorMeasure(e.target.value)}
-                                      onKeyDown={e => !isSuit && e.key === 'Enter' && handleSizeAdvisorSubmit()}
+                                      onKeyDown={e => !needsHips && e.key === 'Enter' && handleSizeAdvisorSubmit()}
                                       data-testid="input-size-advisor-measure"
                                       className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors"
                                     />
                                   </div>
                                 </div>
-                                {isSuit && (
+                                {needsHips && (
                                   <div className="flex gap-2">
                                     <div className="flex-1">
                                       <label className="text-xs text-muted-foreground mb-1 block">Бёдра (см)</label>
@@ -1482,7 +1491,9 @@ export default function ProductDetail() {
                             onClick={handleSizeAdvisorSubmit}
                             disabled={(() => {
                               const isSuit = ((product as any).measurementSections?.length ?? 0) > 0;
-                              return !sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || (isSuit && !sizeAdvisorHips.trim()) || sizeAdvisorLoading;
+                              const fm = (product.measurements as SizeMeasurement[]) || [];
+                              const isPants = !isSuit && fm.some((m: SizeMeasurement) => !!m.waist) && !fm.some((m: SizeMeasurement) => !!m.sleeves);
+                              return !sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || ((isSuit || isPants) && !sizeAdvisorHips.trim()) || sizeAdvisorLoading;
                             })()}
                             data-testid="button-size-advisor-submit-inline"
                             className="w-full py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"

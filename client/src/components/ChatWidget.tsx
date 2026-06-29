@@ -48,6 +48,7 @@ interface SizeAdvisorProduct {
   hasMeasurements: boolean;
   hasWaist: boolean;
   hasSections: boolean;
+  isPants: boolean;
 }
 
 interface ProductCard {
@@ -581,11 +582,14 @@ export function ChatWidget() {
 
   // --- Size advisor submit ---
   const sendSizeAdvisorMessage = async () => {
+    const needsHips = sizeAdvisorProduct?.hasSections || sizeAdvisorProduct?.isPants;
     if (!sizeAdvisorProduct || !sizeHeight.trim() || !sizeMeasure.trim() || aiLoading) return;
-    if (sizeAdvisorProduct.hasSections && !sizeHips.trim()) return;
+    if (needsHips && !sizeHips.trim()) return;
     let msgText: string;
     if (sizeAdvisorProduct.hasSections) {
       msgText = `Подберите мне размер для товара "${sizeAdvisorProduct.name}". Мой рост: ${sizeHeight} см, обхват груди: ${sizeMeasure} см, обхват бёдер: ${sizeHips} см.`;
+    } else if (sizeAdvisorProduct.isPants) {
+      msgText = `Подберите мне размер для товара "${sizeAdvisorProduct.name}". Мой рост: ${sizeHeight} см, обхват талии: ${sizeMeasure} см, обхват бёдер: ${sizeHips} см.`;
     } else {
       const measureLabel = sizeAdvisorProduct.hasWaist ? "обхват талии" : "обхват груди";
       msgText = `Подберите мне размер для товара "${sizeAdvisorProduct.name}". Мой рост: ${sizeHeight} см, ${measureLabel}: ${sizeMeasure} см.`;
@@ -1034,7 +1038,7 @@ export function ChatWidget() {
                         </div>
                         <div>
                           <label className="text-xs text-black/50 mb-1 block">
-                            {sizeAdvisorProduct.hasSections ? "Обхват груди (см)" : sizeAdvisorProduct.hasWaist ? "Обхват талии (см)" : "Обхват груди (см)"}
+                            {sizeAdvisorProduct.hasSections ? "Обхват груди (см)" : (sizeAdvisorProduct.isPants || sizeAdvisorProduct.hasWaist) ? "Обхват талии (см)" : "Обхват груди (см)"}
                           </label>
                           <input
                             type="number"
@@ -1042,11 +1046,11 @@ export function ChatWidget() {
                             value={sizeMeasure}
                             onChange={e => setSizeMeasure(e.target.value)}
                             data-testid="input-size-measure"
-                            onKeyDown={e => { if (e.key === "Enter" && !sizeAdvisorProduct.hasSections) sendSizeAdvisorMessage(); }}
+                            onKeyDown={e => { if (e.key === "Enter" && !sizeAdvisorProduct.hasSections && !sizeAdvisorProduct.isPants) sendSizeAdvisorMessage(); }}
                             className="w-full px-3 py-2 rounded-xl border border-black/12 text-sm text-black placeholder-black/25 bg-black/[0.02] outline-none focus:border-black transition-colors"
                           />
                         </div>
-                        {sizeAdvisorProduct.hasSections && (
+                        {(sizeAdvisorProduct.hasSections || sizeAdvisorProduct.isPants) && (
                           <div>
                             <label className="text-xs text-black/50 mb-1 block">Обхват бёдер (см)</label>
                             <input
@@ -1062,7 +1066,7 @@ export function ChatWidget() {
                         )}
                         <button
                           onClick={sendSizeAdvisorMessage}
-                          disabled={!sizeHeight.trim() || !sizeMeasure.trim() || (sizeAdvisorProduct.hasSections && !sizeHips.trim()) || aiLoading}
+                          disabled={!sizeHeight.trim() || !sizeMeasure.trim() || ((sizeAdvisorProduct.hasSections || sizeAdvisorProduct.isPants) && !sizeHips.trim()) || aiLoading}
                           data-testid="button-size-advisor-submit"
                           className="w-full py-2.5 rounded-xl bg-black text-white text-sm font-medium hover:bg-black/80 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >
