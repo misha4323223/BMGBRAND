@@ -369,6 +369,7 @@ export async function executeWriteTool(tool: string, params: any): Promise<strin
       const products: Array<{
         productId: number;
         productName: string;
+        basePrice?: number;
         currentPrice: number;
         newPrice: number;
         subscriberCount: number;
@@ -381,7 +382,10 @@ export async function executeWriteTool(tool: string, params: any): Promise<strin
       const results: string[] = [];
       for (const p of products) {
         try {
-          await storage.updateProduct(p.productId, { price: p.newPrice } as any);
+          // Применяем скидку через discountPercent, не трогая базовую цену
+          const base = p.basePrice || p.currentPrice;
+          const discountPct = base > 0 ? Math.round((1 - p.newPrice / base) * 100) : 0;
+          await storage.updateProduct(p.productId, { discountPercent: discountPct } as any);
           const subs = p.subscribers ?? [];
           const notifiedIds: string[] = [];
           const productUrl = p.slug

@@ -1598,6 +1598,7 @@ export async function runPriceDropAnalysisJob(force = false): Promise<void> {
         enriched.push({
           productId: pid,
           productName: data.productName,
+          basePrice,
           currentPrice: effectivePrice,
           suggestedPrice: minWanted,
           subscriberCount: waiting.length,
@@ -1682,6 +1683,7 @@ export async function runPriceDropAnalysisJob(force = false): Promise<void> {
         products: top.map(p => ({
           productId: p.productId,
           productName: p.productName,
+          basePrice: p.basePrice,
           currentPrice: p.currentPrice,
           newPrice: p.suggestedPrice,
           subscriberCount: p.subscriberCount,
