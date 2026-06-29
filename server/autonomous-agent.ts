@@ -1527,12 +1527,13 @@ const PRICE_DROP_AI_SYSTEM = `Ты аналитик для российског�
 ["рекомендация для товара 1","рекомендация для товара 2",...]
 Количество элементов должно строго совпадать с количеством товаров на входе.`;
 
-export async function runPriceDropAnalysisJob(): Promise<void> {
+export async function runPriceDropAnalysisJob(force = false): Promise<void> {
   console.log("[AutonomousAgent] Starting price drop analysis job...");
-  if (!await acquireJobLock('job_lock_price_drop_analysis', 6 * 24 * 60 * 60 * 1000)) {
+  if (!force && !await acquireJobLock('job_lock_price_drop_analysis', 6 * 24 * 60 * 60 * 1000)) {
     console.log("[AutonomousAgent] Price drop: skipped (lock active).");
     return;
   }
+  if (force) console.log("[AutonomousAgent] Price drop: force=true, bypassing lock");
 
   try {
     const allSubs = await storage.getAllPriceDropSubscriptions();
@@ -1587,7 +1588,8 @@ export async function runPriceDropAnalysisJob(): Promise<void> {
           : basePrice;
 
         // Подписчики, которым текущая цена ещё не подходит (ждут снижения)
-        const waiting = data.subs.filter(s => s.priceAtSubscription < effectivePrice);
+        // <= включает тех, у кого цена не изменилась с момента подписки
+        const waiting = data.subs.filter(s => s.priceAtSubscription <= effectivePrice);
         if (waiting.length === 0) continue; // уже дешевле чем все хотят
 
         // Минимальная желаемая цена — чтобы разблокировать всех ожидающих
