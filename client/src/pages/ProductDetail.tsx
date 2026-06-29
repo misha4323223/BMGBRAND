@@ -531,7 +531,9 @@ export default function ProductDetail() {
     const measurements = (product.measurements as SizeMeasurement[]) || [];
     const hasWaist = measurements.some((m: SizeMeasurement) => !!m.waist);
     const hasSleeves = measurements.some((m: SizeMeasurement) => !!m.sleeves);
-    const isPants = !isSuit && hasWaist && !hasSleeves;
+    const nameLow = (product.name || "").toLowerCase();
+    const isBottomByName = ["шорт", "брюк", "джинс", "леггинс", "юбк", "бриджи", "бриджей"].some(kw => nameLow.includes(kw));
+    const isPants = !isSuit && (isBottomByName || (hasWaist && !hasSleeves));
     const needsHips = isSuit || isPants;
     if (!sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || sizeAdvisorLoading) return;
     if (needsHips && !sizeAdvisorHips.trim()) return;
@@ -549,8 +551,7 @@ export default function ProductDetail() {
     } else if (isPants) {
       msgText = `Подберите мне размер для товара "${product.name}". Мой рост: ${sizeAdvisorHeight} см, обхват талии: ${sizeAdvisorMeasure} см, обхват бёдер: ${sizeAdvisorHips} см.`;
     } else {
-      const measureLabel = hasWaist ? 'обхват талии' : 'обхват груди';
-      msgText = `Подберите мне размер для товара "${product.name}". Мой рост: ${sizeAdvisorHeight} см, ${measureLabel}: ${sizeAdvisorMeasure} см.`;
+      msgText = `Подберите мне размер для товара "${product.name}". Мой рост: ${sizeAdvisorHeight} см, обхват груди: ${sizeAdvisorMeasure} см.`;
     }
     try {
       const res = await fetch('/api/ai/chat', {
@@ -1436,7 +1437,9 @@ export default function ProductDetail() {
                             const flatMeasurements = (product.measurements as SizeMeasurement[]) || [];
                             const hasWaistInFlat = !isSuit && flatMeasurements.some((m: SizeMeasurement) => !!m.waist);
                             const hasSleeveInFlat = flatMeasurements.some((m: SizeMeasurement) => !!m.sleeves);
-                            const isPants = hasWaistInFlat && !hasSleeveInFlat;
+                            const nameLowR = (product.name || "").toLowerCase();
+                            const isBottomByNameR = ["шорт", "брюк", "джинс", "леггинс", "юбк", "бриджи", "бриджей"].some(kw => nameLowR.includes(kw));
+                            const isPants = isBottomByNameR || (hasWaistInFlat && !hasSleeveInFlat);
                             const needsHips = isSuit || isPants;
                             return (
                               <>
@@ -1492,7 +1495,9 @@ export default function ProductDetail() {
                             disabled={(() => {
                               const isSuit = ((product as any).measurementSections?.length ?? 0) > 0;
                               const fm = (product.measurements as SizeMeasurement[]) || [];
-                              const isPants = !isSuit && fm.some((m: SizeMeasurement) => !!m.waist) && !fm.some((m: SizeMeasurement) => !!m.sleeves);
+                              const nlD = (product.name || "").toLowerCase();
+                              const isBottomD = ["шорт", "брюк", "джинс", "леггинс", "юбк", "бриджи", "бриджей"].some(kw => nlD.includes(kw));
+                              const isPants = !isSuit && (isBottomD || (fm.some((m: SizeMeasurement) => !!m.waist) && !fm.some((m: SizeMeasurement) => !!m.sleeves)));
                               return !sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || ((isSuit || isPants) && !sizeAdvisorHips.trim()) || sizeAdvisorLoading;
                             })()}
                             data-testid="button-size-advisor-submit-inline"
