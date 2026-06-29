@@ -79,6 +79,11 @@ interface ProductPageContext {
   subcategory?: string;
   measurements?: Array<{ size: string; chest?: string; waist?: string; hips?: string; shoulders?: string; sleeves?: string; length?: string; sideLength?: string; bottomWidth?: string }>;
   measurementSections?: Array<{ title: string; rows: Array<{ size: string; chest?: string; waist?: string; hips?: string; shoulders?: string; sleeves?: string; length?: string; sideLength?: string; bottomWidth?: string }> }>;
+  preorderEnabled?: boolean;
+  preorderStatus?: string | null;
+  preorderDeadline?: string | null;
+  preorderGoal?: number;
+  preorderCurrent?: number;
 }
 
 interface ArtistPageContext {
@@ -168,6 +173,10 @@ export function ChatWidget() {
   const lastTsRef = useRef<number>(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const openRef = useRef(false);
+  // Track all products visited in this session for multi-product AI context
+  const visitedProductsRef = useRef<Map<number, ProductPageContext>>(new Map());
+  // Track previous product ID to detect product switches
+  const prevProductIdRef = useRef<number | null>(null);
   openRef.current = open;
 
   // Voice input
@@ -381,9 +390,27 @@ export function ChatWidget() {
   useEffect(() => {
     const setHandler = (e: Event) => {
       const ev = e as CustomEvent<ProductPageContext>;
-      setProductPageCtx(ev.detail);
+      const newProduct = ev.detail;
+      // Add to visited products map
+      visitedProductsRef.current.set(newProduct.id, newProduct);
+      // If switching to a different product and chat has messages — inject context switch marker
+      if (prevProductIdRef.current !== null && prevProductIdRef.current !== newProduct.id) {
+        setAiMessages(msgs => {
+          if (msgs.length === 0) return msgs;
+          return [...msgs, {
+            id: `ctx-${Date.now()}`,
+            role: "assistant" as const,
+            content: `🔄 Вы перешли на другой товар: **${newProduct.name}**. Я помню предыдущий товар и могу их сравнить — спрашивайте.`,
+          }];
+        });
+      }
+      prevProductIdRef.current = newProduct.id;
+      setProductPageCtx(newProduct);
     };
-    const clearHandler = () => setProductPageCtx(null);
+    const clearHandler = () => {
+      prevProductIdRef.current = null;
+      setProductPageCtx(null);
+    };
     window.addEventListener("set-product-context", setHandler);
     window.addEventListener("clear-product-context", clearHandler);
     return () => {
@@ -435,6 +462,10 @@ export function ChatWidget() {
         body: JSON.stringify({
           stream: true,
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          productId: productPageCtx?.id ?? undefined,
+          visitedProducts: visitedProductsRef.current.size > 1
+            ? Array.from(visitedProductsRef.current.values())
+            : undefined,
           pageContext: cartRemovedProductRef.current
             ? { pageType: "cart_remove", removedProductName: cartRemovedProductRef.current, product: productPageCtx ?? undefined, activeTrigger: lastTriggerRef.current }
             : { pageType, product: productPageCtx ?? undefined, artist: artistPageCtx ?? undefined, activeTrigger: lastTriggerRef.current },
@@ -577,6 +608,9 @@ export function ChatWidget() {
           stream: true,
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
           productId,
+          visitedProducts: visitedProductsRef.current.size > 1
+            ? Array.from(visitedProductsRef.current.values())
+            : undefined,
           pageContext: { pageType: "product", product: productPageCtx ?? undefined, artist: artistPageCtx ?? undefined },
         }),
       });

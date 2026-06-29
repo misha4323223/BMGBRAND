@@ -1,63 +1,46 @@
 ---
 name: AI chat size & context issues
-description: Полный анализ проблем AI чат-виджета — подбор размера, смена товара, контекст
+description: Анализ и реализованные правки AI чата — размеры, смена товара, visitedProducts
 ---
 
-## Проблемы (в порядке критичности)
+## Реализованные правки (июнь 2026)
 
-### 🔴 1. История чата не чистится при смене товара
-- `aiMessages` в `ChatWidget.tsx` — React state, не сбрасывается при `set-product-context`
-- Groq получает: system prompt с товаром B + история про товар A → путается, отвечает про A
-- Нет механизма уведомления модели о смене контекста
+### server/routes.ts
+1. `visitedProducts` принимается из req.body → строится `visitedProductsStr` (все просмотренные товары сессии)
+2. `visitedProductsStr` добавляется в системный промпт после `userContextStr`, до `pageContextStr`
+3. `detectAiTopic` теперь смотрит последние 3 сообщения пользователя (не только последнее)
+4. `ai_block_sizing` расширен: подойдёт/подойдет, велик/велика, маловат, сядет, сидит, оверсайз, ростовк, какой взять/брать
+5. `[NO_ANSWER]` при пустой таблице замеров — обе ветки: по `productId` (строка ~3114) и по keyword auto-inject (~3380)
+6. `pageSizeTableStr` пропускается если `sizeAdvisorContext` уже заполнен (`if (!sizeAdvisorContext)`) — нет дублирования таблиц
+7. `console.error` добавлен при `streamRes.ok === false`
 
-**Why:** При SPA-навигации компонент ChatWidget не размонтируется, поэтому state сохраняется.
+### client/src/components/ChatWidget.tsx
+1. `ProductPageContext` интерфейс дополнен preorder-полями
+2. `visitedProductsRef` (Map<number, ProductPageContext>) + `prevProductIdRef` — новые ref'ы
+3. `set-product-context` handler: добавляет в Map, при смене товара инжектирует маркер в `aiMessages`
+4. `sendAiMessage`: передаёт `productId: productPageCtx?.id` + `visitedProducts` (Array от Map)
+5. `sendSizeAdvisorMessage`: передаёт `visitedProducts`
 
-**How to apply:** При `set-product-context` если новый товар ≠ текущему — добавить в `aiMessages` системное сообщение-разделитель ("пользователь перешёл на другой товар") ИЛИ сбросить историю.
+## Архитектура Size Advisor — два независимых пути
 
----
+### Путь 1: Кнопка на странице товара (ProductDetail.tsx)
+- Встроенная панель, независима от ChatWidget
+- `handleSizeAdvisorSubmit` → `POST /api/ai/chat` без `stream`, с `productId`, БЕЗ `pageContext`
+- Ответ: `data.reply` (JSON, не SSE) → рендерится inline на странице
+- Не нужен pageContext: всё берётся через productId → sizeAdvisorContext
 
-### 🔴 2. detectAiTopic работает только по последнему сообщению
-- `server/routes.ts:3426`: `detectAiTopic(lastUserMsg?.content || '')`
-- Если тема "размер" была 3 сообщения назад, и текущее — уточнение ("а для роста 175?") — `ai_block_sizing` не добавляется
+### Путь 2: ChatWidget size advisor (open-size-advisor event)
+- `sendSizeAdvisorMessage` → SSE stream с `productId` + `visitedProducts`
+- Сбрасывает `aiMessages` перед отправкой (единственное место очистки)
 
-**How to apply:** Искать тему по последним 3–5 сообщениям, не только по последнему. Или сохранять активную тему в сессии.
-
----
-
-### 🟠 3. Пропущенные ключевые слова для ai_block_sizing
-- `server/routes.ts:1454`
-- Не покрыты: "подойдет"/"подойдёт", "велик"/"велика"/"маловато", "какой взять", "нужен xl"/"беру l", "сядет"/"сидит"/"как сидит", "оверсайз", "ростовка"
-- "оверсайз" есть в auto-inject (строка 3320) но не в topic detector
-
----
-
-### 🟠 4. Кнопка "подобрать размер" и обычный чат — разные промпты
-- Кнопка: передаёт `productId` → `sizeAdvisorContext` (детальные правила) + `max_tokens=1500`
-- Обычный чат: только `pageContext` → `pageContextStr` (менее детальные правила) + `max_tokens=600`
-- `sendAiMessage` (`ChatWidget.tsx:432`) не передаёт `productId` вообще
-
-**Fix:** В `sendAiMessage` передавать `productId: productPageCtx?.id` если пользователь на странице товара.
-
----
-
-### 🟠 5. Конфликт двух таблиц замеров в промпте
-- Если `sizeAdvisorContext` (из кнопки, товар A) + `pageContextStr` с замерами (товар B) — оба попадают в промпт
-- Порядок: `systemPrompt += pageContextStr; systemPrompt += sizeAdvisorContext` — две таблицы для разных товаров
-
----
-
-### 🟡 6. Автовыбор первого товара при поиске по ключевым словам
-- `routes.ts:3325–3327`: берётся первый с sections/measurements из matched[]
-- Если matched[] содержит несколько толстовок — берётся не обязательно та, про которую спрашивают
-
----
-
-### 🟡 7. Нет [NO_ANSWER] когда таблица замеров не заполнена
-- `routes.ts:3114`: промпт говорит "скажи что таблица не заполнена" — но без тега [NO_ANSWER]
-- Уведомление в Telegram не уходит, в очередь админки не попадает
-
----
-
-## Файлы для правки
-- `client/src/components/ChatWidget.tsx` — проблемы 1, 4
-- `server/routes.ts` — проблемы 2, 3, 5, 6, 7
+## Правила промпта (порядок)
+```
+ai_prompt_base
++ topicBlock (ai_block_sizing etc)
++ userContextStr
++ visitedProductsStr  ← новое
++ pageContextStr (без таблицы если sizeAdvisorContext заполнен)
++ productContext (keyword search)
++ sizeAdvisorContext
++ [NO_ANSWER] инструкция
+```

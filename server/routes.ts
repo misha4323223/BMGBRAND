@@ -1451,7 +1451,7 @@ const AI_TOPIC_MAP: Array<{ key: AiKnowledgeKey; kw: string[] }> = [
   { key: 'ai_block_delivery',    kw: ['доставк', 'доставля', 'сдэк', 'cdek', 'курьер', 'пвз', 'трек', 'отслеж', 'когда придёт', 'сколько идёт', 'отправ', 'посылк', 'получить заказ', 'забрать заказ'] },
   { key: 'ai_block_payment',     kw: ['оплат', 'юkassa', 'юкасса', 'тинькофф', 't-банк', 'ozon pay', 'карт', 'sbp', 'сбп', 'рассрочк', 'долями', 'т-пэй', 'платёж', 'платеж'] },
   { key: 'ai_block_returns',     kw: ['возврат', 'обмен', 'вернут', 'обменят', 'бракован', ' брак'] },
-  { key: 'ai_block_sizing',      kw: ['размер', 'size', 'таблиц', 'подобрать', 'маломерит', 'большемерит', 'xs', 'xxl', 'мерк', 'замер'] },
+  { key: 'ai_block_sizing',      kw: ['размер', 'size', 'таблиц', 'подобрать', 'маломерит', 'большемерит', 'xs', 'xxl', 'мерк', 'замер', 'подойдёт', 'подойдет', 'велик', 'велика', 'маловат', 'сядет', 'сидит', 'как сидит', 'оверсайз', 'ростовк', 'какой взять', 'какой брать', 'нужен xl', 'нужен l', 'нужен m', 'нужен s'] },
   { key: 'ai_block_merch_order', kw: ['мерч', 'тираж', 'производств', 'печат', 'для группы', 'для бренда', 'корпоратив', 'нанесен', 'merch', 'заказ одежд', 'корпорат'] },
   { key: 'ai_block_partner',     kw: ['партнёр', 'партнер', 'реферал', 'комисс', 'зарабат', 'реклам', 'affiliate', 'партнерк'] },
   { key: 'ai_block_artist',      kw: ['артист', 'блогер', 'страниц', '/@', 'медийн', 'лендинг', 'инфлюенс', 'свою страницу'] },
@@ -3068,7 +3068,7 @@ BMGBRAND — официальный производитель и магазин
   // AI chat endpoint (Groq / Qwen3-32B)
   app.post("/api/ai/chat", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      const { messages, productId: sizeProductId, pageContext } = req.body;
+      const { messages, productId: sizeProductId, pageContext, visitedProducts } = req.body;
       if (!Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "messages required" });
       }
@@ -3111,9 +3111,32 @@ BMGBRAND — официальный производитель и магазин
             const rows = measurements.map(buildMRowStr).join("\n");
             sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\n\nПРАВИЛА (строго соблюдай):\n1. Если покупатель уже указал параметры тела (рост, грудь, талия и т.п.) — НЕ задавай дополнительных вопросов, сразу называй конкретный размер.\n2. Если параметры ещё не указаны — попроси только обхват груди и рост.\n3. НЕ перенаправляй к менеджеру, если таблица замеров доступна.\n\nКАК ПОДБИРАТЬ (замеры в таблице — это замеры ИЗДЕЛИЯ, а не тела):\n- Найди строку, где обхват груди изделия = обхват груди тела + 10–15 см (стандартный свободный крой, streetwear)\n- Если изделие явно оверсайз — прибавляй 15–25 см\n- Если покупатель не уточнил силуэт — рекомендуй размер для свободного кроя (+12 см) и кратко поясни\n- Всегда называй КОНКРЕТНЫЙ размер и объясни выбор в 1–2 предложениях\n\n### Таблица замеров изделия:\n${rows}`;
           } else {
-            sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\nТочная таблица замеров для этого товара ещё не заполнена. Ответь пользователю ДОСЛОВНО: "Точная таблица замеров для этого товара ещё не заполнена — рекомендую написать менеджеру" и предложи переключиться на чат с менеджером.`;
+            sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\nТаблица замеров для этого товара не заполнена. Начни ответ с [NO_ANSWER] и сообщи клиенту дословно: "К сожалению, таблица замеров для этого товара пока не заполнена — напишите менеджеру, он поможет подобрать размер."`;
           }
         }
+      }
+
+      // --- Visited products context (multi-product session) ---
+      let visitedProductsStr = "";
+      if (Array.isArray(visitedProducts) && visitedProducts.length > 1) {
+        const vpLines: string[] = ["\n\n## Товары, которые пользователь смотрел в этой сессии"];
+        for (const vp of visitedProducts as any[]) {
+          const vpPrice = vp.price ? `${Number(vp.price).toLocaleString("ru-RU")} ₽` : "цена не указана";
+          const vpStock: Record<string, number> = vp.sizeStock || {};
+          const vpStockLines = Object.entries(vpStock).filter(([, q]) => (q as number) > 0).map(([s, q]) => `${s}: ${q} шт.`);
+          const vpStockStr = vpStockLines.length > 0 ? vpStockLines.join(", ") : "нет в наличии";
+          const vpHasTable = (Array.isArray(vp.measurementSections) && vp.measurementSections.length > 0) || (Array.isArray(vp.measurements) && vp.measurements.length > 0);
+          const isCurrent = pageContext?.product?.id === vp.id;
+          vpLines.push(`\n### ${vp.name}${isCurrent ? " ← (смотрит сейчас)" : ""}`);
+          vpLines.push(`- Цена: ${vpPrice}`);
+          if (vp.color) vpLines.push(`- Цвет: ${vp.color}`);
+          if (vp.composition) vpLines.push(`- Состав: ${vp.composition}`);
+          vpLines.push(`- Наличие по размерам: ${vpStockStr}`);
+          if (vp.category) vpLines.push(`- Категория: ${vp.subcategory || vp.category}`);
+          vpLines.push(`- Таблица замеров: ${vpHasTable ? "есть" : "не заполнена"}`);
+        }
+        vpLines.push(`\nЕсли пользователь сравнивает товары, спрашивает про предыдущий или просит совет — используй данные всех товаров выше.`);
+        visitedProductsStr = vpLines.join("\n");
       }
 
       // --- Current product page context ---
@@ -3144,6 +3167,7 @@ BMGBRAND — официальный производитель и магазин
           preorderNote = `\n\nВАЖНО: это товар ПРЕДЗАКАЗА (статус: ${statusLabel}${deadlinePart}${progressPart}). Покупатель оформляет заявку заранее и ждёт производства. Если спрашивают про сроки, как это работает, или когда придёт — объясни схему предзаказа. Не говори что карточка пустая — это нормально для предзаказного товара.`;
         }
         // Build size table section if measurements are available
+        // Skip if sizeAdvisorContext already contains the size table — avoid duplicate tables in prompt
         const pageMeasurements = (p.measurements || []) as any[];
         const pageMeasurementSections = (p.measurementSections || []) as any[];
         const buildPageMRowStr = (m: any) => {
@@ -3159,14 +3183,16 @@ BMGBRAND — официальный производитель и магазин
           return parts.join(" ");
         };
         let pageSizeTableStr = "";
-        if (pageMeasurementSections.length > 0) {
-          const tableStr = pageMeasurementSections.map((sec: any) =>
-            `#### ${sec.title}:\n${(sec.rows || []).map(buildPageMRowStr).join("\n")}`
-          ).join("\n\n");
-          pageSizeTableStr = `\n\n### Таблицы замеров изделия (КОСТЮМ — верх и низ отдельно):\n${tableStr}\n\nПРАВИЛА подбора размера:\n1. Это костюм — нужно подобрать ДВА размера: для верха и для низа отдельно.\n2. Если совпадают — скажи один (например M); если нет — укажи оба (верх M / низ L).\n3. Замеры — это ИЗДЕЛИЕ (не тело). Верх: грудь тела + 10–15 см. Низ: талия + 4–6 см или бёдра + 6–8 см.\n4. Если параметры уже известны — СРАЗУ называй размеры, не задавай лишних вопросов.`;
-        } else if (pageMeasurements.length > 0) {
-          const rows = pageMeasurements.map(buildPageMRowStr).join("\n");
-          pageSizeTableStr = `\n\n### Таблица замеров изделия (замеры самой вещи, НЕ тела):\n${rows}\n\nПРАВИЛА подбора размера:\n1. Если покупатель уже дал свои параметры (рост, грудь и т.п.) — СРАЗУ называй конкретный размер, не задавай дополнительных вопросов.\n2. Обхват груди изделия = обхват груди тела + 10–15 см (streetwear, свободный крой). Оверсайз — +15–25 см.\n3. НЕ отправляй к менеджеру — таблица доступна, используй её.\n4. Всегда называй конкретный размер и объясни выбор в 1–2 предложениях.`;
+        if (!sizeAdvisorContext) {
+          if (pageMeasurementSections.length > 0) {
+            const tableStr = pageMeasurementSections.map((sec: any) =>
+              `#### ${sec.title}:\n${(sec.rows || []).map(buildPageMRowStr).join("\n")}`
+            ).join("\n\n");
+            pageSizeTableStr = `\n\n### Таблицы замеров изделия (КОСТЮМ — верх и низ отдельно):\n${tableStr}\n\nПРАВИЛА подбора размера:\n1. Это костюм — нужно подобрать ДВА размера: для верха и для низа отдельно.\n2. Если совпадают — скажи один (например M); если нет — укажи оба (верх M / низ L).\n3. Замеры — это ИЗДЕЛИЕ (не тело). Верх: грудь тела + 10–15 см. Низ: талия + 4–6 см или бёдра + 6–8 см.\n4. Если параметры уже известны — СРАЗУ называй размеры, не задавай лишних вопросов.`;
+          } else if (pageMeasurements.length > 0) {
+            const rows = pageMeasurements.map(buildPageMRowStr).join("\n");
+            pageSizeTableStr = `\n\n### Таблица замеров изделия (замеры самой вещи, НЕ тела):\n${rows}\n\nПРАВИЛА подбора размера:\n1. Если покупатель уже дал свои параметры (рост, грудь и т.п.) — СРАЗУ называй конкретный размер, не задавай дополнительных вопросов.\n2. Обхват груди изделия = обхват груди тела + 10–15 см (streetwear, свободный крой). Оверсайз — +15–25 см.\n3. НЕ отправляй к менеджеру — таблица доступна, используй её.\n4. Всегда называй конкретный размер и объясни выбор в 1–2 предложениях.`;
+          }
         }
         pageContextStr = `\n\n## Текущий товар (пользователь смотрит эту карточку прямо сейчас)\n- Название: ${p.name}\n- Цена: ${priceStr}\n- Цвет: ${p.color || "не указан"}\n- Состав: ${p.composition || "не указан"}\n- Описание: ${(p.description || "").slice(0, 400)}\n- Наличие по размерам: ${stockStr}\n- Категория: ${category}${pageSizeTableStr}\n\nЕсли пользователь спрашивает про этот товар (состав, размеры, цвет, наличие) — отвечай на основе этих данных.${triggerNote}${lowStockNote}${crossSellHint}${preorderNote}`;
       } else if (pageContext?.pageType === "cart_remove" && pageContext.removedProductName) {
@@ -3351,7 +3377,7 @@ BMGBRAND — официальный производитель и магазин
                 sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\n\nПРАВИЛА (строго соблюдай):\n1. Если покупатель уже указал параметры тела (рост, грудь, талия и т.п.) — НЕ задавай дополнительных вопросов, сразу называй конкретный размер.\n2. Если параметры ещё не указаны — попроси только обхват груди и рост.\n3. НЕ перенаправляй к менеджеру, если таблица замеров доступна.\n\nКАК ПОДБИРАТЬ (замеры в таблице — это замеры ИЗДЕЛИЯ, а не тела):\n- Найди строку, где обхват груди изделия = обхват груди тела + 10–15 см (стандартный свободный крой, streetwear)\n- Если изделие явно оверсайз — прибавляй 15–25 см\n- Если покупатель не уточнил силуэт — рекомендуй размер для свободного кроя (+12 см) и кратко поясни\n- Всегда называй КОНКРЕТНЫЙ размер и объясни выбор в 1–2 предложениях\n\n### Таблица замеров изделия:\n${rows}`;
                 console.log(`[AI Chat] Auto-injected size table for "${productName}" (${measurements.length} rows)`);
               } else {
-                sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\nТочная таблица замеров для этого товара ещё не заполнена. Ответь пользователю ДОСЛОВНО: "Точная таблица замеров для этого товара ещё не заполнена — рекомендую написать менеджеру" и предложи переключиться на чат с менеджером.`;
+                sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\nТаблица замеров для этого товара не заполнена. Начни ответ с [NO_ANSWER] и сообщи клиенту дословно: "К сожалению, таблица замеров для этого товара пока не заполнена — напишите менеджеру, он поможет подобрать размер."`;
               }
             }
           }
@@ -3423,7 +3449,13 @@ BMGBRAND — официальный производитель и магазин
       }
 
       await loadAiKnowledgeIfNeeded();
-      const topicKey = detectAiTopic(lastUserMsg?.content || '');
+      // Detect topic from last 3 user messages — handles follow-up questions that don't repeat the topic word
+      const recentUserContents = [...messages]
+        .filter((m: any) => m.role === "user")
+        .slice(-3)
+        .map((m: any) => m.content as string)
+        .join(' ');
+      const topicKey = detectAiTopic(recentUserContents);
       console.log(`[AI Chat] query="${(lastUserMsg?.content || '').substring(0, 60)}" topic=${topicKey || 'none'}`);
       logChatTopic(lastUserMsg?.content || '', topicKey);
       let systemPrompt = getAiKnowledgeCached('ai_prompt_base');
@@ -3432,6 +3464,7 @@ BMGBRAND — официальный производитель и магазин
         if (topicBlock) systemPrompt += '\n\n' + topicBlock;
       }
       if (userContextStr) systemPrompt += userContextStr;
+      if (visitedProductsStr) systemPrompt += visitedProductsStr;
       if (pageContextStr) systemPrompt += pageContextStr;
       if (productContext) systemPrompt += productContext;
       if (sizeAdvisorContext) systemPrompt += sizeAdvisorContext;
@@ -3475,6 +3508,7 @@ BMGBRAND — официальный производитель и магазин
         });
 
         if (!streamRes.ok || !streamRes.body) {
+          console.error(`[AI Chat] Groq stream error: status=${streamRes.status}`);
           const errCode = streamRes.status === 429 ? "rate_limit" : "ai_unavailable";
           res.write(`data: ${JSON.stringify({ error: errCode })}\n\n`);
           res.end();
