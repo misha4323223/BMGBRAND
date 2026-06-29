@@ -13,7 +13,7 @@ import {
   getLog,
   saveAgentSettings,
 } from "./agent-queue";
-import { executeWriteTool } from "./admin-agent";
+import { executeWriteTool, processAdminCommand } from "./admin-agent";
 import {
   getAgentStatus,
   runAutonomousAgent,
@@ -1013,6 +1013,45 @@ export function registerAiChatRoute(app: Express): void {
     }
   });
 }
+
+// ─── Admin AI Agent Routes ────────────────────────────────────────────────────
+
+export function registerAdminAgentRoutes(
+  app: Express,
+  checkAdminKey: (key: string | undefined) => boolean
+): void {
+
+  // POST /api/admin/agent/chat — чат с агентом
+  app.post("/api/admin/agent/chat", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { command, history } = req.body;
+      if (!command?.trim()) return res.status(400).json({ error: "command required" });
+      const result = await processAdminCommand(command, history || []);
+      res.json(result);
+    } catch (e: any) {
+      console.error("[AdminAgent] chat error:", e?.message);
+      res.status(500).json({ error: e?.message || "Agent error" });
+    }
+  });
+
+  // POST /api/admin/agent/execute — выполнить write-инструмент
+  app.post("/api/admin/agent/execute", async (req, res) => {
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (!checkAdminKey(apiKey as string)) return res.status(403).json({ error: "Forbidden" });
+    try {
+      const { tool, params } = req.body;
+      if (!tool) return res.status(400).json({ error: "tool required" });
+      const result = await executeWriteTool(tool, params || {});
+      res.json({ result });
+    } catch (e: any) {
+      console.error("[AdminAgent] execute error:", e?.message);
+      res.status(500).json({ error: e?.message || "Execute error" });
+    }
+  });
+}
+// ─── End Admin AI Agent Routes ────────────────────────────────────────────────
 
 // ─── Autonomous Agent Queue Routes ────────────────────────────────────────────
 
