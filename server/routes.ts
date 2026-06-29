@@ -3111,7 +3111,32 @@ BMGBRAND — официальный производитель и магазин
             const rows = measurements.map(buildMRowStr).join("\n");
             sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\n\nПРАВИЛА (строго соблюдай):\n1. Если покупатель уже указал параметры тела (рост, грудь, талия и т.п.) — НЕ задавай дополнительных вопросов, сразу называй конкретный размер.\n2. Если параметры ещё не указаны — попроси только обхват груди и рост.\n3. НЕ перенаправляй к менеджеру, если таблица замеров доступна.\n\nКАК ПОДБИРАТЬ (замеры в таблице — это замеры ИЗДЕЛИЯ, а не тела):\n- Найди строку, где обхват груди изделия = обхват груди тела + 10–15 см (стандартный свободный крой, streetwear)\n- Если изделие явно оверсайз — прибавляй 15–25 см\n- Если покупатель не уточнил силуэт — рекомендуй размер для свободного кроя (+12 см) и кратко поясни\n- Всегда называй КОНКРЕТНЫЙ размер и объясни выбор в 1–2 предложениях\n\n### Таблица замеров изделия:\n${rows}`;
           } else {
-            sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\nТаблица замеров для этого товара не заполнена. Начни ответ с [NO_ANSWER] и сообщи клиенту дословно: "К сожалению, таблица замеров для этого товара пока не заполнена — напишите менеджеру, он поможет подобрать размер."`;
+            // No size table — handle entirely server-side, no Groq needed
+            const noTableReply = "К сожалению, таблица замеров для этого товара пока не заполнена — напишите менеджеру, он поможет подобрать размер.";
+            const clientQuestion = ([...messages].reverse().find((m: any) => m.role === "user") as any)?.content || "(вопрос не определён)";
+            const alertText = `📏 *Таблица замеров не заполнена*\n\nТовар: ${productName}\nВопрос клиента: ${clientQuestion}`;
+            sendAgentAlert(alertText).catch(() => {});
+            vkNotifyAgentAlert(alertText);
+            import("./agent-queue").then(({ addToQueue }) => {
+              addToQueue({
+                type: "knowledge_gap",
+                title: `📏 Нет таблицы замеров: ${productName.slice(0, 60)}`,
+                description: `Клиент запросил подбор размера для "${productName}", но таблица замеров не заполнена.\nВопрос: ${clientQuestion}`,
+                tool: "update_product_measurements",
+                params: { productId: sizeProductId, productName },
+              }).catch(() => {});
+            }).catch(() => {});
+            if (req.body.stream) {
+              res.setHeader("Content-Type", "text/event-stream");
+              res.setHeader("Cache-Control", "no-cache");
+              res.setHeader("Connection", "keep-alive");
+              res.write(`data: ${JSON.stringify({ chunk: noTableReply })}\n\n`);
+              res.write(`data: ${JSON.stringify({ done: true, products: [] })}\n\n`);
+              res.end();
+            } else {
+              res.json({ reply: noTableReply, products: [] });
+            }
+            return;
           }
         }
       }
@@ -3135,7 +3160,7 @@ BMGBRAND — официальный производитель и магазин
           if (vp.category) vpLines.push(`- Категория: ${vp.subcategory || vp.category}`);
           vpLines.push(`- Таблица замеров: ${vpHasTable ? "есть" : "не заполнена"}`);
         }
-        vpLines.push(`\nЕсли пользователь сравнивает товары, спрашивает про предыдущий или просит совет — используй данные всех товаров выше.`);
+        vpLines.push(`\nИНСТРУКЦИЯ ПО СРАВНЕНИЮ: Если пользователь спрашивает "какой лучше", "что выбрать", "сравни" или упоминает предыдущий товар — используй данные выше и ДАЙ КОНКРЕТНЫЙ ВЫВОД САМА на основе цены, состава, наличия, категории. Никогда не говори "сравните сами на карточках" или "уточните параметры" — все данные уже есть, используй их.`);
         visitedProductsStr = vpLines.join("\n");
       }
 
@@ -3468,7 +3493,7 @@ BMGBRAND — официальный производитель и магазин
       if (pageContextStr) systemPrompt += pageContextStr;
       if (productContext) systemPrompt += productContext;
       if (sizeAdvisorContext) systemPrompt += sizeAdvisorContext;
-      systemPrompt += `\n\n## ВАЖНО: если не знаешь ответа\nЕсли вопрос выходит за рамки твоих данных и ты не можешь дать точный ответ — начни ответ ровно с тега [NO_ANSWER] (без пробела после), затем напиши вежливый ответ клиенту. Пример: "[NO_ANSWER]Уточните, пожалуйста, у менеджера — он ответит быстро." Используй [NO_ANSWER] только когда действительно не знаешь. НЕ используй его если информация есть в данных выше.`;
+      systemPrompt += `\n\n## ВАЖНО: тег [NO_ANSWER]\nИспользуй [NO_ANSWER] ТОЛЬКО если пользователь спрашивает конкретный факт о магазине или товаре (условия акции, точный срок доставки в регион, статус заказа и т.п.) которого нет в данных выше. Формат: начни ответ ровно с [NO_ANSWER] без пробела, затем вежливый ответ. Пример: "[NO_ANSWER]Уточните у менеджера — он ответит быстро."\nНЕ используй [NO_ANSWER] для субъективных вопросов ("что лучше", "что выбрать", "что посоветуешь", сравнение товаров) — на них отвечай самостоятельно на основе имеющихся данных. НЕ используй если информация есть в данных выше.`;
 
       const groqHeaders: Record<string, string> = { "Content-Type": "application/json" };
       if (apiKey) groqHeaders["Authorization"] = `Bearer ${apiKey}`;
