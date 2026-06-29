@@ -3144,23 +3144,40 @@ BMGBRAND — официальный производитель и магазин
       // --- Visited products context (multi-product session) ---
       let visitedProductsStr = "";
       if (Array.isArray(visitedProducts) && visitedProducts.length > 1) {
+        const buildMRow = (m: any) => {
+          const parts: string[] = [`${m.size}:`];
+          if (m.chest) parts.push(`грудь ${m.chest}`);
+          if (m.waist) parts.push(`талия ${m.waist}`);
+          if (m.hips) parts.push(`бёдра ${m.hips}`);
+          if (m.shoulders) parts.push(`плечи ${m.shoulders}`);
+          if (m.sleeves) parts.push(`рукав ${m.sleeves}`);
+          if (m.length) parts.push(`длина ${m.length}`);
+          if (m.sideLength) parts.push(`бок ${m.sideLength}`);
+          if (m.bottomWidth) parts.push(`низ ${m.bottomWidth}`);
+          return parts.join(" ");
+        };
         const vpLines: string[] = ["\n\n## Товары, которые пользователь смотрел в этой сессии"];
         for (const vp of visitedProducts as any[]) {
           const vpPrice = vp.price ? `${Number(vp.price).toLocaleString("ru-RU")} ₽` : "цена не указана";
           const vpStock: Record<string, number> = vp.sizeStock || {};
-          const vpStockLines = Object.entries(vpStock).filter(([, q]) => (q as number) > 0).map(([s, q]) => `${s}: ${q} шт.`);
-          const vpStockStr = vpStockLines.length > 0 ? vpStockLines.join(", ") : "нет в наличии";
-          const vpHasTable = (Array.isArray(vp.measurementSections) && vp.measurementSections.length > 0) || (Array.isArray(vp.measurements) && vp.measurements.length > 0);
+          const vpStockStr = Object.entries(vpStock).filter(([, q]) => (q as number) > 0).map(([s, q]) => `${s}: ${q} шт.`).join(", ") || "нет в наличии";
           const isCurrent = pageContext?.product?.id === vp.id;
-          vpLines.push(`\n### ${vp.name}${isCurrent ? " ← (смотрит сейчас)" : ""}`);
+          vpLines.push(`\n### ${vp.name}${isCurrent ? " ← (смотрит сейчас)" : ""}${vp.slug ? ` (/${vp.slug})` : ""}`);
           vpLines.push(`- Цена: ${vpPrice}`);
           if (vp.color) vpLines.push(`- Цвет: ${vp.color}`);
           if (vp.composition) vpLines.push(`- Состав: ${vp.composition}`);
+          if (vp.description) vpLines.push(`- Описание: ${String(vp.description).slice(0, 300)}`);
           vpLines.push(`- Наличие по размерам: ${vpStockStr}`);
           if (vp.category) vpLines.push(`- Категория: ${vp.subcategory || vp.category}`);
-          vpLines.push(`- Таблица замеров: ${vpHasTable ? "есть" : "не заполнена"}`);
+          const sections: any[] = Array.isArray(vp.measurementSections) ? vp.measurementSections : [];
+          const rows: any[] = Array.isArray(vp.measurements) ? vp.measurements : [];
+          if (sections.length > 0) {
+            vpLines.push(`- Таблица замеров:\n${sections.map((sec: any) => `  ${sec.title}: ${(sec.rows || []).map(buildMRow).join(" | ")}`).join("\n")}`);
+          } else if (rows.length > 0) {
+            vpLines.push(`- Таблица замеров: ${rows.map(buildMRow).join(" | ")}`);
+          }
         }
-        vpLines.push(`\nИНСТРУКЦИЯ ПО СРАВНЕНИЮ: Если пользователь спрашивает "какой лучше", "что выбрать", "сравни" или упоминает предыдущий товар — используй данные выше и ДАЙ КОНКРЕТНЫЙ ВЫВОД САМА на основе цены, состава, наличия, категории. Никогда не говори "сравните сами на карточках" или "уточните параметры" — все данные уже есть, используй их.`);
+        vpLines.push(`\nИНСТРУКЦИЯ ПО СРАВНЕНИЮ: Если пользователь спрашивает "какой лучше", "что выбрать", "сравни" или упоминает предыдущий товар — используй данные выше и ДАЙ КОНКРЕТНЫЙ ВЫВОД на основе цены, состава, описания, наличия и таблицы замеров. Никогда не говори "сравните сами на карточках" или "уточните параметры" — все данные есть, используй их.`);
         visitedProductsStr = vpLines.join("\n");
       }
 
@@ -3251,6 +3268,36 @@ BMGBRAND — официальный производитель и магазин
       // Overlay for exit_intent trigger — works on any page
       if (pageContext?.activeTrigger === "exit_intent") {
         pageContextStr += `\n\nВАЖНО: пользователь собирался покинуть сайт (навёл мышь к закрытию вкладки), но решил написать. Постарайся удержать его — расскажи про текущие акции, промокоды или предложи помощь с тем что он искал. Будь особенно приветливым и конкретным.`;
+      }
+
+      // --- Similar products suggestions (when on a product page and user asks for more) ---
+      let similarProductsStr = "";
+      if (pageContext?.pageType === "product" && pageContext.product) {
+        const lastMsg = [...messages].reverse().find((m: any) => m.role === "user");
+        const similarKw = ["ещё", "еще", "похожи", "подобн", "альтернатив", "другой", "другие", "что ещё", "покажи ещё", "есть ещё", "больше", "варианты", "варианты есть", "предложи"];
+        const isSimilarQuery = lastMsg?.content && similarKw.some((kw: string) => (lastMsg.content as string).toLowerCase().includes(kw));
+        if (isSimilarQuery) {
+          const currentSub = pageContext.product.subcategory || pageContext.product.category || "";
+          const currentId = pageContext.product.id;
+          const allP = await storage.getProducts() as any[];
+          const similar = allP.filter((p: any) => {
+            if (p.isHidden || p.id === currentId) return false;
+            const img = (p.imageUrl || "").trim();
+            if (!img || !img.startsWith("https://")) return false;
+            if (!p.price || Number(p.price) <= 0) return false;
+            const totalStock = p.stock != null ? Number(p.stock) : Object.values(p.sizeStock || {}).reduce((s: number, q) => s + Number(q), 0);
+            if (totalStock <= 0) return false;
+            return (p.subcategory || p.category || "") === currentSub;
+          }).slice(0, 3);
+          if (similar.length > 0) {
+            const lines = similar.map((p: any) => {
+              const pr = `${Number(p.price / 100).toLocaleString("ru-RU")} ₽`;
+              const stock = Object.entries(p.sizeStock || {}).filter(([, q]) => (q as number) > 0).map(([s]) => s).join(", ") || "нет в наличии";
+              return `- ${p.name} — ${pr}, размеры: ${stock}${p.slug ? ` (/${p.slug})` : ""}`;
+            }).join("\n");
+            similarProductsStr = `\n\n## Похожие товары из той же категории\n${lines}\n\nЕсли пользователь просит предложить ещё варианты — упомяни эти товары и скажи что их карточки покажутся ниже.`;
+          }
+        }
       }
 
       // --- Product search by keywords from the last user message ---
@@ -3491,6 +3538,7 @@ BMGBRAND — официальный производитель и магазин
       if (userContextStr) systemPrompt += userContextStr;
       if (visitedProductsStr) systemPrompt += visitedProductsStr;
       if (pageContextStr) systemPrompt += pageContextStr;
+      if (similarProductsStr) systemPrompt += similarProductsStr;
       if (productContext) systemPrompt += productContext;
       if (sizeAdvisorContext) systemPrompt += sizeAdvisorContext;
       systemPrompt += `\n\n## ВАЖНО: тег [NO_ANSWER]\nИспользуй [NO_ANSWER] ТОЛЬКО если пользователь спрашивает конкретный факт о магазине или товаре (условия акции, точный срок доставки в регион, статус заказа и т.п.) которого нет в данных выше. Формат: начни ответ ровно с [NO_ANSWER] без пробела, затем вежливый ответ. Пример: "[NO_ANSWER]Уточните у менеджера — он ответит быстро."\nНЕ используй [NO_ANSWER] для субъективных вопросов ("что лучше", "что выбрать", "что посоветуешь", сравнение товаров) — на них отвечай самостоятельно на основе имеющихся данных. НЕ используй если информация есть в данных выше.`;
@@ -3498,14 +3546,13 @@ BMGBRAND — официальный производитель и магазин
       const groqHeaders: Record<string, string> = { "Content-Type": "application/json" };
       if (apiKey) groqHeaders["Authorization"] = `Bearer ${apiKey}`;
 
-      // Product cards computed once — shared by both paths
-      const productCards = matched.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price ? Math.round(p.price / 100) : null,
-        imageUrl: p.imageUrl || null,
-        url: `/${p.slug || p.id}`,
-      }));
+      // Product cards: keyword-matched + similar (from product page context)
+      const toCard = (p: any) => ({ id: p.id, name: p.name, price: p.price ? Math.round(p.price / 100) : null, imageUrl: p.imageUrl || null, url: `/${p.slug || p.id}` });
+      const similarCards = similarProductsStr ? (await storage.getProducts() as any[]).filter((p: any) => {
+        const sub = pageContext?.product?.subcategory || pageContext?.product?.category || "";
+        return !p.isHidden && p.id !== pageContext?.product?.id && (p.subcategory || p.category || "") === sub && p.price > 0 && (p.imageUrl || "").startsWith("https://");
+      }).slice(0, 3).map(toCard) : [];
+      const productCards = matched.length > 0 ? matched.map(toCard) : similarCards;
 
       // Size advisor needs more tokens — qwen3 thinking takes ~400 tokens before visible output
       const isSizeAdvisor = !!sizeAdvisorContext;
