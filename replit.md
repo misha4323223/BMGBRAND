@@ -178,11 +178,17 @@ The application is deployed on Yandex Cloud, leveraging:
 
 ## Changelog
 
-### Рефакторинг routes.ts — Блок 4: Autonomous Agent Queue (июнь 2026)
+### Рефакторинг routes.ts — AI/Chat блоки 3, 4, 5 (июнь 2026)
 
-**Что сделано:** 7 маршрутов Agent Queue вынесены из `routes.ts` в `server/ai-chat.ts` + исправлены найденные баги.
+**Что сделано:** 12 AI/Chat маршрутов вынесены из `routes.ts` в `server/ai-chat.ts` через три именованные функции. `routes.ts` стал на 199 строк короче. При переносе исправлены найденные баги.
 
-**Маршруты перенесены:**
+**Перенесённые функции и маршруты:**
+
+`registerAdminAgentRoutes(app, checkAdminKey)` — Блок 3:
+- `POST /api/admin/agent/chat`
+- `POST /api/admin/agent/execute`
+
+`registerAgentQueueRoutes(app, checkAdminKey, resetAiKnowledgeCache)` — Блок 4:
 - `GET /api/admin/agent-queue`
 - `POST /api/admin/agent-queue/:id/approve`
 - `POST /api/admin/agent-queue/:id/reject`
@@ -191,19 +197,24 @@ The application is deployed on Yandex Cloud, leveraging:
 - `PUT /api/admin/autonomous-agent/settings`
 - `POST /api/admin/autonomous-agent/run`
 
-**Исправленные баги:**
+`registerAiKnowledgeRoutes(app, checkAdminKey)` — Блок 5:
+- `GET /api/admin/ai-knowledge`
+- `POST /api/admin/ai-knowledge/:key`
+- `POST /api/admin/ai-knowledge/:key/reset`
+
+**Исправленные баги (при переносе блока 4):**
 1. **Race condition в approve**: добавлен in-memory мьютекс (`approveLocks: Set<string>`) — двойной клик по «Одобрить» теперь возвращает 409 вместо двойного выполнения инструмента.
-2. **«Мёртвый» статус**: при ошибке `executeWriteTool` статус сбрасывается обратно в `"pending"` (раньше застревал в `"approved"` навсегда без возможности retry).
-3. **`/run` без валидации job**: теперь неизвестный job возвращает 400 до отправки ответа (раньше возвращал `{ok:true}` и молча ничего не делал).
+2. **«Мёртвый» статус approved+error**: при ошибке `executeWriteTool` статус сбрасывается в `"pending"` — раньше застревал навсегда без возможности retry.
+3. **`/run` без валидации job**: неизвестный job теперь возвращает 400 до отправки ответа — раньше возвращал `{ok:true}` и молча ничего не делал.
 4. **4 пропущенных джоба в `/run`**: добавлены `stale_products`, `chat_gap`, `chat_conversion`, `retention`.
-5. **Сортировка `getQueue`**: при фильтрации по статусу результаты теперь тоже сортируются (новые сверху), как и без фильтра.
-6. **Валидация настроек**: `PUT /settings` теперь проверяет тело через Zod-схему вместо прямого `req.body`.
-7. **Статические импорты**: убраны `await import()` внутри обработчиков — всё импортируется статически наверху `ai-chat.ts`.
+5. **Сортировка `getQueue`**: при фильтрации по статусу результаты теперь тоже сортируются новые-сверху.
+6. **Валидация настроек**: `PUT /settings` теперь проверяет тело через Zod-схему.
+7. **Статические импорты**: убраны все `await import()` внутри обработчиков.
 
 **Файлы изменены:**
-- `server/ai-chat.ts` — добавлены импорты + `registerAgentQueueRoutes()` в конце файла
+- `server/ai-chat.ts` — 3 новые экспортируемые функции, статические импорты из `agent-queue`, `admin-agent`, `autonomous-agent`
 - `server/agent-queue.ts` — фикс сортировки в `getQueue`
-- `server/routes.ts` — 125 строк блока заменены одним вызовом `registerAgentQueueRoutes(app, checkAdminKey, resetAiKnowledgeCache)`
+- `server/routes.ts` — 199 строк заменены тремя вызовами; импорт из `./ai-chat` сведён к 4 строкам
 
 ---
 
