@@ -632,9 +632,35 @@ export function registerAiChatRoute(app: Express): void {
           .map(w => w.trim())
           .filter(w => w.length >= 3 && !stopWords.has(w));
 
-        let matchedSubStr: string | null = null;
+        // Collect ALL matching stems with their position in the query text (not array index).
+        // Sorted by position so "шорты" in "подбери шорты к футболке" comes before "футболк".
+        const foundStems: Array<{ kw: string; sub: string; pos: number }> = [];
         for (const { kw, sub } of subcategoryKeywords) {
-          if (query.includes(kw)) { matchedSubStr = sub; break; }
+          const pos = query.indexOf(kw);
+          if (pos !== -1) foundStems.push({ kw, sub, pos });
+        }
+        foundStems.sort((a, b) => a.pos - b.pos);
+
+        // Prepositions that signal "I have Y, looking for X" — appear between stem1 and stem2.
+        const ctxPreps = ["к ", "с ", "под ", "для "];
+        let targetSubs: string[] = [];
+        let contextHint = "";
+
+        if (foundStems.length === 1) {
+          if (foundStems[0].sub) targetSubs = [foundStems[0].sub];
+        } else if (foundStems.length >= 2) {
+          const first = foundStems[0];
+          const second = foundStems[1];
+          const between = query.slice(first.pos + first.kw.length, second.pos);
+          const hasCtxPrep = ctxPreps.some(p => between.includes(p));
+          if (hasCtxPrep) {
+            // "подбери X к Y" → X is target, Y is context
+            if (first.sub) targetSubs = [first.sub];
+            if (second.sub) contextHint = ` для сочетания с «${second.sub.toLowerCase()}»`;
+          } else {
+            // "хочу X и Y" → both are targets
+            targetSubs = [...new Set(foundStems.map(s => s.sub).filter(Boolean))];
+          }
         }
 
         let matchedCatSlug: string | null = null;
@@ -662,7 +688,7 @@ export function registerAiChatRoute(app: Express): void {
           return true;
         };
 
-        if (nameKeywords.length > 0 || matchedSubStr || matchedCatSlug) {
+        if (nameKeywords.length > 0 || targetSubs.length > 0 || matchedCatSlug) {
           if (specificKeywords.length > 0) {
             matched = allProducts.filter((p: any) => {
               if (!isAiVisible(p)) return false;
@@ -676,8 +702,8 @@ export function registerAiChatRoute(app: Express): void {
               if (!isAiVisible(p)) return false;
               const nameLower = (p.name || "").toLowerCase();
               const subLower  = (p.subcategory || "").toLowerCase();
-              if (matchedSubStr && subLower.includes(matchedSubStr.toLowerCase())) return true;
-              if (!matchedSubStr && matchedCatSlug && p.category === matchedCatSlug) return true;
+              if (targetSubs.length > 0 && targetSubs.some(s => subLower.includes(s.toLowerCase()))) return true;
+              if (targetSubs.length === 0 && matchedCatSlug && p.category === matchedCatSlug) return true;
               return nameKeywords.some(kw => nameLower.includes(kw));
             }).slice(0, MAX_PRODUCTS);
           }
@@ -685,7 +711,8 @@ export function registerAiChatRoute(app: Express): void {
 
         if (matched.length > 0) {
           const productNames = matched.map((p: any) => `${p.name}${p.artistOnly ? " (артист)" : ""}`).join(", ");
-          productContext = `\n\n## Найденные товары\nПо запросу пользователя найдены товары: ${productNames}. Карточки этих товаров будут показаны автоматически — НЕ включай ссылки в текст ответа. Просто упомяни что нашёл товары и предложи посмотреть.`;
+          const multiCatHint = contextHint || (targetSubs.length > 1 ? ` (категории: ${targetSubs.join(", ")})` : "");
+          productContext = `\n\n## Найденные товары\nПо запросу пользователя найдены товары${multiCatHint}: ${productNames}. Карточки этих товаров будут показаны автоматически — НЕ включай ссылки в текст ответа. Просто упомяни что нашёл товары и предложи посмотреть.`;
 
           // Auto-inject size table if user is asking about sizing and no explicit sizeProductId
           if (!sizeAdvisorContext) {
