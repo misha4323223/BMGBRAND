@@ -3298,9 +3298,15 @@ BMGBRAND — официальный производитель и магазин
         const updates: any = { stock: newStock };
         if (size && product.sizeStock && typeof product.sizeStock === 'object') {
           const sizeStockMap = product.sizeStock as Record<string, number>;
-          const currentSizeQty = Number(sizeStockMap[size] ?? 0);
+          // Find the actual existing key matching this size (handles legacy variants
+          // like "(OneSize)", "One Size", "OneSize"). Falls back to the canonical key
+          // if no existing key matches, instead of creating a new phantom key.
+          const norm = normalizeSizeKey(size);
+          const matchingKey = Object.keys(sizeStockMap).find(k => normalizeSizeKey(k) === norm);
+          const keyToUpdate = matchingKey ?? canonicalizeSizeKey(size);
+          const currentSizeQty = Number(sizeStockMap[keyToUpdate] ?? 0);
           const newSizeQty = Math.max(0, currentSizeQty - quantity);
-          updates.sizeStock = { ...sizeStockMap, [size]: newSizeQty };
+          updates.sizeStock = { ...sizeStockMap, [keyToUpdate]: newSizeQty };
         }
         await storage.updateProduct(Number(productId), updates);
         console.log(`[StockDecrement] Product ${productId} (size: ${size ?? 'N/A'}): stock ${product.stock} → ${newStock}`);

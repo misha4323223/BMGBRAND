@@ -364,7 +364,7 @@ export default function ProductDetail() {
 
   useEffect(() => {
     if (isEffectivelyNoSize(product)) {
-      setSelectedSize("(OneSize)");
+      setSelectedSize("OneSize");
     }
   }, [(product as any)?.id, isEffectivelyNoSize(product)]);
   const [quantity, setQuantity] = useState(1);
@@ -1615,7 +1615,25 @@ export default function ProductDetail() {
               const allSizesOutOfStock = hasSizeStockData 
                 ? Object.values(sizeStockData).every((v: any) => v <= 0)
                 : ((product.stock ?? 0) <= 0);
-              const selectedSizeOutOfStock = selectedSize && hasSizeStockData && sizeStockData[selectedSize] !== undefined && sizeStockData[selectedSize] <= 0;
+              // Normalize size lookup: legacy data may contain variant keys like
+              // "(OneSize)", "One Size", "OneSize" for the same size — take the max
+              // among all keys that normalize to the same form instead of an exact match.
+              const normalizeSizeKeyLocal = (s: string) => String(s || "").toLowerCase().replace(/[()\s]/g, "");
+              const resolveSelectedSizeStock = (): number | undefined => {
+                if (!selectedSize || !hasSizeStockData) return undefined;
+                if (sizeStockData[selectedSize] !== undefined) {
+                  const norm = normalizeSizeKeyLocal(selectedSize);
+                  const matches = Object.entries(sizeStockData).filter(([k]) => normalizeSizeKeyLocal(k) === norm);
+                  if (matches.length > 1) return Math.max(...matches.map(([, v]: any) => v));
+                  return sizeStockData[selectedSize];
+                }
+                const norm = normalizeSizeKeyLocal(selectedSize);
+                const matches = Object.entries(sizeStockData).filter(([k]) => normalizeSizeKeyLocal(k) === norm);
+                if (matches.length === 0) return undefined;
+                return Math.max(...matches.map(([, v]: any) => v));
+              };
+              const resolvedSelectedStock = resolveSelectedSizeStock();
+              const selectedSizeOutOfStock = selectedSize && hasSizeStockData && resolvedSelectedStock !== undefined && resolvedSelectedStock <= 0;
               const isProductUnavailable = allSizesOutOfStock || selectedSizeOutOfStock;
 
               if ((product as any).preorderEnabled && (product as any).preorderStatus === "collecting") {

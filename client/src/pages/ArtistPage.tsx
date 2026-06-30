@@ -359,7 +359,7 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
     setBuyMode(mode);
     setSelectedSize(null);
     if (!needsSizePicker) {
-      doAdd(mode, product.noSize ? '(OneSize)' : (sortedSizes[0] || undefined));
+      doAdd(mode, product.noSize ? 'OneSize' : (sortedSizes[0] || undefined));
       return;
     }
     setOpen(true);
@@ -370,7 +370,7 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
     e.preventDefault();
     setSelectedSize(null);
     if (!needsSizePicker) {
-      doAddPreorder(product.noSize ? '(OneSize)' : (sortedSizes[0] || undefined));
+      doAddPreorder(product.noSize ? 'OneSize' : (sortedSizes[0] || undefined));
       return;
     }
     setOpen(true);
@@ -397,7 +397,7 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
       price: salePrice,
       imageUrl: imageUrl,
       slug: product.slug,
-      selectedSizes: { [size || '(OneSize)']: 1 },
+      selectedSizes: { [size || 'OneSize']: 1 },
       preorderDeadline: product.preorderDeadline ?? null,
       preorderShippingDate: product.preorderShippingDate ?? null,
       preorderProductionDate: product.preorderProductionDate ?? null,
