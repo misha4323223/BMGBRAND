@@ -590,6 +590,7 @@ export function registerAiChatRoute(app: Express): void {
       // Skip keyword search when user is already on a product page — context already injected above
       const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
       let productContext = "";
+      let fullInventoryStr = "";
       let matched: any[] = [];
       if (lastUserMsg?.content && pageContext?.pageType !== "product" && pageContext?.pageType !== "artist") {
         const query = (lastUserMsg.content as string).toLowerCase();
@@ -845,6 +846,7 @@ export function registerAiChatRoute(app: Express): void {
       if (pageContextStr) systemPrompt += pageContextStr;
       if (similarProductsStr) systemPrompt += similarProductsStr;
       if (productContext) systemPrompt += productContext;
+      if (fullInventoryStr) systemPrompt += fullInventoryStr;
       if (sizeAdvisorContext) systemPrompt += sizeAdvisorContext;
       systemPrompt += `\n\n## ВАЖНО: тег [NO_ANSWER]\nИспользуй [NO_ANSWER] ТОЛЬКО если пользователь спрашивает конкретный факт о магазине или товаре (условия акции, точный срок доставки в регион, статус заказа и т.п.) которого нет в данных выше. Формат: начни ответ ровно с [NO_ANSWER] без пробела, затем вежливый ответ. Пример: "[NO_ANSWER]Уточните у менеджера — он ответит быстро."\nНЕ используй [NO_ANSWER] для субъективных вопросов ("что лучше", "что выбрать", "что посоветуешь", сравнение товаров) — на них отвечай самостоятельно на основе имеющихся данных. НЕ используй если информация есть в данных выше.`;
 
