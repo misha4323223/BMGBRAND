@@ -6866,7 +6866,8 @@ BMGBRAND — официальный производитель и магазин
         const cleanedSizeStock: Record<string, number> = {};
         for (const [k, v] of Object.entries(sizeStock)) {
           const num = parseInt(String(v));
-          cleanedSizeStock[k] = isNaN(num) || num < 0 ? 0 : num;
+          const canonicalKey = canonicalizeSizeKey(k);
+          cleanedSizeStock[canonicalKey] = Math.max(cleanedSizeStock[canonicalKey] ?? 0, isNaN(num) || num < 0 ? 0 : num);
         }
         updateData.sizeStock = cleanedSizeStock;
         console.log(`[Admin] SizeStock update for product ${id}: ${JSON.stringify(cleanedSizeStock)}`);
@@ -9978,8 +9979,8 @@ BMGBRAND — официальный производитель и магазин
         const sizeStr = ci.size || "One Size";
         const ciSizeStock = (ci.product as any).sizeStock as Record<string, number> | null;
         let avail: number;
-        if (ciSizeStock && ciSizeStock[sizeStr] !== undefined) {
-          avail = ciSizeStock[sizeStr];
+        if (ciSizeStock && Object.keys(ciSizeStock).length > 0) {
+          avail = resolveSizeStock(ciSizeStock, sizeStr) ?? (ci.product.stock ?? 999);
         } else if (ci.product.stock !== undefined && ci.product.stock !== null) {
           avail = ci.product.stock;
         } else {
@@ -10087,8 +10088,8 @@ BMGBRAND — официальный производитель и магазин
         const sizeStr = ci.size || "One Size";
         const ciSizeStock = (ci.product as any).sizeStock as Record<string, number> | null;
         let avail: number;
-        if (ciSizeStock && ciSizeStock[sizeStr] !== undefined) {
-          avail = ciSizeStock[sizeStr];
+        if (ciSizeStock && Object.keys(ciSizeStock).length > 0) {
+          avail = resolveSizeStock(ciSizeStock, sizeStr) ?? (ci.product.stock ?? 999);
         } else if (ci.product.stock !== undefined && ci.product.stock !== null) {
           avail = ci.product.stock;
         } else {

@@ -318,6 +318,13 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
   const isPreorderCollecting = isPreorder && preorderStatus === "collecting";
 
   const sizeStock: Record<string, number> | null = product.sizeStock || null;
+  const normSzKey = (s: string) => String(s || "").toLowerCase().replace(/[()\s]/g, "");
+  const resolveSzStock = (sz: string): number => {
+    if (!sizeStock) return 1;
+    const norm = normSzKey(sz);
+    const matches = Object.entries(sizeStock).filter(([k]) => normSzKey(k) === norm);
+    return matches.length > 0 ? Math.max(...matches.map(([, v]) => v)) : 0;
+  };
   const sizes: string[] = product.noSize
     ? []
     : product.sizes?.length > 0
@@ -561,7 +568,7 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
           </p>
           <div className="flex flex-wrap gap-2 mb-5">
             {sortedSizes.map((sz) => {
-              const stock = sizeStock ? (sizeStock[sz] ?? 0) : 1;
+              const stock = sizeStock ? resolveSzStock(sz) : 1;
               const outOfStock = !isPreorder && sizeStock ? stock <= 0 : false;
               return (
                 <button

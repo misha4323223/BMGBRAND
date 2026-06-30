@@ -1298,10 +1298,12 @@ export default function ProductDetail() {
                         if (bi !== -1) return 1;
                         return a.localeCompare(b);
                       });
+                      const normSzKey = (s: string) => String(s || "").toLowerCase().replace(/[()\s]/g, "");
                       const baseSizes = product.sizes?.length > 0 ? product.sizes : (hasSizeStock ? Object.keys(sizeStock) : []);
-                      const displaySizes = hasSizeStock
-                        ? sortSizes(Array.from(new Set([...baseSizes, ...Object.keys(sizeStock)])))
-                        : sortSizes(baseSizes);
+                      const allRawSizes = hasSizeStock ? [...baseSizes, ...Object.keys(sizeStock)] : baseSizes;
+                      const seenNorm = new Map<string, string>();
+                      for (const s of allRawSizes) { if (!seenNorm.has(normSzKey(s))) seenNorm.set(normSzKey(s), s); }
+                      const displaySizes = sortSizes(Array.from(seenNorm.values()));
                       if (displaySizes.length === 0) {
                         return (
                           <button
@@ -1314,7 +1316,9 @@ export default function ProductDetail() {
                         );
                       }
                       return displaySizes.map((size: string) => {
-                        const stockCount = sizeStock?.[size];
+                        const normKey = normSzKey(size);
+                        const szMatches = hasSizeStock ? Object.entries(sizeStock).filter(([k]) => normSzKey(k) === normKey) : [];
+                        const stockCount = szMatches.length > 0 ? Math.max(...szMatches.map(([, v]) => v)) : sizeStock?.[size];
                         const isOutOfStock = isPreorderCollecting ? false : (hasSizeStock 
                           ? (stockCount !== undefined && stockCount <= 0) 
                           : ((product.stock ?? 0) <= 0));
