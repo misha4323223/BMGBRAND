@@ -688,15 +688,34 @@ export function registerAiChatRoute(app: Express): void {
           return true;
         };
 
+        // Stem Russian word: strip last 3 chars from words ≥7 to handle case endings.
+        // "вельветовую" → "вельветов", "вельветовая" → "вельветов" → both match.
+        const ruStem = (w: string) => w.length >= 7 ? w.slice(0, w.length - 3) : w;
+        const nameMatches = (nameLower: string, kws: string[]) =>
+          kws.some(kw => nameLower.includes(kw) || (kw.length >= 7 && nameLower.includes(ruStem(kw))));
+
         if (nameKeywords.length > 0 || targetSubs.length > 0 || matchedCatSlug) {
-          if (specificKeywords.length > 0) {
+          // Step 1: AND — keyword within target subcategory ("вельветовую футболку" → Футболки ∩ вельвет)
+          if (specificKeywords.length > 0 && targetSubs.length > 0) {
             matched = allProducts.filter((p: any) => {
               if (!isAiVisible(p)) return false;
               const nameLower = (p.name || "").toLowerCase();
-              return specificKeywords.some(kw => nameLower.includes(kw));
+              const subLower  = (p.subcategory || "").toLowerCase();
+              return targetSubs.some(s => subLower.includes(s.toLowerCase()))
+                  && nameMatches(nameLower, specificKeywords);
             }).slice(0, MAX_PRODUCTS);
           }
 
+          // Step 2: keyword across all products — no category filter
+          if (matched.length === 0 && specificKeywords.length > 0) {
+            matched = allProducts.filter((p: any) => {
+              if (!isAiVisible(p)) return false;
+              const nameLower = (p.name || "").toLowerCase();
+              return nameMatches(nameLower, specificKeywords);
+            }).slice(0, MAX_PRODUCTS);
+          }
+
+          // Step 3: category-only fallback
           if (matched.length === 0) {
             matched = allProducts.filter((p: any) => {
               if (!isAiVisible(p)) return false;
@@ -704,7 +723,7 @@ export function registerAiChatRoute(app: Express): void {
               const subLower  = (p.subcategory || "").toLowerCase();
               if (targetSubs.length > 0 && targetSubs.some(s => subLower.includes(s.toLowerCase()))) return true;
               if (targetSubs.length === 0 && matchedCatSlug && p.category === matchedCatSlug) return true;
-              return nameKeywords.some(kw => nameLower.includes(kw));
+              return nameMatches(nameLower, nameKeywords);
             }).slice(0, MAX_PRODUCTS);
           }
         }
