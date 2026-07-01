@@ -762,6 +762,24 @@ export function registerAiChatRoute(app: Express): void {
             }
           }
         }
+
+        // Build full category inventory so AI knows ALL products in scope, not just the 20 cards
+        if (targetSubs.length > 0 || matchedCatSlug) {
+          const cardIds = new Set(matched.map((p: any) => p.id));
+          const allInScope = allProducts.filter((p: any) => {
+            if (!isAiVisible(p) || cardIds.has(p.id)) return false;
+            const subLower = (p.subcategory || "").toLowerCase();
+            if (targetSubs.length > 0) return targetSubs.some(s => subLower.includes(s.toLowerCase()));
+            return p.category === matchedCatSlug;
+          });
+          if (allInScope.length > 0) {
+            const label = targetSubs.length > 0 ? targetSubs.join(" / ") : matchedCatSlug!;
+            const names = allInScope.slice(0, 150).map((p: any) => p.name).join(", ");
+            const total = allInScope.length;
+            fullInventoryStr = `\n\n## Полный ассортимент «${label}» (${total} позиций не показаны как карточки, но есть в наличии):\n${names}`;
+            console.log(`[AI Chat] fullInventory injected: "${label}" +${total} products`);
+          }
+        }
       }
 
       // --- Authenticated user context ---
