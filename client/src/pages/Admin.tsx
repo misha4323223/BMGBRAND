@@ -10663,6 +10663,11 @@ export default function Admin() {
                         {/* ── Multi-section mode (suits: top + bottom) ── */}
                         {productForm.measurementSections.length > 0 && (
                           <div className="space-y-4">
+                            <div>
+                              <Button type="button" variant="outline" size="sm" onClick={() => { setShowMeasurementCopy(true); setMeasurementCopySearch(""); }} data-testid="button-copy-measurements-sections">
+                                <Copy className="w-3 h-3 mr-1" />Скопировать из другого товара
+                              </Button>
+                            </div>
                             {productForm.measurementSections.map((section: any, sIdx: number) => {
                               const updateSection = (patch: any) => {
                                 const newSections = [...productForm.measurementSections];
@@ -10778,7 +10783,7 @@ export default function Admin() {
                           </div>
                         )}
 
-                        {showMeasurementCopy && productForm.measurementSections.length === 0 && (
+                        {showMeasurementCopy && (
                           <div className="mt-3 border rounded-lg p-3 space-y-2">
                             <div className="flex items-center justify-between gap-2">
                               <Label className="text-sm">Скопировать обмеры из товара</Label>
