@@ -435,6 +435,12 @@ function sortSizes(sizes: string[]): string[] {
 }
 
 // Normalize size key for comparison (remove spaces and parentheses, lowercase)
+// Standard clothing sizes — used to distinguish legitimate sold-out sizes from garbage 1C artifacts
+const STANDARD_CLOTHING_SIZES = new Set([
+  "XXS","XS","S","M","L","XL","XXL","XXXL","3XL","2XL","4XL","5XL","XXXXL",
+  "44","46","48","50","52","54","56","58","60","62",
+]);
+
 function normalizeSizeKey(s: string): string {
   return s.replace(/[\s()]/g, '').toLowerCase();
 }
@@ -611,7 +617,11 @@ async function processOffersSizes(offersArray: any[]): Promise<Map<string, Set<s
 }
 
 // Update product sizes in database
-async function updateProductSizesFromOffers(productSizes: Map<string, Set<string>>): Promise<number> {
+// productPrices optional — when provided, filters out garbage 1C artifact sizes (0-stock non-standard sizes)
+async function updateProductSizesFromOffers(
+  productSizes: Map<string, Set<string>>,
+  productPrices?: Map<string, ProductPriceData>
+): Promise<number> {
   let updated = 0;
   const allProducts = await storage.getProducts();
   const productsByExternalId = new Map<string, any>();
@@ -622,7 +632,24 @@ async function updateProductSizesFromOffers(productSizes: Map<string, Set<string
   for (const [baseId, sizesSet] of productSizes) {
     const product = productsByExternalId.get(baseId);
     if (product) {
-      const sizes = sortSizes(Array.from(sizesSet));
+      const priceData = productPrices?.get(baseId);
+      const existingSizes: string[] = product.sizes || [];
+
+      const filteredSizes = Array.from(sizesSet).filter(size => {
+        const canonSize = canonicalizeSizeKey(size);
+        if (priceData) {
+          const stock = priceData.sizeStock[canonSize] ?? priceData.sizeStock[size] ?? 0;
+          if (stock > 0) return true;
+          // Stock = 0: keep only if it's a standard clothing size already in this product's sizes[]
+          const isStandard = STANDARD_CLOTHING_SIZES.has(canonSize.toUpperCase()) ||
+                             STANDARD_CLOTHING_SIZES.has(size.toUpperCase());
+          if (!isStandard) return false;
+          return existingSizes.some(s => canonicalizeSizeKey(s).toUpperCase() === canonSize.toUpperCase());
+        }
+        return true; // No price data available — include all (backward compat)
+      });
+
+      const sizes = sortSizes(filteredSizes);
       if (sizes.length > 0) {
         console.log(`[Sizes] Updating ${product.name}: ${sizes.join(', ')}`);
         await storage.updateProduct(product.id, { sizes, skipCacheClear: true } as any);
@@ -5039,7 +5066,7 @@ BMGBRAND — официальный производитель и магазин
               await updateProductPricesFromOffers(productPrices);
               
               // Update sizes for products
-              const sizesUpdated = await updateProductSizesFromOffers(productSizes);
+              const sizesUpdated = await updateProductSizesFromOffers(productSizes, productPrices);
               console.log(`[1C] Sizes updated for ${sizesUpdated} products`);
             }
             storage.clearCache(); // Clear cache once at the end
@@ -5337,7 +5364,7 @@ BMGBRAND — официальный производитель и магазин
           console.log(`[Sync] Prices and stock updated for ${pricesUpdated} products`);
           
           // Update sizes for products
-          sizesUpdated = await updateProductSizesFromOffers(productSizes);
+          sizesUpdated = await updateProductSizesFromOffers(productSizes, productPrices);
           console.log(`[Sync] Sizes updated for ${sizesUpdated} products`);
         }
       }
@@ -7709,6 +7736,50 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // One-time cleanup: remove garbage 1C artifact sizes (0-stock non-standard sizes like sock sizes)
+  app.post("/api/admin/cleanup-product-sizes", async (req, res) => {
+    const expectedKey = getAdminKey();
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (apiKey !== expectedKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const products = await storage.getProducts();
+      let updated = 0;
+      const changes: string[] = [];
+
+      for (const product of products) {
+        const currentSizes: string[] = (product as any).sizes || [];
+        const sizeStock: Record<string, number> = (product as any).sizeStock || {};
+        if (currentSizes.length === 0) continue;
+
+        const cleanSizes = currentSizes.filter(size => {
+          const canonSize = canonicalizeSizeKey(size);
+          const stock = sizeStock[canonSize] ?? sizeStock[size] ?? 0;
+          if (stock > 0) return true;
+          // Stock = 0: keep only standard clothing sizes (XS, S, M, L, XL, XXL, XXXL, etc.)
+          return STANDARD_CLOTHING_SIZES.has(canonSize.toUpperCase()) ||
+                 STANDARD_CLOTHING_SIZES.has(size.toUpperCase());
+        });
+
+        if (cleanSizes.length !== currentSizes.length) {
+          const removed = currentSizes.filter(s => !cleanSizes.includes(s));
+          changes.push(`"${product.name}": removed [${removed.join(', ')}]`);
+          await storage.updateProduct(product.id, { sizes: cleanSizes, skipCacheClear: true } as any);
+          updated++;
+          if (updated % 10 === 0) await new Promise(r => setTimeout(r, 50));
+        }
+      }
+
+      storage.clearCache();
+      console.log(`[CleanupSizes] Cleaned ${updated} products`, changes);
+      return res.json({ success: true, updated, changes });
+    } catch (error) {
+      console.error("[CleanupSizes] Error:", error);
+      return res.status(500).json({ error: String(error) });
+    }
+  });
+
   // Update sizes from offers.xml (for clothing items with S, M, L, XL sizes)
   app.post("/api/update-sizes-from-offers", async (req, res) => {
     const expectedKey = getAdminKey();
@@ -8357,7 +8428,7 @@ BMGBRAND — официальный производитель и магазин
           await updateProductPricesFromOffers(productPrices);
           
           // Update sizes for products
-          const sizesUpdated = await updateProductSizesFromOffers(productSizes);
+          const sizesUpdated = await updateProductSizesFromOffers(productSizes, productPrices);
           console.log(`[1C] Sizes updated for ${sizesUpdated} products`);
         }
         
