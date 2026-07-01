@@ -707,8 +707,10 @@ export function registerAiChatRoute(app: Express): void {
             }).slice(0, MAX_PRODUCTS);
           }
 
-          // Step 2: keyword across all products — no category filter
-          if (matched.length === 0 && specificKeywords.length > 0) {
+          // Step 2: keyword across all products — only when NO category/subcategory was detected.
+          // If targetSubs or matchedCatSlug is set, skip to Step 3 (category fallback)
+          // to avoid "классные шорты" → finds "Классика" socks/hats instead of Shorts category.
+          if (matched.length === 0 && specificKeywords.length > 0 && targetSubs.length === 0 && !matchedCatSlug) {
             matched = allProducts.filter((p: any) => {
               if (!isAiVisible(p)) return false;
               const nameLower = (p.name || "").toLowerCase();
