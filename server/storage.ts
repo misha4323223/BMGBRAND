@@ -1160,6 +1160,7 @@ export class DatabaseStorage implements IStorage {
         DECLARE $additional_categories AS Json;
         DECLARE $artist_slug AS Utf8;
         DECLARE $artist_only AS Bool;
+        DECLARE $size_characteristic_ids AS Json;
         
         UPSERT INTO products (
           id, external_id, sku, name, description, price, old_price, images,
@@ -1168,7 +1169,7 @@ export class DatabaseStorage implements IStorage {
           wholesale_price, stock, size_stock,
           composition, care_instructions, delivery, return_policy,
           seo_title, seo_description, image_alts, additional_categories,
-          artist_slug, artist_only
+          artist_slug, artist_only, size_characteristic_ids
         )
         VALUES (
           $id, $external_id, $sku, $name, $description, $price, $old_price, $images,
@@ -1177,7 +1178,7 @@ export class DatabaseStorage implements IStorage {
           $wholesale_price, $stock, $size_stock,
           $composition, $care_instructions, $delivery, $return_policy,
           $seo_title, $seo_description, $image_alts, $additional_categories,
-          $artist_slug, $artist_only
+          $artist_slug, $artist_only, $size_characteristic_ids
         );
       `;
       
@@ -1213,6 +1214,7 @@ export class DatabaseStorage implements IStorage {
         $additional_categories: TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).additionalCategories || [])),
         $artist_slug: TypedValues.fromNative(Types.UTF8, (p as any).artistSlug || ''),
         $artist_only: TypedValues.fromNative(Types.BOOL, (p as any).artistOnly ?? false),
+        $size_characteristic_ids: TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).sizeCharacteristicIds || {})),
       });
       
       console.log(`[YDB] Created product: ${p.name} with id ${newId}`);

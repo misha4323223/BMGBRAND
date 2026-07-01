@@ -6524,13 +6524,20 @@ BMGBRAND — официальный производитель и магазин
       const existingSlugs = allProducts.map((p: any) => p.slug).filter(Boolean);
       const autoSlug = req.body.slug || generateUniqueSlug(name, existingSlugs);
 
+      const sizesArray: string[] = Array.isArray(sizes) ? sizes : [];
+      const generatedExternalId = crypto.randomUUID();
+      const generatedSizeCharIds: Record<string, string> = {};
+      for (const s of sizesArray) {
+        generatedSizeCharIds[s] = crypto.randomUUID();
+      }
+
       const productData: any = {
         name,
         description: description || '',
         price: parseInt(price),
         category,
         subcategory: subcategory || null,
-        sizes: sizes || [],
+        sizes: sizesArray,
         colors: colors || [],
         imageUrl: imageUrl || images?.[0] || "/placeholder.svg",
         thumbnailUrl: (() => {
@@ -6568,6 +6575,8 @@ BMGBRAND — официальный производитель и магазин
         preorderShippingDate: preorderShippingDate || null,
         preorderNote: preorderNote || null,
         preorderStatus: (preorderEnabled === true || preorderEnabled === 'true') ? 'collecting' : null,
+        externalId: generatedExternalId,
+        sizeCharacteristicIds: generatedSizeCharIds,
       };
       
       const product = await storage.createProduct(productData);
@@ -6820,7 +6829,18 @@ BMGBRAND — официальный производитель и магазин
       if (additionalCategories !== undefined) {
         updateData.additionalCategories = Array.isArray(additionalCategories) ? additionalCategories : [];
       }
-      if (sizes !== undefined) updateData.sizes = sizes;
+      if (sizes !== undefined) {
+        updateData.sizes = sizes;
+        const existingCharIds = ((product as any).sizeCharacteristicIds || {}) as Record<string, string>;
+        const newCharIds: Record<string, string> = {};
+        for (const s of (sizes as string[])) {
+          newCharIds[s] = existingCharIds[s] || crypto.randomUUID();
+        }
+        updateData.sizeCharacteristicIds = newCharIds;
+        if (!(product as any).externalId) {
+          updateData.externalId = crypto.randomUUID();
+        }
+      }
       if (colors !== undefined) updateData.colors = colors;
       if (composition !== undefined) updateData.composition = composition;
       if (careInstructions !== undefined) updateData.careInstructions = careInstructions;
