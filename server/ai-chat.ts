@@ -876,12 +876,35 @@ export function registerAiChatRoute(app: Express): void {
       if (productContext) systemPrompt += productContext;
       if (fullInventoryStr) systemPrompt += fullInventoryStr;
       if (sizeAdvisorContext) systemPrompt += sizeAdvisorContext;
+      // Inject [PRODUCTS: ...] tag instruction when catalog items are in context
+      if (productContext || fullInventoryStr) {
+        systemPrompt += `\n\n## Тег [PRODUCTS] — выбор карточек товаров\nЕсли рекомендуешь конкретные товары из каталога — ОБЯЗАТЕЛЬНО начни ответ с тега (ДО любого другого текста, тег невидим покупателю):\n[PRODUCTS: Точное название товара 1|Точное название товара 2|...]\nПиши точные названия из списка выше (не более 8 штук). Если вопрос общий и конкретных рекомендаций нет — НЕ используй тег.`;
+      }
       systemPrompt += `\n\n## ВАЖНО: тег [NO_ANSWER]\nИспользуй [NO_ANSWER] ТОЛЬКО если пользователь спрашивает конкретный факт о магазине или товаре (условия акции, точный срок доставки в регион, статус заказа и т.п.) которого нет в данных выше. Формат: начни ответ ровно с [NO_ANSWER] без пробела, затем вежливый ответ. Пример: "[NO_ANSWER]Уточните у менеджера — он ответит быстро."\nНЕ используй [NO_ANSWER] для субъективных вопросов ("что лучше", "что выбрать", "что посоветуешь", сравнение товаров) — на них отвечай самостоятельно на основе имеющихся данных. НЕ используй если информация есть в данных выше.`;
 
       const groqHeaders: Record<string, string> = { "Content-Type": "application/json" };
       if (apiKey) groqHeaders["Authorization"] = `Bearer ${apiKey}`;
 
       // Product cards: keyword-matched + similar (from product page context)
+      const allProductsCached = await storage.getProducts() as any[];
+      // Fuzzy-match AI-written product name to a real catalog entry using word-overlap scoring.
+      // "Футболка махра чёрный" → finds "Футболка BMGBRAND (МАХРА) Черный" even with case/bracket differences.
+      const fuzzyFindProduct = (aiName: string): any | null => {
+        const aiWords = aiName.toLowerCase().split(/[\s\-_()"«»()/]+/).filter(w => w.length >= 3);
+        if (aiWords.length === 0) return null;
+        let best: any = null;
+        let bestScore = 0;
+        for (const p of allProductsCached) {
+          if (p.isHidden || !p.price || Number(p.price) <= 0) continue;
+          const pWords = (p.name || "").toLowerCase().split(/[\s\-_()"«»()/]+/).filter((w: string) => w.length >= 3);
+          const matchCount = aiWords.filter(aw =>
+            pWords.some((pw: string) => pw === aw || pw.startsWith(aw) || aw.startsWith(pw))
+          ).length;
+          const score = matchCount / Math.max(aiWords.length, 1);
+          if (score > bestScore && score >= 0.4) { bestScore = score; best = p; }
+        }
+        return best;
+      };
       const toCard = (p: any) => ({ id: p.id, name: p.name, price: p.price ? Math.round(p.price / 100) : null, imageUrl: p.imageUrl || null, url: `/${p.slug || p.id}` });
       const similarCards = similarProductsStr ? (await storage.getProducts() as any[]).filter((p: any) => {
         const sub = pageContext?.product?.subcategory || pageContext?.product?.category || "";
@@ -935,17 +958,49 @@ export function registerAiChatRoute(app: Express): void {
         let noAnswerDetected = false;
         let noAnswerOutputChecked = false;
         const NO_ANSWER_TAG = "[NO_ANSWER]";
+        const PRODUCTS_TAG_START = "[PRODUCTS:";
+        // AI-selected products from [PRODUCTS: ...] tag — override keyword-matched cards
+        let aiSelectedProducts: any[] = [];
 
-        // pushChunk: buffers beginning of visible output to detect [NO_ANSWER] tag,
+        // pushChunk: buffers beginning of visible output to detect special tags,
         // then streams to client.
-        // NOTE: model (Qwen3) emits "\n" after </think> before [NO_ANSWER], so
-        // we check trimStart() to handle leading whitespace before the tag.
+        // Handles two tags at the START of visible output (after think-strip):
+        //   [PRODUCTS: name1|name2|...]  — AI selects exact product cards (variable length, wait for ']')
+        //   [NO_ANSWER]                  — AI signals it can't answer (fixed 11 chars)
+        // NOTE: model (Qwen3) emits "\n" after </think> before tags, so we trimStart().
         const pushChunk = (text: string) => {
           if (!text) return;
           outputBuf += text;
           if (!noAnswerOutputChecked) {
             const trimmed = outputBuf.trimStart();
-            if (trimmed.length < NO_ANSWER_TAG.length) return; // buffer more
+            // Case 1: might be [PRODUCTS: ...] — buffer until closing ']' found
+            if (trimmed.startsWith(PRODUCTS_TAG_START)) {
+              const closeIdx = trimmed.indexOf("]");
+              if (closeIdx === -1) {
+                // Safety valve: if no ']' after 800 chars, give up and flush as-is
+                if (trimmed.length > 800) {
+                  noAnswerOutputChecked = true;
+                  res.write(`data: ${JSON.stringify({ chunk: outputBuf })}\n\n`);
+                }
+                return; // keep buffering
+              }
+              // Full [PRODUCTS: ...] tag received — parse, fuzzy-match, strip
+              noAnswerOutputChecked = true;
+              const tagContent = trimmed.slice(PRODUCTS_TAG_START.length, closeIdx).trim();
+              const names = tagContent.split("|").map((n: string) => n.trim()).filter(Boolean);
+              const found = names.map(fuzzyFindProduct).filter(Boolean);
+              if (found.length > 0) {
+                aiSelectedProducts = found;
+                console.log(`[AI Chat] [PRODUCTS] tag: AI selected ${found.length} products: ${found.map((p: any) => p.name).join(", ")}`);
+              }
+              // Send the rest of the buffer (text after the tag), skipping leading newline
+              const rest = trimmed.slice(closeIdx + 1).replace(/^\n/, "");
+              if (rest) res.write(`data: ${JSON.stringify({ chunk: rest })}\n\n`);
+              return;
+            }
+            // Case 2: not [PRODUCTS: — need enough chars to rule it out and check [NO_ANSWER]
+            if (trimmed.length < PRODUCTS_TAG_START.length) return; // buffer more
+            if (trimmed.length < NO_ANSWER_TAG.length) return;      // buffer more
             noAnswerOutputChecked = true;
             if (trimmed.startsWith(NO_ANSWER_TAG)) {
               noAnswerDetected = true;
@@ -1036,7 +1091,8 @@ export function registerAiChatRoute(app: Express): void {
           console.error("[AI Chat] Stream read error:", streamErr.message);
         }
 
-        res.write(`data: ${JSON.stringify({ done: true, products: productCards })}\n\n`);
+        const finalProductCards = aiSelectedProducts.length > 0 ? aiSelectedProducts.map(toCard) : productCards;
+        res.write(`data: ${JSON.stringify({ done: true, products: finalProductCards })}\n\n`);
         res.end();
         return;
       }
@@ -1064,10 +1120,26 @@ export function registerAiChatRoute(app: Express): void {
         .replace(/<think>[\s\S]*/gi, "")
         .trim();
 
-      const cleanedTrimmed = cleanedReply.trimStart();
-      let reply = cleanedReply;
-      if (cleanedTrimmed.startsWith("[NO_ANSWER]")) {
-        reply = cleanedTrimmed.slice("[NO_ANSWER]".length).trim();
+      // Parse [PRODUCTS: ...] tag from non-streaming AI response
+      let nonStreamReply = cleanedReply.trimStart();
+      let nonStreamCards = productCards;
+      if (nonStreamReply.startsWith("[PRODUCTS:")) {
+        const closeIdx = nonStreamReply.indexOf("]");
+        if (closeIdx !== -1) {
+          const tagContent = nonStreamReply.slice("[PRODUCTS:".length, closeIdx).trim();
+          const names = tagContent.split("|").map((n: string) => n.trim()).filter(Boolean);
+          const found = names.map(fuzzyFindProduct).filter(Boolean);
+          if (found.length > 0) {
+            nonStreamCards = found.map(toCard);
+            console.log(`[AI Chat] [PRODUCTS] tag (non-stream): AI selected ${found.length} products: ${found.map((p: any) => p.name).join(", ")}`);
+          }
+          nonStreamReply = nonStreamReply.slice(closeIdx + 1).replace(/^\n/, "").trim();
+        }
+      }
+
+      let reply = nonStreamReply;
+      if (reply.trimStart().startsWith("[NO_ANSWER]")) {
+        reply = reply.trimStart().slice("[NO_ANSWER]".length).trim();
         const question = lastUserMsg?.content || "(вопрос не определён)";
         const alertText = `❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${reply}`;
         sendAgentAlert(alertText).catch(() => {});
@@ -1083,7 +1155,7 @@ export function registerAiChatRoute(app: Express): void {
         }).catch(() => {});
       }
 
-      res.json({ reply, products: productCards });
+      res.json({ reply, products: nonStreamCards });
     } catch (err: any) {
       console.error("[AI Chat] Error:", err.message);
       res.status(500).json({ error: "Internal error" });
