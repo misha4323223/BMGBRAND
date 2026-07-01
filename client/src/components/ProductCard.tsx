@@ -728,9 +728,11 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                             return a.localeCompare(b);
                           });
                           const baseSizes = activeProduct.sizes?.length > 0 ? activeProduct.sizes : (hasActiveSizeStockData ? Object.keys(activeSizeStockData) : []);
-                          const allSizes = hasActiveSizeStockData
-                            ? sortSizes(Array.from(new Set([...baseSizes, ...Object.keys(activeSizeStockData)])))
-                            : sortSizes(baseSizes);
+                          const allSizes = (activeProduct.sizes?.length > 0)
+                            ? sortSizes(baseSizes)
+                            : (hasActiveSizeStockData
+                                ? sortSizes(Array.from(new Set([...baseSizes, ...Object.keys(activeSizeStockData)])))
+                                : sortSizes(baseSizes));
                           return allSizes.map(size => {
                             const stockCount = activeSizeStockData?.[size];
                             const isSizeOutOfStock = hasActiveSizeStockData

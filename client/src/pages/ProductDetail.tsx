@@ -1300,7 +1300,7 @@ export default function ProductDetail() {
                       });
                       const normSzKey = (s: string) => String(s || "").toLowerCase().replace(/[()\s]/g, "");
                       const baseSizes = product.sizes?.length > 0 ? product.sizes : (hasSizeStock ? Object.keys(sizeStock) : []);
-                      const allRawSizes = hasSizeStock ? [...baseSizes, ...Object.keys(sizeStock)] : baseSizes;
+                      const allRawSizes = (product.sizes?.length > 0) ? baseSizes : (hasSizeStock ? [...baseSizes, ...Object.keys(sizeStock)] : baseSizes);
                       const seenNorm = new Map<string, string>();
                       for (const s of allRawSizes) { if (!seenNorm.has(normSzKey(s))) seenNorm.set(normSzKey(s), s); }
                       const displaySizes = sortSizes(Array.from(seenNorm.values()));
