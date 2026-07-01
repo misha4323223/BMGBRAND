@@ -739,6 +739,48 @@ export function registerAiChatRoute(app: Express): void {
           }
         }
 
+        // Follow-up detection: if nothing found yet and query looks like a continuation
+        // ("покажи", "какие модели", "что за", etc.) — restore category context from
+        // recent conversation history and load those products.
+        if (matched.length === 0 && targetSubs.length === 0 && !matchedCatSlug) {
+          const followUpStems = ["покаж", "какие", "что за", "другие", "смотр", "перечисли", "назови", "ещё есть", "есть ещё", "хочу увид", "хочу посм"];
+          const isFollowUp = followUpStems.some(kw => query.includes(kw));
+          if (isFollowUp) {
+            const prevUserMessages = [...messages]
+              .filter((m: any) => m.role === "user")
+              .slice(-5, -1)
+              .map((m: any) => (m.content as string).toLowerCase());
+            for (const prevQ of prevUserMessages) {
+              const prevSubs: string[] = [];
+              let prevCat: string | null = null;
+              for (const { kw, sub } of subcategoryKeywords) {
+                if (prevQ.indexOf(kw) !== -1 && sub) prevSubs.push(sub);
+              }
+              if (prevSubs.length === 0) {
+                for (const { kw, cat } of categoryKeywords) {
+                  if (prevQ.includes(kw)) { prevCat = cat; break; }
+                }
+              }
+              if (prevSubs.length > 0 || prevCat) {
+                const candidates = allProducts.filter((p: any) => {
+                  if (!isAiVisible(p)) return false;
+                  const subLower = (p.subcategory || "").toLowerCase();
+                  if (prevSubs.length > 0) return prevSubs.some(s => subLower.includes(s.toLowerCase()));
+                  return p.category === prevCat;
+                }).slice(0, MAX_PRODUCTS);
+                if (candidates.length > 0) {
+                  matched = candidates;
+                  targetSubs = prevSubs;
+                  matchedCatSlug = prevCat;
+                  contextHint = ` (показываю из предыдущего запроса)`;
+                  console.log(`[AI Chat] Follow-up: restored context → subs=[${prevSubs.join(",")}] cat=${prevCat}, ${candidates.length} products`);
+                  break;
+                }
+              }
+            }
+          }
+        }
+
         if (matched.length > 0) {
           const productNames = matched.map((p: any) => `${p.name}${p.artistOnly ? " (артист)" : ""}`).join(", ");
           const multiCatHint = contextHint || (targetSubs.length > 1 ? ` (категории: ${targetSubs.join(", ")})` : "");
@@ -878,7 +920,7 @@ export function registerAiChatRoute(app: Express): void {
       if (sizeAdvisorContext) systemPrompt += sizeAdvisorContext;
       // Inject [PRODUCTS: ...] tag instruction when catalog items are in context
       if (productContext || fullInventoryStr) {
-        systemPrompt += `\n\n## Тег [PRODUCTS] — выбор карточек товаров\nЕсли рекомендуешь конкретные товары из каталога — ОБЯЗАТЕЛЬНО начни ответ с тега (ДО любого другого текста, тег невидим покупателю):\n[PRODUCTS: Точное название товара 1|Точное название товара 2|...]\nПиши точные названия из списка выше (не более 8 штук). Если вопрос общий и конкретных рекомендаций нет — НЕ используй тег.\n\nКРИТИЧЕСКИ ВАЖНО: НИКОГДА не упоминай в тексте ответа названия или количество товаров, которые НЕ включены в тег [PRODUCTS]. Не пиши "есть ещё N моделей", "в полном ассортименте ещё...", "также есть другие модели" и т.п. — если не показываешь их карточками. Если хочешь упомянуть дополнительные товары — включи их в тег (лимит 8 штук).`;
+        systemPrompt += `\n\n## Тег [PRODUCTS] — выбор карточек товаров\nЕсли рекомендуешь конкретные товары из каталога — ОБЯЗАТЕЛЬНО начни ответ с тега (ДО любого другого текста, тег невидим покупателю):\n[PRODUCTS: Точное название товара 1|Точное название товара 2|...]\nПиши точные названия из списка выше (не более 8 штук). Если вопрос общий и конкретных рекомендаций нет — НЕ используй тег.`;
       }
       systemPrompt += `\n\n## ВАЖНО: тег [NO_ANSWER]\nИспользуй [NO_ANSWER] ТОЛЬКО если пользователь спрашивает конкретный факт о магазине или товаре (условия акции, точный срок доставки в регион, статус заказа и т.п.) которого нет в данных выше. Формат: начни ответ ровно с [NO_ANSWER] без пробела, затем вежливый ответ. Пример: "[NO_ANSWER]Уточните у менеджера — он ответит быстро."\nНЕ используй [NO_ANSWER] для субъективных вопросов ("что лучше", "что выбрать", "что посоветуешь", сравнение товаров) — на них отвечай самостоятельно на основе имеющихся данных. НЕ используй если информация есть в данных выше.`;
 
