@@ -12801,6 +12801,9 @@ export default function Admin() {
                     ms.some((r: any) => r.length) ? "длина" : null,
                     ms.some((r: any) => r.sleeves) ? "рукав" : null,
                     ms.some((r: any) => r.waist) ? "талия" : null,
+                    ms.some((r: any) => r.hips) ? "бёдра" : null,
+                    ms.some((r: any) => r.sideLength) ? "бок. шов" : null,
+                    ms.some((r: any) => r.bottomWidth) ? "шир. низа" : null,
                   ].filter(Boolean).join(", ");
                   return (
                     <button
