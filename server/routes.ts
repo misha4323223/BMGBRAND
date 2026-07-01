@@ -6873,7 +6873,7 @@ BMGBRAND — официальный производитель и магазин
         measurements, measurementSections, images, imageUrl, sku, color, wholesalePrice,
         isNew, badgeText, lookProducts, lookCategory, lookSubcategory,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate,
-        stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl
+        stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl, disabledNotifySizes
       } = req.body;
       
       const updateData: any = {};
@@ -6959,6 +6959,10 @@ BMGBRAND — официальный производитель и магазин
         }
         updateData.sizeDiscounts = cleanedSizeDiscounts;
         console.log(`[Admin] SizeDiscounts update for product ${id}: ${JSON.stringify(cleanedSizeDiscounts)}`);
+      }
+      if (disabledNotifySizes !== undefined && Array.isArray(disabledNotifySizes)) {
+        updateData.disabledNotifySizes = disabledNotifySizes.filter((s: any) => typeof s === 'string');
+        console.log(`[Admin] DisabledNotifySizes update for product ${id}: ${JSON.stringify(updateData.disabledNotifySizes)}`);
       }
       if (preorderEnabled !== undefined) updateData.preorderEnabled = preorderEnabled;
       if (preorderGoal !== undefined) updateData.preorderGoal = parseInt(preorderGoal) || 0;

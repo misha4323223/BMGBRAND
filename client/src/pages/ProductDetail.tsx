@@ -1332,23 +1332,34 @@ export default function ProductDetail() {
                             )}
                             {isOutOfStock ? (
                               <div className="relative">
-                                <button
-                                  onClick={() => {
-                                    setNotifySize(notifySize === size ? null : size);
-                                    setSelectedSize("");
-                                  }}
-                                  data-testid={`button-notify-size-${size}`}
-                                  title="Нет в наличии — нажмите для уведомления"
-                                  className={`min-w-11 h-10 px-3 flex items-center justify-center text-sm rounded-full transition-all ${
-                                    notifySubmitted.has(size)
-                                      ? "border border-green-500 text-green-600 bg-green-50 dark:bg-green-950/20"
-                                      : notifySize === size
-                                        ? "border-2 border-primary text-primary bg-primary/5"
-                                        : "border border-red-500 text-muted-foreground hover:border-red-600 hover:text-foreground"
-                                  }`}
-                                >
-                                  {size}
-                                </button>
+                                {((product as any).disabledNotifySizes as string[] | undefined)?.includes(size) ? (
+                                  <button
+                                    disabled
+                                    data-testid={`button-notify-size-${size}-disabled`}
+                                    title="Нет в наличии"
+                                    className="min-w-11 h-10 px-3 flex items-center justify-center text-sm rounded-full border border-gray-300 text-gray-300 line-through cursor-not-allowed select-none"
+                                  >
+                                    {size}
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setNotifySize(notifySize === size ? null : size);
+                                      setSelectedSize("");
+                                    }}
+                                    data-testid={`button-notify-size-${size}`}
+                                    title="Нет в наличии — нажмите для уведомления"
+                                    className={`min-w-11 h-10 px-3 flex items-center justify-center text-sm rounded-full transition-all ${
+                                      notifySubmitted.has(size)
+                                        ? "border border-green-500 text-green-600 bg-green-50 dark:bg-green-950/20"
+                                        : notifySize === size
+                                          ? "border-2 border-primary text-primary bg-primary/5"
+                                          : "border border-red-500 text-muted-foreground hover:border-red-600 hover:text-foreground"
+                                    }`}
+                                  >
+                                    {size}
+                                  </button>
+                                )}
                                 {notifySubmitted.has(size) && <Check className="w-3 h-3 absolute -top-1 -right-1 text-green-600" />}
                               </div>
                             ) : (
