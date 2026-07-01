@@ -1875,7 +1875,10 @@ export default function ProductDetail() {
                     Таблица размеров
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    {(product as any).measurementSections?.length > 0 ? (
+                    {(() => {
+                      const ml = (product as any).measurementLabels || {};
+                      const lbl = (field: string, def: string) => ml[field] || def;
+                      return (product as any).measurementSections?.length > 0 ? (
                       /* Multi-section: Верх + Низ (костюм) */
                       <div className="space-y-4">
                         {((product as any).measurementSections as Array<{ title: string; rows: SizeMeasurement[] }>).map((section, sIdx) => {
@@ -1896,14 +1899,14 @@ export default function ProductDetail() {
                                   <thead>
                                     <tr className="border-b border-border">
                                       <th className="py-2 pr-4 text-left font-medium text-foreground">Размер</th>
-                                      {hasWaist && <th className="py-2 px-2 text-left font-medium text-foreground">Шир. в поясе</th>}
-                                      {hasHips && <th className="py-2 px-2 text-left font-medium text-foreground">Шир. в бёдрах</th>}
-                                      {hasSideLength && <th className="py-2 px-2 text-left font-medium text-foreground">Дл. по боковому</th>}
-                                      {hasBottomWidth && <th className="py-2 px-2 text-left font-medium text-foreground">Шир. входа в низу</th>}
-                                      {hasLength && <th className="py-2 px-2 text-left font-medium text-foreground">Длина</th>}
-                                      {hasShoulders && <th className="py-2 px-2 text-left font-medium text-foreground">Плечи</th>}
-                                      {hasChest && <th className="py-2 px-2 text-left font-medium text-foreground">Грудь</th>}
-                                      {hasSleeves && <th className="py-2 px-2 text-left font-medium text-foreground">Рукав</th>}
+                                      {hasWaist && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("waist","Шир. в поясе")}</th>}
+                                      {hasHips && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("hips","Шир. в бёдрах")}</th>}
+                                      {hasSideLength && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("sideLength","Дл. по боковому")}</th>}
+                                      {hasBottomWidth && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("bottomWidth","Шир. входа в низу")}</th>}
+                                      {hasLength && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("length","Длина")}</th>}
+                                      {hasShoulders && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("shoulders","Плечи")}</th>}
+                                      {hasChest && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("chest","Грудь")}</th>}
+                                      {hasSleeves && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("sleeves","Рукав")}</th>}
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -1947,14 +1950,14 @@ export default function ProductDetail() {
                                 <thead>
                                   <tr className="border-b border-border">
                                     <th className="py-2 pr-4 text-left font-medium text-foreground">Размер</th>
-                                    {hasWaist && <th className="py-2 px-2 text-left font-medium text-foreground">Шир. в поясе</th>}
-                                    {hasHips && <th className="py-2 px-2 text-left font-medium text-foreground">Шир. в бёдрах</th>}
-                                    {hasSideLength && <th className="py-2 px-2 text-left font-medium text-foreground">Дл. по боковому</th>}
-                                    {hasBottomWidth && <th className="py-2 px-2 text-left font-medium text-foreground">Шир. входа в низу</th>}
-                                    {hasLength && <th className="py-2 px-2 text-left font-medium text-foreground">{isPants ? "Длина" : "Длина"}</th>}
-                                    {hasShoulders && <th className="py-2 px-2 text-left font-medium text-foreground">Плечи</th>}
-                                    {hasChest && <th className="py-2 px-2 text-left font-medium text-foreground">Грудь</th>}
-                                    {hasSleeves && !isPants && <th className="py-2 px-2 text-left font-medium text-foreground">Рукав</th>}
+                                    {hasWaist && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("waist","Шир. в поясе")}</th>}
+                                    {hasHips && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("hips","Шир. в бёдрах")}</th>}
+                                    {hasSideLength && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("sideLength","Дл. по боковому")}</th>}
+                                    {hasBottomWidth && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("bottomWidth","Шир. входа в низу")}</th>}
+                                    {hasLength && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("length","Длина")}</th>}
+                                    {hasShoulders && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("shoulders","Плечи")}</th>}
+                                    {hasChest && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("chest","Грудь")}</th>}
+                                    {hasSleeves && !isPants && <th className="py-2 px-2 text-left font-medium text-foreground">{lbl("sleeves","Рукав")}</th>}
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -1977,7 +1980,7 @@ export default function ProductDetail() {
                           })()}
                         </table>
                       </div>
-                    )}
+                    ); })()}
                   </AccordionContent>
                 </AccordionItem>
               )}

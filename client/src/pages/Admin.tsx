@@ -1298,6 +1298,7 @@ export default function Admin() {
     images: string[];
     measurements: Array<{ size: string; length?: string; chest?: string; shoulders?: string; sleeves?: string; waist?: string; hips?: string; sideLength?: string; bottomWidth?: string }>;
     measurementSections: Array<{ title: string; rows: Array<{ size: string; length?: string; chest?: string; shoulders?: string; sleeves?: string; waist?: string; hips?: string; sideLength?: string; bottomWidth?: string }> }>;
+    measurementLabels: Record<string, string>;
     lookProducts: number[];
     lookCategory: string;
     lookSubcategory: string;
@@ -1337,6 +1338,7 @@ export default function Admin() {
     images: [],
     measurements: [],
     measurementSections: [],
+    measurementLabels: {},
     lookProducts: [],
     lookCategory: "",
     lookSubcategory: "",
@@ -2465,6 +2467,7 @@ export default function Admin() {
         artistSlug: (p as any).artistSlug || "",
         videoUrl: (p as any).videoUrl || "",
         measurementSections: (p as any).measurementSections || [],
+        measurementLabels: (p as any).measurementLabels || {},
       });
       setEditingProductId(p.id);
     },
@@ -2578,6 +2581,7 @@ export default function Admin() {
         images: product.images || (product.imageUrl ? [product.imageUrl] : []),
         measurements: product.measurements || [],
         measurementSections: product.measurementSections || [],
+        measurementLabels: (product as any).measurementLabels || {},
         lookProducts: product.lookProducts || [],
         lookCategory: product.lookCategory || "",
         lookSubcategory: product.lookSubcategory || "",
@@ -10579,6 +10583,8 @@ export default function Admin() {
                           const showHips = hasCol("hips") || !hasAnyData;
                           const showSideLength = hasCol("sideLength");
                           const showBottomWidth = hasCol("bottomWidth");
+                          const lbl = (field: string, def: string) => (productForm.measurementLabels as any)?.[field] || def;
+                          const setLbl = (field: string, val: string) => setProductForm({ ...productForm, measurementLabels: { ...(productForm.measurementLabels || {}), [field]: val } });
                           return (
                             <div className="space-y-2">
                               <div className="flex items-center gap-2 flex-wrap">
@@ -10613,14 +10619,14 @@ export default function Admin() {
                                     <thead className="bg-muted">
                                       <tr>
                                         <th className="p-2 text-left font-medium min-w-[70px]">Размер</th>
-                                        {showWaist && <th className="p-2 text-left font-medium min-w-[110px]">Шир. в поясе</th>}
-                                        {showHips && <th className="p-2 text-left font-medium min-w-[110px]">Шир. в бёдрах</th>}
-                                        {showSideLength && <th className="p-2 text-left font-medium min-w-[110px]">Дл. по боковому</th>}
-                                        {showBottomWidth && <th className="p-2 text-left font-medium min-w-[110px]">Шир. входа в низу</th>}
-                                        {showLength && <th className="p-2 text-left font-medium min-w-[80px]">Длина</th>}
-                                        {showShoulders && !isPants && <th className="p-2 text-left font-medium min-w-[80px]">Плечи</th>}
-                                        {showChest && !isPants && <th className="p-2 text-left font-medium min-w-[80px]">Грудь</th>}
-                                        {showSleeves && !isPants && <th className="p-2 text-left font-medium min-w-[70px]">Рукав</th>}
+                                        {showWaist && <th className="p-2 text-left font-medium min-w-[110px]"><input value={lbl("waist","Шир. в поясе")} onChange={e=>setLbl("waist",e.target.value)} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                        {showHips && <th className="p-2 text-left font-medium min-w-[110px]"><input value={lbl("hips","Шир. в бёдрах")} onChange={e=>setLbl("hips",e.target.value)} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                        {showSideLength && <th className="p-2 text-left font-medium min-w-[110px]"><input value={lbl("sideLength","Дл. по боковому")} onChange={e=>setLbl("sideLength",e.target.value)} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                        {showBottomWidth && <th className="p-2 text-left font-medium min-w-[110px]"><input value={lbl("bottomWidth","Шир. входа в низу")} onChange={e=>setLbl("bottomWidth",e.target.value)} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                        {showLength && <th className="p-2 text-left font-medium min-w-[80px]"><input value={lbl("length","Длина")} onChange={e=>setLbl("length",e.target.value)} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                        {showShoulders && !isPants && <th className="p-2 text-left font-medium min-w-[80px]"><input value={lbl("shoulders","Плечи")} onChange={e=>setLbl("shoulders",e.target.value)} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                        {showChest && !isPants && <th className="p-2 text-left font-medium min-w-[80px]"><input value={lbl("chest","Грудь")} onChange={e=>setLbl("chest",e.target.value)} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                        {showSleeves && !isPants && <th className="p-2 text-left font-medium min-w-[70px]"><input value={lbl("sleeves","Рукав")} onChange={e=>setLbl("sleeves",e.target.value)} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
                                         <th className="p-2 w-10"></th>
                                       </tr>
                                     </thead>
@@ -10735,14 +10741,14 @@ export default function Admin() {
                                         <thead className="bg-muted">
                                           <tr>
                                             <th className="p-2 text-left font-medium min-w-[70px]">Размер</th>
-                                            {showWaist && <th className="p-2 text-left font-medium min-w-[110px]">Шир. в поясе</th>}
-                                            {showHips && <th className="p-2 text-left font-medium min-w-[110px]">Шир. в бёдрах</th>}
-                                            {showSideLength && <th className="p-2 text-left font-medium min-w-[120px]">Дл. по боковому</th>}
-                                            {showBottomWidth && <th className="p-2 text-left font-medium min-w-[130px]">Шир. входа в низу</th>}
-                                            {showLength && <th className="p-2 text-left font-medium min-w-[80px]">Длина</th>}
-                                            {showShoulders && <th className="p-2 text-left font-medium min-w-[80px]">Плечи</th>}
-                                            {showChest && <th className="p-2 text-left font-medium min-w-[80px]">Грудь</th>}
-                                            {showSleeves && <th className="p-2 text-left font-medium min-w-[70px]">Рукав</th>}
+                                            {showWaist && <th className="p-2 text-left font-medium min-w-[110px]"><input value={(productForm.measurementLabels as any)?.waist||"Шир. в поясе"} onChange={e=>setProductForm({...productForm,measurementLabels:{...(productForm.measurementLabels||{}),waist:e.target.value}})} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                            {showHips && <th className="p-2 text-left font-medium min-w-[110px]"><input value={(productForm.measurementLabels as any)?.hips||"Шир. в бёдрах"} onChange={e=>setProductForm({...productForm,measurementLabels:{...(productForm.measurementLabels||{}),hips:e.target.value}})} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                            {showSideLength && <th className="p-2 text-left font-medium min-w-[120px]"><input value={(productForm.measurementLabels as any)?.sideLength||"Дл. по боковому"} onChange={e=>setProductForm({...productForm,measurementLabels:{...(productForm.measurementLabels||{}),sideLength:e.target.value}})} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                            {showBottomWidth && <th className="p-2 text-left font-medium min-w-[130px]"><input value={(productForm.measurementLabels as any)?.bottomWidth||"Шир. входа в низу"} onChange={e=>setProductForm({...productForm,measurementLabels:{...(productForm.measurementLabels||{}),bottomWidth:e.target.value}})} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                            {showLength && <th className="p-2 text-left font-medium min-w-[80px]"><input value={(productForm.measurementLabels as any)?.length||"Длина"} onChange={e=>setProductForm({...productForm,measurementLabels:{...(productForm.measurementLabels||{}),length:e.target.value}})} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                            {showShoulders && <th className="p-2 text-left font-medium min-w-[80px]"><input value={(productForm.measurementLabels as any)?.shoulders||"Плечи"} onChange={e=>setProductForm({...productForm,measurementLabels:{...(productForm.measurementLabels||{}),shoulders:e.target.value}})} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                            {showChest && <th className="p-2 text-left font-medium min-w-[80px]"><input value={(productForm.measurementLabels as any)?.chest||"Грудь"} onChange={e=>setProductForm({...productForm,measurementLabels:{...(productForm.measurementLabels||{}),chest:e.target.value}})} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
+                                            {showSleeves && <th className="p-2 text-left font-medium min-w-[70px]"><input value={(productForm.measurementLabels as any)?.sleeves||"Рукав"} onChange={e=>setProductForm({...productForm,measurementLabels:{...(productForm.measurementLabels||{}),sleeves:e.target.value}})} className="bg-transparent border-b border-transparent hover:border-muted-foreground/40 focus:border-primary outline-none font-medium w-full text-sm p-0" title="Редактировать название" /></th>}
                                             <th className="p-2 w-10"></th>
                                           </tr>
                                         </thead>
