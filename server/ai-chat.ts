@@ -692,8 +692,16 @@ export function registerAiChatRoute(app: Express): void {
         // Stem Russian word: strip last 3 chars from words ≥7 to handle case endings.
         // "вельветовую" → "вельветов", "вельветовая" → "вельветов" → both match.
         const ruStem = (w: string) => w.length >= 7 ? w.slice(0, w.length - 3) : w;
-        const nameMatches = (nameLower: string, kws: string[]) =>
-          kws.some(kw => nameLower.includes(kw) || (kw.length >= 7 && nameLower.includes(ruStem(kw))));
+        const nameMatches = (nameLower: string, kws: string[]) => {
+          // Split product name into individual words for root-prefix matching
+          const nameWords = nameLower.split(/[\s\-_"«»()/]+/).filter(w => w.length >= 5);
+          return kws.some(kw => {
+            if (nameLower.includes(kw)) return true;
+            if (kw.length >= 7 && nameLower.includes(ruStem(kw))) return true;
+            // "вельветовые".startsWith("вельвет") → query word is inflected form of product name root
+            return nameWords.some(nw => kw.startsWith(nw));
+          });
+        };
 
         if (nameKeywords.length > 0 || targetSubs.length > 0 || matchedCatSlug) {
           // Step 1: AND — keyword within target subcategory ("вельветовую футболку" → Футболки ∩ вельвет)
