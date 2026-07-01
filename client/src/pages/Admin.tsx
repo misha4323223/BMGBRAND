@@ -1315,6 +1315,7 @@ export default function Admin() {
     stock: string;
     sizeStock: Record<string, number>;
     sizeDiscounts: Record<string, number>;
+    disabledNotifySizes: string[];
     noSize: boolean;
     additionalCategories: Array<{category: string, subcategory: string}>;
     artistSlug: string;
@@ -1354,6 +1355,7 @@ export default function Admin() {
     stock: "",
     sizeStock: {},
     sizeDiscounts: {},
+    disabledNotifySizes: [],
     noSize: false,
     additionalCategories: [],
     artistSlug: "",
@@ -2597,6 +2599,7 @@ export default function Admin() {
         stock: product.stock !== undefined && product.stock !== null ? String(product.stock) : "",
         sizeStock: product.sizeStock || {},
         sizeDiscounts: product.sizeDiscounts || {},
+        disabledNotifySizes: (product as any).disabledNotifySizes || [],
         noSize: product.noSize || false,
         additionalCategories: product.additionalCategories || [],
         artistSlug: product.artistSlug || "",
@@ -10520,6 +10523,38 @@ export default function Admin() {
                                 </div>
                               )}
                             </div>
+                            {productForm.sizes.length > 0 && (
+                              <div className="mt-3">
+                                <Label className="text-sm mb-1 block">Уведомления о наличии</Label>
+                                <p className="text-xs text-muted-foreground mb-2">Размер с выключённым уведомлением не показывается покупателям, когда отсутствует в наличии</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {productForm.sizes.map((size) => {
+                                    const isDisabled = productForm.disabledNotifySizes.includes(size);
+                                    return (
+                                      <button
+                                        key={size}
+                                        type="button"
+                                        onClick={() => {
+                                          const newDisabled = isDisabled
+                                            ? productForm.disabledNotifySizes.filter(s => s !== size)
+                                            : [...productForm.disabledNotifySizes, size];
+                                          setProductForm({...productForm, disabledNotifySizes: newDisabled});
+                                        }}
+                                        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                                          isDisabled
+                                            ? "bg-gray-100 border-gray-300 text-gray-400 line-through"
+                                            : "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
+                                        }`}
+                                        data-testid={`button-notify-toggle-${size}`}
+                                        title={isDisabled ? "Уведомление выключено — нажмите чтобы включить" : "Уведомление включено — нажмите чтобы выключить"}
+                                      >
+                                        {isDisabled ? "🔕" : "🔔"} {size}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -11257,6 +11292,7 @@ export default function Admin() {
                               stock: productForm.stock !== "" ? parseInt(productForm.stock) : undefined,
                               sizeStock: Object.keys(productForm.sizeStock).length > 0 ? productForm.sizeStock : undefined,
                               sizeDiscounts: productForm.sizeDiscounts,
+                              disabledNotifySizes: productForm.disabledNotifySizes.length > 0 ? productForm.disabledNotifySizes : undefined,
                               artistSlug: productForm.artistSlug || null,
                               videoUrl: productForm.videoUrl || null,
                             };

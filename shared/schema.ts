@@ -155,6 +155,7 @@ export const products = pgTable("products", {
   stock: integer("stock").default(0), // Stock quantity from 1C offers.xml (total)
   sizeStock: jsonb("size_stock").$type<Record<string, number>>(), // Stock per size: {"XS": 1, "S": 4, "M": 6}
   sizeDiscounts: jsonb("size_discounts").$type<Record<string, number>>(), // Discounts per size in %: {"XS": 30, "L": 20}
+  disabledNotifySizes: jsonb("disabled_notify_sizes").$type<string[]>(), // Sizes hidden from "notify when back in stock": ["XS", "XXXL"]
   // Measurements & Care info (for clothing only)
   measurements: jsonb("measurements").$type<SizeMeasurement[]>(), // Size chart with measurements (single table)
   measurementSections: jsonb("measurement_sections").$type<MeasurementSection[]>(), // Multi-section size chart (e.g. top + bottom for suits)
