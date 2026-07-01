@@ -929,6 +929,36 @@ function getThumbnailUrl(imageUrl: string | null): string | null {
   return imageUrl;
 }
 
+// Generate _thumb.webp from any image format (.jpg/.png/.webp) during 1C import.
+// Downloads original from S3, resizes with Sharp, uploads _thumb.webp back to S3.
+// Returns the thumb URL on success, null on any error (import continues normally).
+async function generate1cThumbUrl(imageUrl: string): Promise<string | null> {
+  try {
+    if (!imageUrl || !imageUrl.includes('storage.yandexcloud.net/bmg/products/')) return null;
+    const urlMatch = imageUrl.match(/\/bmg\/(.+?)(\?|$)/);
+    if (!urlMatch) return null;
+    const sourceKey = urlMatch[1];
+    if (sourceKey.includes('_thumb.webp')) return imageUrl;
+    const thumbKey = sourceKey.replace(/\.(jpg|jpeg|png|webp)$/i, '_thumb.webp');
+    if (thumbKey === sourceKey) return null;
+    const imageBuffer = await downloadBinaryFromYandexStorage(sourceKey);
+    if (!imageBuffer) return null;
+    const thumbBuffer = await sharp(imageBuffer)
+      .resize(800, null, { withoutEnlargement: true, kernel: 'lanczos3' })
+      .webp({ quality: 100 })
+      .toBuffer();
+    const thumbFilename = thumbKey.replace('products/', '');
+    await uploadToYandexStorage(thumbBuffer, thumbFilename, 'image/webp');
+    const bucket = process.env.YANDEX_STORAGE_BUCKET_NAME || "bmg";
+    const thumbUrl = `https://storage.yandexcloud.net/${bucket}/${thumbKey}`;
+    console.log(`[1C IMPORT] Thumb generated: ${thumbFilename}`);
+    return thumbUrl;
+  } catch (err: any) {
+    console.error(`[1C IMPORT] Thumb gen failed for ${imageUrl}: ${err.message}`);
+    return null;
+  }
+}
+
 // Auto-sync is disabled in Replit as requested.
 // 1C integration is only for production deployment in Yandex Cloud.
 // Function is kept as a no-op because the seed-data block at the bottom of
@@ -4849,7 +4879,7 @@ BMGBRAND — официальный производитель и магазин
                   console.log(`[1C IMPORT]   - MISSING FILES (1C did not upload): ${missingImages.join(', ')}`);
                 }
                 const imageUrl = allImages.length > 0 ? allImages[0] : fallbackUrl;
-                const thumbnailUrl = getThumbnailUrl(imageUrl);
+                const thumbnailUrl = await generate1cThumbUrl(imageUrl) || imageUrl;
                 const images = allImages.length > 0 ? allImages : [fallbackUrl];
                 
                 // Extract 1C group hierarchy for auto-subcategory creation
@@ -5142,7 +5172,7 @@ BMGBRAND — официальный производитель и магазин
             }
           }
           const imageUrl = allImages.length > 0 ? allImages[0] : fallbackUrl;
-          const thumbnailUrl = getThumbnailUrl(imageUrl);
+          const thumbnailUrl = await generate1cThumbUrl(imageUrl) || imageUrl;
           const images = allImages.length > 0 ? allImages : [fallbackUrl];
           
           // Extract 1C group hierarchy for category mapping
