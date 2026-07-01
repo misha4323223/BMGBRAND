@@ -10794,33 +10794,50 @@ export default function Admin() {
                             />
                             <div className="max-h-48 overflow-y-auto space-y-1">
                               {products
-                                .filter((p: any) =>
-                                  p.measurements && (p.measurements as any[]).length > 0 &&
+                                .filter((p: any) => {
+                                  const hasFlat = p.measurements && (p.measurements as any[]).length > 0;
+                                  const hasSections = p.measurementSections && (p.measurementSections as any[]).length > 0 &&
+                                    (p.measurementSections as any[]).some((s: any) => s.rows && s.rows.length > 0);
+                                  return (hasFlat || hasSections) &&
+                                    p.id !== editingProductId &&
+                                    (measurementCopySearch === "" || p.name.toLowerCase().includes(measurementCopySearch.toLowerCase()));
+                                })
+                                .slice(0, 50)
+                                .map((p: any) => {
+                                  const hasFlat = p.measurements && (p.measurements as any[]).length > 0;
+                                  const sections = (p.measurementSections as any[]) || [];
+                                  const sectionCount = sections.reduce((n: number, s: any) => n + (s.rows?.length || 0), 0);
+                                  const count = hasFlat ? (p.measurements as any[]).length : sectionCount;
+                                  const label = hasFlat ? `${count} разм.` : `${sections.length} секц. · ${count} разм.`;
+                                  return (
+                                    <button
+                                      key={p.id}
+                                      type="button"
+                                      className="w-full text-left p-2 rounded text-sm hover-elevate flex items-center justify-between gap-2"
+                                      onClick={() => {
+                                        if (hasFlat) {
+                                          setProductForm({ ...productForm, measurements: (p.measurements as any[]).map((m: any) => ({ ...m })), measurementSections: [] });
+                                        } else {
+                                          setProductForm({ ...productForm, measurements: [], measurementSections: sections.map((s: any) => ({ ...s, rows: s.rows.map((r: any) => ({ ...r })) })) });
+                                        }
+                                        setShowMeasurementCopy(false);
+                                        toast({ title: `Обмеры скопированы из "${p.name}"` });
+                                      }}
+                                      data-testid={`button-copy-from-${p.id}`}
+                                    >
+                                      <span className="truncate">{p.name}</span>
+                                      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+                                    </button>
+                                  );
+                                })}
+                              {products.filter((p: any) => {
+                                const hasFlat = p.measurements && (p.measurements as any[]).length > 0;
+                                const hasSections = p.measurementSections && (p.measurementSections as any[]).length > 0 &&
+                                  (p.measurementSections as any[]).some((s: any) => s.rows && s.rows.length > 0);
+                                return (hasFlat || hasSections) &&
                                   p.id !== editingProductId &&
-                                  (measurementCopySearch === "" || p.name.toLowerCase().includes(measurementCopySearch.toLowerCase()))
-                                )
-                                .slice(0, 20)
-                                .map((p: any) => (
-                                  <button
-                                    key={p.id}
-                                    type="button"
-                                    className="w-full text-left p-2 rounded text-sm hover-elevate flex items-center justify-between gap-2"
-                                    onClick={() => {
-                                      setProductForm({ ...productForm, measurements: (p.measurements as any[]).map((m: any) => ({ ...m })) });
-                                      setShowMeasurementCopy(false);
-                                      toast({ title: `Обмеры скопированы из "${p.name}"` });
-                                    }}
-                                    data-testid={`button-copy-from-${p.id}`}
-                                  >
-                                    <span className="truncate">{p.name}</span>
-                                    <span className="text-xs text-muted-foreground shrink-0">{(p.measurements as any[]).length} размеров</span>
-                                  </button>
-                                ))}
-                              {products.filter((p: any) =>
-                                p.measurements && (p.measurements as any[]).length > 0 &&
-                                p.id !== editingProductId &&
-                                (measurementCopySearch === "" || p.name.toLowerCase().includes(measurementCopySearch.toLowerCase()))
-                              ).length === 0 && (
+                                  (measurementCopySearch === "" || p.name.toLowerCase().includes(measurementCopySearch.toLowerCase()));
+                              }).length === 0 && (
                                 <p className="text-xs text-muted-foreground text-center py-2">Нет товаров с заполненными обмерами</p>
                               )}
                             </div>
@@ -12765,15 +12782,19 @@ export default function Admin() {
             />
             <div className="max-h-72 overflow-y-auto space-y-1 mt-1">
               {(products as any[])
-                .filter((p: any) =>
-                  p.measurements && (p.measurements as any[]).length > 0 &&
-                  (bulkMeasurementsCopySearch === "" ||
-                    p.name.toLowerCase().includes(bulkMeasurementsCopySearch.toLowerCase()) ||
-                    (p.sku && p.sku.toLowerCase().includes(bulkMeasurementsCopySearch.toLowerCase())))
-                )
-                .slice(0, 30)
+                .filter((p: any) => {
+                  const hasFlat = p.measurements && (p.measurements as any[]).length > 0;
+                  const hasSections = p.measurementSections && (p.measurementSections as any[]).length > 0 &&
+                    (p.measurementSections as any[]).some((s: any) => s.rows && s.rows.length > 0);
+                  return (hasFlat || hasSections) &&
+                    (bulkMeasurementsCopySearch === "" ||
+                      p.name.toLowerCase().includes(bulkMeasurementsCopySearch.toLowerCase()) ||
+                      (p.sku && p.sku.toLowerCase().includes(bulkMeasurementsCopySearch.toLowerCase())));
+                })
+                .slice(0, 50)
                 .map((p: any) => {
-                  const ms = p.measurements as any[];
+                  const hasFlat = p.measurements && (p.measurements as any[]).length > 0;
+                  const ms: any[] = hasFlat ? p.measurements : (p.measurementSections as any[]).flatMap((s: any) => s.rows || []);
                   const cols = [
                     ms.some((r: any) => r.chest) ? "грудь" : null,
                     ms.some((r: any) => r.shoulders) ? "плечи" : null,
