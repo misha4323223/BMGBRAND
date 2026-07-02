@@ -12269,7 +12269,7 @@ export default function Admin() {
                                 variant="outline"
                                 size="sm"
                                 className="flex-1"
-                                onClick={(e) => { e.stopPropagation(); setActiveTab("products"); loadProductForEdit(product.id); }}
+                                onClick={(e) => { e.stopPropagation(); setActiveTab("pages"); setSelectedPage("product"); loadProductForEdit(product.id); }}
                               >
                                 <Pencil className="w-3.5 h-3.5 mr-1" />Изменить
                               </Button>
