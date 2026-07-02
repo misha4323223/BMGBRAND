@@ -503,6 +503,7 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
             src={imageUrl}
             alt={product.name}
             loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         )}
@@ -1147,6 +1148,8 @@ export default function ArtistPage() {
                           key={i}
                           src={img}
                           alt={`${artistName} ${i + 1}`}
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-auto block rounded-2xl shadow-lg"
                         />
                       ))}
