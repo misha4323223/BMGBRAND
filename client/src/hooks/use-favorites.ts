@@ -22,6 +22,97 @@ function setLocalFavorites(ids: number[]) {
   queryClient.setQueryData<number[]>(LOCAL_QUERY_KEY, ids);
 }
 
+export function useFavoriteStatus(productId: number): boolean {
+  const { data: authData } = useAuth();
+  const isLoggedIn = !!authData?.user;
+
+  const selectFn = useCallback((ids: number[]) => ids.includes(productId), [productId]);
+
+  const { data: isFavServer = false } = useQuery<number[], Error, boolean>({
+    queryKey: ["/api/auth/favorites"],
+    enabled: isLoggedIn,
+    staleTime: 1000 * 60 * 5,
+    select: selectFn,
+  });
+
+  const { data: isFavLocal = false } = useQuery<number[], Error, boolean>({
+    queryKey: LOCAL_QUERY_KEY,
+    queryFn: () => getLocalFavorites(),
+    enabled: !isLoggedIn,
+    staleTime: Infinity,
+    select: selectFn,
+  });
+
+  return isLoggedIn ? isFavServer : isFavLocal;
+}
+
+export function useFavoriteActions() {
+  const { data: authData } = useAuth();
+  const isLoggedIn = !!authData?.user;
+
+  const addMutation = useMutation({
+    mutationFn: async (productId: number) => {
+      if (isLoggedIn) {
+        await apiRequest("POST", `/api/auth/favorites/${productId}`);
+      }
+    },
+    onMutate: async (productId: number) => {
+      if (isLoggedIn) {
+        await queryClient.cancelQueries({ queryKey: ["/api/auth/favorites"] });
+        const prev = queryClient.getQueryData<number[]>(["/api/auth/favorites"]) || [];
+        queryClient.setQueryData<number[]>(["/api/auth/favorites"], [...prev, productId]);
+        return { prev };
+      } else {
+        const current = getLocalFavorites();
+        if (!current.includes(productId)) setLocalFavorites([...current, productId]);
+      }
+    },
+    onError: (_err: any, _id: any, context: any) => {
+      if (isLoggedIn && context?.prev) queryClient.setQueryData(["/api/auth/favorites"], context.prev);
+    },
+    onSuccess: () => {
+      if (isLoggedIn) queryClient.invalidateQueries({ queryKey: ["/api/auth/favorites"] });
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: async (productId: number) => {
+      if (isLoggedIn) {
+        await apiRequest("DELETE", `/api/auth/favorites/${productId}`);
+      }
+    },
+    onMutate: async (productId: number) => {
+      if (isLoggedIn) {
+        await queryClient.cancelQueries({ queryKey: ["/api/auth/favorites"] });
+        const prev = queryClient.getQueryData<number[]>(["/api/auth/favorites"]) || [];
+        queryClient.setQueryData<number[]>(["/api/auth/favorites"], prev.filter(id => id !== productId));
+        return { prev };
+      } else {
+        setLocalFavorites(getLocalFavorites().filter(id => id !== productId));
+      }
+    },
+    onError: (_err: any, _id: any, context: any) => {
+      if (isLoggedIn && context?.prev) queryClient.setQueryData(["/api/auth/favorites"], context.prev);
+    },
+    onSuccess: () => {
+      if (isLoggedIn) queryClient.invalidateQueries({ queryKey: ["/api/auth/favorites"] });
+    },
+  });
+
+  const toggleFavorite = useCallback((productId: number) => {
+    const ids = isLoggedIn
+      ? queryClient.getQueryData<number[]>(["/api/auth/favorites"]) || []
+      : getLocalFavorites();
+    if (ids.includes(productId)) {
+      removeMutation.mutate(productId);
+    } else {
+      addMutation.mutate(productId);
+    }
+  }, [isLoggedIn, addMutation, removeMutation]);
+
+  return { toggleFavorite, isLoggedIn };
+}
+
 export function useFavorites() {
   const { data: authData } = useAuth();
   const isLoggedIn = !!authData?.user;

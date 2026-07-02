@@ -3,7 +3,7 @@ import { usePaginatedProducts, ProductFilters } from "@/hooks/use-products";
 import { ProductCard } from "@/components/ProductCard";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef, startTransition } from "react";
 import { useWholesalePrice } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -292,7 +292,9 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     if (priceRange[1] < PRICE_MAX) f.maxPrice = priceRange[1];
     if (selectedSizes.length > 0) f.size = selectedSizes.join(",");
     if (sortBy) f.sort = sortBy;
-    setAppliedFilters(f);
+    startTransition(() => {
+      setAppliedFilters(f);
+    });
   }, [priceRange, selectedSizes, sortBy]);
 
   const resetFilters = useCallback(() => {
@@ -304,14 +306,12 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     setAppliedFilters({});
   }, []);
 
-  useEffect(() => {
-    const f: ProductFilters = {};
-    if (sortBy) f.sort = sortBy;
-    if (appliedFilters.minPrice !== undefined) f.minPrice = appliedFilters.minPrice;
-    if (appliedFilters.maxPrice !== undefined) f.maxPrice = appliedFilters.maxPrice;
-    if (appliedFilters.size) f.size = appliedFilters.size;
-    setAppliedFilters(f);
-  }, [sortBy]);
+  const handleSortChange = useCallback((newSort: string) => {
+    setSortBy(newSort);
+    startTransition(() => {
+      setAppliedFilters(prev => ({ ...prev, sort: newSort }));
+    });
+  }, []);
 
   // Force refresh data on category/subcategory/search change
   const queryClient = useQueryClient();
@@ -766,7 +766,7 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
                   ].map(opt => (
                     <button
                       key={opt.value}
-                      onClick={() => setSortBy(opt.value)}
+                      onClick={() => handleSortChange(opt.value)}
                       className={`w-full text-left text-xs px-3 py-1.5 rounded-md transition-colors ${
                         sortBy === opt.value
                           ? isDarkThemed ? "bg-white/10 text-white font-medium" : isMinta ? "bg-[#ffa000]/15 text-[#ffa000] font-medium" : "bg-muted text-foreground font-medium"

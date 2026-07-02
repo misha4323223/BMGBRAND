@@ -8,7 +8,7 @@ import { ShoppingCart, ExternalLink, Minus, Plus, X, Percent, ChevronLeft, Chevr
 import { useCart, useAddToCart } from "@/hooks/use-cart";
 import { useToast } from "@/hooks/use-toast";
 import { useWholesalePrice } from "@/hooks/use-auth";
-import { useFavorites } from "@/hooks/use-favorites";
+import { useFavoriteStatus, useFavoriteActions } from "@/hooks/use-favorites";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useColorVariants, ColorVariant } from "@/hooks/use-products";
@@ -79,7 +79,8 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
   const { toast } = useToast();
   const { isWholesale, getWholesalePrice } = useWholesalePrice();
   
-  const { isFavorite, toggleFavorite, isLoggedIn } = useFavorites();
+  const isFav = useFavoriteStatus(product.id);
+  const { toggleFavorite, isLoggedIn } = useFavoriteActions();
   const [sockQty, setSockQty] = useState(1);
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifySubmitted, setNotifySubmitted] = useState<Set<string>>(new Set());
@@ -366,10 +367,10 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
             <button
               onClick={(e) => { e.stopPropagation(); toggleFavorite(product.id); }}
               className={`absolute top-2 left-2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-background/80 backdrop-blur-sm border border-border/50 transition-all duration-200 ${dolyameOpen ? 'opacity-0 pointer-events-none' : ''}`}
-              aria-label={isFavorite(product.id) ? "Убрать из избранного" : "Добавить в избранное"}
+              aria-label={isFav ? "Убрать из избранного" : "Добавить в избранное"}
               data-testid={`button-favorite-${product.id}`}
             >
-              <Heart className={`w-4 h-4 transition-colors duration-200 ${isFavorite(product.id) ? 'fill-foreground text-foreground' : 'text-muted-foreground'}`} />
+              <Heart className={`w-4 h-4 transition-colors duration-200 ${isFav ? 'fill-foreground text-foreground' : 'text-muted-foreground'}`} />
             </button>
 
             <div className={`absolute top-2 right-2 flex flex-col gap-1 z-10 transition-opacity duration-150 ${dolyameOpen ? 'opacity-0 pointer-events-none' : ''}`}>
