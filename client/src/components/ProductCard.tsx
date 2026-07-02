@@ -4,7 +4,7 @@ import { Product } from "@shared/schema";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, ExternalLink, Minus, Plus, X, Percent, ChevronLeft, ChevronRight, Heart, Bell, Check, Loader2, ArrowUpRight } from "lucide-react";
+import { ShoppingCart, ExternalLink, Minus, Plus, X, Percent, ChevronLeft, ChevronRight, Flame, Bell, Check, Loader2, ArrowUpRight } from "lucide-react";
 import { useCart, useAddToCart } from "@/hooks/use-cart";
 import { useToast } from "@/hooks/use-toast";
 import { useWholesalePrice } from "@/hooks/use-auth";
@@ -366,11 +366,17 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
             
             <button
               onClick={(e) => { e.stopPropagation(); toggleFavorite(product.id); }}
-              className={`absolute top-2 left-2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-background/80 backdrop-blur-sm border border-border/50 transition-all duration-200 ${dolyameOpen ? 'opacity-0 pointer-events-none' : ''}`}
+              className={`absolute top-2 left-2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-background/80 backdrop-blur-sm border transition-all duration-200 ${dolyameOpen ? 'opacity-0 pointer-events-none' : ''}`}
+              style={isFav ? { background: 'rgba(249,115,22,0.15)', borderColor: 'rgba(249,115,22,0.5)' } : { borderColor: 'hsl(var(--border) / 0.5)' }}
               aria-label={isFav ? "Убрать из избранного" : "Добавить в избранное"}
               data-testid={`button-favorite-${product.id}`}
             >
-              <Heart className={`w-4 h-4 transition-colors duration-200 ${isFav ? 'fill-foreground text-foreground' : 'text-muted-foreground'}`} />
+              <Flame
+                className="w-4 h-4 transition-colors duration-200"
+                style={{ color: isFav ? '#f97316' : undefined }}
+                fill={isFav ? '#f97316' : 'none'}
+                strokeWidth={2}
+              />
             </button>
 
             <div className={`absolute top-2 right-2 flex flex-col gap-1 z-10 transition-opacity duration-150 ${dolyameOpen ? 'opacity-0 pointer-events-none' : ''}`}>

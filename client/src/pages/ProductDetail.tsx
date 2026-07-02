@@ -13,7 +13,7 @@ import { AuthModal } from "@/components/AuthModal";
 import { BrandLoader } from "@/components/BrandLoader";
 import { Badge } from "@/components/ui/badge";
 import SEO from "@/components/SEO";
-import { Minus, Plus, ShoppingBag, ShoppingCart, ChevronLeft, ChevronRight, Loader2, X, Percent, Heart, ArrowRight, Target, Clock, Landmark, Share2, Check, Home, ZoomIn, ZoomOut, Bell, TrendingUp, TrendingDown, LogIn, AlertTriangle, MapPin, Truck, RotateCcw, Gift, Ruler } from "lucide-react";
+import { Minus, Plus, ShoppingBag, ShoppingCart, ChevronLeft, ChevronRight, Loader2, X, Percent, Flame, ArrowRight, Target, Clock, Landmark, Share2, Check, Home, ZoomIn, ZoomOut, Bell, TrendingUp, TrendingDown, LogIn, AlertTriangle, MapPin, Truck, RotateCcw, Gift, Ruler } from "lucide-react";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import { ProductCard } from "@/components/ProductCard";
 import { RecommendationBlock } from "@/components/RecommendationBlock";
@@ -44,7 +44,7 @@ import { usePreorderCart } from "@/context/PreorderCartContext";
 import { CATEGORIES, transliterateToSlug, type CategorySlug, type SizeMeasurement } from "@shared/schema";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useFavorites } from "@/hooks/use-favorites";
+import { useFavoriteStatus, useFavoriteActions } from "@/hooks/use-favorites";
 import {
   Accordion,
   AccordionContent,
@@ -322,7 +322,9 @@ export default function ProductDetail() {
   });
   const { isWholesale, getWholesalePrice } = useWholesalePrice();
   const prefetchProduct = usePrefetchProduct();
-  const { isFavorite, toggleFavorite, isLoggedIn: isFavLoggedIn } = useFavorites();
+  const isFav = useFavoriteStatus(product?.id ?? 0);
+  const { toggleFavorite } = useFavoriteActions();
+  const isFavorite = (id: number) => isFav && id === product?.id;
   const { viewedIds, addViewed } = useRecentlyViewed();
   
   const id = product?.id || 0;
@@ -990,7 +992,12 @@ export default function ProductDetail() {
                     className="flex flex-col items-center gap-1.5 py-2.5 rounded-xl border border-border/60 hover:border-foreground/30 transition-all duration-200"
                     data-testid={`button-favorite-detail-${product.id}`}
                   >
-                    <Heart className={`w-4 h-4 transition-colors duration-200 ${isFavorite(product.id) ? 'fill-primary text-primary' : 'text-foreground/60'}`} />
+                    <Flame
+                      className="w-4 h-4 transition-colors duration-200"
+                      style={{ color: isFavorite(product.id) ? '#f97316' : undefined }}
+                      fill={isFavorite(product.id) ? '#f97316' : 'none'}
+                      strokeWidth={2}
+                    />
                     <span className="text-[10px] text-muted-foreground leading-none">Избранное</span>
                   </button>
                   <button
@@ -1058,7 +1065,12 @@ export default function ProductDetail() {
                     data-testid={`button-favorite-detail-${product.id}`}
                     title="В избранное"
                   >
-                    <Heart className={`w-3.5 h-3.5 transition-colors ${isFavorite(product.id) ? 'fill-primary text-primary' : 'text-foreground'}`} />
+                    <Flame
+                      className="w-3.5 h-3.5 transition-colors duration-200"
+                      style={{ color: isFavorite(product.id) ? '#f97316' : undefined }}
+                      fill={isFavorite(product.id) ? '#f97316' : 'none'}
+                      strokeWidth={2}
+                    />
                   </button>
                   <button
                     onClick={async () => {
