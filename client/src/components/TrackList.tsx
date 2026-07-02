@@ -65,20 +65,15 @@ export function TrackList({ artistSlug, artistName, accentColor, textColor, bgCo
     if (extractedForRef.current === currentTrack.id) return;
     if (!currentTrack.coverUrl) return;
     extractedForRef.current = currentTrack.id;
-    extractDominantColor(currentTrack.coverUrl).then(([r, g, b]) => {
+    const run = () => extractDominantColor(currentTrack.coverUrl).then(([r, g, b]) => {
       setSectionBg(`rgba(${r},${g},${b},0.13)`);
     });
+    if (typeof requestIdleCallback !== "undefined") {
+      requestIdleCallback(run, { timeout: 2000 });
+    } else {
+      setTimeout(run, 300);
+    }
   }, [currentTrack, artistSlug]);
-
-  useEffect(() => {
-    if (extractedForRef.current !== null || tracks.length === 0) return;
-    const first = tracks.find(t => t.coverUrl);
-    if (!first) return;
-    extractedForRef.current = -1;
-    extractDominantColor(first.coverUrl).then(([r, g, b]) => {
-      setSectionBg(`rgba(${r},${g},${b},0.10)`);
-    });
-  }, [tracks]);
 
   if (!isLoading && tracks.length === 0) return null;
 
