@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingBag, Menu, X, ArrowLeft, Search, User, LogOut, LogIn, Gift, Heart, ChevronDown, ChevronRight, Briefcase, TrendingUp, Shirt, PackageOpen, Headphones, Music } from "lucide-react";
+import { ShoppingBag, Menu, X, ArrowLeft, Search, User, LogOut, LogIn, Gift, Heart, ChevronDown, ChevronRight, Briefcase, TrendingUp, Shirt, PackageOpen, Headphones, Music, Play, Pause } from "lucide-react";
 import { usePartnerBanner, PartnerBannerContent } from "./PartnerBanner";
 import { MusicDrawer } from "./MusicDrawer";
 import { usePlayer } from "@/context/PlayerContext";

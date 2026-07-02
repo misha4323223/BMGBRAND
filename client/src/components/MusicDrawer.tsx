@@ -26,8 +26,8 @@ interface MusicDrawerProps {
 export function MusicDrawer({ open, onClose }: MusicDrawerProps) {
   const { data, isLoading } = useQuery<{ artists: ArtistGroup[] }>({
     queryKey: ["/api/artists/all-tracks"],
-    enabled: open,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
   const artists = data?.artists || [];
   const { currentTrack, isPlaying, play, pause } = usePlayer();
@@ -280,10 +280,10 @@ export function MusicDrawer({ open, onClose }: MusicDrawerProps) {
               <Link
                 href="/@"
                 onClick={onClose}
-                className="text-[11px] text-center block w-full transition-colors"
-                style={{ color: "rgba(255,255,255,0.25)" }}
-                onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.color = "rgba(255,255,255,0.55)")}
-                onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.color = "rgba(255,255,255,0.25)")}
+                className="text-[12px] text-center block w-full transition-colors font-medium"
+                style={{ color: "rgba(255,255,255,0.6)" }}
+                onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.color = "#fff")}
+                onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.color = "rgba(255,255,255,0.6)")}
               >
                 Все артисты →
               </Link>

@@ -8826,7 +8826,6 @@ BMGBRAND — официальный производитель и магазин
       const artists = await storage.getArtistPartners();
       const result = await Promise.all(
         artists
-          .filter(a => a.status === "approved")
           .map(async a => {
             const tracks = await storage.getArtistTracks(a.partnerSlug, false);
             if (tracks.length === 0) return null;
