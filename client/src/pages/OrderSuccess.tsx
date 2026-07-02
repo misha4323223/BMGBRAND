@@ -1,12 +1,13 @@
 import { useParams, Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { RecommendationBlock } from "@/components/RecommendationBlock";
-import { CheckCircle, XCircle, Loader2, MessageSquare } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, MessageSquare, ShoppingBag, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
+import AddonOrderDialog from "@/components/AddonOrderDialog";
 
 interface OrderStatus {
   orderId: number;
@@ -21,6 +22,7 @@ export default function OrderSuccess() {
   const [loading, setLoading] = useState(true);
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [addonOpen, setAddonOpen] = useState(false);
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
@@ -82,12 +84,13 @@ export default function OrderSuccess() {
   }
 
   const isPaid = orderStatus?.paid || orderStatus?.status === "paid";
+  const numericOrderId = Number(orderId);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SEO title="Заказ оформлен" noindex={true} />
       <Navbar />
-      <main className="flex-1 container mx-auto px-4 py-16 flex flex-col items-center gap-8">
+      <main className="flex-1 container mx-auto px-4 py-16 flex flex-col items-center gap-6">
         <Card className="max-w-md w-full text-center">
           <CardHeader>
             <div className="flex justify-center mb-4">
@@ -156,6 +159,32 @@ export default function OrderSuccess() {
             )}
           </CardContent>
         </Card>
+
+        {isPaid && !isNaN(numericOrderId) && (
+          <Card className="max-w-md w-full border-dashed border-2 bg-muted/20" data-testid="card-addon-cta">
+            <CardContent className="py-5 flex flex-col items-center gap-3 text-center">
+              <ShoppingBag className="w-8 h-8 text-primary" />
+              <div>
+                <p className="font-semibold text-sm">Забыли что-нибудь добавить?</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Вы можете дополнить заказ #{orderId} без новой доставки
+                </p>
+              </div>
+              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Clock className="w-3 h-3" />
+                <span>Доступно в течение 12 часов после оплаты</span>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setAddonOpen(true)}
+                data-testid="button-open-addon-from-success"
+              >
+                + Добавить товары к заказу
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {isPaid && orderStatus?.productIds && orderStatus.productIds.length > 0 && (
           <div className="w-full">
             <RecommendationBlock
@@ -166,6 +195,14 @@ export default function OrderSuccess() {
         )}
       </main>
       <Footer />
+
+      {addonOpen && !isNaN(numericOrderId) && (
+        <AddonOrderDialog
+          orderId={numericOrderId}
+          open={addonOpen}
+          onClose={() => setAddonOpen(false)}
+        />
+      )}
     </div>
   );
 }
