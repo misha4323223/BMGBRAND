@@ -509,8 +509,13 @@ export function serveStatic(app: Express) {
             jsonLd,
           });
         }
-        // Preload hero image for LCP — works regardless of whether artist is in static ARTISTS list
+        // Inject hero data for immediate client-side use (avoids waiting for 2 API calls)
         const artistHero = getCachedArtistHeroImage(artistSlug);
+        if (artistHero.img || artistHero.imgMobile || artistHero.name) {
+          const safeHero = JSON.stringify(artistHero).replace(/<\/script>/gi, '<\\/script>');
+          html = html.replace('</head>', `    <script>window.__ARTIST_HERO__=${safeHero};</script>\n  </head>`);
+        }
+        // Preload hero image for LCP
         if (artistHero.imgMobile) {
           html = html.replace('</head>', `    <link rel="preload" as="image" href="${artistHero.imgMobile}" fetchpriority="high" media="(max-width: 1023px)">\n  </head>`);
         }

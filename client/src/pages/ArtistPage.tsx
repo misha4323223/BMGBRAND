@@ -691,6 +691,10 @@ export default function ArtistPage() {
   const params = useParams<{ slug: string }>();
   const [, navigate] = useLocation();
   const slug = params.slug?.replace(/^@/, '');
+  // SSR-injected hero data — available before any API call completes
+  const artistHeroSSR = typeof window !== 'undefined'
+    ? (window as any).__ARTIST_HERO__ as { img: string; imgMobile: string; name: string; role: string; heroOpacity: string } | undefined
+    : undefined;
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
@@ -746,10 +750,10 @@ export default function ArtistPage() {
 
   const homeArtist = (homeSettings?.artists?.items || []).find((a: any) => a.slug === slug);
 
-  const artistName = settings.name || homeArtist?.name || slug;
-  const artistRole = settings.role !== undefined ? settings.role : (homeArtist?.role || "");
-  const heroImage = settings.heroImage || homeArtist?.image || "";
-  const heroOpacity = settings.heroOpacity || "0.5";
+  const artistName = settings.name || homeArtist?.name || artistHeroSSR?.name || slug;
+  const artistRole = settings.role !== undefined ? settings.role : (homeArtist?.role || artistHeroSSR?.role || "");
+  const heroImage = settings.heroImage || homeArtist?.image || artistHeroSSR?.img || "";
+  const heroOpacity = settings.heroOpacity || artistHeroSSR?.heroOpacity || "0.5";
 
   const productsLimit = settings.productsLimit ?? 8;
 
@@ -808,7 +812,8 @@ export default function ArtistPage() {
   const isLoading = artistPagesLoading || homeLoading;
   const hasNoData = !allArtistPages?.[slug] && !homeArtist;
 
-  if (isLoading) {
+  // Показываем спиннер только если нет ни SSR-данных, ни кэша React Query
+  if (isLoading && !artistHeroSSR?.img && !homeArtist) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-muted-foreground">Загрузка...</div>
@@ -816,7 +821,8 @@ export default function ArtistPage() {
     );
   }
 
-  if (hasNoData) {
+  // 404 только после завершения загрузки
+  if (!isLoading && hasNoData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">

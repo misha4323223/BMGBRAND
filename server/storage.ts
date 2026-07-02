@@ -251,13 +251,16 @@ export function getCachedLcpImageUrls(): string[] {
   return results;
 }
 
-export function getCachedArtistHeroImage(slug: string): { img: string; imgMobile: string } {
+export function getCachedArtistHeroImage(slug: string): { img: string; imgMobile: string; name: string; role: string; heroOpacity: string } {
   const artistPages = pageSettingsCache.get("artist_pages");
   const artist = artistPages?.[slug];
-  if (!artist) return { img: "", imgMobile: "" };
+  if (!artist) return { img: "", imgMobile: "", name: "", role: "", heroOpacity: "0.5" };
   return {
     img: artist.heroImage || "",
     imgMobile: artist.heroImageMobile || "",
+    name: artist.name || "",
+    role: artist.role || "",
+    heroOpacity: artist.heroOpacity || "0.5",
   };
 }
 
