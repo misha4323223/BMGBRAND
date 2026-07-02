@@ -725,7 +725,7 @@ export default function ArtistPage() {
   const { data: allArtistPages, isLoading: artistPagesLoading } = useQuery<Record<string, any>>({
     queryKey: ["/api/page-settings/artist_pages"],
     refetchInterval: (query) => artistPagesEmpty(query.state.data) ? 2000 : false,
-    staleTime: 0,
+    staleTime: 30_000,
   });
 
   const { data: homeSettings, isLoading: homeLoading } = useQuery<Record<string, any>>({
@@ -892,11 +892,17 @@ export default function ArtistPage() {
                     <img
                       src={settings.heroImageMobile}
                       alt={artistName}
+                      fetchPriority="high"
+                      loading="eager"
+                      decoding="async"
                       className="block lg:hidden absolute inset-0 w-full h-full object-cover"
                     />
                     <img
                       src={heroImage}
                       alt={artistName}
+                      fetchPriority="high"
+                      loading="eager"
+                      decoding="async"
                       className="hidden lg:block absolute inset-0 w-full h-full object-cover"
                     />
                   </>
@@ -904,6 +910,9 @@ export default function ArtistPage() {
                   <img
                     src={heroImage}
                     alt={artistName}
+                    fetchPriority="high"
+                    loading="eager"
+                    decoding="async"
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                 )}
@@ -911,6 +920,8 @@ export default function ArtistPage() {
                   <img
                     src={heroImage}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     className="hidden lg:block absolute right-0 top-0 h-full w-1/2 object-contain object-right-bottom drop-shadow-2xl"
                   />
                 )}

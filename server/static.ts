@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
-import { getCachedLcpImageUrls, getCachedProductImageBySlug, getCachedProductMetaBySlug, getCachedRatingByProductId, getCachedProductsByCategory, getCachedAllVisibleProducts, getCachedHeroData } from "./storage";
+import { getCachedLcpImageUrls, getCachedProductImageBySlug, getCachedProductMetaBySlug, getCachedRatingByProductId, getCachedProductsByCategory, getCachedAllVisibleProducts, getCachedHeroData, getCachedArtistHeroImage } from "./storage";
 
 const SITE_NAME = "BMGBRAND";
 const DEFAULT_TITLE = `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
@@ -508,6 +508,15 @@ export function serveStatic(app: Express) {
             canonical: `${siteUrl}/@${artistSlug}`,
             jsonLd,
           });
+        }
+        // Preload hero image for LCP — works regardless of whether artist is in static ARTISTS list
+        const artistHero = getCachedArtistHeroImage(artistSlug);
+        if (artistHero.imgMobile) {
+          html = html.replace('</head>', `    <link rel="preload" as="image" href="${artistHero.imgMobile}" fetchpriority="high" media="(max-width: 1023px)">\n  </head>`);
+        }
+        if (artistHero.img) {
+          const mq = artistHero.imgMobile ? ' media="(min-width: 1024px)"' : '';
+          html = html.replace('</head>', `    <link rel="preload" as="image" href="${artistHero.img}" fetchpriority="high"${mq}>\n  </head>`);
         }
       }
 

@@ -251,6 +251,16 @@ export function getCachedLcpImageUrls(): string[] {
   return results;
 }
 
+export function getCachedArtistHeroImage(slug: string): { img: string; imgMobile: string } {
+  const artistPages = pageSettingsCache.get("artist_pages");
+  const artist = artistPages?.[slug];
+  if (!artist) return { img: "", imgMobile: "" };
+  return {
+    img: artist.heroImage || "",
+    imgMobile: artist.heroImageMobile || "",
+  };
+}
+
 export function getCachedProductImageBySlug(slug: string): string {
   const products = productsCache.get("all");
   if (!products || products.length === 0) return "";
