@@ -4,7 +4,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, ArrowRight, ExternalLink, Play, Quote, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Share2, ShoppingCart, Zap, Tag, Heart } from "lucide-react";
+import { ArrowLeft, ArrowRight, ExternalLink, Play, Quote, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Share2, ShoppingCart, Zap, Tag, Heart, Flame } from "lucide-react";
 import { SiTelegram, SiVk, SiYoutube, SiInstagram, SiTiktok, SiSpotify, SiTwitch, SiSoundcloud, SiApplemusic, SiDiscord, SiX, SiBandcamp, SiPatreon, SiOnlyfans } from "react-icons/si";
 import { useState, useEffect, useRef } from "react";
 import { transliterateToSlug } from "@shared/schema";
@@ -12,6 +12,7 @@ import SEO from "@/components/SEO";
 import { useAddToCart } from "@/hooks/use-cart";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { useToast } from "@/hooks/use-toast";
+import { useFavoriteStatus, useFavoriteActions } from "@/hooks/use-favorites";
 import { TrackList } from "@/components/TrackList";
 
 interface ArtistSettings {
@@ -481,6 +482,18 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
   const deadlineStr = formatDeadline(product.preorderDeadline);
   const shippingStr = formatDeadline(product.preorderShippingDate);
 
+  const isFav = useFavoriteStatus(product.id);
+  const { toggleFavorite } = useFavoriteActions();
+  const [flameBurst, setFlameBurst] = useState(false);
+
+  function handleFlame(e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    setFlameBurst(true);
+    setTimeout(() => setFlameBurst(false), 500);
+    toggleFavorite(product.id);
+  }
+
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-lg" data-testid={`artist-product-card-${product.id}`}>
       {/* Изображение */}
@@ -493,6 +506,29 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         )}
+        {/* Кнопка избранного — огонь */}
+        <button
+          type="button"
+          onClick={handleFlame}
+          aria-label={isFav ? "Убрать из избранного" : "Добавить в избранное"}
+          data-testid={`button-artist-favorite-${product.id}`}
+          className="absolute top-2 left-2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-background/80 backdrop-blur-sm border border-border/50 transition-all duration-200 hover:scale-110 active:scale-95"
+          style={isFav ? { background: 'rgba(249,115,22,0.15)', borderColor: 'rgba(249,115,22,0.5)' } : {}}
+        >
+          <motion.span
+            animate={flameBurst ? { scale: [1, 1.6, 0.85, 1.15, 1], rotate: [0, -8, 8, -4, 0] } : {}}
+            transition={{ duration: 0.45 }}
+            style={{ display: 'flex' }}
+          >
+            <Flame
+              className="w-4 h-4 transition-colors duration-200"
+              style={{ color: isFav ? '#f97316' : undefined }}
+              fill={isFav ? '#f97316' : 'none'}
+              strokeWidth={2}
+            />
+          </motion.span>
+        </button>
+
         {hasDiscount && badgePct > 0 && (
           <span className="absolute top-2 right-2 bg-black/80 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full tracking-widest uppercase backdrop-blur-sm">
             -{badgePct}%
