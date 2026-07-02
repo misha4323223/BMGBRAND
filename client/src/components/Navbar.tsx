@@ -1,6 +1,8 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingBag, Menu, X, ArrowLeft, Search, User, LogOut, LogIn, Gift, Heart, ChevronDown, ChevronRight, Briefcase, TrendingUp, Shirt, PackageOpen } from "lucide-react";
+import { ShoppingBag, Menu, X, ArrowLeft, Search, User, LogOut, LogIn, Gift, Heart, ChevronDown, ChevronRight, Briefcase, TrendingUp, Shirt, PackageOpen, Headphones, Music } from "lucide-react";
 import { usePartnerBanner, PartnerBannerContent } from "./PartnerBanner";
+import { MusicDrawer } from "./MusicDrawer";
+import { usePlayer } from "@/context/PlayerContext";
 import { useState, useRef, useEffect, useMemo, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/hooks/use-cart";
@@ -23,6 +25,77 @@ import { DEFAULT_NAVBAR_SETTINGS } from "./navbar-settings";
 import { RuStoreButton } from "./RuStoreButton";
 import { CATEGORIES, normalizeCategories } from "@shared/schema";
 import type { CategoryConfig } from "@shared/schema";
+import type { ArtistTrack } from "@/context/PlayerContext";
+
+interface ArtistGroupMobile {
+  slug: string;
+  name: string;
+  tracks: ArtistTrack[];
+}
+
+function MobileMusicList({ onClose }: { onClose: () => void }) {
+  const { data, isLoading } = useQuery<{ artists: ArtistGroupMobile[] }>({
+    queryKey: ["/api/artists/all-tracks"],
+    staleTime: 2 * 60 * 1000,
+  });
+  const { currentTrack, isPlaying, play, pause } = usePlayer();
+  const artists = data?.artists || [];
+  const allTracks = artists.flatMap(a => a.tracks);
+
+  if (isLoading) {
+    return (
+      <div className="pt-3 pl-2 space-y-1">
+        {[1, 2].map(i => <div key={i} className="h-10 rounded-xl bg-muted/50 animate-pulse" />)}
+      </div>
+    );
+  }
+  if (artists.length === 0) {
+    return <p className="text-sm text-muted-foreground pl-2 pt-3">Треки не добавлены</p>;
+  }
+
+  return (
+    <div className="pt-3 pl-2 space-y-3 overflow-y-auto max-h-64">
+      {artists.map(artist => (
+        <div key={artist.slug}>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1.5">{artist.name}</p>
+          <div className="space-y-0.5">
+            {artist.tracks.map(track => {
+              const isActive = currentTrack?.id === track.id;
+              const isThisPlaying = isActive && isPlaying;
+              return (
+                <button
+                  key={track.id}
+                  onClick={() => {
+                    if (isActive && isThisPlaying) pause();
+                    else { play(track, allTracks); onClose(); }
+                  }}
+                  className="flex items-center gap-2.5 w-full py-1.5 px-2 rounded-lg transition-colors text-left"
+                  style={{ background: isActive ? "hsla(var(--primary)/0.1)" : "transparent" }}
+                  data-testid={`mobile-track-${track.id}`}
+                >
+                  {track.coverUrl ? (
+                    <img src={track.coverUrl} alt={track.title} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" loading="lazy" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg bg-muted flex-shrink-0" />
+                  )}
+                  <span
+                    className="text-sm font-medium truncate flex-1"
+                    style={{ color: isActive ? "hsl(var(--primary))" : undefined }}
+                  >
+                    {track.title}
+                  </span>
+                  {isThisPlaying
+                    ? <Pause className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
+                    : <Play className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -44,6 +117,9 @@ export function Navbar() {
   const [hoveredCat, setHoveredCat] = useState<string | null>(null);
   const [mobileShopOpen, setMobileShopOpen] = useState(false);
   const [mobileExpandedCat, setMobileExpandedCat] = useState<string | null>(null);
+  const [isMusicDrawerOpen, setIsMusicDrawerOpen] = useState(false);
+  const [isMobileTracksOpen, setIsMobileTracksOpen] = useState(false);
+  const { currentTrack } = usePlayer();
   const isTouchDevice = useRef(false);
 
   useEffect(() => {
@@ -545,6 +621,20 @@ export function Navbar() {
             <div className="mr-1">
               <RuStoreButton variant="desktop" />
             </div>
+            <button
+              onClick={() => setIsMusicDrawerOpen(true)}
+              className="p-1.5 hover:bg-muted rounded-full transition-colors group relative"
+              data-testid="button-music-drawer"
+              aria-label="Музыка"
+            >
+              <Headphones className="w-5 h-5 text-foreground group-hover:text-primary transition-colors" />
+              {currentTrack && (
+                <span
+                  className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full"
+                  style={{ background: "hsl(var(--primary))", boxShadow: "0 0 6px hsl(var(--primary))" }}
+                />
+              )}
+            </button>
             {settings.showSearch && (
               <button onClick={() => { setSearchEverOpened(true); setIsSearchOpen(true); }} className="p-1.5 hover:bg-muted rounded-full transition-colors group" data-testid="button-search" aria-label="Поиск">
                 <Search className="w-5 h-5 text-foreground group-hover:text-primary transition-colors" />
@@ -812,6 +902,36 @@ export function Navbar() {
               );
             })}
 
+            {/* Mobile music accordion */}
+            <div className="border-t border-border pt-3 mt-1">
+              <button
+                onClick={() => setIsMobileTracksOpen(v => !v)}
+                data-testid="button-mobile-music-menu"
+                className="flex items-center justify-between w-full text-xl font-medium text-muted-foreground hover:text-primary transition-all"
+              >
+                <span className="flex items-center gap-2">
+                  <Music className="w-5 h-5" />
+                  Музыка
+                  {currentTrack && (
+                    <span
+                      className="w-2 h-2 rounded-full inline-block"
+                      style={{ background: "hsl(var(--primary))", boxShadow: "0 0 5px hsl(var(--primary))" }}
+                    />
+                  )}
+                </span>
+                <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isMobileTracksOpen ? "rotate-180" : ""}`} />
+              </button>
+              <div
+                style={{
+                  maxHeight: isMobileTracksOpen ? "280px" : "0px",
+                  overflow: "hidden",
+                  transition: "max-height 0.3s ease",
+                }}
+              >
+                <MobileMusicList onClose={() => setIsOpen(false)} />
+              </div>
+            </div>
+
             {settings.showUser && user && (
               <>
                 <div className="border-t border-border pt-3 mt-1">
@@ -830,6 +950,8 @@ export function Navbar() {
           </div>
         </div>
       </div>
+
+      <MusicDrawer open={isMusicDrawerOpen} onClose={() => setIsMusicDrawerOpen(false)} />
 
       {authEverOpened && (
         <Suspense fallback={null}>

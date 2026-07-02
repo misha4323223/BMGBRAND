@@ -8820,6 +8820,30 @@ BMGBRAND — официальный производитель и магазин
 
   // ─── Artist Tracks API ──────────────────────────────────────────────────────
 
+  // GET /api/artists/all-tracks — public: all active tracks grouped by artist
+  app.get("/api/artists/all-tracks", async (req, res) => {
+    try {
+      const artists = await storage.getArtistPartners();
+      const result = await Promise.all(
+        artists
+          .filter(a => a.status === "approved")
+          .map(async a => {
+            const tracks = await storage.getArtistTracks(a.partnerSlug, false);
+            if (tracks.length === 0) return null;
+            return {
+              slug: a.partnerSlug,
+              name: a.storeName || a.contactName || a.partnerSlug,
+              tracks,
+            };
+          })
+      );
+      res.json({ artists: result.filter(Boolean) });
+    } catch (err: any) {
+      console.error("[all-tracks] error:", err.message);
+      res.json({ artists: [] });
+    }
+  });
+
   // GET /api/artists/:slug/tracks — public: get active tracks
   app.get("/api/artists/:slug/tracks", async (req, res) => {
     try {
