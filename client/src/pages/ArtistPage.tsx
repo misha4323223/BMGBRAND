@@ -1324,9 +1324,10 @@ export default function ArtistPage() {
                   )}
                   <div className="w-full h-full flex items-center justify-center p-3">
                     <img
-                      key={galleryIndex}
                       src={galleryImages[galleryIndex]}
                       alt={`${artistName} фото ${galleryIndex + 1}`}
+                      loading="lazy"
+                      decoding="async"
                       className="max-w-full max-h-full object-contain select-none rounded"
                       style={{ maxHeight: 'calc(100vh - 80px)' }}
                     />
