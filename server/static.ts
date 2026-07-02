@@ -265,8 +265,13 @@ export function serveStatic(app: Express) {
     const isPageChunk = (name: string) =>
       pageChunkPrefixes.some(prefix => name.startsWith(prefix));
 
+    // Admin-only heavy chunks — never preload for regular users
+    const neverPreloadPrefixes = ['vendor-editor', 'vendor-charts', 'vendor-pdf'];
+    const isNeverPreload = (name: string) =>
+      neverPreloadPrefixes.some(prefix => name.startsWith(prefix));
+
     allJsChunks = files
-      .filter((f: string) => f.endsWith(".js") && f !== jsFileName && !isPageChunk(f))
+      .filter((f: string) => f.endsWith(".js") && f !== jsFileName && !isPageChunk(f) && !isNeverPreload(f))
       .sort((a: string, b: string) => {
         try {
           const sizeA = fs.statSync(path.join(assetsDir, a)).size;
@@ -284,6 +289,10 @@ export function serveStatic(app: Express) {
   let cachedHtml = "";
   try {
     let html = fs.readFileSync(indexHtmlPath, "utf-8");
+
+    // LCP: logo is always the first meaningful image — preload it on every page
+    const logoPreloadTag = `    <link rel="preload" as="image" href="/images/boomerangs-logo.webp" fetchpriority="high">`;
+    html = html.replace('</head>', `${logoPreloadTag}\n  </head>`);
 
     const modulePreloadTags = criticalChunks
       .map(chunk => `    <link rel="modulepreload" href="/assets/${chunk}">`)

@@ -243,9 +243,10 @@ body.lb-open nav {
   90%  { opacity: 1; }
   100% { transform: translateX(320%) skewX(-20deg); opacity: 0; }
 }
+/* Animate only opacity — composited property, zero repaint cost */
 @keyframes holo-glow-pulse {
-  0%, 100% { box-shadow: 0 0 16px 2px rgba(229,57,53,0.25), 0 4px 24px rgba(0,0,0,0.5); }
-  50%       { box-shadow: 0 0 28px 6px rgba(229,57,53,0.45), 0 8px 32px rgba(0,0,0,0.6); }
+  0%, 100% { opacity: 0.55; }
+  50%       { opacity: 1; }
 }
 @keyframes holo-icon-pulse {
   0%, 100% { opacity: 1;   transform: scale(1); }
@@ -254,7 +255,8 @@ body.lb-open nav {
 .chat-holo-btn {
   position: relative;
   background: #0e0e0e;
-  animation: holo-glow-pulse 2.8s ease-in-out infinite;
+  /* Static shadow — never animates, no repaint */
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
   overflow: hidden;
 }
 .chat-holo-btn::before {
@@ -273,12 +275,15 @@ body.lb-open nav {
   pointer-events: none;
   z-index: 1;
 }
+/* ::after carries the pulsing glow — only opacity animates (GPU-composited) */
 .chat-holo-btn::after {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: -1px;
   border-radius: inherit;
   border: 1px solid rgba(229,57,53,0.25);
+  box-shadow: 0 0 22px 5px rgba(229,57,53,0.38);
+  animation: holo-glow-pulse 2.8s ease-in-out infinite;
   pointer-events: none;
   z-index: 2;
 }

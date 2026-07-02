@@ -285,7 +285,7 @@ export function Navbar() {
               </Button>
             )}
             <Link href="/" className="flex-shrink-0 cursor-pointer" data-testid="link-navbar-logo">
-              <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-20 w-auto object-contain" />
+              <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-20 w-auto object-contain" fetchpriority="high" width={80} height={80} />
             </Link>
           </div>
           <div className="flex items-center space-x-1">
@@ -394,7 +394,7 @@ export function Navbar() {
               </button>
             )}
             <Link href="/" className="flex-shrink-0 cursor-pointer flex items-center gap-2.5" data-testid="link-navbar-logo">
-              <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-[76px] w-auto object-contain" />
+              <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-[76px] w-auto object-contain" fetchpriority="high" width={76} height={76} />
               <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "2px" }}>
                 <span
                   style={{
