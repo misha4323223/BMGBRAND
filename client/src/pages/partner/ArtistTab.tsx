@@ -755,13 +755,16 @@ function PageEditor({ partnerSlug }: { partnerSlug: string }) {
               <section className="space-y-3">
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Тема оформления</h4>
                 <p className="text-xs text-muted-foreground">Выберите визуальный стиль публичной страницы</p>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {([
-                    { id: 'default', label: 'Стандарт', bg: '#ffffff', accent: '#111111', text: '#111111', border: '#e5e7eb' },
-                    { id: 'dark',    label: 'Тёмная',   bg: '#0a0a0a', accent: '#ffffff', text: '#ffffff', border: '#222222' },
-                    { id: 'raw',     label: 'Сырая',    bg: '#f0ebe3', accent: '#1a1a1a', text: '#1a1a1a', border: '#d9d0c4' },
-                    { id: 'neon',    label: 'Неон',     bg: '#0d0d0d', accent: '#00ff88', text: '#ffffff', border: '#1a1a1a' },
-                    { id: 'warm',    label: 'Тёплая',   bg: '#f7ece4', accent: '#ffa000', text: '#2e2e2e', border: '#e8d8cc' },
+                    { id: 'default',  label: 'Стандарт', bg: '#ffffff', accent: '#111111', text: '#111111', border: '#e5e7eb' },
+                    { id: 'dark',     label: 'Тёмная',   bg: '#0a0a0a', accent: '#ffffff', text: '#ffffff', border: '#222222' },
+                    { id: 'raw',      label: 'Сырая',    bg: '#f0ebe3', accent: '#1a1a1a', text: '#1a1a1a', border: '#d9d0c4' },
+                    { id: 'neon',     label: 'Неон',     bg: '#0d0d0d', accent: '#00ff88', text: '#ffffff', border: '#1a1a1a' },
+                    { id: 'warm',     label: 'Тёплая',   bg: '#f7ece4', accent: '#ffa000', text: '#2e2e2e', border: '#e8d8cc' },
+                    { id: 'midnight', label: 'Полночь',  bg: '#070a1f', accent: '#7c83ff', text: '#dde2ff', border: '#1a1f4a' },
+                    { id: 'forest',   label: 'Лес',      bg: '#071310', accent: '#27d97e', text: '#d5f5e8', border: '#123320' },
+                    { id: 'dawn',     label: 'Рассвет',  bg: '#faf4f2', accent: '#c4344a', text: '#1a0c0e', border: '#e8d0ce' },
                   ] as const).map((t) => {
                     const active = (form.theme || 'default') === t.id;
                     return (

@@ -135,6 +135,56 @@ const ARTIST_THEMES: Record<string, ArtistThemeConfig> = {
     ],
     accentLines: true,
   },
+  // ── Новые темы ──
+  midnight: {
+    // Глубокий ночной синий. Текст: светлая лаванда на тёмно-синем (#070a1f) → очень высокий контраст.
+    // Мутный текст (#6e78c0) на тёмном фоне — читается. Акцент (#7c83ff) — ярче фона, читается как текст.
+    // Кнопки: тёмно-синий #070a1f на индиго #7c83ff → чёткий контраст.
+    bg: '#070a1f',
+    bgMuted: '#0d1232',
+    accent: '#7c83ff',
+    accentFg: '#070a1f',
+    text: '#dde2ff',
+    textMuted: '#8088d0',
+    decorBg: '#090d28',
+    decorSymbols: [
+      { symbol: '◉', color: '#7c83ff', opacity: 0.04, size: '190px', pos: 'top-16 right-4', rotate: 'rotate-6' },
+      { symbol: '✦', color: '#7c83ff', opacity: 0.03, size: '110px', pos: 'bottom-20 left-6', rotate: '-rotate-12' },
+    ],
+    accentLines: true,
+  },
+  forest: {
+    // Тёмный изумруд. Текст: светлая мята (#d5f5e8) на почти-чёрном зелёном (#071310) → отличный контраст.
+    // Мутный текст (#52976e) на тёмно-зелёном — достаточно светлый. Акцент (#27d97e) — яркий на тёмном.
+    // Кнопки: очень тёмный зелёный (#031a0d) на ярко-изумрудном (#27d97e) → чёткий контраст.
+    bg: '#071310',
+    bgMuted: '#0c1d17',
+    accent: '#27d97e',
+    accentFg: '#031a0d',
+    text: '#d5f5e8',
+    textMuted: '#52976e',
+    decorBg: '#091a13',
+    decorSymbols: [
+      { symbol: '⬢', color: '#27d97e', opacity: 0.035, size: '175px', pos: 'top-20 right-6', rotate: 'rotate-15' },
+      { symbol: '✿', color: '#27d97e', opacity: 0.025, size: '115px', pos: 'bottom-16 left-5', rotate: '-rotate-6' },
+    ],
+  },
+  dawn: {
+    // Рассвет: светлый розово-кремовый. Текст: почти-чёрный (#1a0c0e) на кремовом (#faf4f2) → максимальный контраст.
+    // Мутный текст (#7a5258) на светлом фоне — читается. Акцент (#c4344a) достаточно тёмный для текста на светлом фоне.
+    // Кнопки: белый (#ffffff) на малиновом (#c4344a) → хороший контраст.
+    bg: '#faf4f2',
+    bgMuted: '#f0e6e3',
+    accent: '#c4344a',
+    accentFg: '#ffffff',
+    text: '#1a0c0e',
+    textMuted: '#7a5258',
+    decorBg: '#ece0de',
+    decorSymbols: [
+      { symbol: '✦', color: '#c4344a', opacity: 0.045, size: '150px', pos: 'top-20 right-8', rotate: 'rotate-12' },
+      { symbol: '◆', color: '#1a0c0e', opacity: 0.03, size: '100px', pos: 'bottom-20 left-8', rotate: '-rotate-12' },
+    ],
+  },
 };
 
 const socialIcons: Record<string, any> = {
