@@ -414,6 +414,56 @@ export class CdekService {
       return null;
     }
   }
+
+  async deleteOrder(uuid: string): Promise<boolean> {
+    console.log("[CDEK] Deleting order:", uuid);
+    try {
+      const token = await this.getToken();
+      const response = await fetch(`${this.baseUrl}/orders/${uuid}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      const text = await response.text();
+      console.log(`[CDEK] Delete order response (${response.status}):`, text);
+      return response.ok;
+    } catch (error) {
+      console.error("[CDEK] Delete order error:", error);
+      return false;
+    }
+  }
+
+  async patchOrderPackages(uuid: string, packages: any[]): Promise<{ success: boolean; error?: string }> {
+    console.log("[CDEK] Patching order packages:", uuid);
+    try {
+      const token = await this.getToken();
+      const response = await fetch(`${this.baseUrl}/orders`, {
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uuid, packages }),
+      });
+      const text = await response.text();
+      console.log(`[CDEK] Patch order response (${response.status}):`, text);
+      if (!response.ok) {
+        return { success: false, error: `CDEK PATCH ${response.status}: ${text.substring(0, 200)}` };
+      }
+      let result: any;
+      try { result = JSON.parse(text); } catch { return { success: true }; }
+      if (result.requests) {
+        const errors = result.requests
+          .filter((r: any) => r.errors?.length > 0)
+          .flatMap((r: any) => r.errors)
+          .map((e: any) => `${e.code}: ${e.message}`).join('; ');
+        if (errors) return { success: false, error: errors };
+      }
+      return { success: true };
+    } catch (error: any) {
+      console.error("[CDEK] Patch order error:", error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 export const cdekService = new CdekService();

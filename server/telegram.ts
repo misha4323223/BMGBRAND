@@ -727,6 +727,33 @@ export async function notifyAgentQueueItem(item: {
   await sendMessageWithInlineKeyboard(chatId, text, buttons, token);
 }
 
+export function notifyAddonOrderPaid(order: {
+  id: number;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+}, addonItems: Array<{ productName: string; size?: string; color?: string; quantity: number; price: number }>, addedTotal: number): void {
+  const { token, chatId } = getConfig();
+  if (!token || !chatId) return;
+
+  const sep = "\n──────────────────────\n";
+  let text = `🛒 <b>Дозаказ к #${order.id}</b>\n`;
+  text += `${esc(order.customerName)}  •  ${esc(order.customerPhone)}\n`;
+  text += `${esc(order.customerEmail)}`;
+  text += sep;
+  addonItems.forEach((it, i) => {
+    const meta = [it.size, it.color].filter(Boolean).join("/");
+    text += `${i + 1}. ${esc(it.productName)}`;
+    if (meta) text += ` <i>${esc(meta)}</i>`;
+    text += ` ×${it.quantity} ${price(it.price * it.quantity)}\n`;
+  });
+  text += sep;
+  text += `<b>Доплата: ${price(addedTotal)}</b>\n`;
+  text += `⚠️ Накладная CDEK обновляется автоматически`;
+
+  sendRetailMessage(text).catch(err => console.error("[Telegram] notifyAddonOrderPaid failed:", err));
+}
+
 export async function sendAgentAlert(text: string): Promise<void> {
   const { token, chatId } = getConfig();
   if (!token || !chatId) return;

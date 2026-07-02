@@ -1905,3 +1905,61 @@ export function getPreorderNewsletterHtml(
 </html>`;
   };
 }
+
+export function getAddonOrderEmailHtml(order: {
+  id: number;
+  customerName: string;
+  addedTotal: number;
+  addonItems: Array<{ productName: string; size?: string; color?: string; quantity: number; price: number }>;
+}): string {
+  const fmt = (v: number) => (v / 100).toLocaleString('ru-RU') + ' \u20BD';
+  const itemsHtml = order.addonItems.map(item => `
+    <tr>
+      <td style="padding:10px 0;border-bottom:1px solid #eee;">
+        ${item.productName || 'Товар'}
+        ${item.size ? ` <span style="color:#666;">(${item.size})</span>` : ''}
+        ${item.color && item.color !== 'Default' ? ` <span style="color:#666;">— ${item.color}</span>` : ''}
+      </td>
+      <td style="padding:10px 0;border-bottom:1px solid #eee;text-align:center;">${item.quantity || 1}</td>
+      <td style="padding:10px 0;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">${fmt((item.price || 0) * (item.quantity || 1))}</td>
+    </tr>
+  `).join('');
+  return `<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><title>Дозаказ к заказу #${order.id}</title></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;">
+  <tr><td align="center" style="padding:30px 20px;">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;max-width:600px;">
+      <tr><td style="background:#000;padding:30px 40px;text-align:center;">
+        <h1 style="color:#fff;margin:0;font-size:24px;letter-spacing:2px;">BOOOMERANGS</h1>
+      </td></tr>
+      <tr><td style="padding:40px;">
+        <h2 style="color:#111;font-size:20px;margin:0 0 10px;">Товары добавлены к заказу #${order.id}</h2>
+        <p style="color:#555;margin:0 0 30px;">Здравствуйте, ${order.customerName}! Ваш дозаказ оплачен и добавлен к заказу <strong>#${order.id}</strong>.</p>
+        <h3 style="color:#111;font-size:16px;margin:0 0 15px;">Добавленные товары</h3>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr style="border-bottom:2px solid #000;">
+            <th style="padding:8px 0;text-align:left;font-size:13px;">Товар</th>
+            <th style="padding:8px 0;text-align:center;font-size:13px;">Кол-во</th>
+            <th style="padding:8px 0;text-align:right;font-size:13px;">Сумма</th>
+          </tr>
+          ${itemsHtml}
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;border-top:2px solid #000;padding-top:15px;">
+          <tr>
+            <td style="padding:8px 0;font-weight:bold;font-size:16px;">Доплата</td>
+            <td style="padding:8px 0;text-align:right;font-weight:bold;font-size:16px;">${fmt(order.addedTotal)}</td>
+          </tr>
+        </table>
+        <p style="color:#555;margin:25px 0 0;font-size:14px;">Накладная на доставку будет обновлена автоматически. Статус заказа можно отслеживать в <a href="https://booomerangs.ru/profile" style="color:#000;">личном кабинете</a>.</p>
+      </td></tr>
+      <tr><td style="background:#f9f9f9;padding:20px 40px;text-align:center;">
+        <p style="color:#999;font-size:12px;margin:0;">&copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}

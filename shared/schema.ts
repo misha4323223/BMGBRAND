@@ -241,6 +241,7 @@ export const orders = pgTable("orders", {
   // На запись/чтение всегда использовать serializeOrderPartnerId /
   // deserializeOrderPartnerId из server/storage.ts. Подробности — в replit.md.
   partnerId: bigint("partner_id", { mode: "number" }),
+  addonData: text("addon_data"), // JSON: {status, paymentId, paymentMethod, items, addedTotal, initiatedAt, paidAt}
   createdAt: timestamp("created_at").defaultNow(),
 });
 

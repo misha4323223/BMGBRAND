@@ -363,6 +363,8 @@ export interface IStorage {
   saveOrderInvoiceNumber(orderId: number, invoiceNumber: number): Promise<void>;
   deleteOrder(id: number): Promise<boolean>;
   deleteExpiredDraftOrders(maxAgeMinutes: number): Promise<number>;
+  updateOrderAddonData(orderId: number, addonData: string): Promise<void>;
+  appendOrderItems(orderId: number, newItems: any[], addedTotal: number): Promise<void>;
   getDraftOrders(): Promise<any[]>;
   // Gift cards
   createGiftCard(card: InsertGiftCard): Promise<GiftCard>;
@@ -2780,6 +2782,55 @@ export class DatabaseStorage implements IStorage {
       `;
       await session.executeQuery(query, params);
       console.log(`[YDB] Updated preorder fields for order ${orderId}`);
+    });
+  }
+
+  async updateOrderAddonData(orderId: number, addonData: string): Promise<void> {
+    if (!driver) return;
+    await this.safeQuery(async (session) => {
+      const { TypedValues } = await import("ydb-sdk");
+      const query = `
+        DECLARE $id AS Uint64;
+        DECLARE $addon_data AS Utf8;
+        UPDATE orders SET addon_data = $addon_data WHERE id = $id;
+      `;
+      return await session.executeQuery(query, {
+        $id: TypedValues.uint64(orderId),
+        $addon_data: TypedValues.utf8(addonData),
+      });
+    });
+  }
+
+  async appendOrderItems(orderId: number, newItems: any[], addedTotal: number): Promise<void> {
+    if (!driver) return;
+    await this.safeQuery(async (session) => {
+      const { TypedValues } = await import("ydb-sdk");
+      const selectQuery = `
+        DECLARE $id AS Uint64;
+        SELECT items, total FROM orders WHERE id = $id;
+      `;
+      const result = await session.executeQuery(selectQuery, { $id: TypedValues.uint64(orderId) });
+      const rows = result.resultSets?.[0]?.rows || [];
+      let existingItems: any[] = [];
+      let currentTotal = 0;
+      if (rows.length > 0) {
+        const row = rows[0];
+        try { existingItems = JSON.parse(row.items?.bytesValue?.toString('utf8') || row.items?.textValue || '[]'); } catch {}
+        currentTotal = Number(row.total?.int32Value ?? row.total?.int64Value ?? 0);
+      }
+      const mergedItems = [...existingItems, ...newItems];
+      const newTotal = currentTotal + addedTotal;
+      const updateQuery = `
+        DECLARE $id AS Uint64;
+        DECLARE $items AS Json;
+        DECLARE $total AS Int32;
+        UPDATE orders SET items = $items, total = $total WHERE id = $id;
+      `;
+      return await session.executeQuery(updateQuery, {
+        $id: TypedValues.uint64(orderId),
+        $items: TypedValues.json(JSON.stringify(mergedItems)),
+        $total: TypedValues.int32(newTotal),
+      });
     });
   }
 

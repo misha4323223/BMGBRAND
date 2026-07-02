@@ -34,6 +34,7 @@ import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
 import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notifyPreorderStatusChange, registerWholesaleWebhook, sendChatNotification, registerChatWebhook, notifyNewReview, notifyMerchOrder, sendAgentAlert } from "./telegram";
 import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyNewReview, vkNotifyMerchOrder, verifyActionLink, sendVkChatNotification, startVkLongPoll, vkNotifyAgentAlert } from "./vk";
 import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
+import { registerAddonOrderRoutes, processAddonOrderPaid } from "./addon-order";
 import {
   registerAiChatRoute,
   registerAdminAgentRoutes,
@@ -307,6 +308,27 @@ async function createCdekWaybillForOrder(orderId: number): Promise<{ success: bo
   } finally {
     cdekWaybillLocks.delete(orderId);
   }
+}
+
+async function recreateCdekWaybillForOrder(orderId: number): Promise<void> {
+  const order = await storage.getOrder(orderId);
+  if (!order?.cdekData) return;
+  let cdekInfo: any = {};
+  try { cdekInfo = JSON.parse(order.cdekData); } catch { return; }
+  if (!cdekInfo.orderUuid) {
+    await createCdekWaybillForOrder(orderId);
+    return;
+  }
+  try {
+    await cdekService.deleteOrder(cdekInfo.orderUuid);
+    console.log(`[CDEK Recreate] Deleted old waybill ${cdekInfo.orderUuid} for order #${orderId}`);
+  } catch (err: any) {
+    console.warn(`[CDEK Recreate] Could not delete old waybill for order #${orderId}:`, err.message);
+  }
+  delete cdekInfo.orderUuid;
+  cdekInfo.status = undefined;
+  await storage.updateOrderCdekData(orderId, JSON.stringify(cdekInfo));
+  await createCdekWaybillForOrder(orderId);
 }
 
 const ydWaybillLocks = new Set<number>();
@@ -3755,6 +3777,8 @@ BMGBRAND — официальный производитель и магазин
               console.log(`[YooKassa Webhook] Deleted draft preorder ${preorderOrderId} after payment cancellation`);
             }
           }
+        } else if (orderId.startsWith("ADDON-")) {
+          console.log(`[YooKassa Webhook] Addon payment canceled for ${orderId}, no action needed`);
         } else {
           const numericId = Number(orderId);
           if (!isNaN(numericId)) {

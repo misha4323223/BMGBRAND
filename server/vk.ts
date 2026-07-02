@@ -559,6 +559,24 @@ async function runLongPoll(
 
 // ── Autonomous Agent notifications ─────────────────────────────────────────
 
+export function vkNotifyAddonOrderPaid(order: {
+  id: number;
+  customerName: string;
+  customerPhone: string;
+}, addonItems: Array<{ productName: string; size?: string; color?: string; quantity: number; price: number }>, addedTotal: number): void {
+  const sep = "\n────────────────────\n";
+  let text = `🛒 Дозаказ к #${order.id}  •  ${order.customerName}\n${order.customerPhone}`;
+  text += sep;
+  addonItems.forEach((it, i) => {
+    const meta = [it.size, it.color].filter(Boolean).join("/");
+    const nm = it.productName.length > 30 ? it.productName.substring(0, 28) + "…" : it.productName;
+    text += `${i + 1}. ${nm}${meta ? ` (${meta})` : ""} ×${it.quantity} ${(it.price * it.quantity / 100).toLocaleString('ru-RU')}₽\n`;
+  });
+  text += sep;
+  text += `Доплата: ${(addedTotal / 100).toLocaleString('ru-RU')} ₽\n⚠️ Накладная CDEK обновляется`;
+  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyAddonOrderPaid failed:", err));
+}
+
 export function vkNotifyAgentAlert(text: string): void {
   sendVkMessage(text).catch(err => console.error("[VK] vkNotifyAgentAlert failed:", err));
 }
