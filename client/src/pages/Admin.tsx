@@ -5778,6 +5778,12 @@ export default function Admin() {
                             const newSlides = heroSlides.map((s, i) => i === safeIndex ? { ...s, ...updates } : s);
                             setSectionSettings({ ...sectionSettings, slides: newSlides });
                           };
+                          const moveSlide = (from: number, to: number) => {
+                            const newSlides = [...heroSlides];
+                            [newSlides[from], newSlides[to]] = [newSlides[to], newSlides[from]];
+                            setSectionSettings({ ...sectionSettings, slides: newSlides });
+                            setHeroSlideIndex(to);
+                          };
                           return (
                           <div className="space-y-4">
                             <div className="flex flex-col gap-2 p-3 bg-muted/40 rounded-lg">
@@ -5803,15 +5809,33 @@ export default function Admin() {
                                 {[0, 1, 2, 3].map((i) => {
                                   const s = heroSlides[i] || emptySlide;
                                   const isFilled = !!(s.heroImage || s.heroVideo);
+                                  const isActive = safeIndex === i;
                                   return (
-                                    <button
-                                      key={i}
-                                      onClick={() => setHeroSlideIndex(i)}
-                                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium border transition-colors ${safeIndex === i ? "bg-primary text-primary-foreground border-primary" : "bg-background text-foreground border-border hover:bg-muted"}`}
-                                    >
-                                      Слайд {i + 1}
-                                      {isFilled && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-green-500 inline-block align-middle" />}
-                                    </button>
+                                    <div key={i} className="flex-1 flex flex-col gap-1">
+                                      <button
+                                        onClick={() => setHeroSlideIndex(i)}
+                                        className={`w-full py-2 px-2 rounded-md text-sm font-medium border transition-colors ${isActive ? "bg-primary text-primary-foreground border-primary" : "bg-background text-foreground border-border hover:bg-muted"}`}
+                                      >
+                                        Слайд {i + 1}
+                                        {isFilled && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-green-500 inline-block align-middle" />}
+                                      </button>
+                                      {isActive && (
+                                        <div className="flex gap-1">
+                                          <button
+                                            disabled={i === 0}
+                                            onClick={() => moveSlide(i, i - 1)}
+                                            className="flex-1 py-0.5 rounded text-xs border border-border hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                            title="Переместить влево"
+                                          >←</button>
+                                          <button
+                                            disabled={i === heroSlides.length - 1}
+                                            onClick={() => moveSlide(i, i + 1)}
+                                            className="flex-1 py-0.5 rounded text-xs border border-border hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                            title="Переместить вправо"
+                                          >→</button>
+                                        </div>
+                                      )}
+                                    </div>
                                   );
                                 })}
                               </div>
