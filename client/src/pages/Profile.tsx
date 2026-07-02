@@ -2443,6 +2443,52 @@ export default function Profile() {
                         Итого: {formatPrice(selectedOrder.total)}
                       </span>
                     </div>
+
+                    {(() => {
+                      try {
+                        const addon = (selectedOrder as any).addonData
+                          ? JSON.parse((selectedOrder as any).addonData)
+                          : null;
+                        if (!addon) return null;
+                        return (
+                          <div className="mt-3 border-t pt-3" data-testid={`addon-info-${selectedOrder.id}`}>
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <Plus className="w-3.5 h-3.5 text-primary" />
+                              <span className="text-xs font-medium text-foreground">
+                                Дозаказ
+                                {addon.status === 'paid' && <span className="ml-1.5 text-green-600">• Оплачен</span>}
+                                {addon.status === 'awaiting_payment' && <span className="ml-1.5 text-yellow-600">• Ожидает оплаты</span>}
+                                {addon.status === 'expired' && <span className="ml-1.5 text-muted-foreground">• Истёк</span>}
+                              </span>
+                            </div>
+                            <div className="space-y-1 pl-5">
+                              {(addon.items || []).map((it: any, idx: number) => (
+                                <div key={idx} className="flex justify-between text-xs text-muted-foreground" data-testid={`addon-item-${selectedOrder.id}-${idx}`}>
+                                  <span>
+                                    {it.productName}
+                                    {it.size && <span className="ml-1 text-[10px]">{it.size}</span>}
+                                    {it.color && <span className="ml-1 text-[10px]">{it.color}</span>}
+                                    {' '}×{it.quantity}
+                                  </span>
+                                  <span>{formatPrice(it.price * it.quantity)}</span>
+                                </div>
+                              ))}
+                              {addon.addedTotal > 0 && (
+                                <div className="flex justify-between text-xs font-medium text-foreground pt-1 border-t">
+                                  <span>Итого дозаказ:</span>
+                                  <span>{formatPrice(addon.addedTotal)}</span>
+                                </div>
+                              )}
+                              {addon.paidAt && (
+                                <p className="text-[10px] text-muted-foreground">
+                                  {new Date(addon.paidAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      } catch { return null; }
+                    })()}
                   </div>
                 </>
               );
