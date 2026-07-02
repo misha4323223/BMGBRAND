@@ -155,3 +155,9 @@ id = "zYZfkWC1_BJrwvhjDiSIN"
 uri = "file://attached_assets/dikaya_myata_images.zip"
 type = "unspecified"
 title = "Изображения страницы Дикая Мята (11 фото, WebP)"
+
+[[outputs]]
+id = "0WD8ZUmi-XLqLij8GoI1j"
+uri = "file://attached_assets/dragni-hero.webp"
+type = "image"
+title = "dragni-hero.webp — 1920×1067, 105 KB"
