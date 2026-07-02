@@ -406,6 +406,10 @@ export function serveStatic(app: Express) {
           const mobilePreload = `<link rel="preload" as="image" href="${heroData.imgMobile}" fetchpriority="high" media="(max-width: 639px)">`;
           html = html.replace('</head>', `    ${mobilePreload}\n  </head>`);
         }
+        if (heroData.img) {
+          const desktopPreload = `<link rel="preload" as="image" href="${heroData.img}" fetchpriority="high" media="(min-width: 640px)">`;
+          html = html.replace('</head>', `    ${desktopPreload}\n  </head>`);
+        }
       }
     }
 

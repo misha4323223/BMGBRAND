@@ -527,7 +527,8 @@ export default function Home() {
           const activeIndex = heroSlides.length > 0 ? heroSlideIndex % heroSlides.length : 0;
           const slide = heroSlides[activeIndex] || pageSettings?.hero || {};
           const multiSlide = heroSlides.length > 1;
-          return isSectionVisible("hero") ? (
+          const showHero = settingsLoading ? !!window.__HERO__?.img : isSectionVisible("hero");
+          return showHero ? (
             <div key="section-hero">
         <section
           className={`relative h-svh sm:h-auto sm:aspect-[2560/1740] w-full flex flex-col items-center justify-center overflow-hidden bg-black sm:-mt-40 ${pageSettings?.hero?.showOnMobile === false ? 'hidden sm:flex' : ''} ${pageSettings?.hero?.showOnDesktop === false ? 'flex sm:hidden' : ''}`}
@@ -561,6 +562,7 @@ export default function Home() {
                       src={s.heroImage || ""}
                       alt={`Hero ${i + 1}`}
                       loading="eager"
+                      fetchpriority={i === 0 ? "high" : "low"}
                       className="w-full h-full object-cover object-center"
                     />
                   </picture>
@@ -575,6 +577,7 @@ export default function Home() {
                     src={window.__HERO__.img}
                     alt="Hero"
                     loading="eager"
+                    fetchpriority="high"
                     className="w-full h-full object-cover object-center"
                   />
                 </picture>
@@ -587,7 +590,7 @@ export default function Home() {
                 ) : (
                   <picture className="absolute inset-0 block">
                     {pageSettings?.hero?.heroImageMobile && <source media="(max-width: 639px)" srcSet={pageSettings.hero.heroImageMobile} />}
-                    <img src={pageSettings?.hero?.heroImage || ""} alt="Hero" loading="eager" className="w-full h-full object-cover object-center" />
+                    <img src={pageSettings?.hero?.heroImage || ""} alt="Hero" loading="eager" fetchpriority="high" className="w-full h-full object-cover object-center" />
                   </picture>
                 )}
               </div>
