@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import SEO from "@/components/SEO";
 import YooKassaWidget from "@/components/YooKassaWidget";
+import AddonOrderDialog from "@/components/AddonOrderDialog";
 import { Loader2, User, Mail, Package, LogOut, CheckCircle, AlertCircle, ShoppingBag, Gift, TrendingUp, Star, ChevronRight, ChevronDown, ChevronUp, Trash2, MapPin, Phone, Truck, Hash, Palette, Ruler, Tag, CreditCard, Copy, Check, Calendar, X, RefreshCw, Minus, Plus, ExternalLink, Ban, Settings, Lock, Home, Landmark, Bell } from "lucide-react";
 import { PasswordInput } from "@/components/ui/password-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -120,6 +121,7 @@ export default function Profile() {
   const [repeatItems, setRepeatItems] = useState<Array<OrderItem & { included: boolean }>>([]);
   const [repeatOrderId, setRepeatOrderId] = useState<number | null>(null);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [addonOrderId, setAddonOrderId] = useState<number | null>(null);
   const addToCart = useAddToCart();
   const { toast } = useToast();
 
@@ -399,6 +401,17 @@ export default function Profile() {
 
   const canCancelOrder = (status: string) => {
     return ['pending', 'paid', 'processing'].includes(status);
+  };
+
+  const isAddonEligible = (order: any) => {
+    if (!['paid', 'confirmed'].includes(order.status)) return false;
+    const ageMs = Date.now() - new Date(order.createdAt).getTime();
+    if (ageMs > 12 * 3600 * 1000) return false;
+    try {
+      const addon = order.addonData ? JSON.parse(order.addonData) : null;
+      if (addon?.status === 'paid') return false;
+    } catch {}
+    return true;
   };
 
   const cancelOrderMutation = useMutation({
@@ -948,6 +961,17 @@ export default function Profile() {
                           <div className="flex items-center gap-3">
                             <span className="font-medium text-sm text-foreground">{formatPrice(order.total)}</span>
                             <span className="text-xs text-muted-foreground">{formatDate(order.createdAt)}</span>
+                            {isAddonEligible(order) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs h-7 px-2"
+                                data-testid={`button-addon-order-${order.id}`}
+                                onClick={(e) => { e.stopPropagation(); setAddonOrderId(order.id); }}
+                              >
+                                + Добавить
+                              </Button>
+                            )}
                             <ChevronRight className="w-4 h-4 text-muted-foreground" />
                           </div>
                         </div>
@@ -2425,6 +2449,14 @@ export default function Profile() {
             })()}
           </DialogContent>
         </Dialog>
+
+        {addonOrderId && (
+          <AddonOrderDialog
+            orderId={addonOrderId}
+            open={!!addonOrderId}
+            onClose={() => setAddonOrderId(null)}
+          />
+        )}
 
         <Dialog open={repeatDialogOpen} onOpenChange={setRepeatDialogOpen}>
           <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">

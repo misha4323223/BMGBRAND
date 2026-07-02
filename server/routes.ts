@@ -3592,6 +3592,12 @@ BMGBRAND — официальный производитель и магазин
               }
             }
           }
+        } else if (orderId.startsWith("ADDON-")) {
+          const addonOrderId = Number(orderId.replace("ADDON-", ""));
+          if (!isNaN(addonOrderId)) {
+            console.log(`[YooKassa Webhook] Addon payment succeeded for order ${addonOrderId}, paymentId=${paymentId}`);
+            await processAddonOrderPaid(addonOrderId, paymentId, "yookassa", "[YooKassa Webhook]");
+          }
         } else {
           const numericId = Number(orderId);
           if (!isNaN(numericId)) {
@@ -3986,6 +3992,12 @@ BMGBRAND — официальный производитель и магазин
                 }
               }
             }
+          }
+        } else if (OrderId.startsWith("ADDON-")) {
+          const addonOrderId = Number(OrderId.replace("ADDON-", ""));
+          if (!isNaN(addonOrderId)) {
+            console.log(`[T-Bank Webhook] Addon payment succeeded for order ${addonOrderId}, paymentId=${PaymentId}`);
+            await processAddonOrderPaid(addonOrderId, String(PaymentId), "tbank", "[T-Bank Webhook]");
           }
         } else {
           // Could be either a single gift card or a regular order
