@@ -167,3 +167,9 @@ id = "LoZ3dvlXwOUYS8Q_QPN6p"
 uri = "file://attached_assets/dragni-thumb.webp"
 type = "image"
 title = "dragni-thumb.webp — 400×500, 27 KB"
+
+[[outputs]]
+id = "_s-FXrGTiS-sOL0L9hN4i"
+uri = "file://attached_assets/dragni-thumb2.webp"
+type = "image"
+title = "dragni-thumb2.webp — 400×500, 21 KB"
