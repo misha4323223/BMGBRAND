@@ -5766,12 +5766,13 @@ export default function Admin() {
                         {/* Hero section settings */}
                         {selectedSection === "hero" && (() => {
                           const emptySlide = { heroImage: "", heroImageMobile: "", heroVideo: "", bgType: "image", tagline1: "", tagline2: "", buttonText: "", buttonLink: "", heroOpacity: "0.6" };
-                          const heroSlides: any[] = sectionSettings.slides || [
+                          const rawSlides: any[] = sectionSettings.slides || [
                             { heroImage: sectionSettings.heroImage || "", heroImageMobile: sectionSettings.heroImageMobile || "", heroVideo: sectionSettings.heroVideo || "", bgType: sectionSettings.bgType || "image", tagline1: sectionSettings.tagline1 || "", tagline2: sectionSettings.tagline2 || "", buttonText: sectionSettings.buttonText || "", buttonLink: sectionSettings.buttonLink || "", heroOpacity: sectionSettings.heroOpacity || "0.6" },
-                            { ...emptySlide },
-                            { ...emptySlide },
                           ];
-                          const safeIndex = Math.min(heroSlideIndex, heroSlides.length - 1);
+                          // Всегда нормализуем до 4 слотов — чтобы legacy-данные с 3 слайдами корректно расширялись
+                          const heroSlides: any[] = [...rawSlides];
+                          while (heroSlides.length < 4) heroSlides.push({ ...emptySlide });
+                          const safeIndex = Math.max(0, Math.min(heroSlideIndex, heroSlides.length - 1));
                           const currentSlide = heroSlides[safeIndex] || emptySlide;
                           const updateSlide = (updates: Record<string, any>) => {
                             const newSlides = heroSlides.map((s, i) => i === safeIndex ? { ...s, ...updates } : s);
@@ -5799,7 +5800,7 @@ export default function Admin() {
                               <Label className="text-sm font-medium">Слайды баннера</Label>
                               <p className="text-xs text-muted-foreground">Слайды с заполненным изображением/видео будут показаны как слайдер. Один слайд — статичный баннер.</p>
                               <div className="flex gap-2">
-                                {[0, 1, 2].map((i) => {
+                                {[0, 1, 2, 3].map((i) => {
                                   const s = heroSlides[i] || emptySlide;
                                   const isFilled = !!(s.heroImage || s.heroVideo);
                                   return (
