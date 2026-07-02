@@ -12264,16 +12264,26 @@ export default function Admin() {
                                 <span>{(product.price / 100).toLocaleString('ru-RU')} ₽</span>
                               )}
                             </div>
-                            <Button
-                              variant={product.isHidden ? "default" : "outline"}
-                              size="sm"
-                              className="w-full"
-                              onClick={(e) => { e.stopPropagation(); hideProductMutation.mutate({ productId: product.id, hidden: !product.isHidden }); }}
-                              disabled={hideProductMutation.isPending}
-                              data-testid={`button-toggle-visibility-${product.id}`}
-                            >
-                              {product.isHidden ? <><Eye className="w-4 h-4 mr-1" />Показать</> : <><EyeOff className="w-4 h-4 mr-1" />Скрыть</>}
-                            </Button>
+                            <div className="flex gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1"
+                                onClick={(e) => { e.stopPropagation(); setActiveTab("products"); loadProductForEdit(product.id); }}
+                              >
+                                <Pencil className="w-3.5 h-3.5 mr-1" />Изменить
+                              </Button>
+                              <Button
+                                variant={product.isHidden ? "default" : "outline"}
+                                size="sm"
+                                className="flex-1"
+                                onClick={(e) => { e.stopPropagation(); hideProductMutation.mutate({ productId: product.id, hidden: !product.isHidden }); }}
+                                disabled={hideProductMutation.isPending}
+                                data-testid={`button-toggle-visibility-${product.id}`}
+                              >
+                                {product.isHidden ? <><Eye className="w-3.5 h-3.5 mr-1" />Показать</> : <><EyeOff className="w-3.5 h-3.5 mr-1" />Скрыть</>}
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
