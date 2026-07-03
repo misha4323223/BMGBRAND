@@ -292,7 +292,7 @@ export function registerAddonOrderRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/orders/:id/addon-status", async (req: Request, res: Response) => {
+  app.get("/api/orders/:id/addon-status", authMiddleware, async (req: Request, res: Response) => {
     try {
       const orderId = Number(req.params.id);
       if (isNaN(orderId)) return res.status(400).json({ error: "invalid_id" });
@@ -302,7 +302,10 @@ export function registerAddonOrderRoutes(app: Express): void {
 
       const userId = (req as any).user?.id;
       const sessionId = req.sessionID;
-      const isOwner = (userId && order.userId === userId) || (order.sessionId === sessionId);
+      const isOwner =
+        (userId && order.userId === userId) ||
+        (userId && order.sessionId === `user_${userId}`) ||
+        (order.sessionId === sessionId);
       if (!isOwner) return res.status(403).json({ error: "forbidden" });
 
       const addonData = parseAddonData((order as any).addonData);
