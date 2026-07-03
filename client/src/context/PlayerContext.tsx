@@ -1,5 +1,16 @@
 import { createContext, useContext, useRef, useState, useEffect, useCallback, type ReactNode } from "react";
 
+function guessImageMime(url: string): string {
+  const ext = url.split("?")[0].split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "png": return "image/png";
+    case "webp": return "image/webp";
+    case "gif": return "image/gif";
+    case "svg": return "image/svg+xml";
+    default: return "image/jpeg";
+  }
+}
+
 export interface ArtistTrack {
   id: number;
   artistSlug: string;
@@ -73,11 +84,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDuration(0);
     pendingPlays.set(track.id, (pendingPlays.get(track.id) || 0) + 1);
     if ("mediaSession" in navigator) {
+      const artistDisplayName = track.subtitle || track.artistSlug.replace(/-/g, " ");
+      const artworkType = guessImageMime(track.coverUrl);
       navigator.mediaSession.metadata = new MediaMetadata({
         title: track.title,
-        artist: track.artistSlug.replace(/-/g, " "),
+        artist: artistDisplayName,
+        album: "BOOOMERANGS",
         artwork: track.coverUrl
-          ? [{ src: track.coverUrl, sizes: "512x512", type: "image/jpeg" }]
+          ? [
+              { src: track.coverUrl, sizes: "96x96", type: artworkType },
+              { src: track.coverUrl, sizes: "256x256", type: artworkType },
+              { src: track.coverUrl, sizes: "512x512", type: artworkType },
+            ]
           : [],
       });
     }
