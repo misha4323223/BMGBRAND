@@ -2540,7 +2540,7 @@ export class DatabaseStorage implements IStorage {
       const { TypedValues } = await import("ydb-sdk");
       const query = `
         DECLARE $id AS Uint64;
-        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, payment_id, created_at, is_wholesale, cdek_data, user_id, is_preorder, deposit_paid, remaining_amount, preorder_payment_id, invoice_number, partner_id
+        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, payment_id, created_at, is_wholesale, cdek_data, user_id, is_preorder, deposit_paid, remaining_amount, preorder_payment_id, invoice_number, partner_id, addon_data
         FROM orders WHERE id = $id LIMIT 1;
       `;
       return await session.executeQuery(query, {
@@ -2598,6 +2598,7 @@ export class DatabaseStorage implements IStorage {
       preorderPaymentId: hasPreorderFields ? (this.extractTypedValue(row.items[17]) || undefined) : undefined,
       invoiceNumber: hasPreorderFields && this.extractTypedValue(row.items[18]) ? Number(this.extractTypedValue(row.items[18])) : null,
       partnerId,
+      addonData: this.extractTypedValue(row.items[20]) || null,
     } as any;
   }
   
