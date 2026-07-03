@@ -404,7 +404,7 @@ export default function Profile() {
   };
 
   const isAddonEligible = (order: any) => {
-    if (!['paid', 'confirmed'].includes(order.status)) return false;
+    if (!['paid', 'confirmed', 'processing'].includes(order.status)) return false;
     const ageMs = Date.now() - new Date(order.createdAt).getTime();
     if (ageMs > 12 * 3600 * 1000) return false;
     try {
