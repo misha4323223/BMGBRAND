@@ -294,7 +294,9 @@ body.lb-open nav {
 }
 .chat-holo-btn {
   position: relative;
-  background: #0e0e0e;
+  background: hsla(0, 0%, 6%, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   overflow: hidden;
   /* will-change:filter → браузер создаёт отдельный GPU-слой для фильтра */
   will-change: filter;
@@ -316,13 +318,13 @@ body.lb-open nav {
   pointer-events: none;
   z-index: 1;
 }
-/* ::after — статичная рамка, не анимируется */
+/* ::after — статичная рамка, такая же как у навбара (border-border/60) */
 .chat-holo-btn::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  border: 1px solid rgba(229,57,53,0.25);
+  border: 1px solid hsla(0, 0%, 100%, 0.6);
   pointer-events: none;
   z-index: 2;
 }
