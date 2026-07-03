@@ -2,6 +2,7 @@ import { usePlayer } from "@/context/PlayerContext";
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Music, BrainCog } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FullScreenPlayer } from "@/components/FullScreenPlayer";
 
 function formatTime(secs: number): string {
   if (!secs || isNaN(secs) || !isFinite(secs)) return "0:00";
@@ -14,6 +15,7 @@ export function GlobalPlayer() {
   const { currentTrack, isPlaying, currentTime, duration, toggle, seek, next, prev, setVolume, volume, close } = usePlayer();
   const [dragging, setDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
+  const [expanded, setExpanded] = useState(false);
   const seekBarRef = useRef<HTMLDivElement>(null);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -105,28 +107,37 @@ export function GlobalPlayer() {
               boxShadow: "0 -8px 32px rgba(0,0,0,0.55)",
             }}
           >
-            {/* Cover */}
-            <div
-              className="w-[46px] h-[46px] rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
-              style={{ background: "rgba(255,255,255,0.06)", boxShadow: "0 2px 10px rgba(0,0,0,0.4)" }}
+            {/* Cover + title — tap to open fullscreen player */}
+            <button
+              onClick={() => setExpanded(true)}
+              className="flex items-center gap-3 flex-1 min-w-0 text-left active:scale-[0.98] transition-transform"
+              data-testid="player-expand"
+              aria-label="Развернуть плеер"
             >
-              {currentTrack.coverUrl ? (
-                <img src={currentTrack.coverUrl} alt={currentTrack.title} className="w-full h-full object-cover" />
-              ) : (
-                <Music className="w-5 h-5" style={{ color: "rgba(255,255,255,0.3)" }} />
-              )}
-            </div>
-
-            {/* Title + artist */}
-            <div className="flex-1 min-w-0">
-              <p
-                className="text-[13px] font-semibold leading-tight truncate"
-                style={{ color: "#ffffff" }}
-                data-testid="player-track-title"
+              <div
+                className="w-[50px] h-[50px] rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
+                style={{ background: "rgba(255,255,255,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.45)" }}
               >
-                {currentTrack.title}
-              </p>
-            </div>
+                {currentTrack.coverUrl ? (
+                  <img src={currentTrack.coverUrl} alt={currentTrack.title} className="w-full h-full object-cover" />
+                ) : (
+                  <Music className="w-5 h-5" style={{ color: "rgba(255,255,255,0.3)" }} />
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <p
+                  className="text-[13px] font-semibold leading-tight truncate"
+                  style={{ color: "#ffffff" }}
+                  data-testid="player-track-title"
+                >
+                  {currentTrack.title}
+                </p>
+                <p className="text-[11px] text-white/40 truncate mt-0.5">
+                  {currentTrack.subtitle || currentTrack.artistSlug}
+                </p>
+              </div>
+            </button>
 
             {/* Controls */}
             <div className="flex items-center gap-1 flex-shrink-0">
@@ -243,6 +254,7 @@ export function GlobalPlayer() {
           </div>
         </motion.div>
       )}
+      {currentTrack && <FullScreenPlayer open={expanded} onClose={() => setExpanded(false)} />}
     </AnimatePresence>
   );
 }

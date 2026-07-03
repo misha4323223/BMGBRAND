@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { usePlayer, type ArtistTrack } from "@/context/PlayerContext";
+import { extractDominantColor } from "@/lib/color";
 import { Play, Pause, Music, Eye } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -14,32 +15,6 @@ function formatPlays(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
   return String(n);
-}
-
-function extractDominantColor(imgUrl: string): Promise<[number, number, number]> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = 40;
-        canvas.height = 40;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) { resolve([80, 80, 80]); return; }
-        ctx.drawImage(img, 0, 0, 40, 40);
-        const { data } = ctx.getImageData(0, 0, 40, 40);
-        let r = 0, g = 0, b = 0, count = 0;
-        for (let i = 0; i < data.length; i += 16) {
-          r += data[i]; g += data[i + 1]; b += data[i + 2]; count++;
-        }
-        if (count > 0) resolve([Math.round(r / count), Math.round(g / count), Math.round(b / count)]);
-        else resolve([80, 80, 80]);
-      } catch { resolve([80, 80, 80]); }
-    };
-    img.onerror = () => resolve([80, 80, 80]);
-    img.src = imgUrl;
-  });
 }
 
 interface TrackListProps {
@@ -123,10 +98,11 @@ export function TrackList({ artistSlug, artistName, accentColor, textColor, bgCo
                   data-testid={`track-card-${track.id}`}
                   role="button"
                   tabIndex={0}
-                  className="group flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer select-none"
+                  className="group flex items-center gap-3 sm:gap-4 px-3 sm:px-4 py-3 rounded-2xl transition-all duration-200 cursor-pointer select-none active:scale-[0.98]"
                   style={{
-                    background: isActive ? `${accent}18` : "rgba(255,255,255,0.04)",
-                    border: `1px solid ${isActive ? `${accent}45` : "rgba(255,255,255,0.08)"}`,
+                    background: isActive ? `${accent}1f` : "rgba(255,255,255,0.045)",
+                    border: `1px solid ${isActive ? `${accent}55` : "rgba(255,255,255,0.08)"}`,
+                    boxShadow: isActive ? `0 4px 20px -6px ${accent}70` : "none",
                   }}
                   onClick={() => {
                     if (isActive && isThisPlaying) pause();
@@ -135,7 +111,10 @@ export function TrackList({ artistSlug, artistName, accentColor, textColor, bgCo
                   onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (isActive && isThisPlaying) pause(); else play(track, tracks); } }}
                 >
                   {/* Cover */}
-                  <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/10">
+                  <div
+                    className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-white/10"
+                    style={isActive ? { boxShadow: `0 0 0 2px ${accent}80` } : undefined}
+                  >
                     {track.coverUrl ? (
                       <img
                         src={track.coverUrl}
