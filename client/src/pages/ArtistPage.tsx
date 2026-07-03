@@ -513,7 +513,7 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
           onClick={handleFlame}
           aria-label={isFav ? "Убрать из избранного" : "Добавить в избранное"}
           data-testid={`button-artist-favorite-${product.id}`}
-          className="absolute top-2 left-2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-background/80 backdrop-blur-sm border border-border/50 transition-all duration-200 hover:scale-110 active:scale-95"
+          className="absolute top-2 left-2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-background/90 border border-border/50 transition-all duration-200 hover:scale-110 active:scale-95"
           style={isFav ? { background: 'rgba(249,115,22,0.15)', borderColor: 'rgba(249,115,22,0.5)' } : {}}
         >
           <motion.span
@@ -531,7 +531,7 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
         </button>
 
         {hasDiscount && badgePct > 0 && (
-          <span className="absolute top-2 right-2 bg-black/80 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full tracking-widest uppercase backdrop-blur-sm">
+          <span className="absolute top-2 right-2 bg-black/85 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full tracking-widest uppercase">
             -{badgePct}%
           </span>
         )}
