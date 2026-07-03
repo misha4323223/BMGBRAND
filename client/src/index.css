@@ -67,6 +67,35 @@
   }
 }
 
+/* Mobile navbar — dark glass look (scoped override, desktop untouched) */
+.navbar-glass-dark {
+  --card: 0 0% 6%;
+  --foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --muted: 0 0% 18%;
+  --muted-foreground: 0 0% 70%;
+  --secondary: 0 72% 51%;
+  --secondary-foreground: 0 0% 100%;
+  --popover: 0 0% 8%;
+  --popover-foreground: 0 0% 100%;
+  --popover-border: 0 0% 22%;
+}
+
+@media (min-width: 1024px) {
+  .navbar-glass-dark {
+    --card: 30 20% 98%;
+    --foreground: 20 10% 12%;
+    --border: 30 10% 86%;
+    --muted: 30 12% 90%;
+    --muted-foreground: 20 5% 42%;
+    --secondary: 20 10% 12%;
+    --secondary-foreground: 30 20% 98%;
+    --popover: 30 20% 98%;
+    --popover-foreground: 20 10% 12%;
+    --popover-border: 30 10% 86%;
+  }
+}
+
 @media (min-width: 1536px) {
   html {
     font-size: 12.5px;
