@@ -1,10 +1,11 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { storage } from "./storage";
 import { paymentService } from "./payments";
 import { notifyAddonOrderPaid } from "./telegram";
 import { vkNotifyAddonOrderPaid } from "./vk";
 import { sendEmail, getAddonOrderEmailHtml } from "./email";
+import { authMiddleware } from "./auth-routes";
 
 export interface AddonItem {
   productId: number;
@@ -124,7 +125,7 @@ export async function processAddonOrderPaid(
 }
 
 export function registerAddonOrderRoutes(app: Express): void {
-  app.get("/api/orders/:id/addon-eligible", async (req: Request, res: Response) => {
+  app.get("/api/orders/:id/addon-eligible", authMiddleware, async (req: Request, res: Response) => {
     try {
       const orderId = Number(req.params.id);
       if (isNaN(orderId)) return res.status(400).json({ eligible: false, reason: "invalid_id" });
@@ -134,7 +135,10 @@ export function registerAddonOrderRoutes(app: Express): void {
 
       const userId = (req as any).user?.id;
       const sessionId = req.sessionID;
-      const isOwner = (userId && order.userId === userId) || (order.sessionId === sessionId);
+      const isOwner =
+        (userId && order.userId === userId) ||
+        (userId && order.sessionId === `user_${userId}`) ||
+        (order.sessionId === sessionId);
       if (!isOwner) return res.status(403).json({ eligible: false, reason: "forbidden" });
 
       if (!["paid", "confirmed", "processing"].includes(order.status)) {
@@ -174,7 +178,7 @@ export function registerAddonOrderRoutes(app: Express): void {
     paymentMethod: z.enum(["yookassa", "tbank"]).optional(),
   });
 
-  app.post("/api/orders/:id/addon/initiate", async (req: Request, res: Response) => {
+  app.post("/api/orders/:id/addon/initiate", authMiddleware, async (req: Request, res: Response) => {
     const orderId = Number(req.params.id);
     if (isNaN(orderId)) return res.status(400).json({ error: "invalid_id" });
 
@@ -191,7 +195,10 @@ export function registerAddonOrderRoutes(app: Express): void {
 
       const userId = (req as any).user?.id;
       const sessionId = req.sessionID;
-      const isOwner = (userId && order.userId === userId) || (order.sessionId === sessionId);
+      const isOwner =
+        (userId && order.userId === userId) ||
+        (userId && order.sessionId === `user_${userId}`) ||
+        (order.sessionId === sessionId);
       if (!isOwner) return res.status(403).json({ error: "forbidden" });
 
       if (!["paid", "confirmed", "processing"].includes(order.status)) return res.status(400).json({ error: "invalid_order_status" });
