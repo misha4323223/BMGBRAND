@@ -79,7 +79,7 @@ function MobileMusicList({ onClose }: { onClose: () => void }) {
                     <div className="w-8 h-8 rounded-lg bg-muted flex-shrink-0" />
                   )}
                   <span
-                    className="text-sm font-medium truncate flex-1"
+                    className="text-sm font-medium truncate flex-1 text-foreground"
                     style={{ color: isActive ? "hsl(var(--primary))" : undefined }}
                   >
                     {track.title}
