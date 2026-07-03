@@ -2863,6 +2863,10 @@ BMGBRAND — официальный производитель и магазин
   // AI Knowledge management (admin)
   registerAiKnowledgeRoutes(app, checkAdminKey);
 
+  // ─── Addon Order (дозаказ к оплаченному заказу) ───────────────────────────────
+  registerAddonOrderRoutes(app);
+  // ─── End Addon Order ──────────────────────────────────────────────────────────
+
   // ─── Telegram Chat Webhook ────────────────────────────────────────────────────
   registerTelegramChatWebhook(app, chatCacheInvalidate);
   // ─── End Telegram Chat Webhook ────────────────────────────────────────────────
