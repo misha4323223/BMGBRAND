@@ -343,8 +343,8 @@ export function Navbar() {
 
   return (
     <>
-    <nav className={`${getNavWrapperClasses()} transition-transform duration-300 ease-in-out ${isNavHidden ? 'navbar-hidden-mobile' : ''} ${isSearchOpen ? 'invisible' : ''} ${partnerBanner.rendered ? 'lg:border-b lg:border-black/15' : ''}`}>
-      <div className={`navbar-glass-dark ${getNavBarClasses()} lg:bg-background/80 lg:backdrop-blur-md ${partnerBanner.rendered ? 'lg:!border-0' : 'lg:border-b lg:border-border/20'} lg:shadow-none lg:px-8 lg:py-0 lg:rounded-none`}>
+    <nav className={`navbar-glass-dark ${getNavWrapperClasses()} transition-transform duration-300 ease-in-out ${isNavHidden ? 'navbar-hidden-mobile' : ''} ${isSearchOpen ? 'invisible' : ''} ${partnerBanner.rendered ? 'lg:border-b lg:border-black/15' : ''}`}>
+      <div className={`${getNavBarClasses()} lg:bg-background/80 lg:backdrop-blur-md ${partnerBanner.rendered ? 'lg:!border-0' : 'lg:border-b lg:border-border/20'} lg:shadow-none lg:px-8 lg:py-0 lg:rounded-none`}>
 
         {/* ── Mobile layout ─────────────────────────── */}
         <div className="flex lg:hidden items-center justify-between h-10">
@@ -406,7 +406,7 @@ export function Navbar() {
             {settings.showUser && !user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" data-testid="button-login" className="text-xs px-3 flex items-center gap-1">
+                  <Button variant="outline" size="sm" data-testid="button-login" className="text-xs px-3 flex items-center gap-1 text-foreground">
                     Войти <ChevronDown className="w-3 h-3 opacity-60" />
                   </Button>
                 </DropdownMenuTrigger>
