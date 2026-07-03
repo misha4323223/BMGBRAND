@@ -410,7 +410,7 @@ export function Navbar() {
                     Войти <ChevronDown className="w-3 h-3 opacity-60" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52 bg-card/95 backdrop-blur-2xl border border-border/50 shadow-xl rounded-2xl overflow-hidden p-1.5">
+                <DropdownMenuContent align="end" className="navbar-glass-dark w-52 bg-card/95 backdrop-blur-2xl border border-border/50 shadow-xl rounded-2xl overflow-hidden p-1.5">
                   <DropdownMenuItem onClick={() => { setAuthEverOpened(true); setIsAuthOpen(true); }} className="cursor-pointer flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60 transition-colors">
                     <User className="w-4 h-4 shrink-0 text-foreground/50" />
                     <div>
