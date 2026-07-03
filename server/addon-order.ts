@@ -137,7 +137,7 @@ export function registerAddonOrderRoutes(app: Express): void {
       const isOwner = (userId && order.userId === userId) || (order.sessionId === sessionId);
       if (!isOwner) return res.status(403).json({ eligible: false, reason: "forbidden" });
 
-      if (!["paid", "confirmed"].includes(order.status)) {
+      if (!["paid", "confirmed", "processing"].includes(order.status)) {
         return res.json({ eligible: false, reason: "status" });
       }
 
@@ -194,7 +194,7 @@ export function registerAddonOrderRoutes(app: Express): void {
       const isOwner = (userId && order.userId === userId) || (order.sessionId === sessionId);
       if (!isOwner) return res.status(403).json({ error: "forbidden" });
 
-      if (!["paid", "confirmed"].includes(order.status)) return res.status(400).json({ error: "invalid_order_status" });
+      if (!["paid", "confirmed", "processing"].includes(order.status)) return res.status(400).json({ error: "invalid_order_status" });
 
       const ageMs = Date.now() - new Date((order as any).createdAt || 0).getTime();
       if (ageMs > ADDON_WINDOW_HOURS * 60 * 60 * 1000) return res.status(400).json({ error: "window_expired" });
