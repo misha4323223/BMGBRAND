@@ -318,13 +318,17 @@ body.lb-open nav {
   pointer-events: none;
   z-index: 1;
 }
-/* ::after — статичная рамка, такая же как у навбара (border-border/60) */
+/* ::after — «хамелеон под фон»: mix-blend-mode инвертирует рамку относительно
+   того, что под кнопкой — рамка всегда контрастна, что бы ни было позади
+   (тёмный/светлый фон, фото, видео). Полностью статично, ноль анимации/JS —
+   блендинг считает GPU-композитор, нагрузки на FPS нет. */
 .chat-holo-btn::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  border: 1px solid hsla(0, 0%, 100%, 0.6);
+  border: 2px solid #fff;
+  mix-blend-mode: difference;
   pointer-events: none;
   z-index: 2;
 }
