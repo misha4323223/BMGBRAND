@@ -47,10 +47,6 @@ export function RuStoreButton({ variant }: RuStoreButtonProps) {
           width="20"
           height="20"
         />
-        <span
-          aria-hidden="true"
-          className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[#0077FF] ring-2 ring-background animate-pulse"
-        />
       </a>
     );
   }
