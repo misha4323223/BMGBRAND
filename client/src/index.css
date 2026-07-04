@@ -341,3 +341,20 @@ body.lb-open nav {
     color: hsl(var(--foreground) / 0.82) !important;
   }
 }
+
+/* Merch marquee animation */
+@keyframes merch-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.merch-marquee-track {
+  animation: merch-marquee 70s linear infinite;
+}
+.merch-marquee-track:hover {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .merch-marquee-track {
+    animation: none;
+  }
+}
