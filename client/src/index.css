@@ -96,22 +96,6 @@
   }
 }
 
-/* Мобильный навбар — рамка-хамелеон: mix-blend-mode всегда контрастна фону,
-   что бы ни было позади (тёмный/светлый фон, фото, видео). Статично, без анимации/JS. */
-@media (max-width: 1023px) {
-  .navbar-glass-dark {
-    position: relative;
-  }
-  .navbar-glass-dark::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-bottom: 2px solid #fff;
-    mix-blend-mode: difference;
-    pointer-events: none;
-    z-index: 1;
-  }
-}
 
 @media (min-width: 1536px) {
   html {
