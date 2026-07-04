@@ -1438,26 +1438,24 @@ export function ChatWidget() {
             сообщений {unreadCount > 9 ? "9+" : unreadCount}
           </div>
         )}
-        <div className="chat-holo-wrap rounded-2xl">
-          <button
-            onClick={() => setOpen(o => !o)}
-            data-testid="button-chat-toggle"
-            aria-label="Открыть чат"
-            className={`chat-holo-btn h-12 md:h-14 rounded-2xl text-white hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center
-              ${open ? 'w-12 md:w-14' : btnExpanded ? 'w-36 md:w-40 px-3 md:px-4 gap-2' : 'w-12 md:w-14'}`}
-          >
-            {open ? (
-              <X className="w-5 h-5 flex-shrink-0" />
-            ) : (
-              <>
-                <BrainCog className={`chat-holo-icon w-5 h-5 flex-shrink-0 transition-colors duration-300 ${btnExpanded ? 'text-red-400' : 'text-white'}`} />
-                <span className={`text-sm font-semibold whitespace-nowrap transition-all duration-300 ${btnExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
-                  BOOOM AI
-                </span>
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={() => setOpen(o => !o)}
+          data-testid="button-chat-toggle"
+          aria-label="Открыть чат"
+          className={`chat-holo-btn h-12 md:h-14 rounded-2xl text-white hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center
+            ${open ? 'w-12 md:w-14' : btnExpanded ? 'w-36 md:w-40 px-3 md:px-4 gap-2' : 'w-12 md:w-14'}`}
+        >
+          {open ? (
+            <X className="w-5 h-5 flex-shrink-0" />
+          ) : (
+            <>
+              <BrainCog className={`chat-holo-icon w-5 h-5 flex-shrink-0 transition-colors duration-300 ${btnExpanded ? 'text-red-400' : 'text-white'}`} />
+              <span className={`text-sm font-semibold whitespace-nowrap transition-all duration-300 ${btnExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
+                BOOOM AI
+              </span>
+            </>
+          )}
+        </button>
       </div>
     </>
   );

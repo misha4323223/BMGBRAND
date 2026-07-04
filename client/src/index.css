@@ -323,26 +323,6 @@ body.lb-open nav {
   position: relative;
   z-index: 3;
 }
-/* Обёртка для рамки-хамелеона. backdrop-filter на самой кнопке создаёт
-   изолированный слой рендеринга — mix-blend-mode внутри кнопки видит только
-   тёмный фон самой кнопки, а не реальный фон страницы. Поэтому рамку выносим
-   на отдельную обёртку СНАРУЖИ кнопки (inset отрицательный — рамка чуть шире
-   кнопки), там mix-blend-mode «видит» настоящий фон страницы и всегда
-   контрастен ему. Статично, без анимации/JS — считает GPU-композитор. */
-.chat-holo-wrap {
-  position: relative;
-  display: inline-flex;
-}
-.chat-holo-wrap::after {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-  border: 2px solid #fff;
-  mix-blend-mode: difference;
-  pointer-events: none;
-  z-index: 5;
-}
 .chat-holo-icon {
   animation: holo-icon-pulse 2.8s ease-in-out infinite;
 }

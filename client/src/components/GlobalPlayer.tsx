@@ -216,17 +216,15 @@ export function GlobalPlayer() {
             </div>
 
             {/* BOOOM AI shortcut */}
-            <div className="chat-holo-wrap rounded-lg hidden sm:inline-flex">
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent("open-booom-ai"))}
-                className="chat-holo-btn flex w-8 h-8 items-center justify-center rounded-lg transition-all flex-shrink-0 active:scale-90 hover:scale-105"
-                data-testid="player-open-ai"
-                aria-label="BOOOM AI"
-                title="BOOOM AI"
-              >
-                <BrainCog className="chat-holo-icon w-4 h-4 text-white" />
-              </button>
-            </div>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("open-booom-ai"))}
+              className="chat-holo-btn hidden sm:flex w-8 h-8 items-center justify-center rounded-lg transition-all flex-shrink-0 active:scale-90 hover:scale-105"
+              data-testid="player-open-ai"
+              aria-label="BOOOM AI"
+              title="BOOOM AI"
+            >
+              <BrainCog className="chat-holo-icon w-4 h-4 text-white" />
+            </button>
 
             {/* Close */}
             <button
