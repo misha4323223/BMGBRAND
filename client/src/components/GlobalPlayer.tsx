@@ -218,25 +218,12 @@ export function GlobalPlayer() {
             {/* BOOOM AI shortcut */}
             <button
               onClick={() => window.dispatchEvent(new CustomEvent("open-booom-ai"))}
-              className="hidden sm:flex w-8 h-8 items-center justify-center rounded-lg transition-all flex-shrink-0 active:scale-90"
-              style={{
-                color: "hsl(var(--primary))",
-                background: "hsla(var(--primary)/0.15)",
-                boxShadow: "0 0 10px hsla(var(--primary)/0.25)",
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = "hsla(var(--primary)/0.28)";
-                e.currentTarget.style.boxShadow = "0 0 16px hsla(var(--primary)/0.5)";
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = "hsla(var(--primary)/0.15)";
-                e.currentTarget.style.boxShadow = "0 0 10px hsla(var(--primary)/0.25)";
-              }}
+              className="chat-holo-btn hidden sm:flex w-8 h-8 items-center justify-center rounded-lg transition-all flex-shrink-0 active:scale-90 hover:scale-105"
               data-testid="player-open-ai"
               aria-label="BOOOM AI"
               title="BOOOM AI"
             >
-              <BrainCog className="w-4 h-4" />
+              <BrainCog className="chat-holo-icon w-4 h-4 text-white" />
             </button>
 
             {/* Close */}
