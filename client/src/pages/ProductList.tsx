@@ -10,11 +10,233 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { CATEGORIES, CategorySlug, normalizeCategories } from "@shared/schema";
 import type { CategoryConfig, SubcategoryConfig } from "@shared/schema";
-import { useRoute } from "wouter";
+import { useRoute, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
-import { Loader2, X, ChevronDown, ChevronRight, PanelLeft, PanelLeftClose, ArrowRight } from "lucide-react";
-import { motion } from "framer-motion";
+import { Loader2, X, ChevronDown, ChevronRight, PanelLeft, PanelLeftClose, ArrowRight, Heart, ShoppingBag, ArrowLeft, BrainCog, MessageCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useCart } from "@/hooks/use-cart";
+import { useFavorites } from "@/hooks/use-favorites";
+
+/* ─── MERCH COSMIC NAVBAR ────────────────────────────────────────────────── */
+const MERCH_NAV_LINKS = [
+  { label: "Главная",        href: "/" },
+  { label: "Каталог",        href: "/products" },
+  { label: "Коллаборации",   href: "/products/merch" },
+  { label: "Предзаказ",      href: "/predrop" },
+  { label: "О нас",          href: "/about" },
+];
+
+function MerchNavbar() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { data: cartItems } = useCart();
+  const cartCount = cartItems?.reduce((acc: number, item: any) => acc + item.quantity, 0) || 0;
+  const { favoritesCount } = useFavorites();
+
+  // Signal ChatWidget to hide its floating button while this nav is mounted
+  useEffect(() => {
+    document.documentElement.setAttribute("data-merch-nav", "1");
+    return () => document.documentElement.removeAttribute("data-merch-nav");
+  }, []);
+
+  // Lock body scroll when menu is open
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [menuOpen]);
+
+  const openAI = () => { setMenuOpen(false); window.dispatchEvent(new CustomEvent("open-booom-ai")); };
+  const openManager = () => { setMenuOpen(false); window.dispatchEvent(new CustomEvent("open-booom-manager")); };
+
+  return (
+    <>
+      {/* ── Slim fixed bar ─────────────────────────────────────────────── */}
+      <nav
+        className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-3 sm:px-5 h-14"
+        style={{ background: "rgba(5,5,5,0.88)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        {/* Left: back + logo */}
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => window.history.back()}
+            className="p-2 rounded-full hover:bg-white/10 transition-colors"
+            aria-label="Назад"
+          >
+            <ArrowLeft className="w-4 h-4 text-white/50" />
+          </button>
+          <Link href="/" className="flex-shrink-0">
+            <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-[52px] w-auto object-contain" />
+          </Link>
+        </div>
+
+        {/* Right: icons + signal burger */}
+        <div className="flex items-center gap-0.5">
+          <Link href="/favorites" className="relative p-2 rounded-full hover:bg-white/10 transition-colors" aria-label="Избранное">
+            <Heart className="text-white/65" style={{ width: 18, height: 18 }} />
+            {favoritesCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 bg-white text-black text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center leading-none">
+                {favoritesCount > 9 ? "9+" : favoritesCount}
+              </span>
+            )}
+          </Link>
+          <Link href="/cart" className="relative p-2 rounded-full hover:bg-white/10 transition-colors" aria-label="Корзина">
+            <ShoppingBag className="text-white/65" style={{ width: 18, height: 18 }} />
+            {cartCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 bg-white text-black text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center leading-none">
+                {cartCount > 9 ? "9+" : cartCount}
+              </span>
+            )}
+          </Link>
+
+          {/* Signal burger — EQ bars */}
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="ml-1 p-2 rounded-full hover:bg-white/10 transition-colors"
+            aria-label="Открыть меню"
+            aria-expanded={menuOpen}
+            aria-controls="merch-menu-panel"
+          >
+            <div className="flex items-end gap-[3px]" style={{ height: 20, width: 18 }}>
+              <div className={`w-[4px] rounded-[2px] bg-white/80 ${menuOpen ? "" : "merch-eq-bar-1"}`} style={{ height: menuOpen ? "100%" : undefined }} />
+              <div className={`w-[4px] rounded-[2px] bg-white/80 ${menuOpen ? "" : "merch-eq-bar-2"}`} style={{ height: menuOpen ? "100%" : undefined }} />
+              <div className={`w-[4px] rounded-[2px] bg-white/80 ${menuOpen ? "" : "merch-eq-bar-3"}`} style={{ height: menuOpen ? "100%" : undefined }} />
+            </div>
+          </button>
+        </div>
+      </nav>
+
+      {/* ── Full-screen cosmic panel ────────────────────────────────────── */}
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="merch-menu-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="fixed inset-0 z-[149] bg-black/60"
+              onClick={() => setMenuOpen(false)}
+            />
+
+            {/* Panel — slides from right */}
+            <motion.div
+              key="merch-menu-panel"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
+              className="fixed inset-y-0 right-0 z-[150] flex flex-col overflow-hidden"
+              style={{ width: "min(100vw, 440px)", background: "#040404" }}
+            >
+              {/* Scan-line texture */}
+              <div className="absolute inset-0 pointer-events-none" style={{
+                backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.011) 3px, rgba(255,255,255,0.011) 4px)",
+              }} />
+              {/* Grid */}
+              <div className="absolute inset-0 pointer-events-none" style={{
+                backgroundImage: "linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px)",
+                backgroundSize: "44px 44px",
+              }} />
+              {/* Ambient glow top-right */}
+              <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full pointer-events-none" style={{
+                background: "radial-gradient(circle, rgba(255,255,255,0.025) 0%, transparent 70%)",
+              }} />
+
+              {/* Top bar */}
+              <div className="relative z-10 flex items-center justify-between px-5 h-14 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <Link href="/" onClick={() => setMenuOpen(false)} className="flex-shrink-0">
+                  <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-[50px] w-auto" />
+                </Link>
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                  aria-label="Закрыть"
+                >
+                  <X className="w-5 h-5 text-white/50" />
+                </button>
+              </div>
+
+              {/* Nav links — staggered */}
+              <div className="relative z-10 flex-1 flex flex-col justify-center px-5 py-6 min-h-0 overflow-y-auto">
+                {MERCH_NAV_LINKS.map(({ label, href }, i) => (
+                  <motion.div
+                    key={href}
+                    initial={{ x: 36, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: 36, opacity: 0 }}
+                    transition={{ duration: 0.38, delay: 0.08 + i * 0.065, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <Link
+                      href={href}
+                      onClick={() => setMenuOpen(false)}
+                      className="group flex items-center justify-between py-3"
+                      style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+                    >
+                      <span
+                        className="font-black text-white/80 group-hover:text-white transition-colors leading-none tracking-tight"
+                        style={{ fontSize: "clamp(1.65rem, 7vw, 2.6rem)" }}
+                      >
+                        {label}
+                      </span>
+                      <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-white/55 flex-shrink-0 transition-all group-hover:translate-x-1" />
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Chat section */}
+              <div className="relative z-10 px-5 pb-7 pt-4 flex-shrink-0">
+                <motion.div
+                  initial={{ y: 18, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.38, delay: 0.48 }}
+                >
+                  <p className="text-[9px] font-bold tracking-[0.38em] uppercase mb-3" style={{ color: "rgba(255,255,255,0.22)" }}>
+                    — Связь
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={openAI}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all"
+                      style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.72)", background: "transparent" }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                    >
+                      <BrainCog className="w-3.5 h-3.5 opacity-60" />
+                      BOOOM AI
+                    </button>
+                    <button
+                      onClick={openManager}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all"
+                      style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.72)", background: "transparent" }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 opacity-60" />
+                      МЕНЕДЖЕР
+                    </button>
+                  </div>
+                </motion.div>
+
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.6 }}
+                  className="mt-5 text-center text-[8px] font-bold tracking-[0.36em] uppercase"
+                  style={{ color: "rgba(255,255,255,0.12)" }}
+                >
+                  BOOOMERANGS × ARTIST COLLABS
+                </motion.p>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
 
 function JDMBanner() {
   return (
@@ -147,19 +369,23 @@ function MerchBanner() {
     <div className="relative w-full overflow-hidden" style={{ minHeight: '72vh' }}>
       {/* Base bg */}
       <div className="absolute inset-0 bg-zinc-950" />
-      {/* Grid pattern */}
+      {/* Grid pattern — brighter for better visibility */}
       <div
         className="absolute inset-0"
         style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.055) 1px, transparent 1px)`,
           backgroundSize: '60px 60px',
         }}
       />
+      {/* Ambient radial glow — top-left accent */}
+      <div className="absolute -top-20 -left-20 w-[50vw] h-[50vw] pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at top left, rgba(255,255,255,0.04) 0%, transparent 65%)',
+      }} />
       {/* Giant watermark "МЕРЧ" in background */}
       <div className="absolute inset-0 flex items-center justify-end pr-4 sm:pr-12 select-none pointer-events-none overflow-hidden">
         <span
           className="font-black text-white leading-none"
-          style={{ opacity: 0.018, fontSize: 'clamp(140px, 38vw, 480px)' }}
+          style={{ opacity: 0.055, fontSize: 'clamp(140px, 38vw, 480px)' }}
         >
           МЕРЧ
         </span>
@@ -167,7 +393,7 @@ function MerchBanner() {
       {/* Bottom fade to page bg */}
       <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-zinc-950 to-transparent" />
       {/* Content */}
-      <div className="relative z-10 px-4 sm:px-6 lg:px-12 pt-36 sm:pt-44 pb-10 max-w-7xl mx-auto">
+      <div className="relative z-10 px-4 sm:px-6 lg:px-12 pt-32 sm:pt-40 pb-10 max-w-7xl mx-auto">
         <motion.div
           initial="hidden"
           animate="show"
@@ -178,13 +404,13 @@ function MerchBanner() {
             variants={{ hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}
             className="flex items-center gap-3 mb-5"
           >
-            <div className="w-6 h-px bg-white/30 shrink-0" />
-            <span className="text-white/40 text-[10px] tracking-[0.4em] uppercase font-semibold">
+            <div className="w-6 h-px shrink-0" style={{ background: 'rgba(255,255,255,0.45)' }} />
+            <span className="text-[10px] tracking-[0.4em] uppercase font-semibold" style={{ color: 'rgba(255,255,255,0.55)' }}>
               BOOOMERANGS × ARTIST COLLABS
             </span>
           </motion.div>
           {/* Big title */}
-          <div className="overflow-hidden mb-4">
+          <div className="overflow-hidden mb-5">
             <motion.h2
               variants={{ hidden: { opacity: 0, y: 80 }, show: { opacity: 1, y: 0, transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } } }}
               className="font-black text-white leading-none tracking-tighter"
@@ -196,7 +422,8 @@ function MerchBanner() {
           {/* Subtitle */}
           <motion.p
             variants={{ hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } }}
-            className="text-white/20 text-xs sm:text-sm tracking-[0.28em] uppercase font-medium"
+            className="text-xs sm:text-sm tracking-[0.28em] uppercase font-medium"
+            style={{ color: 'rgba(255,255,255,0.42)' }}
           >
             Официальные коллаборации с артистами
           </motion.p>
@@ -813,7 +1040,7 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
           "itemListElement": breadcrumbItems,
         }}
       />
-      <Navbar />
+      {isMerch ? <MerchNavbar /> : <Navbar />}
 
       {/* ── Full-bleed hero for main merch page ── */}
       {isMerch && !subcategoryParam && <MerchBanner />}
