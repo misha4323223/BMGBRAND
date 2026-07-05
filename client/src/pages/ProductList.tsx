@@ -364,70 +364,173 @@ function MintaPageWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+function optimizeArtistImg(url: string): string {
+  if (!url) return url;
+  if (url.includes('storage.yandexcloud.net/bmg/site/artist/')) return url;
+  if (url.includes('storage.yandexcloud.net/bmg/')) {
+    const t = url.replace(/\.(webp|jpg|jpeg|png)(\?.*)?$/i, '_thumb.webp$2');
+    if (t !== url) return t;
+  }
+  return url;
+}
+
 function MerchBanner() {
+  const { data: homeSettings } = useQuery<any>({
+    queryKey: ["/api/page-settings/home"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const artistCards = useMemo(() => {
+    const items: any[] = homeSettings?.artists?.items || [];
+    return items
+      .filter((a: any) => a.image)
+      .map((a: any) => ({
+        name:   a.name   || '',
+        role:   a.role   || 'Коллаборация',
+        image:  optimizeArtistImg(a.image),
+        slug:   a.slug   || '',
+        accent: MERCH_COLLAB_THEMES[a.slug]?.accent ?? 'rgba(255,255,255,0.38)',
+      }));
+  }, [homeSettings]);
+
+  const hasCards = artistCards.length > 0;
+
   return (
-    <div className="relative w-full overflow-hidden" style={{ minHeight: '72vh' }}>
+    <div className="relative w-full overflow-hidden" style={{ minHeight: hasCards ? '62vh' : '58vh' }}>
       {/* Base bg */}
       <div className="absolute inset-0 bg-zinc-950" />
-      {/* Grid pattern — brighter for better visibility */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.055) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px',
-        }}
-      />
-      {/* Ambient radial glow — top-left accent */}
-      <div className="absolute -top-20 -left-20 w-[50vw] h-[50vw] pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at top left, rgba(255,255,255,0.04) 0%, transparent 65%)',
+      {/* Grid */}
+      <div className="absolute inset-0" style={{
+        backgroundImage: `linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                          linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)`,
+        backgroundSize: '60px 60px',
       }} />
-      {/* Giant watermark "МЕРЧ" in background */}
-      <div className="absolute inset-0 flex items-center justify-end pr-4 sm:pr-12 select-none pointer-events-none overflow-hidden">
-        <span
-          className="font-black text-white leading-none"
-          style={{ opacity: 0.055, fontSize: 'clamp(140px, 38vw, 480px)' }}
-        >
+      {/* Ambient glow */}
+      <div className="absolute -top-16 -left-16 w-[55vw] h-[55vw] pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at top left, rgba(255,255,255,0.038) 0%, transparent 65%)',
+      }} />
+      {/* Watermark */}
+      <div className="absolute inset-0 flex items-center justify-end pr-2 sm:pr-10 select-none pointer-events-none overflow-hidden">
+        <span className="font-black text-white leading-none" style={{ opacity: 0.05, fontSize: 'clamp(120px, 36vw, 460px)' }}>
           МЕРЧ
         </span>
       </div>
-      {/* Bottom fade to page bg */}
-      <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-zinc-950 to-transparent" />
+      {/* Bottom fade */}
+      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-zinc-950 to-transparent" />
+
       {/* Content */}
-      <div className="relative z-10 px-4 sm:px-6 lg:px-12 pt-32 sm:pt-40 pb-10 max-w-7xl mx-auto">
+      <div className="relative z-10 pt-28 sm:pt-36 pb-6">
+        {/* Labels + title */}
         <motion.div
+          className="px-4 sm:px-6 lg:px-12"
           initial="hidden"
           animate="show"
-          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.13 } } }}
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.12 } } }}
         >
-          {/* Label */}
           <motion.div
             variants={{ hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}
-            className="flex items-center gap-3 mb-5"
+            className="flex items-center gap-3 mb-4"
           >
             <div className="w-6 h-px shrink-0" style={{ background: 'rgba(255,255,255,0.45)' }} />
             <span className="text-[10px] tracking-[0.4em] uppercase font-semibold" style={{ color: 'rgba(255,255,255,0.55)' }}>
               BOOOMERANGS × ARTIST COLLABS
             </span>
           </motion.div>
-          {/* Big title */}
-          <div className="overflow-hidden mb-5">
+
+          <div className="overflow-hidden mb-3">
             <motion.h2
-              variants={{ hidden: { opacity: 0, y: 80 }, show: { opacity: 1, y: 0, transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } } }}
+              variants={{ hidden: { opacity: 0, y: 70 }, show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } } }}
               className="font-black text-white leading-none tracking-tighter"
-              style={{ fontSize: 'clamp(4rem, 18vw, 13rem)' }}
+              style={{ fontSize: 'clamp(3.8rem, 17vw, 12rem)' }}
             >
               МЕРЧ
             </motion.h2>
           </div>
-          {/* Subtitle */}
-          <motion.p
-            variants={{ hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } }}
-            className="text-xs sm:text-sm tracking-[0.28em] uppercase font-medium"
-            style={{ color: 'rgba(255,255,255,0.42)' }}
-          >
-            Официальные коллаборации с артистами
-          </motion.p>
+
+          {!hasCards && (
+            <motion.p
+              variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.45 } } }}
+              className="text-xs sm:text-sm tracking-[0.28em] uppercase font-medium"
+              style={{ color: 'rgba(255,255,255,0.42)' }}
+            >
+              Официальные коллаборации с артистами
+            </motion.p>
+          )}
         </motion.div>
+
+        {/* ── Horizontal artist photo cards ───────────────────────────── */}
+        {hasCards && (
+          <motion.div
+            className="mt-5 overflow-x-auto scrollbar-none"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.35 }}
+          >
+            <motion.div
+              className="flex gap-3 px-4 sm:px-6 lg:px-12 pb-3"
+              style={{ width: 'max-content' }}
+              initial="hidden"
+              animate="show"
+              variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08, delayChildren: 0.3 } } }}
+            >
+              {artistCards.map((artist) => (
+                <motion.div
+                  key={artist.slug || artist.name}
+                  variants={{
+                    hidden: { opacity: 0, y: 28, scale: 0.94 },
+                    show:  { opacity: 1, y: 0,  scale: 1, transition: { duration: 0.52, ease: [0.16, 1, 0.3, 1] } },
+                  }}
+                  className="flex-shrink-0"
+                >
+                  <Link
+                    href={artist.slug ? `/${artist.slug}` : '/products/merch'}
+                    className="block group relative overflow-hidden rounded-xl"
+                    style={{ width: 'clamp(118px, 28vw, 158px)', aspectRatio: '3/5' }}
+                  >
+                    {/* Photo */}
+                    <img
+                      src={artist.image}
+                      alt={artist.name}
+                      loading="lazy"
+                      decoding="async"
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
+                      style={{ objectPosition: 'center 15%' }}
+                    />
+                    {/* Gradient overlay — heavier at bottom */}
+                    <div className="absolute inset-0" style={{
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.35) 48%, rgba(0,0,0,0.08) 100%)',
+                    }} />
+                    {/* Top accent bar */}
+                    <div className="absolute top-0 inset-x-0 h-[2.5px] rounded-t-xl" style={{ background: artist.accent }} />
+                    {/* Scanline grain (subtle) */}
+                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{
+                      backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 1px, transparent 1px, transparent 3px)',
+                    }} />
+                    {/* Info */}
+                    <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-[2px] group-hover:translate-y-0 transition-transform duration-300">
+                      <p
+                        className="text-[8px] font-mono tracking-[0.24em] uppercase mb-1.5 leading-none"
+                        style={{ color: artist.accent, opacity: 0.9 }}
+                      >
+                        × BOOOMERANGS
+                      </p>
+                      <h3 className="font-black text-white leading-tight" style={{ fontSize: 'clamp(11px, 3.2vw, 14px)' }}>
+                        {artist.name}
+                      </h3>
+                      <span
+                        className="inline-flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                        style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.18em' }}
+                      >
+                        СМОТРЕТЬ <ArrowRight style={{ width: 8, height: 8 }} />
+                      </span>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </motion.div>
+          </motion.div>
+        )}
       </div>
     </div>
   );
