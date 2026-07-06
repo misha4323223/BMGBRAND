@@ -13,7 +13,8 @@ import type { CategoryConfig, SubcategoryConfig } from "@shared/schema";
 import { useRoute, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
-import { Loader2, X, ChevronDown, ChevronRight, ChevronLeft, PanelLeft, PanelLeftClose, ArrowRight, Heart, ShoppingBag, ArrowLeft, BrainCog, MessageCircle, Menu } from "lucide-react";
+import { Loader2, X, ChevronDown, ChevronRight, ChevronLeft, PanelLeft, PanelLeftClose, ArrowRight, Heart, ShoppingBag, ArrowLeft, BrainCog, MessageCircle, Menu, Play, Pause, Headphones, Music } from "lucide-react";
+import { usePlayer } from "@/context/PlayerContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/hooks/use-cart";
 import { useFavorites } from "@/hooks/use-favorites";
@@ -29,9 +30,41 @@ const MERCH_NAV_LINKS = [
 
 function MerchNavbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [musicOpen, setMusicOpen] = useState(false);
+  const [expandedArtist, setExpandedArtist] = useState<string | null>(null);
   const { data: cartItems } = useCart();
   const cartCount = cartItems?.reduce((acc: number, item: any) => acc + item.quantity, 0) || 0;
   const { favoritesCount } = useFavorites();
+  const { currentTrack, isPlaying, play, pause } = usePlayer();
+  const musicPanelRef = useRef<HTMLDivElement>(null);
+  const musicBtnRef = useRef<HTMLButtonElement>(null);
+
+  const { data: tracksData } = useQuery<{ artists: Array<{ slug: string; name: string; tracks: any[] }> }>({
+    queryKey: ["/api/artists/all-tracks"],
+    staleTime: 5 * 60 * 1000,
+  });
+  const artists = tracksData?.artists ?? [];
+  const allTracks = artists.flatMap((a: any) => a.tracks);
+
+  // Auto-expand first artist when panel opens
+  useEffect(() => {
+    if (musicOpen && artists.length > 0 && !expandedArtist) {
+      setExpandedArtist(artists[0].slug);
+    }
+  }, [musicOpen, artists.length]);
+
+  // Close music panel on outside click
+  useEffect(() => {
+    if (!musicOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        musicPanelRef.current && !musicPanelRef.current.contains(e.target as Node) &&
+        musicBtnRef.current && !musicBtnRef.current.contains(e.target as Node)
+      ) setMusicOpen(false);
+    };
+    const t = setTimeout(() => document.addEventListener("mousedown", handler), 100);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", handler); };
+  }, [musicOpen]);
 
   // Signal ChatWidget to hide its floating button while this nav is mounted
   useEffect(() => {
@@ -39,7 +72,7 @@ function MerchNavbar() {
     return () => document.documentElement.removeAttribute("data-merch-nav");
   }, []);
 
-  // Lock body scroll when menu is open
+  // Lock body scroll when burger menu is open
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -48,31 +81,108 @@ function MerchNavbar() {
   const openAI = () => { setMenuOpen(false); window.dispatchEvent(new CustomEvent("open-booom-ai")); };
   const openManager = () => { setMenuOpen(false); window.dispatchEvent(new CustomEvent("open-booom-manager")); };
 
+  function fmtDur(secs: number) {
+    if (!secs || isNaN(secs)) return "—";
+    const m = Math.floor(secs / 60), s = Math.floor(secs % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
   return (
     <>
-      {/* ── Slim fixed bar ─────────────────────────────────────────────── */}
+      {/* ── Main navbar ──────────────────────────────────────────────────── */}
       <nav
-        className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-3 sm:px-5 h-14"
-        style={{ background: "rgba(5,5,5,0.88)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+        className="fixed top-0 left-0 right-0 z-[100] flex items-center h-16 px-3 sm:px-5 gap-2"
+        style={{
+          background: "rgba(4,4,4,0.93)",
+          backdropFilter: "blur(22px)",
+          WebkitBackdropFilter: "blur(22px)",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+        }}
       >
         {/* Left: back + logo */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
             onClick={() => window.history.back()}
             className="p-2 rounded-full hover:bg-white/10 transition-colors"
             aria-label="Назад"
           >
-            <ArrowLeft className="w-4 h-4 text-white/50" />
+            <ArrowLeft className="w-4 h-4 text-white/40" />
           </button>
           <Link href="/" className="flex-shrink-0">
-            <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-[52px] w-auto object-contain" />
+            <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-[56px] w-auto object-contain" />
           </Link>
         </div>
 
-        {/* Right: icons + signal burger */}
-        <div className="flex items-center gap-0.5">
+        {/* Center: Mini-player pill ──────────────────────────────────────── */}
+        <button
+          ref={musicBtnRef}
+          onClick={() => setMusicOpen(v => !v)}
+          className="flex-1 min-w-0 max-w-xs sm:max-w-sm mx-auto flex items-center gap-2.5 rounded-2xl transition-all duration-300"
+          style={{
+            background: musicOpen ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.055)",
+            border: musicOpen ? "1px solid rgba(255,255,255,0.22)" : "1px solid rgba(255,255,255,0.09)",
+            padding: "8px 12px",
+          }}
+          aria-label="Плеер"
+          aria-expanded={musicOpen}
+        >
+          {currentTrack ? (
+            /* ── Playing state ── */
+            <>
+              <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0" style={{ background: "rgba(255,255,255,0.1)" }}>
+                {currentTrack.coverUrl
+                  ? <img src={currentTrack.coverUrl} alt={currentTrack.title} className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center"><Music className="w-3.5 h-3.5 text-white/30" /></div>}
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-[11px] font-bold text-white/90 truncate leading-tight">{currentTrack.title}</p>
+                <p className="text-[9px] text-white/35 truncate mt-0.5">{currentTrack.subtitle || currentTrack.artistSlug}</p>
+              </div>
+              {/* Animated sound bars */}
+              <div className="flex items-end gap-[3px] h-4 flex-shrink-0">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="w-[2.5px] rounded-full bg-white/60" style={{
+                    height: isPlaying ? `${9 + i * 3}px` : "3px",
+                    animation: isPlaying ? `merchnav-bar ${0.5 + i * 0.18}s ease-in-out infinite alternate` : "none",
+                    transition: "height 0.2s ease",
+                  }} />
+                ))}
+              </div>
+              {/* Play/Pause */}
+              <button
+                onClick={e => { e.stopPropagation(); isPlaying ? pause() : play(currentTrack, allTracks); }}
+                className="w-7 h-7 flex items-center justify-center rounded-full flex-shrink-0 transition-colors hover:bg-white/20"
+                style={{ background: "rgba(255,255,255,0.13)", border: "1px solid rgba(255,255,255,0.16)" }}
+              >
+                {isPlaying ? <Pause className="w-3 h-3 text-white" /> : <Play className="w-3 h-3 text-white ml-0.5" />}
+              </button>
+            </>
+          ) : (
+            /* ── Idle state ── */
+            <>
+              <div className="w-7 h-7 flex items-center justify-center rounded-full flex-shrink-0" style={{ background: "rgba(255,255,255,0.07)" }}>
+                <Headphones className="w-3.5 h-3.5 text-white/55" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-white/45 leading-tight">Музыка × Плейлист</p>
+                <p className="text-[9px] text-white/22 mt-0.5">
+                  {artists.length > 0
+                    ? `${artists.length} исполнител${artists.length === 1 ? "ь" : "я"}`
+                    : "Загрузка…"}
+                </p>
+              </div>
+              <ChevronDown
+                className="w-3.5 h-3.5 text-white/22 flex-shrink-0 transition-transform duration-200"
+                style={{ transform: musicOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
+            </>
+          )}
+        </button>
+
+        {/* Right: favorites + cart + burger ──────────────────────────────── */}
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           <Link href="/favorites" className="relative p-2 rounded-full hover:bg-white/10 transition-colors" aria-label="Избранное">
-            <Heart className="text-white/65" style={{ width: 18, height: 18 }} />
+            <Heart className="text-white/60" style={{ width: 18, height: 18 }} />
             {favoritesCount > 0 && (
               <span className="absolute top-0.5 right-0.5 bg-white text-black text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center leading-none">
                 {favoritesCount > 9 ? "9+" : favoritesCount}
@@ -80,53 +190,215 @@ function MerchNavbar() {
             )}
           </Link>
           <Link href="/cart" className="relative p-2 rounded-full hover:bg-white/10 transition-colors" aria-label="Корзина">
-            <ShoppingBag className="text-white/65" style={{ width: 18, height: 18 }} />
+            <ShoppingBag className="text-white/60" style={{ width: 18, height: 18 }} />
             {cartCount > 0 && (
               <span className="absolute top-0.5 right-0.5 bg-white text-black text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center leading-none">
                 {cartCount > 9 ? "9+" : cartCount}
               </span>
             )}
           </Link>
-
-          {/* Burger */}
           <button
             onClick={() => setMenuOpen(true)}
-            className="ml-1 p-2 rounded-full hover:bg-white/10 transition-colors"
+            className="ml-0.5 p-2 rounded-full hover:bg-white/10 transition-colors"
             aria-label="Открыть меню"
             aria-expanded={menuOpen}
-            aria-controls="merch-menu-panel"
           >
-            <Menu className="w-5 h-5 text-white/80" />
+            <Menu className="w-5 h-5 text-white/75" />
           </button>
         </div>
       </nav>
 
-      {/* ── Full-screen cosmic panel ────────────────────────────────────── */}
+      {/* Keyframe for sound-bar animation */}
+      <style>{`
+        @keyframes merchnav-bar {
+          from { transform: scaleY(0.4); }
+          to   { transform: scaleY(1.1); }
+        }
+      `}</style>
+
+      {/* ── Music dropdown panel ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {musicOpen && (
+          <motion.div
+            ref={musicPanelRef}
+            key="merch-music-panel"
+            initial={{ opacity: 0, y: -10, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.97 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed left-1/2 z-[99] overflow-hidden"
+            style={{
+              top: "70px",
+              width: "min(430px, 96vw)",
+              transform: "translateX(-50%)",
+              background: "#090909",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "20px",
+              boxShadow: "0 28px 80px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.04)",
+            }}
+          >
+            {/* Scan-line overlay */}
+            <div className="absolute inset-0 pointer-events-none" style={{
+              backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.008) 3px, rgba(255,255,255,0.008) 4px)",
+            }} />
+
+            {/* Header */}
+            <div className="relative flex items-center gap-2.5 px-4 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <Headphones className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "rgba(255,255,255,0.45)" }} />
+              <span className="text-[9px] font-bold tracking-[0.42em] uppercase flex-1" style={{ color: "rgba(255,255,255,0.35)" }}>
+                Исполнители × Плейлист
+              </span>
+              <button onClick={() => setMusicOpen(false)} className="p-1 rounded-lg" style={{ color: "rgba(255,255,255,0.22)" }}>
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Artist accordion list */}
+            <div className="relative max-h-[62vh] overflow-y-auto overscroll-contain px-2 py-2 space-y-1">
+              {artists.length === 0 && (
+                <div className="py-10 text-center">
+                  <Music className="w-8 h-8 mx-auto mb-3 opacity-10 text-white" />
+                  <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.2)" }}>Треки ещё не добавлены</p>
+                </div>
+              )}
+
+              {artists.map((artist: any) => {
+                const isExp = expandedArtist === artist.slug;
+                const hasActive = artist.tracks.some((t: any) => currentTrack?.id === t.id);
+
+                return (
+                  <div key={artist.slug} className="rounded-xl overflow-hidden" style={{ background: "rgba(255,255,255,0.03)" }}>
+                    {/* Artist row */}
+                    <button
+                      onClick={() => setExpandedArtist(isExp ? null : artist.slug)}
+                      className="w-full flex items-center gap-3 px-3.5 py-3 transition-all hover:bg-white/[0.03]"
+                      style={{ color: hasActive ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.72)" }}
+                    >
+                      <div
+                        className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
+                        style={{ background: "rgba(255,255,255,0.07)" }}
+                      >
+                        {artist.tracks[0]?.coverUrl
+                          ? <img src={artist.tracks[0].coverUrl} alt={artist.name} className="w-full h-full object-cover" loading="lazy" />
+                          : <Music className="w-4 h-4 opacity-25 text-white" />}
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-[13px] font-semibold truncate leading-tight">{artist.name}</p>
+                        <p className="text-[10px] mt-0.5 opacity-30 tabular-nums">
+                          {artist.tracks.length} {artist.tracks.length === 1 ? "трек" : artist.tracks.length < 5 ? "трека" : "треков"}
+                        </p>
+                      </div>
+                      {/* Active bars */}
+                      {hasActive && (
+                        <div className="flex items-end gap-[2.5px] h-3.5 mr-1">
+                          {[0, 1, 2].map(i => (
+                            <div key={i} className="w-[2px] rounded-full bg-white/75" style={{
+                              height: isPlaying ? `${6 + i * 3}px` : "3px",
+                              animation: isPlaying ? `merchnav-bar ${0.5 + i * 0.2}s ease-in-out infinite alternate` : "none",
+                            }} />
+                          ))}
+                        </div>
+                      )}
+                      <ChevronDown
+                        className="w-3.5 h-3.5 opacity-25 flex-shrink-0 transition-transform duration-200"
+                        style={{ transform: isExp ? "rotate(180deg)" : "rotate(0deg)" }}
+                      />
+                    </button>
+
+                    {/* Track list (accordion) */}
+                    <div style={{
+                      maxHeight: isExp ? `${artist.tracks.length * 56 + 12}px` : "0px",
+                      overflow: "hidden",
+                      transition: "max-height 0.33s cubic-bezier(0.4,0,0.2,1)",
+                    }}>
+                      <div className="px-2 pb-2 space-y-0.5">
+                        {artist.tracks.map((track: any, idx: number) => {
+                          const isActive = currentTrack?.id === track.id;
+                          const isThisPlaying = isActive && isPlaying;
+                          return (
+                            <div
+                              key={track.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => { isThisPlaying ? pause() : play(track, allTracks); }}
+                              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); isThisPlaying ? pause() : play(track, allTracks); } }}
+                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer select-none transition-all duration-150"
+                              style={{ background: isActive ? "rgba(255,255,255,0.08)" : "transparent" }}
+                              onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.04)"; }}
+                              onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+                            >
+                              {/* Cover */}
+                              <div className="relative w-8 h-8 rounded-lg overflow-hidden flex-shrink-0" style={{ background: "rgba(255,255,255,0.07)" }}>
+                                {track.coverUrl
+                                  ? <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover" loading="lazy" />
+                                  : <div className="w-full h-full flex items-center justify-center"><Music className="w-3 h-3 opacity-20 text-white" /></div>}
+                                {isActive && (
+                                  <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.52)" }}>
+                                    {isThisPlaying ? <Pause className="w-3 h-3 text-white" /> : <Play className="w-3 h-3 text-white" />}
+                                  </div>
+                                )}
+                              </div>
+                              {/* Index / bars */}
+                              <div className="w-4 flex-shrink-0 flex items-center justify-center">
+                                {isActive
+                                  ? <div className="flex items-end gap-[2px] h-3">
+                                      {[0, 1, 2].map(i => (
+                                        <div key={i} className="w-[2px] rounded-full bg-white/75" style={{
+                                          height: isThisPlaying ? `${5 + i * 2}px` : "2px",
+                                          animation: isThisPlaying ? `merchnav-bar ${0.5 + i * 0.2}s ease-in-out infinite alternate` : "none",
+                                        }} />
+                                      ))}
+                                    </div>
+                                  : <span className="text-[10px] text-white/20 tabular-nums">{idx + 1}</span>}
+                              </div>
+                              {/* Title */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-medium truncate leading-tight" style={{ color: isActive ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.7)" }}>
+                                  {track.title}
+                                </p>
+                                {track.subtitle && <p className="text-[9px] mt-0.5 opacity-25 truncate text-white">{track.subtitle}</p>}
+                              </div>
+                              {/* Duration */}
+                              <span className="text-[10px] opacity-22 flex-shrink-0 tabular-nums text-white">{fmtDur(track.duration)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Panel footer */}
+            <div className="px-4 py-3 relative" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <p className="text-[8px] text-center font-bold tracking-[0.4em] uppercase" style={{ color: "rgba(255,255,255,0.1)" }}>
+                BOOOMERANGS × ARTIST COLLABS
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Full-screen burger panel ─────────────────────────────────────── */}
       <AnimatePresence>
         {menuOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               key="merch-menu-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
               className="fixed inset-0 z-[149] bg-black/60"
               onClick={() => setMenuOpen(false)}
             />
-
-            {/* Panel — slides from right */}
             <motion.div
               key="merch-menu-panel"
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
               className="fixed inset-y-0 right-0 z-[150] flex flex-col overflow-hidden"
               style={{ width: "min(100vw, 440px)", background: "#040404" }}
             >
-              {/* Scan-line texture */}
+              {/* Scan-line */}
               <div className="absolute inset-0 pointer-events-none" style={{
                 backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.011) 3px, rgba(255,255,255,0.011) 4px)",
               }} />
@@ -135,33 +407,27 @@ function MerchNavbar() {
                 backgroundImage: "linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px)",
                 backgroundSize: "44px 44px",
               }} />
-              {/* Ambient glow top-right */}
+              {/* Glow */}
               <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full pointer-events-none" style={{
                 background: "radial-gradient(circle, rgba(255,255,255,0.025) 0%, transparent 70%)",
               }} />
 
               {/* Top bar */}
-              <div className="relative z-10 flex items-center justify-between px-5 h-14 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="relative z-10 flex items-center justify-between px-5 h-16 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 <Link href="/" onClick={() => setMenuOpen(false)} className="flex-shrink-0">
-                  <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-[50px] w-auto" />
+                  <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-[52px] w-auto" />
                 </Link>
-                <button
-                  onClick={() => setMenuOpen(false)}
-                  className="p-2 rounded-full hover:bg-white/10 transition-colors"
-                  aria-label="Закрыть"
-                >
+                <button onClick={() => setMenuOpen(false)} className="p-2 rounded-full hover:bg-white/10 transition-colors" aria-label="Закрыть">
                   <X className="w-5 h-5 text-white/50" />
                 </button>
               </div>
 
-              {/* Nav links — staggered */}
+              {/* Nav links */}
               <div className="relative z-10 flex-1 flex flex-col justify-center px-5 py-6 min-h-0 overflow-y-auto">
                 {MERCH_NAV_LINKS.map(({ label, href }, i) => (
                   <motion.div
                     key={href}
-                    initial={{ x: 36, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: 36, opacity: 0 }}
+                    initial={{ x: 36, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 36, opacity: 0 }}
                     transition={{ duration: 0.38, delay: 0.08 + i * 0.065, ease: [0.16, 1, 0.3, 1] }}
                   >
                     <Link
@@ -170,10 +436,7 @@ function MerchNavbar() {
                       className="group flex items-center justify-between py-3"
                       style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
                     >
-                      <span
-                        className="font-black text-white/80 group-hover:text-white transition-colors leading-none tracking-tight"
-                        style={{ fontSize: "clamp(1.65rem, 7vw, 2.6rem)" }}
-                      >
+                      <span className="font-black text-white/80 group-hover:text-white transition-colors leading-none tracking-tight" style={{ fontSize: "clamp(1.65rem, 7vw, 2.6rem)" }}>
                         {label}
                       </span>
                       <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-white/55 flex-shrink-0 transition-all group-hover:translate-x-1" />
@@ -184,42 +447,29 @@ function MerchNavbar() {
 
               {/* Chat section */}
               <div className="relative z-10 px-5 pb-7 pt-4 flex-shrink-0">
-                <motion.div
-                  initial={{ y: 18, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.38, delay: 0.48 }}
-                >
-                  <p className="text-[9px] font-bold tracking-[0.38em] uppercase mb-3" style={{ color: "rgba(255,255,255,0.22)" }}>
-                    — Связь
-                  </p>
+                <motion.div initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.38, delay: 0.48 }}>
+                  <p className="text-[9px] font-bold tracking-[0.38em] uppercase mb-3" style={{ color: "rgba(255,255,255,0.22)" }}>— Связь</p>
                   <div className="flex gap-2">
-                    <button
-                      onClick={openAI}
+                    <button onClick={openAI}
                       className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all"
                       style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.72)", background: "transparent" }}
                       onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
                     >
-                      <BrainCog className="w-3.5 h-3.5 opacity-60" />
-                      BOOOM AI
+                      <BrainCog className="w-3.5 h-3.5 opacity-60" /> BOOOM AI
                     </button>
-                    <button
-                      onClick={openManager}
+                    <button onClick={openManager}
                       className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all"
                       style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.72)", background: "transparent" }}
                       onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
                     >
-                      <MessageCircle className="w-3.5 h-3.5 opacity-60" />
-                      МЕНЕДЖЕР
+                      <MessageCircle className="w-3.5 h-3.5 opacity-60" /> МЕНЕДЖЕР
                     </button>
                   </div>
                 </motion.div>
-
                 <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.4, delay: 0.6 }}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.6 }}
                   className="mt-5 text-center text-[8px] font-bold tracking-[0.36em] uppercase"
                   style={{ color: "rgba(255,255,255,0.12)" }}
                 >
