@@ -407,6 +407,12 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
   const products = useMemo(() => (allProducts || []).slice(0, visibleCount), [allProducts, visibleCount]);
   const hasMore = (allProducts?.length || 0) > visibleCount;
 
+  const { data: artistPagesSettings } = useQuery<any>({
+    queryKey: ['/api/page-settings/artist_pages'],
+    staleTime: 5 * 60 * 1000,
+  });
+  const artistLogoUrl: string | undefined = artist.slug ? artistPagesSettings?.[artist.slug]?.logoUrl : undefined;
+
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -458,9 +464,18 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
             <p className="text-[9px] font-mono tracking-[0.32em] uppercase mb-2" style={{ color: artist.accent, opacity: 0.9 }}>
               × BOOOMERANGS COLLAB
             </p>
-            <h2 className="font-black text-white leading-none tracking-tighter" style={{ fontSize: 'clamp(2.4rem, 10vw, 6rem)' }}>
-              {artist.name}
-            </h2>
+            {artistLogoUrl ? (
+              <img
+                src={artistLogoUrl}
+                alt={artist.name}
+                className="object-contain object-left"
+                style={{ maxHeight: 'clamp(3.5rem, 11vw, 6.5rem)', maxWidth: '80vw' }}
+              />
+            ) : (
+              <h2 className="font-black text-white leading-none tracking-tighter" style={{ fontSize: 'clamp(2.4rem, 10vw, 6rem)' }}>
+                {artist.name}
+              </h2>
+            )}
             <p className="text-xs tracking-[0.24em] uppercase mt-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
               {artist.role}
             </p>
@@ -538,7 +553,7 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
 
         {/* Show more footer */}
         {hasMore && (
-          <div className="px-4 sm:px-8 py-6 sm:py-8 mt-4">
+          <div className="px-4 sm:px-8 py-6 sm:py-8 mt-4 flex justify-center">
             <button
               onClick={() => setVisibleCount(v => v + ARTIST_PAGE_SIZE)}
               className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full font-black text-sm uppercase tracking-[0.18em] transition-all duration-200 hover:scale-[1.03] active:scale-95"
