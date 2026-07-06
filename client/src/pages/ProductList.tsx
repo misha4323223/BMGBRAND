@@ -819,7 +819,7 @@ function MerchArtistSection() {
                       /* NO transform in base transition — added dynamically via JS */
                       transition: 'box-shadow 0.35s ease',
                       boxShadow: isHovered
-                        ? `0 0 0 1.5px ${artist.accent}90, 0 24px 70px ${artist.accent}28, 0 10px 40px rgba(0,0,0,0.7)`
+                        ? `0 0 0 1.5px rgba(255,255,255,0.28), 0 24px 70px rgba(0,0,0,0.45), 0 10px 40px rgba(0,0,0,0.7)`
                         : '0 6px 28px rgba(0,0,0,0.55)',
                       willChange: 'transform',
                     }}
@@ -851,10 +851,10 @@ function MerchArtistSection() {
                       className="absolute top-0 inset-x-0 rounded-t-[18px]"
                       style={{
                         height: isHovered ? '4px' : '3px',
-                        background: artist.accent,
+                        background: 'rgba(255,255,255,0.85)',
                         transition: 'height 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease',
-                        opacity: isHovered ? 1 : 0.7,
-                        boxShadow: isHovered ? `0 0 14px ${artist.accent}90` : 'none',
+                        opacity: isHovered ? 1 : 0.5,
+                        boxShadow: isHovered ? `0 0 10px rgba(255,255,255,0.35)` : 'none',
                       }}
                     />
 
@@ -867,8 +867,8 @@ function MerchArtistSection() {
                     {/* Corner bracket — top right */}
                     <div className="absolute top-3 right-3" style={{
                       width: 20, height: 20,
-                      borderTop: `1.5px solid ${artist.accent}`,
-                      borderRight: `1.5px solid ${artist.accent}`,
+                      borderTop: `1.5px solid rgba(255,255,255,0.55)`,
+                      borderRight: `1.5px solid rgba(255,255,255,0.55)`,
                       borderRadius: '0 4px 0 0',
                       opacity: isHovered ? 0.85 : 0.25,
                       transition: 'opacity 0.3s ease',
@@ -876,8 +876,8 @@ function MerchArtistSection() {
                     {/* Corner bracket — bottom left */}
                     <div className="absolute bottom-[86px] left-3" style={{
                       width: 20, height: 20,
-                      borderBottom: `1.5px solid ${artist.accent}`,
-                      borderLeft: `1.5px solid ${artist.accent}`,
+                      borderBottom: `1.5px solid rgba(255,255,255,0.55)`,
+                      borderLeft: `1.5px solid rgba(255,255,255,0.55)`,
                       borderRadius: '0 0 0 4px',
                       opacity: isHovered ? 0.85 : 0.25,
                       transition: 'opacity 0.3s ease',
@@ -889,7 +889,7 @@ function MerchArtistSection() {
                       transform: isHovered ? 'translateY(0)' : 'translateY(3px)',
                     }}>
                       <p className="font-mono uppercase leading-none mb-2" style={{
-                        fontSize: 8, letterSpacing: '0.3em', color: artist.accent, opacity: 0.9,
+                        fontSize: 8, letterSpacing: '0.3em', color: 'rgba(255,255,255,0.65)', opacity: 0.9,
                       }}>
                         × BOOOMERANGS
                       </p>
