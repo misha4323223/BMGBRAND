@@ -455,35 +455,41 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
       {/* Content */}
       <div className="relative z-10 flex flex-col h-full overflow-y-auto">
         {/* Header */}
-        <div className="flex items-start justify-between px-4 sm:px-8 pt-6 sm:pt-10 pb-4">
+        <div className="relative flex flex-col items-center px-4 sm:px-8 pt-6 sm:pt-10 pb-4">
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.1 }}
+            className="flex flex-col items-center text-center"
           >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-black leading-none" style={{ color: artist.accent, fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>×</span>
-              <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-8 sm:h-10 w-auto object-contain" />
-            </div>
-            {artistLogoUrl ? (
+            <div className="flex items-center justify-center gap-3 sm:gap-4">
               <img
-                src={artistLogoUrl}
-                alt={artist.name}
-                className="object-contain object-left"
-                style={{ maxHeight: 'clamp(3.5rem, 11vw, 6.5rem)', maxWidth: '80vw' }}
+                src="/images/boomerangs-logo.webp"
+                alt="Booomerangs"
+                className="object-contain"
+                style={{ maxHeight: 'clamp(3rem, 9vw, 5.5rem)', maxWidth: '32vw' }}
               />
-            ) : (
-              <h2 className="font-black text-white leading-none tracking-tighter" style={{ fontSize: 'clamp(2.4rem, 10vw, 6rem)' }}>
-                {artist.name}
-              </h2>
-            )}
-            <p className="text-xs tracking-[0.24em] uppercase mt-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              <span className="font-black leading-none" style={{ color: artist.accent, fontSize: 'clamp(1.6rem, 5vw, 3rem)' }}>×</span>
+              {artistLogoUrl ? (
+                <img
+                  src={artistLogoUrl}
+                  alt={artist.name}
+                  className="object-contain"
+                  style={{ maxHeight: 'clamp(3rem, 9vw, 5.5rem)', maxWidth: '32vw' }}
+                />
+              ) : (
+                <h2 className="font-black text-white leading-none tracking-tighter" style={{ fontSize: 'clamp(1.8rem, 7vw, 4rem)' }}>
+                  {artist.name}
+                </h2>
+              )}
+            </div>
+            <p className="text-xs tracking-[0.24em] uppercase mt-3" style={{ color: 'rgba(255,255,255,0.45)' }}>
               {artist.role}
             </p>
           </motion.div>
           <button
             onClick={onClose}
-            className="ml-4 mt-1 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+            className="absolute right-4 sm:right-8 top-6 sm:top-10 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
             style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}
             aria-label="Закрыть"
           >
