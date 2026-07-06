@@ -290,9 +290,6 @@ function MerchNavbar() {
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <p className="text-[13px] font-semibold truncate leading-tight">{artist.name}</p>
-                        <p className="text-[10px] mt-0.5 opacity-30 tabular-nums">
-                          {artist.tracks.length} {artist.tracks.length === 1 ? "трек" : artist.tracks.length < 5 ? "трека" : "треков"}
-                        </p>
                       </div>
                       {/* Active bars */}
                       {hasActive && (
@@ -378,7 +375,7 @@ function MerchNavbar() {
 
             {/* Panel footer */}
             <div className="px-4 py-3 relative" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-              <p className="text-[8px] text-center font-bold tracking-[0.4em] uppercase" style={{ color: "rgba(255,255,255,0.1)" }}>
+              <p className="text-[8px] text-center font-bold tracking-[0.4em] uppercase" style={{ color: "rgba(255,255,255,0.7)" }}>
                 BOOOMERANGS × ARTIST COLLABS
               </p>
             </div>
