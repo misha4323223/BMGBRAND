@@ -584,6 +584,10 @@ function MerchArtistSection() {
   const cardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const imgRefs = useRef<Record<string, HTMLImageElement | null>>({});
 
+  // Drag-to-scroll refs
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef({ active: false, startX: 0, scrollLeft: 0, moved: false });
+
   const artistCards = useMemo(() => {
     const items: any[] = homeSettings?.artists?.items || [];
     return items
@@ -598,24 +602,72 @@ function MerchArtistSection() {
       }));
   }, [homeSettings]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLButtonElement>, slug: string) => {
+  /* ── 3D tilt: no CSS transition on transform during move ── */
+  const handleCardMouseMove = useCallback((e: React.MouseEvent<HTMLButtonElement>, slug: string) => {
     const card = cardRefs.current[slug];
     if (!card) return;
+    // Disable transform-transition while mouse is moving to prevent jitter
+    card.style.transition = 'box-shadow 0.35s ease';
     const rect = card.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
-    card.style.transform = `perspective(700px) rotateY(${x * 14}deg) rotateX(${-y * 10}deg) scale(1.045) translateZ(0)`;
+    card.style.transform = `perspective(700px) rotateY(${x * 12}deg) rotateX(${-y * 8}deg) scale(1.04) translateZ(0)`;
     const img = imgRefs.current[slug];
-    if (img) img.style.transform = `scale(1.1) translate(${x * -6}px, ${y * -4}px)`;
+    if (img) {
+      img.style.transition = 'none';
+      img.style.transform = `scale(1.1) translate(${x * -5}px, ${y * -3}px)`;
+    }
   }, []);
 
-  const handleMouseLeave = useCallback((slug: string) => {
+  const handleCardMouseEnter = useCallback((slug: string) => {
+    setHoveredSlug(slug);
+  }, []);
+
+  const handleCardMouseLeave = useCallback((slug: string) => {
     const card = cardRefs.current[slug];
-    if (card) card.style.transform = 'perspective(700px) rotateY(0deg) rotateX(0deg) scale(1) translateZ(0)';
+    if (card) {
+      // Re-enable transition for smooth spring-back
+      card.style.transition = 'transform 0.55s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s ease';
+      card.style.transform = 'perspective(700px) rotateY(0deg) rotateX(0deg) scale(1) translateZ(0)';
+    }
     const img = imgRefs.current[slug];
-    if (img) img.style.transform = 'scale(1) translate(0px, 0px)';
+    if (img) {
+      img.style.transition = 'transform 0.55s cubic-bezier(0.16,1,0.3,1)';
+      img.style.transform = 'scale(1) translate(0px, 0px)';
+    }
     setHoveredSlug(null);
   }, []);
+
+  /* ── Drag-to-scroll (desktop) ── */
+  const onScrollMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    dragState.current = { active: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft, moved: false };
+    el.style.cursor = 'grabbing';
+    el.style.userSelect = 'none';
+  }, []);
+
+  const onScrollMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!dragState.current.active || !scrollRef.current) return;
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - dragState.current.startX) * 1.4;
+    if (Math.abs(walk) > 4) dragState.current.moved = true;
+    scrollRef.current.scrollLeft = dragState.current.scrollLeft - walk;
+  }, []);
+
+  const onScrollMouseUp = useCallback(() => {
+    dragState.current.active = false;
+    if (scrollRef.current) {
+      scrollRef.current.style.cursor = 'grab';
+      scrollRef.current.style.userSelect = '';
+    }
+  }, []);
+
+  const handleCardClick = useCallback((artist: typeof artistCards[0]) => {
+    // Don't open modal if the user was dragging
+    if (dragState.current.moved) { dragState.current.moved = false; return; }
+    setSelectedArtist(artist);
+  }, [artistCards]);
 
   return (
     <>
@@ -647,21 +699,26 @@ function MerchArtistSection() {
         </span>
       </motion.div>
 
-      {/* Cards scroll container with fade masks */}
+      {/* Cards scroll container */}
       <div className="relative">
-        {/* Right fade */}
+        {/* Right edge fade */}
         <div
-          className="absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none"
-          style={{ background: 'linear-gradient(to left, #090909, transparent)' }}
+          className="absolute right-0 top-0 bottom-4 w-20 z-10 pointer-events-none"
+          style={{ background: 'linear-gradient(to left, #090909 30%, transparent)' }}
         />
 
         <div
+          ref={scrollRef}
           className="overflow-x-auto scrollbar-none"
-          style={{ WebkitOverflowScrolling: 'touch' }}
+          style={{ WebkitOverflowScrolling: 'touch', cursor: 'grab', scrollSnapType: 'x proximity' }}
+          onMouseDown={onScrollMouseDown}
+          onMouseMove={onScrollMouseMove}
+          onMouseUp={onScrollMouseUp}
+          onMouseLeave={onScrollMouseUp}
         >
           <motion.div
             className="flex px-4 sm:px-6 lg:px-12 pb-4"
-            style={{ width: 'max-content', gap: 'clamp(12px, 2vw, 20px)' }}
+            style={{ width: 'max-content', gap: 'clamp(12px, 2vw, 18px)' }}
             initial="hidden"
             animate="show"
             variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } } }}
@@ -676,22 +733,23 @@ function MerchArtistSection() {
                     show:  { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
                   }}
                   className="flex-shrink-0"
-                  style={{ transformStyle: 'preserve-3d' }}
+                  style={{ scrollSnapAlign: 'start' }}
                 >
                   <button
                     ref={el => { cardRefs.current[artist.slug] = el; }}
                     type="button"
-                    onClick={() => setSelectedArtist(artist)}
-                    onMouseMove={(e) => handleMouseMove(e, artist.slug)}
-                    onMouseEnter={() => setHoveredSlug(artist.slug)}
-                    onMouseLeave={() => handleMouseLeave(artist.slug)}
+                    onClick={() => handleCardClick(artist)}
+                    onMouseMove={(e) => handleCardMouseMove(e, artist.slug)}
+                    onMouseEnter={() => handleCardMouseEnter(artist.slug)}
+                    onMouseLeave={() => handleCardMouseLeave(artist.slug)}
                     className="block relative overflow-hidden focus:outline-none"
                     style={{
                       width: 'clamp(190px, 28vw, 265px)',
                       aspectRatio: '2/3',
                       borderRadius: '18px',
                       cursor: 'pointer',
-                      transition: 'transform 0.18s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s ease',
+                      /* NO transform in base transition — added dynamically via JS */
+                      transition: 'box-shadow 0.35s ease',
                       boxShadow: isHovered
                         ? `0 0 0 1.5px ${artist.accent}90, 0 24px 70px ${artist.accent}28, 0 10px 40px rgba(0,0,0,0.7)`
                         : '0 6px 28px rgba(0,0,0,0.55)',
@@ -710,25 +768,25 @@ function MerchArtistSection() {
                       className="absolute inset-0 w-full h-full object-cover"
                       style={{
                         objectPosition: 'center 15%',
-                        transition: 'transform 0.55s cubic-bezier(0.16,1,0.3,1)',
                         willChange: 'transform',
+                        pointerEvents: 'none',
                       }}
                     />
 
-                    {/* Gradient: heavy bottom, light top */}
+                    {/* Gradient */}
                     <div className="absolute inset-0" style={{
                       background: 'linear-gradient(to top, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.42) 42%, rgba(0,0,0,0.06) 100%)',
                     }} />
 
-                    {/* Top accent bar — thicker on hover */}
+                    {/* Top accent bar */}
                     <div
                       className="absolute top-0 inset-x-0 rounded-t-[18px]"
                       style={{
                         height: isHovered ? '4px' : '3px',
                         background: artist.accent,
-                        transition: 'height 0.25s ease, opacity 0.25s ease',
-                        opacity: isHovered ? 1 : 0.75,
-                        boxShadow: isHovered ? `0 0 12px ${artist.accent}80` : 'none',
+                        transition: 'height 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease',
+                        opacity: isHovered ? 1 : 0.7,
+                        boxShadow: isHovered ? `0 0 14px ${artist.accent}90` : 'none',
                       }}
                     />
 
@@ -738,72 +796,49 @@ function MerchArtistSection() {
                       opacity: 0.03,
                     }} />
 
-                    {/* Corner accent — top right */}
-                    <div
-                      className="absolute top-3 right-3"
-                      style={{
-                        width: 22, height: 22,
-                        borderTop: `1.5px solid ${artist.accent}`,
-                        borderRight: `1.5px solid ${artist.accent}`,
-                        borderRadius: '0 4px 0 0',
-                        opacity: isHovered ? 0.9 : 0.3,
-                        transition: 'opacity 0.3s ease',
-                      }}
-                    />
-                    {/* Corner accent — bottom left */}
-                    <div
-                      className="absolute bottom-[88px] left-3"
-                      style={{
-                        width: 22, height: 22,
-                        borderBottom: `1.5px solid ${artist.accent}`,
-                        borderLeft: `1.5px solid ${artist.accent}`,
-                        borderRadius: '0 0 0 4px',
-                        opacity: isHovered ? 0.9 : 0.3,
-                        transition: 'opacity 0.3s ease',
-                      }}
-                    />
+                    {/* Corner bracket — top right */}
+                    <div className="absolute top-3 right-3" style={{
+                      width: 20, height: 20,
+                      borderTop: `1.5px solid ${artist.accent}`,
+                      borderRight: `1.5px solid ${artist.accent}`,
+                      borderRadius: '0 4px 0 0',
+                      opacity: isHovered ? 0.85 : 0.25,
+                      transition: 'opacity 0.3s ease',
+                    }} />
+                    {/* Corner bracket — bottom left */}
+                    <div className="absolute bottom-[86px] left-3" style={{
+                      width: 20, height: 20,
+                      borderBottom: `1.5px solid ${artist.accent}`,
+                      borderLeft: `1.5px solid ${artist.accent}`,
+                      borderRadius: '0 0 0 4px',
+                      opacity: isHovered ? 0.85 : 0.25,
+                      transition: 'opacity 0.3s ease',
+                    }} />
 
-                    {/* Info block */}
-                    <div
-                      className="absolute bottom-0 left-0 right-0 p-4"
-                      style={{
-                        transition: 'transform 0.3s cubic-bezier(0.16,1,0.3,1)',
-                        transform: isHovered ? 'translateY(0)' : 'translateY(3px)',
-                      }}
-                    >
-                      <p
-                        className="font-mono uppercase leading-none mb-2"
-                        style={{
-                          fontSize: 8,
-                          letterSpacing: '0.3em',
-                          color: artist.accent,
-                          opacity: 0.9,
-                        }}
-                      >
+                    {/* Info */}
+                    <div className="absolute bottom-0 left-0 right-0 p-4" style={{
+                      transition: 'transform 0.3s cubic-bezier(0.16,1,0.3,1)',
+                      transform: isHovered ? 'translateY(0)' : 'translateY(3px)',
+                    }}>
+                      <p className="font-mono uppercase leading-none mb-2" style={{
+                        fontSize: 8, letterSpacing: '0.3em', color: artist.accent, opacity: 0.9,
+                      }}>
                         × BOOOMERANGS
                       </p>
-                      <h3
-                        className="font-black text-white leading-tight"
-                        style={{ fontSize: 'clamp(15px, 3.8vw, 22px)' }}
-                      >
+                      <h3 className="font-black text-white leading-tight" style={{ fontSize: 'clamp(15px, 3.8vw, 22px)' }}>
                         {artist.name}
                       </h3>
-                      {/* "СМОТРЕТЬ" — slides in on hover */}
-                      <div
-                        style={{
-                          overflow: 'hidden',
-                          maxHeight: isHovered ? '24px' : '0px',
-                          opacity: isHovered ? 1 : 0,
-                          transition: 'max-height 0.3s ease, opacity 0.3s ease',
-                          marginTop: isHovered ? '8px' : 0,
-                        }}
-                      >
-                        <span
-                          className="inline-flex items-center gap-1.5"
-                          style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.2em' }}
-                        >
-                          СМОТРЕТЬ КОЛЛЕКЦИЮ
-                          <ArrowRight style={{ width: 9, height: 9 }} />
+                      <div style={{
+                        overflow: 'hidden',
+                        maxHeight: isHovered ? '24px' : '0px',
+                        opacity: isHovered ? 1 : 0,
+                        transition: 'max-height 0.3s ease, opacity 0.25s ease',
+                        marginTop: isHovered ? '8px' : 0,
+                      }}>
+                        <span className="inline-flex items-center gap-1.5" style={{
+                          fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.2em',
+                        }}>
+                          СМОТРЕТЬ КОЛЛЕКЦИЮ <ArrowRight style={{ width: 9, height: 9 }} />
                         </span>
                       </div>
                     </div>
