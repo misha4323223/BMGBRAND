@@ -461,9 +461,10 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.45, delay: 0.1 }}
           >
-            <p className="text-[9px] font-mono tracking-[0.32em] uppercase mb-2" style={{ color: artist.accent, opacity: 0.9 }}>
-              × BOOOMERANGS COLLAB
-            </p>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="font-black leading-none" style={{ color: artist.accent, fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>×</span>
+              <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-8 sm:h-10 w-auto object-contain" />
+            </div>
             {artistLogoUrl ? (
               <img
                 src={artistLogoUrl}
