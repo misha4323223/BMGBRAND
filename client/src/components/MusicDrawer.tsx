@@ -38,17 +38,16 @@ export function MusicDrawer({ open, onClose }: MusicDrawerProps) {
     retry: 1,
   });
 
-  const { data: homeData, isLoading: homeLoading } = useQuery<{ artists?: { items?: HomeArtist[] } }>({
-    queryKey: ["/api/home-settings"],
+  const { data: homeData, isLoading: homeLoading } = useQuery<any>({
+    queryKey: ["/api/page-settings/home"],
     staleTime: 10 * 60 * 1000,
     retry: 1,
-    select: (d: any) => ({ artists: d?.artists }),
   });
 
   const isLoading = tracksLoading && homeLoading;
 
   const trackArtists = tracksData?.artists || [];
-  const homeArtists: HomeArtist[] = homeData?.artists?.items || [];
+  const homeArtists: HomeArtist[] = (homeData?.artists?.items as HomeArtist[]) || [];
 
   const mergedArtists = useMemo(() => {
     const trackMap = new Map(trackArtists.map(a => [a.slug, a]));
