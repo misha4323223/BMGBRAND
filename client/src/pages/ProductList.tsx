@@ -374,15 +374,18 @@ function optimizeArtistImg(url: string): string {
   return url;
 }
 
-function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: string; image: string; slug: string; accent: string }; onClose: () => void }) {
+function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: string; image: string; slug: string; link: string; accent: string }; onClose: () => void }) {
   const { data: products, isLoading } = useQuery<any[]>({
-    queryKey: ['/api/products', 'merch-overlay', artist.name],
+    queryKey: ['/api/products/by-artist', artist.slug],
     queryFn: async () => {
-      const res = await fetch(`/api/products?subcategory=${encodeURIComponent(artist.name)}&limit=8`);
+      if (!artist.slug) return [];
+      const res = await fetch(`/api/products/by-artist/${encodeURIComponent(artist.slug)}`);
       if (!res.ok) return [];
       const data = await res.json();
-      return data.products ?? data ?? [];
+      const list = data.products ?? data ?? [];
+      return list.slice(0, 8);
     },
+    enabled: !!artist.slug,
     staleTime: 2 * 60 * 1000,
   });
 
@@ -516,7 +519,7 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
         {/* CTA footer */}
         <div className="px-4 sm:px-8 py-6 sm:py-8 mt-4">
           <Link
-            href={artist.slug ? `/${artist.slug}` : '/products/merch'}
+            href={artist.link || (artist.slug ? `/@${artist.slug}` : '/products/merch')}
             onClick={onClose}
             className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full font-black text-sm uppercase tracking-[0.18em] transition-all duration-200 hover:scale-[1.03] active:scale-95"
             style={{ background: artist.accent, color: '#000' }}
@@ -535,7 +538,7 @@ function MerchBanner() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const [selectedArtist, setSelectedArtist] = useState<null | { name: string; role: string; image: string; slug: string; accent: string }>(null);
+  const [selectedArtist, setSelectedArtist] = useState<null | { name: string; role: string; image: string; slug: string; link: string; accent: string }>(null);
 
   const artistCards = useMemo(() => {
     const items: any[] = homeSettings?.artists?.items || [];
@@ -546,6 +549,7 @@ function MerchBanner() {
         role:   a.role   || 'Коллаборация',
         image:  optimizeArtistImg(a.image),
         slug:   a.slug   || '',
+        link:   a.link && a.link.startsWith('/') ? a.link : (a.slug ? `/@${a.slug}` : ''),
         accent: MERCH_COLLAB_THEMES[a.slug]?.accent ?? 'rgba(255,255,255,0.38)',
       }));
   }, [homeSettings]);
@@ -973,11 +977,6 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   });
   const categories = useMemo(() => normalizeCategories(dynamicCategories || CATEGORIES), [dynamicCategories]);
 
-  const artistList = useMemo(() => {
-    const merchSubs: Array<{name: string; slug: string}> = (categories["merch"] as any)?.subcategories || [];
-    return merchSubs.filter(s => s.slug !== "jdm");
-  }, [categories]);
-
   const pathCatSlug = catSubParams?.catSlug || catOnlyParams?.catSlug || null;
   const pathSubSlug = catSubParams?.subSlug || null;
 
@@ -1354,48 +1353,6 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
             </Button>
           </div>
         </div>
-
-        {/* ── Collab cards grid — main merch page only ── */}
-        {isMerch && !subcategoryParam && artistList.length > 0 && (
-          <div className="px-4 sm:px-6 lg:px-8 max-w-8xl mx-auto mb-10">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-5 h-px bg-white/20 shrink-0" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.38em] text-white/30">Коллаборации</span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-              {artistList.map(({ slug, name }) => {
-                const ct = MERCH_COLLAB_THEMES[slug];
-                const accentColor = ct ? ct.accent : 'rgba(255,255,255,0.45)';
-                const tagline = ct?.tagline || 'Коллаборация';
-                return (
-                  <button
-                    key={slug}
-                    onClick={() => navigate(`/${slug}`, true)}
-                    data-testid={`button-collab-${slug}`}
-                    className="group relative flex flex-col items-start p-3.5 sm:p-4 rounded-xl text-left overflow-hidden transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.075)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; }}
-                  >
-                    {/* Top accent line */}
-                    <div className="absolute top-0 inset-x-0 h-[2px] rounded-t-xl" style={{ background: accentColor, opacity: 0.85 }} />
-                    <span className="text-[9px] font-bold uppercase tracking-[0.28em] mb-2 mt-0.5" style={{ color: accentColor, opacity: 0.75 }}>
-                      × BOOOMERANGS
-                    </span>
-                    <span className="text-sm sm:text-[15px] font-black text-white leading-tight mb-1.5">{name}</span>
-                    <span className="text-[10px] text-white/35 uppercase tracking-wider mb-3 leading-tight">{tagline}</span>
-                    <div
-                      className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] transition-all duration-200 group-hover:gap-1.5"
-                      style={{ color: accentColor, opacity: 0.75 }}
-                    >
-                      Смотреть <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         <div className="flex relative">
           {/* Mobile sidebar overlay */}
