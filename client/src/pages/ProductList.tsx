@@ -115,7 +115,7 @@ function MerchNavbar() {
         <button
           ref={musicBtnRef}
           onClick={() => setMusicOpen(v => !v)}
-          className="flex-1 min-w-0 max-w-[160px] sm:max-w-sm mx-auto flex items-center gap-1 sm:gap-2.5 rounded-xl sm:rounded-2xl transition-all duration-300"
+          className="flex-1 min-w-0 max-w-[135px] sm:max-w-sm mx-auto flex items-center gap-1 sm:gap-2.5 rounded-xl sm:rounded-2xl transition-all duration-300"
           style={{
             background: musicOpen ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.055)",
             border: musicOpen ? "1px solid rgba(255,255,255,0.22)" : "1px solid rgba(255,255,255,0.09)",
