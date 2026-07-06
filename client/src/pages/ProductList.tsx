@@ -501,7 +501,7 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
                     <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3">
                       <p className="text-[10px] sm:text-xs font-black text-white leading-tight line-clamp-2 mb-1">{product.name}</p>
                       <p className="font-black text-white" style={{ fontSize: 'clamp(12px, 3vw, 15px)', color: artist.accent }}>
-                        {product.price ? `${Number(product.price).toLocaleString('ru-RU')} ₽` : ''}
+                        {product.price ? `${Math.round(Number(product.price) / 100).toLocaleString('ru-RU')} ₽` : ''}
                       </p>
                     </div>
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
