@@ -160,11 +160,6 @@ function MerchNavbar() {
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-white/45 leading-tight truncate">Музыка</p>
-                <p className="text-[9px] text-white/22 mt-0.5">
-                  {artists.length > 0
-                    ? `${artists.length} исполнител${artists.length === 1 ? "ь" : "я"}`
-                    : "Загрузка…"}
-                </p>
               </div>
               <ChevronDown
                 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/22 flex-shrink-0 transition-transform duration-200"
