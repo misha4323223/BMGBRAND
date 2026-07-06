@@ -957,6 +957,8 @@ export function Navbar() {
         </Suspense>
       )}
     </nav>
+    {/* MusicDrawer MUST stay outside <nav>: nav has CSS transform + backdrop-filter which
+        create a new containing block for position:fixed children, breaking viewport anchoring */}
     <MusicDrawer open={isMusicDrawerOpen} onClose={() => setIsMusicDrawerOpen(false)} />
     {searchEverOpened && (
       <Suspense fallback={null}>
