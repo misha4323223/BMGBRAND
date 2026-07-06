@@ -573,13 +573,16 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
   );
 }
 
-function MerchBanner() {
+function MerchArtistSection() {
   const { data: homeSettings } = useQuery<any>({
     queryKey: ["/api/page-settings/home"],
     staleTime: 5 * 60 * 1000,
   });
 
   const [selectedArtist, setSelectedArtist] = useState<null | { name: string; role: string; image: string; slug: string; link: string; accent: string }>(null);
+  const [hoveredSlug, setHoveredSlug] = useState<string | null>(null);
+  const cardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const imgRefs = useRef<Record<string, HTMLImageElement | null>>({});
 
   const artistCards = useMemo(() => {
     const items: any[] = homeSettings?.artists?.items || [];
@@ -595,136 +598,225 @@ function MerchBanner() {
       }));
   }, [homeSettings]);
 
-  const hasCards = artistCards.length > 0;
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLButtonElement>, slug: string) => {
+    const card = cardRefs.current[slug];
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    card.style.transform = `perspective(700px) rotateY(${x * 14}deg) rotateX(${-y * 10}deg) scale(1.045) translateZ(0)`;
+    const img = imgRefs.current[slug];
+    if (img) img.style.transform = `scale(1.1) translate(${x * -6}px, ${y * -4}px)`;
+  }, []);
+
+  const handleMouseLeave = useCallback((slug: string) => {
+    const card = cardRefs.current[slug];
+    if (card) card.style.transform = 'perspective(700px) rotateY(0deg) rotateX(0deg) scale(1) translateZ(0)';
+    const img = imgRefs.current[slug];
+    if (img) img.style.transform = 'scale(1) translate(0px, 0px)';
+    setHoveredSlug(null);
+  }, []);
 
   return (
     <>
-    <div className="relative w-full overflow-hidden" style={{ minHeight: hasCards ? '62vh' : '58vh' }}>
-      {/* Base bg */}
-      <div className="absolute inset-0 bg-zinc-950" />
-      {/* Grid */}
-      <div className="absolute inset-0" style={{
-        backgroundImage: `linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-                          linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)`,
-        backgroundSize: '60px 60px',
-      }} />
-      {/* Ambient glow */}
-      <div className="absolute -top-16 -left-16 w-[55vw] h-[55vw] pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at top left, rgba(255,255,255,0.038) 0%, transparent 65%)',
-      }} />
-      {/* Watermark */}
-      <div className="absolute inset-0 flex items-center justify-end pr-2 sm:pr-10 select-none pointer-events-none overflow-hidden">
-        <span className="font-black text-white leading-none" style={{ opacity: 0.05, fontSize: 'clamp(120px, 36vw, 460px)' }}>
-          МЕРЧ
+    <div
+      className="relative w-full"
+      style={{ background: '#090909', paddingTop: '72px', paddingBottom: '36px' }}
+    >
+      {/* Film grain overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          opacity: 0.025,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '300px 300px',
+        }}
+      />
+
+      {/* Section label */}
+      <motion.div
+        className="px-4 sm:px-6 lg:px-12 mb-7 flex items-center gap-3"
+        initial={{ opacity: 0, x: -12 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="w-5 h-px shrink-0" style={{ background: 'rgba(255,255,255,0.28)' }} />
+        <span className="text-[9px] font-bold tracking-[0.45em] uppercase" style={{ color: 'rgba(255,255,255,0.38)' }}>
+          BOOOMERANGS × ARTIST COLLABS
         </span>
-      </div>
-      {/* Bottom fade */}
-      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-zinc-950 to-transparent" />
+      </motion.div>
 
-      {/* Content */}
-      <div className="relative z-10 pt-28 sm:pt-36 pb-6">
-        {/* Label row — shown only when no artist cards */}
-        {!hasCards && (
-          <motion.div
-            className="px-4 sm:px-6 lg:px-12"
-            initial={{ opacity: 0, x: -16 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-6 h-px shrink-0" style={{ background: 'rgba(255,255,255,0.45)' }} />
-              <span className="text-[10px] tracking-[0.4em] uppercase font-semibold" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                BOOOMERANGS × ARTIST COLLABS
-              </span>
-            </div>
-            <p
-              className="text-xs sm:text-sm tracking-[0.28em] uppercase font-medium"
-              style={{ color: 'rgba(255,255,255,0.42)' }}
-            >
-              Официальные коллаборации с артистами
-            </p>
-          </motion.div>
-        )}
+      {/* Cards scroll container with fade masks */}
+      <div className="relative">
+        {/* Right fade */}
+        <div
+          className="absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none"
+          style={{ background: 'linear-gradient(to left, #090909, transparent)' }}
+        />
 
-        {/* ── Horizontal artist photo cards ───────────────────────────── */}
-        {hasCards && (
+        <div
+          className="overflow-x-auto scrollbar-none"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           <motion.div
-            className="mt-5 overflow-x-auto scrollbar-none"
-            style={{ WebkitOverflowScrolling: 'touch' }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.35 }}
+            className="flex px-4 sm:px-6 lg:px-12 pb-4"
+            style={{ width: 'max-content', gap: 'clamp(12px, 2vw, 20px)' }}
+            initial="hidden"
+            animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } } }}
           >
-            <motion.div
-              className="flex gap-3 px-4 sm:px-6 lg:px-12 pb-3"
-              style={{ width: 'max-content' }}
-              initial="hidden"
-              animate="show"
-              variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08, delayChildren: 0.3 } } }}
-            >
-              {artistCards.map((artist) => (
+            {artistCards.map((artist) => {
+              const isHovered = hoveredSlug === artist.slug;
+              return (
                 <motion.div
                   key={artist.slug || artist.name}
                   variants={{
-                    hidden: { opacity: 0, y: 28, scale: 0.94 },
-                    show:  { opacity: 1, y: 0,  scale: 1, transition: { duration: 0.52, ease: [0.16, 1, 0.3, 1] } },
+                    hidden: { opacity: 0, y: 36, scale: 0.92 },
+                    show:  { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
                   }}
                   className="flex-shrink-0"
+                  style={{ transformStyle: 'preserve-3d' }}
                 >
                   <button
+                    ref={el => { cardRefs.current[artist.slug] = el; }}
                     type="button"
                     onClick={() => setSelectedArtist(artist)}
-                    className="block group relative overflow-hidden rounded-xl cursor-pointer focus:outline-none"
-                    style={{ width: 'clamp(118px, 28vw, 158px)', aspectRatio: '3/5' }}
+                    onMouseMove={(e) => handleMouseMove(e, artist.slug)}
+                    onMouseEnter={() => setHoveredSlug(artist.slug)}
+                    onMouseLeave={() => handleMouseLeave(artist.slug)}
+                    className="block relative overflow-hidden focus:outline-none"
+                    style={{
+                      width: 'clamp(190px, 28vw, 265px)',
+                      aspectRatio: '2/3',
+                      borderRadius: '18px',
+                      cursor: 'pointer',
+                      transition: 'transform 0.18s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s ease',
+                      boxShadow: isHovered
+                        ? `0 0 0 1.5px ${artist.accent}90, 0 24px 70px ${artist.accent}28, 0 10px 40px rgba(0,0,0,0.7)`
+                        : '0 6px 28px rgba(0,0,0,0.55)',
+                      willChange: 'transform',
+                    }}
                     aria-label={`Открыть коллекцию ${artist.name}`}
+                    data-testid={`button-artist-card-${artist.slug}`}
                   >
                     {/* Photo */}
                     <img
+                      ref={el => { imgRefs.current[artist.slug] = el; }}
                       src={artist.image}
                       alt={artist.name}
                       loading="lazy"
                       decoding="async"
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
-                      style={{ objectPosition: 'center 15%' }}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      style={{
+                        objectPosition: 'center 15%',
+                        transition: 'transform 0.55s cubic-bezier(0.16,1,0.3,1)',
+                        willChange: 'transform',
+                      }}
                     />
-                    {/* Gradient overlay — heavier at bottom */}
+
+                    {/* Gradient: heavy bottom, light top */}
                     <div className="absolute inset-0" style={{
-                      background: 'linear-gradient(to top, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.35) 48%, rgba(0,0,0,0.08) 100%)',
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.42) 42%, rgba(0,0,0,0.06) 100%)',
                     }} />
-                    {/* Top accent bar */}
-                    <div className="absolute top-0 inset-x-0 h-[2.5px] rounded-t-xl" style={{ background: artist.accent }} />
-                    {/* Scanline grain (subtle) */}
-                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{
-                      backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 1px, transparent 1px, transparent 3px)',
+
+                    {/* Top accent bar — thicker on hover */}
+                    <div
+                      className="absolute top-0 inset-x-0 rounded-t-[18px]"
+                      style={{
+                        height: isHovered ? '4px' : '3px',
+                        background: artist.accent,
+                        transition: 'height 0.25s ease, opacity 0.25s ease',
+                        opacity: isHovered ? 1 : 0.75,
+                        boxShadow: isHovered ? `0 0 12px ${artist.accent}80` : 'none',
+                      }}
+                    />
+
+                    {/* Scanlines */}
+                    <div className="absolute inset-0 pointer-events-none" style={{
+                      backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 1px, transparent 1px, transparent 4px)',
+                      opacity: 0.03,
                     }} />
-                    {/* Info */}
-                    <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-[2px] group-hover:translate-y-0 transition-transform duration-300">
+
+                    {/* Corner accent — top right */}
+                    <div
+                      className="absolute top-3 right-3"
+                      style={{
+                        width: 22, height: 22,
+                        borderTop: `1.5px solid ${artist.accent}`,
+                        borderRight: `1.5px solid ${artist.accent}`,
+                        borderRadius: '0 4px 0 0',
+                        opacity: isHovered ? 0.9 : 0.3,
+                        transition: 'opacity 0.3s ease',
+                      }}
+                    />
+                    {/* Corner accent — bottom left */}
+                    <div
+                      className="absolute bottom-[88px] left-3"
+                      style={{
+                        width: 22, height: 22,
+                        borderBottom: `1.5px solid ${artist.accent}`,
+                        borderLeft: `1.5px solid ${artist.accent}`,
+                        borderRadius: '0 0 0 4px',
+                        opacity: isHovered ? 0.9 : 0.3,
+                        transition: 'opacity 0.3s ease',
+                      }}
+                    />
+
+                    {/* Info block */}
+                    <div
+                      className="absolute bottom-0 left-0 right-0 p-4"
+                      style={{
+                        transition: 'transform 0.3s cubic-bezier(0.16,1,0.3,1)',
+                        transform: isHovered ? 'translateY(0)' : 'translateY(3px)',
+                      }}
+                    >
                       <p
-                        className="text-[8px] font-mono tracking-[0.24em] uppercase mb-1.5 leading-none"
-                        style={{ color: artist.accent, opacity: 0.9 }}
+                        className="font-mono uppercase leading-none mb-2"
+                        style={{
+                          fontSize: 8,
+                          letterSpacing: '0.3em',
+                          color: artist.accent,
+                          opacity: 0.9,
+                        }}
                       >
                         × BOOOMERANGS
                       </p>
-                      <h3 className="font-black text-white leading-tight" style={{ fontSize: 'clamp(11px, 3.2vw, 14px)' }}>
+                      <h3
+                        className="font-black text-white leading-tight"
+                        style={{ fontSize: 'clamp(15px, 3.8vw, 22px)' }}
+                      >
                         {artist.name}
                       </h3>
-                      <span
-                        className="inline-flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.18em' }}
+                      {/* "СМОТРЕТЬ" — slides in on hover */}
+                      <div
+                        style={{
+                          overflow: 'hidden',
+                          maxHeight: isHovered ? '24px' : '0px',
+                          opacity: isHovered ? 1 : 0,
+                          transition: 'max-height 0.3s ease, opacity 0.3s ease',
+                          marginTop: isHovered ? '8px' : 0,
+                        }}
                       >
-                        СМОТРЕТЬ <ArrowRight style={{ width: 8, height: 8 }} />
-                      </span>
+                        <span
+                          className="inline-flex items-center gap-1.5"
+                          style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.2em' }}
+                        >
+                          СМОТРЕТЬ КОЛЛЕКЦИЮ
+                          <ArrowRight style={{ width: 9, height: 9 }} />
+                        </span>
+                      </div>
                     </div>
                   </button>
                 </motion.div>
-              ))}
-            </motion.div>
+              );
+            })}
           </motion.div>
-        )}
+        </div>
       </div>
     </div>
 
-    {/* ── Full-screen artist overlay ── */}
+    {/* Artist overlay */}
     <AnimatePresence>
       {selectedArtist && (
         <ArtistOverlay artist={selectedArtist} onClose={() => setSelectedArtist(null)} />
@@ -1338,8 +1430,8 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
       />
       {isMerch ? <MerchNavbar /> : <Navbar />}
 
-      {/* ── Full-bleed hero for main merch page ── */}
-      {isMerch && !subcategoryParam && <MerchBanner />}
+      {/* ── Artist cards for main merch page ── */}
+      {isMerch && !subcategoryParam && <MerchArtistSection />}
       {isMerch && !subcategoryParam && (
         <MerchMarquee
           text="МЕРЧ · КОЛЛАБОРАЦИИ · ОГРАНИЧЕННЫЕ СЕРИИ · BOOOMERANGS"
