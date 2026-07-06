@@ -132,12 +132,13 @@ function MerchNavbar() {
                   ? <img src={currentTrack.coverUrl} alt={currentTrack.title} className="w-full h-full object-cover" />
                   : <div className="w-full h-full flex items-center justify-center"><Music className="w-3.5 h-3.5 text-white/30" /></div>}
               </div>
-              <div className="flex-1 min-w-0 text-left">
+              {/* Title + artist — desktop only */}
+              <div className="hidden sm:flex flex-1 min-w-0 flex-col text-left">
                 <p className="text-[11px] font-bold text-white/90 truncate leading-tight">{currentTrack.title}</p>
                 <p className="text-[9px] text-white/35 truncate mt-0.5">{currentTrack.subtitle || currentTrack.artistSlug}</p>
               </div>
-              {/* Animated sound bars */}
-              <div className="flex items-end gap-[3px] h-4 flex-shrink-0">
+              {/* Animated sound bars — desktop only */}
+              <div className="hidden sm:flex items-end gap-[3px] h-4 flex-shrink-0">
                 {[0, 1, 2].map(i => (
                   <div key={i} className="w-[2.5px] rounded-full bg-white/60" style={{
                     height: isPlaying ? `${9 + i * 3}px` : "3px",
@@ -146,7 +147,6 @@ function MerchNavbar() {
                   }} />
                 ))}
               </div>
-              {/* Chevron hint */}
               <ChevronDown
                 className="w-3.5 h-3.5 text-white/30 flex-shrink-0 transition-transform duration-200"
                 style={{ transform: musicOpen ? "rotate(180deg)" : "rotate(0deg)" }}
@@ -182,7 +182,7 @@ function MerchNavbar() {
             className="sm:hidden relative p-2 rounded-full hover:bg-white/10 transition-colors"
             aria-label="AI чат"
           >
-            <MessageCircle className="text-white/60" style={{ width: 18, height: 18 }} />
+            <BrainCog className="text-white/60" style={{ width: 18, height: 18 }} />
           </button>
           {/* Favorites — desktop only */}
           <Link href="/favorites" className="relative p-2 rounded-full hover:bg-white/10 transition-colors hidden sm:flex" aria-label="Избранное">
