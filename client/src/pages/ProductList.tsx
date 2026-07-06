@@ -217,6 +217,16 @@ function MerchNavbar() {
       {/* ── Music dropdown panel ─────────────────────────────────────────── */}
       <AnimatePresence>
         {musicOpen && (
+          /* Позиционирование вынесено в обычный div, чтобы Framer Motion
+             не перезаписывал transform (он заменяет его своими scale/y) */
+          <div
+            className="fixed z-[99]"
+            style={{
+              top: "68px",
+              left: "max(8px, calc(50vw - 215px))",
+              right: "max(8px, calc(50vw - 215px))",
+            }}
+          >
           <motion.div
             ref={musicPanelRef}
             key="merch-music-panel"
@@ -224,12 +234,8 @@ function MerchNavbar() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.97 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed z-[99] overflow-hidden"
+            className="overflow-hidden w-full"
             style={{
-              top: "68px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: "min(430px, calc(100vw - 16px))",
               background: "#090909",
               border: "1px solid rgba(255,255,255,0.1)",
               borderRadius: "20px",
@@ -376,6 +382,7 @@ function MerchNavbar() {
               </p>
             </div>
           </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
@@ -1812,27 +1819,29 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
               {getTitle()}
             </h1>
           )}
-          <div className="flex items-center gap-3 ml-auto">
-            {pagination && (
-              <span className={`text-sm ${isDarkThemed ? "text-white/60" : isMinta ? "text-[#2e2e2e]/60" : "text-muted-foreground"}`} data-testid="text-product-count">
-                {allProducts.length} из {pagination.total}
-              </span>
-            )}
-            <Button
-              variant="outline"
-              onClick={() => setFiltersOpen(!filtersOpen)}
-              className={`lg:hidden gap-1.5 text-xs ${isDarkThemed ? "border-white/30 text-white bg-white/10 hover:bg-white/20" : isMinta ? "border-[#ffa000]/40 text-[#2e2e2e] bg-[#ffa000]/10 hover:bg-[#ffa000]/20" : ""}`}
-              data-testid="button-toggle-filters-mobile"
-              aria-expanded={filtersOpen}
-              aria-controls="catalog-sidebar"
-            >
-              <PanelLeft className="w-4 h-4" />
-              Категории
-              {activeFilterCount > 0 && (
-                <span className="ml-1 bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{activeFilterCount}</span>
+          {!isMerch && (
+            <div className="flex items-center gap-3 ml-auto">
+              {pagination && (
+                <span className={`text-sm ${isDarkThemed ? "text-white/60" : isMinta ? "text-[#2e2e2e]/60" : "text-muted-foreground"}`} data-testid="text-product-count">
+                  {allProducts.length} из {pagination.total}
+                </span>
               )}
-            </Button>
-          </div>
+              <Button
+                variant="outline"
+                onClick={() => setFiltersOpen(!filtersOpen)}
+                className={`lg:hidden gap-1.5 text-xs ${isDarkThemed ? "border-white/30 text-white bg-white/10 hover:bg-white/20" : isMinta ? "border-[#ffa000]/40 text-[#2e2e2e] bg-[#ffa000]/10 hover:bg-[#ffa000]/20" : ""}`}
+                data-testid="button-toggle-filters-mobile"
+                aria-expanded={filtersOpen}
+                aria-controls="catalog-sidebar"
+              >
+                <PanelLeft className="w-4 h-4" />
+                Категории
+                {activeFilterCount > 0 && (
+                  <span className="ml-1 bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{activeFilterCount}</span>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="flex relative">
