@@ -46,12 +46,10 @@ function MerchNavbar() {
   const artists = tracksData?.artists ?? [];
   const allTracks = artists.flatMap((a: any) => a.tracks);
 
-  // Auto-expand first artist when panel opens
+  // Reset expanded state when panel closes
   useEffect(() => {
-    if (musicOpen && artists.length > 0 && !expandedArtist) {
-      setExpandedArtist(artists[0].slug);
-    }
-  }, [musicOpen, artists.length]);
+    if (!musicOpen) setExpandedArtist(null);
+  }, [musicOpen]);
 
   // Close music panel on outside click
   useEffect(() => {
@@ -117,11 +115,11 @@ function MerchNavbar() {
         <button
           ref={musicBtnRef}
           onClick={() => setMusicOpen(v => !v)}
-          className="flex-1 min-w-0 max-w-xs sm:max-w-sm mx-auto flex items-center gap-2.5 rounded-2xl transition-all duration-300"
+          className="flex-1 min-w-0 max-w-[160px] sm:max-w-sm mx-auto flex items-center gap-2 sm:gap-2.5 rounded-2xl transition-all duration-300"
           style={{
             background: musicOpen ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.055)",
             border: musicOpen ? "1px solid rgba(255,255,255,0.22)" : "1px solid rgba(255,255,255,0.09)",
-            padding: "8px 12px",
+            padding: "7px 10px",
           }}
           aria-label="Плеер"
           aria-expanded={musicOpen}
@@ -164,8 +162,8 @@ function MerchNavbar() {
                 <Headphones className="w-3.5 h-3.5 text-white/55" />
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-white/45 leading-tight">Музыка × Плейлист</p>
-                <p className="text-[9px] text-white/22 mt-0.5">
+                <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-white/45 leading-tight truncate">Музыка</p>
+                <p className="hidden sm:block text-[9px] text-white/22 mt-0.5">
                   {artists.length > 0
                     ? `${artists.length} исполнител${artists.length === 1 ? "ь" : "я"}`
                     : "Загрузка…"}
@@ -226,11 +224,12 @@ function MerchNavbar() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.97 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed left-1/2 z-[99] overflow-hidden"
+            className="fixed z-[99] overflow-hidden"
             style={{
-              top: "70px",
-              width: "min(430px, 96vw)",
+              top: "68px",
+              left: "50%",
               transform: "translateX(-50%)",
+              width: "min(430px, calc(100vw - 16px))",
               background: "#090909",
               border: "1px solid rgba(255,255,255,0.1)",
               borderRadius: "20px",
