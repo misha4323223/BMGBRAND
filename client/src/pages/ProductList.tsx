@@ -467,7 +467,7 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
                 src="/images/boomerangs-logo.webp"
                 alt="Booomerangs"
                 className="object-contain"
-                style={{ maxHeight: 'clamp(3rem, 9vw, 5.5rem)', maxWidth: '32vw' }}
+                style={{ maxHeight: 'clamp(4.5rem, 13.5vw, 8.25rem)', maxWidth: '40vw' }}
               />
               <span className="font-black leading-none" style={{ color: artist.accent, fontSize: 'clamp(1.6rem, 5vw, 3rem)' }}>×</span>
               {artistLogoUrl ? (
@@ -483,9 +483,6 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
                 </h2>
               )}
             </div>
-            <p className="text-xs tracking-[0.24em] uppercase mt-3" style={{ color: 'rgba(255,255,255,0.45)' }}>
-              {artist.role}
-            </p>
           </motion.div>
           <button
             onClick={onClose}
