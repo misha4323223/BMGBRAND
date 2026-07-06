@@ -13,7 +13,7 @@ import type { CategoryConfig, SubcategoryConfig } from "@shared/schema";
 import { useRoute, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
-import { Loader2, X, ChevronDown, ChevronRight, ChevronLeft, PanelLeft, PanelLeftClose, ArrowRight, Heart, ShoppingBag, ArrowLeft, BrainCog, MessageCircle } from "lucide-react";
+import { Loader2, X, ChevronDown, ChevronRight, ChevronLeft, PanelLeft, PanelLeftClose, ArrowRight, Heart, ShoppingBag, ArrowLeft, BrainCog, MessageCircle, Menu } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/hooks/use-cart";
 import { useFavorites } from "@/hooks/use-favorites";
@@ -88,7 +88,7 @@ function MerchNavbar() {
             )}
           </Link>
 
-          {/* Signal burger — EQ bars */}
+          {/* Burger */}
           <button
             onClick={() => setMenuOpen(true)}
             className="ml-1 p-2 rounded-full hover:bg-white/10 transition-colors"
@@ -96,11 +96,7 @@ function MerchNavbar() {
             aria-expanded={menuOpen}
             aria-controls="merch-menu-panel"
           >
-            <div className="flex items-end gap-[3px]" style={{ height: 20, width: 18 }}>
-              <div className={`w-[4px] rounded-[2px] bg-white/80 ${menuOpen ? "" : "merch-eq-bar-1"}`} style={{ height: menuOpen ? "100%" : undefined }} />
-              <div className={`w-[4px] rounded-[2px] bg-white/80 ${menuOpen ? "" : "merch-eq-bar-2"}`} style={{ height: menuOpen ? "100%" : undefined }} />
-              <div className={`w-[4px] rounded-[2px] bg-white/80 ${menuOpen ? "" : "merch-eq-bar-3"}`} style={{ height: menuOpen ? "100%" : undefined }} />
-            </div>
+            <Menu className="w-5 h-5 text-white/80" />
           </button>
         </div>
       </nav>
