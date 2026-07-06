@@ -951,14 +951,13 @@ export function Navbar() {
         </div>
       </div>
 
-      <MusicDrawer open={isMusicDrawerOpen} onClose={() => setIsMusicDrawerOpen(false)} />
-
       {authEverOpened && (
         <Suspense fallback={null}>
           <AuthModal open={isAuthOpen} onOpenChange={setIsAuthOpen} />
         </Suspense>
       )}
     </nav>
+    <MusicDrawer open={isMusicDrawerOpen} onClose={() => setIsMusicDrawerOpen(false)} />
     {searchEverOpened && (
       <Suspense fallback={null}>
         <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
