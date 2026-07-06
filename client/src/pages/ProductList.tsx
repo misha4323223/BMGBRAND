@@ -374,20 +374,38 @@ function optimizeArtistImg(url: string): string {
   return url;
 }
 
+function toThumbUrl(url: string): string {
+  if (!url) return url;
+  if (url.includes('_thumb.webp')) return url;
+  if (
+    url.includes('storage.yandexcloud.net/bmg/products/') ||
+    url.includes('storage.yandexcloud.net/bmg/site/')
+  ) {
+    const thumbUrl = url.replace(/\.(webp|jpg|jpeg|png)(\?.*)?$/i, '_thumb.webp$2');
+    if (thumbUrl !== url) return thumbUrl;
+  }
+  return url;
+}
+
+const ARTIST_PAGE_SIZE = 8;
+
 function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: string; image: string; slug: string; link: string; accent: string }; onClose: () => void }) {
-  const { data: products, isLoading } = useQuery<any[]>({
+  const [visibleCount, setVisibleCount] = useState(ARTIST_PAGE_SIZE);
+  const { data: allProducts, isLoading } = useQuery<any[]>({
     queryKey: ['/api/products/by-artist', artist.slug],
     queryFn: async () => {
       if (!artist.slug) return [];
       const res = await fetch(`/api/products/by-artist/${encodeURIComponent(artist.slug)}`);
       if (!res.ok) return [];
       const data = await res.json();
-      const list = data.products ?? data ?? [];
-      return list.slice(0, 8);
+      return data.products ?? data ?? [];
     },
     enabled: !!artist.slug,
     staleTime: 2 * 60 * 1000,
   });
+
+  const products = useMemo(() => (allProducts || []).slice(0, visibleCount), [allProducts, visibleCount]);
+  const hasMore = (allProducts?.length || 0) > visibleCount;
 
   // Close on Escape
   useEffect(() => {
@@ -474,12 +492,12 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
               className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4"
               initial="hidden"
               animate="show"
-              variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.15 } } }}
+              variants={{ hidden: {}, show: { transition: { staggerChildren: 0.02 } } }}
             >
-              {products.map((product: any) => (
+              {products.map((product: any, idx: number) => (
                 <motion.div
                   key={product.id}
-                  variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } } }}
+                  variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.2, ease: 'easeOut' } } }}
                 >
                   <Link
                     href={`/${product.slug || product.id}`}
@@ -489,10 +507,12 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
                   >
                     {product.imageUrl ? (
                       <img
-                        src={product.imageUrl}
+                        src={toThumbUrl(product.imageUrl)}
                         alt={product.name}
-                        loading="lazy"
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+                        loading={idx < 8 ? 'eager' : 'lazy'}
+                        fetchPriority={idx < 4 ? 'high' : 'auto'}
+                        decoding="async"
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.05]"
                       />
                     ) : (
                       <div className="absolute inset-0 bg-white/5" />
@@ -516,17 +536,19 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
           )}
         </div>
 
-        {/* CTA footer */}
-        <div className="px-4 sm:px-8 py-6 sm:py-8 mt-4">
-          <Link
-            href={artist.link || (artist.slug ? `/@${artist.slug}` : '/products/merch')}
-            onClick={onClose}
-            className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full font-black text-sm uppercase tracking-[0.18em] transition-all duration-200 hover:scale-[1.03] active:scale-95"
-            style={{ background: artist.accent, color: '#000' }}
-          >
-            Вся коллекция <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
+        {/* Show more footer */}
+        {hasMore && (
+          <div className="px-4 sm:px-8 py-6 sm:py-8 mt-4">
+            <button
+              onClick={() => setVisibleCount(v => v + ARTIST_PAGE_SIZE)}
+              className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full font-black text-sm uppercase tracking-[0.18em] transition-all duration-200 hover:scale-[1.03] active:scale-95"
+              style={{ background: artist.accent, color: '#000' }}
+              data-testid="button-show-more-artist-products"
+            >
+              Показать ещё
+            </button>
+          </div>
+        )}
       </div>
     </motion.div>
   );
