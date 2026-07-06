@@ -115,11 +115,11 @@ function MerchNavbar() {
         <button
           ref={musicBtnRef}
           onClick={() => setMusicOpen(v => !v)}
-          className="flex-1 min-w-0 max-w-[160px] sm:max-w-sm mx-auto flex items-center gap-2 sm:gap-2.5 rounded-2xl transition-all duration-300"
+          className="absolute left-1/2 -translate-x-1/2 sm:relative sm:left-auto sm:translate-x-0 sm:flex-1 sm:min-w-0 sm:max-w-sm sm:mx-auto flex items-center gap-1 sm:gap-2.5 rounded-xl sm:rounded-2xl transition-all duration-300"
           style={{
             background: musicOpen ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.055)",
             border: musicOpen ? "1px solid rgba(255,255,255,0.22)" : "1px solid rgba(255,255,255,0.09)",
-            padding: "7px 10px",
+            padding: "4px 8px",
           }}
           aria-label="Плеер"
           aria-expanded={musicOpen}
@@ -127,10 +127,10 @@ function MerchNavbar() {
           {currentTrack ? (
             /* ── Playing state ── */
             <>
-              <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0" style={{ background: "rgba(255,255,255,0.1)" }}>
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-md sm:rounded-lg overflow-hidden flex-shrink-0" style={{ background: "rgba(255,255,255,0.1)" }}>
                 {currentTrack.coverUrl
                   ? <img src={currentTrack.coverUrl} alt={currentTrack.title} className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center"><Music className="w-3.5 h-3.5 text-white/30" /></div>}
+                  : <div className="w-full h-full flex items-center justify-center"><Music className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/30" /></div>}
               </div>
               {/* Title + artist — desktop only */}
               <div className="hidden sm:flex flex-1 min-w-0 flex-col text-left">
@@ -148,26 +148,26 @@ function MerchNavbar() {
                 ))}
               </div>
               <ChevronDown
-                className="w-3.5 h-3.5 text-white/30 flex-shrink-0 transition-transform duration-200"
+                className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/30 flex-shrink-0 transition-transform duration-200"
                 style={{ transform: musicOpen ? "rotate(180deg)" : "rotate(0deg)" }}
               />
             </>
           ) : (
             /* ── Idle state ── */
             <>
-              <div className="w-7 h-7 flex items-center justify-center rounded-full flex-shrink-0" style={{ background: "rgba(255,255,255,0.07)" }}>
-                <Headphones className="w-3.5 h-3.5 text-white/55" />
+              <div className="w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center rounded-full flex-shrink-0" style={{ background: "rgba(255,255,255,0.07)" }}>
+                <Headphones className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/55" />
               </div>
-              <div className="flex-1 min-w-0 text-left">
+              <div className="flex-1 min-w-0 text-left hidden sm:block">
                 <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-white/45 leading-tight truncate">Музыка</p>
-                <p className="hidden sm:block text-[9px] text-white/22 mt-0.5">
+                <p className="text-[9px] text-white/22 mt-0.5">
                   {artists.length > 0
                     ? `${artists.length} исполнител${artists.length === 1 ? "ь" : "я"}`
                     : "Загрузка…"}
                 </p>
               </div>
               <ChevronDown
-                className="w-3.5 h-3.5 text-white/22 flex-shrink-0 transition-transform duration-200"
+                className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/22 flex-shrink-0 transition-transform duration-200"
                 style={{ transform: musicOpen ? "rotate(180deg)" : "rotate(0deg)" }}
               />
             </>
