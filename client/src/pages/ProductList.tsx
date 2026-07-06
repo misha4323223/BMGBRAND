@@ -13,7 +13,7 @@ import type { CategoryConfig, SubcategoryConfig } from "@shared/schema";
 import { useRoute, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
-import { Loader2, X, ChevronDown, ChevronRight, PanelLeft, PanelLeftClose, ArrowRight, Heart, ShoppingBag, ArrowLeft, BrainCog, MessageCircle } from "lucide-react";
+import { Loader2, X, ChevronDown, ChevronRight, ChevronLeft, PanelLeft, PanelLeftClose, ArrowRight, Heart, ShoppingBag, ArrowLeft, BrainCog, MessageCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/hooks/use-cart";
 import { useFavorites } from "@/hooks/use-favorites";
@@ -588,6 +588,10 @@ function MerchArtistSection() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragState = useRef({ active: false, startX: 0, scrollLeft: 0, moved: false });
 
+  // Arrow visibility
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
   const artistCards = useMemo(() => {
     const items: any[] = homeSettings?.artists?.items || [];
     return items
@@ -601,6 +605,28 @@ function MerchArtistSection() {
         accent: MERCH_COLLAB_THEMES[a.slug]?.accent ?? 'rgba(255,255,255,0.38)',
       }));
   }, [homeSettings]);
+
+  const updateArrows = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 8);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 8);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateArrows();
+    el.addEventListener('scroll', updateArrows, { passive: true });
+    return () => el.removeEventListener('scroll', updateArrows);
+  }, [updateArrows, artistCards]);
+
+  const scrollCards = useCallback((dir: 'left' | 'right') => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const step = Math.round(el.clientWidth * 0.65);
+    el.scrollBy({ left: dir === 'right' ? step : -step, behavior: 'smooth' });
+  }, []);
 
   /* ── 3D tilt: no CSS transition on transform during move ── */
   const handleCardMouseMove = useCallback((e: React.MouseEvent<HTMLButtonElement>, slug: string) => {
@@ -701,11 +727,53 @@ function MerchArtistSection() {
 
       {/* Cards scroll container */}
       <div className="relative">
-        {/* Right edge fade */}
+        {/* Left edge fade + arrow */}
         <div
-          className="absolute right-0 top-0 bottom-4 w-20 z-10 pointer-events-none"
-          style={{ background: 'linear-gradient(to left, #090909 30%, transparent)' }}
-        />
+          className="absolute left-0 top-0 bottom-4 w-24 z-10 pointer-events-none flex items-center"
+          style={{ background: 'linear-gradient(to right, #090909 20%, transparent)' }}
+        >
+          <button
+            onClick={() => scrollCards('left')}
+            aria-label="Листать влево"
+            className="pointer-events-auto ml-2 flex items-center justify-center rounded-full transition-all duration-200"
+            style={{
+              width: 40, height: 40,
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              backdropFilter: 'blur(8px)',
+              opacity: canScrollLeft ? 1 : 0,
+              transform: canScrollLeft ? 'scale(1)' : 'scale(0.7)',
+              transition: 'opacity 0.25s ease, transform 0.25s ease',
+              pointerEvents: canScrollLeft ? 'auto' : 'none',
+            }}
+          >
+            <ChevronLeft className="w-4 h-4 text-white/80" />
+          </button>
+        </div>
+
+        {/* Right edge fade + arrow */}
+        <div
+          className="absolute right-0 top-0 bottom-4 w-24 z-10 pointer-events-none flex items-center justify-end"
+          style={{ background: 'linear-gradient(to left, #090909 20%, transparent)' }}
+        >
+          <button
+            onClick={() => scrollCards('right')}
+            aria-label="Листать вправо"
+            className="pointer-events-auto mr-2 flex items-center justify-center rounded-full"
+            style={{
+              width: 40, height: 40,
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              backdropFilter: 'blur(8px)',
+              opacity: canScrollRight ? 1 : 0,
+              transform: canScrollRight ? 'scale(1)' : 'scale(0.7)',
+              transition: 'opacity 0.25s ease, transform 0.25s ease',
+              pointerEvents: canScrollRight ? 'auto' : 'none',
+            }}
+          >
+            <ChevronRight className="w-4 h-4 text-white/80" />
+          </button>
+        </div>
 
         <div
           ref={scrollRef}
