@@ -374,11 +374,168 @@ function optimizeArtistImg(url: string): string {
   return url;
 }
 
+function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: string; image: string; slug: string; accent: string }; onClose: () => void }) {
+  const { data: products, isLoading } = useQuery<any[]>({
+    queryKey: ['/api/products', 'merch-overlay', artist.name],
+    queryFn: async () => {
+      const res = await fetch(`/api/products?subcategory=${encodeURIComponent(artist.name)}&limit=8`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.products ?? data ?? [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  // Lock body scroll
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[200] flex flex-col"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.35 }}
+    >
+      {/* Artist photo as full-bleed background */}
+      <div className="absolute inset-0">
+        <img
+          src={artist.image}
+          alt={artist.name}
+          className="w-full h-full object-cover"
+          style={{ objectPosition: 'center 15%' }}
+        />
+        {/* Dark cinematic overlay */}
+        <div className="absolute inset-0" style={{
+          background: 'linear-gradient(135deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.65) 50%, rgba(0,0,0,0.88) 100%)',
+        }} />
+        {/* Scanline grain */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
+          backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.6) 0px, rgba(255,255,255,0.6) 1px, transparent 1px, transparent 3px)',
+        }} />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 flex flex-col h-full overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-start justify-between px-4 sm:px-8 pt-6 sm:pt-10 pb-4">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.45, delay: 0.1 }}
+          >
+            <p className="text-[9px] font-mono tracking-[0.32em] uppercase mb-2" style={{ color: artist.accent, opacity: 0.9 }}>
+              × BOOOMERANGS COLLAB
+            </p>
+            <h2 className="font-black text-white leading-none tracking-tighter" style={{ fontSize: 'clamp(2.4rem, 10vw, 6rem)' }}>
+              {artist.name}
+            </h2>
+            <p className="text-xs tracking-[0.24em] uppercase mt-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              {artist.role}
+            </p>
+          </motion.div>
+          <button
+            onClick={onClose}
+            className="ml-4 mt-1 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}
+            aria-label="Закрыть"
+          >
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
+
+        {/* Accent divider */}
+        <div className="mx-4 sm:mx-8 h-px mb-6" style={{ background: `linear-gradient(90deg, ${artist.accent}, transparent)` }} />
+
+        {/* Products strip */}
+        <div className="px-4 sm:px-8 flex-1">
+          {isLoading ? (
+            <div className="flex items-center gap-3 py-8">
+              <Loader2 className="w-4 h-4 text-white/40 animate-spin" />
+              <span className="text-xs text-white/40 tracking-widest uppercase">Загружаем коллекцию…</span>
+            </div>
+          ) : !products?.length ? (
+            <p className="text-sm text-white/40 py-8">Товары скоро появятся</p>
+          ) : (
+            <motion.div
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4"
+              initial="hidden"
+              animate="show"
+              variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.15 } } }}
+            >
+              {products.map((product: any) => (
+                <motion.div
+                  key={product.id}
+                  variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } } }}
+                >
+                  <Link
+                    href={`/${product.slug || product.id}`}
+                    onClick={onClose}
+                    className="block group relative overflow-hidden rounded-xl"
+                    style={{ aspectRatio: '3/4' }}
+                  >
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-white/5" />
+                    )}
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.1) 55%)' }} />
+                    <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3">
+                      <p className="text-[10px] sm:text-xs font-black text-white leading-tight line-clamp-2 mb-1">{product.name}</p>
+                      <p className="font-black text-white" style={{ fontSize: 'clamp(12px, 3vw, 15px)', color: artist.accent }}>
+                        {product.price ? `${Number(product.price).toLocaleString('ru-RU')} ₽` : ''}
+                      </p>
+                    </div>
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: artist.accent }}>
+                        <ArrowRight className="w-3 h-3 text-black" />
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </div>
+
+        {/* CTA footer */}
+        <div className="px-4 sm:px-8 py-6 sm:py-8 mt-4">
+          <Link
+            href={artist.slug ? `/${artist.slug}` : '/products/merch'}
+            onClick={onClose}
+            className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full font-black text-sm uppercase tracking-[0.18em] transition-all duration-200 hover:scale-[1.03] active:scale-95"
+            style={{ background: artist.accent, color: '#000' }}
+          >
+            Вся коллекция <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function MerchBanner() {
   const { data: homeSettings } = useQuery<any>({
     queryKey: ["/api/page-settings/home"],
     staleTime: 5 * 60 * 1000,
   });
+
+  const [selectedArtist, setSelectedArtist] = useState<null | { name: string; role: string; image: string; slug: string; accent: string }>(null);
 
   const artistCards = useMemo(() => {
     const items: any[] = homeSettings?.artists?.items || [];
@@ -396,6 +553,7 @@ function MerchBanner() {
   const hasCards = artistCards.length > 0;
 
   return (
+    <>
     <div className="relative w-full overflow-hidden" style={{ minHeight: hasCards ? '62vh' : '58vh' }}>
       {/* Base bg */}
       <div className="absolute inset-0 bg-zinc-950" />
@@ -420,43 +578,28 @@ function MerchBanner() {
 
       {/* Content */}
       <div className="relative z-10 pt-28 sm:pt-36 pb-6">
-        {/* Labels + title */}
-        <motion.div
-          className="px-4 sm:px-6 lg:px-12"
-          initial="hidden"
-          animate="show"
-          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.12 } } }}
-        >
+        {/* Label row — shown only when no artist cards */}
+        {!hasCards && (
           <motion.div
-            variants={{ hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}
-            className="flex items-center gap-3 mb-4"
+            className="px-4 sm:px-6 lg:px-12"
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
           >
-            <div className="w-6 h-px shrink-0" style={{ background: 'rgba(255,255,255,0.45)' }} />
-            <span className="text-[10px] tracking-[0.4em] uppercase font-semibold" style={{ color: 'rgba(255,255,255,0.55)' }}>
-              BOOOMERANGS × ARTIST COLLABS
-            </span>
-          </motion.div>
-
-          <div className="overflow-hidden mb-3">
-            <motion.h2
-              variants={{ hidden: { opacity: 0, y: 70 }, show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } } }}
-              className="font-black text-white leading-none tracking-tighter"
-              style={{ fontSize: 'clamp(3.8rem, 17vw, 12rem)' }}
-            >
-              МЕРЧ
-            </motion.h2>
-          </div>
-
-          {!hasCards && (
-            <motion.p
-              variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.45 } } }}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-6 h-px shrink-0" style={{ background: 'rgba(255,255,255,0.45)' }} />
+              <span className="text-[10px] tracking-[0.4em] uppercase font-semibold" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                BOOOMERANGS × ARTIST COLLABS
+              </span>
+            </div>
+            <p
               className="text-xs sm:text-sm tracking-[0.28em] uppercase font-medium"
               style={{ color: 'rgba(255,255,255,0.42)' }}
             >
               Официальные коллаборации с артистами
-            </motion.p>
-          )}
-        </motion.div>
+            </p>
+          </motion.div>
+        )}
 
         {/* ── Horizontal artist photo cards ───────────────────────────── */}
         {hasCards && (
@@ -483,10 +626,12 @@ function MerchBanner() {
                   }}
                   className="flex-shrink-0"
                 >
-                  <Link
-                    href={artist.slug ? `/${artist.slug}` : '/products/merch'}
-                    className="block group relative overflow-hidden rounded-xl"
+                  <button
+                    type="button"
+                    onClick={() => setSelectedArtist(artist)}
+                    className="block group relative overflow-hidden rounded-xl cursor-pointer focus:outline-none"
                     style={{ width: 'clamp(118px, 28vw, 158px)', aspectRatio: '3/5' }}
+                    aria-label={`Открыть коллекцию ${artist.name}`}
                   >
                     {/* Photo */}
                     <img
@@ -525,7 +670,7 @@ function MerchBanner() {
                         СМОТРЕТЬ <ArrowRight style={{ width: 8, height: 8 }} />
                       </span>
                     </div>
-                  </Link>
+                  </button>
                 </motion.div>
               ))}
             </motion.div>
@@ -533,6 +678,14 @@ function MerchBanner() {
         )}
       </div>
     </div>
+
+    {/* ── Full-screen artist overlay ── */}
+    <AnimatePresence>
+      {selectedArtist && (
+        <ArtistOverlay artist={selectedArtist} onClose={() => setSelectedArtist(null)} />
+      )}
+    </AnimatePresence>
+    </>
   );
 }
 
