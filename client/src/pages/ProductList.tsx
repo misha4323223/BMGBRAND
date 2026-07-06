@@ -146,14 +146,11 @@ function MerchNavbar() {
                   }} />
                 ))}
               </div>
-              {/* Play/Pause */}
-              <button
-                onClick={e => { e.stopPropagation(); isPlaying ? pause() : play(currentTrack, allTracks); }}
-                className="w-7 h-7 flex items-center justify-center rounded-full flex-shrink-0 transition-colors hover:bg-white/20"
-                style={{ background: "rgba(255,255,255,0.13)", border: "1px solid rgba(255,255,255,0.16)" }}
-              >
-                {isPlaying ? <Pause className="w-3 h-3 text-white" /> : <Play className="w-3 h-3 text-white ml-0.5" />}
-              </button>
+              {/* Chevron hint */}
+              <ChevronDown
+                className="w-3.5 h-3.5 text-white/30 flex-shrink-0 transition-transform duration-200"
+                style={{ transform: musicOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
             </>
           ) : (
             /* ── Idle state ── */
@@ -179,7 +176,16 @@ function MerchNavbar() {
 
         {/* Right: favorites + cart + burger ──────────────────────────────── */}
         <div className="flex items-center gap-0.5 flex-shrink-0">
-          <Link href="/favorites" className="relative p-2 rounded-full hover:bg-white/10 transition-colors" aria-label="Избранное">
+          {/* AI chat — mobile only */}
+          <button
+            onClick={openAI}
+            className="sm:hidden relative p-2 rounded-full hover:bg-white/10 transition-colors"
+            aria-label="AI чат"
+          >
+            <MessageCircle className="text-white/60" style={{ width: 18, height: 18 }} />
+          </button>
+          {/* Favorites — desktop only */}
+          <Link href="/favorites" className="relative p-2 rounded-full hover:bg-white/10 transition-colors hidden sm:flex" aria-label="Избранное">
             <Heart className="text-white/60" style={{ width: 18, height: 18 }} />
             {favoritesCount > 0 && (
               <span className="absolute top-0.5 right-0.5 bg-white text-black text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center leading-none">
