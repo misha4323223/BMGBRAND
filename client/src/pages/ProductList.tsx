@@ -475,7 +475,7 @@ function MerchNavbar() {
                 <motion.p
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.6 }}
                   className="mt-5 text-center text-[8px] font-bold tracking-[0.36em] uppercase"
-                  style={{ color: "rgba(255,255,255,0.12)" }}
+                  style={{ color: "rgba(255,255,255,0.7)" }}
                 >
                   BOOOMERANGS × ARTIST COLLABS
                 </motion.p>
