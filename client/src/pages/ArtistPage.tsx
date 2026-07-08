@@ -700,6 +700,7 @@ export default function ArtistPage() {
   const [promoCopied, setPromoCopied] = useState(false);
   const [visibleCount, setVisibleCount] = useState(0);
   const viewTrackedRef = useRef(false);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (shareCopied) {
@@ -757,7 +758,7 @@ export default function ArtistPage() {
 
   useEffect(() => {
     setVisibleCount(productsLimit);
-  }, [productsLimit]);
+  }, [productsLimit, slug]);
 
   const { data: slugProducts, isLoading: slugLoading } = useQuery<any[]>({
     queryKey: ["/api/products/by-artist", slug],
@@ -772,6 +773,31 @@ export default function ArtistPage() {
   const visibleProducts = products.slice(0, visibleCount || productsLimit);
 
   const productsQueryLoading = slugLoading;
+
+  // Автоподгрузка следующей порции товаров при приближении к концу списка
+  useEffect(() => {
+    const el = loadMoreSentinelRef.current;
+    if (!el) return;
+    if (visibleCount >= products.length) return;
+
+    // Без поддержки IntersectionObserver подгружаем сразу всё, чтобы товары
+    // не остались недоступными без кнопки "Показать ещё".
+    if (typeof IntersectionObserver === "undefined") {
+      setVisibleCount(products.length);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((v) => Math.min(v + productsLimit, products.length));
+        }
+      },
+      { rootMargin: "600px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [visibleCount, products.length, productsLimit]);
 
   // Notify AI chat widget about current artist context
   useEffect(() => {
@@ -1443,15 +1469,11 @@ export default function ArtistPage() {
                     ))}
                   </div>
                   {visibleCount < products.length && (
-                    <div className="flex justify-center mt-10">
-                      <button
-                        onClick={() => setVisibleCount(v => v + productsLimit)}
-                        className="text-base flex items-center gap-2 group transition-colors font-bold"
-                        style={isColored ? { color: tc.accent } : {}}
-                        data-testid="button-load-more-artist-products"
-                      >
-                        Показать ещё <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                      </button>
+                    <div ref={loadMoreSentinelRef} className="flex justify-center mt-10 h-10" data-testid="sentinel-load-more-artist-products">
+                      <div
+                        className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin"
+                        style={{ borderColor: isColored ? `${tc.accent}40` : 'var(--muted-foreground)', borderTopColor: 'transparent' }}
+                      />
                     </div>
                   )}
                 </>
