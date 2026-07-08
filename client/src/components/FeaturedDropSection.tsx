@@ -202,8 +202,8 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
           <div
             className="fd-scan-line absolute left-0 right-0 h-[2px] pointer-events-none"
             style={{
-              background: "linear-gradient(90deg, transparent 0%, rgba(0,229,255,0.9) 50%, transparent 100%)",
-              boxShadow: "0 0 12px 2px rgba(0,229,255,0.6)",
+              background: "linear-gradient(90deg, transparent 0%, rgba(255,45,45,0.9) 50%, transparent 100%)",
+              boxShadow: "0 0 12px 2px rgba(255,45,45,0.6)",
             }}
           />
           {/* Едва заметная сетка поверх фото — техно-стекло */}
@@ -225,7 +225,7 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
             <span
               key={i}
               className={`fd-bracket absolute w-6 h-6 sm:w-8 sm:h-8 ${cls} pointer-events-none`}
-              style={{ borderColor: "rgba(0,229,255,0.85)" }}
+              style={{ borderColor: "rgba(255,45,45,0.85)" }}
             />
           ))}
 
@@ -268,10 +268,10 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
             </div>
 
             {/* Статус-строка */}
-            <div className="flex items-center gap-2 text-[11px] sm:text-xs tracking-[0.25em] uppercase mb-5" style={{ color: "#00E5FF" }}>
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#00E5FF" }} />
+            <div className="flex items-center gap-2 text-[11px] sm:text-xs tracking-[0.25em] uppercase mb-5" style={{ color: "#FF2D2D" }}>
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#FF2D2D" }} />
               <span>&gt; СТАТУС: {statusCode}</span>
-              <span className="fd-cursor inline-block w-[7px] h-[14px] ml-0.5" style={{ background: "#00E5FF" }} />
+              <span className="fd-cursor inline-block w-[7px] h-[14px] ml-0.5" style={{ background: "#FF2D2D" }} />
             </div>
 
             <p className="text-[11px] font-mono tracking-[0.3em] uppercase text-white/40 mb-2">
