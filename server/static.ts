@@ -1,7 +1,8 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
-import { getCachedLcpImageUrls, getCachedProductImageBySlug, getCachedProductMetaBySlug, getCachedRatingByProductId, getCachedProductsByCategory, getCachedAllVisibleProducts, getCachedHeroData, getCachedArtistHeroImage } from "./storage";
+import { getCachedLcpImageUrls, getCachedProductImageBySlug, getCachedProductMetaBySlug, getCachedRatingByProductId, getCachedProductsByCategory, getCachedAllVisibleProducts, getCachedProductsForRecommendations, getCachedHeroData, getCachedArtistHeroImage } from "./storage";
+import { getRecommendationsSync } from "./recommendations";
 
 const SITE_NAME = "BMGBRAND";
 const DEFAULT_TITLE = `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
@@ -68,6 +69,16 @@ function buildProductNoscript(meta: NonNullable<ReturnType<typeof getCachedProdu
     ? `Рейтинг: ${rating.averageRating.toFixed(1)} из 5 (${rating.reviewCount} отзывов).`
     : "";
 
+  const candidates = getCachedProductsForRecommendations();
+  const recs = getRecommendationsSync(meta.productId, 4, candidates);
+  const recsHtml = recs.length > 0
+    ? `<h2>С этим часто берут</h2><ul>` +
+      recs.map(r =>
+        `<li><a href="${escHtml(siteUrl + "/" + r.slug)}">${escHtml(r.name)}</a> — ${formatPrice(r.price)}</li>`
+      ).join("\n") +
+      `</ul>`
+    : "";
+
   return `<noscript><div>` +
     `<h1>${escHtml(meta.title)} — купить</h1>` +
     `<p>Цена: ${escHtml(price)}. Статус: ${status}. ${escHtml(sizes)} ${escHtml(colors)} ${escHtml(catInfo)}</p>` +
@@ -75,6 +86,7 @@ function buildProductNoscript(meta: NonNullable<ReturnType<typeof getCachedProdu
     (ratingStr ? `<p>${escHtml(ratingStr)}</p>` : "") +
     `<p>Доставка по всей России СДЭК и Яндекс Доставкой.</p>` +
     `<p><a href="${escHtml(siteUrl + "/" + slug)}">Купить ${escHtml(meta.title)}</a></p>` +
+    recsHtml +
     `</div></noscript>`;
 }
 

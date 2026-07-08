@@ -210,3 +210,58 @@ export async function getRecommendations(
   const excludeSet = new Set(excludeIds);
   return result.filter((p) => !excludeSet.has(p.id)).slice(0, count);
 }
+
+/**
+ * Synchronous variant used for server-rendered SEO fallbacks (noscript blocks).
+ * Reuses the same in-memory co-purchase index and recommendation cache as
+ * getRecommendations(), but reads product candidates from an already-fetched
+ * array instead of calling storage — safe to call from a non-async render path.
+ */
+export function getRecommendationsSync(
+  productId: ProductId,
+  count: number,
+  candidates: Array<{ id: number; slug: string; name: string; price: number; stock: number; category: string }>
+): Array<{ id: number; slug: string; name: string; price: number }> {
+  const cached = recommendationCache.get(productId);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    return cached.products
+      .slice(0, count)
+      .map((p) => ({ id: p.id, slug: p.slug, name: p.name, price: p.price }));
+  }
+
+  const candidateMap = new Map(candidates.map((p) => [p.id, p]));
+  const seenIds = new Set<ProductId>([productId]);
+  const result: typeof candidates = [];
+
+  // ── Layer 1: co-purchase ────────────────────────────────────────────────
+  const coMap = coPurchaseMap.get(productId);
+  if (coMap && coMap.size > 0) {
+    const sorted = Array.from(coMap.entries()).sort(([, a], [, b]) => b - a);
+    for (const [id] of sorted) {
+      if (seenIds.has(id)) continue;
+      const p = candidateMap.get(id);
+      if (p && p.stock > 0) {
+        result.push(p);
+        seenIds.add(id);
+        if (result.length >= count) break;
+      }
+    }
+  }
+
+  // ── Layer 2: same-category fallback ────────────────────────────────────
+  if (result.length < count) {
+    const anchor = candidateMap.get(productId);
+    if (anchor) {
+      const needed = count - result.length;
+      const pool = candidates.filter(
+        (p) => !seenIds.has(p.id) && p.stock > 0 && p.category === anchor.category
+      );
+      for (const p of pool.slice(0, needed)) {
+        result.push(p);
+        seenIds.add(p.id);
+      }
+    }
+  }
+
+  return result.slice(0, count).map((p) => ({ id: p.id, slug: p.slug, name: p.name, price: p.price }));
+}

@@ -181,6 +181,24 @@ export function getCachedAllVisibleProducts(limit = 50): Array<{
     }));
 }
 
+export function getCachedProductsForRecommendations(limit = 2000): Array<{
+  id: number; slug: string; name: string; price: number; stock: number; category: string;
+}> {
+  const products = productsCache.get("all");
+  if (!products || products.length === 0) return [];
+  return products
+    .filter((p: any) => !p.isHidden && !p.artistOnly && p.slug && p.price > 0)
+    .slice(0, limit)
+    .map((p: any) => ({
+      id: Number(p.id),
+      slug: String(p.slug),
+      name: String(p.name || ""),
+      price: Number(p.price || 0),
+      stock: Number(p.stock ?? 0),
+      category: String(p.category || ""),
+    }));
+}
+
 export function clearAllCaches() {
   productsCache.clear();
   productCache.clear();
