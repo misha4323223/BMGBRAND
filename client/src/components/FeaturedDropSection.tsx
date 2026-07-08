@@ -181,14 +181,26 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
           className="group relative block w-full lg:w-1/2 h-[560px] sm:h-[640px] lg:h-auto overflow-hidden bg-zinc-950"
         >
           {imageUrl ? (
-            <img
-              src={getOptimizedImageUrl(imageUrl)}
-              alt={product.name}
-              loading="eager"
-              decoding="async"
-              fetchpriority="high"
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
-            />
+            <>
+              {/* Размытая подложка на весь блок — маскирует пустые поля сверху/снизу */}
+              <img
+                src={getOptimizedImageUrl(imageUrl)}
+                alt=""
+                aria-hidden="true"
+                loading="eager"
+                decoding="async"
+                className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40 pointer-events-none"
+              />
+              {/* Основное изображение — целиком, без обрезки сверху/снизу */}
+              <img
+                src={getOptimizedImageUrl(imageUrl)}
+                alt={product.name}
+                loading="eager"
+                decoding="async"
+                fetchpriority="high"
+                className="absolute inset-0 w-full h-full object-contain transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+              />
+            </>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
               <Package className="w-14 h-14 text-white/20" />
