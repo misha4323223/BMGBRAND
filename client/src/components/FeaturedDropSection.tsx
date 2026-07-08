@@ -453,7 +453,7 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
               className="inline-flex items-center gap-2 mt-6 text-[11px] font-mono tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors group"
               data-testid="link-featured-drop-all"
             >
-              Весь pre-drop <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+              Весь предзаказ <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
         </div>
