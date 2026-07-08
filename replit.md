@@ -34,6 +34,9 @@ NODE_ENV=development npx tsx server/index.ts
 - В dev-режиме фронтенд раздаётся через Vite (HMR); в production — через `serveStatic()` из `dist/`
 - Изображения хранятся в **Yandex Object Storage** — в preview Replit они могут не отображаться (CORS/CDN), это нормально
 
+### Импорт проекта в Replit (08.07.2026)
+После импорта из GitHub `node_modules` отсутствовал — workflow зависал на подтверждении установки `tsx`. Исправлено: `npm install --include=dev`. После добавления всех секретов (YDB, платёжные шлюзы, CDEK, Telegram, VK и т.д.) сервер подключился к боевой YDB, загрузил 823 товара и 232 заказа — приложение полностью рабочее.
+
 ### npm registry и package-lock.json — важно для GitHub Actions
 
 В Replit npm по умолчанию проксирует запросы через внутренний адрес `package-firewall.replit.local`. Этот адрес **недоступен вне Replit** (GitHub Actions, Docker). Если установить пакеты без явного указания registry, в `package-lock.json` запишутся Replit-URL и Docker-сборка упадёт с ошибкой:
