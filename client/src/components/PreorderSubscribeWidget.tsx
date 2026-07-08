@@ -93,7 +93,7 @@ export function PreorderSubscribeWidget() {
       {/* Космические блобы-свечения */}
       <div
         className="predrop-blob-1 absolute -top-1/3 -left-1/4 w-[70vw] h-[70vw] max-w-[600px] max-h-[600px] rounded-full opacity-30 blur-[100px] pointer-events-none"
-        style={{ background: "radial-gradient(circle, #D7FF00 0%, transparent 70%)" }}
+        style={{ background: "radial-gradient(circle, #E53935 0%, transparent 70%)" }}
       />
       <div
         className="predrop-blob-2 absolute -bottom-1/3 -right-1/4 w-[60vw] h-[60vw] max-w-[520px] max-h-[520px] rounded-full opacity-20 blur-[100px] pointer-events-none"
@@ -115,15 +115,15 @@ export function PreorderSubscribeWidget() {
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
         {/* Иконка с пульсирующими кольцами */}
         <div className="relative inline-flex items-center justify-center w-16 h-16 mb-6">
-          <span className="predrop-ring absolute inset-0 rounded-full border border-[#D7FF00]/60" />
-          <span className="predrop-ring absolute inset-0 rounded-full border border-[#D7FF00]/60" style={{ animationDelay: "0.6s" }} />
-          <span className="predrop-ring absolute inset-0 rounded-full border border-[#D7FF00]/60" style={{ animationDelay: "1.2s" }} />
-          <span className="relative w-14 h-14 rounded-full bg-[#D7FF00]/10 border border-[#D7FF00]/40 flex items-center justify-center">
-            <Bell className="w-6 h-6" style={{ color: "#D7FF00" }} />
+          <span className="predrop-ring absolute inset-0 rounded-full border border-[#E53935]/60" />
+          <span className="predrop-ring absolute inset-0 rounded-full border border-[#E53935]/60" style={{ animationDelay: "0.6s" }} />
+          <span className="predrop-ring absolute inset-0 rounded-full border border-[#E53935]/60" style={{ animationDelay: "1.2s" }} />
+          <span className="relative w-14 h-14 rounded-full bg-[#E53935]/10 border border-[#E53935]/40 flex items-center justify-center">
+            <Bell className="w-6 h-6" style={{ color: "#E53935" }} />
           </span>
         </div>
 
-        <p className="text-[11px] sm:text-xs font-bold tracking-[0.3em] uppercase mb-3" style={{ color: "#D7FF00" }}>
+        <p className="text-[11px] sm:text-xs font-bold tracking-[0.3em] uppercase mb-3" style={{ color: "#E53935" }}>
           Сигнал получен из будущего
         </p>
 
@@ -141,8 +141,8 @@ export function PreorderSubscribeWidget() {
         {(countData?.count ?? 0) > 0 && (
           <div className="predrop-count-pop inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full bg-white/5 border border-white/10">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: "#D7FF00" }} />
-              <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: "#D7FF00" }} />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: "#E53935" }} />
+              <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: "#E53935" }} />
             </span>
             <span className="text-xs sm:text-sm text-white/70">
               <span className="font-bold text-white tabular-nums">{count.toLocaleString("ru-RU")}</span> человек уже в списке ожидания
@@ -154,7 +154,7 @@ export function PreorderSubscribeWidget() {
           <div className="relative flex flex-col items-center gap-3 py-6" data-testid="predrop-subscribed-message">
             <div className="relative">
               <Sparks />
-              <CheckCircle2 className="w-12 h-12 relative z-10" style={{ color: "#D7FF00" }} />
+              <CheckCircle2 className="w-12 h-12 relative z-10" style={{ color: "#E53935" }} />
             </div>
             <p className="text-lg font-bold text-white">Готово, ты в списке!</p>
             <p className="text-sm text-white/50 max-w-xs">
@@ -178,7 +178,7 @@ export function PreorderSubscribeWidget() {
                   onClick={() => subscribeMutation.mutate()}
                   disabled={!email || !agreed || subscribeMutation.isPending}
                   className="shrink-0 h-11 px-6 rounded-full text-sm font-bold text-black hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
-                  style={{ backgroundColor: "#D7FF00" }}
+                  style={{ backgroundColor: "#E53935" }}
                   data-testid="button-preorder-subscribe"
                 >
                   {subscribeMutation.isPending ? (
@@ -198,7 +198,7 @@ export function PreorderSubscribeWidget() {
                 checked={agreed}
                 onChange={e => setAgreed(e.target.checked)}
                 className="mt-0.5 shrink-0"
-                style={{ accentColor: "#D7FF00" }}
+                style={{ accentColor: "#E53935" }}
                 data-testid="checkbox-preorder-agree"
               />
               <span className="text-[11px] text-white/35 group-hover:text-white/55 transition-colors leading-relaxed text-left max-w-xs">

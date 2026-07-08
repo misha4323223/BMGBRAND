@@ -424,7 +424,7 @@ body.lb-open nav {
   content: '';
   position: absolute;
   inset: -60%;
-  background: conic-gradient(from 0deg, transparent 0%, #D7FF00 12%, transparent 28%, transparent 100%);
+  background: conic-gradient(from 0deg, transparent 0%, #E53935 12%, transparent 28%, transparent 100%);
   animation: predrop-border-spin 4s linear infinite;
   z-index: 0;
 }
@@ -457,7 +457,7 @@ body.lb-open nav {
   width: 6px;
   height: 6px;
   border-radius: 9999px;
-  background: #D7FF00;
+  background: #E53935;
   animation: predrop-spark 0.9s cubic-bezier(0.2,0.8,0.2,1) both;
 }
 
