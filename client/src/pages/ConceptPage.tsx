@@ -6,6 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { PreorderSubscribeWidget } from "@/components/PreorderSubscribeWidget";
+import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -82,6 +83,7 @@ export default function ConceptPage() {
   const bannerButtonUrl: string = promoBanner.buttonUrl || "";
 
   const { addOrUpdateItem, items: cartPreorderItems } = usePreorderCart();
+  const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [sizePopupId, setSizePopupId] = useState<number | null>(null);
@@ -133,7 +135,7 @@ export default function ConceptPage() {
           imageUrl: product.images?.[0] || product.thumbnailUrl || product.imageUrl || "",
           selectedSizes: { [onlySize]: 1 },
         });
-        toast({ title: "Добавлено в корзину предзаказов", description: product.name });
+        openPreorderCartDrawer();
       } else {
         setPopupSizes(sorted);
         setPopupSizeQty({});
@@ -147,7 +149,7 @@ export default function ConceptPage() {
         imageUrl: product.images?.[0] || product.thumbnailUrl || product.imageUrl || "",
         selectedSizes: { "ONE SIZE": 1 },
       });
-      toast({ title: "Добавлено в корзину предзаказов", description: product.name });
+      openPreorderCartDrawer();
     } finally {
       setPopupLoadingId(null);
     }

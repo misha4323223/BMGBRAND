@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartDrawerProvider } from "@/components/CartDrawer";
+import { PreorderCartDrawerProvider } from "@/components/PreorderCartDrawer";
 import { captureRefFromUrl } from "@/lib/partner-ref";
 import { PreorderCartProvider } from "@/context/PreorderCartContext";
 import { PlayerProvider } from "@/context/PlayerContext";
@@ -185,13 +186,15 @@ function App() {
         <CartDrawerProvider>
           <PlayerProvider>
             <PreorderCartProvider>
-              <ScrollToTop />
-              <PartnerRefCapture />
-              <PromoCapture />
-              <Toaster />
-              <DeferredComponents />
-              <Router />
-              <GlobalPlayer />
+              <PreorderCartDrawerProvider>
+                <ScrollToTop />
+                <PartnerRefCapture />
+                <PromoCapture />
+                <Toaster />
+                <DeferredComponents />
+                <Router />
+                <GlobalPlayer />
+              </PreorderCartDrawerProvider>
             </PreorderCartProvider>
           </PlayerProvider>
         </CartDrawerProvider>
