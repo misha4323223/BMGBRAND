@@ -1139,8 +1139,11 @@ export default function Home() {
                 className="md:hidden w-full h-auto"
               />
             )}
-            {/* Gradient edge fade to zinc-950 */}
-            <div className="hidden md:block absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-zinc-950 to-transparent pointer-events-none" />
+            {/* Vignette — все четыре края растворяются в фоне */}
+            <div className="hidden md:block absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-zinc-950 to-transparent pointer-events-none" />
+            <div className="hidden md:block absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-zinc-950 to-transparent pointer-events-none" />
+            <div className="hidden md:block absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-zinc-950 to-transparent pointer-events-none" />
+            <div className="hidden md:block absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-zinc-950 to-transparent pointer-events-none" />
           </div>
         </div>
       </section>
