@@ -641,6 +641,7 @@ const ARTIST_PAGE_SIZE = 8;
 
 function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: string; image: string; slug: string; link: string; accent: string }; onClose: () => void }) {
   const [visibleCount, setVisibleCount] = useState(ARTIST_PAGE_SIZE);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const { data: allProducts, isLoading } = useQuery<any[]>({
     queryKey: ['/api/products/by-artist', artist.slug],
     queryFn: async () => {
@@ -656,6 +657,35 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
 
   const products = useMemo(() => (allProducts || []).slice(0, visibleCount), [allProducts, visibleCount]);
   const hasMore = (allProducts?.length || 0) > visibleCount;
+
+  // Сброс при смене артиста
+  useEffect(() => {
+    setVisibleCount(ARTIST_PAGE_SIZE);
+  }, [artist.slug]);
+
+  // Автоподгрузка следующей порции при приближении к концу списка
+  useEffect(() => {
+    const el = loadMoreSentinelRef.current;
+    if (!el) return;
+    if (!hasMore) return;
+    const total = allProducts?.length || 0;
+
+    if (typeof IntersectionObserver === "undefined") {
+      setVisibleCount(total);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((v) => Math.min(v + ARTIST_PAGE_SIZE, total));
+        }
+      },
+      { rootMargin: "600px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, allProducts?.length]);
 
   const { data: artistPagesSettings } = useQuery<any>({
     queryKey: ['/api/page-settings/artist_pages'],
@@ -805,17 +835,13 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
           )}
         </div>
 
-        {/* Show more footer */}
+        {/* Автоподгрузка при прокрутке */}
         {hasMore && (
-          <div className="px-4 sm:px-8 py-6 sm:py-8 mt-4 flex justify-center">
-            <button
-              onClick={() => setVisibleCount(v => v + ARTIST_PAGE_SIZE)}
-              className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full font-black text-sm uppercase tracking-[0.18em] transition-all duration-200 hover:scale-[1.03] active:scale-95"
-              style={{ background: artist.accent, color: '#000' }}
-              data-testid="button-show-more-artist-products"
-            >
-              Показать ещё
-            </button>
+          <div ref={loadMoreSentinelRef} className="px-4 sm:px-8 py-6 sm:py-8 mt-4 flex justify-center h-10" data-testid="sentinel-load-more-artist-overlay-products">
+            <div
+              className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin"
+              style={{ borderColor: `${artist.accent}55`, borderTopColor: 'transparent' }}
+            />
           </div>
         )}
       </div>
