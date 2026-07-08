@@ -238,7 +238,7 @@ function MarqueeSection({ text }: { text: string }) {
       <div ref={containerRef} className="overflow-hidden">
         <div ref={innerRef} className="whitespace-nowrap flex will-change-transform" style={{ width: "max-content" }}>
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <span key={i} className="text-foreground/60 text-xs sm:text-sm font-normal uppercase tracking-[0.15em] px-6 sm:px-8 shrink-0">
+            <span key={i} className="text-black text-xs sm:text-sm font-normal uppercase tracking-[0.15em] px-6 sm:px-8 shrink-0">
               {text}{" "}
             </span>
           ))}
