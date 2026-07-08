@@ -1097,27 +1097,20 @@ export default function Home() {
                   </>
                 )}
               </h2>
-              <p className="text-sm sm:text-base text-white/50 leading-relaxed max-w-sm">
-                {pageSettings?.philosophy?.text || "Базируясь в Туле — городе мастеров, пряников и самоваров — мы создаем вещи для повседневной жизни. Мы объединяем традиции качества и современный стиль в каждой детали."}
+              <p className="text-sm sm:text-[1.05rem] text-white/55 leading-[1.75] max-w-sm mt-2">
+                {pageSettings?.philosophy?.text || "Базируясь в Туле — городе мастеров, пряников и самоваров — мы создаем вещи для повседневной жизни. На нашем счету более 200 моделей носков: от ироничных мемных дизайнов до оригинальных ярких пар. Мы объединяем традиции качества и современный стиль в каждой детали нашего ассортимента."}
               </p>
-              <div className="flex items-center gap-3 mt-6 sm:mt-8">
-                <span className="font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">Тула</span>
-                <span className="text-white/15">·</span>
-                <span className="font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">с 2019</span>
-                <span className="text-white/15">·</span>
-                <span className="font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">100% РФ</span>
-              </div>
             </div>
-            <div className="mt-8 sm:mt-0">
+            <div className="mt-10 sm:mt-0">
               <Link
                 href={pageSettings?.philosophy?.linkUrl || "/about"}
-                className="group flex items-center justify-between w-full border border-white/[0.12] px-5 py-4 hover:bg-white/[0.05] hover:border-white/25 transition-all duration-200"
+                className="group inline-flex items-center gap-3"
                 data-testid="link-manifesto"
               >
-                <span style={{ fontFamily: "'Oswald', sans-serif" }} className="text-sm sm:text-base font-bold uppercase tracking-wider text-white">
+                <span className="text-xs font-mono tracking-[0.22em] uppercase text-white/40 group-hover:text-white/70 transition-colors duration-200">
                   {pageSettings?.philosophy?.linkText || "Узнать о нас"}
                 </span>
-                <ArrowRight className="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all duration-200" strokeWidth={1.5} />
+                <ArrowRight className="w-3.5 h-3.5 text-white/25 group-hover:text-white/60 group-hover:translate-x-1 transition-all duration-200" strokeWidth={1.5} />
               </Link>
             </div>
           </div>
@@ -1310,14 +1303,14 @@ export default function Home() {
           return isSectionVisible("newsletter") ? (
             <div key="section-newsletter">
       <section className={`section-lazy ${getBgClass("newsletter", "bg-zinc-950")} border-t border-white/[0.08] relative overflow-hidden`}>
-        <div className="max-w-8xl mx-auto px-6 sm:px-12 lg:px-16 py-14 sm:py-24 flex flex-col md:flex-row gap-10 md:gap-20 items-start md:items-center">
+        <div className="max-w-8xl mx-auto px-6 sm:px-12 lg:px-16 py-20 sm:py-32 flex flex-col md:flex-row gap-14 md:gap-24 items-start md:items-center">
 
           {/* Left — editorial */}
-          <div className="md:w-[45%] lg:w-[40%] shrink-0">
-            <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-white/40 mb-6 sm:mb-10">
+          <div className="md:w-[48%] lg:w-[42%] shrink-0">
+            <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-white/35 mb-8 sm:mb-12">
               БУДЬ В КУРСЕ
             </p>
-            <h2 style={{ fontFamily: "'Oswald', sans-serif" }} className="text-[2.6rem] sm:text-[3.8rem] lg:text-[4.4rem] font-bold uppercase leading-[0.92] tracking-tight text-white mb-6 sm:mb-8">
+            <h2 style={{ fontFamily: "'Oswald', sans-serif" }} className="text-[3.2rem] sm:text-[4.6rem] lg:text-[5.4rem] font-bold uppercase leading-[0.88] tracking-tight text-white mb-8 sm:mb-10">
               {pageSettings?.newsletter?.title ? (
                 <span>{pageSettings.newsletter.title}</span>
               ) : (
@@ -1328,18 +1321,12 @@ export default function Home() {
                 </>
               )}
             </h2>
-            <p className="text-sm text-white/40 leading-relaxed max-w-xs mb-8 sm:mb-10">
+            <p className="text-sm sm:text-[1.05rem] text-white/45 leading-[1.75] max-w-xs">
               {pageSettings?.newsletter?.subtitle || "Новые коллекции, эксклюзивные акции и закрытые предложения — прямо на почту."}
               {homepagePromo?.isActive && homepagePromo?.discountPercent && (
                 <><br /><span className="text-primary font-medium">Скидка {homepagePromo.discountPercent}% на первый заказ</span></>
               )}
             </p>
-            <Link
-              href="/about"
-              className="group inline-flex items-center gap-2 text-[11px] font-mono tracking-[0.2em] uppercase text-white/25 hover:text-white/50 transition-colors"
-            >
-              Узнать о нас <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" strokeWidth={1.5} />
-            </Link>
           </div>
 
           {/* Right — form */}
