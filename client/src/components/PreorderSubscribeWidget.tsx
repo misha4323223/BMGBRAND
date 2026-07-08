@@ -112,22 +112,22 @@ export function PreorderSubscribeWidget() {
         </div>
       </div>
 
-      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
+      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14 text-center">
         {/* Иконка с пульсирующими кольцами */}
-        <div className="relative inline-flex items-center justify-center w-16 h-16 mb-6">
+        <div className="relative inline-flex items-center justify-center w-12 h-12 mb-4">
           <span className="predrop-ring absolute inset-0 rounded-full border border-[#E53935]/60" />
           <span className="predrop-ring absolute inset-0 rounded-full border border-[#E53935]/60" style={{ animationDelay: "0.6s" }} />
           <span className="predrop-ring absolute inset-0 rounded-full border border-[#E53935]/60" style={{ animationDelay: "1.2s" }} />
-          <span className="relative w-14 h-14 rounded-full bg-[#E53935]/10 border border-[#E53935]/40 flex items-center justify-center">
-            <Bell className="w-6 h-6" style={{ color: "#E53935" }} />
+          <span className="relative w-10 h-10 rounded-full bg-[#E53935]/10 border border-[#E53935]/40 flex items-center justify-center">
+            <Bell className="w-5 h-5" style={{ color: "#E53935" }} />
           </span>
         </div>
 
-        <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white leading-[1.05] mb-4 font-display">
+        <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-[1.05] mb-3 font-display">
           НЕ ПРОПУСТИ<br className="hidden sm:block" /> СЛЕДУЮЩИЙ ДРОП
         </h2>
 
-        <p className="text-sm sm:text-base text-white/50 max-w-lg mx-auto mb-8 leading-relaxed">
+        <p className="text-sm sm:text-base text-white/50 max-w-lg mx-auto mb-6 leading-relaxed">
           Подпишись - и узнаешь о новой предпродажи раньше всех. Никакого спама,
           только моменты, когда решается, что мы шьём дальше.
         </p>
