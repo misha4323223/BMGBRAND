@@ -29,22 +29,8 @@ jobs:
 
       - name: Push Docker image
         run: |
-          push_with_retry() {
-            local image="$1"
-            local attempts=5
-            for i in $(seq 1 $attempts); do
-              echo "Push attempt $i/$attempts for $image"
-              if docker push "$image"; then
-                return 0
-              fi
-              echo "Push failed, retrying in $((i * 10))s..."
-              sleep $((i * 10))
-            done
-            echo "Push failed after $attempts attempts for $image"
-            return 1
-          }
-          push_with_retry cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ github.sha }}
-          push_with_retry cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:latest
+          docker push cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ github.sha }}
+          docker push cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:latest
 
       - name: Deploy Serverless Container
         uses: yc-actions/yc-sls-container-deploy@v2
