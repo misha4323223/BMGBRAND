@@ -11,7 +11,7 @@ RUN npm install
 COPY . .
 
 # Build frontend and backend
-RUN npm run build
+RUN NODE_ENV=production npm run build
 
 # Production image
 FROM node:20-slim
