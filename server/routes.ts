@@ -1562,7 +1562,7 @@ BMGBRAND — официальный производитель и магазин
 - Драгни (артист)
 - МультФильмы (музыкальный проект)
 
-Купить официальный мерч этих артистов можно только в нашем магазине: https://www.booomerangs.ru/products/merch
+Купить официальный мерч этих артистов можно только в нашем магазине: [Мерч артистов](https://www.booomerangs.ru/products/merch)
 
 ## Мерч на заказ
 
@@ -1576,7 +1576,7 @@ BMGBRAND — официальный производитель и магазин
 - Срок производства: носки от 10 рабочих дней, одежда 2–4 недели
 - Работаем с физлицами, ИП, ООО, блогерами, музыкантами, организаторами мероприятий
 
-Страница мерча на заказ: https://www.booomerangs.ru/merch-na-zakaz
+Подробнее: [Мерч на заказ](https://www.booomerangs.ru/merch-na-zakaz)
 
 ## Носки с принтом
 
@@ -1584,7 +1584,7 @@ BMGBRAND — официальный производитель и магазин
 Размеры: 36-39, 40-45. Уход: машинная стирка 30°, без отбеливателя, не сушить в барабане.
 Авторские рисунки — животные, природа, городской арт, коллаборации с артистами.
 
-Каталог носков: https://www.booomerangs.ru/products/socks
+Смотреть каталог: [Носки с принтом](https://www.booomerangs.ru/products/socks)
 
 ## Каталог товаров
 
@@ -1592,7 +1592,7 @@ BMGBRAND — официальный производитель и магазин
 - Категории: ${categories.join(", ") || "Носки, Одежда, Мерч, Аксессуары"}
 - Цены: от ${priceRange.min.toLocaleString("ru-RU")} ₽ до ${priceRange.max.toLocaleString("ru-RU")} ₽
 - Валюта: RUB (российский рубль)
-- Каталог: https://www.booomerangs.ru/products
+- Каталог: [Все товары](https://www.booomerangs.ru/products)
 
 ## Доставка и оплата
 
@@ -1610,14 +1610,14 @@ BMGBRAND — официальный производитель и магазин
 
 ## Ссылки
 
-- Главная: https://www.booomerangs.ru/
-- Каталог: https://www.booomerangs.ru/products
-- Носки: https://www.booomerangs.ru/products/socks
-- Мерч артистов: https://www.booomerangs.ru/products/merch
-- Мерч на заказ: https://www.booomerangs.ru/merch-na-zakaz
-- О бренде: https://www.booomerangs.ru/about
-- FAQ: https://www.booomerangs.ru/faq
-- YML-фид (Яндекс Маркет): https://www.booomerangs.ru/yml-feed.xml
+- [Главная](https://www.booomerangs.ru/)
+- [Каталог товаров](https://www.booomerangs.ru/products)
+- [Носки с принтом](https://www.booomerangs.ru/products/socks)
+- [Мерч артистов](https://www.booomerangs.ru/products/merch)
+- [Мерч на заказ](https://www.booomerangs.ru/merch-na-zakaz)
+- [О бренде](https://www.booomerangs.ru/about)
+- [FAQ](https://www.booomerangs.ru/faq)
+- [YML-фид (Яндекс Маркет)](https://www.booomerangs.ru/yml-feed.xml)
 
 ## О бренде
 

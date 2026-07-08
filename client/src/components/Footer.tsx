@@ -15,7 +15,7 @@ const SOCIAL_ICONS: Record<string, any> = {
 function SocialIcon({ platform, className }: { platform: string; className?: string }) {
   const Icon = SOCIAL_ICONS[platform];
   if (!Icon) return null;
-  return <Icon className={className} />;
+  return <Icon className={className} aria-hidden={true} focusable={false} />;
 }
 
 function isExternal(href: string) {
