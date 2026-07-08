@@ -1028,6 +1028,7 @@ export default function Home() {
                   title={fdSettings.title}
                   subtitle={fdSettings.subtitle}
                   ctaText={fdSettings.ctaText}
+                  terminalLabel={fdSettings.terminalLabel}
                 />
                 {renderPromoBanner("after_featured_drop")}
               </div>

@@ -5669,7 +5669,7 @@ export default function Admin() {
                             { name: "Мерч", slug: "merch", image: "", span: "1" },
                           ], visible: true },
                           popular: { title: "Популярное", subtitle: "Хиты продаж", count: "8", linkText: "Все товары", linkUrl: "/products", visible: true },
-                          featuredDrop: { productId: null, title: "", subtitle: "", ctaText: "", visible: true },
+                          featuredDrop: { productId: null, title: "", subtitle: "", ctaText: "", terminalLabel: "", visible: true },
                           benefits: { benefit0Title: "Доставка по всей РФ", benefit0Desc: "Отправляем в любой город", benefit1Title: "Сделано в России", benefit1Desc: "Собственное производство", benefit2Title: "Уникальные принты", benefit2Desc: "Авторский дизайн", visible: true },
                           philosophy: { title: "Больше чем одежда", text: "Базируясь в Туле — городе мастеров, пряников и самоваров — мы создаем вещи для повседневной жизни. На нашем счету более 200 моделей носков: от ироничных мемных дизайнов до оригинальных ярких пар. Мы объединяем традиции качества и современный стиль в каждой детали нашего ассортимента.", linkText: "Узнать о нас", linkUrl: "/about", desktopMediaType: "video", videoUrl: "", desktopImage: "", mobileMediaType: "image", mobileImage: "", mobileVideo: "", visible: true },
                           blog: { title: "Культура и стиль", subtitle: "BMG Журнал", items: [
@@ -6920,6 +6920,18 @@ export default function Admin() {
                                 placeholder="Забронировать место в партии"
                                 data-testid="input-featured-drop-cta"
                               />
+                            </div>
+                            <div>
+                              <Label className="text-sm">Строка терминала (необязательно)</Label>
+                              <Input
+                                value={sectionSettings.terminalLabel || ""}
+                                onChange={(e) => setSectionSettings({...sectionSettings, terminalLabel: e.target.value})}
+                                placeholder="booomerangs://терминал_предзаказа"
+                                data-testid="input-featured-drop-terminal-label"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Строка в «шапке» терминала на карточке дропа
+                              </p>
                             </div>
                           </div>
                           );

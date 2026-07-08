@@ -26,6 +26,7 @@ interface FeaturedDropSectionProps {
   title?: string;
   subtitle?: string;
   ctaText?: string;
+  terminalLabel?: string;
 }
 
 const SIZE_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "ONE SIZE", "OS"];
@@ -61,7 +62,7 @@ function pad(n: number) {
   return n.toString().padStart(2, "0");
 }
 
-export function FeaturedDropSection({ product, title, subtitle, ctaText }: FeaturedDropSectionProps) {
+export function FeaturedDropSection({ product, title, subtitle, ctaText, terminalLabel }: FeaturedDropSectionProps) {
   const { addOrUpdateItem, items: cartPreorderItems } = usePreorderCart();
   const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
   const { toast } = useToast();
@@ -247,7 +248,7 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText }: Featu
               <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
               <span className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
               <span className="ml-3 text-[10px] tracking-[0.15em] text-white/40 uppercase truncate">
-                booomerangs://терминал_предзаказа
+                {terminalLabel || "booomerangs://терминал_предзаказа"}
               </span>
             </div>
 
