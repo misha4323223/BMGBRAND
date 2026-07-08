@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bell, CheckCircle2, Sparkles, Rocket } from "lucide-react";
+import { Bell, CheckCircle2, Rocket } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -128,7 +128,7 @@ export function PreorderSubscribeWidget() {
         </h2>
 
         <p className="text-sm sm:text-base text-white/50 max-w-lg mx-auto mb-8 leading-relaxed">
-          Подпишись — и узнаешь о новом pre-drop раньше всех. Никакого спама,
+          Подпишись - и узнаешь о новой предпродажи раньше всех. Никакого спама,
           только моменты, когда решается, что мы шьём дальше.
         </p>
 
@@ -204,11 +204,6 @@ export function PreorderSubscribeWidget() {
             {subscribeMutation.isError && (
               <p className="text-red-400 text-xs">Ошибка. Попробуй ещё раз.</p>
             )}
-
-            <div className="flex items-center justify-center gap-1.5 text-[11px] text-white/25 pt-1">
-              <Sparkles className="w-3 h-3" />
-              <span>Без спама. Только сигналы о запуске</span>
-            </div>
           </div>
         )}
       </div>
