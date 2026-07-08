@@ -1519,8 +1519,7 @@ export default function Home() {
         }
         })();
         if (!sectionContent) return null;
-        if (sectionIdx < 3) return sectionContent;
-        return <LazySection key={`lazy-${sectionId}`}>{sectionContent}</LazySection>;
+        return sectionContent;
       })}
 
       <Footer />
