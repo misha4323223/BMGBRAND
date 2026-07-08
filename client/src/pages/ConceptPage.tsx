@@ -6,6 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { PreorderSubscribeWidget } from "@/components/PreorderSubscribeWidget";
+import { DolyameWidget } from "@/components/DolyameWidget";
 import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { useToast } from "@/hooks/use-toast";
@@ -360,6 +361,11 @@ export default function ConceptPage() {
                           </>
                         ) : (
                           <span className="text-base font-bold text-foreground">{formatPrice(product.price)}</span>
+                        )}
+                        {salePrice >= 300000 && salePrice <= 3000000 && (
+                          <div className="flex justify-center" onClick={(e) => e.preventDefault()}>
+                            <DolyameWidget price={salePrice} productId={product.id} />
+                          </div>
                         )}
                         {!isCancelled && (
                           <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full mx-auto ${

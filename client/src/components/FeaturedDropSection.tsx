@@ -4,6 +4,7 @@ import { ArrowRight, Package, ShoppingCart } from "lucide-react";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 import { useToast } from "@/hooks/use-toast";
+import { DolyameWidget } from "@/components/DolyameWidget";
 
 export interface FeaturedDropProduct {
   id: number;
@@ -306,6 +307,12 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
                 <span className="text-2xl sm:text-3xl font-bold text-white">{formatPrice(product.price)}</span>
               )}
             </div>
+
+            {effectivePrice >= 300000 && effectivePrice <= 3000000 && (
+              <div className="-mt-6 mb-8">
+                <DolyameWidget price={effectivePrice} isDark productId={product.id} />
+              </div>
+            )}
 
             {/* Countdown */}
             {countdown && !countdown.expired && isCollecting && (
