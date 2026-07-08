@@ -79,12 +79,25 @@ function buildProductNoscript(meta: NonNullable<ReturnType<typeof getCachedProdu
       `</ul>`
     : "";
 
+  const imagesHtml = meta.images.slice(0, 6).map((imgUrl, idx) => {
+    const altLabel = idx === 0
+      ? `${meta.title} — фото`
+      : `${meta.title} — фото ${idx + 1}`;
+    return `<img src="${escHtml(imgUrl)}" alt="${escHtml(altLabel)}" width="800" height="800" loading="lazy">`;
+  }).join("\n");
+
+  const aiSizeNote = meta.sizes.length > 0
+    ? `<p>На странице доступен ИИ-подбор размера — нажмите «Подобрать размер с ИИ» для персональной рекомендации.</p>`
+    : "";
+
   return `<noscript><div>` +
     `<h1>${escHtml(meta.title)} — купить</h1>` +
     `<p>Цена: ${escHtml(price)}. Статус: ${status}. ${escHtml(sizes)} ${escHtml(colors)} ${escHtml(catInfo)}</p>` +
     (desc ? `<p>${escHtml(desc)}</p>` : "") +
     (ratingStr ? `<p>${escHtml(ratingStr)}</p>` : "") +
+    aiSizeNote +
     `<p>Доставка по всей России СДЭК и Яндекс Доставкой.</p>` +
+    (imagesHtml ? `<div>${imagesHtml}</div>` : "") +
     `<p><a href="${escHtml(siteUrl + "/" + slug)}">Купить ${escHtml(meta.title)}</a></p>` +
     recsHtml +
     `</div></noscript>`;
@@ -192,6 +205,20 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
     ...(meta.category ? { "category": meta.category } : {}),
     ...(meta.colors.length > 0 ? { "color": meta.colors.join(", ") } : {}),
     ...(meta.sizes.length > 0 ? { "size": meta.sizes.join(", ") } : {}),
+    ...(meta.sizes.length > 0 ? {
+      "additionalProperty": [
+        {
+          "@type": "PropertyValue",
+          "name": "Доступные размеры",
+          "value": meta.sizes.join(", "),
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Подбор размера",
+          "value": "На странице доступен ИИ-подбор размера по параметрам покупателя",
+        },
+      ]
+    } : {}),
   };
 
   const breadcrumbSchema = {
