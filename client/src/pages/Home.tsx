@@ -407,7 +407,7 @@ export default function Home() {
   const homepagePromo = promoData?.homepage;
   
   const productCount = parseInt(pageSettings?.popular?.count) || 8;
-  const featuredProducts = useMemo(() => {
+  const allFeaturedProducts = useMemo(() => {
     if (!Array.isArray(products)) return [];
     const visibleProducts = products.filter((p: any) => !p.isHidden && (!isWholesale || (p.wholesalePrice && p.wholesalePrice > 0)));
     if (pageSettings?.popular?.mode === "manual") {
@@ -417,14 +417,20 @@ export default function Home() {
         if (pinned.length > 0) return pinned;
       }
     }
-    const sorted = [...visibleProducts].sort((a: any, b: any) => {
+    return [...visibleProducts].sort((a: any, b: any) => {
       const aNew = a.isNew || a.badgeText === "NEW" ? 1 : 0;
       const bNew = b.isNew || b.badgeText === "NEW" ? 1 : 0;
       if (bNew !== aNew) return bNew - aNew;
       return (b.id || 0) - (a.id || 0);
     });
-    return sorted.slice(0, productCount);
-  }, [products, productCount, pageSettings?.popular?.mode, pageSettings?.popular?.pinnedProductIds]);
+  }, [products, pageSettings?.popular?.mode, pageSettings?.popular?.pinnedProductIds]);
+
+  const featuredProducts = useMemo(
+    () => allFeaturedProducts.slice(0, productCount),
+    [allFeaturedProducts, productCount]
+  );
+
+  const [popularVisibleCount, setPopularVisibleCount] = useState(16);
 
   const promoBanner = pageSettings?.promo_banner;
   const renderPromoBanner = (position: string) => {
@@ -993,13 +999,24 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-0 mt-0 overflow-hidden">
-              {featuredProducts?.map((product, index) => (
+              {allFeaturedProducts.slice(0, popularVisibleCount).map((product, index) => (
                 <ProductCard key={product.id} product={product} priority={index < 4} />
               ))}
             </div>
           )}
 
-          <div className="flex justify-center mt-10 sm:mt-14">
+          <div className="flex flex-col items-center gap-4 mt-10 sm:mt-14">
+            {!isLoading && popularVisibleCount < allFeaturedProducts.length && (
+              <Button
+                variant="outline"
+                size="lg"
+                className="uppercase tracking-wide gap-2.5"
+                onClick={() => setPopularVisibleCount(c => c + 16)}
+              >
+                Показать ещё
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            )}
             <Button asChild variant="outline" size="lg" className="uppercase tracking-wide gap-2.5">
               <Link href={pageSettings?.popular?.linkUrl || "/products"} data-testid="link-all-products">
                 {pageSettings?.popular?.linkText || "Все товары"}
