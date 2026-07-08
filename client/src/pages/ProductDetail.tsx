@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { usePreorderCart } from "@/context/PreorderCartContext";
+import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 import { CATEGORIES, transliterateToSlug, type CategorySlug, type SizeMeasurement } from "@shared/schema";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -2513,6 +2514,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { addOrUpdateItem, items: preorderCartItems } = usePreorderCart();
+  const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
   const [sizeQuantities, setSizeQuantities] = useState<Record<string, number>>({});
   const [justAdded, setJustAdded] = useState(false);
 
@@ -2559,7 +2561,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
         selectedSizes: { "ONE SIZE": 1 },
         selectedColor: selectedColor || undefined,
       });
-      toast({ title: "Добавлено в корзину предзаказов", description: product.name });
+      openPreorderCartDrawer();
       setJustAdded(true);
       setTimeout(() => setJustAdded(false), 1800);
       return;
@@ -2581,7 +2583,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
       selectedColor: selectedColor || undefined,
     });
     setSizeQuantities({});
-    toast({ title: "Добавлено в корзину предзаказов", description: product.name });
+    openPreorderCartDrawer();
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 1800);
   }

@@ -11,7 +11,7 @@ import { transliterateToSlug } from "@shared/schema";
 import SEO from "@/components/SEO";
 import { useAddToCart } from "@/hooks/use-cart";
 import { usePreorderCart } from "@/context/PreorderCartContext";
-import { useToast } from "@/hooks/use-toast";
+import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 import { useFavoriteStatus, useFavoriteActions } from "@/hooks/use-favorites";
 import { TrackList } from "@/components/TrackList";
 
@@ -361,7 +361,7 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
   const [, navigate] = useLocation();
   const { mutate: addItem, isPending } = useAddToCart();
   const { addOrUpdateItem } = usePreorderCart();
-  const { toast } = useToast();
+  const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
 
   const isPreorder = !!(product.preorderEnabled);
   const preorderStatus: string = (product as any).preorderStatus || "collecting";
@@ -461,10 +461,7 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
       preorderProductionDate: product.preorderProductionDate ?? null,
     });
     setOpen(false);
-    toast({
-      title: "Добавлено в предзаказ",
-      description: product.name,
-    });
+    openPreorderCartDrawer();
   }
 
   function handleConfirm() {

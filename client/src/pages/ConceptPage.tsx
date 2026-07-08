@@ -473,7 +473,7 @@ export default function ConceptPage() {
                                       });
                                       setSizePopupId(null);
                                       setPopupSizeQty({});
-                                      toast({ title: "Добавлено в корзину предзаказов", description: `${product.name} · ${totalQty} шт.` });
+                                      openPreorderCartDrawer();
                                     }}
                                     data-testid={`button-popup-confirm-${product.id}`}
                                   >
