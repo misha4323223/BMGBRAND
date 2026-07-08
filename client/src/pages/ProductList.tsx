@@ -766,11 +766,13 @@ function ArtistOverlay({ artist, onClose }: { artist: { name: string; role: stri
           </motion.div>
           <button
             onClick={onClose}
-            className="absolute right-4 sm:right-8 top-6 sm:top-10 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
-            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}
-            aria-label="Закрыть"
+            className="absolute left-4 sm:left-8 top-6 sm:top-10 flex items-center gap-2 text-white/70 text-sm font-medium hover:text-white transition-colors group"
+            data-testid="button-artist-overlay-close"
           >
-            <X className="w-4 h-4 text-white" />
+            <span className="flex items-center justify-center w-8 h-8 rounded-full border border-white/20 bg-black/30 backdrop-blur-sm group-hover:border-white/50 group-hover:bg-black/50 transition-all">
+              <ArrowLeft className="w-3.5 h-3.5 text-white" />
+            </span>
+            <span className="hidden sm:inline">Назад</span>
           </button>
         </div>
 
