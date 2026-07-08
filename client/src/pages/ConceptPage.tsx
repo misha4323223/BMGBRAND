@@ -1,13 +1,11 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowRight, Package, Bell, CheckCircle2, ShoppingCart, X, ArrowLeft, AlertTriangle, Info, Megaphone, Flame } from "lucide-react";
+import { ArrowRight, Package, ShoppingCart, ArrowLeft, AlertTriangle, Info, Megaphone, Flame } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { apiRequest } from "@/lib/queryClient";
+import { PreorderSubscribeWidget } from "@/components/PreorderSubscribeWidget";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -83,9 +81,6 @@ export default function ConceptPage() {
   const bannerButtonText: string = promoBanner.buttonText || "";
   const bannerButtonUrl: string = promoBanner.buttonUrl || "";
 
-  const [subEmail, setSubEmail] = useState("");
-  const [agreed, setAgreed] = useState(false);
-  const [subscribed, setSubscribed] = useState(false);
   const { addOrUpdateItem, items: cartPreorderItems } = usePreorderCart();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -158,15 +153,6 @@ export default function ConceptPage() {
     }
   }
 
-  const subscribeMutation = useMutation({
-    mutationFn: async () => {
-      await apiRequest("POST", "/api/preorder-subscribers/subscribe", { email: subEmail });
-    },
-    onSuccess: () => {
-      setSubscribed(true);
-    },
-  });
-
   return (
     <div className="min-h-screen bg-background text-foreground" data-testid="page-concept">
       <SEO
@@ -174,7 +160,7 @@ export default function ConceptPage() {
         description="Pre-drop BOOOMERANGS — поддержи создание новых моделей одежды с авторскими принтами. Голосуй рублём за то, что хочешь носить."
         keywords="предзаказ, pre-drop, российский бренд одежды с авторскими принтами, BOOOMERANGS"
       />
-      {/* Hero banner с оверлеями */}
+      {/* Hero banner */}
       <section className="bg-black relative overflow-hidden">
         {/* Desktop image */}
         {heroBannerDesktop && (
@@ -202,68 +188,10 @@ export default function ConceptPage() {
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden sm:inline">Назад</span>
         </button>
-
-        {/* Форма подписки — левый нижний угол */}
-        <div className="absolute bottom-0 left-0 right-0 sm:right-auto px-4 sm:px-6 pb-0 pt-4 sm:pt-6 sm:max-w-sm md:max-w-md z-10">
-          <div className="bg-black/60 backdrop-blur-md rounded-xl p-4 sm:p-5">
-            {subscribed ? (
-              <div className="flex items-center gap-3" data-testid="preorder-subscribed-message">
-                <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold text-white">Ты подписан!</p>
-                  <p className="text-xs text-white/50 mt-0.5">Пришлём письмо при запуске нового предзаказа</p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Bell className="w-4 h-4 shrink-0" style={{ color: "#D7FF00" }} />
-                  <span className="text-sm font-semibold text-white tracking-tight">
-                    Узнай первым о новом предзаказе
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    placeholder="Твой email"
-                    value={subEmail}
-                    onChange={e => setSubEmail(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && subEmail && agreed && subscribeMutation.mutate()}
-                    className="bg-white/10 border-white/15 text-white placeholder:text-white/30 focus-visible:ring-0 h-9 text-sm"
-                    style={{ borderColor: "rgba(200,241,58,0.3)" }}
-                    data-testid="input-preorder-email"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => subscribeMutation.mutate()}
-                    disabled={!subEmail || !agreed || subscribeMutation.isPending}
-                    className="shrink-0 h-9 px-4 text-xs font-semibold text-black hover:opacity-90"
-                    style={{ backgroundColor: "#D7FF00" }}
-                    data-testid="button-preorder-subscribe"
-                  >
-                    {subscribeMutation.isPending ? "..." : "Подписаться"}
-                  </Button>
-                </div>
-                <label className="flex items-start gap-2 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={agreed}
-                    onChange={e => setAgreed(e.target.checked)}
-                    className="mt-0.5 shrink-0" style={{ accentColor: "#D7FF00" }}
-                    data-testid="checkbox-preorder-agree"
-                  />
-                  <span className="text-[11px] text-white/40 group-hover:text-white/60 transition-colors leading-relaxed">
-                    Соглашаюсь получать уведомления о новых предзаказах. Отписаться можно в любой момент в личном кабинете.
-                  </span>
-                </label>
-                {subscribeMutation.isError && (
-                  <p className="text-red-400 text-xs">Ошибка. Попробуй ещё раз.</p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
       </section>
+
+      {/* Виджет подписки */}
+      <PreorderSubscribeWidget />
 
       {/* Promo banner */}
       {bannerEnabled && (bannerTitle || bannerText) && (() => {

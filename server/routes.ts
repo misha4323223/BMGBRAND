@@ -11617,6 +11617,16 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  app.get("/api/preorder-subscribers/count", async (req, res) => {
+    try {
+      const all = await storage.getAllPreorderSubscribers();
+      const count = all.filter(s => s.isActive).length;
+      res.json({ count });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.delete("/api/preorder-subscribers/unsubscribe", async (req, res) => {
     try {
       const { email } = req.body;
