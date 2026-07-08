@@ -33,6 +33,10 @@ interface ArtistGroupMobile {
   tracks: ArtistTrack[];
 }
 
+function allCategoryLabel(name: string): string {
+  return name.trim().toLowerCase() === "мерч" ? `Весь ${name}` : `Все ${name}`;
+}
+
 function MobileMusicList({ onClose }: { onClose: () => void }) {
   const { data, isLoading } = useQuery<{ artists: ArtistGroupMobile[] }>({
     queryKey: ["/api/artists/all-tracks"],
@@ -589,7 +593,7 @@ export function Navbar() {
                         {hoveredCat && categories[hoveredCat] && (
                           <>
                             <Link href={`/products/${hoveredCat}`} onClick={closeAll} className="flex items-center justify-between w-full px-4 py-2 text-sm text-slate-400 hover:text-slate-800 hover:bg-white/60 rounded-lg transition-colors">
-                              Все {categories[hoveredCat].name}
+                              {allCategoryLabel(categories[hoveredCat].name)}
                             </Link>
                             <div className="my-1 mx-3 border-t border-slate-100" />
                             {categories[hoveredCat].subcategories.map((sub) => (
@@ -867,7 +871,7 @@ export function Navbar() {
                                   onClick={closeAll}
                                   className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-0.5"
                                 >
-                                  Все {cat.name}
+                                  {allCategoryLabel(cat.name)}
                                 </Link>
                                 {cat.subcategories.map((sub) => (
                                   <Link
