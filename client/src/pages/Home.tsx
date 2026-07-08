@@ -1078,15 +1078,15 @@ export default function Home() {
         case "philosophy":
           return isSectionVisible("philosophy") ? (
             <div key="section-philosophy">
-      <section className={`section-lazy overflow-hidden ${getBgClass("philosophy", "bg-secondary text-secondary-foreground")}`}>
+      <section className={`section-lazy overflow-hidden ${getBgClass("philosophy", "bg-zinc-950")}`}>
         <div className="flex flex-col md:flex-row min-h-[520px] sm:min-h-[640px] md:h-[680px] md:max-h-[680px]">
           {/* Left — text panel */}
           <div className="flex flex-col justify-between px-6 py-10 sm:px-12 sm:py-16 md:w-[45%] lg:w-[40%] shrink-0">
             <div>
-              <p className="text-[11px] sm:text-xs font-mono tracking-[0.25em] uppercase text-secondary-foreground/70 mb-6 sm:mb-10">
+              <p className="text-[11px] sm:text-xs font-mono tracking-[0.25em] uppercase text-white/40 mb-6 sm:mb-10">
                 BOOOMERANGS — МАНИФЕСТ
               </p>
-              <h2 className="font-['Oswald',sans-serif] text-[2.6rem] sm:text-[3.8rem] lg:text-[4.8rem] font-bold uppercase leading-[0.92] tracking-tight mb-6 sm:mb-10">
+              <h2 className="font-['Oswald',sans-serif] text-[2.6rem] sm:text-[3.8rem] lg:text-[4.8rem] font-bold uppercase leading-[0.92] tracking-tight text-white mb-6 sm:mb-10">
                 {pageSettings?.philosophy?.title ? (
                   <span>{pageSettings.philosophy.title}</span>
                 ) : (
@@ -1097,21 +1097,27 @@ export default function Home() {
                   </>
                 )}
               </h2>
-              <p className="text-sm sm:text-base text-secondary-foreground/60 leading-relaxed max-w-sm">
+              <p className="text-sm sm:text-base text-white/50 leading-relaxed max-w-sm">
                 {pageSettings?.philosophy?.text || "Базируясь в Туле — городе мастеров, пряников и самоваров — мы создаем вещи для повседневной жизни. Мы объединяем традиции качества и современный стиль в каждой детали."}
               </p>
+              <div className="flex items-center gap-3 mt-6 sm:mt-8">
+                <span className="font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">Тула</span>
+                <span className="text-white/15">·</span>
+                <span className="font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">с 2019</span>
+                <span className="text-white/15">·</span>
+                <span className="font-mono text-[10px] tracking-[0.2em] text-white/30 uppercase">100% РФ</span>
+              </div>
             </div>
-            <div className="mt-8 sm:mt-0 flex flex-col gap-6">
-              <div className="w-12 h-px bg-primary" />
+            <div className="mt-8 sm:mt-0">
               <Link
                 href={pageSettings?.philosophy?.linkUrl || "/about"}
-                className="inline-flex items-center gap-3 group w-fit"
+                className="group flex items-center justify-between w-full border border-white/[0.12] px-5 py-4 hover:bg-white/[0.05] hover:border-white/25 transition-all duration-200"
                 data-testid="link-manifesto"
               >
-                <span className="text-xs sm:text-sm font-mono tracking-[0.2em] uppercase font-medium text-secondary-foreground group-hover:text-primary transition-colors">
+                <span style={{ fontFamily: "'Oswald', sans-serif" }} className="text-sm sm:text-base font-bold uppercase tracking-wider text-white">
                   {pageSettings?.philosophy?.linkText || "Узнать о нас"}
                 </span>
-                <ArrowRight className="w-4 h-4 text-primary group-hover:translate-x-1.5 transition-transform" />
+                <ArrowRight className="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all duration-200" strokeWidth={1.5} />
               </Link>
             </div>
           </div>
@@ -1144,8 +1150,8 @@ export default function Home() {
                 className="md:hidden w-full h-auto"
               />
             )}
-            {/* Gradient edge fade to left */}
-            <div className="hidden md:block absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-secondary to-transparent pointer-events-none" />
+            {/* Gradient edge fade to zinc-950 */}
+            <div className="hidden md:block absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-zinc-950 to-transparent pointer-events-none" />
           </div>
         </div>
       </section>
@@ -1303,71 +1309,88 @@ export default function Home() {
         case "newsletter":
           return isSectionVisible("newsletter") ? (
             <div key="section-newsletter">
-      <section className={`section-lazy py-12 sm:py-28 ${getBgClass("newsletter", "bg-foreground")} text-background relative overflow-hidden`}>
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none flex items-center justify-center">
-          <img src="/images/boomerangs-logo.webp" alt="" className="w-[80%] max-w-[800px] invert brightness-200" draggable={false} />
-        </div>
-        <div className="max-w-xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] sm:tracking-[0.3em] text-background/50 mb-3 sm:mb-4">
-            {pageSettings?.newsletter?.subtitle ? "" : "Будь в курсе"}
-          </p>
+      <section className={`section-lazy ${getBgClass("newsletter", "bg-zinc-950")} border-t border-white/[0.08] relative overflow-hidden`}>
+        <div className="max-w-8xl mx-auto px-6 sm:px-12 lg:px-16 py-14 sm:py-24 flex flex-col md:flex-row gap-10 md:gap-20 items-start md:items-center">
 
-          <h2 className="text-2xl sm:text-4xl md:text-5xl font-black uppercase tracking-[-0.03em] text-background mb-2 sm:mb-3 leading-tight">
-            {pageSettings?.newsletter?.title || "Не пропусти дроп"}
-          </h2>
-          <p className="text-xs sm:text-sm text-background/60 mb-6 sm:mb-10 max-w-sm mx-auto">
-            {pageSettings?.newsletter?.subtitle || "Новые коллекции, эксклюзивные акции и закрытые предложения — прямо на почту."}<br/>
-            {homepagePromo?.isActive && homepagePromo?.discountPercent && (
-              <span className="text-primary font-medium">Скидка {homepagePromo.discountPercent}% на первый заказ</span>
-            )}
-          </p>
-          
-          {subscribed ? (
-            <div className="border border-background/10 p-6 sm:p-8 rounded-xl">
-              <p className="text-lg font-medium text-background mb-2">{pageSettings?.newsletter?.successText || "Добро пожаловать в клуб"}</p>
-              {homepagePromo?.isActive && homepagePromo?.code && (
-                <p className="text-sm text-background/50">
-                  Ваш промокод: <span className="text-primary font-bold text-base">{homepagePromo.code}</span>
-                </p>
+          {/* Left — editorial */}
+          <div className="md:w-[45%] lg:w-[40%] shrink-0">
+            <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-white/40 mb-6 sm:mb-10">
+              БУДЬ В КУРСЕ
+            </p>
+            <h2 style={{ fontFamily: "'Oswald', sans-serif" }} className="text-[2.6rem] sm:text-[3.8rem] lg:text-[4.4rem] font-bold uppercase leading-[0.92] tracking-tight text-white mb-6 sm:mb-8">
+              {pageSettings?.newsletter?.title ? (
+                <span>{pageSettings.newsletter.title}</span>
+              ) : (
+                <>
+                  <span className="block">НЕ</span>
+                  <span className="block text-primary">ПРОПУСТИ</span>
+                  <span className="block">ДРОП</span>
+                </>
               )}
-            </div>
-          ) : (
-            <form onSubmit={handleSubscribe} className="max-w-sm mx-auto space-y-3 sm:space-y-4">
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-0 sm:border sm:border-background/20 sm:rounded-full sm:overflow-hidden sm:bg-background/5 sm:backdrop-blur-sm">
-                <input 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Ваш email"
-                  required
-                  disabled={isSubmitting}
-                  className="w-full bg-background/5 sm:bg-transparent border border-background/20 sm:border-0 rounded-full sm:rounded-none px-4 py-3 sm:px-5 sm:py-3.5 text-sm text-background placeholder:text-background/40 focus:outline-none disabled:opacity-50"
-                  data-testid="input-newsletter-email"
-                />
-                <Button 
-                  type="submit" 
-                  disabled={isSubmitting || !newsletterConsent}
-                  className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-3 sm:py-3.5 text-sm font-medium sm:m-1 shrink-0"
-                  data-testid="button-newsletter-submit"
-                >
-                  {isSubmitting ? "..." : (pageSettings?.newsletter?.buttonText || "Подписаться")}
-                </Button>
+            </h2>
+            <p className="text-sm text-white/40 leading-relaxed max-w-xs mb-8 sm:mb-10">
+              {pageSettings?.newsletter?.subtitle || "Новые коллекции, эксклюзивные акции и закрытые предложения — прямо на почту."}
+              {homepagePromo?.isActive && homepagePromo?.discountPercent && (
+                <><br /><span className="text-primary font-medium">Скидка {homepagePromo.discountPercent}% на первый заказ</span></>
+              )}
+            </p>
+            <Link
+              href="/about"
+              className="group inline-flex items-center gap-2 text-[11px] font-mono tracking-[0.2em] uppercase text-white/25 hover:text-white/50 transition-colors"
+            >
+              Узнать о нас <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" strokeWidth={1.5} />
+            </Link>
+          </div>
+
+          {/* Right — form */}
+          <div className="flex-1 w-full">
+            {subscribed ? (
+              <div className="border border-white/[0.12] p-6 sm:p-8">
+                <p className="text-lg font-medium text-white mb-2">{pageSettings?.newsletter?.successText || "Добро пожаловать в клуб"}</p>
+                {homepagePromo?.isActive && homepagePromo?.code && (
+                  <p className="text-sm text-white/40">
+                    Ваш промокод: <span className="text-primary font-bold text-base">{homepagePromo.code}</span>
+                  </p>
+                )}
               </div>
-              <label className="flex items-start gap-2 cursor-pointer justify-center" data-testid="label-home-newsletter-consent">
-                <input
-                  type="checkbox"
-                  checked={newsletterConsent}
-                  onChange={(e) => setNewsletterConsent(e.target.checked)}
-                  className="mt-0.5 accent-primary"
-                  data-testid="checkbox-home-newsletter-consent"
-                />
-                <span className="text-[11px] leading-tight text-background/50 text-left">
-                  Я соглашаюсь на обработку персональных данных и получение рассылки в соответствии с{" "}
-                  <a href="/privacy" className="underline hover:text-background/60" target="_blank">политикой конфиденциальности</a>
-                </span>
-              </label>
-            </form>
-          )}
+            ) : (
+              <form onSubmit={handleSubscribe} className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-0 border border-white/[0.12] overflow-hidden">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Ваш email"
+                    required
+                    disabled={isSubmitting}
+                    className="flex-1 bg-transparent px-5 py-4 text-sm text-white placeholder:text-white/30 focus:outline-none disabled:opacity-50"
+                    data-testid="input-newsletter-email"
+                  />
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || !newsletterConsent}
+                    className="bg-white hover:bg-white/90 text-black rounded-none px-8 py-4 h-auto text-sm font-bold uppercase tracking-wider shrink-0 disabled:opacity-40"
+                    data-testid="button-newsletter-submit"
+                  >
+                    {isSubmitting ? "..." : (pageSettings?.newsletter?.buttonText || "Подписаться")}
+                  </Button>
+                </div>
+                <label className="flex items-start gap-2 cursor-pointer" data-testid="label-home-newsletter-consent">
+                  <input
+                    type="checkbox"
+                    checked={newsletterConsent}
+                    onChange={(e) => setNewsletterConsent(e.target.checked)}
+                    className="mt-0.5 accent-primary"
+                    data-testid="checkbox-home-newsletter-consent"
+                  />
+                  <span className="text-[11px] leading-tight text-white/30 text-left">
+                    Я соглашаюсь на обработку персональных данных и получение рассылки в соответствии с{" "}
+                    <a href="/privacy" className="underline hover:text-white/50" target="_blank">политикой конфиденциальности</a>
+                  </span>
+                </label>
+              </form>
+            )}
+          </div>
         </div>
       </section>
             </div>
