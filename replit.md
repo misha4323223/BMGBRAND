@@ -37,6 +37,9 @@ NODE_ENV=development npx tsx server/index.ts
 ### Импорт проекта в Replit (08.07.2026)
 После импорта из GitHub `node_modules` отсутствовал — workflow зависал на подтверждении установки `tsx`. Исправлено: `npm install --include=dev`. После добавления всех секретов (YDB, платёжные шлюзы, CDEK, Telegram, VK и т.д.) сервер подключился к боевой YDB, загрузил 823 товара и 232 заказа — приложение полностью рабочее.
 
+### GitHub Actions деплой в Yandex Cloud — retry на docker push
+`docker push` в `cr.yandex` иногда падает с `read: connection reset by peer` — это транзиентная сетевая ошибка между раннером GitHub Actions и Yandex Container Registry, а не баг в коде. В `.github/workflows/deploy.yml` шаг `Push Docker image` обёрнут в retry-функцию (5 попыток с нарастающей паузой). Если пуш всё равно падает после 5 попыток — проблема на стороне сети/registry, стоит попробовать перезапустить workflow вручную.
+
 ### npm registry и package-lock.json — важно для GitHub Actions
 
 В Replit npm по умолчанию проксирует запросы через внутренний адрес `package-firewall.replit.local`. Этот адрес **недоступен вне Replit** (GitHub Actions, Docker). Если установить пакеты без явного указания registry, в `package-lock.json` запишутся Replit-URL и Docker-сборка упадёт с ошибкой:
