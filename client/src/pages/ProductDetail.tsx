@@ -983,7 +983,7 @@ export default function ProductDetail() {
               <span className="lg:hidden font-mono text-muted-foreground text-[10px] uppercase tracking-[0.3em] block mb-2" data-testid={`text-category-${product.id}`}>{product.category}</span>
 
               {/* ── Мобильная раскладка: заголовок + 3 равных кнопки ── */}
-              <div className="sm:hidden">
+              <div className="md:hidden">
                 <h1 className="text-base font-semibold leading-snug text-foreground mb-3" data-testid={`text-product-name-${product.id}`}>
                   {displayName(product.name)}
                 </h1>
@@ -1032,34 +1032,30 @@ export default function ProductDetail() {
               </div>
 
               {/* ── Десктопная раскладка: Вариант В — монолит ── */}
-              <div className="hidden sm:flex items-start gap-3 min-w-0">
-                {/* Название — занимает всё свободное место */}
-                <h1
-                  className="flex-1 min-w-0 text-[13px] font-bold uppercase tracking-[0.16em] text-foreground leading-snug"
-                  data-testid={`text-product-name-${product.id}`}
-                >
-                  {displayName(product.name)}
-                </h1>
-                {/* Цена inline */}
-                <div className="shrink-0 flex items-baseline gap-1.5 pt-px">
-                  {showPreorderPriceLabels && (
-                    <span className="text-[10px] text-foreground/50 uppercase tracking-wide self-center">Предпродажная</span>
+              <div className={`hidden md:flex min-w-0 ${showPreorderPriceLabels ? 'flex-col gap-2' : 'items-start gap-3'}`}>
+                <div className={`flex items-start gap-3 min-w-0 ${showPreorderPriceLabels ? 'w-full' : ''}`}>
+                  {/* Название — занимает всё свободное место */}
+                  <h1
+                    className="flex-1 min-w-0 text-[13px] font-bold uppercase tracking-[0.16em] text-foreground leading-snug"
+                    data-testid={`text-product-name-${product.id}`}
+                  >
+                    {displayName(product.name)}
+                  </h1>
+                  {!showPreorderPriceLabels && (
+                    <div className="shrink-0 flex items-baseline gap-1.5 pt-px">
+                      <span className={`text-xl font-bold leading-none ${isWholesale ? 'text-primary' : 'text-foreground'}`}>
+                        {displayPrice}
+                      </span>
+                      {isWholesale && wholesalePriceValue && (
+                        <>
+                          <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">ОПТ</Badge>
+                        </>
+                      )}
+                    </div>
                   )}
-                  <span className={`text-xl font-bold leading-none ${hasDiscount ? 'text-red-600' : isWholesale ? 'text-primary' : 'text-foreground'}`}>
-                    {hasDiscount ? formatPrice(salePrice) : displayPrice}
-                  </span>
-                  {hasDiscount && (
-                    <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
-                  )}
-                  {isWholesale && wholesalePriceValue && (
-                    <>
-                      <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
-                      <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">ОПТ</Badge>
-                    </>
-                  )}
-                </div>
-                {/* Кнопки действий — только иконки */}
-                <div className="flex items-center gap-1 shrink-0 pt-px">
+                  {/* Кнопки действий — только иконки */}
+                  <div className="flex items-center gap-1 shrink-0 pt-px">
                   <button
                     onClick={() => toggleFavorite(product.id)}
                     className="w-7 h-7 flex items-center justify-center rounded-full border border-border/50 hover:border-foreground/40 transition-all"
@@ -1100,11 +1096,21 @@ export default function ProductDetail() {
                       {hintCopied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Gift className="w-3.5 h-3.5 text-foreground" />}
                     </button>
                   )}
+                  </div>
                 </div>
+                {showPreorderPriceLabels && (
+                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-foreground/50 uppercase tracking-wide self-center">Предпродажная</span>
+                    <span className="text-xl font-bold leading-none text-red-600">
+                      {formatPrice(salePrice)}
+                    </span>
+                    <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
+                  </div>
+                )}
               </div>
               <div className="border-t border-border my-3 sm:my-2"></div>
               {/* Цена — скрыта на десктопе (переехала в шапку) */}
-              <div className="sm:hidden space-y-1" data-testid={`text-product-price-${product.id}`}>
+              <div className="md:hidden space-y-1" data-testid={`text-product-price-${product.id}`}>
                 {showPreorderPriceLabels && (
                   <p className="text-xs font-medium text-foreground uppercase tracking-wide">Предпродажная цена</p>
                 )}
@@ -1130,7 +1136,7 @@ export default function ProductDetail() {
               </div>
               {/* Dolyame на мобиле — рядом с ценой */}
               {!isWholesale && salePrice >= 300000 && salePrice <= 3000000 && (
-                <div className="sm:hidden">
+                <div className="md:hidden">
                   <DolyameWidget
                     price={salePrice}
                     isDark={false}
