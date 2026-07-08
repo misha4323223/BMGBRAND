@@ -1301,31 +1301,7 @@ export default function Home() {
       <section className={`section-lazy ${getBgClass("newsletter", "bg-zinc-950")} border-t border-white/[0.08] relative overflow-hidden`}>
         <div className="max-w-8xl mx-auto px-6 sm:px-12 lg:px-16 py-20 sm:py-32 flex flex-col md:flex-row gap-14 md:gap-24 items-start md:items-center">
 
-          {/* Left — editorial */}
-          <div className="md:w-[48%] lg:w-[42%] shrink-0">
-            <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-white/35 mb-8 sm:mb-12">
-              БУДЬ В КУРСЕ
-            </p>
-            <h2 style={{ fontFamily: "'Oswald', sans-serif" }} className="text-[3.2rem] sm:text-[4.6rem] lg:text-[5.4rem] font-bold uppercase leading-[0.88] tracking-tight text-white mb-8 sm:mb-10">
-              {pageSettings?.newsletter?.title ? (
-                <span>{pageSettings.newsletter.title}</span>
-              ) : (
-                <>
-                  <span className="block">НЕ</span>
-                  <span className="block text-primary">ПРОПУСТИ</span>
-                  <span className="block">ДРОП</span>
-                </>
-              )}
-            </h2>
-            <p className="text-sm sm:text-[1.05rem] text-white/45 leading-[1.75] max-w-xs">
-              {pageSettings?.newsletter?.subtitle || "Новые коллекции, эксклюзивные акции и закрытые предложения — прямо на почту."}
-              {homepagePromo?.isActive && homepagePromo?.discountPercent && (
-                <><br /><span className="text-primary font-medium">Скидка {homepagePromo.discountPercent}% на первый заказ</span></>
-              )}
-            </p>
-          </div>
-
-          {/* Right — form */}
+          {/* Left — form */}
           <div className="flex-1 w-full">
             {subscribed ? (
               <div className="border border-white/[0.12] p-6 sm:p-8">
@@ -1373,6 +1349,30 @@ export default function Home() {
                 </label>
               </form>
             )}
+          </div>
+
+          {/* Right — editorial */}
+          <div className="md:w-[48%] lg:w-[42%] shrink-0">
+            <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-white/35 mb-8 sm:mb-12">
+              БУДЬ В КУРСЕ
+            </p>
+            <h2 style={{ fontFamily: "'Oswald', sans-serif" }} className="text-[3.2rem] sm:text-[4.6rem] lg:text-[5.4rem] font-bold uppercase leading-[0.88] tracking-tight text-white mb-8 sm:mb-10">
+              {pageSettings?.newsletter?.title ? (
+                <span>{pageSettings.newsletter.title}</span>
+              ) : (
+                <>
+                  <span className="block">НЕ</span>
+                  <span className="block text-primary">ПРОПУСТИ</span>
+                  <span className="block">ДРОП</span>
+                </>
+              )}
+            </h2>
+            <p className="text-sm sm:text-[1.05rem] text-white/45 leading-[1.75] max-w-xs">
+              {pageSettings?.newsletter?.subtitle || "Новые коллекции, эксклюзивные акции и закрытые предложения — прямо на почту."}
+              {homepagePromo?.isActive && homepagePromo?.discountPercent && (
+                <><br /><span className="text-primary font-medium">Скидка {homepagePromo.discountPercent}% на первый заказ</span></>
+              )}
+            </p>
           </div>
         </div>
       </section>
