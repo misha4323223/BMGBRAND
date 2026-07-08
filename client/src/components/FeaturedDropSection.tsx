@@ -233,9 +233,9 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
           <div className="absolute top-6 left-6 sm:top-8 sm:left-8 z-10">
             <span
               className="inline-flex items-center gap-2 text-[10px] sm:text-[11px] font-mono tracking-[0.3em] uppercase px-3 py-1.5 rounded-full text-white/90"
-              style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(0,229,255,0.4)", backdropFilter: "blur(4px)" }}
+              style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,45,45,0.4)", backdropFilter: "blur(4px)" }}
             >
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#00E5FF" }} />
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#FF2D2D" }} />
               ПРЕДПРОДАЖА
             </span>
           </div>
