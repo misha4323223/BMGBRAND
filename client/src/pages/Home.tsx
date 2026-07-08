@@ -1005,8 +1005,8 @@ export default function Home() {
             </div>
           )}
 
-          <div className="flex flex-col items-center gap-4 mt-10 sm:mt-14">
-            {!isLoading && popularVisibleCount < allFeaturedProducts.length && (
+          <div className="flex justify-center mt-10 sm:mt-14">
+            {!isLoading && popularVisibleCount < allFeaturedProducts.length ? (
               <Button
                 variant="outline"
                 size="lg"
@@ -1016,13 +1016,14 @@ export default function Home() {
                 Показать ещё
                 <ArrowRight className="w-4 h-4" />
               </Button>
+            ) : (
+              <Button asChild variant="outline" size="lg" className="uppercase tracking-wide gap-2.5">
+                <Link href={pageSettings?.popular?.linkUrl || "/products"} data-testid="link-all-products">
+                  {pageSettings?.popular?.linkText || "Все товары"}
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </Button>
             )}
-            <Button asChild variant="outline" size="lg" className="uppercase tracking-wide gap-2.5">
-              <Link href={pageSettings?.popular?.linkUrl || "/products"} data-testid="link-all-products">
-                {pageSettings?.popular?.linkText || "Все товары"}
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </Button>
           </div>
       </section>
             </div>
