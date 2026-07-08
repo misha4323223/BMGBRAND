@@ -411,22 +411,11 @@ body.lb-open nav {
   animation: predrop-star-twinkle ease-in-out infinite;
 }
 
-@keyframes predrop-border-spin {
-  to { transform: rotate(360deg); }
-}
 .predrop-form-glow {
   position: relative;
   border-radius: 9999px;
   padding: 2px;
   isolation: isolate;
-}
-.predrop-form-glow::before {
-  content: '';
-  position: absolute;
-  inset: -60%;
-  background: conic-gradient(from 0deg, transparent 0%, #E53935 12%, transparent 28%, transparent 100%);
-  animation: predrop-border-spin 4s linear infinite;
-  z-index: 0;
 }
 .predrop-form-glow > * {
   position: relative;
@@ -462,6 +451,6 @@ body.lb-open nav {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .predrop-blob-1, .predrop-blob-2, .predrop-star, .predrop-form-glow::before,
+  .predrop-blob-1, .predrop-blob-2, .predrop-star,
   .predrop-ring, .predrop-spark { animation: none !important; }
 }

@@ -123,18 +123,13 @@ export function PreorderSubscribeWidget() {
           </span>
         </div>
 
-        <p className="text-[11px] sm:text-xs font-bold tracking-[0.3em] uppercase mb-3" style={{ color: "#E53935" }}>
-          Сигнал получен из будущего
-        </p>
-
         <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white leading-[1.05] mb-4 font-display">
           НЕ ПРОПУСТИ<br className="hidden sm:block" /> СЛЕДУЮЩИЙ ДРОП
         </h2>
 
         <p className="text-sm sm:text-base text-white/50 max-w-lg mx-auto mb-8 leading-relaxed">
-          Подпишись — и узнаешь о новом pre-drop раньше всех: до того, как о нём
-          напишут в сторис. Никакого спама, только моменты, когда решается,
-          что мы шьём дальше.
+          Подпишись — и узнаешь о новом pre-drop раньше всех. Никакого спама,
+          только моменты, когда решается, что мы шьём дальше.
         </p>
 
         {/* Соц. доказательство */}
