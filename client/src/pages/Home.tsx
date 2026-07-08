@@ -1081,38 +1081,34 @@ export default function Home() {
       <section className={`section-lazy overflow-hidden ${getBgClass("philosophy", "bg-zinc-950")}`}>
         <div className="flex flex-col md:flex-row min-h-[520px] sm:min-h-[640px] md:h-[680px] md:max-h-[680px]">
           {/* Left — text panel */}
-          <div className="flex flex-col justify-between px-6 py-10 sm:px-12 sm:py-16 md:w-[45%] lg:w-[40%] shrink-0">
-            <div>
-              <p className="text-[11px] sm:text-xs font-mono tracking-[0.25em] uppercase text-white/40 mb-6 sm:mb-10">
-                BOOOMERANGS — МАНИФЕСТ
-              </p>
-              <h2 className="font-['Oswald',sans-serif] text-[2.6rem] sm:text-[3.8rem] lg:text-[4.8rem] font-bold uppercase leading-[0.92] tracking-tight text-white mb-6 sm:mb-10">
-                {pageSettings?.philosophy?.title ? (
-                  <span>{pageSettings.philosophy.title}</span>
-                ) : (
-                  <>
-                    <span className="block">БОЛЬШЕ</span>
-                    <span className="block text-primary">ЧЕМ</span>
-                    <span className="block">ОДЕЖДА</span>
-                  </>
-                )}
-              </h2>
-              <p className="text-sm sm:text-[1.05rem] text-white/55 leading-[1.75] max-w-sm mt-2">
-                {pageSettings?.philosophy?.text || "Базируясь в Туле — городе мастеров, пряников и самоваров — мы создаем вещи для повседневной жизни. На нашем счету более 200 моделей носков: от ироничных мемных дизайнов до оригинальных ярких пар. Мы объединяем традиции качества и современный стиль в каждой детали нашего ассортимента."}
-              </p>
-            </div>
-            <div className="mt-10 sm:mt-0">
-              <Link
-                href={pageSettings?.philosophy?.linkUrl || "/about"}
-                className="group inline-flex items-center gap-3"
-                data-testid="link-manifesto"
-              >
-                <span className="text-xs font-mono tracking-[0.22em] uppercase text-white/40 group-hover:text-white/70 transition-colors duration-200">
-                  {pageSettings?.philosophy?.linkText || "Узнать о нас"}
-                </span>
-                <ArrowRight className="w-3.5 h-3.5 text-white/25 group-hover:text-white/60 group-hover:translate-x-1 transition-all duration-200" strokeWidth={1.5} />
-              </Link>
-            </div>
+          <div className="flex flex-col justify-center px-6 py-12 sm:px-12 sm:py-20 md:w-[48%] lg:w-[44%] shrink-0 gap-6 sm:gap-8">
+            <p className="text-[11px] sm:text-xs font-mono tracking-[0.25em] uppercase text-white/35">
+              BOOOMERANGS — МАНИФЕСТ
+            </p>
+            <h2 className="font-['Oswald',sans-serif] text-[2.8rem] sm:text-[4rem] lg:text-[5rem] font-bold uppercase leading-[0.9] tracking-tight text-white">
+              {pageSettings?.philosophy?.title ? (
+                <span>{pageSettings.philosophy.title}</span>
+              ) : (
+                <>
+                  <span className="block">БОЛЬШЕ</span>
+                  <span className="block text-primary">ЧЕМ</span>
+                  <span className="block">ОДЕЖДА</span>
+                </>
+              )}
+            </h2>
+            <p className="text-base sm:text-lg text-white/50 leading-[1.8]">
+              {pageSettings?.philosophy?.text || "Базируясь в Туле — городе мастеров, пряников и самоваров — мы создаем вещи для повседневной жизни. На нашем счету более 200 моделей носков: от ироничных мемных дизайнов до оригинальных ярких пар. Мы объединяем традиции качества и современный стиль в каждой детали нашего ассортимента."}
+            </p>
+            <Link
+              href={pageSettings?.philosophy?.linkUrl || "/about"}
+              className="group inline-flex items-center gap-3 w-fit mt-2"
+              data-testid="link-manifesto"
+            >
+              <span className="text-xs font-mono tracking-[0.22em] uppercase text-white/40 group-hover:text-white/70 transition-colors duration-200">
+                {pageSettings?.philosophy?.linkText || "Узнать о нас"}
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 text-white/25 group-hover:text-white/60 group-hover:translate-x-1 transition-all duration-200" strokeWidth={1.5} />
+            </Link>
           </div>
 
           {/* Right — video/image panel */}
