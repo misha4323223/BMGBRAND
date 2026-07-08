@@ -45,14 +45,6 @@ stack = "FULLSTACK_JS"
 [userenv]
 
 [userenv.shared]
-JWT_SECRET = "f485dbb1948c4e8c24582e3ebf3a6bb377c57c747d114bea52ebb5c2845abd5b4cffdb2825ee3d6a1e6faf4b8cfe86ca"
-SITE_URL = "https://booomerangs.ru"
-APP_DOMAIN = "https://booomerangs.ru"
-VK_CHAT_PEER_ID = "2000000052"
-VK_ACTION_SECRET = "7e64ccfccbdac104aea64c61376417fecdb55f764799984ada1ee78876221017"
-VAPID_PUBLIC_KEY = "BMYxRCq3M4mQlMazsFzoDFeR7f5-_tKgrVyusJFp8aiNu-12vz45EzhO6i1N66nR26pyjloTDq7de79G8GENO6A"
-VAPID_PRIVATE_KEY = "gH_ns9BGR8xVWE87VJU6rLAqI8gU4H5J9GKT0zpo-3k"
-VAPID_EMAIL = "mailto:info@booomerangs.ru"
 
 [userenv.production]
 NODE_ENV = "production"
