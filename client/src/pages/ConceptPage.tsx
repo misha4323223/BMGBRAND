@@ -289,7 +289,7 @@ export default function ConceptPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-14 sm:gap-x-10 sm:gap-y-20">
-              {products.map((product) => {
+              {[...products].reverse().map((product) => {
                 const imageUrl =
                   product.images && product.images.length > 0
                     ? product.images[0]
