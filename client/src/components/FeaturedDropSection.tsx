@@ -62,6 +62,19 @@ function pad(n: number) {
   return n.toString().padStart(2, "0");
 }
 
+function getOptimizedImageUrl(url: string): string {
+  if (!url) return url;
+  if (url.includes('_thumb.webp')) return url;
+  if (
+    url.includes('storage.yandexcloud.net/bmg/products/') ||
+    url.includes('storage.yandexcloud.net/bmg/site/')
+  ) {
+    const thumbUrl = url.replace(/\.(webp|jpg|jpeg|png)(\?.*)?$/i, '_thumb.webp$2');
+    if (thumbUrl !== url) return thumbUrl;
+  }
+  return url;
+}
+
 export function FeaturedDropSection({ product, title, subtitle, ctaText, terminalLabel }: FeaturedDropSectionProps) {
   const { addOrUpdateItem, items: cartPreorderItems } = usePreorderCart();
   const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
@@ -165,13 +178,15 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
         <Link
           href={productHref}
           data-testid="link-featured-drop-image"
-          className="group relative block w-full lg:w-1/2 h-[380px] sm:h-[460px] lg:h-auto overflow-hidden bg-zinc-950"
+          className="group relative block w-full lg:w-1/2 h-[560px] sm:h-[640px] lg:h-auto overflow-hidden bg-zinc-950"
         >
           {imageUrl ? (
             <img
-              src={imageUrl}
+              src={getOptimizedImageUrl(imageUrl)}
               alt={product.name}
-              loading="lazy"
+              loading="eager"
+              decoding="async"
+              fetchpriority="high"
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
             />
           ) : (
