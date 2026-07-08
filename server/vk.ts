@@ -139,6 +139,7 @@ interface OrderNotification {
 }
 
 export function vkNotifyNewOrder(order: OrderNotification): void {
+  const discountDetails: any = (order.items as any[]).find((i: any) => i && i._discountDetails)?._discountDetails;
   const items = order.items.filter((i: any) => !i._discountDetails);
   const totalQty = items.reduce((s, i) => s + i.quantity, 0);
   const isWh = order.isWholesale;
@@ -165,12 +166,43 @@ export function vkNotifyNewOrder(order: OrderNotification): void {
 
   const sep = "\n────────────────────\n";
 
-  let footer = `${totalQty} шт.  •  ${price(order.total)}`;
+  let footer = "";
+
+  if (discountDetails && Number.isFinite(discountDetails.subtotal)) {
+    footer += `🛍 Товары: ${price(discountDetails.subtotal)}\n`;
+
+    const discParts: string[] = [];
+    if (Number.isFinite(discountDetails.promoDiscountAmount) && discountDetails.promoDiscountAmount > 0) {
+      let part = `🏷 ${discountDetails.promoCode || order.promoCode || ""}`;
+      if (Number.isFinite(discountDetails.promoDiscountPercent) && discountDetails.promoDiscountPercent > 0) {
+        part += ` -${discountDetails.promoDiscountPercent}%`;
+      }
+      part += ` (-${price(discountDetails.promoDiscountAmount)})`;
+      discParts.push(part);
+    }
+    if (Number.isFinite(discountDetails.loyaltyDiscountAmount) && discountDetails.loyaltyDiscountAmount > 0) {
+      const pct = Number.isFinite(discountDetails.loyaltyPercent) ? `-${discountDetails.loyaltyPercent}% ` : "";
+      discParts.push(`⭐ Лояльность ${pct}(-${price(discountDetails.loyaltyDiscountAmount)})`);
+    }
+    if (Number.isFinite(discountDetails.giftCardAmount) && discountDetails.giftCardAmount > 0) {
+      discParts.push(`🎁 Сертификат ${discountDetails.giftCardCode || ""} (-${price(discountDetails.giftCardAmount)})`);
+    }
+    if (discParts.length > 0) {
+      footer += `💸 Скидка: ${discParts.join("  •  ")}\n`;
+    }
+
+    if (!isWh) {
+      const dc = Number(discountDetails.deliveryCost) || 0;
+      footer += `🚚 Доставка: ${dc > 0 ? price(dc) : "бесплатно"}\n`;
+    }
+  }
+
+  footer += `${totalQty} шт.  •  ${price(order.total)}`;
   if (order.paymentMethod) {
     const m: Record<string, string> = { tbank: "T-Bank", yookassa: "ЮKassa", invoice: "Счёт" };
     footer += `  •  ${m[order.paymentMethod] || order.paymentMethod}`;
   }
-  if (order.promoCode) footer += `  •  🏷 ${order.promoCode}`;
+  if (!discountDetails && order.promoCode) footer += `  •  🏷 ${order.promoCode}`;
 
   const itemLines: string[] = [];
   for (let i = 0; i < items.length; i++) {
