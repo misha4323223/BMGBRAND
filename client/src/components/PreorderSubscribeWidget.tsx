@@ -1,28 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Bell, CheckCircle2, Rocket } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 
 const TICKER_TEXT = "PRE-DROP  •  ЛИМИТИРОВАННЫЕ КОЛЛЕКЦИИ  •  ";
-
-function useCountUp(target: number, durationMs = 900) {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (!target) { setValue(0); return; }
-    let raf: number;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const progress = Math.min(1, (now - start) / durationMs);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(Math.round(eased * target));
-      if (progress < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, durationMs]);
-  return value;
-}
 
 function Sparks() {
   const sparks = useMemo(() => Array.from({ length: 14 }).map((_, i) => {
@@ -52,11 +34,6 @@ export function PreorderSubscribeWidget() {
   const [email, setEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
-
-  const { data: countData } = useQuery<{ count: number }>({
-    queryKey: ["/api/preorder-subscribers/count"],
-  });
-  const count = useCountUp(countData?.count ?? 0);
 
   const subscribeMutation = useMutation({
     mutationFn: async () => {
@@ -131,19 +108,6 @@ export function PreorderSubscribeWidget() {
           Подпишись - и узнаешь о новой предпродажи раньше всех. Никакого спама,
           только моменты, когда решается, что мы шьём дальше.
         </p>
-
-        {/* Соц. доказательство */}
-        {(countData?.count ?? 0) > 0 && (
-          <div className="predrop-count-pop inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full bg-white/5 border border-white/10">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: "#E53935" }} />
-              <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: "#E53935" }} />
-            </span>
-            <span className="text-xs sm:text-sm text-white/70">
-              <span className="font-bold text-white tabular-nums">{count.toLocaleString("ru-RU")}</span> человек уже в списке ожидания
-            </span>
-          </div>
-        )}
 
         {subscribed ? (
           <div className="relative flex flex-col items-center gap-3 py-6" data-testid="predrop-subscribed-message">
