@@ -351,7 +351,7 @@ export default function ConceptPage() {
                       </h3>
 
                       {/* Цена */}
-                      <div className="space-y-1 text-center">
+                      <div className="space-y-1 text-center mt-1">
                         {hasDiscount ? (
                           <>
                             <p className="text-[10px] font-medium text-foreground uppercase tracking-wide">Предпродажная цена</p>
