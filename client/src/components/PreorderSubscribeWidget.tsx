@@ -4,7 +4,7 @@ import { Bell, CheckCircle2, Rocket } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 
-const TICKER_TEXT = "PRE-DROP  •  ЛИМИТИРОВАННЫЕ ДРОПЫ  •  ";
+const TICKER_TEXT = "PRE-DROP  •  ЛИМИТИРОВАННЫЕ КОЛЛЕКЦИИ  •  ";
 
 function useCountUp(target: number, durationMs = 900) {
   const [value, setValue] = useState(0);
