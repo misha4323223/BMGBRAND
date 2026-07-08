@@ -31,11 +31,11 @@ interface FeaturedDropSectionProps {
 const SIZE_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "ONE SIZE", "OS"];
 
 const STATUS_LABEL: Record<string, string> = {
-  collecting: "COLLECTING_ORDERS",
-  production: "IN_PRODUCTION",
-  shipping: "SHIPPING",
-  shipped: "SHIPPED",
-  cancelled: "CANCELLED",
+  collecting: "СБОР_ЗАКАЗОВ",
+  production: "В_ПРОИЗВОДСТВЕ",
+  shipping: "ОТПРАВКА",
+  shipped: "ОТПРАВЛЕНО",
+  cancelled: "ОТМЕНЕНО",
 };
 
 function formatPrice(cents: number): string {
@@ -220,7 +220,7 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText }: Featu
               style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(0,229,255,0.4)", backdropFilter: "blur(4px)" }}
             >
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#00E5FF" }} />
-              PRE-DROP EXCLUSIVE
+              ПРЕДПРОДАЖА
             </span>
           </div>
         </Link>
@@ -247,14 +247,14 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText }: Featu
               <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
               <span className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
               <span className="ml-3 text-[10px] tracking-[0.15em] text-white/40 uppercase truncate">
-                booomerangs://predrop_terminal
+                booomerangs://терминал_предзаказа
               </span>
             </div>
 
             {/* Статус-строка */}
             <div className="flex items-center gap-2 text-[11px] sm:text-xs tracking-[0.25em] uppercase mb-5" style={{ color: "#00E5FF" }}>
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#00E5FF" }} />
-              <span>&gt; STATUS: {statusCode}</span>
+              <span>&gt; СТАТУС: {statusCode}</span>
               <span className="fd-cursor inline-block w-[7px] h-[14px] ml-0.5" style={{ background: "#00E5FF" }} />
             </div>
 
