@@ -636,6 +636,18 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                     </div>
                   </div>
 
+                  {/* Ссылка на страницу артиста — только если товар привязан к артисту */}
+                  {(product as any).artistSlug && (
+                    <Link
+                      href={`/@${(product as any).artistSlug}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 text-[11px] text-black/40 hover:text-black transition-colors"
+                    >
+                      <ArrowUpRight className="w-3 h-3" />
+                      Смотреть всю коллекцию артиста
+                    </Link>
+                  )}
+
                   {/* Variant selector (socks: size ranges, clothing: colors) */}
                   {hasVariants && (
                     <div className="space-y-1 sm:space-y-2">
