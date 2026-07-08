@@ -238,7 +238,29 @@ export default function ConceptPage() {
       })()}
 
       {/* Products */}
-      <section className="py-14 sm:py-20 relative overflow-hidden">
+      <section
+        className="py-14 sm:py-20 relative overflow-hidden"
+        style={{ background: "linear-gradient(180deg, #FAF8F4 0%, #F0EDE8 100%)" }}
+      >
+        {/* Отголосок космических свечений из секции подписки */}
+        <div
+          className="absolute -top-20 -left-20 w-[45vw] h-[45vw] max-w-[460px] max-h-[460px] rounded-full opacity-[0.07] blur-[110px] pointer-events-none"
+          style={{ background: "radial-gradient(circle, #E53935 0%, transparent 70%)" }}
+        />
+        <div
+          className="absolute -bottom-24 -right-16 w-[40vw] h-[40vw] max-w-[420px] max-h-[420px] rounded-full opacity-[0.06] blur-[110px] pointer-events-none"
+          style={{ background: "radial-gradient(circle, #7C4DFF 0%, transparent 70%)" }}
+        />
+
+        {/* Едва заметная звёздная пыль */}
+        <div
+          className="absolute inset-0 opacity-[0.5] pointer-events-none"
+          style={{
+            backgroundImage: "radial-gradient(circle, rgba(30,25,20,0.05) 1px, transparent 1px)",
+            backgroundSize: "26px 26px",
+          }}
+        />
+
         {/* Watermark logo */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
           <img
