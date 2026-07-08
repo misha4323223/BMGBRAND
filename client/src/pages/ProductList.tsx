@@ -554,41 +554,6 @@ function JDMPageWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-function MintaBanner() {
-  return (
-    <div className="relative w-full overflow-hidden rounded-lg mb-8" style={{ background: '#5f5f5f' }}>
-      {/* Top/bottom accent lines */}
-      <div className="absolute top-0 left-0 w-full h-[3px]" style={{ background: '#ffa000' }} />
-      <div className="absolute bottom-0 left-0 w-full h-[3px]" style={{ background: '#ffa000' }} />
-
-      <div className="relative z-10 py-8 sm:py-10 px-6 sm:px-10 flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10">
-        {/* Logo */}
-        <img
-          src="/dikaya-myata-logo.png"
-          alt="Дикая Мята"
-          className="h-16 sm:h-20 object-contain flex-shrink-0"
-        />
-        {/* Text block */}
-        <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
-          <div className="flex items-baseline gap-2 sm:gap-3 flex-wrap justify-center sm:justify-start">
-            <span className="text-xl sm:text-3xl font-black tracking-wider uppercase" style={{ color: '#ffffff' }}>BOOOMERANGS</span>
-            <span className="text-xl sm:text-3xl font-black" style={{ color: '#ffa000' }}>×</span>
-            <span className="text-xl sm:text-3xl font-black tracking-wider uppercase" style={{ color: '#ffa000' }}>ДИКАЯ МЯТА</span>
-          </div>
-          <p className="text-xs sm:text-sm tracking-widest uppercase mt-1" style={{ color: '#ffffff', opacity: 0.5 }}>
-            Коллаборация с Фестивалем
-          </p>
-          <div className="mt-3 flex gap-2">
-            <span className="px-3 py-1 text-xs font-bold rounded-sm uppercase tracking-wide" style={{ background: '#ffa000', color: '#2e2e2e' }}>МУЗЫКА</span>
-            <span className="px-3 py-1 text-xs font-bold rounded-sm uppercase tracking-wide" style={{ background: '#ffffff20', color: '#ffffff', border: '1px solid rgba(255,255,255,0.3)' }}>ПРИРОДА</span>
-            <span className="px-3 py-1 text-xs font-bold rounded-sm uppercase tracking-wide" style={{ background: '#ffa000', color: '#2e2e2e' }}>СВОБОДА</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function MintaPageWrapper({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen relative" style={{ background: '#f7ece4' }}>
@@ -1327,6 +1292,99 @@ const MERCH_COLLAB_THEMES: Record<string, MerchCollabConfig> = {
   },
 };
 
+// Некоторые артисты имеют разные slug в настройках "Артисты на главной" (используется для фото
+// и логотипа коллаборации) и в slug подкатегории мерча — здесь сведение расхождений.
+const ARTIST_HOME_SLUG_MAP: Record<string, string> = {
+  gudtajms: "goodtimes",
+  "tulskie-dizajnery": "artist-1772387909100",
+  "molodost-vnutri": "molodostvnutri",
+};
+
+// Тема по умолчанию для мерч-подкатегорий без собственной темы в MERCH_COLLAB_THEMES —
+// чтобы шапка/фон в стиле модалки артиста были стандартом для всех коллабораций.
+const DEFAULT_COLLAB_THEME: MerchCollabConfig = {
+  bg: "#0a0a0a",
+  accent: "#ffffff",
+  accentFg: "#0a0a0a",
+  text: "#ffffff",
+  textMuted: "#777777",
+};
+
+/* ─── Merch Collab Modal-style Header (как модалка артиста на /merch) ──── */
+function MerchCollabModalHeader({
+  photo,
+  logoUrl,
+  name,
+  accent,
+  onBack,
+}: {
+  photo?: string;
+  logoUrl?: string;
+  name: string;
+  accent: string;
+  onBack: () => void;
+}) {
+  return (
+    <div className="relative w-full overflow-hidden" style={{ background: "#0a0a0a", minHeight: photo ? "42vh" : undefined }}>
+      {photo && (
+        <div className="absolute inset-0">
+          <img
+            src={photo}
+            alt={name}
+            className="w-full h-full object-cover"
+            style={{ objectPosition: "center 15%" }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(135deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.65) 50%, rgba(0,0,0,0.88) 100%)" }}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none opacity-[0.03]"
+            style={{ backgroundImage: "repeating-linear-gradient(0deg, rgba(255,255,255,0.6) 0px, rgba(255,255,255,0.6) 1px, transparent 1px, transparent 3px)" }}
+          />
+        </div>
+      )}
+
+      <div className="relative z-10 flex flex-col items-center px-4 sm:px-8 pt-24 sm:pt-28 pb-6 sm:pb-8">
+        <button
+          onClick={onBack}
+          className="absolute left-4 sm:left-8 top-6 sm:top-10 flex items-center gap-2 text-white/70 text-sm font-medium hover:text-white transition-colors group"
+          data-testid="button-back-collab-header"
+        >
+          <span className="flex items-center justify-center w-8 h-8 rounded-full border border-white/20 bg-black/30 backdrop-blur-sm group-hover:border-white/50 group-hover:bg-black/50 transition-all">
+            <ArrowLeft className="w-3.5 h-3.5 text-white" />
+          </span>
+          <span className="hidden sm:inline">Назад</span>
+        </button>
+
+        <div className="flex items-center justify-center gap-3 sm:gap-4 text-center">
+          <img
+            src="/images/boomerangs-logo.webp"
+            alt="Booomerangs"
+            className="object-contain"
+            style={{ maxHeight: "clamp(4.5rem, 13.5vw, 8.25rem)", maxWidth: "40vw" }}
+          />
+          <span className="font-black leading-none" style={{ color: accent, fontSize: "clamp(1.6rem, 5vw, 3rem)" }}>×</span>
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={name}
+              className="object-contain"
+              style={{ maxHeight: "clamp(3rem, 9vw, 5.5rem)", maxWidth: "32vw" }}
+            />
+          ) : (
+            <h1 className="font-black text-white leading-none tracking-tighter" style={{ fontSize: "clamp(1.8rem, 7vw, 4rem)" }}>
+              {name}
+            </h1>
+          )}
+        </div>
+      </div>
+
+      <div className="relative z-10 mx-4 sm:mx-8 h-px" style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }} />
+    </div>
+  );
+}
+
 /* ─── Merch Collab Wrapper ──────────────────────────────────────── */
 function MerchCollabWrapper({ theme, children }: { theme: MerchCollabConfig; children: React.ReactNode }) {
   return (
@@ -1356,103 +1414,6 @@ function MerchCollabWrapper({ theme, children }: { theme: MerchCollabConfig; chi
 }
 
 /* ─── Merch Collab Header ───────────────────────────────────────── */
-function MerchCollabHeader({
-  subName,
-  theme,
-  onNavigate,
-}: {
-  subName: string;
-  theme: MerchCollabConfig;
-  onNavigate: (path: string) => void;
-}) {
-  const artistHref = theme.artistSlug ? `/@${theme.artistSlug}` : null;
-  return (
-    <>
-      {/* Hero banner */}
-      <div className="relative overflow-hidden z-10" style={{ background: theme.bg, minHeight: '52vh' }}>
-        {/* Grid pattern */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)`,
-            backgroundSize: '60px 60px',
-          }}
-        />
-        {/* Bottom fade */}
-        <div
-          className="absolute inset-x-0 bottom-0 h-28"
-          style={{ background: `linear-gradient(to bottom, transparent, ${theme.bg})` }}
-        />
-        {/* Content */}
-        <div className="relative z-10 px-4 sm:px-6 lg:px-12 pt-32 sm:pt-40 pb-10 max-w-7xl mx-auto">
-          <motion.div
-            initial="hidden"
-            animate="show"
-            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.12 } } }}
-          >
-            {/* Label */}
-            <motion.div
-              variants={{ hidden: { opacity: 0, x: -16 }, show: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}
-              className="flex items-center gap-2.5 mb-4"
-            >
-              <span className="w-5 shrink-0" style={{ height: '1.5px', background: theme.accent }} />
-              <span className="text-[10px] font-bold uppercase tracking-[0.38em]" style={{ color: theme.accent }}>
-                ОФИЦИАЛЬНАЯ КОЛЛАБОРАЦИЯ
-              </span>
-            </motion.div>
-            {/* Title */}
-            <div className="overflow-hidden mb-3">
-              <motion.h1
-                variants={{ hidden: { opacity: 0, y: 60 }, show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } } }}
-                className="font-black leading-none tracking-tight"
-                style={{ color: theme.text, fontSize: 'clamp(2.4rem, 7.5vw, 5.5rem)' }}
-              >
-                <span className="block">{subName}</span>
-                <span className="block" style={{ color: theme.accent }}>× BOOOMERANGS</span>
-              </motion.h1>
-            </div>
-            {/* Tagline */}
-            {theme.tagline && (
-              <motion.p
-                variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.45 } } }}
-                className="text-xs sm:text-sm font-medium tracking-[0.22em] uppercase mb-7"
-                style={{ color: theme.textMuted }}
-              >
-                {theme.tagline}
-              </motion.p>
-            )}
-            {/* CTA */}
-            {artistHref && (
-              <motion.div
-                variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.45 } } }}
-              >
-                <button
-                  onClick={() => onNavigate(artistHref)}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-full text-[11px] font-bold uppercase tracking-[0.18em] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  style={{
-                    background: `${theme.accent}16`,
-                    border: `1px solid ${theme.accent}40`,
-                    color: theme.accent,
-                  }}
-                >
-                  О коллаборации
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </motion.div>
-            )}
-          </motion.div>
-        </div>
-      </div>
-      {/* Marquee */}
-      <MerchMarquee
-        text={`${subName} × BOOOMERANGS`}
-        bg={theme.accent}
-        fg={theme.accentFg}
-      />
-    </>
-  );
-}
-
 interface ProductListProps {
   forcedCatSlug?: string;
   forcedSubName?: string;
@@ -1715,6 +1676,30 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   const effectiveSubSlug = pathSubSlug || forcedSubSlug || null;
   const isMerchSub = isMerch && !!effectiveSubSlug && !isJDM && !isMinta;
   const collabTheme = isMerchSub ? (MERCH_COLLAB_THEMES[effectiveSubSlug!] ?? null) : null;
+  // Стиль модалки артиста с /merch — стандарт для ВСЕХ мерч-подкатегорий (не только тех, что уже
+  // описаны в MERCH_COLLAB_THEMES): для остальных используется нейтральная тема по умолчанию.
+  const effectiveCollabTheme: MerchCollabConfig | null = isMerchSub ? (collabTheme || DEFAULT_COLLAB_THEME) : null;
+  const isCollabPage = isMerchSub || isMinta;
+
+  // Данные для шапки коллаборации в стиле модалки артиста с /merch (фото + логотип)
+  const { data: collabHomeSettings } = useQuery<any>({
+    queryKey: ["/api/page-settings/home"],
+    enabled: isCollabPage,
+    staleTime: 5 * 60 * 1000,
+  });
+  const { data: collabArtistPagesSettings } = useQuery<any>({
+    queryKey: ["/api/page-settings/artist_pages"],
+    enabled: isCollabPage,
+    staleTime: 5 * 60 * 1000,
+  });
+  const collabHomeSlug = isMinta
+    ? "dikaya-myata"
+    : (effectiveSubSlug ? (ARTIST_HOME_SLUG_MAP[effectiveSubSlug] || effectiveSubSlug) : "");
+  const collabArtistCard = (collabHomeSettings?.artists?.items || []).find((a: any) => a.slug === collabHomeSlug);
+  const collabPhoto: string = collabArtistCard?.image || "";
+  const collabLogoUrl: string = collabArtistPagesSettings?.[collabHomeSlug]?.logoUrl || "";
+  const collabAccent: string = isMinta ? "#ffa000" : (effectiveCollabTheme?.accent || "#ffffff");
+  const collabName: string = subcategoryParam || "";
 
   // Theme-specific colors
   const themeColors = isJDM 
@@ -1843,19 +1828,23 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
         />
       )}
 
-      {/* ── Full-bleed header for themed merch subcategories ── */}
-      {isMerchSub && collabTheme && (
-        <MerchCollabHeader
-          subName={subcategoryParam!}
-          theme={collabTheme}
-          onNavigate={(p) => navigate(p)}
+      {/* ── Full-bleed header for artist merch subcategories — стиль модалки артиста с /merch ── */}
+      {isCollabPage && (
+        <MerchCollabModalHeader
+          photo={collabPhoto}
+          logoUrl={collabLogoUrl}
+          name={collabName}
+          accent={collabAccent}
+          onBack={() => {
+            if (window.history.length > 1) window.history.back();
+            else navigate('/merch');
+          }}
         />
       )}
 
-      <div className={`pb-12 ${(isMerch && !subcategoryParam) || (isMerchSub && collabTheme) ? 'pt-4 sm:pt-6' : 'pt-28'}`}>
+      <div className={`pb-12 ${(isMerch && !subcategoryParam) || isCollabPage ? 'pt-4 sm:pt-6' : 'pt-28'}`}>
         <div className="px-4 sm:px-6 lg:px-8 max-w-8xl mx-auto">
           {isJDM && <JDMBanner />}
-          {isMinta && <MintaBanner />}
         </div>
 
         {/* Title row — hidden visually for merch pages (shown in hero), keep for a11y + count */}
@@ -2314,8 +2303,8 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     return <MintaPageWrapper>{pageContent}</MintaPageWrapper>;
   }
 
-  if (isMerchSub && collabTheme) {
-    return <MerchCollabWrapper theme={collabTheme}>{pageContent}</MerchCollabWrapper>;
+  if (isMerchSub && effectiveCollabTheme) {
+    return <MerchCollabWrapper theme={effectiveCollabTheme}>{pageContent}</MerchCollabWrapper>;
   }
 
   if (isMerch) {
