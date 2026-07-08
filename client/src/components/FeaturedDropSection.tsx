@@ -268,10 +268,10 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
             </div>
 
             {/* Статус-строка */}
-            <div className="flex items-center gap-2 text-[11px] sm:text-xs tracking-[0.25em] uppercase mb-5" style={{ color: "#FF2D2D" }}>
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#FF2D2D" }} />
+            <div className="flex items-center gap-2 text-[11px] sm:text-xs tracking-[0.25em] uppercase mb-5" style={{ color: "#22C55E" }}>
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "#22C55E" }} />
               <span>&gt; СТАТУС: {statusCode}</span>
-              <span className="fd-cursor inline-block w-[7px] h-[14px] ml-0.5" style={{ background: "#FF2D2D" }} />
+              <span className="fd-cursor inline-block w-[7px] h-[14px] ml-0.5" style={{ background: "#22C55E" }} />
             </div>
 
             <p className="text-[11px] font-mono tracking-[0.3em] uppercase text-white/40 mb-2">
