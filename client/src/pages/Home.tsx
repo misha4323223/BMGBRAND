@@ -1041,8 +1041,8 @@ export default function Home() {
       <section className={`section-lazy ${getBgClass("benefits", "bg-zinc-950")}`}>
         <div className="max-w-8xl mx-auto">
           {/* Mono label */}
-          <div className="px-6 sm:px-12 lg:px-16 pt-10 sm:pt-14 pb-5 sm:pb-6">
-            <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-white/25">
+          <div className="px-6 sm:px-12 lg:px-16 pt-8 sm:pt-12 pb-4 sm:pb-5">
+            <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-white">
               BOOOMERANGS — ХАРАКТЕРИСТИКИ
             </p>
           </div>
@@ -1055,21 +1055,20 @@ export default function Home() {
               return (
                 <div
                   key={index}
-                  className="group relative flex items-center gap-5 sm:gap-10 px-6 sm:px-12 lg:px-16 py-6 sm:py-8 border-b border-white/[0.08] transition-all duration-300 hover:bg-white/[0.03] cursor-default overflow-hidden"
+                  className="group relative flex items-center gap-4 sm:gap-8 px-6 sm:px-12 lg:px-16 py-3.5 sm:py-4 border-b border-white/[0.08] transition-all duration-300 hover:bg-white/[0.03] cursor-default overflow-hidden"
                 >
-                  {/* Left cyan accent on hover */}
+                  {/* Left white accent on hover */}
                   <div
                     className="absolute left-0 top-0 bottom-0 w-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                    style={{ background: "#00E5FF", boxShadow: "0 0 14px 3px rgba(0,229,255,0.45)" }}
+                    style={{ background: "rgba(255,255,255,0.7)", boxShadow: "0 0 10px 2px rgba(255,255,255,0.2)" }}
                   />
                   {/* Icon */}
                   <div
-                    className="benefits-icon-box shrink-0 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 transition-all duration-300"
-                    style={{ border: "1px solid rgba(0,229,255,0.2)" }}
+                    className="shrink-0 flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9"
+                    style={{ border: "1px solid rgba(255,255,255,0.15)" }}
                   >
                     <BenefitIcon
-                      className="w-4 h-4 sm:w-5 sm:h-5"
-                      style={{ color: "#00E5FF" }}
+                      className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/60"
                       strokeWidth={1.5}
                     />
                   </div>
@@ -1077,24 +1076,19 @@ export default function Home() {
                   <div className="flex-1 min-w-0">
                     <h3
                       style={{ fontFamily: "'Oswald', sans-serif" }}
-                      className="text-xl sm:text-2xl lg:text-[1.75rem] font-bold uppercase tracking-tight text-white leading-none mb-1 sm:mb-1.5"
+                      className="text-base sm:text-lg lg:text-xl font-bold uppercase tracking-tight text-white leading-none mb-0.5 sm:mb-1"
                     >
                       {title}
                     </h3>
-                    <p className="font-mono text-[10px] sm:text-xs tracking-[0.18em] text-white/35 uppercase">
+                    <p className="font-mono text-[10px] tracking-[0.15em] text-white/35 uppercase">
                       {desc}
                     </p>
                   </div>
-                  {/* Arrow */}
-                  <ArrowRight
-                    className="shrink-0 w-4 h-4 text-white/10 group-hover:text-[#00E5FF] transition-all duration-300 group-hover:translate-x-1"
-                    strokeWidth={1.5}
-                  />
                 </div>
               );
             })}
           </div>
-          <div className="h-10 sm:h-14" />
+          <div className="h-8 sm:h-10" />
         </div>
       </section>
       {renderPromoBanner("after_benefits")}
