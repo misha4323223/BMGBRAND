@@ -294,6 +294,7 @@ export function getCachedProductMetaBySlug(slug: string): {
   productId: number; title: string; description: string; image: string; images: string[];
   price: number; sku: string; stock: number; category: string;
   sizes: string[]; colors: string[]; preorderEnabled: boolean;
+  seoTitle: string | null; seoDescription: string | null;
 } | null {
   const products = productsCache.get("all");
   if (!products || products.length === 0) return null;
@@ -319,6 +320,8 @@ export function getCachedProductMetaBySlug(slug: string): {
     sizes: Array.isArray((product as any).sizes) ? (product as any).sizes : [],
     colors: Array.isArray((product as any).colors) ? (product as any).colors : [],
     preorderEnabled: !!(product as any).preorderEnabled,
+    seoTitle: (product as any).seoTitle || null,
+    seoDescription: (product as any).seoDescription || null,
   };
 }
 

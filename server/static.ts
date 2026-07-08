@@ -144,8 +144,7 @@ function injectSeoBody(html: string, noscriptBlock: string): string {
 
 function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProductMetaBySlug>>, slug: string, siteUrl: string): string {
   const isMerch = ["merch", "мерч"].includes(meta.category.toLowerCase());
-  const pageTitle = `${meta.title}${isMerch ? " — купить мерч" : " — купить"} | ${SITE_NAME}`;
-  const pageDesc = [
+  const pageDesc = meta.seoDescription || [
     isMerch ? `Купить мерч ${meta.title} BOOOMERANGS` : `Купить ${meta.title} BOOOMERANGS`,
     meta.sizes.length > 0 ? `Размеры: ${meta.sizes.join(", ")}.` : "",
     "Доставка по России СДЭК и Яндекс Доставкой.",
@@ -431,8 +430,8 @@ export function serveStatic(app: Express) {
         const meta = getCachedProductMetaBySlug(detectedProductSlug);
         if (meta && meta.title) {
           const isMerch = ["merch", "мерч"].includes(meta.category.toLowerCase());
-          const title = `${meta.title}${isMerch ? " — купить мерч" : " — купить"} | ${SITE_NAME}`;
-          const desc = [
+          const title = meta.seoTitle || `${meta.title}${isMerch ? " — купить мерч" : " — купить"} | ${SITE_NAME}`;
+          const desc = meta.seoDescription || [
             isMerch ? `Купить мерч ${meta.title} BOOOMERANGS` : `Купить ${meta.title} BOOOMERANGS`,
             meta.sizes.length > 0 ? `Размеры: ${meta.sizes.join(", ")}.` : "",
             "Доставка по России СДЭК и Яндекс Доставкой.",

@@ -79,8 +79,8 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
       const meta = getCachedProductMetaBySlug(slug);
       if (meta && meta.title) {
         const isMerch = ["merch", "мерч"].includes(meta.category.toLowerCase());
-        const title = `${meta.title}${isMerch ? " — купить мерч" : " — купить"} | ${SITE_NAME}`;
-        const desc = [
+        const title = meta.seoTitle || `${meta.title}${isMerch ? " — купить мерч" : " — купить"} | ${SITE_NAME}`;
+        const desc = meta.seoDescription || [
           isMerch ? `Купить мерч ${meta.title} BOOOMERANGS` : `Купить ${meta.title} BOOOMERANGS`,
           meta.sizes.length > 0 ? `Размеры: ${meta.sizes.join(", ")}.` : "",
           "Доставка по России СДЭК и Яндекс Доставкой.",
