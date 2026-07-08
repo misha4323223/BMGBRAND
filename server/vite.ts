@@ -5,7 +5,7 @@ import viteConfig from "../vite.config";
 import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
-import { getCachedProductMetaBySlug } from "./storage";
+import { getCachedProductMetaBySlug, getCachedArtistHeroImage } from "./storage";
 
 const SITE_NAME = "BMGBRAND";
 
@@ -115,7 +115,7 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
             "itemListElement": [
               { "@type": "ListItem", "position": 1, "name": "Главная", "item": origin },
               { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${origin}/products` },
-              ...(meta.category ? [{ "@type": "ListItem", "position": 3, "name": meta.category, "item": `${origin}/products/${meta.category}` }] : []),
+              ...(meta.category ? [{ "@type": "ListItem", "position": 3, "name": CATEGORIES[meta.category]?.name || meta.category, "item": `${origin}/products/${meta.category}` }] : []),
               { "@type": "ListItem", "position": meta.category ? 4 : 3, "name": meta.title, "item": `${origin}/${slug}` },
             ],
           },
@@ -124,21 +124,28 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
       }
     }
 
-    // --- Artist page: /artist/:slug ---
-    const artistMatch = cleanUrl.match(/^\/artist\/([a-z0-9][a-z0-9-]*)$/);
+    // --- Artist/creator page: /@:slug ---
+    const artistMatch = cleanUrl.match(/^\/@([a-z0-9][a-z0-9-]*)$/);
     if (artistMatch) {
-      const artist = ARTISTS[artistMatch[1]];
-      if (artist) {
-        const title = `Мерч ${artist.name} — купить официальный мерч | ${SITE_NAME}`;
+      const artistSlug = artistMatch[1];
+      const staticArtist = ARTISTS[artistSlug];
+      const artistHero = getCachedArtistHeroImage(artistSlug);
+      const artistName = staticArtist?.name || artistHero.name;
+      const artistDesc = staticArtist?.desc || (artistName
+        ? `Официальный мерч ${artistName} — купить одежду и аксессуары с символикой артиста. Доставка по всей России.`
+        : null);
+      if (artistName && artistDesc) {
+        const title = `Мерч ${artistName} — купить официальный мерч | ${SITE_NAME}`;
+        const artistOgImage = artistHero.img || artistHero.imgMobile || `${origin}/og-image.png`;
         const jsonLd = JSON.stringify({
           "@context": "https://schema.org", "@type": "BreadcrumbList",
           "itemListElement": [
             { "@type": "ListItem", "position": 1, "name": "Главная", "item": origin },
             { "@type": "ListItem", "position": 2, "name": "Мерч", "item": `${origin}/products/merch` },
-            { "@type": "ListItem", "position": 3, "name": artist.name, "item": `${origin}/artist/${artistMatch[1]}` },
+            { "@type": "ListItem", "position": 3, "name": artistName, "item": `${origin}/@${artistSlug}` },
           ],
         });
-        return injectMeta(html, { title, description: artist.desc, ogImage: `${origin}/favicon.png`, canonical: `${origin}/artist/${artistMatch[1]}`, jsonLd });
+        return injectMeta(html, { title, description: artistDesc, ogImage: artistOgImage, canonical: `${origin}/@${artistSlug}`, jsonLd });
       }
     }
 

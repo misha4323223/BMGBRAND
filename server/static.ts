@@ -227,7 +227,7 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
     "itemListElement": [
       { "@type": "ListItem", "position": 1, "name": "Главная", "item": siteUrl },
       { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${siteUrl}/products` },
-      ...(meta.category ? [{ "@type": "ListItem", "position": 3, "name": meta.category, "item": `${siteUrl}/products/${meta.category}` }] : []),
+      ...(meta.category ? [{ "@type": "ListItem", "position": 3, "name": CATEGORIES[meta.category]?.name || meta.category, "item": `${siteUrl}/products/${meta.category}` }] : []),
       { "@type": "ListItem", "position": meta.category ? 4 : 3, "name": meta.title, "item": productUrl },
     ],
   };
@@ -428,6 +428,15 @@ export function serveStatic(app: Express) {
       /<meta name="twitter:image" content="\/favicon\.png"/,
       `<meta name="twitter:image" content="${siteUrl}/favicon.png"`
     );
+    // Safety net: абсолютизировать og-image.png если по какой-то причине остался относительным
+    html = html.replace(
+      /<meta property="og:image" content="\/og-image\.png"/,
+      `<meta property="og:image" content="${siteUrl}/og-image.png"`
+    );
+    html = html.replace(
+      /<meta name="twitter:image" content="\/og-image\.png"/,
+      `<meta name="twitter:image" content="${siteUrl}/og-image.png"`
+    );
 
     if (routeLcpImage) {
       const preloadTag = `<link rel="preload" as="image" href="${routeLcpImage}" fetchpriority="high">`;
@@ -526,29 +535,40 @@ export function serveStatic(app: Express) {
       const artistMatch = cleanUrl.match(/^\/@([a-z0-9][a-z0-9-]*)$/);
       if (artistMatch) {
         const artistSlug = artistMatch[1];
-        const artist = ARTISTS[artistSlug];
-        if (artist) {
-          const title = `Мерч ${artist.name} — купить официальный мерч | ${SITE_NAME}`;
+        // getCachedArtistHeroImage нужен и для мета-тегов (fallback), и для гидратации клиента
+        const artistHero = getCachedArtistHeroImage(artistSlug);
+        const staticArtist = ARTISTS[artistSlug];
+
+        // Используем жёстко заданные данные или fallback из artist_pages в YDB
+        const artistName = staticArtist?.name || artistHero.name;
+        const artistDesc = staticArtist?.desc || (artistName
+          ? `Официальный мерч ${artistName} — купить одежду и аксессуары с символикой артиста. Доставка по всей России.`
+          : null);
+
+        if (artistName && artistDesc) {
+          const title = `Мерч ${artistName} — купить официальный мерч | ${SITE_NAME}`;
+          // Hero-изображение гораздо лучше для соцсетей, чем favicon
+          const artistOgImage = artistHero.img || artistHero.imgMobile || `${siteUrl}/og-image.png`;
           const jsonLd = JSON.stringify({
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             "itemListElement": [
               { "@type": "ListItem", "position": 1, "name": "Главная", "item": siteUrl },
               { "@type": "ListItem", "position": 2, "name": "Мерч", "item": `${siteUrl}/products/merch` },
-              { "@type": "ListItem", "position": 3, "name": artist.name, "item": `${siteUrl}/@${artistSlug}` },
+              { "@type": "ListItem", "position": 3, "name": artistName, "item": `${siteUrl}/@${artistSlug}` },
             ],
           });
           html = injectMeta(html, {
             title,
-            description: artist.desc,
-            ogImage: `${siteUrl}/favicon.png`,
+            description: artistDesc,
+            ogImage: artistOgImage,
             ogType: "website",
             canonical: `${siteUrl}/@${artistSlug}`,
             jsonLd,
           });
         }
-        // Inject hero data for immediate client-side use (avoids waiting for 2 API calls)
-        const artistHero = getCachedArtistHeroImage(artistSlug);
+
+        // Inject hero data for immediate client-side use (avoids waiting for 2 API calls — already fetched above)
         if (artistHero.img || artistHero.imgMobile || artistHero.name) {
           const safeHero = JSON.stringify(artistHero).replace(/<\/script>/gi, '<\\/script>');
           html = html.replace('</head>', `    <script>window.__ARTIST_HERO__=${safeHero};</script>\n  </head>`);

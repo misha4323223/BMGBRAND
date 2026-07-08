@@ -1706,7 +1706,11 @@ BMGBRAND — официальный производитель и магазин
       }
 
       for (const artistSlug of Object.keys(artistPages)) {
-        if (artistSlug && typeof artistSlug === "string") {
+        // Включаем только реальных артистов с заполненным именем — тестовые страницы пропускаем
+        const artistData = artistPages[artistSlug];
+        const hasRealName = artistData?.name && typeof artistData.name === "string" && artistData.name.trim().length > 0;
+        const isTestSlug = /test/i.test(artistSlug);
+        if (artistSlug && typeof artistSlug === "string" && hasRealName && !isTestSlug) {
           xml += `  <url>\n`;
           xml += `    <loc>${baseUrl}/@${artistSlug}</loc>\n`;
           xml += `    <lastmod>${today}</lastmod>\n`;
