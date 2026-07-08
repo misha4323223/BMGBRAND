@@ -454,3 +454,50 @@ body.lb-open nav {
   .predrop-blob-1, .predrop-blob-2, .predrop-star,
   .predrop-ring, .predrop-spark { animation: none !important; }
 }
+
+/* ── Featured Drop: стазис-капсула на главной ────────────────────────── */
+@keyframes fd-scan-move {
+  0%   { top: -10%; opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { top: 110%; opacity: 0; }
+}
+.fd-scan-line {
+  animation: fd-scan-move 3.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes fd-cursor-blink {
+  0%, 45% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.fd-cursor {
+  animation: fd-cursor-blink 1s steps(1) infinite;
+}
+
+@keyframes fd-cta-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.0), 0 4px 20px rgba(0,0,0,0.4); }
+  50%      { box-shadow: 0 0 22px 2px rgba(0, 229, 255, 0.28), 0 4px 20px rgba(0,0,0,0.4); }
+}
+.fd-cta-glow {
+  animation: fd-cta-glow 2.6s ease-in-out infinite;
+}
+
+@keyframes fd-bracket-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+.fd-bracket {
+  animation: fd-bracket-pulse 3s ease-in-out infinite;
+}
+
+@keyframes fd-progress-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.fd-progress-shimmer {
+  animation: fd-progress-shimmer 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fd-scan-line, .fd-cursor, .fd-cta-glow, .fd-bracket, .fd-progress-shimmer { animation: none !important; }
+}

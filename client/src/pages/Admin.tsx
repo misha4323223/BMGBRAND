@@ -1521,6 +1521,15 @@ export default function Admin() {
     queryFn: async () => adminFetch("/api/admin/partners/artists", apiKey),
     enabled: isAuthenticated,
   });
+  const { data: preorderProductsForSections } = useQuery<any[]>({
+    queryKey: ["/api/preorder/products"],
+    queryFn: async () => {
+      const res = await fetch("/api/preorder/products");
+      if (!res.ok) throw new Error("Failed to fetch preorder products");
+      return res.json();
+    },
+    enabled: isAuthenticated,
+  });
   const artistPartnersList = artistPartnersData?.artists || [];
   const partnersById = new Map<number, { storeName: string; partnerSlug: string }>();
   for (const p of (ordersPartnersData?.partners || [])) {
@@ -5535,7 +5544,7 @@ export default function Admin() {
             )}
 
             {selectedPage === "home" && (() => {
-              const DEFAULT_SECTION_ORDER = ["hero", "categories", "popular", "artists", "benefits", "philosophy", "blog", "promo_banner", "newsletter", "marquee"];
+              const DEFAULT_SECTION_ORDER = ["hero", "categories", "popular", "featuredDrop", "benefits", "philosophy", "blog", "promo_banner", "newsletter", "marquee"];
 
               const CUSTOM_SECTION_TYPES: Record<string, { name: string; icon: any }> = {
                 custom_hits: { name: "Хиты продаж", icon: TrendingUp },
@@ -5547,7 +5556,7 @@ export default function Admin() {
                 hero: { name: "Hero (Главный баннер)", icon: ImageIcon },
                 categories: { name: "Категории", icon: Layout },
                 popular: { name: "Популярное", icon: TrendingUp },
-                artists: { name: "Наши артисты", icon: Users },
+                featuredDrop: { name: "Капсула времени (Pre-drop)", icon: Clock },
                 benefits: { name: "Преимущества", icon: Star },
                 philosophy: { name: "Философия", icon: Type },
                 blog: { name: "Блог", icon: Tag },
@@ -5660,13 +5669,7 @@ export default function Admin() {
                             { name: "Мерч", slug: "merch", image: "", span: "1" },
                           ], visible: true },
                           popular: { title: "Популярное", subtitle: "Хиты продаж", count: "8", linkText: "Все товары", linkUrl: "/products", visible: true },
-                          artists: { title: "Наши артисты", subtitle: "Коллаборации", linkText: "Весь мерч", linkUrl: "/products?category=merch", items: [
-                            { name: "Артист 1", role: "Музыкант", image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=500&fit=crop", collection: "Коллекция 2026", link: "/products?category=merch" },
-                            { name: "Артист 2", role: "Рэпер", image: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=500&fit=crop", collection: "Street Series", link: "/products?category=merch" },
-                            { name: "Артист 3", role: "DJ", image: "https://images.unsplash.com/photo-1571266028243-d220c6a8b0e8?w=400&h=500&fit=crop", collection: "Night Edition", link: "/products?category=merch" },
-                            { name: "Артист 4", role: "Продюсер", image: "https://images.unsplash.com/photo-1598387993441-a364f854c3e1?w=400&h=500&fit=crop", collection: "Beat Drop", link: "/products?category=merch" },
-                            { name: "Артист 5", role: "Исполнитель", image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&h=500&fit=crop", collection: "Urban Legends", link: "/products?category=merch" },
-                          ], visible: true },
+                          featuredDrop: { productId: null, title: "", subtitle: "", ctaText: "", visible: true },
                           benefits: { benefit0Title: "Доставка по всей РФ", benefit0Desc: "Отправляем в любой город", benefit1Title: "Сделано в России", benefit1Desc: "Собственное производство", benefit2Title: "Уникальные принты", benefit2Desc: "Авторский дизайн", visible: true },
                           philosophy: { title: "Больше чем одежда", text: "Базируясь в Туле — городе мастеров, пряников и самоваров — мы создаем вещи для повседневной жизни. На нашем счету более 200 моделей носков: от ироничных мемных дизайнов до оригинальных ярких пар. Мы объединяем традиции качества и современный стиль в каждой детали нашего ассортимента.", linkText: "Узнать о нас", linkUrl: "/about", desktopMediaType: "video", videoUrl: "", desktopImage: "", mobileMediaType: "image", mobileImage: "", mobileVideo: "", visible: true },
                           blog: { title: "Культура и стиль", subtitle: "BMG Журнал", items: [
@@ -5752,7 +5755,7 @@ export default function Admin() {
                           Настройки секции: {selectedSection === "hero" ? "Hero" : 
                             selectedSection === "categories" ? "Категории" :
                             selectedSection === "popular" ? "Популярное" :
-                            selectedSection === "artists" ? "Наши артисты" :
+                            selectedSection === "featuredDrop" ? "Капсула времени (Pre-drop)" :
                             selectedSection === "benefits" ? "Преимущества" :
                             selectedSection === "philosophy" ? "Философия" :
                             selectedSection === "blog" ? "Блог" :
@@ -6851,166 +6854,76 @@ export default function Admin() {
                           </div>
                         )}
 
-                        {/* Artists section settings */}
-                        {selectedSection === "artists" && (
+                        {/* Featured Drop (Капсула времени) section settings */}
+                        {selectedSection === "featuredDrop" && (() => {
+                          const fdProducts = preorderProductsForSections || [];
+                          const selectedFdProduct = fdProducts.find((p: any) => p.id === sectionSettings.productId);
+                          return (
                           <div className="space-y-4">
-                            <div>
-                              <Label className="text-sm">Заголовок</Label>
-                              <Input
-                                value={sectionSettings.title || ""}
-                                onChange={(e) => setSectionSettings({...sectionSettings, title: e.target.value})}
-                                placeholder="Наши артисты"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-sm">Подзаголовок</Label>
-                              <Input
-                                value={sectionSettings.subtitle || ""}
-                                onChange={(e) => setSectionSettings({...sectionSettings, subtitle: e.target.value})}
-                                placeholder="Коллаборации"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-sm">Вариант раскладки</Label>
-                              <Select
-                                value={sectionSettings.layout || "carousel"}
-                                onValueChange={(v) => setSectionSettings({...sectionSettings, layout: v})}
-                              >
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="grid">Сетка (равномерная)</SelectItem>
-                                  <SelectItem value="bento">Бенто (ассиметричная)</SelectItem>
-                                  <SelectItem value="carousel">Карусель (горизонтальная)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {sectionSettings.layout === "grid" ? "Карточки артистов в ровной сетке" : 
-                                 sectionSettings.layout === "bento" ? "Крупная + мелкие карточки в стиле бенто" :
-                                 "Горизонтальная прокрутка с плавным скроллом"}
-                              </p>
-                            </div>
-                            <div>
-                              <Label className="text-sm">Текст ссылки</Label>
-                              <Input
-                                value={sectionSettings.linkText || ""}
-                                onChange={(e) => setSectionSettings({...sectionSettings, linkText: e.target.value})}
-                                placeholder="Весь мерч"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-sm">URL ссылки</Label>
-                              <Input
-                                value={sectionSettings.linkUrl || ""}
-                                onChange={(e) => setSectionSettings({...sectionSettings, linkUrl: e.target.value})}
-                                placeholder="/products?category=merch"
-                              />
-                            </div>
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between flex-wrap gap-2">
-                                <Label className="text-sm font-medium">Артисты</Label>
-                                <Button size="sm" variant="outline" onClick={() => {
-                                  const items = sectionSettings.items || [];
-                                  setSectionSettings({...sectionSettings, items: [...items, { name: "", role: "", image: "", collection: "", slug: "", link: "/products?category=merch" }]});
-                                }}>
-                                  <Plus className="w-4 h-4 mr-1" /> Добавить
-                                </Button>
-                              </div>
-                              {(sectionSettings.items || []).map((item: any, idx: number) => (
-                                <div key={idx} className="p-3 border rounded-md space-y-2">
-                                  <div className="flex items-center justify-between flex-wrap gap-2">
-                                    <Label className="text-sm font-medium">{item.name || `Артист ${idx + 1}`}</Label>
-                                    <Button size="sm" variant="destructive" onClick={() => {
-                                      const items = [...(sectionSettings.items || [])];
-                                      items.splice(idx, 1);
-                                      setSectionSettings({...sectionSettings, items});
-                                    }}>
-                                      <Trash2 className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                  <Input
-                                    value={item.name || ""}
-                                    onChange={(e) => {
-                                      const items = [...(sectionSettings.items || [])];
-                                      items[idx] = {...items[idx], name: e.target.value};
-                                      setSectionSettings({...sectionSettings, items});
-                                    }}
-                                    placeholder="Имя"
-                                  />
-                                  <Input
-                                    value={item.slug || ""}
-                                    onChange={(e) => {
-                                      const items = [...(sectionSettings.items || [])];
-                                      items[idx] = {...items[idx], slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')};
-                                      setSectionSettings({...sectionSettings, items});
-                                    }}
-                                    placeholder="Slug (URL: artist-name)"
-                                  />
-                                  <Input
-                                    value={item.role || ""}
-                                    onChange={(e) => {
-                                      const items = [...(sectionSettings.items || [])];
-                                      items[idx] = {...items[idx], role: e.target.value};
-                                      setSectionSettings({...sectionSettings, items});
-                                    }}
-                                    placeholder="Роль (Музыкант, DJ и т.д.)"
-                                  />
-                                  <ImageUploadField
-                                    value={item.image || ""}
-                                    onChange={(url) => {
-                                      const items = [...(sectionSettings.items || [])];
-                                      items[idx] = {...items[idx], image: url};
-                                      setSectionSettings({...sectionSettings, items});
-                                    }}
-                                    apiKey={apiKey}
-                                    placeholder="URL или перетащите фото"
-                                    hint="600×800 px, 3:4, JPG/WebP"
-                                  />
-                                  <Input
-                                    value={item.collection || ""}
-                                    onChange={(e) => {
-                                      const items = [...(sectionSettings.items || [])];
-                                      items[idx] = {...items[idx], collection: e.target.value};
-                                      setSectionSettings({...sectionSettings, items});
-                                    }}
-                                    placeholder="Название коллекции"
-                                  />
-                                  <Input
-                                    value={item.link || ""}
-                                    onChange={(e) => {
-                                      const items = [...(sectionSettings.items || [])];
-                                      items[idx] = {...items[idx], link: e.target.value};
-                                      setSectionSettings({...sectionSettings, items});
-                                    }}
-                                    placeholder="Ссылка (/products?category=merch)"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                            <div>
-                              <Label className="text-sm">Цвет фона секции</Label>
-                              <Select
-                                value={sectionSettings.bgColor || "default"}
-                                onValueChange={(v) => setSectionSettings({...sectionSettings, bgColor: v})}
-                              >
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="default">По умолчанию</SelectItem>
-                                  <SelectItem value="muted">Серый (muted)</SelectItem>
-                                  <SelectItem value="card">Карточка (card)</SelectItem>
-                                  <SelectItem value="primary">Акцент (primary)</SelectItem>
-                                  <SelectItem value="dark">Темный</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
                             <div className="flex items-center gap-2">
                               <Switch
                                 checked={sectionSettings.visible !== false}
                                 onCheckedChange={(checked) => setSectionSettings({...sectionSettings, visible: checked})}
+                                data-testid="switch-featured-drop-visible"
                               />
                               <Label className="text-sm">Показывать секцию</Label>
                             </div>
+                            <div>
+                              <Label className="text-sm">Товар из Pre-drop</Label>
+                              <Select
+                                value={sectionSettings.productId ? String(sectionSettings.productId) : "auto"}
+                                onValueChange={(v) => setSectionSettings({...sectionSettings, productId: v === "auto" ? null : Number(v)})}
+                              >
+                                <SelectTrigger data-testid="select-featured-drop-product"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="auto">Автоматически (первый со статусом "Сбор заказов")</SelectItem>
+                                  {fdProducts.map((p: any) => (
+                                    <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {fdProducts.length === 0 && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Нет товаров с предзаказом. Отметьте товар как pre-drop на странице товара.
+                                </p>
+                              )}
+                              {selectedFdProduct && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Статус: {selectedFdProduct.preorderStatus || "collecting"}
+                                  {selectedFdProduct.preorderDeadline && ` · до ${new Date(selectedFdProduct.preorderDeadline).toLocaleDateString("ru-RU")}`}
+                                </p>
+                              )}
+                            </div>
+                            <div>
+                              <Label className="text-sm">Заголовок (необязательно)</Label>
+                              <Input
+                                value={sectionSettings.title || ""}
+                                onChange={(e) => setSectionSettings({...sectionSettings, title: e.target.value})}
+                                placeholder={selectedFdProduct?.name || "Название товара по умолчанию"}
+                                data-testid="input-featured-drop-title"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-sm">Подзаголовок (необязательно)</Label>
+                              <Input
+                                value={sectionSettings.subtitle || ""}
+                                onChange={(e) => setSectionSettings({...sectionSettings, subtitle: e.target.value})}
+                                placeholder="Из pre-drop"
+                                data-testid="input-featured-drop-subtitle"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-sm">Текст кнопки (необязательно)</Label>
+                              <Input
+                                value={sectionSettings.ctaText || ""}
+                                onChange={(e) => setSectionSettings({...sectionSettings, ctaText: e.target.value})}
+                                placeholder="Забронировать место в партии"
+                                data-testid="input-featured-drop-cta"
+                              />
+                            </div>
                           </div>
-                        )}
+                          );
+                        })()}
 
                         {/* Custom Hits section editor */}
                         {selectedSection?.startsWith("custom_") && sectionSettings.type === "custom_hits" && (() => {

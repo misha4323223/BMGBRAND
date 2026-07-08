@@ -24,6 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useWholesalePrice } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import PromoBanner from "@/components/PromoBanner";
+import { FeaturedDropSection } from "@/components/FeaturedDropSection";
 import philosophyMobile from "@assets/generated_images/philosophy_mobile_new.webp";
 import clothingImg from "@assets/generated_images/streetwear_clothing_category.webp";
 import socksImg from "@assets/generated_images/designer_socks_category.webp";
@@ -320,7 +321,16 @@ export default function Home() {
     },
     enabled: !!productQueryConfig,
   });
-  
+
+  const { data: preorderProducts } = useQuery<any[]>({
+    queryKey: ["/api/preorder/products"],
+    queryFn: async () => {
+      const res = await fetch("/api/preorder/products");
+      if (!res.ok) throw new Error("Failed to fetch preorder products");
+      return res.json();
+    },
+  });
+
   const isSectionVisible = (section: string) => {
     if (settingsLoading) return false;
     return pageSettings?.[section]?.visible !== false;
@@ -422,7 +432,7 @@ export default function Home() {
     return <PromoBanner settings={promoBanner} />;
   };
 
-  const DEFAULT_SECTION_ORDER = ["hero", "categories", "popular", "artists", "benefits", "philosophy", "blog", "promo_banner", "newsletter", "marquee"];
+  const DEFAULT_SECTION_ORDER = ["hero", "categories", "popular", "featuredDrop", "benefits", "philosophy", "blog", "promo_banner", "newsletter", "marquee"];
   const FIXED_SECTIONS = new Set(DEFAULT_SECTION_ORDER);
   const rawOrder: string[] = (pageSettings?.sectionOrder?.order as string[]) || [];
   // Include fixed sections + custom sections (those that start with "custom_")
@@ -1001,254 +1011,28 @@ export default function Home() {
             </div>
           ) : null;
 
-        case "artists":
-          return isSectionVisible("artists") ? (() => {
-        const artistLayout = pageSettings?.artists?.layout || "rows";
-        const artistItems = pageSettings?.artists?.items || artists;
-        
-        const renderArtistCard = (artist: any, index: number, cardClass: string = "w-[260px] sm:w-[300px]") => (
-          <Link
-            href={artist.slug ? `/@${artist.slug}` : (artist.link || pageSettings?.artists?.linkUrl || "/products/merch")}
-            data-testid={`link-artist-${index}`}
-            className={`block group relative ${cardClass} aspect-[3/4] rounded-xl overflow-hidden bg-muted`}
-          >
-            <img
-              src={getOptimizedImageUrl(artist.image)}
-              alt={artist.name}
-              loading="lazy"
-              decoding="async"
-              sizes="(max-width: 640px) 260px, 300px"
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 translate-y-1 group-hover:translate-y-0 transition-transform duration-300" style={{textShadow: "0 1px 4px rgba(0,0,0,0.9)"}}>
-              <p className="text-[11px] font-mono tracking-[0.22em] uppercase text-white mb-2">{artist.role}</p>
-              <h3 className="font-['Oswald',sans-serif] text-white text-xl sm:text-2xl font-bold uppercase leading-tight mb-1">
-                {artist.name}
-              </h3>
-              <p className="text-white text-xs sm:text-sm leading-snug line-clamp-1">{artist.collection}</p>
-              <span className="inline-flex items-center gap-1 mt-2 text-[11px] font-mono tracking-[0.2em] uppercase text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                Смотреть <ArrowRight className="w-3 h-3" />
-              </span>
-            </div>
-          </Link>
-        );
-
-        const artistContent = (
-          <section className={`section-lazy py-10 sm:py-16 ${getBgClass("artists", "bg-background")} overflow-hidden`}>
-            <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 sm:mb-10">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
-                <div>
-                  <p className="text-[11px] font-mono tracking-[0.25em] uppercase text-muted-foreground mb-2">
-                    {pageSettings?.artists?.subtitle || "Коллаборации"}
-                  </p>
-                  <h2 className="font-['Oswald',sans-serif] text-3xl sm:text-5xl font-bold uppercase tracking-tight">
-                    {pageSettings?.artists?.title || "Наши артисты"}
-                  </h2>
-                </div>
-                <Link
-                  href={pageSettings?.artists?.linkUrl || "/products/merch"}
-                  className="inline-flex items-center gap-2 text-[10px] font-mono tracking-[0.2em] uppercase text-muted-foreground hover:text-primary transition-colors group shrink-0"
-                  data-testid="link-all-merch"
-                >
-                  {pageSettings?.artists?.linkText || "Весь мерч"} <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                </Link>
+        case "featuredDrop":
+          return isSectionVisible("featuredDrop") ? (() => {
+            const fdSettings = pageSettings?.featuredDrop || {};
+            const now = Date.now();
+            const isActive = (p: any) => (p.preorderStatus || "collecting") === "collecting" && (!p.preorderDeadline || new Date(p.preorderDeadline).getTime() >= now);
+            const fdProduct = preorderProducts?.find((p: any) => p.id === fdSettings.productId)
+              || preorderProducts?.find(isActive)
+              || preorderProducts?.find((p: any) => (p.preorderStatus || "collecting") === "collecting")
+              || preorderProducts?.[0];
+            if (!fdProduct) return null;
+            return (
+              <div key="section-featured-drop">
+                <FeaturedDropSection
+                  product={fdProduct}
+                  title={fdSettings.title}
+                  subtitle={fdSettings.subtitle}
+                  ctaText={fdSettings.ctaText}
+                />
+                {renderPromoBanner("after_featured_drop")}
               </div>
-            </div>
-
-            {artistLayout === "grid" && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-0 overflow-hidden">
-                {artistItems.map((artist: any, index: number) => (
-                  <div key={index}>
-                    {renderArtistCard(artist, index, "w-full")}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {artistLayout === "bento" && (
-              <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-2 md:grid-cols-12 gap-3 sm:gap-4 auto-rows-[200px] sm:auto-rows-[260px]">
-                  {artistItems.map((artist: any, index: number) => {
-                    const bentoPatterns = [
-                      "md:col-span-5 row-span-2",
-                      "md:col-span-7 row-span-1",
-                      "md:col-span-3 row-span-1",
-                      "md:col-span-4 row-span-1",
-                      "md:col-span-6 row-span-2",
-                      "md:col-span-6 row-span-1",
-                    ];
-                    const pattern = bentoPatterns[index % bentoPatterns.length];
-                    return (
-                      <div
-                        key={index}
-                        className={pattern}
-                      >
-                        {renderArtistCard(artist, index, "w-full h-full aspect-auto")}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {artistLayout === "rows" && (
-              <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-3">
-                {artistItems.slice(0, 2).map((artist: any, index: number) => {
-                  const isEven = index % 2 === 0;
-                  const href = artist.slug ? `/@${artist.slug}` : (artist.link || pageSettings?.artists?.linkUrl || "/products/merch");
-                  return (
-                    <Link
-                      key={index}
-                      href={href}
-                      data-testid={`link-artist-split-${index}`}
-                      className="group relative overflow-hidden bg-zinc-950 h-[300px] sm:h-[400px]"
-                    >
-                      {/* ── МОБИЛЬНЫЙ: фото сверху 60%, тёмная панель снизу 40% ── */}
-                      <div className="flex flex-col sm:hidden h-full">
-                        <div className="relative overflow-hidden" style={{ height: "60%" }}>
-                          <img
-                            src={getOptimizedImageUrl(artist.image)}
-                            alt={artist.name}
-                            loading="lazy"
-                            decoding="async"
-                            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                            style={{ objectPosition: 'center 20%' }}
-                          />
-                        </div>
-                        <div className="flex flex-col justify-center px-5 py-3 bg-zinc-900 flex-1">
-                          <p className="text-[9px] font-mono tracking-[0.35em] uppercase text-primary mb-1">
-                            {artist.role}
-                          </p>
-                          <h3 className="font-['Oswald',sans-serif] text-2xl font-bold uppercase text-white leading-none tracking-tight mb-1">
-                            {artist.name}
-                          </h3>
-                          <p className="text-zinc-400 text-xs leading-snug line-clamp-1">
-                            {artist.collection}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* ── ДЕСКТОП: диагональный сплит ── */}
-                      <div className="hidden sm:block h-full">
-                        {/* Фото */}
-                        <div
-                          className={`absolute inset-y-0 w-[62%] z-10 ${isEven ? "left-0" : "right-0"}`}
-                          style={{
-                            clipPath: isEven
-                              ? "polygon(0 0, 100% 0, 85% 100%, 0 100%)"
-                              : "polygon(15% 0, 100% 0, 100% 100%, 0 100%)"
-                          }}
-                        >
-                          <img
-                            src={getOptimizedImageUrl(artist.image)}
-                            alt={artist.name}
-                            loading="lazy"
-                            decoding="async"
-                            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                            style={{ objectPosition: 'center 20%' }}
-                          />
-                        </div>
-                        {/* Текст */}
-                        <div
-                          className={`absolute z-20 inset-y-0 w-[40%] flex flex-col justify-center
-                            ${isEven ? "right-0 pl-14 pr-10" : "left-0 pl-10 pr-14"}`}
-                        >
-                          <p className="text-[10px] font-mono tracking-[0.35em] uppercase text-primary mb-3">
-                            {artist.role}
-                          </p>
-                          <h3
-                            className="font-['Oswald',sans-serif] text-5xl xl:text-6xl font-bold uppercase text-white leading-none tracking-tight mb-4"
-                            style={{ textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}
-                          >
-                            {artist.name}
-                          </h3>
-                          <p className="text-zinc-400 text-sm leading-relaxed mb-6 line-clamp-2">
-                            {artist.collection}
-                          </p>
-                          <span className="inline-flex items-center gap-2 text-[11px] font-mono tracking-[0.2em] uppercase text-white border border-white/25 px-4 py-2.5 w-fit group-hover:bg-primary group-hover:border-primary transition-all duration-300">
-                            Смотреть коллекцию <ArrowRight className="w-3 h-3" />
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-
-                {/* Ссылка «Все» если артистов больше 2 */}
-                {artistItems.length > 2 && (
-                  <div className="flex justify-end pt-1">
-                    <Link
-                      href={pageSettings?.artists?.linkUrl || "/products/merch"}
-                      className="inline-flex items-center gap-2 text-[11px] font-mono tracking-[0.25em] uppercase text-muted-foreground hover:text-primary transition-colors group"
-                      data-testid="link-all-artists-split"
-                    >
-                      {pageSettings?.artists?.linkText || "Все коллаборации"} <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                    </Link>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {artistLayout === "carousel" && (() => {
-              const scrollArtists = (dir: number) => {
-                const el = artistCarouselRef.current;
-                if (el) el.scrollBy({ left: dir * (el.clientWidth * 0.7), behavior: 'smooth' });
-              };
-              return (
-              <>
-                <div className="relative">
-                  <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-20 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
-                  <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-20 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
-                  <button
-                    className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 hidden sm:flex items-center justify-center w-8 h-8 text-foreground/30 hover:text-foreground transition-colors duration-200"
-                    onClick={() => scrollArtists(-1)}
-                    data-testid="button-artist-carousel-prev"
-                    aria-label="Назад"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </button>
-                  <button
-                    className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 hidden sm:flex items-center justify-center w-8 h-8 text-foreground/30 hover:text-foreground transition-colors duration-200"
-                    onClick={() => scrollArtists(1)}
-                    data-testid="button-artist-carousel-next"
-                    aria-label="Вперёд"
-                  >
-                    <ArrowRight className="w-5 h-5" />
-                  </button>
-                  <div 
-                    ref={artistCarouselRef}
-                    className="flex gap-4 sm:gap-6 overflow-x-auto scrollbar-hide px-4 sm:px-8 lg:px-16 snap-x snap-mandatory pb-4"
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                  >
-                    {artistItems.map((artist: any, index: number) => (
-                      <div
-                        key={index}
-                        className="flex-shrink-0 snap-center"
-                      >
-                        {renderArtistCard(artist, index)}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-center mt-6 sm:hidden">
-                  <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                    <span>Листайте</span>
-                    <ArrowRight className="w-3 h-3 animate-pulse" />
-                  </div>
-                </div>
-              </>
-              );
-            })()}
-          </section>
-        );
-        return (
-          <div key="section-artists">
-            {artistContent}
-            {renderPromoBanner("after_artists")}
-          </div>
-        );
-      })() : null;
+            );
+          })() : null;
 
         case "benefits":
           return isSectionVisible("benefits") ? (
