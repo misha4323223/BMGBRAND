@@ -1038,26 +1038,63 @@ export default function Home() {
         case "benefits":
           return isSectionVisible("benefits") ? (
             <div key="section-benefits">
-      <section className={`section-lazy py-8 sm:py-20 ${getBgClass("benefits", "bg-background")}`}>
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-10">
-            {benefits.map((benefit, index) => (
-              <div 
-                key={index}
-                className="text-center group flex flex-col items-center"
-              >
-                <div className="inline-flex items-center justify-center w-10 h-10 sm:w-14 sm:h-14 rounded-full border border-border mb-3 sm:mb-4">
-                  <benefit.icon className="w-4 h-4 sm:w-6 sm:h-6 text-foreground" strokeWidth={1.5} />
-                </div>
-                <h3 className="text-xs sm:text-sm font-medium text-foreground mb-0.5 tracking-tight">
-                  {pageSettings?.benefits?.[`benefit${index}Title`] || benefit.title}
-                </h3>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">
-                  {pageSettings?.benefits?.[`benefit${index}Desc`] || benefit.desc}
-                </p>
-              </div>
-            ))}
+      <section className={`section-lazy ${getBgClass("benefits", "bg-zinc-950")}`}>
+        <div className="max-w-8xl mx-auto">
+          {/* Mono label */}
+          <div className="px-6 sm:px-12 lg:px-16 pt-10 sm:pt-14 pb-5 sm:pb-6">
+            <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-white/25">
+              BOOOMERANGS — ХАРАКТЕРИСТИКИ
+            </p>
           </div>
+          {/* Strips */}
+          <div className="border-t border-white/[0.08]">
+            {benefits.map((benefit, index) => {
+              const BenefitIcon = benefit.icon;
+              const title = pageSettings?.benefits?.[`benefit${index}Title`] || benefit.title;
+              const desc = pageSettings?.benefits?.[`benefit${index}Desc`] || benefit.desc;
+              return (
+                <div
+                  key={index}
+                  className="group relative flex items-center gap-5 sm:gap-10 px-6 sm:px-12 lg:px-16 py-6 sm:py-8 border-b border-white/[0.08] transition-all duration-300 hover:bg-white/[0.03] cursor-default overflow-hidden"
+                >
+                  {/* Left cyan accent on hover */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                    style={{ background: "#00E5FF", boxShadow: "0 0 14px 3px rgba(0,229,255,0.45)" }}
+                  />
+                  {/* Icon */}
+                  <div
+                    className="benefits-icon-box shrink-0 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 transition-all duration-300"
+                    style={{ border: "1px solid rgba(0,229,255,0.2)" }}
+                  >
+                    <BenefitIcon
+                      className="w-4 h-4 sm:w-5 sm:h-5"
+                      style={{ color: "#00E5FF" }}
+                      strokeWidth={1.5}
+                    />
+                  </div>
+                  {/* Text */}
+                  <div className="flex-1 min-w-0">
+                    <h3
+                      style={{ fontFamily: "'Oswald', sans-serif" }}
+                      className="text-xl sm:text-2xl lg:text-[1.75rem] font-bold uppercase tracking-tight text-white leading-none mb-1 sm:mb-1.5"
+                    >
+                      {title}
+                    </h3>
+                    <p className="font-mono text-[10px] sm:text-xs tracking-[0.18em] text-white/35 uppercase">
+                      {desc}
+                    </p>
+                  </div>
+                  {/* Arrow */}
+                  <ArrowRight
+                    className="shrink-0 w-4 h-4 text-white/10 group-hover:text-[#00E5FF] transition-all duration-300 group-hover:translate-x-1"
+                    strokeWidth={1.5}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="h-10 sm:h-14" />
         </div>
       </section>
       {renderPromoBanner("after_benefits")}
