@@ -249,9 +249,9 @@ export default function ConceptPage() {
           />
         </div>
 
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10">
+        <div className="px-4 sm:px-6 lg:px-12 relative z-10">
           {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-14 sm:gap-x-14 sm:gap-y-20">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-14 sm:gap-x-10 sm:gap-y-20">
               {Array.from({ length: 3 }).map((_, i) => (
                 <ProductSkeleton key={i} />
               ))}
@@ -264,7 +264,7 @@ export default function ConceptPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-14 sm:gap-x-14 sm:gap-y-20">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-14 sm:gap-x-10 sm:gap-y-20">
               {products.map((product) => {
                 const imageUrl =
                   product.images && product.images.length > 0
