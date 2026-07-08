@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { ArrowRight, Package, ShoppingCart, ArrowLeft, AlertTriangle, Info, Megaphone, Flame } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
@@ -53,6 +53,115 @@ function formatDate(dateStr: string): string {
   });
 }
 
+// Свайп изображений товара на карточке (мобильный тач-свайп + мышь на десктопе)
+function SwipeableCardImages({
+  images,
+  alt,
+  isLocked,
+}: {
+  images: string[];
+  alt: string;
+  isLocked?: boolean;
+}) {
+  const [index, setIndex] = useState(0);
+  const [dragX, setDragX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startXRef = useRef(0);
+  const draggedRef = useRef(false);
+
+  const count = images.length;
+
+  function clampIndex(next: number) {
+    return Math.max(0, Math.min(count - 1, next));
+  }
+
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (count <= 1) return;
+    startXRef.current = e.clientX;
+    draggedRef.current = false;
+    setIsDragging(true);
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+  }
+
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!isDragging || count <= 1) return;
+    const delta = e.clientX - startXRef.current;
+    if (Math.abs(delta) > 4) draggedRef.current = true;
+    setDragX(delta);
+  }
+
+  function endDrag() {
+    if (!isDragging) return;
+    setIsDragging(false);
+    const threshold = 40;
+    if (dragX <= -threshold) {
+      setIndex((i) => clampIndex(i + 1));
+    } else if (dragX >= threshold) {
+      setIndex((i) => clampIndex(i - 1));
+    }
+    setDragX(0);
+  }
+
+  function handleClickCapture(e: React.MouseEvent) {
+    // Не даём свайпу навигировать по ссылке карточки
+    if (draggedRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      draggedRef.current = false;
+    }
+  }
+
+  const offsetPct = count > 0 ? -index * (100 / count) : 0;
+
+  return (
+    <div
+      className="relative w-full h-full touch-pan-y select-none"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onPointerLeave={isDragging ? endDrag : undefined}
+      onClickCapture={handleClickCapture}
+    >
+      <div
+        className="flex h-full"
+        style={{
+          width: `${count * 100}%`,
+          transform: `translate3d(calc(${offsetPct}% + ${isDragging ? dragX : 0}px), 0, 0)`,
+          transition: isDragging ? "none" : "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+      >
+        {images.map((src, i) => (
+          <div key={i} className="h-full shrink-0" style={{ width: `${100 / count}%` }}>
+            <img
+              src={src}
+              alt={alt}
+              loading="lazy"
+              draggable={false}
+              className={`w-full h-full object-cover pointer-events-none ${
+                isLocked ? "" : "transition-transform duration-500 group-hover:scale-105"
+              }`}
+            />
+          </div>
+        ))}
+      </div>
+
+      {count > 1 && (
+        <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 pointer-events-none">
+          {images.map((_, i) => (
+            <span
+              key={i}
+              className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                i === index ? "bg-white" : "bg-white/40"
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProductSkeleton() {
   return (
     <div className="animate-pulse">
@@ -68,12 +177,16 @@ export default function ConceptPage() {
     queryKey: ["/api/preorder/products"],
   });
 
-  const { data: conceptSettings } = useQuery<Record<string, any>>({
+  const { data: conceptSettings, isLoading: heroLoading } = useQuery<Record<string, any>>({
     queryKey: ["/api/page-settings/concept"],
   });
 
   const heroBannerDesktop: string = conceptSettings?.hero?.heroImage || "";
   const heroBannerMobile: string = conceptSettings?.hero?.heroImageMobile || "";
+  const [heroImgLoaded, setHeroImgLoaded] = useState(false);
+  // Пока идёт запрос настроек ИЛИ картинка баннера ещё не отрисовалась — держим скелет,
+  // чтобы баннер не «выпрыгивал» и не сдвигал контент после открытия страницы.
+  const showHeroSkeleton = heroLoading || (!heroImgLoaded && !!(heroBannerDesktop || heroBannerMobile));
 
   const promoBanner = conceptSettings?.promo_banner || {};
   const bannerEnabled: boolean = !!promoBanner.enabled;
@@ -163,26 +276,47 @@ export default function ConceptPage() {
         description="Pre-drop BOOOMERANGS — поддержи создание новых моделей одежды с авторскими принтами. Голосуй рублём за то, что хочешь носить."
         keywords="предзаказ, pre-drop, российский бренд одежды с авторскими принтами, BOOOMERANGS"
       />
-      {/* Hero banner */}
-      <section className="bg-black relative overflow-hidden">
+      {/* Hero banner — резервируем место сразу и держим скелет, пока картинка не отрисуется,
+          чтобы баннер не «выпрыгивал» и не сдвигал контент после открытия страницы */}
+      <section
+        className={`bg-black relative overflow-hidden ${
+          showHeroSkeleton ? "h-[52vw] max-h-[480px] min-h-[200px] sm:h-[34vw] sm:max-h-[560px]" : ""
+        }`}
+      >
+        {showHeroSkeleton && (
+          <div className="absolute inset-0 bg-zinc-900 animate-pulse" />
+        )}
+
         {/* Desktop image */}
-        {heroBannerDesktop && (
+        {!heroLoading && heroBannerDesktop && (
           <img
             src={heroBannerDesktop}
             alt="Предзаказ — твой доступ к будущим релизам"
-            className="hidden sm:block w-full object-cover"
+            loading="eager"
+            // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
+            fetchpriority="high"
+            onLoad={() => setHeroImgLoaded(true)}
+            className={`hidden sm:block w-full object-cover transition-opacity duration-300 ${
+              heroImgLoaded ? "opacity-100" : "opacity-0"
+            }`}
           />
         )}
         {/* Mobile image */}
-        {heroBannerMobile && (
+        {!heroLoading && heroBannerMobile && (
           <img
             src={heroBannerMobile}
             alt="Предзаказ — твой доступ к будущим релизам"
-            className="block sm:hidden w-full object-cover"
+            loading="eager"
+            // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
+            fetchpriority="high"
+            onLoad={() => setHeroImgLoaded(true)}
+            className={`block sm:hidden w-full object-cover transition-opacity duration-300 ${
+              heroImgLoaded ? "opacity-100" : "opacity-0"
+            }`}
           />
         )}
 
-        {/* Кнопка «назад» — верхний левый угол */}
+        {/* Кнопка «назад» — верхний левый угол, видна всегда независимо от баннера */}
         <button
           onClick={() => window.history.length > 1 ? window.history.back() : window.location.href = '/'}
           className="absolute top-4 left-4 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-white px-2 py-2 sm:px-3 rounded-full text-sm font-medium hover:bg-black/70 transition-colors"
@@ -291,10 +425,11 @@ export default function ConceptPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-14 sm:gap-x-10 sm:gap-y-20">
               {[...products].reverse().map((product) => {
-                const imageUrl =
+                const cardImages: string[] =
                   product.images && product.images.length > 0
-                    ? product.images[0]
-                    : product.thumbnailUrl || product.imageUrl || "";
+                    ? product.images
+                    : [product.thumbnailUrl || product.imageUrl || ""].filter(Boolean);
+                const imageUrl = cardImages[0] || "";
                 const status = product.preorderStatus || "collecting";
                 const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.collecting;
                 const isCancelled = status === "cancelled";
@@ -315,15 +450,10 @@ export default function ConceptPage() {
                     data-testid={`card-preorder-${product.id}`}
                     className={`block ${isLocked ? "pointer-events-none cursor-default" : "group"}`}
                   >
-                    {/* Image — чистое, без оверлеев */}
+                    {/* Image — свайп в сторону между фото товара */}
                     <div className={`relative aspect-[3/4] bg-muted overflow-hidden rounded-sm mb-3 ${isLocked ? "opacity-70" : ""}`}>
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt={product.name}
-                          loading="lazy"
-                          className={`w-full h-full object-cover ${isLocked ? "" : "transition-transform duration-500 group-hover:scale-105"}`}
-                        />
+                      {cardImages.length > 0 ? (
+                        <SwipeableCardImages images={cardImages} alt={product.name} isLocked={isLocked} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Package className="w-10 h-10 text-muted-foreground/30" />

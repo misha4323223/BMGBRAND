@@ -1892,19 +1892,6 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
           )}
         </div>
 
-        {catalogVisibleDescription && (
-          <div className="px-4 sm:px-6 lg:px-8 max-w-8xl mx-auto mb-6">
-            <p
-              className={`text-sm leading-relaxed max-w-3xl line-clamp-3 sm:line-clamp-none ${
-                isDarkThemed ? "text-white/60" : isMinta ? "text-[#2e2e2e]/65" : "text-muted-foreground"
-              }`}
-              data-testid="text-category-description"
-            >
-              {catalogVisibleDescription}
-            </p>
-          </div>
-        )}
-
         <div className="flex relative">
           {/* Mobile sidebar overlay */}
           {filtersOpen && (
@@ -2298,6 +2285,19 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
           </p>
           <p className="text-sm leading-relaxed">
             Весь мерч производится в России. Доставка по всей России через СДЭК и Яндекс Доставку.
+          </p>
+        </div>
+      )}
+
+      {catalogVisibleDescription && (
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          <p
+            className={`text-sm leading-relaxed ${
+              isDarkThemed ? "text-white/50" : isMinta ? "text-[#2e2e2e]/60" : "text-zinc-500 dark:text-zinc-500"
+            }`}
+            data-testid="text-category-description"
+          >
+            {catalogVisibleDescription}
           </p>
         </div>
       )}
