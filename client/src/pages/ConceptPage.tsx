@@ -240,7 +240,7 @@ export default function ConceptPage() {
       {/* Products */}
       <section
         className="py-14 sm:py-20 relative overflow-hidden"
-        style={{ background: "linear-gradient(180deg, #FAF8F4 0%, #F0EDE8 100%)" }}
+        style={{ background: "#F2F2F2" }}
       >
         {/* Отголосок космических свечений из секции подписки */}
         <div
