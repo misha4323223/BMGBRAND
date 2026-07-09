@@ -2167,17 +2167,7 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
           {/* Products Grid */}
           <div className="flex-1 min-w-0">
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-0 overflow-hidden">
-              {isLoading ? (
-                [1,2,3,4,5,6,7,8].map(i => (
-                  <div key={i} className="animate-pulse">
-                    <div className={`aspect-[971/1504] w-full ${isDarkThemed ? "bg-zinc-800" : isMinta ? "bg-[#e8d8cc]" : "bg-muted"}`} />
-                    <div className="px-3 pt-3 pb-4">
-                      <div className={`h-3 w-2/3 mb-2 rounded ${isDarkThemed ? "bg-zinc-700" : "bg-muted-foreground/20"}`} />
-                      <div className={`h-3 w-1/4 rounded ${isDarkThemed ? "bg-zinc-700" : "bg-muted-foreground/20"}`} />
-                    </div>
-                  </div>
-                ))
-              ) : allProducts.length === 0 ? (
+              {isLoading ? null : allProducts.length === 0 ? (
                 <div className={`col-span-full text-center py-20 ${isThemed ? "text-white/60" : "text-muted-foreground"}`} data-testid="text-empty-category">
                   Товары в этой категории не найдены.
                 </div>

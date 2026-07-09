@@ -1446,13 +1446,7 @@ export default function Home() {
                         </Link>
                       )}
                     </div>
-                    {isLoading ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-                        {[...Array(count > 4 ? 4 : count)].map((_, i) => (
-                          <div key={i} className="animate-pulse bg-muted rounded-xl aspect-[3/4]" />
-                        ))}
-                      </div>
-                    ) : (
+                    {isLoading ? null : (
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
                         {sectionProducts.map((product: any) => (
                           <ProductCard key={product.id} product={product} data-testid={`card-custom-hits-product-${product.id}`} />
