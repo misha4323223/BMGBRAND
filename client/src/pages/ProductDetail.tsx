@@ -1339,7 +1339,7 @@ export default function ProductDetail() {
                       return displaySizes.map((size: string) => {
                         const normKey = normSzKey(size);
                         const szMatches = hasSizeStock ? Object.entries(sizeStock).filter(([k]) => normSzKey(k) === normKey) : [];
-                        const stockCount = szMatches.length > 0 ? Math.max(...szMatches.map(([, v]) => v)) : sizeStock?.[size];
+                        const stockCount = szMatches.length > 0 ? Math.max(...szMatches.map(([, v]) => v as number)) : sizeStock?.[size];
                         const isOutOfStock = isPreorderCollecting ? false : (hasSizeStock 
                           ? (stockCount !== undefined && stockCount <= 0) 
                           : ((product.stock ?? 0) <= 0));

@@ -2848,7 +2848,7 @@ export class DatabaseStorage implements IStorage {
       let existingItems: any[] = [];
       let currentTotal = 0;
       if (rows.length > 0) {
-        const row = rows[0];
+        const row = rows[0] as any;
         try { existingItems = JSON.parse(row.items?.bytesValue?.toString('utf8') || row.items?.textValue || '[]'); } catch {}
         currentTotal = Number(row.total?.int32Value ?? row.total?.int64Value ?? 0);
       }

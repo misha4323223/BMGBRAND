@@ -95,8 +95,8 @@ export async function processAddonOrderPaid(
         id: orderId,
         customerName: order.customerName || "Покупатель",
         customerPhone: (order as any).customerPhone || "",
-        customerEmail: order.customerEmail || "",
-      },
+        customerEmail: (order as any).customerEmail || "",
+      } as any,
       addonData.items,
       addonData.addedTotal
     );
@@ -134,7 +134,7 @@ export function registerAddonOrderRoutes(app: Express): void {
       if (!order) return res.status(404).json({ eligible: false, reason: "not_found" });
 
       const userId = (req as any).user?.id;
-      const sessionId = req.sessionID;
+      const sessionId = (req as any).sessionID;
       const isOwner =
         (userId && order.userId === userId) ||
         (userId && order.sessionId === `user_${userId}`) ||
@@ -194,7 +194,7 @@ export function registerAddonOrderRoutes(app: Express): void {
       if (!order) return res.status(404).json({ error: "not_found" });
 
       const userId = (req as any).user?.id;
-      const sessionId = req.sessionID;
+      const sessionId = (req as any).sessionID;
       const isOwner =
         (userId && order.userId === userId) ||
         (userId && order.sessionId === `user_${userId}`) ||
@@ -301,7 +301,7 @@ export function registerAddonOrderRoutes(app: Express): void {
       if (!order) return res.status(404).json({ error: "not_found" });
 
       const userId = (req as any).user?.id;
-      const sessionId = req.sessionID;
+      const sessionId = (req as any).sessionID;
       const isOwner =
         (userId && order.userId === userId) ||
         (userId && order.sessionId === `user_${userId}`) ||
