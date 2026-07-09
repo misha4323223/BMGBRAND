@@ -1112,26 +1112,22 @@ export function registerAiChatRoute(app: Express): void {
             res.write(`data: ${JSON.stringify({ chunk: outputBuf })}\n\n`);
           }
 
-          // If [NO_ANSWER] was detected — notify admin only when reply is genuinely unhelpful
+          // If [NO_ANSWER] was detected — notify admin
           if (noAnswerDetected) {
             const question = lastUserMsg?.content || "(вопрос не определён)";
             const botReply = outputBuf.replace(NO_ANSWER_TAG, "").trim();
-            const redirectPhrases = ["менеджер", "уточните", "напишите нам", "свяжитесь", "не знаю", "не могу"];
-            const isGenuinelyUnhelpful = botReply.length < 120 || redirectPhrases.some(p => botReply.toLowerCase().includes(p));
-            if (isGenuinelyUnhelpful) {
-              const alertText = `❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${botReply}`;
-              sendAgentAlert(alertText).catch(() => {});
-              vkNotifyAgentAlert(alertText);
-              import("./agent-queue").then(({ addToQueue }) => {
-                addToQueue({
-                  type: "knowledge_gap",
-                  title: `❓ Бот не знает: ${question.slice(0, 80)}`,
-                  description: `Клиент спросил: ${question}\n\nБот ответил: ${botReply}`,
-                  tool: "update_ai_knowledge_draft",
-                  params: { question, botReply, suggestedAnswer: "", targetBlock: topicKey || "ai_block_delivery" },
-                }).catch(() => {});
+            const alertText = `❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${botReply}`;
+            sendAgentAlert(alertText).catch(() => {});
+            vkNotifyAgentAlert(alertText);
+            import("./agent-queue").then(({ addToQueue }) => {
+              addToQueue({
+                type: "knowledge_gap",
+                title: `❓ Бот не знает: ${question.slice(0, 80)}`,
+                description: `Клиент спросил: ${question}\n\nБот ответил: ${botReply}`,
+                tool: "update_ai_knowledge_draft",
+                params: { question, botReply, suggestedAnswer: "", targetBlock: topicKey || "ai_block_delivery" },
               }).catch(() => {});
-            }
+            }).catch(() => {});
           }
         } catch (streamErr: any) {
           console.error("[AI Chat] Stream read error:", streamErr.message);
@@ -1186,23 +1182,19 @@ export function registerAiChatRoute(app: Express): void {
       let reply = nonStreamReply;
       if (reply.trimStart().startsWith("[NO_ANSWER]")) {
         reply = reply.trimStart().slice("[NO_ANSWER]".length).trim();
-        const redirectPhrases = ["менеджер", "уточните", "напишите нам", "свяжитесь", "не знаю", "не могу"];
-        const isGenuinelyUnhelpful = reply.length < 120 || redirectPhrases.some(p => reply.toLowerCase().includes(p));
-        if (isGenuinelyUnhelpful) {
-          const question = lastUserMsg?.content || "(вопрос не определён)";
-          const alertText = `❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${reply}`;
-          sendAgentAlert(alertText).catch(() => {});
-          vkNotifyAgentAlert(alertText);
-          import("./agent-queue").then(({ addToQueue }) => {
-            addToQueue({
-              type: "knowledge_gap",
-              title: `❓ Бот не знает: ${question.slice(0, 80)}`,
-              description: `Клиент спросил: ${question}\n\nБот ответил: ${reply}`,
-              tool: "update_ai_knowledge_draft",
-              params: { question, botReply: reply, suggestedAnswer: "", targetBlock: topicKey || "ai_block_delivery" },
-            }).catch(() => {});
+        const question = lastUserMsg?.content || "(вопрос не определён)";
+        const alertText = `❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${reply}`;
+        sendAgentAlert(alertText).catch(() => {});
+        vkNotifyAgentAlert(alertText);
+        import("./agent-queue").then(({ addToQueue }) => {
+          addToQueue({
+            type: "knowledge_gap",
+            title: `❓ Бот не знает: ${question.slice(0, 80)}`,
+            description: `Клиент спросил: ${question}\n\nБот ответил: ${reply}`,
+            tool: "update_ai_knowledge_draft",
+            params: { question, botReply: reply, suggestedAnswer: "", targetBlock: topicKey || "ai_block_delivery" },
           }).catch(() => {});
-        }
+        }).catch(() => {});
       }
 
       res.json({ reply, products: nonStreamCards });
