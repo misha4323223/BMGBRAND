@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import SEO from "@/components/SEO";
-import { Loader2, Package, Check, Truck, MapPin, Calendar, ExternalLink } from "lucide-react";
+import { Package, Check, Truck, MapPin, Calendar, ExternalLink } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 
 interface TrackingStatus {
   code: string;
@@ -70,7 +71,7 @@ export default function TrackOrder() {
 
         {isLoading && (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <BrandLoader size="sm" />
           </div>
         )}
 

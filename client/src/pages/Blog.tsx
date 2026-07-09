@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { ArrowRight, Calendar, User, Loader2 } from "lucide-react";
+import { ArrowRight, Calendar, User } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { Link } from "wouter";
 
 const defaultBlogPosts = [
@@ -109,7 +110,7 @@ export default function Blog() {
 
           {isLoading ? (
             <div className="flex justify-center py-16">
-              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              <BrandLoader size="sm" />
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-12">

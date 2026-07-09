@@ -17,6 +17,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { type CheckoutSettings, DEFAULT_CHECKOUT_SETTINGS } from "@/components/checkout-settings";
 import { Loader2, CheckCircle2, MapPin, Truck, Search, Package, Tag, Percent, CreditCard, Landmark, Building2, Info, Gift, Plus, Minus, Trash2, Clock, ShieldCheck, AlertCircle } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -847,8 +848,8 @@ export default function Checkout() {
   if (!cartItems || cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-        <p className="text-muted-foreground">{cs.emptyCartText}</p>
+        <BrandLoader size="sm" />
+        <p className="text-muted-foreground mt-4">{cs.emptyCartText}</p>
         <Button 
           variant="ghost"
           onClick={() => setLocation("/cart")}

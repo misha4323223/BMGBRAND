@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { BrandLoader } from "@/components/BrandLoader";
 import { useLocation } from "wouter";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -594,7 +595,7 @@ export default function WholesaleProfile() {
           <div>
             {ordersLoading ? (
               <div className="flex items-center justify-center py-16">
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <BrandLoader size="sm" />
               </div>
             ) : visibleOrders.length === 0 ? (
               <Card className="p-12 text-center">

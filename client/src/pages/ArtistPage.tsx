@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, ArrowRight, ExternalLink, Play, Quote, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Share2, ShoppingCart, Zap, Tag, Heart, Flame } from "lucide-react";
 import { SiTelegram, SiVk, SiYoutube, SiInstagram, SiTiktok, SiSpotify, SiTwitch, SiSoundcloud, SiApplemusic, SiDiscord, SiX, SiBandcamp, SiPatreon, SiOnlyfans } from "react-icons/si";
 import { useState, useEffect, useRef } from "react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { transliterateToSlug } from "@shared/schema";
 import SEO from "@/components/SEO";
 import { useAddToCart } from "@/hooks/use-cart";
@@ -840,7 +841,7 @@ export default function ArtistPage() {
   if (isLoading && !artistHeroSSR?.img && !homeArtist) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-muted-foreground">Загрузка...</div>
+        <BrandLoader size="sm" />
       </div>
     );
   }

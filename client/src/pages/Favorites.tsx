@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/use-auth";
+import { BrandLoader } from "@/components/BrandLoader";
 import { useLocation } from "wouter";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -264,8 +265,7 @@ export default function Favorites() {
           </Card>
         ) : productsLoading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-            <span className="ml-3 text-muted-foreground">Загрузка товаров...</span>
+            <BrandLoader size="sm" />
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4" data-testid="grid-favorites">
