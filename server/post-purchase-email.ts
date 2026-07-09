@@ -97,7 +97,7 @@ async function generatePromoCode(orderId: number): Promise<{ code: string; disco
 
 async function generateAiText(customerName: string, productNames: string[]): Promise<string> {
   try {
-    const apiKey = process.env.GROQ_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY_2 || process.env.GROQ_API_KEY;
     const proxyUrl = process.env.GROQ_PROXY_URL;
     if (!apiKey && !proxyUrl) return '';
 

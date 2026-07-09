@@ -74,7 +74,7 @@ async function groqComplete(
   systemPrompt: string,
   maxTokens = 512
 ): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY_2 || process.env.GROQ_API_KEY;
   const proxyUrl = process.env.GROQ_PROXY_URL;
   if (!apiKey && !proxyUrl) throw new Error("Groq not configured");
 
