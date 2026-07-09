@@ -274,10 +274,11 @@ export default function PartnerProfile() {
     { key: "overview", label: "Обзор", icon: TrendingUp },
     { key: "link", label: "Моя ссылка", icon: LinkIcon },
     { key: "products", label: "Мои товары", icon: Package },
-    { key: "widget", label: "Виджет", icon: Code2 },
-    ...(partner.isArtist ? [{ key: "refstats" as TabKey, label: "Рефералы", icon: Eye }] : []),
-    { key: "commissions", label: "Заказы и комиссии", icon: ShoppingBag },
-    { key: "payouts", label: "Выплаты", icon: Wallet },
+    ...(partner.isArtist ? [{ key: "refstats" as TabKey, label: "Рефералы", icon: Eye }] : [{ key: "widget" as TabKey, label: "Виджет", icon: Code2 }]),
+    ...(partner.isArtist ? [] : [
+      { key: "commissions" as TabKey, label: "Заказы и комиссии", icon: ShoppingBag },
+      { key: "payouts" as TabKey, label: "Выплаты", icon: Wallet },
+    ]),
     { key: "settings", label: "Настройки", icon: SettingsIcon },
   ];
 
@@ -362,9 +363,9 @@ export default function PartnerProfile() {
         {activeTab === "refstats" && <RefStatsTab stats={stats} loading={statsQuery.isLoading} />}
         {activeTab === "link" && <LinkTab refUrl={refUrl} slug={partner.partnerSlug} />}
         {activeTab === "products" && <PartnerProductsTab partnerSlug={partner.partnerSlug} />}
-        {activeTab === "widget" && <WidgetTab slug={partner.partnerSlug} />}
-        {activeTab === "commissions" && <CommissionsTab />}
-        {activeTab === "payouts" && (
+        {activeTab === "widget" && !partner.isArtist && <WidgetTab slug={partner.partnerSlug} />}
+        {activeTab === "commissions" && !partner.isArtist && <CommissionsTab />}
+        {activeTab === "payouts" && !partner.isArtist && (
           <PayoutsTab
             awaiting={stats?.awaitingPaymentAmount ?? 0}
             hold={stats?.holdAmount ?? 0}
