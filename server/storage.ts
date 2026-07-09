@@ -619,7 +619,9 @@ export class DatabaseStorage implements IStorage {
         const errorName = err.constructor?.name || '';
         const isRetryable = errorName === 'BadSession' || 
                            err.message?.includes('Session not found') ||
-                           err.message?.includes('RESOURCE_EXHAUSTED');
+                           err.message?.includes('RESOURCE_EXHAUSTED') ||
+                           err.message?.includes('Transaction locks invalidated') ||
+                           err.message?.includes('Aborted');
         
         // Handle authentication errors - reconnect and retry
         if (isAuthError(err)) {
