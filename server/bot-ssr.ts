@@ -20,8 +20,10 @@ import {
   getCachedRatingByProductId,
   getCachedProductsForRecommendations,
   getCachedReviewsByProductId,
+  getCachedProductsForVariantMatching,
 } from "./storage";
 import { getRecommendationsSync } from "./recommendations";
+import { findProductVariantsSync } from "./variant-matching";
 
 // ─── Bot User-Agent detection ─────────────────────────────────────────────────
 // Only include server-side crawlers and link-preview fetchers.
@@ -155,6 +157,10 @@ h2{font-size:1.3rem;font-weight:700;margin:1.5rem 0 .75rem;text-transform:upperc
 footer{background:#1C1C1C;color:#999;padding:2rem 0;margin-top:3rem;font-size:.875rem}
 footer a{color:#999}footer p+p{margin-top:.5rem}
 .rating{color:#888;font-size:.9rem;margin-top:.35rem}
+.variants{margin-top:2rem}
+.variants ul{list-style:none;display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.75rem}
+.variants li a{display:flex;flex-direction:column;align-items:center;gap:.35rem;font-size:.85rem;font-weight:600}
+.variants li img{border-radius:6px;object-fit:cover}
 .reviews{margin-top:2rem}
 .review{background:#fff;border-radius:8px;padding:1rem;margin-top:.75rem}
 .review-head{font-size:.9rem;color:#333}
@@ -486,6 +492,43 @@ function renderProduct(slug: string): string | null {
     }];
   }
 
+  // Color/model variants — synchronous, in-memory only (never touches YDB).
+  // Mirrors the live /api/products/:id/variants matching cascade.
+  let variantsHtml = "";
+  try {
+    const variantCandidates = getCachedProductsForVariantMatching();
+    const currentAsInput = variantCandidates.find(p => p.id === meta.productId);
+    if (currentAsInput) {
+      const variants = findProductVariantsSync(currentAsInput, variantCandidates)
+        .filter(v => v.slug && v.slug !== slug);
+      if (variants.length > 0) {
+        productSchema.isVariantOf = {
+          "@type": "ProductGroup",
+          "name": meta.title,
+          "url": `${SITE_URL}/${slug}`,
+          "hasVariant": [
+            {
+              "@type": "Product",
+              "name": meta.title,
+              "url": `${SITE_URL}/${slug}`,
+              "sku": meta.sku,
+              "image": meta.image || undefined,
+            },
+            ...variants.map(v => ({
+              "@type": "Product",
+              "name": v.name,
+              "url": `${SITE_URL}/${v.slug}`,
+              "image": v.imageUrl || undefined,
+            })),
+          ],
+        };
+        variantsHtml = `<div class="variants"><h2>Другие цвета</h2><ul>${variants.map(v =>
+          `<li><a href="/${esc(v.slug)}">${v.color ? `<img src="${esc(v.thumbnailUrl || v.imageUrl)}" alt="${esc(v.color)}" width="60" height="60" loading="lazy"><span>${esc(v.color)}</span>` : esc(v.name)}</a></li>`
+        ).join("\n")}</ul></div>`;
+      }
+    }
+  } catch { /* safe to skip */ }
+
   const catName = meta.category ? CATEGORIES[meta.category]?.name || meta.category : "";
   const breadcrumbItems: any[] = [
     { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
@@ -568,6 +611,7 @@ ${videoHtml}
   <p style="margin-top:.75rem">Доставка по всей России СДЭК и Яндекс Доставкой.</p>
   <a href="/${esc(slug)}" class="buy-btn">Купить на сайте</a>
 </div>
+${variantsHtml}
 ${reviewsHtml}
 ${recsHtml}`;
 

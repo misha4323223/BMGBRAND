@@ -241,6 +241,29 @@ export function getCachedProductsForRecommendations(limit = 2000): Array<{
     }));
 }
 
+// Richer synchronous product listing for variant matching (bot-ssr.ts) — needs
+// sku/imageUrl/isHidden/colors on top of what getCachedProductsForRecommendations
+// exposes. Kept in-memory only, never touches YDB.
+export function getCachedProductsForVariantMatching(): Array<{
+  id: number; slug: string; name: string; sku: string | null; price: number; stock: number;
+  imageUrl: string; thumbnailUrl: string; isHidden: boolean; colors: string[];
+}> {
+  const products = productsCache.get("all");
+  if (!products || products.length === 0) return [];
+  return products.map((p: any) => ({
+    id: Number(p.id),
+    slug: String(p.slug || ""),
+    name: String(p.name || ""),
+    sku: p.sku || p.article || null,
+    price: Number(p.price || 0),
+    stock: Number(p.stock ?? 0),
+    imageUrl: p.imageUrl || p.thumbnailUrl || "",
+    thumbnailUrl: p.thumbnailUrl || p.imageUrl || "",
+    isHidden: !!p.isHidden,
+    colors: Array.isArray(p.colors) ? p.colors : [],
+  }));
+}
+
 export function clearAllCaches() {
   productsCache.clear();
   productCache.clear();
