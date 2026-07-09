@@ -18,16 +18,16 @@ import {
   Loader2, Handshake, LogOut, Copy, Download, ExternalLink,
   TrendingUp, Eye, ShoppingBag, Wallet, Settings as SettingsIcon, Link as LinkIcon,
   CheckCircle, Clock, XCircle, BadgeDollarSign, Package, Code2, HelpCircle,
-  ChevronDown, ChevronRight, Tag, Trash2, Music2, Landmark, Info, Save, MessageSquare, Send,
+  ChevronDown, ChevronRight, Tag, Trash2, Music2, Landmark, Info, Save, MessageSquare, Send, Pencil,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PartnerProductsTab } from "./partner/ProductsTab";
 import { WidgetTab } from "./partner/WidgetTab";
-import { ArtistTab } from "./partner/ArtistTab";
+import { ArtistTab, PageEditor } from "./partner/ArtistTab";
 
-type TabKey = "overview" | "link" | "products" | "widget" | "commissions" | "payouts" | "refstats" | "settings";
+type TabKey = "overview" | "link" | "products" | "widget" | "commissions" | "payouts" | "refstats" | "page" | "settings";
 
 function InfoTip({ text }: { text: string }) {
   return (
@@ -281,6 +281,7 @@ export default function PartnerProfile() {
       { key: "commissions" as TabKey, label: "Заказы и комиссии", icon: ShoppingBag },
       { key: "payouts" as TabKey, label: "Выплаты", icon: Wallet },
     ]),
+    ...(partner.isArtist ? [{ key: "page" as TabKey, label: "Моя страница", icon: Pencil }] : []),
     { key: "settings", label: "Настройки", icon: SettingsIcon },
   ];
 
@@ -381,6 +382,7 @@ export default function PartnerProfile() {
             bankCorrAccount={partner.bankCorrAccount ?? null}
           />
         )}
+        {activeTab === "page" && partner.isArtist && <PageEditor partnerSlug={partner.partnerSlug} />}
         {activeTab === "settings" && <SettingsTab partner={partner} effectiveCommissionPercent={effectiveCommissionPercent} progressiveInfo={progressiveInfo} />}
       </main>
       <Footer />
