@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, RefreshCw, Lock, Search, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Image, MoveRight, MoreVertical, Settings, CheckSquare, Building2, Check, X, Users, Package, EyeOff, Eye, Gift, ShoppingCart, Clock, Truck, CreditCard, Ban, Star, Mail, TrendingUp, TrendingDown, Tag, Save, Plus, Pencil, Loader2, Layout, Type, ImageIcon, DollarSign, Upload, MessageSquare, Send, CheckCircle2, LogOut, Heart, Copy, Target, GripVertical, Bell, Phone, User, ChevronDown, ChevronRight, PlusCircle, MinusCircle, FileText, Ruler, Download, Music, Headphones } from "lucide-react";
+import { Trash2, RefreshCw, Lock, Search, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Image, MoveRight, MoreVertical, Settings, CheckSquare, Building2, Check, X, Users, Package, EyeOff, Eye, Gift, ShoppingCart, Clock, Truck, CreditCard, Ban, Star, Mail, TrendingUp, TrendingDown, Tag, Save, Plus, Pencil, Loader2, Layout, Type, ImageIcon, DollarSign, Upload, MessageSquare, Send, CheckCircle2, LogOut, Heart, Copy, Target, GripVertical, Bell, Phone, User, ChevronDown, ChevronRight, PlusCircle, MinusCircle, FileText, Ruler, Download, Music, Headphones, Play } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -5545,7 +5545,7 @@ export default function Admin() {
             )}
 
             {selectedPage === "home" && (() => {
-              const DEFAULT_SECTION_ORDER = ["hero", "categories", "popular", "featuredDrop", "benefits", "philosophy", "blog", "promo_banner", "newsletter", "marquee"];
+              const DEFAULT_SECTION_ORDER = ["hero", "reels", "categories", "popular", "featuredDrop", "benefits", "philosophy", "blog", "promo_banner", "newsletter", "marquee"];
 
               const CUSTOM_SECTION_TYPES: Record<string, { name: string; icon: any }> = {
                 custom_hits: { name: "Хиты продаж", icon: TrendingUp },
@@ -5564,6 +5564,7 @@ export default function Admin() {
                 promo_banner: { name: "Промо-баннер", icon: ImageIcon },
                 newsletter: { name: "Подписка", icon: Mail },
                 marquee: { name: "Бегущая строка", icon: Type },
+                reels: { name: "Обзоры (Видео-рилсы)", icon: Play },
               };
               // Динамически добавляем кастомные секции из настроек страницы
               Object.keys(pageSettingsQuery.data || {}).forEach(id => {
@@ -5681,6 +5682,7 @@ export default function Admin() {
                           promo_banner: { visible: true, title: "НОВАЯ КОЛЛЕКЦИЯ SS'26", subtitle: "Российский бренд одежды для тех, кто ценит стиль и качество", buttonText: "Смотреть", buttonLink: "/products", bgImage: "", bgColor: "black", textColor: "light", size: "medium", rounded: false, effect: "gradient-overlay", position: "after_categories" },
                           newsletter: { title: "Подпишитесь на рассылку", subtitle: "Получайте первыми информацию о новых дропах и эксклюзивных акциях.", buttonText: "Подписаться", successText: "Спасибо за подписку!", visible: true },
                           marquee: { text: "Новая коллекция уже в продаже • Бесплатная доставка при заказе от 5000₽ •", visible: true },
+                          reels: { title: "Обзоры", items: [], visible: true },
                         };
                         const existing = pageSettingsQuery.data?.[sectionId] || {};
                         const merged = { ...(defaults[sectionId] || {}), ...existing };
@@ -5763,6 +5765,7 @@ export default function Admin() {
                             selectedSection === "promo_banner" ? "Промо-баннер" :
                             selectedSection === "newsletter" ? "Подписка" :
                             selectedSection === "marquee" ? "Бегущая строка" :
+                            selectedSection === "reels" ? "Обзоры (Видео-рилсы)" :
                             (selectedSection?.startsWith("custom_") ? (sectionSettings.title || ALL_SECTIONS[selectedSection!]?.name || selectedSection) : selectedSection)}
                         </CardTitle>
                       </CardHeader>
@@ -6937,6 +6940,108 @@ export default function Admin() {
                           </div>
                           );
                         })()}
+
+                        {/* Reels section editor */}
+                        {selectedSection === "reels" && (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={sectionSettings.visible !== false}
+                                onCheckedChange={(checked) => setSectionSettings({...sectionSettings, visible: checked})}
+                              />
+                              <Label className="text-sm">Показывать секцию</Label>
+                            </div>
+                            <div>
+                              <Label className="text-sm">Название секции</Label>
+                              <Input
+                                value={sectionSettings.title || ""}
+                                onChange={(e) => setSectionSettings({...sectionSettings, title: e.target.value})}
+                                placeholder="Обзоры"
+                              />
+                            </div>
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-sm font-medium">Видео ({(sectionSettings.items || []).length})</Label>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    const items = [...(sectionSettings.items || [])];
+                                    items.push({ id: `reel_${Date.now()}`, videoUrl: "", label: "", link: "" });
+                                    setSectionSettings({...sectionSettings, items});
+                                  }}
+                                >
+                                  <Plus className="w-3.5 h-3.5 mr-1" /> Добавить
+                                </Button>
+                              </div>
+                              {(sectionSettings.items || []).length === 0 && (
+                                <p className="text-sm text-muted-foreground text-center py-4">Нет видео. Нажмите «Добавить».</p>
+                              )}
+                              {(sectionSettings.items || []).map((item: any, idx: number) => (
+                                <div key={item.id || idx} className="p-3 border rounded-md space-y-2">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs font-medium text-muted-foreground">Ролик {idx + 1}</span>
+                                    <button
+                                      className="p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors"
+                                      onClick={() => {
+                                        const items = (sectionSettings.items || []).filter((_: any, i: number) => i !== idx);
+                                        setSectionSettings({...sectionSettings, items});
+                                      }}
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                  <VideoUploadField
+                                    value={item.videoUrl || ""}
+                                    onChange={(url) => {
+                                      const items = [...(sectionSettings.items || [])];
+                                      items[idx] = { ...items[idx], videoUrl: url };
+                                      setSectionSettings({...sectionSettings, items});
+                                    }}
+                                    apiKey={`reel_video_${idx}`}
+                                    placeholder="URL или загрузить видео"
+                                  />
+                                  <Input
+                                    value={item.label || ""}
+                                    onChange={(e) => {
+                                      const items = [...(sectionSettings.items || [])];
+                                      items[idx] = { ...items[idx], label: e.target.value };
+                                      setSectionSettings({...sectionSettings, items});
+                                    }}
+                                    placeholder="Название вещи"
+                                  />
+                                  <Input
+                                    value={item.link || ""}
+                                    onChange={(e) => {
+                                      const items = [...(sectionSettings.items || [])];
+                                      items[idx] = { ...items[idx], link: e.target.value };
+                                      setSectionSettings({...sectionSettings, items});
+                                    }}
+                                    placeholder="/products/category/item"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            <Button
+                              className="w-full"
+                              onClick={async () => {
+                                try {
+                                  await adminFetch(`/api/admin/page-settings/home/reels`, apiKey, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify(sectionSettings),
+                                  });
+                                  pageSettingsQuery.refetch();
+                                  toast({ title: "Сохранено", description: "Настройки секции «Обзоры» сохранены" });
+                                } catch (err: any) {
+                                  toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+                                }
+                              }}
+                            >
+                              <Save className="w-4 h-4 mr-2" /> Сохранить
+                            </Button>
+                          </div>
+                        )}
 
                         {/* Custom Hits section editor */}
                         {selectedSection?.startsWith("custom_") && sectionSettings.type === "custom_hits" && (() => {

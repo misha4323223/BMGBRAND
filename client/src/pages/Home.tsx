@@ -1,5 +1,5 @@
 import SEO from "@/components/SEO";
-import { ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Truck, Palette, Flag, Mail, Shirt, Pencil, Settings2, ShoppingBag, Globe } from "lucide-react";
+import { ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Truck, Palette, Flag, Mail, Shirt, Pencil, Settings2, ShoppingBag, Globe, X } from "lucide-react";
 
 declare global {
   interface Window {
@@ -248,6 +248,64 @@ function MarqueeSection({ text }: { text: string }) {
   );
 }
 
+function ReelPill({ item, onClick }: { item: any; onClick: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hovered, setHovered] = useState(false);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (hovered) {
+      v.play().catch(() => {});
+    } else {
+      v.pause();
+      v.currentTime = 0;
+    }
+  }, [hovered]);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
+      className="flex flex-col shrink-0 cursor-pointer group focus:outline-none"
+    >
+      <div
+        className="relative overflow-hidden border-2 border-primary/60 group-hover:border-primary transition-colors duration-300"
+        style={{ width: 68, height: 108, borderRadius: 18 }}
+      >
+        {item.videoUrl ? (
+          <video
+            ref={videoRef}
+            src={item.videoUrl}
+            muted
+            loop
+            playsInline
+            preload="none"
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-zinc-800" />
+        )}
+        <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-300 group-hover:opacity-0">
+          <div className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white ml-0.5" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+        </div>
+      </div>
+      {item.label && (
+        <div className="mt-1.5 text-center" style={{ width: 68 }}>
+          <span className="text-[7px] font-bold uppercase tracking-[0.1em] text-zinc-400 leading-tight line-clamp-2 group-hover:text-zinc-200 transition-colors">
+            {item.label}
+          </span>
+        </div>
+      )}
+    </button>
+  );
+}
+
 export default function Home() {
   const { isWholesale } = useWholesalePrice();
   const [email, setEmail] = useState("");
@@ -258,6 +316,7 @@ export default function Home() {
   const blogCarouselRef = useRef<HTMLDivElement>(null);
   const [heroSlideIndex, setHeroSlideIndex] = useState(0);
   const [heroPrev, setHeroPrev] = useState<number | null>(null);
+  const [activeReel, setActiveReel] = useState<any>(null);
   const [heroPaused, setHeroPaused] = useState(false);
   const [heroAnimKey, setHeroAnimKey] = useState(0);
 
@@ -438,7 +497,7 @@ export default function Home() {
     return <PromoBanner settings={promoBanner} />;
   };
 
-  const DEFAULT_SECTION_ORDER = ["hero", "categories", "popular", "featuredDrop", "benefits", "philosophy", "blog", "promo_banner", "newsletter", "marquee"];
+  const DEFAULT_SECTION_ORDER = ["hero", "reels", "categories", "popular", "featuredDrop", "benefits", "philosophy", "blog", "promo_banner", "newsletter", "marquee"];
   const FIXED_SECTIONS = new Set(DEFAULT_SECTION_ORDER);
   const rawOrder: string[] = (pageSettings?.sectionOrder?.order as string[]) || [];
   // Include fixed sections + custom sections (those that start with "custom_")
@@ -835,6 +894,42 @@ export default function Home() {
         })()}
             </div>
           ) : null;
+        }
+
+        case "reels": {
+          if (!isSectionVisible("reels")) return null;
+          const reelsSettings = pageSettings?.reels || {};
+          const reelItems: any[] = reelsSettings.items || [];
+          if (reelItems.length === 0) return null;
+          return (
+            <div className="w-full border-t-2 border-primary" style={{ background: "radial-gradient(ellipse 100% 60% at 50% 0%, #1c1c1c 0%, #0a0a0a 65%)" }}>
+              <div className="flex sm:hidden items-center px-4 pt-4 pb-1">
+                <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-zinc-300">
+                  {reelsSettings.title || "Обзоры"}
+                </span>
+              </div>
+              <div className="flex items-stretch">
+                <div className="hidden sm:flex shrink-0 items-center justify-center px-5 lg:px-7 border-r border-zinc-800">
+                  <span className="text-[11px] font-mono tracking-[0.3em] uppercase text-zinc-300 whitespace-nowrap" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                    {reelsSettings.title || "Обзоры"}
+                  </span>
+                </div>
+                <div className="flex-1 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-12 bg-gradient-to-r from-zinc-950 to-transparent z-10 pointer-events-none" />
+                  <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-24 bg-gradient-to-l from-zinc-950 to-transparent z-10 pointer-events-none" />
+                  <div
+                    className="flex items-end gap-3 sm:gap-4 overflow-x-auto px-4 sm:px-6 py-5 sm:py-6"
+                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                  >
+                    {reelItems.map((item: any, idx: number) => (
+                      <ReelPill key={item.id || idx} item={item} onClick={() => setActiveReel(item)} />
+                    ))}
+                    <div className="shrink-0 w-10 sm:w-16" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
         }
 
         case "categories":
@@ -1510,6 +1605,53 @@ export default function Home() {
         if (!sectionContent) return null;
         return sectionContent;
       })}
+
+      {activeReel && (
+        <div
+          className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center px-4"
+          onClick={() => setActiveReel(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 text-white/60 hover:text-white transition-colors"
+            onClick={() => setActiveReel(null)}
+            aria-label="Закрыть"
+          >
+            <X className="w-7 h-7" />
+          </button>
+          <div
+            className="relative w-full max-w-xs"
+            style={{ maxHeight: "76vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <video
+              key={activeReel.videoUrl}
+              src={activeReel.videoUrl}
+              autoPlay
+              loop
+              playsInline
+              controls
+              className="w-full rounded-2xl"
+              style={{ maxHeight: "76vh", objectFit: "contain" }}
+            />
+          </div>
+          {(activeReel.label || activeReel.link) && (
+            <div className="mt-5 text-center" onClick={(e) => e.stopPropagation()}>
+              {activeReel.label && (
+                <p className="text-white font-semibold text-base mb-3">{activeReel.label}</p>
+              )}
+              {activeReel.link && (
+                <Link
+                  href={activeReel.link}
+                  onClick={() => setActiveReel(null)}
+                  className="inline-flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors"
+                >
+                  Смотреть <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <Footer />
     </div>
