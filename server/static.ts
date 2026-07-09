@@ -150,6 +150,83 @@ function buildCatalogNoscript(siteUrl: string): string {
     `</div></noscript>`;
 }
 
+const DEFAULT_FAQ_ITEMS: Array<{ question: string; answer: string }> = [
+  { question: "Как оформить заказ?", answer: "Выберите понравившиеся товары, добавьте их в корзину, перейдите к оформлению и заполните данные для доставки. После оформления заказа вам придёт уведомление на электронную почту. Отследить статус заказа и местонахождение посылки можно в личном кабинете." },
+  { question: "Какие способы оплаты доступны?", answer: "Мы принимаем оплату банковскими картами через ЮKassa и Т-Банк. Доступны банковские карты (Visa, MasterCard, МИР), СБП (Система быстрых платежей), а также Т-Pay." },
+  { question: "Сколько стоит доставка?", answer: "Доставка по России осуществляется через СДЭК и Яндекс Доставку. Стоимость рассчитывается автоматически при оформлении заказа в зависимости от региона и веса посылки." },
+  { question: "Сколько времени занимает доставка?", answer: "Срок доставки зависит от вашего региона и выбранного способа доставки — обычно от 1 до 10 рабочих дней по России." },
+  { question: "Можно ли вернуть или обменять товар?", answer: "Да, вы можете вернуть или обменять товар в течение 14 дней с момента получения. Товар должен сохранить товарный вид, бирки и упаковку. Подробнее в разделе 'Доставка и возврат' на странице товара." },
+  { question: "Как подобрать размер?", answer: "На странице каждого товара есть таблица размеров с точными замерами. Если у вас остались вопросы, напишите нам в Telegram или на почту — поможем с выбором." },
+  { question: "Есть ли у вас офлайн-магазин?", answer: "Мы работаем онлайн, но наша одежда уже представлена у дистрибьюторов более чем в 40 городах России. Также планируем открытие собственного шоурума — следите за новостями в наших соцсетях!" },
+  { question: "Как связаться с поддержкой?", answer: "Напишите нам на info@booomerangs.ru, в Telegram @bmg_booomerangs или в группу ВКонтакте vk.com/bmgbrand. Мы отвечаем в течение 24 часов." },
+];
+
+const DEFAULT_ABOUT = {
+  title: "Мы —",
+  titleAccent: "Booomerangs",
+  description: "Базируясь в Туле — городе мастеров, пряников и самоваров — мы создаем вещи для повседневной жизни. На нашем счету более 200 моделей носков (мемных и просто ярких), а также собственная линейка качественной одежды, в которую входят куртки, худи, джоггеры, футболки, шорты и аксессуары.",
+  quote: "Делаем вещи, которые носим сами",
+};
+
+const DEFAULT_VACANCIES = {
+  pageTitle: "Вакансии",
+  pageSubtitle: "Присоединяйся к команде BMGBRAND! Мы всегда в поиске талантливых и увлечённых людей.",
+  hrEmail: "hr@booomerangs.ru",
+  vacancies: [
+    { title: "Менеджер по продажам", location: "Тула", type: "Полная занятость", description: "Ищем активного менеджера для работы с клиентами и развития продаж в онлайн и офлайн каналах." },
+    { title: "SMM-специалист", location: "Удалённо", type: "Частичная занятость", description: "Ведение социальных сетей бренда, создание контента, взаимодействие с аудиторией." },
+    { title: "Дизайнер одежды", location: "Тула", type: "Полная занятость", description: "Разработка новых коллекций, работа с принтами и паттернами, подбор материалов." },
+  ],
+};
+
+const DEFAULT_BLOG_POSTS: Array<{ title: string; date: string; category: string; author: string; excerpt: string }> = [
+  { title: "SS'26: Новая эстетика уличной моды", date: "15 января 2026", category: "Коллекции", author: "BMG Team", excerpt: "Исследуем грани между российской уличной модой и современным искусством в новом дропе." },
+  { title: "Лукбук: Urban Vibes в ритме города", date: "10 января 2026", category: "Лукбук", author: "BMG Team", excerpt: "Как сочетать комфорт и стиль в динамичной городской среде. Наш взгляд на повседневность." },
+  { title: "Коллаб: BMG x Tula Artists", date: "5 января 2026", category: "Коллаборации", author: "BMG Team", excerpt: "Лимитированная серия, созданная совместно с локальными художниками Тулы." },
+];
+
+function buildFaqNoscript(): string {
+  const items = DEFAULT_FAQ_ITEMS.map(item =>
+    `<h2>${escHtml(item.question)}</h2><p>${escHtml(item.answer)}</p>`
+  ).join("\n");
+  return `<noscript><div>` +
+    `<h1>Часто задаваемые вопросы</h1>` +
+    `<p>Ответы на популярные вопросы о заказах, доставке и возврате BMGBRAND.</p>` +
+    items +
+    `</div></noscript>`;
+}
+
+function buildAboutNoscript(): string {
+  return `<noscript><div>` +
+    `<h1>${escHtml(DEFAULT_ABOUT.title)} ${escHtml(DEFAULT_ABOUT.titleAccent)}</h1>` +
+    `<p>${escHtml(DEFAULT_ABOUT.description)}</p>` +
+    `<p>«${escHtml(DEFAULT_ABOUT.quote)}»</p>` +
+    `</div></noscript>`;
+}
+
+function buildVacanciesNoscript(): string {
+  const items = DEFAULT_VACANCIES.vacancies.map(v =>
+    `<li><strong>${escHtml(v.title)}</strong> — ${escHtml(v.location)}, ${escHtml(v.type)}. ${escHtml(v.description)}</li>`
+  ).join("\n");
+  return `<noscript><div>` +
+    `<h1>${escHtml(DEFAULT_VACANCIES.pageTitle)}</h1>` +
+    `<p>${escHtml(DEFAULT_VACANCIES.pageSubtitle)}</p>` +
+    `<ul>${items}</ul>` +
+    `<p>Резюме отправляйте на <a href="mailto:${escHtml(DEFAULT_VACANCIES.hrEmail)}">${escHtml(DEFAULT_VACANCIES.hrEmail)}</a></p>` +
+    `</div></noscript>`;
+}
+
+function buildBlogListNoscript(siteUrl: string): string {
+  const items = DEFAULT_BLOG_POSTS.map((p, idx) =>
+    `<li><a href="${escHtml(siteUrl + "/blog/" + idx)}">${escHtml(p.title)}</a> — ${escHtml(p.date)}, ${escHtml(p.category)}. ${escHtml(p.excerpt)}</li>`
+  ).join("\n");
+  return `<noscript><div>` +
+    `<h1>Блог BMGBRAND — культура и стиль</h1>` +
+    `<p>Анонсы новых коллекций, истории создания вещей и авторские дизайны бренда.</p>` +
+    `<ul>${items}</ul>` +
+    `</div></noscript>`;
+}
+
 function injectSeoBody(html: string, noscriptBlock: string): string {
   if (!noscriptBlock) return html;
   return html.replace("</body>", `${noscriptBlock}\n</body>`);
@@ -373,12 +450,22 @@ export function serveStatic(app: Express) {
     }
   }));
 
-  app.use("*", (req, res) => {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  // Rarely-changing marketing/content pages: safe to cache briefly with revalidation in background.
+  // Excludes anything with live price/stock/availability data (home, product, category, catalog, cart, checkout, profile, etc).
+  const CACHEABLE_STATIC_PATHS = new Set(['/about', '/faq', '/vacancies', '/blog', '/terms', '/privacy', '/links', '/concept']);
 
+  app.use("*", (req, res) => {
     const url = req.originalUrl;
     const cleanUrl = url.split('?')[0].split('#')[0];
     const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
+
+    if (CACHEABLE_STATIC_PATHS.has(cleanUrl)) {
+      // Public, short max-age with background revalidation — reduces TTFB for bots/crawlers
+      // repeatedly hitting rarely-updated pages, while still picking up CMS edits within minutes.
+      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600');
+    } else {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
 
     let routeLcpImage = "";
 
@@ -828,12 +915,35 @@ export function serveStatic(app: Express) {
 
       const staticPage = STATIC_PAGES[cleanUrl];
       if (staticPage) {
+        let staticJsonLd: string | undefined;
+        if (cleanUrl === "/faq") {
+          staticJsonLd = JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": DEFAULT_FAQ_ITEMS.map(item => ({
+              "@type": "Question",
+              "name": item.question,
+              "acceptedAnswer": { "@type": "Answer", "text": item.answer },
+            })),
+          });
+        }
         html = injectMeta(html, {
           title: staticPage.title,
           description: staticPage.description,
           ogImage: `${siteUrl}/favicon.png`,
           canonical: `${siteUrl}${cleanUrl}`,
+          jsonLd: staticJsonLd,
         });
+
+        if (cleanUrl === "/faq") {
+          html = injectSeoBody(html, buildFaqNoscript());
+        } else if (cleanUrl === "/about") {
+          html = injectSeoBody(html, buildAboutNoscript());
+        } else if (cleanUrl === "/vacancies") {
+          html = injectSeoBody(html, buildVacanciesNoscript());
+        } else if (cleanUrl === "/blog") {
+          html = injectSeoBody(html, buildBlogListNoscript(siteUrl));
+        }
       }
     } catch (e) {
       console.error("[Static] Meta injection error:", e);
