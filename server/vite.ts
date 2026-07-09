@@ -5,7 +5,7 @@ import viteConfig from "../vite.config";
 import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
-import { getCachedProductMetaBySlug, getCachedArtistHeroImage } from "./storage";
+import { getCachedProductMetaBySlug, getCachedArtistHeroImage, getCachedRawPageSettings } from "./storage";
 
 const SITE_NAME = "BMGBRAND";
 
@@ -228,6 +228,17 @@ export async function setupVite(server: Server, app: Express) {
 
       const origin = `${req.protocol}://${req.get('host')}`;
       page = applyBotMetaInjection(page, url, origin);
+
+      // Inject home page settings for dev mode (same pattern as production static.ts).
+      // Eliminates the settingsLoading blank screen by pre-populating React Query cache.
+      const cleanUrl = url.split('?')[0].split('#')[0];
+      if (cleanUrl === '/' || cleanUrl === '') {
+        const homeSettings = getCachedRawPageSettings('home');
+        if (homeSettings) {
+          const safeSettings = JSON.stringify(homeSettings).replace(/<\/script>/gi, '<\\/script>');
+          page = page.replace('</head>', `    <script>window.__HOME_SETTINGS__=${safeSettings};</script>\n  </head>`);
+        }
+      }
 
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {

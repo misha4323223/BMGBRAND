@@ -119,6 +119,23 @@
       @media(min-width:768px){.container{max-width:768px}}
       @media(min-width:1024px){.container{max-width:1024px}}
       @media(min-width:1280px){.container{max-width:1280px}}
+      /* ── Loading skeleton — visible only while JS bundle is downloading.
+         React replaces #root content on first render, removing it automatically. ── */
+      @keyframes sk-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+      .sk-nav{height:64px;background:#1C1C1C;position:sticky;top:0;z-index:50;display:flex;align-items:center;padding:0 1.25rem;gap:1rem}
+      .sk-nav-logo{width:96px;height:18px;background:#333;border-radius:3px;animation:sk-pulse 1.6s ease-in-out infinite}
+      .sk-nav-links{display:none;gap:.75rem;margin-left:auto}
+      @media(min-width:640px){.sk-nav-links{display:flex}}
+      .sk-nav-link{width:52px;height:12px;background:#333;border-radius:3px;animation:sk-pulse 1.6s ease-in-out infinite}
+      .sk-hero{height:100svh;background:#111;animation:sk-pulse 1.6s ease-in-out infinite;margin-top:-64px}
+      .sk-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;padding:2rem 1rem;max-width:1280px;margin:0 auto}
+      @media(min-width:640px){.sk-grid{grid-template-columns:repeat(3,1fr);gap:1rem;padding:2.5rem 1.5rem}}
+      @media(min-width:1024px){.sk-grid{grid-template-columns:repeat(4,1fr)}}
+      .sk-card{border-radius:8px;overflow:hidden;background:#e8e4de;animation:sk-pulse 1.6s ease-in-out infinite}
+      .sk-card-img{width:100%;aspect-ratio:3/4;background:#dedad4}
+      .sk-card-body{padding:.6rem .75rem .75rem}
+      .sk-card-name{height:12px;background:#ccc9c2;border-radius:3px;margin-bottom:.4rem}
+      .sk-card-price{height:14px;width:56px;background:#ccc9c2;border-radius:3px}
     </style>
   </head>
   <body>
@@ -126,7 +143,7 @@
     <noscript><div><img src="https://mc.yandex.ru/watch/107182693" style="position:absolute;left:-9999px;" alt="" /></div></noscript>
     <!-- Top.Mail.Ru noscript fallback -->
     <noscript><div><img src="https://top-fwz1.mail.ru/counter?id=3762887;js=na" style="position:absolute;left:-9999px;" alt="Top.Mail.Ru" /></div></noscript>
-    <div id="root"></div>
+    <div id="root"><nav class="sk-nav" aria-hidden="true"><div class="sk-nav-logo"></div><div class="sk-nav-links"><div class="sk-nav-link"></div><div class="sk-nav-link"></div><div class="sk-nav-link"></div></div></nav><div class="sk-hero"></div><div class="sk-grid"><div class="sk-card"><div class="sk-card-img"></div><div class="sk-card-body"><div class="sk-card-name"></div><div class="sk-card-price"></div></div></div><div class="sk-card"><div class="sk-card-img"></div><div class="sk-card-body"><div class="sk-card-name"></div><div class="sk-card-price"></div></div></div><div class="sk-card"><div class="sk-card-img"></div><div class="sk-card-body"><div class="sk-card-name"></div><div class="sk-card-price"></div></div></div><div class="sk-card"><div class="sk-card-img"></div><div class="sk-card-body"><div class="sk-card-name"></div><div class="sk-card-price"></div></div></div></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
-import { getCachedLcpImageUrls, getCachedProductImageBySlug, getCachedProductMetaBySlug, getCachedRatingByProductId, getCachedProductsByCategory, getCachedAllVisibleProducts, getCachedProductsForRecommendations, getCachedHeroData, getCachedArtistHeroImage } from "./storage";
+import { getCachedLcpImageUrls, getCachedProductImageBySlug, getCachedProductMetaBySlug, getCachedRatingByProductId, getCachedProductsByCategory, getCachedAllVisibleProducts, getCachedProductsForRecommendations, getCachedHeroData, getCachedArtistHeroImage, getCachedRawPageSettings } from "./storage";
 import { getRecommendationsSync } from "./recommendations";
 
 const SITE_NAME = "BMGBRAND";
@@ -546,6 +546,13 @@ export function serveStatic(app: Express) {
           const desktopPreload = `<link rel="preload" as="image" href="${heroData.img}" fetchpriority="high" media="(min-width: 640px)">`;
           html = html.replace('</head>', `    ${desktopPreload}\n  </head>`);
         }
+      }
+      // Inject full home page settings so React Query cache is pre-populated on
+      // the client before first render — eliminates the settingsLoading blank screen.
+      const homeSettings = getCachedRawPageSettings("home");
+      if (homeSettings) {
+        const safeSettings = JSON.stringify(homeSettings).replace(/<\/script>/gi, '<\\/script>');
+        html = html.replace('</head>', `    <script>window.__HOME_SETTINGS__=${safeSettings};</script>\n  </head>`);
       }
     }
 

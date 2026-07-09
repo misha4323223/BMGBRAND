@@ -282,6 +282,16 @@ export function getCachedArtistHeroImage(slug: string): { img: string; imgMobile
   };
 }
 
+/**
+ * Returns the raw in-memory page settings for the given page name.
+ * Used by server/static.ts and server/vite.ts to inject window.__HOME_SETTINGS__
+ * so the client React Query cache can be pre-populated before first render.
+ * Returns null if the cache hasn't warmed up yet (server just started).
+ */
+export function getCachedRawPageSettings(pageName: string): Record<string, any> | null {
+  return pageSettingsCache.get(pageName) || null;
+}
+
 export function getCachedProductImageBySlug(slug: string): string {
   const products = productsCache.get("all");
   if (!products || products.length === 0) return "";
