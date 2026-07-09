@@ -272,9 +272,11 @@ export default function PartnerProfile() {
 
   const tabs: { key: TabKey; label: string; icon: any }[] = [
     { key: "overview", label: "Обзор", icon: TrendingUp },
-    { key: "link", label: "Моя ссылка", icon: LinkIcon },
-    { key: "products", label: "Мои товары", icon: Package },
-    ...(partner.isArtist ? [{ key: "refstats" as TabKey, label: "Рефералы", icon: Eye }] : [{ key: "widget" as TabKey, label: "Виджет", icon: Code2 }]),
+    ...(partner.isArtist ? [] : [
+      { key: "link" as TabKey, label: "Моя ссылка", icon: LinkIcon },
+      { key: "products" as TabKey, label: "Мои товары", icon: Package },
+    ]),
+    ...(partner.isArtist ? [] : [{ key: "widget" as TabKey, label: "Виджет", icon: Code2 }]),
     ...(partner.isArtist ? [] : [
       { key: "commissions" as TabKey, label: "Заказы и комиссии", icon: ShoppingBag },
       { key: "payouts" as TabKey, label: "Выплаты", icon: Wallet },
@@ -360,9 +362,9 @@ export default function PartnerProfile() {
         </div>
 
         {activeTab === "overview" && <OverviewTab stats={stats} loading={statsQuery.isLoading} isArtist={partner.isArtist} partnerSlug={partner.partnerSlug} artistRate={partner.artistRate} />}
-        {activeTab === "refstats" && <RefStatsTab stats={stats} loading={statsQuery.isLoading} />}
-        {activeTab === "link" && <LinkTab refUrl={refUrl} slug={partner.partnerSlug} />}
-        {activeTab === "products" && <PartnerProductsTab partnerSlug={partner.partnerSlug} />}
+        {activeTab === "refstats" && !partner.isArtist && <RefStatsTab stats={stats} loading={statsQuery.isLoading} />}
+        {activeTab === "link" && !partner.isArtist && <LinkTab refUrl={refUrl} slug={partner.partnerSlug} />}
+        {activeTab === "products" && !partner.isArtist && <PartnerProductsTab partnerSlug={partner.partnerSlug} />}
         {activeTab === "widget" && !partner.isArtist && <WidgetTab slug={partner.partnerSlug} />}
         {activeTab === "commissions" && !partner.isArtist && <CommissionsTab />}
         {activeTab === "payouts" && !partner.isArtist && (
