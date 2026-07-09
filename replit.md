@@ -37,6 +37,9 @@ NODE_ENV=development npx tsx server/index.ts
 ### Импорт проекта в Replit (08.07.2026)
 После импорта из GitHub `node_modules` отсутствовал — workflow зависал на подтверждении установки `tsx`. Исправлено: `npm install --include=dev`. После добавления всех секретов (YDB, платёжные шлюзы, CDEK, Telegram, VK и т.д.) сервер подключился к боевой YDB, загрузил 823 товара и 232 заказа — приложение полностью рабочее.
 
+### Повторный импорт (09.07.2026)
+Тот же сценарий повторился: `node_modules` снова отсутствовал (свежий импорт из GitHub), workflow падал на подтверждении установки `tsx`. Исправлено: `npm install --include=dev`. После добавления всех секретов (YDB, платежные шлюзы, CDEK, Telegram, VK, Yandex Storage и т.д.) сервер подключился к боевой YDB, загрузил 825 товаров — приложение полностью рабочее.
+
 ### Bot SSR middleware (07.2026)
 
 Файл `server/bot-ssr.ts` — middleware для поисковых и AI-краулеров (Yandex, Google, GPTBot, ClaudeBot и др.).
