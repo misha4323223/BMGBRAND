@@ -13,6 +13,10 @@ export let driver: ydb.Driver | null = null;
 let driverReady: Promise<boolean> | null = null;
 let reconnecting = false;
 let lastAuthError = 0;
+// Флаг: CREATE TABLE вызываем только один раз за жизнь процесса.
+// Предотвращает повторный вызов при reconnectYdb() и снижает
+// количество DDL-операций при массовом cold start.
+let tablesInitialized = false;
 
 export async function waitForDriver(): Promise<ydb.Driver | null> {
   // Race-safe wait: if reconnectYdb() runs between us reading `driverReady`
@@ -159,6 +163,13 @@ export async function initYdb() {
       
       if (ready) {
         console.log("[YDB] Driver is ready!");
+        // Случайный джиттер 0–2000 мс: при массовом cold start инстансы
+        // стартуют одновременно. Джиттер разносит DDL-операции по времени,
+        // снижая вероятность Overloaded (code 400060) от YDB.
+        if (!tablesInitialized) {
+          const jitter = Math.floor(Math.random() * 2000);
+          await new Promise(r => setTimeout(r, jitter));
+        }
         await initUsersTable();
       } else {
         console.error(`[YDB] Driver not ready after ${timeout}ms`);
@@ -174,6 +185,13 @@ export async function initYdb() {
 
 async function initUsersTable() {
   if (!driver) return;
+  // Запускаем только один раз за жизнь процесса.
+  // При reconnectYdb() initYdb() вызывается повторно, но таблицы уже есть.
+  if (tablesInitialized) {
+    console.log("[YDB] Tables already initialized this process, skipping.");
+    return;
+  }
+  tablesInitialized = true; // ставим флаг ДО await — исключаем гонку
   
   try {
     await driver.tableClient.withSession(async (session) => {
