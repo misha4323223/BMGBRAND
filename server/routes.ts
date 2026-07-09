@@ -1439,6 +1439,33 @@ export async function registerRoutes(
   // Serve local 1C images
   app.use("/api/1c-images", express.static(path.resolve(process.cwd(), "1c_uploads")));
 
+  // Fallback cache for generated SEO/feed XML files (sitemap.xml, yml-feed.xml).
+  // These have no physical file on disk — they're built on every request from live data.
+  // If generation fails (e.g. transient YDB error), we serve the last successfully
+  // generated copy instead of a 500, so search engines never see a hard error.
+  const generatedXmlCache: Record<string, { xml: string; generatedAt: number }> = {};
+  function serveGeneratedXml(
+    res: express.Response,
+    cacheKey: string,
+    xml: string,
+    contentLanguage?: string,
+  ) {
+    generatedXmlCache[cacheKey] = { xml, generatedAt: Date.now() };
+    const type = res.type("application/xml");
+    if (contentLanguage) type.set("Content-Language", contentLanguage);
+    type.send(xml);
+  }
+  function serveStaleXmlOrError(res: express.Response, cacheKey: string, label: string, err: unknown) {
+    console.error(`[SEO] ${label} generation error:`, err);
+    const cached = generatedXmlCache[cacheKey];
+    if (cached) {
+      console.warn(`[SEO] ${label}: serving stale cached copy from ${new Date(cached.generatedAt).toISOString()}`);
+      res.type("application/xml").send(cached.xml);
+    } else {
+      res.status(500).type("text/plain").send(`${label} generation failed`);
+    }
+  }
+
   // SEO: robots.txt
   app.get("/robots.txt", (_req, res) => {
     const host = _req.headers.host || "";
@@ -1730,10 +1757,9 @@ BMGBRAND — официальный производитель и магазин
       }
 
       xml += `</urlset>`;
-      res.type("application/xml").send(xml);
+      serveGeneratedXml(res, "sitemap.xml", xml);
     } catch (err) {
-      console.error("[SEO] Sitemap generation error:", err);
-      res.status(500).type("text/plain").send("Sitemap generation failed");
+      serveStaleXmlOrError(res, "sitemap.xml", "Sitemap", err);
     }
   });
 
@@ -1841,11 +1867,10 @@ BMGBRAND — официальный производитель и магазин
       xml += `  </shop>\n`;
       xml += `</yml_catalog>`;
 
-      res.type("application/xml").set("Content-Language", "ru").send(xml);
+      serveGeneratedXml(res, "yml-feed.xml", xml, "ru");
       console.log(`[YML] Feed generated: ${visibleProducts.length} products`);
     } catch (err) {
-      console.error("[YML] Feed generation error:", err);
-      res.status(500).type("text/plain").send("YML feed generation failed");
+      serveStaleXmlOrError(res, "yml-feed.xml", "YML feed", err);
     }
   });
 

@@ -453,13 +453,15 @@ export function serveStatic(app: Express) {
   // Rarely-changing marketing/content pages: safe to cache briefly with revalidation in background.
   // Excludes anything with live price/stock/availability data (home, product, category, catalog, cart, checkout, profile, etc).
   const CACHEABLE_STATIC_PATHS = new Set(['/about', '/faq', '/vacancies', '/blog', '/terms', '/privacy', '/links', '/concept']);
+  // Individual blog posts (/blog/123) also rarely change once published.
+  const CACHEABLE_STATIC_PREFIXES = ['/blog/'];
 
   app.use("*", (req, res) => {
     const url = req.originalUrl;
     const cleanUrl = url.split('?')[0].split('#')[0];
     const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
 
-    if (CACHEABLE_STATIC_PATHS.has(cleanUrl)) {
+    if (CACHEABLE_STATIC_PATHS.has(cleanUrl) || CACHEABLE_STATIC_PREFIXES.some(p => cleanUrl.startsWith(p))) {
       // Public, short max-age with background revalidation — reduces TTFB for bots/crawlers
       // repeatedly hitting rarely-updated pages, while still picking up CMS edits within minutes.
       res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600');
