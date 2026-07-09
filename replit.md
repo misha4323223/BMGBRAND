@@ -37,6 +37,36 @@ NODE_ENV=development npx tsx server/index.ts
 ### Импорт проекта в Replit (08.07.2026)
 После импорта из GitHub `node_modules` отсутствовал — workflow зависал на подтверждении установки `tsx`. Исправлено: `npm install --include=dev`. После добавления всех секретов (YDB, платёжные шлюзы, CDEK, Telegram, VK и т.д.) сервер подключился к боевой YDB, загрузил 823 товара и 232 заказа — приложение полностью рабочее.
 
+### Bot SSR middleware (07.2026)
+
+Файл `server/bot-ssr.ts` — middleware для поисковых и AI-краулеров (Yandex, Google, GPTBot, ClaudeBot и др.).
+
+**Проблема:** SPA отдаёт ботам пустой `<div id="root"></div>`. Яндекс и AI-краулеры не выполняют JS → страница не индексируется → риск санкций.
+
+**Решение:** middleware перехватывает GET-запросы с User-Agent известных ботов и отдаёт готовый HTML с реальным контентом.
+
+**Принципы:**
+- Только GET + только боты по UA → людей не трогает
+- Только чтение in-memory кэша (`getCachedProductsByCategory`, `getCachedAllVisibleProducts`, `getCachedProductMetaBySlug` и др.) — никаких запросов к YDB
+- Собственный in-memory кэш сгенерированных HTML-страниц: TTL 5 мин, максимум 500 ключей
+- Если кэш продуктов пустой или маршрут неизвестен → `next()`, React-приложение как обычно
+- Любая ошибка → `next()`, сайт никогда не ломается для людей
+- Заголовок `X-Bot-SSR: rendered|cache-hit` для диагностики
+
+**Маршруты с SSR:**
+- `/` — главная с популярными товарами и категориями
+- `/products` — каталог по категориям
+- `/products/:catSlug` — страница категории (clothing, socks, accessories, merch, sale)
+- `/:slug` — карточка товара с JSON-LD Product + BreadcrumbList + рекомендации
+
+**Регистрация в `server/index.ts`:**
+```
+await registerRoutes(httpServer, app);
+// ... error handler ...
+app.use(botSsrMiddleware);  // ← здесь, до serveStatic/setupVite
+if (production) serveStatic(app); else setupVite(httpServer, app);
+```
+
 ### GitHub Actions деплой в Yandex Cloud — retry на docker push
 `docker push` в `cr.yandex` иногда падает с `read: connection reset by peer` — это транзиентная сетевая ошибка между раннером GitHub Actions и Yandex Container Registry, а не баг в коде. В `.github/workflows/deploy.yml` шаг `Push Docker image` обёрнут в retry-функцию (5 попыток с нарастающей паузой). Если пуш всё равно падает после 5 попыток — проблема на стороне сети/registry, стоит попробовать перезапустить workflow вручную.
 

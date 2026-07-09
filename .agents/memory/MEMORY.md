@@ -7,3 +7,4 @@
 - [AI chat size & context issues](ai-chat-size-issues.md) — полный анализ + реализованные правки AI чата (размеры, смена товара, visitedProducts)
 - [GROQ_PROXY_URL only for production](groq-proxy-url.md) — в Replit dev не должен быть установлен GROQ_PROXY_URL; он недоступен из Replit и вызывает молчаливый ai_unavailable за ~374ms без console.error
 - [Server restart cost](server-restart-cost.md) — перезапуск занимает ~3 минуты (YDB + кэш ~1181 товаров + CDEK 54k городов); НЕ перезапускать без явного согласия пользователя
+- [Bot SSR middleware](bot-ssr-middleware.md) — server/bot-ssr.ts; только GET+бот-UA; только in-memory кэш; isPublicProduct() guards via getCachedProductsForRecommendations; собственный 5-мин кэш; next() при пустом кэше и ошибках

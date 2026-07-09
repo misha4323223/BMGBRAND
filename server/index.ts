@@ -16,6 +16,7 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import { migrateAiKnowledgeDefaults } from "./ai-chat";
 import { serveStatic } from "./static";
+import { botSsrMiddleware } from "./bot-ssr";
 import { createServer } from "http";
 import { reconnectYdb, shouldReconnectYdb } from "./db";
 import { startAbandonedCartJob } from "./abandoned-cart";
@@ -371,6 +372,11 @@ async function seedDefaultLegalDocuments() {
       notifyError('Express 500', message, err.stack?.slice(0, 400));
     }
   });
+
+  // Bot SSR middleware — intercept known crawlers before the SPA catch-all.
+  // Serves real visible HTML from in-memory cache (no YDB calls).
+  // Humans are completely unaffected — only bots with matching User-Agent hit this.
+  app.use(botSsrMiddleware);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
