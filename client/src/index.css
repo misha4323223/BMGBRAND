@@ -272,6 +272,7 @@ body.lb-open nav {
 }
 .hero-slide-enter {
   animation: hero-curtain-reveal 1.2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+  will-change: clip-path;
 }
 
 /* ── Holo AI Chat Button ─────────────────────────────────────────────────── */

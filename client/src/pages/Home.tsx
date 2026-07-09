@@ -578,7 +578,7 @@ export default function Home() {
                     <img
                       src={s.heroImage || ""}
                       alt="Booomerangs — российский бренд одежды и мерча"
-                      loading="eager"
+                      loading={i === 0 ? "eager" : "lazy"}
                       fetchpriority={i === 0 ? "high" : "low"}
                       className="w-full h-full object-cover object-center"
                     />
@@ -717,6 +717,10 @@ export default function Home() {
                               <img
                                 src={getOptimizedImageUrl(artist.image)}
                                 alt={artist.name}
+                                loading="lazy"
+                                decoding="async"
+                                width={86}
+                                height={110}
                                 className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
                               />
                             </div>

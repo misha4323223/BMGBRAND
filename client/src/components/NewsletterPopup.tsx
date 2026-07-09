@@ -71,7 +71,7 @@ export function NewsletterPopup() {
 
     const timer = setTimeout(
       () => setIsVisible(true),
-      popupPromo?.settings?.delay || 4000
+      popupPromo?.settings?.delay || 15000
     );
     return () => clearTimeout(timer);
   }, [popupPromo?.settings?.delay]);
