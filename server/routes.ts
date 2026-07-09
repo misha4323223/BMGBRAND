@@ -9021,6 +9021,13 @@ BMGBRAND — официальный производитель и магазин
             badgeText: typeof (p as any).badgeText === 'string' ? (p as any).badgeText : null,
             stock: p.stock,
             images: p.images,
+            artistSlug: (p as any).artistSlug || null,
+            slug: p.slug,
+            noSize: (p as any).noSize || false,
+            sizeStock: (p as any).sizeStock || null,
+            discountPercent: (p as any).discountPercent || null,
+            fixedPrice: (p as any).fixedPrice || null,
+            preorderEnabled: (p as any).preorderEnabled || false,
           });
         }
       }

@@ -580,7 +580,17 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
             <div className="w-full md:w-1/2 p-3 sm:p-6 lg:p-8 flex flex-col md:overflow-y-auto md:max-h-[95vh]">
               <div className="flex-1 flex flex-col">
                 <div className="mb-3 sm:mb-5 text-left">
-                  <h3 className="text-base sm:text-xl font-bold leading-snug text-black tracking-tight mb-2">{displayName(activeProduct.name)}</h3>
+                  <h3 className="text-base sm:text-xl font-bold leading-snug text-black tracking-tight mb-1">{displayName(activeProduct.name)}</h3>
+                  {(product as any).artistSlug && (
+                    <Link
+                      href={`/@${(product as any).artistSlug}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 text-[11px] text-black/40 hover:text-black transition-colors mb-2"
+                    >
+                      <ArrowUpRight className="w-3 h-3" />
+                      Смотреть всю коллекцию артиста
+                    </Link>
+                  )}
                   <div className="space-y-1">
                     {showModalPreorderLabels && (
                       <p className="text-[10px] font-medium text-black uppercase tracking-wide">Предпродажная цена</p>
@@ -635,18 +645,6 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                       )}
                     </div>
                   </div>
-
-                  {/* Ссылка на страницу артиста — только если товар привязан к артисту */}
-                  {(product as any).artistSlug && (
-                    <Link
-                      href={`/@${(product as any).artistSlug}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 text-[11px] text-black/40 hover:text-black transition-colors"
-                    >
-                      <ArrowUpRight className="w-3 h-3" />
-                      Смотреть всю коллекцию артиста
-                    </Link>
-                  )}
 
                   {/* Variant selector (socks: size ranges, clothing: colors) */}
                   {hasVariants && (
