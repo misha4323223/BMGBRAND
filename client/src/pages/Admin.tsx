@@ -6998,7 +6998,7 @@ export default function Admin() {
                                       items[idx] = { ...items[idx], videoUrl: url };
                                       setSectionSettings({...sectionSettings, items});
                                     }}
-                                    apiKey={`reel_video_${idx}`}
+                                    apiKey={apiKey}
                                     placeholder="URL или загрузить видео"
                                   />
                                   <Input
