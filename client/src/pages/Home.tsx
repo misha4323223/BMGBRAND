@@ -509,7 +509,8 @@ export default function Home() {
         ]}
       />
       <Navbar />
-      
+      <h1 className="sr-only">Booomerangs (BMGBRAND) — официальный магазин мерча</h1>
+
       {settingsLoading && (
         <div className="min-h-screen" />
       )}
@@ -576,7 +577,7 @@ export default function Home() {
                     {s.heroImageMobile && <source media="(max-width: 639px)" srcSet={s.heroImageMobile} />}
                     <img
                       src={s.heroImage || ""}
-                      alt={`Hero ${i + 1}`}
+                      alt="Booomerangs — российский бренд одежды и мерча"
                       loading="eager"
                       fetchpriority={i === 0 ? "high" : "low"}
                       className="w-full h-full object-cover object-center"
@@ -591,7 +592,7 @@ export default function Home() {
                   {window.__HERO__.imgMobile && <source media="(max-width: 639px)" srcSet={window.__HERO__.imgMobile} />}
                   <img
                     src={window.__HERO__.img}
-                    alt="Hero"
+                    alt="Booomerangs — российский бренд одежды и мерча"
                     loading="eager"
                     fetchpriority="high"
                     className="w-full h-full object-cover object-center"
@@ -606,7 +607,7 @@ export default function Home() {
                 ) : (
                   <picture className="absolute inset-0 block">
                     {pageSettings?.hero?.heroImageMobile && <source media="(max-width: 639px)" srcSet={pageSettings.hero.heroImageMobile} />}
-                    <img src={pageSettings?.hero?.heroImage || ""} alt="Hero" loading="eager" fetchpriority="high" className="w-full h-full object-cover object-center" />
+                    <img src={pageSettings?.hero?.heroImage || ""} alt="Booomerangs — российский бренд одежды и мерча" loading="eager" fetchpriority="high" className="w-full h-full object-cover object-center" />
                   </picture>
                 )}
               </div>

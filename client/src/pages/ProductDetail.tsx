@@ -1034,13 +1034,15 @@ export default function ProductDetail() {
               {/* ── Десктопная раскладка: Вариант В — монолит ── */}
               <div className={`hidden md:flex min-w-0 ${showPreorderPriceLabels ? 'flex-col gap-2' : 'items-start gap-3'}`}>
                 <div className={`flex items-start gap-3 min-w-0 ${showPreorderPriceLabels ? 'w-full' : ''}`}>
-                  {/* Название — занимает всё свободное место */}
-                  <h1
+                  {/* Название — занимает всё свободное место. Не <h1>: настоящий заголовок уже отрисован выше для мобильной раскладки (skip-дубликат для SEO/AI-краулеров) */}
+                  <div
+                    role="heading"
+                    aria-level={2}
                     className="flex-1 min-w-0 text-[13px] font-bold uppercase tracking-[0.16em] text-foreground leading-snug"
                     data-testid={`text-product-name-${product.id}`}
                   >
                     {displayName(product.name)}
-                  </h1>
+                  </div>
                   {!showPreorderPriceLabels && (
                     <div className="shrink-0 flex items-baseline gap-1.5 pt-px">
                       <span className={`text-xl font-bold leading-none ${isWholesale ? 'text-primary' : 'text-foreground'}`}>

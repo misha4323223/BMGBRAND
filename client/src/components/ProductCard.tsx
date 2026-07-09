@@ -673,7 +673,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                                     }`}
                                     data-testid={`button-modal-variant-sock-${v.id}`}
                                   >
-                                    <img src={v.thumbnailUrl || v.imageUrl} alt={v.name} onError={(e) => { if (v.imageUrl && e.currentTarget.src !== v.imageUrl) e.currentTarget.src = v.imageUrl; }} className="w-20 h-32 rounded-md object-cover bg-gray-100" />
+                                    <img src={v.thumbnailUrl || v.imageUrl} alt={`${v.name} BOOOMERANGS${v.color ? ", " + v.color : ""}`} onError={(e) => { if (v.imageUrl && e.currentTarget.src !== v.imageUrl) e.currentTarget.src = v.imageUrl; }} className="w-20 h-32 rounded-md object-cover bg-gray-100" />
                                     <span className="text-[11px] text-black/70 leading-tight font-medium">{range}</span>
                                     {v.color && <span className="text-[10px] text-black/60 leading-tight">{v.color}</span>}
                                   </button>
@@ -694,7 +694,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                                 title={v.color || v.name}
                                 data-testid={`button-modal-variant-color-${v.id}`}
                               >
-                                <img src={v.thumbnailUrl || v.imageUrl} alt={v.name} onError={(e) => { if (v.imageUrl && e.currentTarget.src !== v.imageUrl) e.currentTarget.src = v.imageUrl; }} className="w-20 h-32 object-cover bg-gray-100" />
+                                <img src={v.thumbnailUrl || v.imageUrl} alt={`${v.name} BOOOMERANGS${v.color ? ", " + v.color : ""}`} onError={(e) => { if (v.imageUrl && e.currentTarget.src !== v.imageUrl) e.currentTarget.src = v.imageUrl; }} className="w-20 h-32 object-cover bg-gray-100" />
                                 {isActive && (
                                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                                     <Check className="w-3 h-3 text-white" />

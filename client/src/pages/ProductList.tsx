@@ -1373,9 +1373,10 @@ function MerchCollabModalHeader({
               style={{ maxHeight: "clamp(3rem, 9vw, 5.5rem)", maxWidth: "32vw" }}
             />
           ) : (
-            <h1 className="font-black text-white leading-none tracking-tighter" style={{ fontSize: "clamp(1.8rem, 7vw, 4rem)" }}>
+            // Не <h1>: настоящий заголовок страницы уже выведен в Title row ниже (skip-дубликат для SEO/AI-краулеров)
+            <div className="font-black text-white leading-none tracking-tighter" style={{ fontSize: "clamp(1.8rem, 7vw, 4rem)" }}>
               {name}
-            </h1>
+            </div>
           )}
         </div>
       </div>
