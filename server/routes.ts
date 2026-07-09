@@ -1522,7 +1522,6 @@ User-agent: facebookexternalhit
 Allow: /
 
 Sitemap: https://${host}/sitemap.xml
-Sitemap: https://${host}/yml-feed.xml
 
 # AI/LLM structured information available at:
 # https://${host}/llms.txt`
