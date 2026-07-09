@@ -149,8 +149,15 @@ export function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ChatMode>("ai");
 
-  // AI state
-  const [aiMessages, setAiMessages] = useState<AiMessage[]>([]);
+  // AI state — persisted in localStorage across page reloads
+  const [aiMessages, setAiMessages] = useState<AiMessage[]>(() => {
+    try {
+      const sid = getOrCreateSessionId();
+      const saved = localStorage.getItem(`ai_chat_${sid}`);
+      if (saved) return JSON.parse(saved) as AiMessage[];
+    } catch {}
+    return [];
+  });
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [productPageCtx, setProductPageCtx] = useState<ProductPageContext | null>(null);
@@ -202,6 +209,14 @@ export function ChatWidget() {
   // Animated button expand state
   const [btnExpanded, setBtnExpanded] = useState(false);
   const btnExpandRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Persist AI chat messages to localStorage
+  useEffect(() => {
+    try {
+      const toSave = aiMessages.filter(m => !m.streaming).slice(-30);
+      localStorage.setItem(`ai_chat_${sessionId.current}`, JSON.stringify(toSave));
+    } catch {}
+  }, [aiMessages]);
 
   // Hide button on scroll down, show on scroll up (like navbar)
   const [btnHidden, setBtnHidden] = useState(false);
