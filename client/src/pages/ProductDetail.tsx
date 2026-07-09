@@ -46,6 +46,7 @@ import { CATEGORIES, transliterateToSlug, type CategorySlug, type SizeMeasuremen
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFavoriteStatus, useFavoriteActions } from "@/hooks/use-favorites";
+import { ZoomableLightboxImage } from "@/components/ZoomableLightboxImage";
 import {
   Accordion,
   AccordionContent,
@@ -381,6 +382,7 @@ export default function ProductDetail() {
   const [zoomEnabled, setZoomEnabled] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxImgIdx, setLightboxImgIdx] = useState(0);
+  const [lightboxZoomed, setLightboxZoomed] = useState(false);
   const [imgZoom, setImgZoom] = useState<{key: string, x: number, y: number} | null>(null);
   const [zoomLevels, setZoomLevels] = useState<Record<string, number>>({});
   const [zoomCursor, setZoomCursor] = useState<{key: string, px: number, py: number} | null>(null);
@@ -888,7 +890,7 @@ export default function ProductDetail() {
           >
             <div
               className="relative aspect-[3/4] w-full overflow-hidden rounded-lg cursor-zoom-in"
-              onClick={() => { setLightboxImgIdx(safeImageIndex); setLightboxOpen(true); }}
+              onClick={() => { setLightboxImgIdx(safeImageIndex); setLightboxZoomed(false); setLightboxOpen(true); }}
             >
               {safeImageIndex === 0 ? (
                 <img
@@ -2227,30 +2229,29 @@ export default function ProductDetail() {
       {lightboxOpen && (
         <div
           className="fixed inset-0 z-50 bg-black/92 flex items-center justify-center"
-          onClick={() => setLightboxOpen(false)}
+          onClick={() => { if (!lightboxZoomed) setLightboxOpen(false); }}
           data-testid="lightbox-overlay"
         >
           <button
             className="absolute top-4 right-4 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2.5 transition-colors z-10"
-            onClick={() => setLightboxOpen(false)}
+            onClick={() => { setLightboxOpen(false); setLightboxZoomed(false); }}
             data-testid="button-lightbox-close"
           >
             <X className="w-6 h-6" />
           </button>
 
-          <div
-            className="max-w-[92vw] max-h-[92vh] flex items-center justify-center"
-            onClick={e => e.stopPropagation()}
-          >
-            <img
+          <div onClick={e => e.stopPropagation()}>
+            <ZoomableLightboxImage
               src={allImages[lightboxImgIdx]}
               alt={getImageAlt(lightboxImgIdx)}
-              className="max-w-[92vw] max-h-[92vh] object-contain select-none rounded-sm"
+              className="max-w-[92vw] max-h-[92vh] object-contain rounded-sm"
+              resetKey={`${lightboxOpen}-${lightboxImgIdx}`}
+              onZoomChange={setLightboxZoomed}
               data-testid="lightbox-image"
             />
           </div>
 
-          {lightboxImgIdx > 0 && (
+          {!lightboxZoomed && lightboxImgIdx > 0 && (
             <button
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2.5 transition-colors"
               onClick={e => { e.stopPropagation(); setLightboxImgIdx(i => i - 1); }}
@@ -2260,7 +2261,7 @@ export default function ProductDetail() {
             </button>
           )}
 
-          {lightboxImgIdx < allImages.length - 1 && (
+          {!lightboxZoomed && lightboxImgIdx < allImages.length - 1 && (
             <button
               className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2.5 transition-colors"
               onClick={e => { e.stopPropagation(); setLightboxImgIdx(i => i + 1); }}
@@ -2270,7 +2271,7 @@ export default function ProductDetail() {
             </button>
           )}
 
-          {allImages.length > 1 && (
+          {!lightboxZoomed && allImages.length > 1 && (
             <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2">
               {allImages.map((_, i) => (
                 <button
