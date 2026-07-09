@@ -802,14 +802,14 @@ export function registerAiChatRoute(app: Express): void {
                 const tableStr = measurementSections.map((sec: any) =>
                   `### ${sec.title}:\n${(sec.rows || []).map(buildMRowStr).join("\n")}`
                 ).join("\n\n");
-                sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\n\nЭТО КОСТЮМ — подбирай ДВА размера отдельно: верх и низ. Если совпадают — скажи один (например, M), если нет — укажи оба (верх M / низ L).\n\nПРАВИЛА:\n1. Если параметры тела уже указаны — сразу называй размеры верха и низа.\n2. Если нет — попроси обхват груди, талии, бёдер и рост.\n3. Замеры — это ИЗДЕЛИЕ (не тело). Верх: грудь + 10–15 см. Низ: талия + 4–6 см или бёдра + 6–8 см.\n\n${tableStr}`;
+                sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\n\nЭТО КОСТЮМ — подбирай ДВА размера отдельно: верх и низ. Если совпадают — скажи один (например, M), если нет — укажи оба (верх M / низ L).\n\nПРАВИЛА:\n1. Если параметры тела уже указаны — сразу называй размеры верха и низа.\n2. Если нет — попроси обхват груди, талии, бёдер и рост.\n3. Замеры — это ИЗДЕЛИЕ (не тело). Верх: грудь + 10–15 см. Низ: талия + 4–6 см или бёдра + 6–8 см.\n\n⚠️ ЗАПРЕЩЕНО использовать [NO_ANSWER] — таблица замеров предоставлена, у тебя есть все данные для ответа.\n\n${tableStr}`;
                 console.log(`[AI Chat] Auto-injected suit size sections for "${productName}" (${measurementSections.length} sections)`);
               } else if (measurements.length > 0) {
                 const rows = measurements.map(buildMRowStr).join("\n");
-                sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\n\nПРАВИЛА (строго соблюдай):\n1. Если покупатель уже указал параметры тела (рост, грудь, талия и т.п.) — НЕ задавай дополнительных вопросов, сразу называй конкретный размер.\n2. Если параметры ещё не указаны — попроси только обхват груди и рост.\n3. НЕ перенаправляй к менеджеру, если таблица замеров доступна.\n\nКАК ПОДБИРАТЬ (замеры в таблице — это замеры ИЗДЕЛИЯ, а не тела):\n- Найди строку, где обхват груди изделия = обхват груди тела + 10–15 см (стандартный свободный крой, streetwear)\n- Если изделие явно оверсайз — прибавляй 15–25 см\n- Если покупатель не уточнил силуэт — рекомендуй размер для свободного кроя (+12 см) и кратко поясни\n- Всегда называй КОНКРЕТНЫЙ размер и объясни выбор в 1–2 предложениях\n\n### Таблица замеров изделия:\n${rows}`;
+                sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\n\nПРАВИЛА (строго соблюдай):\n1. Если покупатель уже указал параметры тела (рост, грудь, талия и т.п.) — НЕ задавай дополнительных вопросов, сразу называй конкретный размер.\n2. Если параметры ещё не указаны — попроси только обхват груди и рост.\n3. НЕ перенаправляй к менеджеру, если таблица замеров доступна.\n\nКАК ПОДБИРАТЬ (замеры в таблице — это замеры ИЗДЕЛИЯ, а не тела):\n- Найди строку, где обхват груди изделия = обхват груди тела + 10–15 см (стандартный свободный крой, streetwear)\n- Если изделие явно оверсайз — прибавляй 15–25 см\n- Если покупатель не уточнил силуэт — рекомендуй размер для свободного кроя (+12 см) и кратко поясни\n- Всегда называй КОНКРЕТНЫЙ размер и объясни выбор в 1–2 предложениях\n\n⚠️ ЗАПРЕЩЕНО использовать [NO_ANSWER] — таблица замеров предоставлена, у тебя есть все данные для ответа.\n\n### Таблица замеров изделия:\n${rows}`;
                 console.log(`[AI Chat] Auto-injected size table for "${productName}" (${measurements.length} rows)`);
               } else {
-                sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\nТаблица замеров для этого товара не заполнена, но ты всё равно можешь помочь:\n- Спроси обхват груди и рост покупателя (если ещё не сказал)\n- Одежда BOOOMERANGS — преимущественно оверсайз-силуэт, streetwear. Стандартное правило: обхват груди изделия = обхват груди тела + 10–25 см (больше — свободнее)\n- Если покупатель между размерами — рекомендуй меньший для облегания, больший для оверсайз-вида\n- Если не можешь дать точный ответ даже после уточнения — тогда предложи написать менеджеру\nНЕ используй [NO_ANSWER] — дай максимально полезный ответ на основе общих правил бренда.`;
+                sizeAdvisorContext = `\n\n## Подбор размера — активен\nТовар: "${productName}"\nТаблица замеров для этого товара не заполнена. Начни ответ с [NO_ANSWER] и сообщи клиенту дословно: "К сожалению, таблица замеров для этого товара пока не заполнена — напишите менеджеру, он поможет подобрать размер."`;
               }
             }
           }
@@ -1112,22 +1112,26 @@ export function registerAiChatRoute(app: Express): void {
             res.write(`data: ${JSON.stringify({ chunk: outputBuf })}\n\n`);
           }
 
-          // If [NO_ANSWER] was detected — notify admin
+          // If [NO_ANSWER] was detected — notify admin only when reply is genuinely unhelpful
           if (noAnswerDetected) {
             const question = lastUserMsg?.content || "(вопрос не определён)";
             const botReply = outputBuf.replace(NO_ANSWER_TAG, "").trim();
-            const alertText = `❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${botReply}`;
-            sendAgentAlert(alertText).catch(() => {});
-            vkNotifyAgentAlert(alertText);
-            import("./agent-queue").then(({ addToQueue }) => {
-              addToQueue({
-                type: "knowledge_gap",
-                title: `❓ Бот не знает: ${question.slice(0, 80)}`,
-                description: `Клиент спросил: ${question}\n\nБот ответил: ${botReply}`,
-                tool: "update_ai_knowledge_draft",
-                params: { question, botReply, suggestedAnswer: "", targetBlock: topicKey || "ai_block_delivery" },
+            const redirectPhrases = ["менеджер", "уточните", "напишите нам", "свяжитесь", "не знаю", "не могу"];
+            const isGenuinelyUnhelpful = botReply.length < 120 || redirectPhrases.some(p => botReply.toLowerCase().includes(p));
+            if (isGenuinelyUnhelpful) {
+              const alertText = `❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${botReply}`;
+              sendAgentAlert(alertText).catch(() => {});
+              vkNotifyAgentAlert(alertText);
+              import("./agent-queue").then(({ addToQueue }) => {
+                addToQueue({
+                  type: "knowledge_gap",
+                  title: `❓ Бот не знает: ${question.slice(0, 80)}`,
+                  description: `Клиент спросил: ${question}\n\nБот ответил: ${botReply}`,
+                  tool: "update_ai_knowledge_draft",
+                  params: { question, botReply, suggestedAnswer: "", targetBlock: topicKey || "ai_block_delivery" },
+                }).catch(() => {});
               }).catch(() => {});
-            }).catch(() => {});
+            }
           }
         } catch (streamErr: any) {
           console.error("[AI Chat] Stream read error:", streamErr.message);
@@ -1182,19 +1186,23 @@ export function registerAiChatRoute(app: Express): void {
       let reply = nonStreamReply;
       if (reply.trimStart().startsWith("[NO_ANSWER]")) {
         reply = reply.trimStart().slice("[NO_ANSWER]".length).trim();
-        const question = lastUserMsg?.content || "(вопрос не определён)";
-        const alertText = `❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${reply}`;
-        sendAgentAlert(alertText).catch(() => {});
-        vkNotifyAgentAlert(alertText);
-        import("./agent-queue").then(({ addToQueue }) => {
-          addToQueue({
-            type: "knowledge_gap",
-            title: `❓ Бот не знает: ${question.slice(0, 80)}`,
-            description: `Клиент спросил: ${question}\n\nБот ответил: ${reply}`,
-            tool: "update_ai_knowledge_draft",
-            params: { question, botReply: reply, suggestedAnswer: "", targetBlock: topicKey || "ai_block_delivery" },
+        const redirectPhrases = ["менеджер", "уточните", "напишите нам", "свяжитесь", "не знаю", "не могу"];
+        const isGenuinelyUnhelpful = reply.length < 120 || redirectPhrases.some(p => reply.toLowerCase().includes(p));
+        if (isGenuinelyUnhelpful) {
+          const question = lastUserMsg?.content || "(вопрос не определён)";
+          const alertText = `❓ *Бот не смог ответить клиенту*\n\nВопрос: ${question}\n\nОтвет бота: ${reply}`;
+          sendAgentAlert(alertText).catch(() => {});
+          vkNotifyAgentAlert(alertText);
+          import("./agent-queue").then(({ addToQueue }) => {
+            addToQueue({
+              type: "knowledge_gap",
+              title: `❓ Бот не знает: ${question.slice(0, 80)}`,
+              description: `Клиент спросил: ${question}\n\nБот ответил: ${reply}`,
+              tool: "update_ai_knowledge_draft",
+              params: { question, botReply: reply, suggestedAnswer: "", targetBlock: topicKey || "ai_block_delivery" },
+            }).catch(() => {});
           }).catch(() => {});
-        }).catch(() => {});
+        }
       }
 
       res.json({ reply, products: nonStreamCards });
