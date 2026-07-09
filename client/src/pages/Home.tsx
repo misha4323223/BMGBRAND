@@ -988,17 +988,7 @@ export default function Home() {
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-0 mt-0 overflow-hidden">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                <div key={i} className="animate-pulse">
-                  <div className="bg-muted aspect-[4/5] mb-3" />
-                  <div className="h-4 bg-muted w-2/3 mb-2" />
-                  <div className="h-3 bg-muted w-1/4" />
-                </div>
-              ))}
-            </div>
-          ) : (
+          {isLoading ? null : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-0 mt-0 overflow-hidden">
               {allFeaturedProducts.slice(0, popularVisibleCount).map((product, index) => (
                 <ProductCard key={product.id} product={product} priority={index < 4} />
