@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import SEO from "@/components/SEO";
 import YooKassaWidget from "@/components/YooKassaWidget";
 import AddonOrderDialog from "@/components/AddonOrderDialog";
+import { BrandLoader } from "@/components/BrandLoader";
 import { Loader2, User, Mail, Package, LogOut, CheckCircle, AlertCircle, ShoppingBag, Gift, TrendingUp, Star, ChevronRight, ChevronDown, ChevronUp, Trash2, MapPin, Phone, Truck, Hash, Palette, Ruler, Tag, CreditCard, Copy, Check, Calendar, X, RefreshCw, Minus, Plus, ExternalLink, Ban, Settings, Lock, Home, Landmark, Bell } from "lucide-react";
 import { PasswordInput } from "@/components/ui/password-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -583,7 +584,7 @@ export default function Profile() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-12 h-12 text-primary animate-spin" />
+        <BrandLoader size="sm" />
       </div>
     );
   }

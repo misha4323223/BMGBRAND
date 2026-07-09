@@ -149,17 +149,25 @@
 
 
 /* Brand Loader Animation */
-@keyframes brand-pulse {
-  0%, 100% {
-    opacity: 0.3;
+@keyframes letter-assemble {
+  0% {
+    transform: translate(var(--dx), var(--dy)) rotate(var(--dr)) scale(0.5);
+    opacity: 0;
   }
-  50% {
+  40%, 65% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
     opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) rotate(var(--dr)) scale(0.5);
+    opacity: 0;
   }
 }
 
-.animate-brand-pulse {
-  animation: brand-pulse 1.8s ease-in-out infinite;
+.animate-letter-assemble {
+  display: inline-block;
+  animation: letter-assemble 2.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation-delay: calc(var(--i) * 0.05s);
 }
 
 @keyframes brand-slide-up {

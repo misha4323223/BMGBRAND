@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import { useVerifyEmail } from "@/hooks/use-auth";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { Button } from "@/components/ui/button";
 import SEO from "@/components/SEO";
 
@@ -42,7 +43,7 @@ export default function VerifyEmail() {
       <div className="pt-32 pb-16 px-4 max-w-md mx-auto text-center">
         {status === "loading" && (
           <div className="space-y-4">
-            <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary" />
+            <BrandLoader size="sm" />
             <p className="text-muted-foreground">Подтверждаем email...</p>
           </div>
         )}

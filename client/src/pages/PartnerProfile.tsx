@@ -231,7 +231,7 @@ export default function PartnerProfile() {
       <>
         <Navbar />
         <main className="container mx-auto px-4 py-16 min-h-[60vh] flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin" />
+          <BrandLoader size="sm" />
         </main>
         <Footer />
       </>
@@ -243,7 +243,7 @@ export default function PartnerProfile() {
       <>
         <Navbar />
         <main className="container mx-auto px-4 py-16 min-h-[60vh] flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin" />
+          <BrandLoader size="sm" />
         </main>
         <Footer />
       </>

@@ -10,10 +10,17 @@ import { captureRefFromUrl } from "@/lib/partner-ref";
 import { PreorderCartProvider } from "@/context/PreorderCartContext";
 import { PlayerProvider } from "@/context/PlayerContext";
 import { GlobalPlayer } from "@/components/GlobalPlayer";
+import { BrandLoader } from "@/components/BrandLoader"; // ⬅️ добавлен импорт
 
-const CookieConsent = lazy(() => import("@/components/CookieConsent").then(m => ({ default: m.CookieConsent })));
-const NewsletterPopup = lazy(() => import("@/components/NewsletterPopup").then(m => ({ default: m.NewsletterPopup })));
-const ChatWidget = lazy(() => import("@/components/ChatWidget").then(m => ({ default: m.ChatWidget })));
+const CookieConsent = lazy(() =>
+  import("@/components/CookieConsent").then((m) => ({ default: m.CookieConsent })),
+);
+const NewsletterPopup = lazy(() =>
+  import("@/components/NewsletterPopup").then((m) => ({ default: m.NewsletterPopup })),
+);
+const ChatWidget = lazy(() =>
+  import("@/components/ChatWidget").then((m) => ({ default: m.ChatWidget })),
+);
 
 const Home = lazy(() => import("@/pages/Home"));
 const ProductList = lazy(() => import("@/pages/ProductList"));
@@ -58,11 +65,11 @@ const NotFound = lazy(() => import("@/pages/not-found"));
 
 function ScrollToTop() {
   const [location] = useLocation();
-  
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location]);
-  
+
   return null;
 }
 
@@ -94,7 +101,7 @@ function PromoCapture() {
 function LoadingFallback() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <BrandLoader size="sm" />
     </div>
   );
 }
@@ -107,7 +114,7 @@ function Router() {
         <Route path="/products/:catSlug/:subSlug">{() => <ProductList />}</Route>
         <Route path="/products/:catSlug">{() => <ProductList />}</Route>
         <Route path="/products">{() => <ProductList />}</Route>
-        
+
         <Route path="/cart" component={Cart} />
         <Route path="/checkout" component={Checkout} />
         <Route path="/about" component={About} />
@@ -143,7 +150,9 @@ function Router() {
         <Route path="/predrop/checkout" component={PreorderCheckout} />
         <Route path="/merch-na-zakaz" component={MerchOrder} />
         <Route path="/:slug">
-          {(params: any) => params?.slug?.startsWith("@") ? <ArtistPage /> : <SlugResolver />}
+          {(params: any) =>
+            params?.slug?.startsWith("@") ? <ArtistPage /> : <SlugResolver />
+          }
         </Route>
         <Route component={NotFound} />
       </Switch>
@@ -155,13 +164,13 @@ function DeferredComponents() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     // Регистрируем Service Worker для web push уведомлений
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(err =>
-        console.warn('[SW] Registration failed:', err?.message)
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch((err) =>
+        console.warn("[SW] Registration failed:", err?.message),
       );
     }
 
-    if (typeof requestIdleCallback === 'function') {
+    if (typeof requestIdleCallback === "function") {
       const t = requestIdleCallback(() => setReady(true), { timeout: 3000 });
       return () => cancelIdleCallback(t);
     } else {

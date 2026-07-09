@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import SEO from "@/components/SEO";
-import { Loader2, ShoppingBag, Handshake } from "lucide-react";
+import { ShoppingBag, Handshake } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 
 interface PartnerPublicProduct {
   id: number;
@@ -60,7 +61,7 @@ export default function PartnerPublic() {
       <>
         <Navbar />
         <main className="container mx-auto px-4 pt-24 pb-16 min-h-[60vh] flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin" />
+          <BrandLoader size="sm" />
         </main>
         <Footer />
       </>

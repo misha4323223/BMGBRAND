@@ -7,7 +7,7 @@ import { Footer } from "@/components/Footer";
 import { AuthModal } from "@/components/AuthModal";
 import { Link, useLocation } from "wouter";
 import { Trash2, ArrowRight, ShoppingBag, Percent, AlertCircle, Plus, Minus } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +28,7 @@ export default function Cart() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-12 h-12 text-primary animate-spin" />
+        <BrandLoader size="sm" />
       </div>
     );
   }

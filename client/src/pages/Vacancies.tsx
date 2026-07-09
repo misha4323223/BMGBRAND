@@ -2,7 +2,8 @@ import SEO from "@/components/SEO";
 import { useQuery } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { Briefcase, MapPin, Clock, Loader2 } from "lucide-react";
+import { Briefcase, MapPin, Clock } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -61,7 +62,7 @@ export default function Vacancies() {
       <div className="min-h-screen bg-background">
         <Navbar />
         <main className="pt-24 pb-16 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          <BrandLoader size="sm" />
         </main>
         <Footer />
       </div>

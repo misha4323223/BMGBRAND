@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ProductCard } from "@/components/ProductCard";
-import { ArrowLeft, Calendar, User, Tag, Share2, Loader2, Quote, ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { ArrowLeft, Calendar, User, Tag, Share2, Quote, ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { Button } from "@/components/ui/button";
 import SEO from "@/components/SEO";
 import { useState } from "react";
@@ -236,7 +237,7 @@ export default function BlogDetail() {
       <div className="min-h-screen bg-background">
         <Navbar />
         <div className="flex items-center justify-center pt-40 pb-16">
-          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          <BrandLoader size="sm" />
         </div>
         <Footer />
       </div>
