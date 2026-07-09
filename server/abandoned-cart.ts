@@ -28,8 +28,8 @@ export async function addAbandonedCartUnsub(email: string): Promise<void> {
   }
 }
 
-const COOLDOWN_MS = 4 * 24 * 60 * 60 * 1000; // повтор не чаще раза в 4 дня
-const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // каждые 24 часа
+const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // повтор не чаще раза в 7 дней
+const CHECK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // каждые 7 дней
 const FIRST_RUN_DELAY_MS = 1 * 60 * 1000; // первая проверка через 1 мин после старта
 
 export function startAbandonedCartJob(): void {
@@ -37,7 +37,7 @@ export function startAbandonedCartJob(): void {
     runAbandonedCartCheck();
     setInterval(runAbandonedCartCheck, CHECK_INTERVAL_MS);
   }, FIRST_RUN_DELAY_MS);
-  console.log('[AbandonedCart] Job scheduled: first run in 1 min, then every 24 hours');
+  console.log('[AbandonedCart] Job scheduled: first run in 1 min, then every 7 days');
 }
 
 export async function runAbandonedCartCheck(): Promise<void> {
