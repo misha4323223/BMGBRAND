@@ -401,7 +401,7 @@ async function seedDefaultLegalDocuments() {
     },
     () => {
       log(`serving on port ${port}`);
-      import("./storage").then(async ({ storage, warmRatingsCache }) => {
+      import("./storage").then(async ({ storage, warmRatingsCache, warmReviewsCache }) => {
         try {
           const r = await (storage as any).addOldPriceColumn?.();
           if (r?.message) console.log(`[Migration] old_price: ${r.message}`);
@@ -422,6 +422,11 @@ async function seedDefaultLegalDocuments() {
           await warmRatingsCache(storage as any);
         } catch (err) {
           console.error("[Warmup] Failed to warm ratings cache:", err);
+        }
+        try {
+          await warmReviewsCache(storage as any);
+        } catch (err) {
+          console.error("[Warmup] Failed to warm reviews cache:", err);
         }
         const criticalPages = ["home", "navbar", "footer", "artist_pages"];
         for (const page of criticalPages) {

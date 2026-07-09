@@ -92,6 +92,18 @@ const pageSettingsCache = new SimpleCache<Record<string, any>>(120, 600);
 
 const ratingsCache = new Map<number, { averageRating: number; reviewCount: number }>();
 
+// Warm in-memory cache of approved review texts per product, for synchronous
+// access by bot-ssr.ts (which must never call YDB directly). Capped per
+// product so one heavily-reviewed product can't bloat the cache.
+export interface CachedReview {
+  authorName: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string | null;
+}
+const REVIEWS_CACHE_MAX_PER_PRODUCT = 10;
+const reviewsCache = new Map<number, CachedReview[]>();
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ⚠ LEGACY-СХЕМА: orders.partner_id хранится в YDB как Utf8?, а НЕ Uint64?
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,6 +157,36 @@ export async function warmRatingsCache(storage: IStorage): Promise<void> {
 
 export function getCachedRatingByProductId(productId: number): { averageRating: number; reviewCount: number } | null {
   return ratingsCache.get(productId) || null;
+}
+
+export async function warmReviewsCache(storage: IStorage): Promise<void> {
+  try {
+    const allReviews = await storage.getAllReviews();
+    const approved = allReviews.filter(r => r.isApproved && r.rating >= 1 && r.rating <= 5);
+    const grouped = new Map<number, CachedReview[]>();
+    for (const r of approved) {
+      const pid = Number(r.productId);
+      if (!grouped.has(pid)) grouped.set(pid, []);
+      const list = grouped.get(pid)!;
+      if (list.length < REVIEWS_CACHE_MAX_PER_PRODUCT) {
+        list.push({
+          authorName: r.authorName || "Покупатель",
+          rating: r.rating,
+          comment: r.comment || null,
+          createdAt: r.createdAt ? new Date(r.createdAt as any).toISOString() : null,
+        });
+      }
+    }
+    reviewsCache.clear();
+    for (const [pid, list] of grouped.entries()) reviewsCache.set(pid, list);
+    console.log(`[Reviews] Warmed cache: ${reviewsCache.size} products with reviews`);
+  } catch (err) {
+    console.error("[Reviews] Failed to warm reviews cache:", err);
+  }
+}
+
+export function getCachedReviewsByProductId(productId: number): CachedReview[] {
+  return reviewsCache.get(productId) || [];
 }
 
 export function getCachedProductsByCategory(categorySlug: string, limit = 80): Array<{
@@ -304,7 +346,7 @@ export function getCachedProductMetaBySlug(slug: string): {
   productId: number; title: string; description: string; image: string; images: string[];
   price: number; sku: string; stock: number; category: string;
   sizes: string[]; colors: string[]; preorderEnabled: boolean;
-  seoTitle: string | null; seoDescription: string | null;
+  seoTitle: string | null; seoDescription: string | null; videoUrl: string | null;
 } | null {
   const products = productsCache.get("all");
   if (!products || products.length === 0) return null;
@@ -332,6 +374,7 @@ export function getCachedProductMetaBySlug(slug: string): {
     preorderEnabled: !!(product as any).preorderEnabled,
     seoTitle: (product as any).seoTitle || null,
     seoDescription: (product as any).seoDescription || null,
+    videoUrl: (product as any).videoUrl || null,
   };
 }
 

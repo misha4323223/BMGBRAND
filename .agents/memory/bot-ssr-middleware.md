@@ -36,3 +36,11 @@ if (production) serveStatic(app); else setupVite(httpServer, app);
 Response includes `X-Bot-SSR: rendered` (first render) or `X-Bot-SSR: cache-hit`.
 
 **Why:** Without this middleware Yandex, GPTBot, ClaudeBot (non-JS crawlers) see empty `<div id="root"></div>` and cannot index the catalog — risk of de-indexing.
+
+## Product page content completeness (added 2026-07-09)
+`renderProduct` now also renders: full (untruncated) description, product `videoUrl` as a `<video>` tag, and review texts (author/rating/comment/date) both as visible HTML and as `Review[]` entries inside the Product JSON-LD.
+Reviews come from a new warm cache (`reviewsCache`/`warmReviewsCache`/`getCachedReviewsByProductId` in storage.ts, capped 10/product), populated at startup alongside `ratingsCache` — never queried live from YDB.
+
+## JSON-LD injection safety (critical)
+All JSON-LD in bot-ssr.ts MUST be built with `safeJsonLd()`, not raw `JSON.stringify()`. It escapes `<`, `>`, `&`, U+2028/U+2029 after stringifying, because review author/comment text is user-generated and gets embedded inside `<script type="application/ld+json">` — unescaped `</script>` in a review would break out of the script tag.
+**Why:** caught by code review before shipping; HTML paths were already using `esc()` correctly, but JSON-LD paths were not.

@@ -19,6 +19,7 @@ import {
   getCachedAllVisibleProducts,
   getCachedRatingByProductId,
   getCachedProductsForRecommendations,
+  getCachedReviewsByProductId,
 } from "./storage";
 import { getRecommendationsSync } from "./recommendations";
 
@@ -107,6 +108,19 @@ function price(kopecks: number): string {
   return Math.round(kopecks / 100).toLocaleString("ru-RU") + "\u00a0₽";
 }
 
+// Safe JSON-LD serialization: user-generated text (review comments, author
+// names) flows into these objects, so raw JSON.stringify output must be
+// neutralized against </script> breakout and U+2028/U+2029 line separators
+// before being embedded inside a <script type="application/ld+json"> tag.
+function safeJsonLd(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
 const CSS = `
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Inter,system-ui,sans-serif;background:#F0EDE8;color:#1C1C1C;line-height:1.5}
@@ -141,6 +155,11 @@ h2{font-size:1.3rem;font-weight:700;margin:1.5rem 0 .75rem;text-transform:upperc
 footer{background:#1C1C1C;color:#999;padding:2rem 0;margin-top:3rem;font-size:.875rem}
 footer a{color:#999}footer p+p{margin-top:.5rem}
 .rating{color:#888;font-size:.9rem;margin-top:.35rem}
+.reviews{margin-top:2rem}
+.review{background:#fff;border-radius:8px;padding:1rem;margin-top:.75rem}
+.review-head{font-size:.9rem;color:#333}
+.review-date{color:#999;font-size:.8rem}
+.review-text{margin-top:.5rem;color:#333;font-size:.95rem}
 .in-stock{color:#2a7a2a}
 .preorder{color:#c47000}
 .out-of-stock{color:#888}
@@ -238,7 +257,7 @@ function renderHome(): string | null {
       <div class="status in-stock">в наличии</div>
     </div>`).join("\n");
 
-  const jsonLd = JSON.stringify([
+  const jsonLd = safeJsonLd([
     {
       "@context": "https://schema.org",
       "@type": "Organization",
@@ -300,7 +319,7 @@ function renderCatalog(): string | null {
     return `<h2><a href="/products/${slug}">${esc(cat.name)}</a> <span style="font-size:.75rem;font-weight:400;text-transform:none;color:#888">(${catProducts.length} тов.)</span></h2><div class="grid">${items}</div>`;
   }).filter(Boolean).join("\n");
 
-  const jsonLd = JSON.stringify({
+  const jsonLd = safeJsonLd({
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     "itemListElement": [
@@ -346,7 +365,7 @@ function renderCategory(catSlug: string): string | null {
     </div>`).join("\n");
 
   const title = cat.title || `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
-  const jsonLd = JSON.stringify({
+  const jsonLd = safeJsonLd({
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     "itemListElement": [
@@ -440,6 +459,25 @@ function renderProduct(slug: string): string | null {
       "worstRating": "1",
     };
   }
+
+  const cachedReviews = getCachedReviewsByProductId(meta.productId);
+  if (cachedReviews.length > 0) {
+    productSchema.review = cachedReviews.map(r => {
+      const reviewSchema: Record<string, any> = {
+        "@type": "Review",
+        "author": { "@type": "Person", "name": r.authorName },
+        "reviewRating": {
+          "@type": "Rating",
+          "ratingValue": String(r.rating),
+          "bestRating": "5",
+          "worstRating": "1",
+        },
+      };
+      if (r.comment) reviewSchema.reviewBody = r.comment;
+      if (r.createdAt) reviewSchema.datePublished = r.createdAt.split("T")[0];
+      return reviewSchema;
+    });
+  }
   if (meta.sizes.length > 0) {
     productSchema.additionalProperty = [{
       "@type": "PropertyValue",
@@ -472,12 +510,16 @@ function renderProduct(slug: string): string | null {
     canonical: `${SITE_URL}/${slug}`,
     ogImage,
     ogType: "product",
-    jsonLd: JSON.stringify([productSchema, breadcrumbSchema]),
+    jsonLd: safeJsonLd([productSchema, breadcrumbSchema]),
   });
 
   const imagesHtml = meta.images.slice(0, 6).map((imgUrl, idx) =>
     `<img src="${esc(imgUrl)}" alt="${esc(idx === 0 ? meta.title + " — фото" : meta.title + " — фото " + (idx + 1))}" width="400" height="400" loading="${idx === 0 ? "eager" : "lazy"}">`
   ).join("\n");
+
+  const videoHtml = meta.videoUrl
+    ? `<video src="${esc(meta.videoUrl)}" controls muted loop playsinline preload="none" poster="${esc(meta.image)}" style="max-width:400px;width:100%;border-radius:6px;margin:.5rem 0" data-testid="video-product-bot"></video>`
+    : "";
 
   // Recommendations — uses co-purchase index built at server startup
   let recsHtml = "";
@@ -496,6 +538,14 @@ function renderProduct(slug: string): string | null {
     ? `<p class="rating">⭐ ${rating.averageRating.toFixed(1)} из 5 (${rating.reviewCount} ${rating.reviewCount === 1 ? "отзыв" : rating.reviewCount < 5 ? "отзыва" : "отзывов"})</p>`
     : "";
 
+  const reviewsHtml = cachedReviews.length > 0
+    ? `<div class="reviews"><h2>Отзывы покупателей</h2>${cachedReviews.map(r => `
+    <div class="review">
+      <div class="review-head"><strong>${esc(r.authorName)}</strong> — ${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}${r.createdAt ? ` <span class="review-date">${esc(r.createdAt.split("T")[0])}</span>` : ""}</div>
+      ${r.comment ? `<p class="review-text">${esc(r.comment)}</p>` : ""}
+    </div>`).join("\n")}</div>`
+    : "";
+
   const breadcrumbHtml = `<div class="breadcrumb">
   <a href="/">Главная</a> /
   <a href="/products">Каталог</a>${catName ? ` / <a href="/products/${esc(meta.category)}">${esc(catName)}</a>` : ""} /
@@ -505,6 +555,7 @@ function renderProduct(slug: string): string | null {
   const body = `
 ${breadcrumbHtml}
 ${imagesHtml ? `<div class="product-images">${imagesHtml}</div>` : ""}
+${videoHtml}
 <h1>${esc(meta.title)}</h1>
 <div style="margin:1rem 0">
   <div style="font-size:2rem;font-weight:900">${price(meta.price)}</div>
@@ -513,10 +564,11 @@ ${imagesHtml ? `<div class="product-images">${imagesHtml}</div>` : ""}
   ${meta.sizes.length > 0 ? `<p style="margin-top:.75rem">Размеры: <strong>${esc(meta.sizes.join(", "))}</strong></p>` : ""}
   ${meta.colors.length > 0 ? `<p>Цвета: ${esc(meta.colors.join(", "))}</p>` : ""}
   ${catName ? `<p>Категория: <a href="/products/${esc(meta.category)}">${esc(catName)}</a></p>` : ""}
-  ${meta.description ? `<p class="desc" style="margin-top:1rem">${esc(meta.description.slice(0, 500))}</p>` : ""}
+  ${meta.description ? `<p class="desc" style="margin-top:1rem;max-width:none">${esc(meta.description)}</p>` : ""}
   <p style="margin-top:.75rem">Доставка по всей России СДЭК и Яндекс Доставкой.</p>
   <a href="/${esc(slug)}" class="buy-btn">Купить на сайте</a>
 </div>
+${reviewsHtml}
 ${recsHtml}`;
 
   return wrapPage(head, body);
