@@ -2232,15 +2232,7 @@ export default function ProductDetail() {
           onClick={() => { if (!lightboxZoomed) setLightboxOpen(false); }}
           data-testid="lightbox-overlay"
         >
-          <button
-            className="absolute top-4 right-4 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2.5 transition-colors z-10"
-            onClick={() => { setLightboxOpen(false); setLightboxZoomed(false); }}
-            data-testid="button-lightbox-close"
-          >
-            <X className="w-6 h-6" />
-          </button>
-
-          <div onClick={e => e.stopPropagation()}>
+          <div className="relative" onClick={e => e.stopPropagation()}>
             <ZoomableLightboxImage
               src={allImages[lightboxImgIdx]}
               alt={getImageAlt(lightboxImgIdx)}
@@ -2249,6 +2241,15 @@ export default function ProductDetail() {
               onZoomChange={setLightboxZoomed}
               data-testid="lightbox-image"
             />
+            {!lightboxZoomed && (
+              <button
+                className="absolute top-2 right-2 text-black bg-white/80 hover:bg-white rounded-full p-2 transition-colors z-10"
+                onClick={() => { setLightboxOpen(false); setLightboxZoomed(false); }}
+                data-testid="button-lightbox-close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
 
           {!lightboxZoomed && lightboxImgIdx > 0 && (

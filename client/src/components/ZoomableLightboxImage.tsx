@@ -42,6 +42,23 @@ export function ZoomableLightboxImage({
   const pinchStart = useRef<{ dist: number; scale: number; mid: { x: number; y: number } } | null>(null);
   const dragStart = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
   const lastTapRef = useRef(0);
+  // Tracks a candidate single tap (down position/time) so pointerUp can tell
+  // a genuine tap (no movement) apart from a drag, without being confused by
+  // the double-tap-zoom gesture handled separately in handlePointerDown.
+  const tapCandidateRef = useRef<{ pointerId: number; x: number; y: number; time: number } | null>(null);
+  // Holds the "close on single tap" decision until the double-tap window
+  // has fully elapsed, so an intended double-tap never gets pre-empted by
+  // the first tap's single-tap-close action.
+  const pendingCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const TAP_MOVE_TOLERANCE = 10;
+  const TAP_MAX_MS = 300;
+
+  const clearPendingClose = () => {
+    if (pendingCloseTimeoutRef.current !== null) {
+      clearTimeout(pendingCloseTimeoutRef.current);
+      pendingCloseTimeoutRef.current = null;
+    }
+  };
 
   // Reset zoom and any in-flight gesture state when the image changes
   useEffect(() => {
@@ -51,9 +68,14 @@ export function ZoomableLightboxImage({
     pinchStart.current = null;
     dragStart.current = null;
     lastTapRef.current = 0;
+    tapCandidateRef.current = null;
+    clearPendingClose();
     onZoomChange?.(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
+
+  // Clear any pending timeout on unmount
+  useEffect(() => () => clearPendingClose(), []);
 
   const clampTranslate = useCallback((tx: number, ty: number, s: number) => {
     const containerEl = containerRef.current;
@@ -101,6 +123,9 @@ export function ZoomableLightboxImage({
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     if (pointers.current.size === 2) {
+      // A second finger landed: this is a pinch, never a tap.
+      tapCandidateRef.current = null;
+      clearPendingClose();
       const pts = Array.from(pointers.current.values());
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
       pinchStart.current = {
@@ -114,6 +139,8 @@ export function ZoomableLightboxImage({
       const now = Date.now();
       if (now - lastTapRef.current < DOUBLE_TAP_MS) {
         lastTapRef.current = 0;
+        tapCandidateRef.current = null; // this pointerup belongs to the double-tap, not a single tap
+        clearPendingClose(); // cancel any pending single-tap-close from the first tap
         if (scaleRef.current > 1.01) {
           setScale(1);
           setTranslate({ x: 0, y: 0 });
@@ -124,6 +151,7 @@ export function ZoomableLightboxImage({
         return;
       }
       lastTapRef.current = now;
+      tapCandidateRef.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, time: now };
 
       if (scaleRef.current > 1.01) {
         dragStart.current = {
@@ -139,6 +167,13 @@ export function ZoomableLightboxImage({
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!pointers.current.has(e.pointerId)) return;
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    // Movement beyond tolerance disqualifies this gesture from being a tap
+    const tap = tapCandidateRef.current;
+    if (tap && tap.pointerId === e.pointerId) {
+      const moved = Math.hypot(e.clientX - tap.x, e.clientY - tap.y);
+      if (moved > TAP_MOVE_TOLERANCE) tapCandidateRef.current = null;
+    }
 
     if (pointers.current.size === 2 && pinchStart.current) {
       const pts = Array.from(pointers.current.values());
@@ -163,6 +198,25 @@ export function ZoomableLightboxImage({
       setScale(1);
       setTranslate({ x: 0, y: 0 });
       onZoomChange?.(false);
+    }
+
+    // A single tap (no drag, released quickly) while zoomed in closes the zoom.
+    // The close is deferred until the double-tap window fully elapses, so an
+    // intended double-tap's first tap-up never pre-empts the double-tap action
+    // (handlePointerDown cancels this timeout as soon as a 2nd tap arrives).
+    const tap = tapCandidateRef.current;
+    if (tap && tap.pointerId === e.pointerId) {
+      tapCandidateRef.current = null;
+      const withinTime = Date.now() - tap.time < TAP_MAX_MS;
+      if (withinTime && scaleRef.current > 1.01) {
+        clearPendingClose();
+        pendingCloseTimeoutRef.current = setTimeout(() => {
+          pendingCloseTimeoutRef.current = null;
+          setScale(1);
+          setTranslate({ x: 0, y: 0 });
+          onZoomChange?.(false);
+        }, DOUBLE_TAP_MS);
+      }
     }
   };
 
