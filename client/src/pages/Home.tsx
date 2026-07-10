@@ -1618,64 +1618,56 @@ export default function Home() {
       })}
 
       {activeReel && (
-        <div
-          className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center gap-4 px-5 py-14"
-          onClick={() => { setActiveReel(null); setReelMuted(true); }}
-        >
-          {/* Close */}
+        <div className="fixed inset-0 z-50 bg-black">
+          {/* Видео на весь экран */}
+          <video
+            ref={modalVideoRef}
+            key={activeReel.videoUrl}
+            src={activeReel.videoUrl}
+            autoPlay
+            loop
+            playsInline
+            muted={reelMuted}
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: "contain" }}
+            onCanPlay={(e) => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
+          />
+
+          {/* Кнопка закрыть — вверху справа */}
           <button
-            className="absolute top-4 right-4 p-2 text-white/60 hover:text-white transition-colors"
-            onClick={() => { setActiveReel(null); setReelMuted(true); }}
+            className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white"
+            onClick={() => { setActiveReel(null); setReelMuted(true); setReelProduct(null); }}
             aria-label="Закрыть"
           >
-            <X className="w-7 h-7" />
+            <X className="w-5 h-5" />
           </button>
 
-          {/* Video */}
-          <div
-            className="relative w-full max-w-xs"
-            style={{ maxHeight: "56vh" }}
-            onClick={(e) => e.stopPropagation()}
+          {/* Звук — вверху слева */}
+          <button
+            className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
+            onClick={() => setReelMuted((m) => !m)}
+            aria-label={reelMuted ? "Включить звук" : "Выключить звук"}
           >
-            <video
-              ref={modalVideoRef}
-              key={activeReel.videoUrl}
-              src={activeReel.videoUrl}
-              autoPlay
-              loop
-              playsInline
-              muted={reelMuted}
-              className="w-full rounded-2xl"
-              style={{ maxHeight: "56vh", objectFit: "contain" }}
-              onCanPlay={(e) => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
-            />
-            {/* Mute toggle */}
-            <button
-              className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center"
-              onClick={(e) => { e.stopPropagation(); setReelMuted((m) => !m); }}
-              aria-label={reelMuted ? "Включить звук" : "Выключить звук"}
-            >
-              {reelMuted ? (
-                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" aria-hidden="true">
-                  <path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06A8.99 8.99 0 0 0 17.73 19L19 20.27 20.27 19 5.27 4 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" aria-hidden="true">
-                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-                </svg>
-              )}
-            </button>
-          </div>
+            {reelMuted ? (
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" aria-hidden="true">
+                <path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06A8.99 8.99 0 0 0 17.73 19L19 20.27 20.27 19 5.27 4 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" aria-hidden="true">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+              </svg>
+            )}
+          </button>
 
-          {/* Карточка товара — стиль как в AI-чате */}
+          {/* Карточка товара — снизу поверх видео */}
           {activeReel.link && (
-            <div className="w-full max-w-xs" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-10 pt-20 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
               <Link
                 href={activeReel.link}
                 onClick={() => { setActiveReel(null); setReelMuted(true); setReelProduct(null); }}
-                className="flex items-center gap-3 bg-zinc-900 border border-zinc-700 rounded-2xl p-3 hover:border-zinc-500 active:border-primary transition-colors"
+                className="flex items-center gap-3 bg-black/50 backdrop-blur-xl border border-white/15 rounded-2xl p-3 hover:border-white/30 active:border-primary/60 transition-colors"
               >
-                {/* Фото: сначала из API, потом thumbnailUrl из настроек */}
+                {/* Фото товара */}
                 {(reelProduct?.thumbnailUrl || reelProduct?.imageUrl || activeReel.thumbnailUrl) ? (
                   <img
                     src={reelProduct?.thumbnailUrl || reelProduct?.imageUrl || activeReel.thumbnailUrl}
@@ -1683,25 +1675,20 @@ export default function Home() {
                     className="w-14 h-14 rounded-xl object-cover shrink-0"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-xl bg-zinc-800 shrink-0 flex items-center justify-center">
-                    <svg viewBox="0 0 24 24" className="w-6 h-6 fill-zinc-600" aria-hidden="true">
-                      <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
-                    </svg>
-                  </div>
+                  <div className="w-14 h-14 rounded-xl bg-zinc-800 shrink-0" />
                 )}
-                {/* Текст */}
+                {/* Название и цена */}
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-semibold leading-snug line-clamp-2">
                     {reelProduct?.name || activeReel.label || ""}
                   </p>
                   {reelProduct?.price != null && (
-                    <p className="text-zinc-400 text-sm mt-0.5">
+                    <p className="text-zinc-300 text-sm mt-0.5">
                       {`${Math.round((reelProduct.salePrice || reelProduct.price) / 100).toLocaleString("ru-RU")} ₽`}
                     </p>
                   )}
                 </div>
-                {/* Стрелка */}
-                <ChevronRight className="w-5 h-5 text-zinc-500 shrink-0" />
+                <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0" />
               </Link>
             </div>
           )}
