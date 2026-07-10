@@ -258,7 +258,17 @@ function ReelPill({ item, onClick }: { item: any; onClick: () => void }) {
         className="relative overflow-hidden border-2 border-primary/60 group-hover:border-primary active:border-primary transition-colors duration-200"
         style={{ width: 68, height: 108, borderRadius: 18 }}
       >
-        {item.thumbnailUrl ? (
+        {/* video с preload="metadata" — браузер загружает первый кадр, не воспроизводит */}
+        {item.videoUrl ? (
+          <video
+            src={item.videoUrl}
+            poster={item.thumbnailUrl || undefined}
+            preload="metadata"
+            muted
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : item.thumbnailUrl ? (
           <img
             src={item.thumbnailUrl}
             alt={item.label || ""}
@@ -273,7 +283,7 @@ function ReelPill({ item, onClick }: { item: any; onClick: () => void }) {
             </svg>
           </div>
         )}
-        {/* play icon overlay */}
+        {/* иконка play внизу */}
         <div className="absolute inset-0 flex items-end justify-center pb-2.5">
           <div className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-white ml-0.5" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
@@ -1595,9 +1605,10 @@ export default function Home() {
 
       {activeReel && (
         <div
-          className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center px-4"
+          className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center gap-4 px-5 py-14"
           onClick={() => { setActiveReel(null); setReelMuted(true); }}
         >
+          {/* Close */}
           <button
             className="absolute top-4 right-4 p-2 text-white/60 hover:text-white transition-colors"
             onClick={() => { setActiveReel(null); setReelMuted(true); }}
@@ -1605,9 +1616,11 @@ export default function Home() {
           >
             <X className="w-7 h-7" />
           </button>
+
+          {/* Video */}
           <div
             className="relative w-full max-w-xs"
-            style={{ maxHeight: "76vh" }}
+            style={{ maxHeight: "56vh" }}
             onClick={(e) => e.stopPropagation()}
           >
             <video
@@ -1619,13 +1632,12 @@ export default function Home() {
               playsInline
               muted={reelMuted}
               className="w-full rounded-2xl"
-              style={{ maxHeight: "76vh", objectFit: "contain" }}
+              style={{ maxHeight: "56vh", objectFit: "contain" }}
               onCanPlay={(e) => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
             />
-
-            {/* Mute / unmute — bottom-right */}
+            {/* Mute toggle */}
             <button
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white"
+              className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center"
               onClick={(e) => { e.stopPropagation(); setReelMuted((m) => !m); }}
               aria-label={reelMuted ? "Включить звук" : "Выключить звук"}
             >
@@ -1639,32 +1651,43 @@ export default function Home() {
                 </svg>
               )}
             </button>
+          </div>
 
-            {/* Product card — Instagram-style overlay at bottom */}
-            {activeReel.link && (
-              <Link
-                href={activeReel.link}
-                onClick={() => { setActiveReel(null); setReelMuted(true); }}
-                className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5 bg-black/60 backdrop-blur-md rounded-2xl px-3 py-2.5 border border-white/10 hover:border-primary/60 active:border-primary transition-colors"
-              >
+          {/* Карточка товара — отдельный блок под видео */}
+          {(activeReel.thumbnailUrl || activeReel.label || activeReel.link) && (
+            <div
+              className="w-full max-w-xs"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-700 rounded-2xl overflow-hidden">
+                {/* Фото товара */}
                 {activeReel.thumbnailUrl && (
                   <img
                     src={activeReel.thumbnailUrl}
                     alt={activeReel.label || ""}
-                    className="w-11 h-11 rounded-xl object-cover shrink-0 border border-white/10"
+                    className="w-20 h-20 object-cover shrink-0"
                   />
                 )}
-                <div className="flex-1 min-w-0">
+                {/* Инфо */}
+                <div className="flex-1 min-w-0 py-3 pr-3">
                   {activeReel.label && (
-                    <p className="text-white text-xs font-semibold leading-tight line-clamp-2">{activeReel.label}</p>
+                    <p className="text-white text-sm font-semibold leading-snug line-clamp-2 mb-2">
+                      {activeReel.label}
+                    </p>
                   )}
-                  <span className="inline-flex items-center gap-1 text-primary text-[10px] font-bold uppercase tracking-widest mt-1">
-                    Смотреть <ArrowRight className="w-2.5 h-2.5" />
-                  </span>
+                  {activeReel.link && (
+                    <Link
+                      href={activeReel.link}
+                      onClick={() => { setActiveReel(null); setReelMuted(true); }}
+                      className="inline-flex items-center gap-1.5 bg-primary text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full hover:bg-primary/90 active:scale-95 transition-all"
+                    >
+                      В карточку <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  )}
                 </div>
-              </Link>
-            )}
-          </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
