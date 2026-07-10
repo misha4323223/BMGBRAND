@@ -6991,16 +6991,33 @@ export default function Admin() {
                                       <X className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
-                                  <VideoUploadField
-                                    value={item.videoUrl || ""}
-                                    onChange={(url) => {
-                                      const items = [...(sectionSettings.items || [])];
-                                      items[idx] = { ...items[idx], videoUrl: url };
-                                      setSectionSettings({...sectionSettings, items});
-                                    }}
-                                    apiKey={apiKey}
-                                    placeholder="URL или загрузить видео"
-                                  />
+                                  <div className="space-y-1">
+                                    <Label className="text-xs text-muted-foreground">Обложка (превью)</Label>
+                                    <ImageUploadField
+                                      value={item.thumbnailUrl || ""}
+                                      onChange={(url) => {
+                                        const items = [...(sectionSettings.items || [])];
+                                        items[idx] = { ...items[idx], thumbnailUrl: url };
+                                        setSectionSettings({...sectionSettings, items});
+                                      }}
+                                      apiKey={apiKey}
+                                      placeholder="Картинка-обложка ролика"
+                                      hint="Вертикальное фото товара, ~68×108"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs text-muted-foreground">Видео</Label>
+                                    <VideoUploadField
+                                      value={item.videoUrl || ""}
+                                      onChange={(url) => {
+                                        const items = [...(sectionSettings.items || [])];
+                                        items[idx] = { ...items[idx], videoUrl: url };
+                                        setSectionSettings({...sectionSettings, items});
+                                      }}
+                                      apiKey={apiKey}
+                                      placeholder="URL или загрузить видео"
+                                    />
+                                  </div>
                                   <Input
                                     value={item.label || ""}
                                     onChange={(e) => {
@@ -7008,7 +7025,7 @@ export default function Admin() {
                                       items[idx] = { ...items[idx], label: e.target.value };
                                       setSectionSettings({...sectionSettings, items});
                                     }}
-                                    placeholder="Название вещи"
+                                    placeholder="Название товара"
                                   />
                                   <Input
                                     value={item.link || ""}
@@ -7017,7 +7034,7 @@ export default function Admin() {
                                       items[idx] = { ...items[idx], link: e.target.value };
                                       setSectionSettings({...sectionSettings, items});
                                     }}
-                                    placeholder="/products/category/item"
+                                    placeholder="/products/slug-tovara"
                                   />
                                 </div>
                               ))}

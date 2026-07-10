@@ -249,49 +249,34 @@ function MarqueeSection({ text }: { text: string }) {
 }
 
 function ReelPill({ item, onClick }: { item: any; onClick: () => void }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [hovered, setHovered] = useState(false);
-
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (hovered) {
-      v.play().catch(() => {});
-    } else {
-      v.pause();
-      v.currentTime = 0;
-    }
-  }, [hovered]);
-
   return (
     <button
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onFocus={() => setHovered(true)}
-      onBlur={() => setHovered(false)}
       className="flex flex-col shrink-0 cursor-pointer group focus:outline-none"
     >
       <div
-        className="relative overflow-hidden border-2 border-primary/60 group-hover:border-primary transition-colors duration-300"
+        className="relative overflow-hidden border-2 border-primary/60 group-hover:border-primary active:border-primary transition-colors duration-200"
         style={{ width: 68, height: 108, borderRadius: 18 }}
       >
-        {item.videoUrl ? (
-          <video
-            ref={videoRef}
-            src={item.videoUrl}
-            muted
-            loop
-            playsInline
-            preload="none"
+        {item.thumbnailUrl ? (
+          <img
+            src={item.thumbnailUrl}
+            alt={item.label || ""}
             className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
           />
         ) : (
-          <div className="w-full h-full bg-zinc-800" />
+          <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-7 h-7 fill-zinc-600" aria-hidden="true">
+              <path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/>
+            </svg>
+          </div>
         )}
-        <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-300 group-hover:opacity-0">
-          <div className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
-            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white ml-0.5" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        {/* play icon overlay */}
+        <div className="absolute inset-0 flex items-end justify-center pb-2.5">
+          <div className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-white ml-0.5" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
           </div>
         </div>
       </div>
@@ -317,6 +302,8 @@ export default function Home() {
   const [heroSlideIndex, setHeroSlideIndex] = useState(0);
   const [heroPrev, setHeroPrev] = useState<number | null>(null);
   const [activeReel, setActiveReel] = useState<any>(null);
+  const [reelMuted, setReelMuted] = useState(true);
+  const modalVideoRef = useRef<HTMLVideoElement>(null);
   const [heroPaused, setHeroPaused] = useState(false);
   const [heroAnimKey, setHeroAnimKey] = useState(0);
 
@@ -1609,11 +1596,11 @@ export default function Home() {
       {activeReel && (
         <div
           className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center px-4"
-          onClick={() => setActiveReel(null)}
+          onClick={() => { setActiveReel(null); setReelMuted(true); }}
         >
           <button
             className="absolute top-4 right-4 p-2 text-white/60 hover:text-white transition-colors"
-            onClick={() => setActiveReel(null)}
+            onClick={() => { setActiveReel(null); setReelMuted(true); }}
             aria-label="Закрыть"
           >
             <X className="w-7 h-7" />
@@ -1624,32 +1611,60 @@ export default function Home() {
             onClick={(e) => e.stopPropagation()}
           >
             <video
+              ref={modalVideoRef}
               key={activeReel.videoUrl}
               src={activeReel.videoUrl}
               autoPlay
               loop
               playsInline
-              controls
+              muted={reelMuted}
               className="w-full rounded-2xl"
               style={{ maxHeight: "76vh", objectFit: "contain" }}
+              onCanPlay={(e) => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
             />
+
+            {/* Mute / unmute — bottom-right */}
+            <button
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white"
+              onClick={(e) => { e.stopPropagation(); setReelMuted((m) => !m); }}
+              aria-label={reelMuted ? "Включить звук" : "Выключить звук"}
+            >
+              {reelMuted ? (
+                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" aria-hidden="true">
+                  <path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06A8.99 8.99 0 0 0 17.73 19L19 20.27 20.27 19 5.27 4 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" aria-hidden="true">
+                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>
+              )}
+            </button>
+
+            {/* Product card — Instagram-style overlay at bottom */}
+            {activeReel.link && (
+              <Link
+                href={activeReel.link}
+                onClick={() => { setActiveReel(null); setReelMuted(true); }}
+                className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5 bg-black/60 backdrop-blur-md rounded-2xl px-3 py-2.5 border border-white/10 hover:border-primary/60 active:border-primary transition-colors"
+              >
+                {activeReel.thumbnailUrl && (
+                  <img
+                    src={activeReel.thumbnailUrl}
+                    alt={activeReel.label || ""}
+                    className="w-11 h-11 rounded-xl object-cover shrink-0 border border-white/10"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  {activeReel.label && (
+                    <p className="text-white text-xs font-semibold leading-tight line-clamp-2">{activeReel.label}</p>
+                  )}
+                  <span className="inline-flex items-center gap-1 text-primary text-[10px] font-bold uppercase tracking-widest mt-1">
+                    Смотреть <ArrowRight className="w-2.5 h-2.5" />
+                  </span>
+                </div>
+              </Link>
+            )}
           </div>
-          {(activeReel.label || activeReel.link) && (
-            <div className="mt-5 text-center" onClick={(e) => e.stopPropagation()}>
-              {activeReel.label && (
-                <p className="text-white font-semibold text-base mb-3">{activeReel.label}</p>
-              )}
-              {activeReel.link && (
-                <Link
-                  href={activeReel.link}
-                  onClick={() => setActiveReel(null)}
-                  className="inline-flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-primary/90 transition-colors"
-                >
-                  Смотреть <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              )}
-            </div>
-          )}
         </div>
       )}
 
