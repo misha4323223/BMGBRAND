@@ -313,7 +313,19 @@ export default function Home() {
   const [heroPrev, setHeroPrev] = useState<number | null>(null);
   const [activeReel, setActiveReel] = useState<any>(null);
   const [reelMuted, setReelMuted] = useState(true);
+  const [reelProduct, setReelProduct] = useState<any>(null);
   const modalVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Подгружаем данные товара при открытии рила
+  useEffect(() => {
+    if (!activeReel?.link) { setReelProduct(null); return; }
+    const slug = activeReel.link.replace(/^\/products\//, "").split("?")[0].split("#")[0];
+    if (!slug) { setReelProduct(null); return; }
+    fetch(`/api/products/by-slug/${encodeURIComponent(slug)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setReelProduct(d || null))
+      .catch(() => setReelProduct(null));
+  }, [activeReel]);
   const [heroPaused, setHeroPaused] = useState(false);
   const [heroAnimKey, setHeroAnimKey] = useState(0);
 
@@ -1653,39 +1665,44 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Карточка товара — отдельный блок под видео */}
-          {(activeReel.thumbnailUrl || activeReel.label || activeReel.link) && (
-            <div
-              className="w-full max-w-xs"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-700 rounded-2xl overflow-hidden">
-                {/* Фото товара */}
-                {activeReel.thumbnailUrl && (
+          {/* Карточка товара — стиль как в AI-чате */}
+          {activeReel.link && (
+            <div className="w-full max-w-xs" onClick={(e) => e.stopPropagation()}>
+              <Link
+                href={activeReel.link}
+                onClick={() => { setActiveReel(null); setReelMuted(true); setReelProduct(null); }}
+                className="flex items-center gap-3 bg-zinc-900 border border-zinc-700 rounded-2xl p-3 hover:border-zinc-500 active:border-primary transition-colors"
+              >
+                {/* Фото: сначала из API, потом thumbnailUrl из настроек */}
+                {(reelProduct?.thumbnailUrl || reelProduct?.imageUrl || activeReel.thumbnailUrl) ? (
                   <img
-                    src={activeReel.thumbnailUrl}
-                    alt={activeReel.label || ""}
-                    className="w-20 h-20 object-cover shrink-0"
+                    src={reelProduct?.thumbnailUrl || reelProduct?.imageUrl || activeReel.thumbnailUrl}
+                    alt={reelProduct?.name || activeReel.label || ""}
+                    className="w-14 h-14 rounded-xl object-cover shrink-0"
                   />
+                ) : (
+                  <div className="w-14 h-14 rounded-xl bg-zinc-800 shrink-0 flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" className="w-6 h-6 fill-zinc-600" aria-hidden="true">
+                      <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                    </svg>
+                  </div>
                 )}
-                {/* Инфо */}
-                <div className="flex-1 min-w-0 py-3 pr-3">
-                  {activeReel.label && (
-                    <p className="text-white text-sm font-semibold leading-snug line-clamp-2 mb-2">
-                      {activeReel.label}
+                {/* Текст */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-semibold leading-snug line-clamp-2">
+                    {reelProduct?.name || activeReel.label || ""}
+                  </p>
+                  {reelProduct?.price != null && (
+                    <p className="text-zinc-400 text-sm mt-0.5">
+                      {(reelProduct.salePrice ?? reelProduct.price) % 100 === 0
+                        ? `${((reelProduct.salePrice ?? reelProduct.price) / 100).toLocaleString("ru-RU")} ₽`
+                        : `${((reelProduct.salePrice ?? reelProduct.price) / 100).toFixed(0)} ₽`}
                     </p>
                   )}
-                  {activeReel.link && (
-                    <Link
-                      href={activeReel.link}
-                      onClick={() => { setActiveReel(null); setReelMuted(true); }}
-                      className="inline-flex items-center gap-1.5 bg-primary text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full hover:bg-primary/90 active:scale-95 transition-all"
-                    >
-                      В карточку <ArrowRight className="w-3 h-3" />
-                    </Link>
-                  )}
                 </div>
-              </div>
+                {/* Стрелка */}
+                <ChevronRight className="w-5 h-5 text-zinc-500 shrink-0" />
+              </Link>
             </div>
           )}
         </div>
