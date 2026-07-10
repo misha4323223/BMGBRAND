@@ -1696,9 +1696,7 @@ export default function Home() {
                   </p>
                   {reelProduct?.price != null && (
                     <p className="text-zinc-400 text-sm mt-0.5">
-                      {(reelProduct.salePrice ?? reelProduct.price) % 100 === 0
-                        ? `${((reelProduct.salePrice ?? reelProduct.price) / 100).toLocaleString("ru-RU")} ₽`
-                        : `${((reelProduct.salePrice ?? reelProduct.price) / 100).toFixed(0)} ₽`}
+                      {`${Math.round((reelProduct.salePrice || reelProduct.price) / 100).toLocaleString("ru-RU")} ₽`}
                     </p>
                   )}
                 </div>
