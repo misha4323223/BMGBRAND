@@ -319,9 +319,11 @@ export default function Home() {
   // Подгружаем данные товара при открытии рила
   useEffect(() => {
     if (!activeReel?.link) { setReelProduct(null); return; }
-    const slug = activeReel.link.replace(/^\/products\//, "").split("?")[0].split("#")[0];
+    // Берём последний сегмент пути — работает для /products/slug, /slug, https://…/slug
+    const clean = activeReel.link.replace(/^https?:\/\/[^/]+/, "").split("?")[0].split("#")[0];
+    const slug = clean.split("/").filter(Boolean).at(-1) || "";
     if (!slug) { setReelProduct(null); return; }
-    fetch(`/api/products/by-slug/${encodeURIComponent(slug)}`)
+    fetch(`/api/products/by-slug/${slug}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => setReelProduct(d || null))
       .catch(() => setReelProduct(null));
