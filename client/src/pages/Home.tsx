@@ -1629,7 +1629,7 @@ export default function Home() {
             playsInline
             muted={reelMuted}
             className="absolute inset-0 w-full h-full"
-            style={{ objectFit: "contain" }}
+            style={{ objectFit: "cover" }}
             onCanPlay={(e) => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
           />
 
