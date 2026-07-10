@@ -1659,47 +1659,39 @@ export default function Home() {
             )}
           </button>
 
-          {/* Bottom Sheet — карточка товара */}
+          {/* Edge bar — тонкая карточка у низа */}
           {activeReel.link && (
-            <div className="absolute bottom-0 left-0 right-0 z-20 bg-zinc-950 rounded-t-[28px] shadow-2xl">
-              {/* Drag handle */}
-              <div className="flex justify-center pt-3 pb-4">
-                <div className="w-9 h-1 bg-white/20 rounded-full" />
-              </div>
-              {/* Содержимое */}
-              <Link
-                href={activeReel.link}
-                onClick={() => { setActiveReel(null); setReelMuted(true); setReelProduct(null); }}
-                className="flex items-center gap-3 px-4 pb-8 active:opacity-80 transition-opacity"
-              >
-                {/* Фото */}
-                {(reelProduct?.thumbnailUrl || reelProduct?.imageUrl || activeReel.thumbnailUrl) ? (
-                  <img
-                    src={reelProduct?.thumbnailUrl || reelProduct?.imageUrl || activeReel.thumbnailUrl}
-                    alt={reelProduct?.name || activeReel.label || ""}
-                    className="w-16 h-16 rounded-2xl object-cover shrink-0"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-zinc-800 shrink-0" />
-                )}
-                {/* Название + цена */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-[15px] font-semibold leading-snug">
-                    {reelProduct?.name || activeReel.label || ""}
+            <Link
+              href={activeReel.link}
+              onClick={() => { setActiveReel(null); setReelMuted(true); setReelProduct(null); }}
+              className="absolute bottom-0 left-0 right-0 z-20 flex items-center gap-3 px-4 py-2.5 bg-black/60 backdrop-blur-xl border-t border-white/10 active:bg-black/80 transition-colors"
+            >
+              {/* Круглое фото */}
+              {(reelProduct?.thumbnailUrl || reelProduct?.imageUrl || activeReel.thumbnailUrl) ? (
+                <img
+                  src={reelProduct?.thumbnailUrl || reelProduct?.imageUrl || activeReel.thumbnailUrl}
+                  alt={reelProduct?.name || activeReel.label || ""}
+                  className="w-10 h-10 rounded-full object-cover shrink-0 ring-1 ring-white/20"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-zinc-800 shrink-0" />
+              )}
+              {/* Название + цена */}
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-[13px] font-semibold leading-tight truncate">
+                  {reelProduct?.name || activeReel.label || ""}
+                </p>
+                {reelProduct?.price != null && (
+                  <p className="text-white/70 text-[12px] leading-tight mt-0.5">
+                    {`${Math.round((reelProduct.salePrice || reelProduct.price) / 100).toLocaleString("ru-RU")} ₽`}
                   </p>
-                  {reelProduct?.price != null && (
-                    <p className="text-white text-[17px] font-bold mt-1">
-                      {`${Math.round((reelProduct.salePrice || reelProduct.price) / 100).toLocaleString("ru-RU")} ₽`}
-                    </p>
-                  )}
-                </div>
-                {/* Кнопка */}
-                <div className="shrink-0 bg-primary rounded-2xl px-4 py-2.5 flex flex-col items-center gap-0.5">
-                  <span className="text-white text-[12px] font-bold uppercase tracking-wide leading-none">В</span>
-                  <span className="text-white text-[12px] font-bold uppercase tracking-wide leading-none">магазин</span>
-                </div>
-              </Link>
-            </div>
+                )}
+              </div>
+              {/* Тег */}
+              <span className="shrink-0 bg-primary text-white text-[11px] font-bold px-3 py-1.5 rounded-full">
+                Купить
+              </span>
+            </Link>
           )}
         </div>
       )}
