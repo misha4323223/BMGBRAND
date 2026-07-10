@@ -1661,34 +1661,37 @@ export default function Home() {
 
           {/* Карточка товара — снизу поверх видео */}
           {activeReel.link && (
-            <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-10 pt-20 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+            <div className="absolute bottom-0 left-0 right-0 z-20 px-3 pb-8 pt-16 bg-gradient-to-t from-black/75 via-black/30 to-transparent">
               <Link
                 href={activeReel.link}
                 onClick={() => { setActiveReel(null); setReelMuted(true); setReelProduct(null); }}
-                className="flex items-center gap-3 bg-black/50 backdrop-blur-xl border border-white/15 rounded-2xl p-3 hover:border-white/30 active:border-primary/60 transition-colors"
+                className="flex items-center gap-2.5 bg-white/8 backdrop-blur-2xl border border-white/12 rounded-[20px] px-2.5 py-2 active:scale-[0.98] transition-transform"
               >
-                {/* Фото товара */}
+                {/* Фото */}
                 {(reelProduct?.thumbnailUrl || reelProduct?.imageUrl || activeReel.thumbnailUrl) ? (
                   <img
                     src={reelProduct?.thumbnailUrl || reelProduct?.imageUrl || activeReel.thumbnailUrl}
                     alt={reelProduct?.name || activeReel.label || ""}
-                    className="w-14 h-14 rounded-xl object-cover shrink-0"
+                    className="w-12 h-12 rounded-2xl object-cover shrink-0"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-xl bg-zinc-800 shrink-0" />
+                  <div className="w-12 h-12 rounded-2xl bg-white/10 shrink-0" />
                 )}
-                {/* Название и цена */}
+                {/* Название + цена */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-semibold leading-snug line-clamp-2">
+                  <p className="text-white text-[13px] font-semibold leading-tight">
                     {reelProduct?.name || activeReel.label || ""}
                   </p>
                   {reelProduct?.price != null && (
-                    <p className="text-zinc-300 text-sm mt-0.5">
+                    <p className="text-white/70 text-[13px] font-medium mt-0.5">
                       {`${Math.round((reelProduct.salePrice || reelProduct.price) / 100).toLocaleString("ru-RU")} ₽`}
                     </p>
                   )}
                 </div>
-                <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0" />
+                {/* Кнопка */}
+                <span className="shrink-0 bg-primary text-white text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 rounded-full whitespace-nowrap">
+                  Купить
+                </span>
               </Link>
             </div>
           )}
