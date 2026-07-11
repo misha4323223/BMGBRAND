@@ -1269,65 +1269,46 @@ export function registerProductInfoRoute(app: Express): void {
         Object.keys(product.sizeStock).length > 0;
       const hasSizes = Array.isArray(product.sizes) && product.sizes.length > 0;
 
+      // Plain-text system prompt — avoid ** markdown inside system message (confuses qwen3)
       let sys =
-        `Ты — эксперт-консультант интернет-магазина BOOOMERANGS. ` +
-        `Твоя задача — помочь покупателю разобраться в конкретном товаре.\n\n` +
+        `Ты — консультант интернет-магазина BOOOMERANGS. Отвечай по-русски живым языком, как опытный продавец. ` +
+        `Используй только данные ниже, ничего не придумывай. ` +
+        `Когда просят рассказать всё — пройдись по всем доступным разделам: описание, материал, уход, размеры. ` +
+        `Если какой-то информации нет — честно скажи об этом.\n\n` +
+        `ТОВАР:\n` +
+        `Название: ${product.name}\n` +
+        `Цена: ${priceStr}`;
 
-        `## Правила ответа\n` +
-        `- Пиши живым, тёплым языком — как опытный продавец, а не как база данных\n` +
-        `- Когда покупатель просит «расскажи всё» — давай развёрнутый ответ по всем доступным разделам: описание, материал, уход, размеры\n` +
-        `- Используй ТОЛЬКО данные из этого промта. Если поля нет — честно скажи об этом, не выдумывай\n` +
-        `- Не перечисляй поля как таблицу — пиши связный текст, используй **жирный** для акцентов\n` +
-        `- Если информации мало — подчеркни что именно известно и предложи задать уточняющий вопрос\n` +
-        `- Отвечай по-русски\n\n` +
-
-        `## Данные о товаре\n` +
-        `**Название:** ${product.name}\n` +
-        `**Цена:** ${priceStr}`;
-
-      if (product.color) sys += `\n**Цвет:** ${product.color}`;
-
-      if (hasDescription) {
-        sys += `\n**Описание:** ${product.description}`;
-      }
-      if (hasComposition) {
-        sys += `\n**Состав:** ${product.composition}`;
-      }
-      if (hasCare) {
-        sys += `\n**Уход:** ${product.careInstructions}`;
-      }
+      if (product.color) sys += `\nЦвет: ${product.color}`;
+      if (hasDescription)  sys += `\nОписание: ${product.description}`;
+      if (hasComposition)  sys += `\nСостав: ${product.composition}`;
+      if (hasCare)         sys += `\nУход: ${product.careInstructions}`;
 
       if (hasSizeStock) {
         const entries = Object.entries(product.sizeStock as Record<string, number>);
-        const inStock = entries.filter(([, q]) => Number(q) > 0);
-        const outOfStock = entries.filter(([, q]) => Number(q) <= 0);
-        const stockStr = inStock.map(([s, q]) => `${s} (${q} шт.)`).join(", ");
-        const oosStr = outOfStock.map(([s]) => s).join(", ");
-        sys += `\n**Наличие по размерам:** ${stockStr || "нет в наличии"}`;
-        if (oosStr) sys += ` | Нет в наличии: ${oosStr}`;
+        const inStock   = entries.filter(([, q]) => Number(q) > 0).map(([s, q]) => `${s} (${q} шт.)`).join(", ");
+        const outStock  = entries.filter(([, q]) => Number(q) <= 0).map(([s]) => s).join(", ");
+        sys += `\nНаличие по размерам: ${inStock || "нет в наличии"}`;
+        if (outStock) sys += `; нет в наличии: ${outStock}`;
       } else if (hasSizes) {
-        sys += `\n**Доступные размеры:** ${product.sizes!.join(", ")}`;
+        sys += `\nРазмеры: ${product.sizes!.join(", ")}`;
       }
 
       if (hasMeasurements) {
         const cols = Object.keys(product.measurements![0]).filter((k: string) => k !== "size");
-        sys +=
-          `\n\n## Таблица размеров (в см)\n| Размер | ${cols.join(" | ")} |\n` +
-          `|---|${cols.map(() => "---").join("|")}|`;
+        sys += `\n\nТаблица замеров (см):\n| Размер | ${cols.join(" | ")} |\n|---|${cols.map(() => "---").join("|")}|`;
         for (const row of product.measurements!) {
           sys += `\n| ${row.size} | ${cols.map((c: string) => row[c] ?? "—").join(" | ")} |`;
         }
       }
 
-      // Tell AI which fields are missing so it doesn't invent them
       const missingFields: string[] = [];
       if (!hasDescription) missingFields.push("описание");
       if (!hasComposition) missingFields.push("состав");
-      if (!hasCare) missingFields.push("уход");
+      if (!hasCare)        missingFields.push("уход");
       if (!hasMeasurements) missingFields.push("таблица замеров");
       if (missingFields.length > 0) {
-        sys += `\n\n**Информации нет в базе:** ${missingFields.join(", ")}. ` +
-          `Честно сообщи покупателю об отсутствии этих данных и предложи уточнить у менеджера.`;
+        sys += `\n\nСледующей информации нет в базе: ${missingFields.join(", ")}. Сообщи об этом покупателю.`;
       }
 
       // ── Open SSE stream ────────────────────────────────────────────────────
@@ -1352,7 +1333,9 @@ export function registerProductInfoRoute(app: Express): void {
             body: JSON.stringify({
               model: "qwen/qwen3.6-27b",
               messages: [{ role: "system", content: sys }, ...messages.slice(-6)],
-              max_tokens: 900,
+              // qwen3 spending ~400-600 tokens on <think> before visible output —
+              // must give enough budget so the actual answer isn't starved
+              max_tokens: 1500,
               temperature: 0.6,
               stream: true,
             }),
