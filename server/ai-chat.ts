@@ -1273,8 +1273,8 @@ export function registerProductInfoRoute(app: Express): void {
       let sys =
         `Ты — консультант интернет-магазина BOOOMERANGS. Отвечай по-русски живым языком, как опытный продавец. ` +
         `Используй только данные ниже, ничего не придумывай. ` +
-        `Когда просят рассказать всё — пройдись по всем доступным разделам: описание, материал, уход, размеры. ` +
-        `Если какой-то информации нет — честно скажи об этом.\n\n` +
+        `Описание товара перескажи кратко — 1-2 предложения, без лишних деталей. ` +
+        `Упоминай только те разделы, которые есть в данных — если поля нет, просто пропусти его, ничего не говори об отсутствии.\n\n` +
         `ТОВАР:\n` +
         `Название: ${product.name}\n` +
         `Цена: ${priceStr}`;
@@ -1302,14 +1302,7 @@ export function registerProductInfoRoute(app: Express): void {
         }
       }
 
-      const missingFields: string[] = [];
-      if (!hasDescription) missingFields.push("описание");
-      if (!hasComposition) missingFields.push("состав");
-      if (!hasCare)        missingFields.push("уход");
-      if (!hasMeasurements) missingFields.push("таблица замеров");
-      if (missingFields.length > 0) {
-        sys += `\n\nСледующей информации нет в базе: ${missingFields.join(", ")}. Сообщи об этом покупателю.`;
-      }
+      // No "missing fields" block — just silently skip unavailable sections
 
       // ── Open SSE stream ────────────────────────────────────────────────────
       res.setHeader("Content-Type", "text/event-stream");
