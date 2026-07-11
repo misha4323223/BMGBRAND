@@ -108,7 +108,7 @@ async function groqComplete(
         ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify({
-        model: "qwen/qwen3-32b",
+        model: "qwen/qwen3.6-27b",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

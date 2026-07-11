@@ -497,7 +497,7 @@ export async function processAdminCommand(
       ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
     },
     body: JSON.stringify({
-      model: "qwen/qwen3-32b",
+      model: "qwen/qwen3.6-27b",
       messages,
       temperature: 0.1,
       max_tokens: 1024,

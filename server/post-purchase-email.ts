@@ -119,7 +119,7 @@ ${firstName ? `Обращайся по имени: ${firstName}.` : ''}
         ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify({
-        model: 'qwen/qwen3-32b',
+        model: 'qwen/qwen3.6-27b',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
         max_tokens: 120,
