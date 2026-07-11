@@ -1257,38 +1257,78 @@ export function registerProductInfoRoute(app: Express): void {
       const priceStr = product.price
         ? `${Math.round(Number(product.price) / 100)} ₽`
         : "не указана";
-      let sys =
-        `Ты — помощник интернет-магазина BOOOMERANGS. ` +
-        `Отвечай только по данному товару — кратко, по делу, по-русски.\n\n` +
-        `## Товар\n- Название: ${product.name}\n- Цена: ${priceStr}`;
-      if (product.color) sys += `\n- Цвет: ${product.color}`;
-      if (product.description) sys += `\n- Описание: ${product.description}`;
-      if (product.composition) sys += `\n- Состав: ${product.composition}`;
-      if (product.careInstructions) sys += `\n- Уход: ${product.careInstructions}`;
 
-      if (product.sizeStock && typeof product.sizeStock === "object") {
-        const entries = Object.entries(product.sizeStock as Record<string, number>);
-        if (entries.length > 0) {
-          const stockStr = entries
-            .map(([s, q]) => `${s}: ${Number(q) > 0 ? `${q} шт.` : "нет"}`)
-            .join(", ");
-          sys += `\n- Наличие по размерам: ${stockStr}`;
-        }
-      } else if (Array.isArray(product.sizes) && product.sizes.length > 0) {
-        sys += `\n- Размеры: ${product.sizes.join(", ")}`;
+      // Collect available fields so we can give the AI context about what's missing
+      const hasDescription = !!product.description;
+      const hasComposition = !!product.composition;
+      const hasCare = !!product.careInstructions;
+      const hasMeasurements = Array.isArray(product.measurements) && product.measurements.length > 0;
+      const hasSizeStock =
+        product.sizeStock &&
+        typeof product.sizeStock === "object" &&
+        Object.keys(product.sizeStock).length > 0;
+      const hasSizes = Array.isArray(product.sizes) && product.sizes.length > 0;
+
+      let sys =
+        `Ты — эксперт-консультант интернет-магазина BOOOMERANGS. ` +
+        `Твоя задача — помочь покупателю разобраться в конкретном товаре.\n\n` +
+
+        `## Правила ответа\n` +
+        `- Пиши живым, тёплым языком — как опытный продавец, а не как база данных\n` +
+        `- Когда покупатель просит «расскажи всё» — давай развёрнутый ответ по всем доступным разделам: описание, материал, уход, размеры\n` +
+        `- Используй ТОЛЬКО данные из этого промта. Если поля нет — честно скажи об этом, не выдумывай\n` +
+        `- Не перечисляй поля как таблицу — пиши связный текст, используй **жирный** для акцентов\n` +
+        `- Если информации мало — подчеркни что именно известно и предложи задать уточняющий вопрос\n` +
+        `- Отвечай по-русски\n\n` +
+
+        `## Данные о товаре\n` +
+        `**Название:** ${product.name}\n` +
+        `**Цена:** ${priceStr}`;
+
+      if (product.color) sys += `\n**Цвет:** ${product.color}`;
+
+      if (hasDescription) {
+        sys += `\n**Описание:** ${product.description}`;
+      }
+      if (hasComposition) {
+        sys += `\n**Состав:** ${product.composition}`;
+      }
+      if (hasCare) {
+        sys += `\n**Уход:** ${product.careInstructions}`;
       }
 
-      if (Array.isArray(product.measurements) && product.measurements.length > 0) {
-        const cols = Object.keys(product.measurements[0]).filter((k: string) => k !== "size");
+      if (hasSizeStock) {
+        const entries = Object.entries(product.sizeStock as Record<string, number>);
+        const inStock = entries.filter(([, q]) => Number(q) > 0);
+        const outOfStock = entries.filter(([, q]) => Number(q) <= 0);
+        const stockStr = inStock.map(([s, q]) => `${s} (${q} шт.)`).join(", ");
+        const oosStr = outOfStock.map(([s]) => s).join(", ");
+        sys += `\n**Наличие по размерам:** ${stockStr || "нет в наличии"}`;
+        if (oosStr) sys += ` | Нет в наличии: ${oosStr}`;
+      } else if (hasSizes) {
+        sys += `\n**Доступные размеры:** ${product.sizes!.join(", ")}`;
+      }
+
+      if (hasMeasurements) {
+        const cols = Object.keys(product.measurements![0]).filter((k: string) => k !== "size");
         sys +=
           `\n\n## Таблица размеров (в см)\n| Размер | ${cols.join(" | ")} |\n` +
           `|---|${cols.map(() => "---").join("|")}|`;
-        for (const row of product.measurements) {
+        for (const row of product.measurements!) {
           sys += `\n| ${row.size} | ${cols.map((c: string) => row[c] ?? "—").join(" | ")} |`;
         }
       }
 
-      sys += `\n\nЕсли информации нет в данных выше — честно скажи об этом.`;
+      // Tell AI which fields are missing so it doesn't invent them
+      const missingFields: string[] = [];
+      if (!hasDescription) missingFields.push("описание");
+      if (!hasComposition) missingFields.push("состав");
+      if (!hasCare) missingFields.push("уход");
+      if (!hasMeasurements) missingFields.push("таблица замеров");
+      if (missingFields.length > 0) {
+        sys += `\n\n**Информации нет в базе:** ${missingFields.join(", ")}. ` +
+          `Честно сообщи покупателю об отсутствии этих данных и предложи уточнить у менеджера.`;
+      }
 
       // ── Open SSE stream ────────────────────────────────────────────────────
       res.setHeader("Content-Type", "text/event-stream");
