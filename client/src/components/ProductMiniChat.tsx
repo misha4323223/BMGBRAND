@@ -298,15 +298,18 @@ export const ProductMiniChat = memo(function ProductMiniChat({ product, resetKey
           }
         }
 
-        // Empty response (think-only, filtered out) — treat as soft error
+        // Fallback: client-side empty detection if server didn't catch it
         if (!accumulated.trim()) {
-          throw new Error("empty_response");
+          throw new Error("ai_error:empty_response");
         }
       } catch (err: any) {
-        const isAiError = err.message?.startsWith("ai_error:");
-        const errorText = isAiError
-          ? "ИИ временно недоступен. Попробуйте позже."
-          : "Не удалось получить ответ. Попробуйте ещё раз.";
+        const errMsg = err.message ?? "";
+        const errorText =
+          errMsg === "ai_error:empty_response"
+            ? "ИИ обдумал вопрос, но не смог дать ответ. Попробуйте задать вопрос иначе."
+            : errMsg === "ai_error:ai_unavailable"
+            ? "ИИ временно недоступен. Попробуйте позже."
+            : "Не удалось получить ответ. Попробуйте ещё раз.";
         setMessages(prev => {
           const updated = [...prev];
           updated[updated.length - 1] = { role: "assistant", content: errorText, isError: true };
@@ -413,6 +416,16 @@ export const ProductMiniChat = memo(function ProductMiniChat({ product, resetKey
                     ) : isStreamingThis ? (
                       <BouncingDots />
                     ) : null}
+                    {/* Retry button right inside the error bubble — always visible */}
+                    {msg.isError && !streaming && (
+                      <button
+                        onClick={handleRetry}
+                        className="mt-2 flex items-center gap-1 text-[10px] font-semibold text-red-600 hover:text-red-800 underline underline-offset-2 transition-colors"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        Повторить запрос
+                      </button>
+                    )}
                   </div>
                 </div>
               );

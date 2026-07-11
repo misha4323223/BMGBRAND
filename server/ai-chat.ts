@@ -1387,6 +1387,7 @@ export function registerProductInfoRoute(app: Express): void {
       const decoder = new TextDecoder();
       let buf = "";
       let doneSent = false;
+      let totalOutputChars = 0;
       const thinkState = { inThink: false, thinkBuf: "" };
 
       try {
@@ -1400,6 +1401,11 @@ export function registerProductInfoRoute(app: Express): void {
             if (!line.startsWith("data: ")) continue;
             const raw = line.slice(6).trim();
             if (raw === "[DONE]") {
+              // If model produced only <think> tokens — send explicit error so client can show helpful UI
+              if (totalOutputChars === 0) {
+                console.warn("[ProductInfo] Model returned only think tokens — sending empty_response error");
+                res.write(`data: ${JSON.stringify({ error: "empty_response" })}\n\n`);
+              }
               res.write("data: [DONE]\n\n");
               doneSent = true;
               continue;
@@ -1408,7 +1414,10 @@ export function registerProductInfoRoute(app: Express): void {
               const delta = JSON.parse(raw).choices?.[0]?.delta?.content ?? "";
               if (!delta) continue;
               const output = filterThinkTokens(delta, thinkState);
-              if (output) res.write(`data: ${JSON.stringify({ text: output })}\n\n`);
+              if (output) {
+                totalOutputChars += output.length;
+                res.write(`data: ${JSON.stringify({ text: output })}\n\n`);
+              }
             } catch {
               // malformed chunk — skip
             }
@@ -1419,7 +1428,13 @@ export function registerProductInfoRoute(app: Express): void {
       }
 
       // Guarantee [DONE] reaches the client even if Groq omits it
-      if (!doneSent) res.write("data: [DONE]\n\n");
+      if (!doneSent) {
+        if (totalOutputChars === 0) {
+          console.warn("[ProductInfo] Stream ended without output — sending empty_response error");
+          res.write(`data: ${JSON.stringify({ error: "empty_response" })}\n\n`);
+        }
+        res.write("data: [DONE]\n\n");
+      }
       res.end();
     } catch (err: any) {
       console.error("[ProductInfo] Unhandled error:", err.message);
