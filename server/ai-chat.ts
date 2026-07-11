@@ -1205,7 +1205,37 @@ export function registerAiChatRoute(app: Express): void {
   });
 }
 
-// ─── Product Info Chat Route (GROQ_API_KEY_2) ────────────────────────────────
+// ─── Product Info Chat Route ──────────────────────────────────────────────────
+// Uses GROQ_API_KEY_2 first; falls back to GROQ_API_KEY on 429 rate-limit.
+// Always sends data:[DONE] to the client so the SSE stream closes cleanly.
+
+const PRODUCT_INFO_TIMEOUT_MS = 25_000;
+
+/** Strip <think>…</think> tokens from a streaming delta chunk. */
+function filterThinkTokens(
+  delta: string,
+  state: { inThink: boolean; thinkBuf: string }
+): string {
+  let output = "";
+  for (let i = 0; i < delta.length; i++) {
+    if (!state.inThink) {
+      if (delta.slice(i).startsWith("<think>")) {
+        state.inThink = true;
+        state.thinkBuf = "";
+        i += 6;
+        continue;
+      }
+      output += delta[i];
+    } else {
+      state.thinkBuf += delta[i];
+      if (state.thinkBuf.endsWith("</think>")) {
+        state.inThink = false;
+        state.thinkBuf = "";
+      }
+    }
+  }
+  return output;
+}
 
 export function registerProductInfoRoute(app: Express): void {
   app.post("/api/ai/product-info", async (req, res) => {
@@ -1215,22 +1245,33 @@ export function registerProductInfoRoute(app: Express): void {
         return res.status(400).json({ error: "product and messages required" });
       }
 
-      const apiKey = process.env.GROQ_API_KEY_2 || process.env.GROQ_API_KEY;
-      if (!apiKey) {
+      // Key priority: GROQ_API_KEY_2 → GROQ_API_KEY
+      const primaryKey = process.env.GROQ_API_KEY_2 || "";
+      const fallbackKey = process.env.GROQ_API_KEY || "";
+      if (!primaryKey && !fallbackKey) {
         return res.status(503).json({ error: "AI not configured" });
       }
+      const keysToTry = [primaryKey, fallbackKey].filter(Boolean);
 
-      const priceStr = product.price ? `${Math.round(Number(product.price) / 100)} ₽` : "не указана";
-      let sys = `Ты — помощник интернет-магазина BOOOMERANGS. Отвечай только по данному товару — кратко, по делу, по-русски.\n\n## Товар\n- Название: ${product.name}\n- Цена: ${priceStr}`;
+      // ── Build system prompt ────────────────────────────────────────────────
+      const priceStr = product.price
+        ? `${Math.round(Number(product.price) / 100)} ₽`
+        : "не указана";
+      let sys =
+        `Ты — помощник интернет-магазина BOOOMERANGS. ` +
+        `Отвечай только по данному товару — кратко, по делу, по-русски.\n\n` +
+        `## Товар\n- Название: ${product.name}\n- Цена: ${priceStr}`;
       if (product.color) sys += `\n- Цвет: ${product.color}`;
       if (product.description) sys += `\n- Описание: ${product.description}`;
       if (product.composition) sys += `\n- Состав: ${product.composition}`;
       if (product.careInstructions) sys += `\n- Уход: ${product.careInstructions}`;
 
       if (product.sizeStock && typeof product.sizeStock === "object") {
-        const entries = Object.entries(product.sizeStock);
+        const entries = Object.entries(product.sizeStock as Record<string, number>);
         if (entries.length > 0) {
-          const stockStr = entries.map(([s, q]) => `${s}: ${Number(q) > 0 ? `${q} шт.` : "нет"}`).join(", ");
+          const stockStr = entries
+            .map(([s, q]) => `${s}: ${Number(q) > 0 ? `${q} шт.` : "нет"}`)
+            .join(", ");
           sys += `\n- Наличие по размерам: ${stockStr}`;
         }
       } else if (Array.isArray(product.sizes) && product.sizes.length > 0) {
@@ -1239,7 +1280,9 @@ export function registerProductInfoRoute(app: Express): void {
 
       if (Array.isArray(product.measurements) && product.measurements.length > 0) {
         const cols = Object.keys(product.measurements[0]).filter((k: string) => k !== "size");
-        sys += `\n\n## Таблица размеров (в см)\n| Размер | ${cols.join(" | ")} |\n|---|${cols.map(() => "---").join("|")}|`;
+        sys +=
+          `\n\n## Таблица размеров (в см)\n| Размер | ${cols.join(" | ")} |\n` +
+          `|---|${cols.map(() => "---").join("|")}|`;
         for (const row of product.measurements) {
           sys += `\n| ${row.size} | ${cols.map((c: string) => row[c] ?? "—").join(" | ")} |`;
         }
@@ -1247,35 +1290,64 @@ export function registerProductInfoRoute(app: Express): void {
 
       sys += `\n\nЕсли информации нет в данных выше — честно скажи об этом.`;
 
+      // ── Open SSE stream ────────────────────────────────────────────────────
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
       res.flushHeaders();
 
-      const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model: "qwen/qwen3.6-27b",
-          messages: [{ role: "system", content: sys }, ...messages.slice(-6)],
-          max_tokens: 900,
-          temperature: 0.6,
-          stream: true,
-        }),
-      });
+      // ── Try keys in order, retry once on 429 ──────────────────────────────
+      let groqRes: Response | null = null;
+      for (const apiKey of keysToTry) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), PRODUCT_INFO_TIMEOUT_MS);
+        try {
+          groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            signal: ctrl.signal,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              model: "qwen/qwen3.6-27b",
+              messages: [{ role: "system", content: sys }, ...messages.slice(-6)],
+              max_tokens: 900,
+              temperature: 0.6,
+              stream: true,
+            }),
+          });
+        } catch (fetchErr: any) {
+          if (fetchErr.name === "AbortError") {
+            console.error("[ProductInfo] Groq request timed out after", PRODUCT_INFO_TIMEOUT_MS, "ms");
+          } else {
+            console.error("[ProductInfo] Fetch error:", fetchErr.message);
+          }
+          break; // network-level failure — no point retrying with same key
+        } finally {
+          clearTimeout(timer);
+        }
 
-      if (!groqRes.ok || !groqRes.body) {
-        console.error("[ProductInfo] Groq error:", groqRes.status);
+        if (groqRes.status !== 429) break; // success or unrecoverable error — stop
+        console.warn("[ProductInfo] 429 on key, trying fallback key");
+        groqRes = null;
+      }
+
+      if (!groqRes || !groqRes.ok || !groqRes.body) {
+        const status = groqRes?.status ?? 0;
+        console.error("[ProductInfo] Groq unavailable, status:", status);
         res.write(`data: ${JSON.stringify({ error: "ai_unavailable" })}\n\n`);
+        res.write("data: [DONE]\n\n");
         res.end();
         return;
       }
 
+      // ── Stream and filter think tokens ────────────────────────────────────
       const reader = (groqRes.body as any).getReader();
       const decoder = new TextDecoder();
       let buf = "";
-      let inThink = false;
-      let thinkBuf = "";
+      let doneSent = false;
+      const thinkState = { inThink: false, thinkBuf: "" };
 
       try {
         while (true) {
@@ -1287,31 +1359,38 @@ export function registerProductInfoRoute(app: Express): void {
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
             const raw = line.slice(6).trim();
-            if (raw === "[DONE]") { res.write("data: [DONE]\n\n"); continue; }
+            if (raw === "[DONE]") {
+              res.write("data: [DONE]\n\n");
+              doneSent = true;
+              continue;
+            }
             try {
               const delta = JSON.parse(raw).choices?.[0]?.delta?.content ?? "";
               if (!delta) continue;
-              let output = "";
-              for (let i = 0; i < delta.length; i++) {
-                if (!inThink) {
-                  if (delta.slice(i).startsWith("<think>")) { inThink = true; thinkBuf = ""; i += 6; continue; }
-                  output += delta[i];
-                } else {
-                  thinkBuf += delta[i];
-                  if (thinkBuf.endsWith("</think>")) { inThink = false; thinkBuf = ""; }
-                }
-              }
+              const output = filterThinkTokens(delta, thinkState);
               if (output) res.write(`data: ${JSON.stringify({ text: output })}\n\n`);
-            } catch {}
+            } catch {
+              // malformed chunk — skip
+            }
           }
         }
       } catch (e: any) {
-        console.error("[ProductInfo] Stream error:", e.message);
+        console.error("[ProductInfo] Stream read error:", e.message);
       }
+
+      // Guarantee [DONE] reaches the client even if Groq omits it
+      if (!doneSent) res.write("data: [DONE]\n\n");
       res.end();
     } catch (err: any) {
-      console.error("[ProductInfo] Error:", err.message);
-      if (!res.headersSent) res.status(500).json({ error: "Internal error" });
+      console.error("[ProductInfo] Unhandled error:", err.message);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Internal error" });
+      } else if (!res.writableEnded) {
+        try {
+          res.write("data: [DONE]\n\n");
+          res.end();
+        } catch {}
+      }
     }
   });
 }
