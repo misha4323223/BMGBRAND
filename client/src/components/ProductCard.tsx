@@ -220,21 +220,28 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
     setProductChatStreaming(true);
     let content = "";
     try {
+      // Fetch full product data (catalog list strips description/composition/measurements)
+      let fullProduct: any = activeProduct;
+      try {
+        const detailRes = await fetch(`/api/products/${activeProduct.id}`);
+        if (detailRes.ok) fullProduct = await detailRes.json();
+      } catch {}
+
       const res = await fetch("/api/ai/product-info", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           product: {
-            id: activeProduct.id,
-            name: activeProduct.name,
-            price: activeProduct.price,
-            color: (activeProduct as any).color,
-            description: activeProduct.description,
-            composition: (activeProduct as any).composition,
-            careInstructions: (activeProduct as any).careInstructions,
-            measurements: (activeProduct as any).measurements,
-            sizes: activeProduct.sizes,
-            sizeStock: (activeProduct as any).sizeStock,
+            id: fullProduct.id,
+            name: fullProduct.name,
+            price: fullProduct.price,
+            color: fullProduct.color,
+            description: fullProduct.description,
+            composition: fullProduct.composition,
+            careInstructions: fullProduct.careInstructions,
+            measurements: fullProduct.measurements,
+            sizes: fullProduct.sizes,
+            sizeStock: fullProduct.sizeStock,
           },
           messages: withUser,
         }),
