@@ -4,7 +4,7 @@ import { Product } from "@shared/schema";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, ExternalLink, Minus, Plus, X, Percent, ChevronLeft, ChevronRight, Flame, Bell, Check, Loader2, ArrowUpRight } from "lucide-react";
+import { ShoppingCart, ExternalLink, Minus, Plus, X, Percent, ChevronLeft, ChevronRight, Flame, Bell, Check, Loader2, ArrowUpRight, Sparkles, Send } from "lucide-react";
 import { useCart, useAddToCart } from "@/hooks/use-cart";
 import { useToast } from "@/hooks/use-toast";
 import { useWholesalePrice } from "@/hooks/use-auth";
@@ -86,6 +86,14 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
   const [notifySubmitted, setNotifySubmitted] = useState<Set<string>>(new Set());
   const [notifySize, setNotifySize] = useState<string | null>(null);
   const [notifyConsent, setNotifyConsent] = useState(false);
+
+  // Mini product AI chat
+  const [isProductChatOpen, setIsProductChatOpen] = useState(false);
+  const [productChatMessages, setProductChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [productChatInput, setProductChatInput] = useState("");
+  const [productChatStreaming, setProductChatStreaming] = useState(false);
+  const productChatBottomRef = useRef<HTMLDivElement>(null);
+
   const isSocks = product.category === 'socks';
   const showWholesaleOverlay = isWholesale && isSocks;
 
@@ -196,8 +204,87 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
       setModalImageIndex(0);
       setNotifySize(null);
       setNotifySubmitted(new Set());
+      setIsProductChatOpen(false);
+      setProductChatMessages([]);
+      setProductChatInput("");
+      setProductChatStreaming(false);
     }
   }, [isModalOpen]);
+
+  const sendProductChatMessage = useCallback(async (text: string, currentMsgs: { role: "user" | "assistant"; content: string }[]) => {
+    if (!text.trim() || productChatStreaming) return;
+    const userMsg = { role: "user" as const, content: text };
+    const withUser = [...currentMsgs, userMsg];
+    setProductChatMessages([...withUser, { role: "assistant" as const, content: "" }]);
+    setProductChatInput("");
+    setProductChatStreaming(true);
+    let content = "";
+    try {
+      const res = await fetch("/api/ai/product-info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product: {
+            id: activeProduct.id,
+            name: activeProduct.name,
+            price: activeProduct.price,
+            color: (activeProduct as any).color,
+            description: activeProduct.description,
+            composition: (activeProduct as any).composition,
+            careInstructions: (activeProduct as any).careInstructions,
+            measurements: (activeProduct as any).measurements,
+            sizes: activeProduct.sizes,
+            sizeStock: (activeProduct as any).sizeStock,
+          },
+          messages: withUser,
+        }),
+      });
+      if (!res.ok || !res.body) throw new Error("no response");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6).trim();
+          if (raw === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed.text) {
+              content += parsed.text;
+              setProductChatMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = { role: "assistant", content };
+                return updated;
+              });
+            }
+          } catch {}
+        }
+      }
+    } catch {
+      setProductChatMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: "assistant", content: "Не удалось получить ответ. Попробуйте ещё раз." };
+        return updated;
+      });
+    }
+    setProductChatStreaming(false);
+  }, [activeProduct, productChatStreaming]);
+
+  useEffect(() => {
+    if (isProductChatOpen && productChatMessages.length === 0) {
+      sendProductChatMessage("Расскажи всё об этом товаре: описание, состав, уход и таблицу размеров если есть.", []);
+    }
+  }, [isProductChatOpen]);
+
+  useEffect(() => {
+    productChatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [productChatMessages]);
 
   useEffect(() => {
     setSelectedSize(null);
@@ -1058,6 +1145,64 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                   Открыть страницу товара
                   <ArrowUpRight className="w-3.5 h-3.5" />
                 </Link>
+
+                {/* AI Mini Chat */}
+                <div className="pt-2 border-t border-black/10">
+                  {!isProductChatOpen ? (
+                    <button
+                      onClick={() => setIsProductChatOpen(true)}
+                      className="w-full flex items-center justify-center gap-1.5 h-9 text-[11px] text-black/50 hover:text-black border border-black/15 hover:border-black/35 rounded-md transition-all"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Спросить ИИ об этом товаре
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-black/60 uppercase tracking-wider flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" /> ИИ о товаре
+                        </span>
+                        <button onClick={() => setIsProductChatOpen(false)} className="text-black/30 hover:text-black transition-colors">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto space-y-2 pr-0.5">
+                        {productChatMessages.map((msg, i) => (
+                          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[90%] px-2.5 py-1.5 rounded-lg text-[11px] leading-relaxed whitespace-pre-wrap ${msg.role === "user" ? "bg-black text-white" : "bg-black/5 text-black"}`}>
+                              {msg.content || (productChatStreaming && i === productChatMessages.length - 1 ? (
+                                <span className="flex gap-0.5 items-center h-3">
+                                  <span className="w-1 h-1 bg-black/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                                  <span className="w-1 h-1 bg-black/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                                  <span className="w-1 h-1 bg-black/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                                </span>
+                              ) : "")}
+                            </div>
+                          </div>
+                        ))}
+                        <div ref={productChatBottomRef} />
+                      </div>
+                      {!productChatStreaming && productChatMessages.length > 0 && (
+                        <div className="flex gap-1.5">
+                          <input
+                            value={productChatInput}
+                            onChange={e => setProductChatInput(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendProductChatMessage(productChatInput, productChatMessages); } }}
+                            placeholder="Задать вопрос..."
+                            className="flex-1 h-8 px-2.5 text-[11px] rounded-md border border-black/20 bg-transparent focus:outline-none focus:border-black/40 placeholder:text-black/30"
+                          />
+                          <button
+                            onClick={() => sendProductChatMessage(productChatInput, productChatMessages)}
+                            disabled={!productChatInput.trim()}
+                            className="h-8 w-8 flex items-center justify-center rounded-md bg-black text-white disabled:opacity-25 transition-opacity shrink-0"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

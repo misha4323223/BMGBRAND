@@ -37,6 +37,7 @@ import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
 import { registerAddonOrderRoutes, processAddonOrderPaid } from "./addon-order";
 import {
   registerAiChatRoute,
+  registerProductInfoRoute,
   registerAdminAgentRoutes,
   registerAgentQueueRoutes,
   registerAiKnowledgeRoutes,
@@ -2875,6 +2876,7 @@ BMGBRAND — официальный производитель и магазин
   });
 
   registerAiChatRoute(app);
+  registerProductInfoRoute(app);
 
   // ─── Proactive chat stats ────────────────────────────────────────────────────
   registerProactiveStatsRoutes(app, checkAdminKey);

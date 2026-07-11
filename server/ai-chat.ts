@@ -1205,6 +1205,117 @@ export function registerAiChatRoute(app: Express): void {
   });
 }
 
+// ─── Product Info Chat Route (GROQ_API_KEY_2) ────────────────────────────────
+
+export function registerProductInfoRoute(app: Express): void {
+  app.post("/api/ai/product-info", async (req, res) => {
+    try {
+      const { product, messages } = req.body;
+      if (!product || !Array.isArray(messages)) {
+        return res.status(400).json({ error: "product and messages required" });
+      }
+
+      const apiKey = process.env.GROQ_API_KEY_2 || process.env.GROQ_API_KEY;
+      if (!apiKey) {
+        return res.status(503).json({ error: "AI not configured" });
+      }
+
+      const priceStr = product.price ? `${Math.round(Number(product.price) / 100)} ₽` : "не указана";
+      let sys = `Ты — помощник интернет-магазина BOOOMERANGS. Отвечай только по данному товару — кратко, по делу, по-русски.\n\n## Товар\n- Название: ${product.name}\n- Цена: ${priceStr}`;
+      if (product.color) sys += `\n- Цвет: ${product.color}`;
+      if (product.description) sys += `\n- Описание: ${product.description}`;
+      if (product.composition) sys += `\n- Состав: ${product.composition}`;
+      if (product.careInstructions) sys += `\n- Уход: ${product.careInstructions}`;
+
+      if (product.sizeStock && typeof product.sizeStock === "object") {
+        const entries = Object.entries(product.sizeStock);
+        if (entries.length > 0) {
+          const stockStr = entries.map(([s, q]) => `${s}: ${Number(q) > 0 ? `${q} шт.` : "нет"}`).join(", ");
+          sys += `\n- Наличие по размерам: ${stockStr}`;
+        }
+      } else if (Array.isArray(product.sizes) && product.sizes.length > 0) {
+        sys += `\n- Размеры: ${product.sizes.join(", ")}`;
+      }
+
+      if (Array.isArray(product.measurements) && product.measurements.length > 0) {
+        const cols = Object.keys(product.measurements[0]).filter((k: string) => k !== "size");
+        sys += `\n\n## Таблица размеров (в см)\n| Размер | ${cols.join(" | ")} |\n|---|${cols.map(() => "---").join("|")}|`;
+        for (const row of product.measurements) {
+          sys += `\n| ${row.size} | ${cols.map((c: string) => row[c] ?? "—").join(" | ")} |`;
+        }
+      }
+
+      sys += `\n\nЕсли информации нет в данных выше — честно скажи об этом.`;
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.flushHeaders();
+
+      const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: "qwen/qwen3.6-27b",
+          messages: [{ role: "system", content: sys }, ...messages.slice(-6)],
+          max_tokens: 900,
+          temperature: 0.6,
+          stream: true,
+        }),
+      });
+
+      if (!groqRes.ok || !groqRes.body) {
+        console.error("[ProductInfo] Groq error:", groqRes.status);
+        res.write(`data: ${JSON.stringify({ error: "ai_unavailable" })}\n\n`);
+        res.end();
+        return;
+      }
+
+      const reader = (groqRes.body as any).getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let inThink = false;
+      let thinkBuf = "";
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split("\n");
+          buf = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const raw = line.slice(6).trim();
+            if (raw === "[DONE]") { res.write("data: [DONE]\n\n"); continue; }
+            try {
+              const delta = JSON.parse(raw).choices?.[0]?.delta?.content ?? "";
+              if (!delta) continue;
+              let output = "";
+              for (let i = 0; i < delta.length; i++) {
+                if (!inThink) {
+                  if (delta.slice(i).startsWith("<think>")) { inThink = true; thinkBuf = ""; i += 6; continue; }
+                  output += delta[i];
+                } else {
+                  thinkBuf += delta[i];
+                  if (thinkBuf.endsWith("</think>")) { inThink = false; thinkBuf = ""; }
+                }
+              }
+              if (output) res.write(`data: ${JSON.stringify({ text: output })}\n\n`);
+            } catch {}
+          }
+        }
+      } catch (e: any) {
+        console.error("[ProductInfo] Stream error:", e.message);
+      }
+      res.end();
+    } catch (err: any) {
+      console.error("[ProductInfo] Error:", err.message);
+      if (!res.headersSent) res.status(500).json({ error: "Internal error" });
+    }
+  });
+}
+
 // ─── Admin AI Agent Routes ────────────────────────────────────────────────────
 
 export function registerAdminAgentRoutes(
