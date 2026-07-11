@@ -484,12 +484,25 @@ function renderProduct(slug: string): string | null {
       return reviewSchema;
     });
   }
+  const additionalProps: any[] = [];
   if (meta.sizes.length > 0) {
-    productSchema.additionalProperty = [{
-      "@type": "PropertyValue",
-      "name": "Доступные размеры",
-      "value": meta.sizes.join(", "),
-    }];
+    additionalProps.push({ "@type": "PropertyValue", "name": "Доступные размеры", "value": meta.sizes.join(", ") });
+  }
+  if (meta.composition) {
+    productSchema.material = meta.composition;
+    additionalProps.push({ "@type": "PropertyValue", "name": "Состав", "value": meta.composition });
+  }
+  if (meta.careInstructions) {
+    additionalProps.push({ "@type": "PropertyValue", "name": "Уход", "value": meta.careInstructions });
+  }
+  if (meta.measurements && meta.measurements.length > 0) {
+    const measurementStr = meta.measurements.map(row =>
+      Object.entries(row).map(([k, v]) => `${k}: ${v}`).join(", ")
+    ).join(" | ");
+    additionalProps.push({ "@type": "PropertyValue", "name": "Таблица размеров", "value": measurementStr });
+  }
+  if (additionalProps.length > 0) {
+    productSchema.additionalProperty = additionalProps;
   }
 
   // Color/model variants — synchronous, in-memory only (never touches YDB).
@@ -608,6 +621,16 @@ ${videoHtml}
   ${meta.colors.length > 0 ? `<p>Цвета: ${esc(meta.colors.join(", "))}</p>` : ""}
   ${catName ? `<p>Категория: <a href="/products/${esc(meta.category)}">${esc(catName)}</a></p>` : ""}
   ${meta.description ? `<p class="desc" style="margin-top:1rem;max-width:none">${esc(meta.description)}</p>` : ""}
+  ${meta.composition ? `<p style="margin-top:.75rem"><strong>Состав:</strong> ${esc(meta.composition)}</p>` : ""}
+  ${meta.careInstructions ? `<p style="margin-top:.5rem"><strong>Уход:</strong> ${esc(meta.careInstructions)}</p>` : ""}
+  ${meta.measurements && meta.measurements.length > 0 ? (() => {
+    const cols = Object.keys(meta.measurements[0]);
+    const header = cols.map(c => `<th>${esc(c)}</th>`).join("");
+    const rows = meta.measurements.map(row =>
+      `<tr>${cols.map(c => `<td>${esc(String(row[c] ?? ""))}</td>`).join("")}</tr>`
+    ).join("\n");
+    return `<div style="margin-top:.75rem;overflow-x:auto"><strong>Таблица размеров (см):</strong><table style="border-collapse:collapse;margin-top:.4rem;font-size:.85rem"><thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  })() : ""}
   <p style="margin-top:.75rem">Доставка по всей России СДЭК и Яндекс Доставкой.</p>
   <a href="/${esc(slug)}" class="buy-btn">Купить на сайте</a>
 </div>
