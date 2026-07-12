@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { z } from "zod";
-import { storage, warmRatingsCache } from "./storage";
+import { storage, warmRatingsCache, getCachedArtistHeroImage } from "./storage";
 import { authMiddleware, type AuthRequest } from "./auth-routes";
 import { sendAgentAlert, answerCallbackQuery, editMessageText } from "./telegram";
 import { vkNotifyAgentAlert } from "./vk";
@@ -1272,6 +1272,21 @@ export function registerProductInfoRoute(app: Express): void {
         Object.keys(product.sizeStock).length > 0;
       const hasSizes = Array.isArray(product.sizes) && product.sizes.length > 0;
 
+      // ── Artist collab context ──────────────────────────────────────────────
+      let artistContext = "";
+      if (product.artistSlug) {
+        const artistInfo = getCachedArtistHeroImage(product.artistSlug);
+        if (artistInfo.name) {
+          const role = artistInfo.role ? ` — ${artistInfo.role}` : "";
+          artistContext =
+            `\nКОЛЛАБОРАЦИЯ:\n` +
+            `- Товар создан в коллаборации с ${artistInfo.name}${role}\n` +
+            `- ${artistInfo.name} — это псевдоним/название артиста или коллектива, НЕ бренд одежды\n` +
+            `- BOOOMERANGS — российский бренд одежды из Тулы, который выпускает коллаборации с музыкантами и фестивалями\n` +
+            `- Расскажи об этом как о творческом союзе: бренд + артист, ограниченный дроп\n`;
+        }
+      }
+
       // Plain-text system prompt — avoid ** markdown inside system message (confuses qwen3)
       let sys =
         `Ты — консультант магазина BOOOMERANGS. Расскажи о товаре живо и по-русски — как опытный продавец другу.\n` +
@@ -1287,6 +1302,7 @@ export function registerProductInfoRoute(app: Express): void {
         `- Если покупатель назвал параметры тела — сразу называй конкретный размер, не переспрашивай\n` +
         `- Если параметры не названы и вопрос про размер — попроси только рост и обхват груди\n` +
         `- Всегда объясни выбор в 1 предложении\n\n` +
+        artistContext +
         `ТОВАР:\n` +
         `Название: ${product.name}\n` +
         `Цена: ${priceStr}`;

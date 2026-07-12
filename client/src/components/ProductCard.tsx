@@ -1048,7 +1048,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                 <>
                 {/* AI Mini Chat — above cart button */}
                 <ProductMiniChat
-                  product={activeProduct as any}
+                  product={{ ...(activeProduct as any), artistSlug: (product as any).artistSlug ?? (activeProduct as any).artistSlug }}
                   resetKey={isModalOpen ? String(activeProduct.id) : "closed"}
                 />
                 <Button 

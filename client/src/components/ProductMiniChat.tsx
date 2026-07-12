@@ -14,6 +14,7 @@ interface ProductForChat {
   measurements?: any[] | null;
   sizes?: string[];
   sizeStock?: Record<string, number> | null;
+  artistSlug?: string | null;
 }
 
 interface ChatMsg {
@@ -255,6 +256,7 @@ export const ProductMiniChat = memo(function ProductMiniChat({ product, resetKey
               measurements: fullProduct.measurements,
               sizes: fullProduct.sizes,
               sizeStock: fullProduct.sizeStock,
+              artistSlug: fullProduct.artistSlug,
             },
             messages: withUser,
           }),
