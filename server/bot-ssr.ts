@@ -371,15 +371,42 @@ function renderCategory(catSlug: string): string | null {
     </div>`).join("\n");
 
   const title = cat.title || `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
-  const jsonLd = safeJsonLd({
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [
-      { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
-      { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${SITE_URL}/products` },
-      { "@type": "ListItem", "position": 3, "name": cat.name, "item": `${SITE_URL}/products/${catSlug}` },
-    ],
-  });
+  const jsonLd = safeJsonLd([
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
+        { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${SITE_URL}/products` },
+        { "@type": "ListItem", "position": 3, "name": cat.name, "item": `${SITE_URL}/products/${catSlug}` },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": cat.name,
+      "description": cat.desc,
+      "url": `${SITE_URL}/products/${catSlug}`,
+      "numberOfItems": allSorted.length,
+      "itemListElement": allSorted.map((p, i) => ({
+        "@type": "ListItem",
+        "position": i + 1,
+        "item": {
+          "@type": "Product",
+          "name": p.name,
+          "url": `${SITE_URL}/${p.slug}`,
+          "offers": {
+            "@type": "Offer",
+            "priceCurrency": "RUB",
+            "price": (p.price / 100).toFixed(2),
+            "availability": p.stock > 0
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
+          },
+        },
+      })),
+    },
+  ]);
 
   const head = baseHead({
     title,
