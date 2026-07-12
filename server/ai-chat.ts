@@ -1313,12 +1313,12 @@ export function registerProductInfoRoute(app: Express): void {
       res.flushHeaders();
 
       // ── Helper: one Groq streaming attempt, returns chars written ────────────
+      // llama-3.1-8b-instant: no extended thinking, separate rate-limit quota
+      // from qwen3 used in main chat, responds in 300-700ms vs 2.5s for qwen3
       const groqBody = (apiKey: string) => JSON.stringify({
-        model: "qwen/qwen3.6-27b",
+        model: "llama-3.1-8b-instant",
         messages: [{ role: "system", content: sys }, ...messages.slice(-6)],
-        // qwen3 spends ~400-600 tokens on <think> before visible output —
-        // must give enough budget so the actual answer isn't starved
-        max_tokens: 1500,
+        max_tokens: 600,
         temperature: 0.6,
         stream: true,
       });
@@ -1414,9 +1414,11 @@ export function registerProductInfoRoute(app: Express): void {
           console.warn("[ProductInfo] All keys returned empty — sending empty_response");
           res.write(`data: ${JSON.stringify({ error: "empty_response" })}\n\n`);
         } else {
-          console.error("[ProductInfo] All keys failed");
+          console.error("[ProductInfo] All keys failed — sending ai_unavailable");
           res.write(`data: ${JSON.stringify({ error: "ai_unavailable" })}\n\n`);
         }
+      } else {
+        console.log(`[ProductInfo] OK — ${finalChars} chars sent`);
       }
 
       res.write("data: [DONE]\n\n");
