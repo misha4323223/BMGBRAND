@@ -1274,12 +1274,13 @@ export function registerProductInfoRoute(app: Express): void {
 
       // Plain-text system prompt — avoid ** markdown inside system message (confuses qwen3)
       let sys =
-        `Ты — консультант магазина BOOOMERANGS. Отвечай по-русски, кратко и своими словами — как будто объясняешь другу.\n` +
+        `Ты — консультант магазина BOOOMERANGS. Расскажи о товаре живо и по-русски — как опытный продавец другу.\n` +
         `Правила:\n` +
-        `- Весь ответ — не больше 4-5 предложений\n` +
         `- Используй только данные ниже, ничего не придумывай\n` +
         `- Разделы без данных пропускай полностью — ни слова об их отсутствии\n` +
-        `- Не перечисляй поля как список — объясняй связным текстом\n\n` +
+        `- Пиши связным текстом, не списком полей\n` +
+        `- Структура ответа: сначала что это и из чего (1-2 предл.), потом состав/уход если есть (1 предл.), потом размеры и наличие (1-2 предл.), потом таблица замеров если есть\n` +
+        `- Таблицу замеров выводи в формате markdown\n\n` +
         `ТОВАР:\n` +
         `Название: ${product.name}\n` +
         `Цена: ${priceStr}`;
@@ -1321,7 +1322,7 @@ export function registerProductInfoRoute(app: Express): void {
       const groqBody = (apiKey: string) => JSON.stringify({
         model: "llama-3.1-8b-instant",
         messages: [{ role: "system", content: sys }, ...messages.slice(-6)],
-        max_tokens: 600,
+        max_tokens: 900,
         temperature: 0.6,
         stream: true,
       });
