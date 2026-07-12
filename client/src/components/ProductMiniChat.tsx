@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, memo } from "react";
-import { Sparkles, X, Send, RotateCcw } from "lucide-react";
+import { Sparkles, X, Send, RotateCcw, ChevronRight } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -364,11 +364,17 @@ export const ProductMiniChat = memo(function ProductMiniChat({ product, resetKey
         /* Collapsed: trigger button */
         <button
           onClick={() => setIsOpen(true)}
-          className="w-full flex items-center justify-center gap-1.5 h-9 text-[11px] text-black/50 hover:text-black border border-black/15 hover:border-black/35 rounded-md transition-all"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-violet-500/10 via-indigo-500/8 to-blue-500/10 border border-violet-200/70 hover:border-violet-300 hover:from-violet-500/15 hover:to-blue-500/15 transition-all group"
           data-testid="button-product-ai-chat-open"
         >
-          <Sparkles className="w-3.5 h-3.5" />
-          Спросить ИИ об этом товаре
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center shrink-0 shadow-sm">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <div className="flex flex-col items-start text-left min-w-0">
+            <span className="text-[12px] font-semibold text-black/80 leading-tight">ИИ-консультант</span>
+            <span className="text-[10px] text-black/40 leading-tight mt-0.5">Состав, уход, подбор размера</span>
+          </div>
+          <ChevronRight className="w-4 h-4 text-black/25 ml-auto shrink-0 group-hover:text-black/50 transition-colors" />
         </button>
       ) : (
         /* Expanded: chat UI */

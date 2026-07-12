@@ -479,7 +479,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
             )}
         </div>
 
-        <DialogContent className="max-w-[95vw] sm:max-w-[800px] bg-[#F8F7F5]/85 backdrop-blur-2xl border-[#E8E6E1]/60 p-0 overflow-hidden rounded-2xl max-h-[92vh] sm:max-h-[95vh] duration-150" aria-describedby={undefined}>
+        <DialogContent className="max-w-[95vw] sm:max-w-[800px] bg-[#f2f2f2] border-[#d8d8d8] p-0 overflow-hidden rounded-2xl max-h-[92vh] sm:max-h-[95vh] duration-150" aria-describedby={undefined}>
           <DialogTitle className="sr-only">{product.name}</DialogTitle>
           <div className="flex flex-col md:flex-row max-h-[92vh] sm:max-h-[95vh] overflow-y-auto md:overflow-hidden">
             {/* Image container - swipe on mobile, arrows on desktop */}
@@ -582,7 +582,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
             <div className="w-full md:w-1/2 p-3 sm:p-6 lg:p-8 flex flex-col md:overflow-y-auto md:max-h-[95vh]">
               <div className="flex-1 flex flex-col">
                 <div className="mb-3 sm:mb-5 text-left">
-                  <h3 className="text-base sm:text-xl font-bold leading-snug text-black tracking-tight mb-1">{displayName(activeProduct.name)}</h3>
+                  <h3 className="text-xl sm:text-2xl font-black leading-snug text-black tracking-tight mb-1">{displayName(activeProduct.name)}</h3>
                   {(product as any).artistSlug && (
                     <Link
                       href={`/@${(product as any).artistSlug}`}
@@ -598,7 +598,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                       <p className="text-[10px] font-medium text-black uppercase tracking-wide">Предпродажная цена</p>
                     )}
                     <div className="flex items-baseline gap-3 flex-wrap">
-                      <span className={`text-2xl sm:text-3xl font-black tracking-tight ${activeHasDiscount ? 'text-red-500' : 'text-black'}`}>{activeHasDiscount ? formatPrice(activeSalePrice) : activeDisplayPrice}</span>
+                      <span className={`text-3xl sm:text-4xl font-black tracking-tight ${activeHasDiscount ? 'text-red-500' : 'text-black'}`}>{activeHasDiscount ? formatPrice(activeSalePrice) : activeDisplayPrice}</span>
                       {activeHasDiscount && (
                         <span className="text-base font-semibold text-red-400 line-through">{activeRetailPrice}</span>
                       )}
@@ -627,7 +627,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
 
                 <div className="space-y-2 sm:space-y-6 flex-1">
                   <div className="space-y-0.5 sm:space-y-2">
-                    <span className="text-[10px] sm:text-xs font-semibold text-black uppercase tracking-wider">Описание</span>
+                    <span className="text-[9px] font-medium text-black/40 uppercase tracking-widest">Описание</span>
                     <div className="relative">
                       <p 
                         className={`text-black/80 text-xs sm:text-sm leading-relaxed transition-all duration-300 ${
@@ -723,7 +723,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                   {!isEffectivelyNoSize(activeProduct) && (activeProduct.sizes?.length > 0 || hasActiveSizeStockData) && (
                     <div className="space-y-1 sm:space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] sm:text-xs font-semibold text-black uppercase tracking-wider">Размер</span>
+                        <span className="text-[9px] font-medium text-black/40 uppercase tracking-widest">Размер</span>
                         {isWholesale && hasActiveSizeStockData && (
                           <span className="text-[10px] sm:text-xs text-primary font-medium">Остаток</span>
                         )}
@@ -792,10 +792,10 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                                         setSelectedSize(size);
                                         setNotifySize(null);
                                       }}
-                                      className={`min-w-[36px] h-8 sm:h-10 border-2 text-[11px] sm:text-sm font-semibold transition-all flex items-center justify-center rounded-md px-2 sm:px-3 ${
+                                      className={`min-w-[40px] h-9 sm:h-11 border-2 text-[11px] sm:text-sm font-semibold transition-all flex items-center justify-center rounded-xl px-2 sm:px-3 ${
                                         selectedSize === size 
-                                          ? "bg-black text-white border-black" 
-                                          : "bg-transparent border-black/35 text-black hover:border-black hover:text-black"
+                                          ? "bg-black text-white border-black shadow-md" 
+                                          : "bg-white border-black/15 text-black hover:border-black hover:text-black shadow-sm"
                                       }`}
                                     >
                                       {size}
@@ -874,20 +874,20 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
 
                   {!isActiveProductOutOfStock && !(activeProduct as any).preorderEnabled && (
                   <div className="space-y-1 sm:space-y-2">
-                    <span className="text-[10px] sm:text-xs font-semibold text-black uppercase tracking-wider">Количество</span>
-                    <div className="flex items-center w-fit border border-black/30 rounded-md overflow-hidden">
+                    <span className="text-[9px] font-medium text-black/40 uppercase tracking-widest">Количество</span>
+                    <div className="flex items-center w-fit bg-white border border-black/10 rounded-full overflow-hidden shadow-sm">
                       <button 
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                        className="p-1.5 sm:p-3 hover:bg-black/5 transition-colors text-black/60 hover:text-black"
+                        className="p-2 sm:p-3 hover:bg-black/5 transition-colors text-black/50 hover:text-black"
                       >
-                        <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <Minus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       </button>
-                      <span className="w-8 sm:w-12 text-center text-xs sm:text-sm text-black">{quantity}</span>
+                      <span className="w-8 sm:w-10 text-center text-sm sm:text-base font-semibold text-black">{quantity}</span>
                       <button 
                         onClick={() => setQuantity(quantity + 1)}
-                        className="p-1.5 sm:p-3 hover:bg-black/5 transition-colors text-black/60 hover:text-black"
+                        className="p-2 sm:p-3 hover:bg-black/5 transition-colors text-black/50 hover:text-black"
                       >
-                        <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -895,7 +895,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                 </div>
               </div>
 
-              <div className="mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-black/25 space-y-1.5 sm:space-y-3">
+              <div className="mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-black/10 space-y-2 sm:space-y-3">
                 {(activeProduct as any).preorderEnabled ? (
                   <div className="space-y-2">
                     <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-3 space-y-1.5">
@@ -1045,7 +1045,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                 ) : (
                 <Button 
                   onClick={handleAddToCart}
-                  className="w-full bg-black text-white hover:bg-black/85 active:scale-[0.98] h-9 sm:h-12 text-xs sm:text-sm font-semibold tracking-widest uppercase transition-all rounded-none"
+                  className="w-full bg-black text-white hover:bg-black/85 active:scale-[0.98] h-11 sm:h-13 text-xs sm:text-sm font-semibold tracking-widest uppercase transition-all rounded-xl"
                 >
                   <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
                   В корзину
@@ -1054,7 +1054,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                 <Link
                   href={`/${activeProduct.slug || activeProduct.id}`}
                   onClick={() => setIsModalOpen(false)}
-                  className="flex items-center justify-center gap-1 text-xs text-black hover:text-black/70 underline underline-offset-4 decoration-black/40 hover:decoration-black/70 transition-colors py-1"
+                  className="flex items-center justify-center gap-1.5 w-full h-11 sm:h-13 border border-black/20 rounded-xl text-xs sm:text-sm font-medium text-black hover:bg-black hover:text-white hover:border-black transition-all"
                   data-testid="link-modal-open-product-page"
                 >
                   Открыть страницу товара
