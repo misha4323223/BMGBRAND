@@ -58,9 +58,6 @@ export function Footer() {
           <span className="mx-1.5 text-white/10">·</span>ИНН&nbsp;711614027971
           <span className="mx-1.5 text-white/10">·</span>ОГРНИП&nbsp;316715400111210
         </p>
-        <p className="text-[10px] text-white/15 font-mono leading-relaxed sm:text-right">
-          <a href="mailto:info@booomerangs.ru" className="hover:text-white/35 transition-colors duration-200">info@booomerangs.ru</a>
-        </p>
       </div>
     </div>
   );
