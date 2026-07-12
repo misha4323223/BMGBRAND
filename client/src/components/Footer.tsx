@@ -50,6 +50,21 @@ export function Footer() {
   const visibleSocials = socialLinksWithInstagram.filter((l) => l.visible);
   const visibleColumns = s.columns.filter((c) => c.visible);
 
+  const legalBar = (
+    <div className="border-t border-white/[0.05] px-4 sm:px-8 lg:px-12 py-3 sm:py-3.5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
+        <p className="text-[10px] text-white/20 font-mono leading-relaxed">
+          <span className="text-white/30 font-semibold not-italic">ИП Соболев Дмитрий Анатольевич</span>
+          <span className="mx-1.5 text-white/10">·</span>ИНН&nbsp;711614027971
+          <span className="mx-1.5 text-white/10">·</span>ОГРНИП&nbsp;316715400111210
+        </p>
+        <p className="text-[10px] text-white/15 font-mono leading-relaxed sm:text-right">
+          <a href="mailto:info@booomerangs.ru" className="hover:text-white/35 transition-colors duration-200">info@booomerangs.ru</a>
+        </p>
+      </div>
+    </div>
+  );
+
   const renderLink = (link: { label: string; href: string }, testId: string) => {
     const cls = "transition-colors duration-200 hover:text-primary";
     if (!link.href || link.href === "") {
@@ -64,14 +79,15 @@ export function Footer() {
   /* ── MINIMAL ── */
   if (s.style === "minimal") {
     return (
-      <footer className="bg-zinc-950 text-white border-t border-white/[0.08] py-6">
-        <div className="max-w-8xl mx-auto px-4 sm:px-8 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-4">
+      <footer className="bg-zinc-950 text-white border-t border-white/[0.08]">
+        <div className="max-w-8xl mx-auto px-4 sm:px-8 lg:px-12 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <Link href="/"><span className="font-['Oswald',sans-serif] text-xl font-bold uppercase tracking-widest">{s.logoText}<span className="text-primary">{s.logoAccentText}</span></span></Link>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-sm text-white/55">
             {visibleColumns.map((col) => col.links.filter((l) => l.visible).map((link, i) => <span key={i}>{renderLink(link, `link-footer-${col.title}-${i}`)}</span>))}
           </div>
           <div className="flex gap-4">{visibleSocials.map((s, i) => <a key={i} href={s.url} target="_blank" rel="noopener noreferrer" className="text-white/35 hover:text-primary transition-colors" aria-label={s.platform}><SocialIcon platform={s.platform} className="w-5 h-5" /></a>)}</div>
         </div>
+        {legalBar}
       </footer>
     );
   }
@@ -97,6 +113,7 @@ export function Footer() {
             <div className="flex gap-5">{s.showPrivacyLink && <Link href="/privacy" className="hover:text-primary transition-colors">{s.privacyLinkText}</Link>}{s.showTermsLink && <Link href="/terms" className="hover:text-primary transition-colors">{s.termsLinkText}</Link>}</div>
           </div>
         </div>
+        {legalBar}
       </footer>
     );
   }
@@ -151,6 +168,9 @@ export function Footer() {
           ))}
         </div>
       </div>
+
+      {/* Legal bar — required by Russian FZ / consumer protection law */}
+      {legalBar}
 
       {/* Bottom bar */}
       <div className="border-t border-white/[0.08] px-4 sm:px-8 lg:px-12 py-4 sm:py-5">
