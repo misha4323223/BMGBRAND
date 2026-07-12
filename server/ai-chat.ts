@@ -1296,11 +1296,45 @@ export function registerProductInfoRoute(app: Express): void {
 
       // Standard reference body chest (cm) per size label
       const bodyRefChest: Record<string, number> = { XS: 84, S: 88, M: 92, L: 96, XL: 100, XXL: 104, XXXL: 108 };
+      // Detect garment type from measurement columns
+      const measurementCols = hasMeasurements
+        ? Object.keys(product.measurements![0] as Record<string, any>).filter(k => k !== "size")
+        : [];
+      const isBottom = measurementCols.some(c => ["waist", "hips", "inseam"].includes(c)) &&
+                       !measurementCols.includes("chest");
+      const hasChest = measurementCols.includes("chest");
+
+      // Reference body measurements per size
+      const bodyRefChest: Record<string, number> = { XS: 84, S: 88, M: 92, L: 96, XL: 100, XXL: 104, XXXL: 108 };
+      const bodyRefWaist: Record<string, number> = { XS: 62, S: 66, M: 70, L: 74, XL: 78, XXL: 82, XXXL: 86 };
+
       let sizingRule = `- Чтобы найти размер: найди строку таблицы, где грудь изделия ближайшая к (грудь тела + 12 см)\n`;
+
       if (isOneSize) {
-        // OneSize product — no size advice, no body measurements
         sizingRule = `- Товар одного универсального размера (OneSize) — подбор размера не нужен, не спрашивай про рост и обхват груди.\n`;
-      } else if (hasMeasurements) {
+      } else if (hasMeasurements && isBottom) {
+        // Bottoms: use waist column, ask for waist (not chest)
+        const firstRow = product.measurements![0] as Record<string, any>;
+        const sizeLabel = String(firstRow.size || "").toUpperCase();
+        const garmentWaist = parseFloat(firstRow.waist);
+        const refBody = bodyRefWaist[sizeLabel];
+        if (!isNaN(garmentWaist) && refBody) {
+          const addOn = Math.round(garmentWaist - refBody);
+          if (addOn >= 14) {
+            sizingRule =
+              `- НИЗ ОДЕЖДЫ, СВОБОДНЫЙ КРОй (прибавка по талии ~${addOn} см): найди строку, где талия изделия = талия тела + ${addOn} см.\n` +
+              `- Если нет талии — спрашивай обхват бёдер, а не груди.\n`;
+          } else {
+            sizingRule =
+              `- НИЗ ОДЕЖДЫ (прибавка по талии ~${addOn} см): найди строку, где талия изделия = талия тела + ${addOn} см.\n` +
+              `- Если нет талии — спрашивай обхват бёдер, а не груди.\n`;
+          }
+        } else {
+          sizingRule =
+            `- НИЗ ОДЕЖДЫ: подбирай по обхвату талии или бёдер — НЕ спрашивай обхват груди.\n`;
+        }
+      } else if (hasMeasurements && hasChest) {
+        // Tops: use chest column
         const firstRow = product.measurements![0] as Record<string, any>;
         const garmentChest = parseFloat(firstRow.chest);
         const sizeLabel = String(firstRow.size || "").toUpperCase();
@@ -1308,11 +1342,9 @@ export function registerProductInfoRoute(app: Express): void {
         if (!isNaN(garmentChest) && refBody) {
           const addOn = Math.round(garmentChest - refBody);
           if (addOn >= 20) {
-            // Heavy oversized: the cut already IS the oversize, user body ≈ garment chest
             sizingRule =
-              `- КРОЙ ОВЕРСАЙЗ (прибавка изделия ~${addOn} см заложена в крой): чтобы найти размер — ` +
-              `найди строку, где грудь изделия БЛИЖАЙШАЯ К ГРУДИ ТЕЛА (без дополнительной прибавки). ` +
-              `Если грудь тела меньше минимального размера в таблице — рекомендуй XS.\n`;
+              `- КРОЙ ОВЕРСАЙЗ (прибавка изделия ~${addOn} см заложена в крой): найди строку, где грудь изделия БЛИЖАЙШАЯ К ГРУДИ ТЕЛА (без доп. прибавки). ` +
+              `Если грудь тела меньше минимального — рекомендуй XS.\n`;
           } else if (addOn >= 12) {
             sizingRule =
               `- СВОБОДНЫЙ КРОй (прибавка ~${addOn} см): найди строку, где грудь изделия = грудь тела + ${addOn} см.\n`;
@@ -1322,10 +1354,18 @@ export function registerProductInfoRoute(app: Express): void {
           }
         }
       } else {
-        // No table: general brand note
-        sizingRule =
-          `- Таблицы замеров нет. BOOOMERANGS шьёт в свободном/оверсайз крое — при подборе рекомендуй размер на 1 ступень меньше привычного (например, если обычно M — бери S). ` +
-          `Скажи покупателю, что точные замеры есть на странице каждого товара.\n`;
+        // No table: detect from product name whether it's a bottom
+        const nameLower = (product.name || "").toLowerCase();
+        const isBottomByName = /шорт|брюк|джинс|юбк|леггинс|лосин/.test(nameLower);
+        if (isBottomByName) {
+          sizingRule =
+            `- НИЗ ОДЕЖДЫ, таблицы замеров нет: спрашивай обхват талии или бёдер (НЕ грудь). ` +
+            `Скажи, что точные замеры есть на странице товара.\n`;
+        } else {
+          sizingRule =
+            `- Таблицы замеров нет. BOOOMERANGS шьёт в свободном/оверсайз крое — рекомендуй на 1 размер меньше привычного. ` +
+            `Скажи покупателю, что точные замеры есть на странице каждого товара.\n`;
+        }
       }
 
       // Plain-text system prompt — avoid ** markdown inside system message (confuses qwen3)
