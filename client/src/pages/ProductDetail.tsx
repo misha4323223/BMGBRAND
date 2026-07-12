@@ -1646,6 +1646,108 @@ export default function ProductDetail() {
               );
             })()}
 
+            {/* Size Advisor for Preorder — shown here because size block is hidden for active preorders */}
+            {(product as any).preorderEnabled && (product as any).preorderStatus === "collecting" && !isWholesale && !isEffectivelyNoSize(product) && (product.sizes?.length > 0 || ((product as any).sizeStock && Object.keys((product as any).sizeStock).length > 0)) && (
+              <div className="mb-4">
+                <button
+                  data-testid="button-size-advisor-preorder"
+                  onClick={() => { setSizeAdvisorOpen(v => !v); setSizeAdvisorResult(null); setSizeAdvisorRecommended(null); }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border/70 hover:border-foreground/40 bg-muted/30 hover:bg-muted/60 transition-all text-xs font-medium text-foreground/70 hover:text-foreground"
+                >
+                  <Ruler className="w-3.5 h-3.5 shrink-0" />
+                  <span>{sizeAdvisorOpen ? 'Свернуть' : 'Не знаете размер? Подобрать с AI'}</span>
+                </button>
+                {sizeAdvisorOpen && (
+                  <div className="mt-2 p-4 rounded-2xl bg-muted/50 border border-border/60 space-y-3">
+                    {sizeAdvisorResult ? (
+                      <>
+                        <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          <Ruler className="w-3.5 h-3.5 text-primary" />
+                          Рекомендация AI
+                        </p>
+                        <p className="text-sm text-foreground/80 leading-relaxed">{sizeAdvisorResult}</p>
+                        {sizeAdvisorRecommended && (
+                          <button
+                            onClick={() => { setSelectedSize(sizeAdvisorRecommended!); setSizeAdvisorOpen(false); }}
+                            className="w-full py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all"
+                          >
+                            Выбрать размер {sizeAdvisorRecommended}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { setSizeAdvisorResult(null); setSizeAdvisorRecommended(null); }}
+                          className="w-full py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          Ввести другие параметры
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                          <Ruler className="w-4 h-4 text-primary" />
+                          Подбор размера по параметрам
+                        </p>
+                        {(() => {
+                          const isSuit = ((product as any).measurementSections?.length ?? 0) > 0;
+                          const flatMeasurements = (product.measurements as SizeMeasurement[]) || [];
+                          const hasWaistInFlat = !isSuit && flatMeasurements.some((m: SizeMeasurement) => !!m.waist);
+                          const hasSleeveInFlat = flatMeasurements.some((m: SizeMeasurement) => !!m.sleeves);
+                          const nameLowR = (product.name || "").toLowerCase();
+                          const isBottomByNameR = ["шорт", "брюк", "джинс", "леггинс", "юбк", "бриджи", "бриджей"].some(kw => nameLowR.includes(kw));
+                          const isPants = isBottomByNameR || (hasWaistInFlat && !hasSleeveInFlat);
+                          const needsHips = isSuit || isPants;
+                          return (
+                            <>
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <label className="text-xs text-muted-foreground mb-1 block">Рост (см)</label>
+                                  <input type="number" placeholder="178" value={sizeAdvisorHeight} onChange={e => setSizeAdvisorHeight(e.target.value)}
+                                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors" />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="text-xs text-muted-foreground mb-1 block">
+                                    {isSuit ? 'Грудь (см)' : (isPants || hasWaistInFlat) ? 'Талия (см)' : 'Грудь (см)'}
+                                  </label>
+                                  <input type="number" placeholder="96" value={sizeAdvisorMeasure} onChange={e => setSizeAdvisorMeasure(e.target.value)}
+                                    onKeyDown={e => !needsHips && e.key === 'Enter' && handleSizeAdvisorSubmit()}
+                                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors" />
+                                </div>
+                              </div>
+                              {needsHips && (
+                                <div className="flex gap-2">
+                                  <div className="flex-1">
+                                    <label className="text-xs text-muted-foreground mb-1 block">Бёдра (см)</label>
+                                    <input type="number" placeholder="100" value={sizeAdvisorHips} onChange={e => setSizeAdvisorHips(e.target.value)}
+                                      onKeyDown={e => e.key === 'Enter' && handleSizeAdvisorSubmit()}
+                                      className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/60 transition-colors" />
+                                  </div>
+                                  <div className="flex-1" />
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                        <button
+                          onClick={handleSizeAdvisorSubmit}
+                          disabled={(() => {
+                            const isSuit = ((product as any).measurementSections?.length ?? 0) > 0;
+                            const fm = (product.measurements as SizeMeasurement[]) || [];
+                            const nlD = (product.name || "").toLowerCase();
+                            const isBottomD = ["шорт", "брюк", "джинс", "леггинс", "юбк", "бриджи", "бриджей"].some(kw => nlD.includes(kw));
+                            const isPants = !isSuit && (isBottomD || (fm.some((m: SizeMeasurement) => !!m.waist) && !fm.some((m: SizeMeasurement) => !!m.sleeves)));
+                            return !sizeAdvisorHeight.trim() || !sizeAdvisorMeasure.trim() || ((isSuit || isPants) && !sizeAdvisorHips.trim()) || sizeAdvisorLoading;
+                          })()}
+                          className="w-full py-2.5 rounded-xl bg-foreground text-background text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {sizeAdvisorLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Подбираем…</> : 'Подобрать размер'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Action Area */}
             {(() => {
               const sizeStockData = (product as any).sizeStock;
