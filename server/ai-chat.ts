@@ -1287,6 +1287,38 @@ export function registerProductInfoRoute(app: Express): void {
         }
       }
 
+      // ── Auto-detect fit style from measurements ────────────────────────────
+      // Standard reference body chest (cm) per size label
+      const bodyRefChest: Record<string, number> = { XS: 84, S: 88, M: 92, L: 96, XL: 100, XXL: 104, XXXL: 108 };
+      let sizingRule = `- Чтобы найти размер: найди строку таблицы, где грудь изделия ближайшая к (грудь тела + 12 см)\n`;
+      if (hasMeasurements) {
+        const firstRow = product.measurements![0] as Record<string, any>;
+        const garmentChest = parseFloat(firstRow.chest);
+        const sizeLabel = String(firstRow.size || "").toUpperCase();
+        const refBody = bodyRefChest[sizeLabel];
+        if (!isNaN(garmentChest) && refBody) {
+          const addOn = Math.round(garmentChest - refBody);
+          if (addOn >= 20) {
+            // Heavy oversized: the cut already IS the oversize, user body ≈ garment chest
+            sizingRule =
+              `- КРОЙ ОВЕРСАЙЗ (прибавка изделия ~${addOn} см заложена в крой): чтобы найти размер — ` +
+              `найди строку, где грудь изделия БЛИЖАЙШАЯ К ГРУДИ ТЕЛА (без дополнительной прибавки). ` +
+              `Если грудь тела меньше минимального размера в таблице — рекомендуй XS.\n`;
+          } else if (addOn >= 12) {
+            sizingRule =
+              `- СВОБОДНЫЙ КРОй (прибавка ~${addOn} см): найди строку, где грудь изделия = грудь тела + ${addOn} см.\n`;
+          } else {
+            sizingRule =
+              `- ПРИТАЛЕННЫЙ КРОй (прибавка ~${addOn} см): найди строку, где грудь изделия = грудь тела + ${addOn} см.\n`;
+          }
+        }
+      } else {
+        // No table: general brand note
+        sizingRule =
+          `- Таблицы замеров нет. BOOOMERANGS шьёт в свободном/оверсайз крое — при подборе рекомендуй размер на 1 ступень меньше привычного (например, если обычно M — бери S). ` +
+          `Скажи покупателю, что точные замеры есть на странице каждого товара.\n`;
+      }
+
       // Plain-text system prompt — avoid ** markdown inside system message (confuses qwen3)
       let sys =
         `Ты — консультант магазина BOOOMERANGS. Расскажи о товаре живо и по-русски — как опытный продавец другу.\n` +
@@ -1298,10 +1330,10 @@ export function registerProductInfoRoute(app: Express): void {
         `- Таблицу замеров выводи в формате markdown\n\n` +
         `ПОДБОР РАЗМЕРА — строго соблюдай:\n` +
         `- Замеры в таблице — это размеры ИЗДЕЛИЯ, не тела покупателя\n` +
-        `- Чтобы найти размер: обхват груди тела + 10-15 см = нужный обхват груди изделия (стандартный крой); если изделие оверсайз — прибавляй 15-25 см\n` +
+        sizingRule +
         `- Если покупатель назвал параметры тела — сразу называй конкретный размер, не переспрашивай\n` +
         `- Если параметры не названы и вопрос про размер — попроси только рост и обхват груди\n` +
-        `- Всегда объясни выбор в 1 предложении\n\n` +
+        `- Всегда объясни выбор в 1 предложении с причиной\n\n` +
         artistContext +
         `ТОВАР:\n` +
         `Название: ${product.name}\n` +
