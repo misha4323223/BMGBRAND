@@ -1045,6 +1045,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                     })()}
                   </>
                 ) : (
+                <>
                 {/* AI Mini Chat — above cart button */}
                 <ProductMiniChat
                   product={activeProduct as any}
@@ -1057,6 +1058,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                   <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
                   В корзину
                 </Button>
+                </>
                 )}
                 <Link
                   href={`/${activeProduct.slug || activeProduct.id}`}
