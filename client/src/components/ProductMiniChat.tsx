@@ -334,10 +334,7 @@ export const ProductMiniChat = memo(function ProductMiniChat({ product, resetKey
     if (initSentRef.current || messages.length > 0) return;
     initSentRef.current = true;
     // Use ref to avoid stale closure / dep array issues
-    sendMessageRef.current(
-      "Расскажи всё об этом товаре: описание, состав, уход и таблицу размеров если есть.",
-      []
-    );
+    sendMessageRef.current("Расскажи об этом товаре.", []);
   }, [isOpen, messages.length]);
 
   // ── Retry last failed message ─────────────────────────────────────────────

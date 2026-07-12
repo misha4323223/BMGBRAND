@@ -1271,10 +1271,12 @@ export function registerProductInfoRoute(app: Express): void {
 
       // Plain-text system prompt — avoid ** markdown inside system message (confuses qwen3)
       let sys =
-        `Ты — консультант интернет-магазина BOOOMERANGS. Отвечай по-русски живым языком, как опытный продавец. ` +
-        `Используй только данные ниже, ничего не придумывай. ` +
-        `Описание товара перескажи кратко — 1-2 предложения, без лишних деталей. ` +
-        `Упоминай только те разделы, которые есть в данных — если поля нет, просто пропусти его, ничего не говори об отсутствии.\n\n` +
+        `Ты — консультант магазина BOOOMERANGS. Отвечай по-русски, кратко и своими словами — как будто объясняешь другу.\n` +
+        `Правила:\n` +
+        `- Весь ответ — не больше 4-5 предложений\n` +
+        `- Используй только данные ниже, ничего не придумывай\n` +
+        `- Разделы без данных пропускай полностью — ни слова об их отсутствии\n` +
+        `- Не перечисляй поля как список — объясняй связным текстом\n\n` +
         `ТОВАР:\n` +
         `Название: ${product.name}\n` +
         `Цена: ${priceStr}`;
@@ -1310,107 +1312,114 @@ export function registerProductInfoRoute(app: Express): void {
       res.setHeader("Connection", "keep-alive");
       res.flushHeaders();
 
-      // ── Try keys in order, retry once on 429 ──────────────────────────────
-      let groqRes: Response | null = null;
-      for (const apiKey of keysToTry) {
+      // ── Helper: one Groq streaming attempt, returns chars written ────────────
+      const groqBody = (apiKey: string) => JSON.stringify({
+        model: "qwen/qwen3.6-27b",
+        messages: [{ role: "system", content: sys }, ...messages.slice(-6)],
+        // qwen3 spends ~400-600 tokens on <think> before visible output —
+        // must give enough budget so the actual answer isn't starved
+        max_tokens: 1500,
+        temperature: 0.6,
+        stream: true,
+      });
+
+      const tryGroqStream = async (apiKey: string): Promise<{ ok: boolean; chars: number; status?: number }> => {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), PRODUCT_INFO_TIMEOUT_MS);
+        let groqRes: Response;
         try {
           groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
             signal: ctrl.signal,
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-              model: "qwen/qwen3.6-27b",
-              messages: [{ role: "system", content: sys }, ...messages.slice(-6)],
-              // qwen3 spending ~400-600 tokens on <think> before visible output —
-              // must give enough budget so the actual answer isn't starved
-              max_tokens: 1500,
-              temperature: 0.6,
-              stream: true,
-            }),
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+            body: groqBody(apiKey),
           });
         } catch (fetchErr: any) {
           if (fetchErr.name === "AbortError") {
-            console.error("[ProductInfo] Groq request timed out after", PRODUCT_INFO_TIMEOUT_MS, "ms");
+            console.error("[ProductInfo] Groq timed out after", PRODUCT_INFO_TIMEOUT_MS, "ms");
           } else {
             console.error("[ProductInfo] Fetch error:", fetchErr.message);
           }
-          break; // network-level failure — no point retrying with same key
+          return { ok: false, chars: 0 };
         } finally {
           clearTimeout(timer);
         }
 
-        if (groqRes.status !== 429) break; // success or unrecoverable error — stop
-        console.warn("[ProductInfo] 429 on key, trying fallback key");
-        groqRes = null;
-      }
+        if (!groqRes.ok || !groqRes.body) {
+          return { ok: false, chars: 0, status: groqRes.status };
+        }
 
-      if (!groqRes || !groqRes.ok || !groqRes.body) {
-        const status = groqRes?.status ?? 0;
-        console.error("[ProductInfo] Groq unavailable, status:", status);
-        res.write(`data: ${JSON.stringify({ error: "ai_unavailable" })}\n\n`);
-        res.write("data: [DONE]\n\n");
-        res.end();
-        return;
-      }
+        const reader = (groqRes.body as any).getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        let chars = 0;
+        const thinkState = { inThink: false, thinkBuf: "" };
 
-      // ── Stream and filter think tokens ────────────────────────────────────
-      const reader = (groqRes.body as any).getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-      let doneSent = false;
-      let totalOutputChars = 0;
-      const thinkState = { inThink: false, thinkBuf: "" };
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split("\n");
-          buf = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const raw = line.slice(6).trim();
-            if (raw === "[DONE]") {
-              // If model produced only <think> tokens — send explicit error so client can show helpful UI
-              if (totalOutputChars === 0) {
-                console.warn("[ProductInfo] Model returned only think tokens — sending empty_response error");
-                res.write(`data: ${JSON.stringify({ error: "empty_response" })}\n\n`);
-              }
-              res.write("data: [DONE]\n\n");
-              doneSent = true;
-              continue;
-            }
-            try {
-              const delta = JSON.parse(raw).choices?.[0]?.delta?.content ?? "";
-              if (!delta) continue;
-              const output = filterThinkTokens(delta, thinkState);
-              if (output) {
-                totalOutputChars += output.length;
-                res.write(`data: ${JSON.stringify({ text: output })}\n\n`);
-              }
-            } catch {
-              // malformed chunk — skip
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split("\n");
+            buf = lines.pop() ?? "";
+            for (const line of lines) {
+              if (!line.startsWith("data: ")) continue;
+              const raw = line.slice(6).trim();
+              if (raw === "[DONE]") continue;
+              try {
+                const delta = JSON.parse(raw).choices?.[0]?.delta?.content ?? "";
+                if (!delta) continue;
+                const output = filterThinkTokens(delta, thinkState);
+                if (output) {
+                  chars += output.length;
+                  res.write(`data: ${JSON.stringify({ text: output })}\n\n`);
+                }
+              } catch { /* malformed chunk — skip */ }
             }
           }
+        } catch (e: any) {
+          console.error("[ProductInfo] Stream read error:", e.message);
         }
-      } catch (e: any) {
-        console.error("[ProductInfo] Stream read error:", e.message);
+
+        return { ok: true, chars };
+      };
+
+      // ── Try keys; on 429 or empty-response, fall through to next key ──────
+      let finalChars = 0;
+      let attempted = false;
+
+      for (const apiKey of keysToTry) {
+        const result = await tryGroqStream(apiKey);
+        attempted = true;
+
+        if (!result.ok) {
+          if (result.status === 429) {
+            console.warn("[ProductInfo] 429 on key, trying fallback key");
+            continue; // try next key
+          }
+          break; // unrecoverable network error
+        }
+
+        if (result.chars === 0) {
+          console.warn("[ProductInfo] Empty response (think-only) on attempt, trying next key if available");
+          continue; // try next key — might produce output with different key/context
+        }
+
+        finalChars = result.chars;
+        break; // success
       }
 
-      // Guarantee [DONE] reaches the client even if Groq omits it
-      if (!doneSent) {
-        if (totalOutputChars === 0) {
-          console.warn("[ProductInfo] Stream ended without output — sending empty_response error");
+      if (!attempted || finalChars === 0) {
+        if (finalChars === 0 && attempted) {
+          console.warn("[ProductInfo] All keys returned empty — sending empty_response");
           res.write(`data: ${JSON.stringify({ error: "empty_response" })}\n\n`);
+        } else {
+          console.error("[ProductInfo] All keys failed");
+          res.write(`data: ${JSON.stringify({ error: "ai_unavailable" })}\n\n`);
         }
-        res.write("data: [DONE]\n\n");
       }
+
+      res.write("data: [DONE]\n\n");
       res.end();
     } catch (err: any) {
       console.error("[ProductInfo] Unhandled error:", err.message);
