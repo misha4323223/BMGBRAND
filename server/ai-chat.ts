@@ -907,7 +907,7 @@ export function registerAiChatRoute(app: Express): void {
         .map((m: any) => m.content as string)
         .join(' ');
       const topicKey = detectAiTopic(recentUserContents);
-      console.log(`[AI Chat] model=qwen/qwen3.6-27b query="${(lastUserMsg?.content || '').substring(0, 60)}" topic=${topicKey || 'none'}`);
+      console.log(`[AI Chat] model=llama-3.3-70b-versatile query="${(lastUserMsg?.content || '').substring(0, 60)}" topic=${topicKey || 'none'}`);
       logChatTopic(lastUserMsg?.content || '', topicKey);
       let systemPrompt = getAiKnowledgeCached('ai_prompt_base');
       if (topicKey) {
