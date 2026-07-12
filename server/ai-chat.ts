@@ -404,8 +404,10 @@ export function registerAiChatRoute(app: Express): void {
       // --- Size advisor: product measurements context ---
       let sizeAdvisorContext = "";
       if (sizeProductId) {
-        const allProducts = await storage.getProducts() as any[];
-        const targetProduct = allProducts.find((p: any) => String(p.id) === String(sizeProductId));
+        // Use getProduct(id) directly — it checks per-product cache first (always populated
+        // when user is on the product page), avoiding the race condition where the all-products
+        // background cache refresh can temporarily return a product with empty measurements.
+        const targetProduct = await storage.getProduct(Number(sizeProductId)) as any;
         if (targetProduct) {
           const productName = targetProduct.name || "товар";
           const measurements = (targetProduct.measurements || []) as any[];
