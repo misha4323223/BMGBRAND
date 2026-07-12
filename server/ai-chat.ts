@@ -1301,8 +1301,14 @@ export function registerProductInfoRoute(app: Express): void {
       }
 
       if (hasMeasurements) {
+        const colLabels: Record<string, string> = {
+          length: "Длина", chest: "Грудь", shoulders: "Плечи", sleeves: "Рукав",
+          waist: "Талия", hips: "Бёдра", width: "Ширина", height: "Высота",
+          inseam: "Шаговый шов", neck: "Шея", sleeve: "Рукав",
+        };
         const cols = Object.keys(product.measurements![0]).filter((k: string) => k !== "size");
-        sys += `\n\nТаблица замеров (см):\n| Размер | ${cols.join(" | ")} |\n|---|${cols.map(() => "---").join("|")}|`;
+        const colHeaders = cols.map((c: string) => colLabels[c] ?? c);
+        sys += `\n\nТаблица замеров (см):\n| Размер | ${colHeaders.join(" | ")} |\n|---|${cols.map(() => "---").join("|")}|`;
         for (const row of product.measurements!) {
           sys += `\n| ${row.size} | ${cols.map((c: string) => row[c] ?? "—").join(" | ")} |`;
         }
