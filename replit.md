@@ -155,7 +155,7 @@ Yandex Object Storage (S3-compatible) is integrated via the AWS SDK. Sharp is us
 
 **Deployment (Production):**
 The application is deployed on Yandex Cloud, leveraging:
-- **Yandex Serverless Containers:** Main hosting for the application (Docker container based on `node:20-slim`).
+- **Yandex Serverless Containers:** Main hosting for the application (Docker container based on `node:24-slim`).
 - **Yandex Container Registry:** For storing Docker images.
 - **Yandex Database (YDB Serverless):** Production database.
 - **Yandex Object Storage (S3):** For storing images, XML logs, and 1C files.

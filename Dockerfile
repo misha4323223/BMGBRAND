@@ -1,5 +1,5 @@
 # Dockerfile for Yandex Serverless Containers
-FROM node:20-slim AS builder
+FROM node:24-slim AS builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY . .
 RUN NODE_ENV=production npm run build
 
 # Production image
-FROM node:20-slim
+FROM node:24-slim
 
 WORKDIR /app
 
