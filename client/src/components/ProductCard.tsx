@@ -1045,6 +1045,11 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                     })()}
                   </>
                 ) : (
+                {/* AI Mini Chat — above cart button */}
+                <ProductMiniChat
+                  product={activeProduct as any}
+                  resetKey={isModalOpen ? String(activeProduct.id) : "closed"}
+                />
                 <Button 
                   onClick={handleAddToCart}
                   className="w-full bg-black text-white hover:bg-black/85 active:scale-[0.98] h-11 sm:h-13 text-xs sm:text-sm font-semibold tracking-widest uppercase transition-all rounded-xl"
@@ -1062,12 +1067,6 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                   Открыть страницу товара
                   <ArrowUpRight className="w-3.5 h-3.5" />
                 </Link>
-
-                {/* AI Mini Chat — extracted to ProductMiniChat.tsx */}
-                <ProductMiniChat
-                  product={activeProduct as any}
-                  resetKey={isModalOpen ? String(activeProduct.id) : "closed"}
-                />
               </div>
             </div>
           </div>

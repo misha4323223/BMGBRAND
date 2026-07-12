@@ -364,17 +364,12 @@ export const ProductMiniChat = memo(function ProductMiniChat({ product, resetKey
         /* Collapsed: trigger button */
         <button
           onClick={() => setIsOpen(true)}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-violet-500/10 via-indigo-500/8 to-blue-500/10 border border-violet-200/70 hover:border-violet-300 hover:from-violet-500/15 hover:to-blue-500/15 transition-all group"
+          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white border border-black/12 hover:border-black/30 hover:bg-black/[0.02] transition-all group shadow-sm"
           data-testid="button-product-ai-chat-open"
         >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center shrink-0 shadow-sm">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <div className="flex flex-col items-start text-left min-w-0">
-            <span className="text-[12px] font-semibold text-black/80 leading-tight">ИИ-консультант</span>
-            <span className="text-[10px] text-black/40 leading-tight mt-0.5">Состав, уход, подбор размера</span>
-          </div>
-          <ChevronRight className="w-4 h-4 text-black/25 ml-auto shrink-0 group-hover:text-black/50 transition-colors" />
+          <Sparkles className="w-4 h-4 text-black/40 shrink-0 group-hover:text-black/70 transition-colors" />
+          <span className="text-[12px] font-medium text-black/60 group-hover:text-black/80 transition-colors">Спросить ИИ</span>
+          <ChevronRight className="w-3.5 h-3.5 text-black/20 ml-auto shrink-0 group-hover:text-black/40 transition-colors" />
         </button>
       ) : (
         /* Expanded: chat UI */
