@@ -1294,8 +1294,6 @@ export function registerProductInfoRoute(app: Express): void {
         : hasSizes ? product.sizes! : [];
       const isOneSize = allSizeKeys.length > 0 && allSizeKeys.every(s => /^one.?size$/i.test(s.trim()));
 
-      // Standard reference body chest (cm) per size label
-      const bodyRefChest: Record<string, number> = { XS: 84, S: 88, M: 92, L: 96, XL: 100, XXL: 104, XXXL: 108 };
       // Detect garment type from measurement columns
       const measurementCols = hasMeasurements
         ? Object.keys(product.measurements![0] as Record<string, any>).filter(k => k !== "size")
