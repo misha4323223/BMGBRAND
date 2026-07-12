@@ -370,7 +370,7 @@ export const ProductMiniChat = memo(function ProductMiniChat({ product, resetKey
           data-testid="button-product-ai-chat-open"
         >
           <Sparkles className="w-4 h-4 text-black/40 shrink-0 group-hover:text-black/70 transition-colors" />
-          <span className="text-[12px] font-medium text-black/60 group-hover:text-black/80 transition-colors">BOOOM AI</span>
+          <span className="text-[12px] font-medium text-black/60 group-hover:text-black/80 transition-colors">Спросить у BOOOM AI</span>
           <ChevronRight className="w-3.5 h-3.5 text-black/20 ml-auto shrink-0 group-hover:text-black/40 transition-colors" />
         </button>
       ) : (
