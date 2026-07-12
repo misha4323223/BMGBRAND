@@ -1288,10 +1288,19 @@ export function registerProductInfoRoute(app: Express): void {
       }
 
       // ── Auto-detect fit style from measurements ────────────────────────────
+      // Check if product is OneSize (stickers, accessories — no body measurements needed)
+      const allSizeKeys = hasSizeStock
+        ? Object.keys(product.sizeStock as Record<string, number>)
+        : hasSizes ? product.sizes! : [];
+      const isOneSize = allSizeKeys.length > 0 && allSizeKeys.every(s => /^one.?size$/i.test(s.trim()));
+
       // Standard reference body chest (cm) per size label
       const bodyRefChest: Record<string, number> = { XS: 84, S: 88, M: 92, L: 96, XL: 100, XXL: 104, XXXL: 108 };
       let sizingRule = `- Чтобы найти размер: найди строку таблицы, где грудь изделия ближайшая к (грудь тела + 12 см)\n`;
-      if (hasMeasurements) {
+      if (isOneSize) {
+        // OneSize product — no size advice, no body measurements
+        sizingRule = `- Товар одного универсального размера (OneSize) — подбор размера не нужен, не спрашивай про рост и обхват груди.\n`;
+      } else if (hasMeasurements) {
         const firstRow = product.measurements![0] as Record<string, any>;
         const garmentChest = parseFloat(firstRow.chest);
         const sizeLabel = String(firstRow.size || "").toUpperCase();
