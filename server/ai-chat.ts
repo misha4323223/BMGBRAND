@@ -958,7 +958,7 @@ export function registerAiChatRoute(app: Express): void {
       // FIX #5: raised from 600 → 1000 for regular questions so think-tokens don't eat the answer
       const isSizeAdvisor = !!sizeAdvisorContext;
       const groqBody = {
-        model: "qwen/qwen3.6-27b",
+        model: "llama-3.3-70b-versatile",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages.slice(-10),
