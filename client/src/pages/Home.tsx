@@ -1695,9 +1695,11 @@ export default function Home() {
 
                 {/* Edge bar — тонкая карточка у низа */}
                 {activeReel.link && (
-                  <Link
+                  <a
                     href={activeReel.link}
-                    onClick={() => { setActiveReel(null); setReelMuted(true); setReelProduct(null); }}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
                     className="absolute bottom-0 left-0 right-0 z-20 flex items-center gap-3 px-4 py-2.5 bg-black/60 backdrop-blur-xl border-t border-white/10 active:bg-black/80 transition-colors"
                   >
                     {/* Круглое фото */}
@@ -1725,7 +1727,7 @@ export default function Home() {
                     <span className="shrink-0 bg-primary text-white text-[11px] font-bold px-3 py-1.5 rounded-full">
                       Купить
                     </span>
-                  </Link>
+                  </a>
                 )}
               </div>
             </div>
