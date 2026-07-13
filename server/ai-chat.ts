@@ -944,13 +944,14 @@ export function registerAiChatRoute(app: Express): void {
       }
 
       await loadAiKnowledgeIfNeeded();
-      // Detect topic from last 3 user messages — handles follow-up questions that don't repeat the topic word
+      // Detect topic: last message first, fall back to last 3 joined (for follow-ups like "а подробнее?")
+      const lastMsgContent = lastUserMsg?.content || '';
       const recentUserContents = [...messages]
         .filter((m: any) => m.role === "user")
         .slice(-3)
         .map((m: any) => m.content as string)
         .join(' ');
-      const topicKey = detectAiTopic(recentUserContents);
+      const topicKey = detectAiTopic(lastMsgContent) ?? detectAiTopic(recentUserContents);
       console.log(`[AI Chat] model=llama-3.3-70b-versatile query="${(lastUserMsg?.content || '').substring(0, 60)}" topic=${topicKey || 'none'}`);
       logChatTopic(lastUserMsg?.content || '', topicKey);
       let systemPrompt = getAiKnowledgeCached('ai_prompt_base');
