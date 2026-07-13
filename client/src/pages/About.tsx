@@ -53,7 +53,7 @@ export default function About() {
           {[
             { value: "2006", label: "Год открытия\nпервого магазина" },
             { value: "200+", label: "Моделей носков\nв каталоге" },
-            { value: "200+", label: "Магазинов\nпо всей России" },
+            { value: "100+", label: "Магазинов\nпо всей России" },
           ].map(({ value, label }, i) => (
             <motion.div key={i} {...fadeUp(i * 0.1)}>
               <p className="text-4xl sm:text-6xl font-black tracking-[-0.04em] text-foreground leading-none">
