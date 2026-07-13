@@ -1337,7 +1337,7 @@ export function registerProductInfoRoute(app: Express): void {
       const allSizeKeys = hasSizeStock
         ? Object.keys(product.sizeStock as Record<string, number>)
         : hasSizes ? product.sizes! : [];
-      const isOneSize = allSizeKeys.length > 0 && allSizeKeys.every(s => /^one.?size$/i.test(s.trim()));
+      const isOneSize = allSizeKeys.length > 0 && allSizeKeys.every((s: string) => /^one.?size$/i.test(s.trim()));
 
       // Detect garment type from measurement columns
       const measurementCols = hasMeasurements

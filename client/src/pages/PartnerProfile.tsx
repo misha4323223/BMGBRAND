@@ -26,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { PartnerProductsTab } from "./partner/ProductsTab";
 import { WidgetTab } from "./partner/WidgetTab";
 import { ArtistTab, PageEditor } from "./partner/ArtistTab";
+import { BrandLoader } from "@/components/BrandLoader";
 
 type TabKey = "overview" | "link" | "products" | "widget" | "commissions" | "payouts" | "refstats" | "page" | "settings";
 
