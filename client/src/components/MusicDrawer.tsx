@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { usePlayer, type ArtistTrack } from "@/context/PlayerContext";
+import { getTrackCoverThumb } from "@/lib/utils";
 import { Play, Pause, Music, X, ChevronDown, Headphones } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -151,7 +152,7 @@ export function MusicDrawer({ open, onClose }: MusicDrawerProps) {
                         style={{ background: "rgba(255,255,255,0.08)" }}
                       >
                         {artist.tracks[0]?.coverUrl ? (
-                          <img src={artist.tracks[0].coverUrl} alt={artist.name} className="w-full h-full object-cover" loading="lazy" />
+                          <img src={getTrackCoverThumb(artist.tracks[0].coverUrl)} alt={artist.name} className="w-full h-full object-cover" loading="lazy" />
                         ) : (
                           <Music className="w-4 h-4 opacity-30" />
                         )}
@@ -201,7 +202,7 @@ export function MusicDrawer({ open, onClose }: MusicDrawerProps) {
                             >
                               <div className="relative w-9 h-9 rounded-lg overflow-hidden flex-shrink-0" style={{ background: "rgba(255,255,255,0.1)" }}>
                                 {track.coverUrl ? (
-                                  <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover" loading="lazy" />
+                                  <img src={getTrackCoverThumb(track.coverUrl)} alt={track.title} className="w-full h-full object-cover" loading="lazy" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center">
                                     <Music className="w-4 h-4 opacity-20" />

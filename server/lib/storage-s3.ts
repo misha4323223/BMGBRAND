@@ -364,6 +364,33 @@ export async function uploadTrackCoverToYOS(
     }));
     const url = `https://storage.yandexcloud.net/${bucketName}/${key}`;
     console.log(`[S3 cover] Uploaded OK: ${url}`);
+
+    // Also upload a small thumbnail (used by mini-player / artist list, ~50px display)
+    // at a predictable "_thumb.webp" sibling key, so the UI can derive it from `url`
+    // without any DB schema change. Best-effort — main upload above already succeeded.
+    if (!contentType.includes("svg")) {
+      try {
+        const sharp = (await import("sharp")).default;
+        const thumbBuffer = await sharp(fileBuffer)
+          .resize(120, 120, { fit: "cover", position: "center" })
+          .webp({ quality: 80 })
+          .toBuffer();
+        const thumbKey = key.replace(/\.[a-z0-9]+$/i, "_thumb.webp");
+        await s3Client.send(new PutObjectCommand({
+          Bucket: bucketName,
+          Key: thumbKey,
+          Body: thumbBuffer,
+          ContentType: "image/webp",
+          ContentMD5: crypto.createHash("md5").update(thumbBuffer).digest("base64"),
+          ACL: "public-read",
+          CacheControl: "public, max-age=31536000, immutable",
+        }));
+        console.log(`[S3 cover] Thumb uploaded OK: ${thumbKey}`);
+      } catch (thumbErr: any) {
+        console.warn(`[S3 cover] Thumb generation/upload failed (non-fatal):`, thumbErr.message || thumbErr);
+      }
+    }
+
     return url;
   } catch (error: any) {
     console.error(`[S3 cover] Upload FAILED for ${key}:`, error.message || error);

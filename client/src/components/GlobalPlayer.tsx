@@ -1,4 +1,5 @@
 import { usePlayer } from "@/context/PlayerContext";
+import { getTrackCoverThumb } from "@/lib/utils";
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Music, BrainCog } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -119,7 +120,7 @@ export function GlobalPlayer() {
                 style={{ background: "rgba(255,255,255,0.06)", boxShadow: "0 2px 12px rgba(0,0,0,0.45)" }}
               >
                 {currentTrack.coverUrl ? (
-                  <img src={currentTrack.coverUrl} alt={currentTrack.title} className="w-full h-full object-cover" />
+                  <img src={getTrackCoverThumb(currentTrack.coverUrl)} alt={currentTrack.title} className="w-full h-full object-cover" />
                 ) : (
                   <Music className="w-5 h-5" style={{ color: "rgba(255,255,255,0.3)" }} />
                 )}
