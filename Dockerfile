@@ -4,8 +4,12 @@ FROM node:24-slim AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
-RUN npm install
+COPY package*.json .npmrc ./
+# Force the public npm registry: Replit's internal NPM_CONFIG_REGISTRY env var
+# (package-firewall.replit.local) is not reachable outside Replit and would
+# otherwise break this build if it ever leaks into package-lock.json again.
+ENV NPM_CONFIG_REGISTRY=https://registry.npmjs.org
+RUN npm install --registry=https://registry.npmjs.org
 
 # Copy source code
 COPY . .
