@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Save, RotateCcw, RefreshCw, Bot, Truck, CreditCard, ArrowLeftRight, Ruler, Shirt, Handshake, Star, Building2, Gift, BarChart2, Trash2, Package, Trophy, Tag, User, Briefcase } from "lucide-react";
+import { Save, RotateCcw, RefreshCw, Bot, Truck, CreditCard, ArrowLeftRight, Ruler, Shirt, Handshake, Star, Building2, Gift, BarChart2, Trash2, Package, Trophy, Tag, User, Briefcase, Flame } from "lucide-react";
 import { AdminAgentChat } from "./AdminAgentChat";
 
 const BLOCK_META: Record<string, { label: string; desc: string; icon: any }> = {
@@ -24,6 +24,7 @@ const BLOCK_META: Record<string, { label: string; desc: string; icon: any }> = {
   ai_block_promo:      { label: "Промокоды",                 desc: "Как ввести, совмещение с лояльностью и сертификатами. Подключается при вопросах о промокодах.",             icon: Tag },
   ai_block_account:    { label: "Личный кабинет",            desc: "История заказов, отслеживание, профиль, избранное. Подключается при вопросах о кабинете.",                  icon: User },
   ai_block_vacancies:  { label: "Вакансии",                  desc: "Работа в BOOOMERANGS, открытые позиции. Подключается при вопросах о трудоустройстве.",                     icon: Briefcase },
+  ai_block_brand:      { label: "О бренде",                  desc: "История, философия, производство, мерч, коллаборации. Подключается при вопросах о бренде, Туле, основателе.", icon: Flame },
 };
 
 const ORDERED_KEYS = [
@@ -42,6 +43,7 @@ const ORDERED_KEYS = [
   "ai_block_promo",
   "ai_block_account",
   "ai_block_vacancies",
+  "ai_block_brand",
 ] as const;
 
 type AiKey = typeof ORDERED_KEYS[number];
