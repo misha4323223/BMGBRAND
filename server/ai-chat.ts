@@ -1534,12 +1534,17 @@ export function registerProductInfoRoute(app: Express): void {
         stream: true,
       });
 
+      const groqProxyUrl = process.env.GROQ_PROXY_URL;
+      const groqBase = groqProxyUrl
+        ? groqProxyUrl.replace(/\/$/, "")
+        : "https://api.groq.com";
+
       const tryGroqStream = async (apiKey: string): Promise<{ ok: boolean; chars: number; status?: number }> => {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), PRODUCT_INFO_TIMEOUT_MS);
         let groqRes: Response;
         try {
-          groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          groqRes = await fetch(`${groqBase}/openai/v1/chat/completions`, {
             method: "POST",
             signal: ctrl.signal,
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
