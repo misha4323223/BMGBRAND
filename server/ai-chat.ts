@@ -1311,6 +1311,7 @@ export function registerProductInfoRoute(app: Express): void {
       const hasComposition = !!product.composition;
       const hasCare = !!product.careInstructions;
       const hasMeasurements = Array.isArray(product.measurements) && product.measurements.length > 0;
+      const hasMeasurementSections = Array.isArray(product.measurementSections) && product.measurementSections.length > 0;
       const hasSizeStock =
         product.sizeStock &&
         typeof product.sizeStock === "object" &&
@@ -1362,6 +1363,15 @@ export function registerProductInfoRoute(app: Express): void {
       if (isOneSize) {
         sizingRule = `- Товар одного универсального размера (OneSize) — подбор размера не нужен, не спрашивай про рост и обхват груди.\n`;
         askParamsLine = ``;
+      } else if (hasMeasurementSections) {
+        // Костюм/комплект: несколько секций замеров (верх + низ) — приоритет над остальными ветками
+        sizingRule =
+          `- КОМПЛЕКТ (верх + низ): подбирай ДВА размера отдельно.\n` +
+          `- Верх: найди строку в таблице верха, где грудь изделия БЛИЖАЙШАЯ к обхвату груди тела.\n` +
+          `- Низ: найди строку в таблице низа, где талия изделия БЛИЖАЙШАЯ к обхвату талии тела.\n` +
+          `- Если оба размера совпадают — назови один (например: M); если разные — укажи оба (например: верх M / низ L).\n` +
+          `⚠️ Не добавляй ничего к параметрам тела — таблица уже содержит замеры готового изделия.\n`;
+        askParamsLine = `- Если параметры не названы и вопрос про размер — попроси рост, обхват груди, талии и бёдер\n`;
       } else if (hasMeasurements && isFullSet) {
         // Костюм/комплект: таблица содержит замеры и верха и низа
         sizingRule =
@@ -1466,7 +1476,25 @@ export function registerProductInfoRoute(app: Express): void {
         sys += `\nРазмеры: ${product.sizes!.join(", ")}`;
       }
 
-      if (hasMeasurements) {
+      if (hasMeasurementSections) {
+        // Костюм: несколько секций (верх/низ) — рендерим каждую отдельно
+        const colLabels: Record<string, string> = {
+          length: "Длина", chest: "Грудь", shoulders: "Плечи", sleeves: "Рукав",
+          waist: "Талия", hips: "Бёдра", width: "Ширина", height: "Высота",
+          inseam: "Шаговый шов", neck: "Шея", sleeve: "Рукав",
+        };
+        sys += `\n\nТаблицы замеров костюма (см):`;
+        for (const sec of product.measurementSections!) {
+          const rows: any[] = sec.rows || [];
+          if (rows.length === 0) continue;
+          const cols = Object.keys(rows[0]).filter((k: string) => k !== "size");
+          const colHeaders = cols.map((c: string) => colLabels[c] ?? c);
+          sys += `\n\n**${sec.title}**\n| Размер | ${colHeaders.join(" | ")} |\n|---|${cols.map(() => "---").join("|")}|`;
+          for (const row of rows) {
+            sys += `\n| ${row.size} | ${cols.map((c: string) => row[c] ?? "—").join(" | ")} |`;
+          }
+        }
+      } else if (hasMeasurements) {
         const colLabels: Record<string, string> = {
           length: "Длина", chest: "Грудь", shoulders: "Плечи", sleeves: "Рукав",
           waist: "Талия", hips: "Бёдра", width: "Ширина", height: "Высота",
