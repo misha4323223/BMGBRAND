@@ -1453,6 +1453,11 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   });
   const categories = useMemo(() => normalizeCategories(dynamicCategories || CATEGORIES), [dynamicCategories]);
 
+  // Admin-editable SEO overrides (раздел "SEO" в админке) для категорий/подкатегорий.
+  const { data: seoOverrides } = useQuery<Record<string, { title?: string; description?: string }>>({
+    queryKey: ["/api/page-settings/seo"],
+  });
+
   const pathCatSlug = catSubParams?.catSlug || catOnlyParams?.catSlug || null;
   const pathSubSlug = catSubParams?.subSlug || null;
 
@@ -1711,8 +1716,15 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     ? { accent: "purple", text: "text-amber-400", border: "border-purple-500", bg: "bg-purple-600" }
     : null;
 
+  // SEO-переопределения из админки имеют приоритет над автогенерируемыми текстами.
+  const subSlugForSeo = pathSubSlug || (subcategoryParam ? currentCategory?.subcategories.find(s => s.name === subcategoryParam)?.slug : null);
+  const seoOverrideKey = subSlugForSeo && currentCategory
+    ? `subcategory:${currentCategory.slug}:${subSlugForSeo}`
+    : (currentCategory ? `category:${currentCategory.slug}` : null);
+  const seoOverride = seoOverrideKey ? seoOverrides?.[seoOverrideKey] : null;
+
   // Dynamic SEO based on active filters
-  const catalogSeoTitle = (() => {
+  const catalogSeoTitle = seoOverride?.title || (() => {
     if (searchParam) return `Поиск: «${searchParam}» — BMGBRAND`;
     if (saleParam) return "Распродажа — скидки на одежду";
     if (subcategoryParam && isMerch) return `Мерч ${subcategoryParam} — купить официальный мерч`;
@@ -1744,7 +1756,7 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     return `Каталог BMGBRAND — российского бренда одежды с авторскими принтами из Тулы: худи, свитшоты, футболки, носки и аксессуары. Мы делаем вещи, которые носим сами, поэтому уделяем внимание качеству ткани, кроя и печати принтов. В каталоге — базовые модели, сезонные новинки и лимитированные коллаборации с артистами и фестивалями. Оплата картой или частями через Долями, доставка СДЭК и Яндекс Доставкой по всей России.`;
   })();
 
-  const catalogSeoDescription = (() => {
+  const catalogSeoDescription = seoOverride?.description || (() => {
     if (subcategoryParam && isMerch) {
       return `Купить мерч ${subcategoryParam} — официальный магазин BMGBRAND. Футболки, худи, аксессуары. Оплата частями через Долями. Доставка по России СДЭК и Яндекс Доставкой.`;
     }

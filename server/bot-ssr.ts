@@ -99,6 +99,23 @@ const CAT_META: Record<string, { name: string; title?: string; desc: string }> =
   sale:        { name: "Распродажа",                desc: "Распродажа BMGBRAND — выгодные цены на одежду и аксессуары. Доставка по всей России." },
 };
 
+// ─── Admin-editable SEO overrides ──────────────────────────────────────────────
+// Стораются в page_settings (pageName="seo"), редактируются в разделе SEO админки.
+// Ключи секций: "home", "category:<slug>", "subcategory:<catSlug>:<subSlug>".
+// Читаем только из тёплого кэша — как и весь остальной bot-ssr, без обращений к YDB.
+function getSeoOverride(key: string): { title?: string; description?: string } {
+  try {
+    const seo = getCachedRawPageSettings("seo");
+    const entry = seo?.[key];
+    if (entry && typeof entry === "object") {
+      const title = typeof entry.title === "string" && entry.title.trim() ? entry.title.trim() : undefined;
+      const description = typeof entry.description === "string" && entry.description.trim() ? entry.description.trim() : undefined;
+      return { title, description };
+    }
+  } catch { /* keep defaults */ }
+  return {};
+}
+
 // ─── HTML helpers ─────────────────────────────────────────────────────────────
 function esc(s: string): string {
   return s
@@ -289,9 +306,10 @@ function renderHome(): string | null {
     },
   ]);
 
+  const homeSeo = getSeoOverride("home");
   const head = baseHead({
-    title: `Официальный сайт бренда Booomerangs | ${SITE_NAME}`,
-    description: "Booomerangs (BMGBRAND) — официальный магазин мерча со встроенным ИИ-консультантом BOOOM AI. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
+    title: homeSeo.title || `Официальный сайт бренда Booomerangs | ${SITE_NAME}`,
+    description: homeSeo.description || "Booomerangs (BMGBRAND) — официальный магазин мерча со встроенным ИИ-консультантом BOOOM AI. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
     canonical: `${SITE_URL}/`,
     ogImage: `${SITE_URL}/og-image.png`,
     jsonLd,
@@ -372,7 +390,9 @@ function renderCategory(catSlug: string): string | null {
       <div class="status ${p.stock > 0 ? "in-stock" : "out-of-stock"}">${p.stock > 0 ? "в наличии" : "под заказ"}</div>
     </div>`).join("\n");
 
-  const title = cat.title || `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
+  const catSeo = getSeoOverride(`category:${catSlug}`);
+  const title = catSeo.title || cat.title || `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
+  const desc = catSeo.description || cat.desc;
   const jsonLd = safeJsonLd([
     {
       "@context": "https://schema.org",
@@ -387,7 +407,7 @@ function renderCategory(catSlug: string): string | null {
       "@context": "https://schema.org",
       "@type": "ItemList",
       "name": cat.name,
-      "description": cat.desc,
+      "description": desc,
       "url": `${SITE_URL}/products/${catSlug}`,
       "numberOfItems": allSorted.length,
       "itemListElement": allSorted.map((p, i) => ({
@@ -412,7 +432,7 @@ function renderCategory(catSlug: string): string | null {
 
   const head = baseHead({
     title,
-    description: cat.desc,
+    description: desc,
     canonical: `${SITE_URL}/products/${catSlug}`,
     ogImage: `${SITE_URL}/favicon.png`,
     jsonLd,
@@ -421,7 +441,7 @@ function renderCategory(catSlug: string): string | null {
   const body = `
 <div class="breadcrumb"><a href="/">Главная</a> / <a href="/products">Каталог</a> / ${esc(cat.name)}</div>
 <h1>${esc(cat.name)}</h1>
-<p class="desc">${esc(cat.desc)}</p>
+<p class="desc">${esc(desc)}</p>
 <p style="margin-bottom:1rem;color:#888;font-size:.9rem">Всего товаров: <strong>${products.length}</strong>. В наличии: <strong>${inStock.length}</strong>.</p>
 <div class="grid">${cards}</div>`;
 
@@ -707,12 +727,13 @@ function renderSubcategory(subSlug: string): string | null {
   const catName = catMeta?.name || category.name;
   const isMerch = category.slug === "merch";
 
-  const title = isMerch
+  const subSeo = getSeoOverride(`subcategory:${category.slug}:${subSlug}`);
+  const title = subSeo.title || (isMerch
     ? `Мерч ${subcategory.name} — купить официальный мерч | ${SITE_NAME}`
-    : `${subcategory.name} — купить в ${SITE_NAME} | ${catName}`;
-  const desc = isMerch
+    : `${subcategory.name} — купить в ${SITE_NAME} | ${catName}`);
+  const desc = subSeo.description || (isMerch
     ? `Официальный мерч ${subcategory.name} в интернет-магазине BMGBRAND: одежда и аксессуары с авторскими принтами. Доставка по всей России СДЭК и Яндекс Доставкой.`
-    : `${subcategory.name} от BMGBRAND — ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России.`;
+    : `${subcategory.name} от BMGBRAND — ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России.`);
 
   const jsonLd = safeJsonLd([
     {

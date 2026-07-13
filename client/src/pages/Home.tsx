@@ -502,6 +502,12 @@ export default function Home() {
 
   const [popularVisibleCount, setPopularVisibleCount] = useState(16);
 
+  // Admin-editable SEO overrides (раздел "SEO" в админке) для главной страницы.
+  const { data: seoOverrides } = useQuery<Record<string, { title?: string; description?: string }>>({
+    queryKey: ["/api/page-settings/seo"],
+  });
+  const homeSeoOverride = seoOverrides?.["home"];
+
   const promoBanner = pageSettings?.promo_banner;
   const renderPromoBanner = (position: string) => {
     if (!promoBanner || promoBanner.visible === false || promoBanner.position !== position) return null;
@@ -536,8 +542,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-white">
       <SEO 
-        title="Официальный сайт бренда Booomerangs"
-        description="Booomerangs (BMGBRAND) — официальный магазин мерча. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России."
+        title={homeSeoOverride?.title || "Официальный сайт бренда Booomerangs"}
+        description={homeSeoOverride?.description || "Booomerangs (BMGBRAND) — официальный магазин мерча. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России."}
         keywords="мерч Гудтаймс, мерч Молодость внутри, мерч Дикая мята, мерч Драгни, мерч МультFильмы, купить мерч, мерч артистов, Booomerangs, BMGBRAND, российский бренд одежды с авторскими принтами"
         jsonLd={[
           {

@@ -28,6 +28,7 @@ import { runAbandonedCartCheck, addAbandonedCartUnsub } from "./abandoned-cart";
 import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow } from "./new-products-notifier";
 import { enqueuePreorderProduct, getPreorderQueueStatus, triggerPreorderNotifierNow } from "./preorder-notifier";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
+import { CATEGORIES as SEO_CATEGORY_DEFAULTS, ARTISTS as SEO_ARTIST_DEFAULTS, HOME_SEO_DEFAULT } from "./static";
 import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
@@ -13255,6 +13256,90 @@ BMGBRAND — официальный производитель и магазин
       const { pageName, sectionId } = req.params;
       await storage.deletePageSectionSettings(pageName, sectionId);
       res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: SEO section — aggregated list of every editable page with its
+  // current effective title/description (admin override merged over the
+  // hardcoded/default value) so the admin can see & edit real current SEO text.
+  app.get("/api/admin/seo/pages", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const seoOverrides = await storage.getPageSettings("seo");
+
+      const field = (defaultTitle: string | undefined, defaultDescription: string | undefined, override: any) => ({
+        title: { default: defaultTitle || "", value: (typeof override?.title === "string" && override.title.trim()) ? override.title : (defaultTitle || "") },
+        description: { default: defaultDescription || "", value: (typeof override?.description === "string" && override.description.trim()) ? override.description : (defaultDescription || "") },
+      });
+
+      const pages: any[] = [];
+
+      // --- Home ---
+      pages.push({
+        type: "home",
+        key: "home",
+        label: "Главная страница",
+        fields: field(HOME_SEO_DEFAULT.title, HOME_SEO_DEFAULT.description, seoOverrides["home"]),
+      });
+
+      // --- Categories & subcategories (dynamic config with hardcoded fallback) ---
+      let cats: Record<string, CategoryConfig> = CATEGORIES;
+      try {
+        const siteConfig = await storage.getPageSettings("site_config");
+        if (siteConfig?.categories_data) {
+          const raw = typeof siteConfig.categories_data === 'string'
+            ? JSON.parse(siteConfig.categories_data)
+            : siteConfig.categories_data;
+          const normalized = normalizeCategories(raw);
+          if (normalized && Object.keys(normalized).length > 0) cats = normalized;
+        }
+      } catch { /* keep hardcoded fallback */ }
+
+      for (const [slug, cat] of Object.entries(cats)) {
+        const seoDefault = (SEO_CATEGORY_DEFAULTS as any)[slug];
+        pages.push({
+          type: "category",
+          key: slug,
+          label: cat.name,
+          fields: field(seoDefault?.title || `${cat.name} — купить в BMGBRAND`, seoDefault?.desc, seoOverrides[`category:${slug}`]),
+        });
+        for (const sub of cat.subcategories || []) {
+          const subKey = `${slug}:${sub.slug}`;
+          pages.push({
+            type: "subcategory",
+            key: subKey,
+            label: `${cat.name} → ${sub.name}`,
+            fields: field(undefined, undefined, seoOverrides[`subcategory:${subKey}`]),
+          });
+        }
+      }
+
+      // --- Artists ---
+      let artistPages: Record<string, any> = {};
+      try { artistPages = await storage.getPageSettings("artist_pages"); } catch { /* none yet */ }
+      const artistSlugs = new Set<string>([...Object.keys(SEO_ARTIST_DEFAULTS), ...Object.keys(artistPages)]);
+      for (const slug of artistSlugs) {
+        const seoDefault = (SEO_ARTIST_DEFAULTS as any)[slug];
+        const settings = artistPages[slug] || {};
+        const name = settings.name || seoDefault?.name || slug;
+        pages.push({
+          type: "artist",
+          key: slug,
+          label: `Мерч ${name}`,
+          fields: field(
+            `Мерч ${name} — купить официальный мерч | BMGBRAND`,
+            seoDefault?.desc,
+            { title: settings.seoTitle, description: settings.seoDescription },
+          ),
+        });
+      }
+
+      res.json({ pages });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

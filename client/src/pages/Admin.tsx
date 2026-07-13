@@ -28,6 +28,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { AnalyticsTab } from "@/pages/admin/AnalyticsTab";
 import { PartnersTab } from "@/pages/admin/PartnersTab";
 import { AiKnowledgeTab } from "@/pages/admin/AiKnowledgeTab";
+import { SeoTab } from "@/pages/admin/SeoTab";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES, normalizeCategories, type Product, type CategorySlug } from "@shared/schema";
@@ -1171,7 +1172,7 @@ export default function Admin() {
   const [targetSubcategory, setTargetSubcategory] = useState<string>("");
   const [addlCategory, setAddlCategory] = useState<string>("");
   const [addlSubcategory, setAddlSubcategory] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"products" | "orders" | "wholesale" | "problems" | "bonuses" | "pages" | "reviews" | "favorites" | "preorders" | "security" | "clients" | "analytics" | "partners" | "ai">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "wholesale" | "problems" | "bonuses" | "pages" | "reviews" | "favorites" | "preorders" | "security" | "clients" | "analytics" | "partners" | "ai" | "seo">("products");
   const [clientSearch, setClientSearch] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [clientsTypeTab, setClientsTypeTab] = useState<"retail" | "wholesale">("retail");
@@ -3615,6 +3616,16 @@ export default function Admin() {
               >
                 <MessageSquare className="w-4 h-4 mr-1" />
                 <span className="hidden sm:inline">AI-чат</span>
+              </Button>
+              <Button
+                variant={activeTab === "seo" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setActiveTab("seo")}
+                className="h-8"
+                data-testid="button-tab-seo"
+              >
+                <Search className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">SEO</span>
               </Button>
             </div>
           </div>
@@ -13361,6 +13372,10 @@ export default function Admin() {
 
         {activeTab === "ai" && (
           <AiKnowledgeTab apiKey={apiKey} adminFetch={adminFetch} />
+        )}
+
+        {activeTab === "seo" && (
+          <SeoTab apiKey={apiKey} adminFetch={adminFetch} />
         )}
 
         {activeTab === "clients" && (

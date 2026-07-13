@@ -2,13 +2,35 @@ import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 import { getCachedLcpImageUrls, getCachedProductImageBySlug, getCachedProductMetaBySlug, getCachedRatingByProductId, getCachedProductsByCategory, getCachedAllVisibleProducts, getCachedProductsForRecommendations, getCachedHeroData, getCachedArtistHeroImage, getCachedRawPageSettings } from "./storage";
+
+// Admin-editable SEO overrides (page_settings, pageName="seo").
+// Ключи: "home", "category:<slug>". Читаем только из тёплого кэша.
+function getSeoOverride(key: string): { title?: string; description?: string } {
+  try {
+    const seo = getCachedRawPageSettings("seo");
+    const entry = seo?.[key];
+    if (entry && typeof entry === "object") {
+      const title = typeof entry.title === "string" && entry.title.trim() ? entry.title.trim() : undefined;
+      const description = typeof entry.description === "string" && entry.description.trim() ? entry.description.trim() : undefined;
+      return { title, description };
+    }
+  } catch { /* keep defaults */ }
+  return {};
+}
 import { getRecommendationsSync } from "./recommendations";
 
 const SITE_NAME = "BMGBRAND";
 const DEFAULT_TITLE = `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
 const DEFAULT_DESC = "Российский бренд одежды с авторскими принтами — худи, футболки, носки и аксессуары. Доставка по всей России. Делаем вещи, которые носим сами.";
 
-const ARTISTS: Record<string, { name: string; desc: string }> = {
+// Реальные хардкод-дефолты для главной страницы (используются в injectMeta ниже).
+// Экспортируются, чтобы админка SEO могла показать их как "текущее значение по умолчанию".
+export const HOME_SEO_DEFAULT = {
+  title: DEFAULT_TITLE,
+  description: "Booomerangs (BMGBRAND) — официальный магазин мерча. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
+};
+
+export const ARTISTS: Record<string, { name: string; desc: string }> = {
   "goodtimes":      { name: "ГУДТАЙМС",          desc: "Официальный мерч ГУДТАЙМС — купить футболки, худи, аксессуары с символикой артиста. Доставка по всей России." },
   "molodostvnutri": { name: "Молодость внутри",   desc: "Официальный мерч Молодость внутри — купить одежду и аксессуары. Доставка по всей России." },
   "dikaya-myata":   { name: "ДИКАЯ МЯТА",         desc: "Официальный мерч ДИКАЯ МЯТА — купить худи, футболки, аксессуары. Доставка по всей России." },
@@ -16,7 +38,7 @@ const ARTISTS: Record<string, { name: string; desc: string }> = {
   "multfilmy":      { name: "МультFильмы",        desc: "Официальный мерч МультFильмы — купить уникальную одежду и аксессуары. Доставка по всей России." },
 };
 
-const CATEGORIES: Record<string, { name: string; title?: string; desc: string }> = {
+export const CATEGORIES: Record<string, { name: string; title?: string; desc: string }> = {
   "clothing": { name: "Одежда",      desc: "Купить одежду с авторскими принтами BMGBRAND — худи, свитшоты, футболки, шорты. Доставка по всей России." },
   "merch":    { name: "Мерч",        desc: "Купить официальный мерч артистов BMGBRAND — одежда и аксессуары с уникальными принтами. Доставка по всей России." },
   "socks":    {
@@ -641,9 +663,10 @@ export function serveStatic(app: Express) {
             },
           },
         ]);
+        const homeSeo = getSeoOverride("home");
         html = injectMeta(html, {
-          title: DEFAULT_TITLE,
-          description: "Booomerangs (BMGBRAND) — официальный магазин мерча. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
+          title: homeSeo.title || DEFAULT_TITLE,
+          description: homeSeo.description || "Booomerangs (BMGBRAND) — официальный магазин мерча. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
           ogImage: `${siteUrl}/og-image.png`,
           canonical: `${siteUrl}/`,
           jsonLd: homeJsonLd,
@@ -658,15 +681,22 @@ export function serveStatic(app: Express) {
         // getCachedArtistHeroImage нужен и для мета-тегов (fallback), и для гидратации клиента
         const artistHero = getCachedArtistHeroImage(artistSlug);
         const staticArtist = ARTISTS[artistSlug];
+        // Админ-редактируемые SEO-поля артиста хранятся в page_settings("artist_pages")[slug],
+        // тот же источник, что и вкладка "Артисты" в админке — приоритетнее хардкода.
+        const artistPageSettings = getCachedRawPageSettings("artist_pages")?.[artistSlug];
+        const artistSeoTitle = typeof artistPageSettings?.seoTitle === "string" && artistPageSettings.seoTitle.trim()
+          ? artistPageSettings.seoTitle.trim() : undefined;
+        const artistSeoDesc = typeof artistPageSettings?.seoDescription === "string" && artistPageSettings.seoDescription.trim()
+          ? artistPageSettings.seoDescription.trim() : undefined;
 
         // Используем жёстко заданные данные или fallback из artist_pages в YDB
-        const artistName = staticArtist?.name || artistHero.name;
-        const artistDesc = staticArtist?.desc || (artistName
+        const artistName = staticArtist?.name || artistPageSettings?.name || artistHero.name;
+        const artistDesc = artistSeoDesc || staticArtist?.desc || (artistName
           ? `Официальный мерч ${artistName} — купить одежду и аксессуары с символикой артиста. Доставка по всей России.`
           : null);
 
         if (artistName && artistDesc) {
-          const title = `Мерч ${artistName} — купить официальный мерч | ${SITE_NAME}`;
+          const title = artistSeoTitle || `Мерч ${artistName} — купить официальный мерч | ${SITE_NAME}`;
           // Hero-изображение гораздо лучше для соцсетей, чем favicon
           const artistOgImage = artistHero.img || artistHero.imgMobile || `${siteUrl}/og-image.png`;
           const jsonLd = JSON.stringify({
@@ -709,7 +739,9 @@ export function serveStatic(app: Express) {
         const catSlug = catMatch[1];
         const cat = CATEGORIES[catSlug];
         if (cat) {
-          const title = cat.title || `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
+          const catSeo = getSeoOverride(`category:${catSlug}`);
+          const title = catSeo.title || cat.title || `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
+          const catDesc = catSeo.description || cat.desc;
 
           const breadcrumb = {
             "@context": "https://schema.org",
@@ -749,13 +781,13 @@ export function serveStatic(app: Express) {
 
           html = injectMeta(html, {
             title,
-            description: cat.desc,
+            description: catDesc,
             ogImage: `${siteUrl}/favicon.png`,
             ogType: "website",
             canonical: `${siteUrl}/products/${catSlug}`,
             jsonLd,
           });
-          html = injectSeoBody(html, buildCategoryNoscript(catSlug, cat.name, cat.desc, siteUrl));
+          html = injectSeoBody(html, buildCategoryNoscript(catSlug, cat.name, catDesc, siteUrl));
         }
       }
 
