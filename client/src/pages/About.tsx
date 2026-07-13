@@ -206,7 +206,7 @@ export default function About() {
             Тула, Россия — производство полного цикла
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
-            <Link href="/catalog">
+            <Link href="/products">
               <button className="w-full sm:w-auto px-8 py-3.5 bg-foreground text-background text-sm font-bold uppercase tracking-widest rounded-full hover:opacity-80 transition-opacity">
                 В каталог
               </button>
