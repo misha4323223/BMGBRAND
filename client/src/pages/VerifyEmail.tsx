@@ -43,7 +43,7 @@ export default function VerifyEmail() {
       <div className="pt-32 pb-16 px-4 max-w-md mx-auto text-center">
         {status === "loading" && (
           <div className="space-y-4">
-            <BrandLoader size="sm" />
+            <BrandLoader size="lg" />
             <p className="text-muted-foreground">Подтверждаем email...</p>
           </div>
         )}

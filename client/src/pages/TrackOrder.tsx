@@ -71,7 +71,7 @@ export default function TrackOrder() {
 
         {isLoading && (
           <div className="flex items-center justify-center py-16">
-            <BrandLoader size="sm" />
+            <BrandLoader size="lg" />
           </div>
         )}
 

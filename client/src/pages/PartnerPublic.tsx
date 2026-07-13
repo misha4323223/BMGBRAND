@@ -61,7 +61,7 @@ export default function PartnerPublic() {
       <>
         <Navbar />
         <main className="container mx-auto px-4 pt-24 pb-16 min-h-[60vh] flex items-center justify-center">
-          <BrandLoader size="sm" />
+          <BrandLoader size="lg" />
         </main>
         <Footer />
       </>

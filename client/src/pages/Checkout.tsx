@@ -848,7 +848,7 @@ export default function Checkout() {
   if (!cartItems || cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <BrandLoader size="sm" />
+        <BrandLoader size="lg" />
         <p className="text-muted-foreground mt-4">{cs.emptyCartText}</p>
         <Button 
           variant="ghost"

@@ -310,7 +310,7 @@ export default function WholesaleProfile() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <BrandLoader size="sm" />
+        <BrandLoader size="lg" />
       </div>
     );
   }
@@ -595,7 +595,7 @@ export default function WholesaleProfile() {
           <div>
             {ordersLoading ? (
               <div className="flex items-center justify-center py-16">
-                <BrandLoader size="sm" />
+                <BrandLoader size="lg" />
               </div>
             ) : visibleOrders.length === 0 ? (
               <Card className="p-12 text-center">

@@ -62,7 +62,7 @@ export default function Vacancies() {
       <div className="min-h-screen bg-background">
         <Navbar />
         <main className="pt-24 pb-16 flex items-center justify-center">
-          <BrandLoader size="sm" />
+          <BrandLoader size="lg" />
         </main>
         <Footer />
       </div>

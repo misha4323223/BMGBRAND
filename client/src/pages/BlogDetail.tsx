@@ -237,7 +237,7 @@ export default function BlogDetail() {
       <div className="min-h-screen bg-background">
         <Navbar />
         <div className="flex items-center justify-center pt-40 pb-16">
-          <BrandLoader size="sm" />
+          <BrandLoader size="lg" />
         </div>
         <Footer />
       </div>

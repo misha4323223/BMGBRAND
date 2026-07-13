@@ -841,7 +841,7 @@ export default function ArtistPage() {
   if (isLoading && !artistHeroSSR?.img && !homeArtist) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <BrandLoader size="sm" />
+        <BrandLoader size="lg" />
       </div>
     );
   }

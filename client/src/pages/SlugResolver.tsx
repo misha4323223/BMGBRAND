@@ -11,7 +11,7 @@ const ProductDetail = lazy(() => import("@/pages/ProductDetail"));
 function LoadingFallback() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <BrandLoader size="sm" />
+      <BrandLoader size="lg" />
     </div>
   );
 }
