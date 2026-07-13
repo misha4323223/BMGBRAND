@@ -1787,7 +1787,12 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
 
   const catalogCanonical = (() => {
     const base = window.location.origin;
-    if (categoryParam && subcategoryParam) return `${base}/products/${categoryParam}?subcategory=${encodeURIComponent(subcategoryParam)}`;
+    if (categoryParam && subcategoryParam) {
+      // Canonical for subcategory is the flat slug URL (/:subSlug), not ?subcategory=
+      const subSlugFound = categories[categoryParam]?.subcategories.find(s => s.name === subcategoryParam)?.slug
+        ?? pathSubSlug;
+      if (subSlugFound) return `${base}/${subSlugFound}`;
+    }
     if (categoryParam) return `${base}/products/${categoryParam}`;
     return `${base}/products`;
   })();

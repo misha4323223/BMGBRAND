@@ -1347,6 +1347,33 @@ export async function registerRoutes(
     next();
   });
 
+  // ?subcategory=name on /products/:cat → 301 to flat subcategory slug URL
+  // Canonical URL for subcategories is /:subSlug (flat), not ?subcategory=
+  app.get('/products/:catSlug', (req, res, next) => {
+    const subcategoryName = req.query.subcategory as string | undefined;
+    if (!subcategoryName) return next();
+    const CYR_MAP: Record<string, string> = {
+      а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'j',
+      к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',
+      х:'kh',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya',
+    };
+    const subSlug = subcategoryName
+      .toLowerCase()
+      .replace(/[а-яё]/g, (c) => CYR_MAP[c] ?? c)
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    if (subSlug && subSlug.length >= 2) {
+      return res.redirect(301, `/${subSlug}`);
+    }
+    return next();
+  });
+
+  // Old WordPress-style /?p=XXXXX permalinks → 301 to home
+  app.get('/', (req, res, next) => {
+    if (req.query.p !== undefined) return res.redirect(301, '/');
+    return next();
+  });
+
   // /product/:slug → 301 redirect to /:slug (old URL format)
   app.get('/product/:slug', async (req, res) => {
     return res.redirect(301, `/${req.params.slug}`);
@@ -1714,18 +1741,19 @@ BMGBRAND — официальный производитель и магазин
       let dynamicCategories: any = {};
       try { dynamicCategories = await (storage as any).getCategories(); } catch {}
       const seenSubUrls = new Set<string>();
-      for (const [catKey, cat] of Object.entries<any>(dynamicCategories)) {
+      for (const [, cat] of Object.entries<any>(dynamicCategories)) {
         for (const sub of (cat.subcategories || [])) {
-          const subSlug = sub.slug || sub;
-          if (subSlug && typeof subSlug === "string") {
-            const subUrl = `${baseUrl}/products/${catKey}?subcategory=${encodeURIComponent(subSlug)}`;
+          // Only include subcategories with a proper URL-safe slug (flat canonical URL)
+          const subSlug = typeof sub === 'object' ? sub.slug : null;
+          if (subSlug && typeof subSlug === 'string' && /^[a-z0-9][a-z0-9-]*[a-z0-9]?$/.test(subSlug)) {
+            const subUrl = `${baseUrl}/${subSlug}`;
             if (!seenSubUrls.has(subUrl)) {
               seenSubUrls.add(subUrl);
               xml += `  <url>\n`;
               xml += `    <loc>${subUrl}</loc>\n`;
               xml += `    <lastmod>${today}</lastmod>\n`;
               xml += `    <changefreq>weekly</changefreq>\n`;
-              xml += `    <priority>0.6</priority>\n`;
+              xml += `    <priority>0.7</priority>\n`;
               xml += `  </url>\n`;
             }
           }

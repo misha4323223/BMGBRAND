@@ -24,6 +24,7 @@ import {
 } from "./storage";
 import { getRecommendationsSync } from "./recommendations";
 import { findProductVariantsSync } from "./variant-matching";
+import { CATEGORIES, findCategoryBySubcategorySlug } from "../shared/schema";
 
 // ─── Bot User-Agent detection ─────────────────────────────────────────────────
 // Only include server-side crawlers and link-preview fetchers.
@@ -668,6 +669,93 @@ ${recsHtml}`;
   return wrapPage(head, body);
 }
 
+function renderSubcategory(subSlug: string): string | null {
+  const found = findCategoryBySubcategorySlug(CATEGORIES, subSlug);
+  if (!found) return null;
+
+  const { category, subcategory } = found;
+  const products = getCachedProductsByCategory(category.slug, 200);
+  if (products.length === 0) return null;
+
+  const filtered = products.filter((p: any) =>
+    p.subcategory && p.subcategory.toLowerCase().trim() === subcategory.name.toLowerCase().trim()
+  );
+  if (filtered.length === 0) return null;
+
+  const inStock = filtered.filter((p: any) => p.stock > 0);
+  const outOfStock = filtered.filter((p: any) => p.stock === 0);
+  const allSorted = [...inStock, ...outOfStock];
+
+  const isMerch = category.slug === "merch";
+  const title = isMerch
+    ? `Мерч ${subcategory.name} — купить официальный мерч | ${SITE_NAME}`
+    : `${subcategory.name} — купить в ${SITE_NAME} | ${category.name}`;
+  const desc = isMerch
+    ? `Официальный мерч ${subcategory.name} в интернет-магазине BMGBRAND: одежда и аксессуары с авторскими принтами. Доставка по всей России СДЭК и Яндекс Доставкой.`
+    : `${subcategory.name} от BMGBRAND — ${category.name.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России.`;
+
+  const jsonLd = safeJsonLd([
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
+        { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${SITE_URL}/products` },
+        { "@type": "ListItem", "position": 3, "name": category.name, "item": `${SITE_URL}/products/${category.slug}` },
+        { "@type": "ListItem", "position": 4, "name": subcategory.name, "item": `${SITE_URL}/${subSlug}` },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": subcategory.name,
+      "description": desc,
+      "url": `${SITE_URL}/${subSlug}`,
+      "numberOfItems": allSorted.length,
+      "itemListElement": allSorted.slice(0, 30).map((p: any, i: number) => ({
+        "@type": "ListItem",
+        "position": i + 1,
+        "item": {
+          "@type": "Product",
+          "name": p.name,
+          "url": `${SITE_URL}/${p.slug}`,
+          "offers": {
+            "@type": "Offer",
+            "priceCurrency": "RUB",
+            "price": (p.price / 100).toFixed(2),
+            "availability": p.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+          },
+        },
+      })),
+    },
+  ]);
+
+  const head = baseHead({
+    title,
+    description: desc,
+    canonical: `${SITE_URL}/${subSlug}`,
+    ogImage: `${SITE_URL}/favicon.png`,
+    jsonLd,
+  });
+
+  const cards = allSorted.map((p: any) => `
+    <div class="card">
+      <div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div>
+      <div class="price">${price(p.price)}</div>
+      <div class="status ${p.stock > 0 ? "in-stock" : "out-of-stock"}">${p.stock > 0 ? "в наличии" : "под заказ"}</div>
+    </div>`).join("\n");
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / <a href="/products">Каталог</a> / <a href="/products/${esc(category.slug)}">${esc(category.name)}</a> / ${esc(subcategory.name)}</div>
+<h1>${esc(subcategory.name)}</h1>
+<p class="desc">${esc(desc)}</p>
+<p style="margin-bottom:1rem;color:#888;font-size:.9rem">Всего: <strong>${allSorted.length}</strong>. В наличии: <strong>${inStock.length}</strong>.</p>
+<div class="grid">${cards}</div>
+<p style="margin-top:1.5rem"><a href="/products/${esc(category.slug)}">← Все ${esc(category.name)}</a></p>`;
+
+  return wrapPage(head, body);
+}
+
 function renderAbout(): string {
   const description = "BOOOMERANGS (BMGBRAND) — российский бренд одежды и аксессуаров с авторскими принтами из Тулы. Основан в 2006 году. Собственное производство с 2019 года. 200+ моделей носков, одежда и мерч для артистов.";
 
@@ -837,10 +925,14 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
         html = renderCategory(catSlug);
       }
     } else {
-      // Try /:slug — product detail page
+      // Try /:slug — product detail page, then subcategory page
       const slugMatch = reqPath.match(/^\/([a-z0-9][a-z0-9-]*[a-z0-9])\/?$/);
       if (slugMatch) {
         html = renderProduct(slugMatch[1]);
+        // If not a product, check if it's a subcategory slug (e.g. /tolstovki, /dikaya-myata)
+        if (!html) {
+          html = renderSubcategory(slugMatch[1]);
+        }
       }
     }
 
