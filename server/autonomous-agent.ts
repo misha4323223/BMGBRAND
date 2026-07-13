@@ -187,8 +187,32 @@ async function sendAlertChunked(header: string, lines: string[]): Promise<void> 
 
 const DESIGN_KEYWORDS = /["«»]|CHAOS|LOVE|HATE|FEAR|RAGE|EVIL|TOXIC|ANGEL|DEMON|GHOST|SKULL|ROSE|DOOM|HELL|VIBE|WAVE|HAZE|STAR|MOON|DARK|NEON|ACID|VOID|AURA|FLAME|GLOOM|MYTH|ECHO|NOVA|FLUX|BOOM|RIOT|FADE|GLOW|DUSK|DAWN/i;
 
+// Категории и названия, у которых НИКОГДА нет принта
+const BOTTOM_PATTERN   = /брюк|шорт|джинс|леггинс|лосин|юбк|карго|трек|jogger|пант/i;
+const SOCK_PATTERN     = /носк|sock/i;
+const ACCESSORY_PATTERN = /шапк|кепк|панам|бейсбол|сумк|рюкзак|кружк|чашк|стакан|бутылк|упаковк|пакет|bag|hat|cup|mug/i;
+const TOP_PATTERN      = /футболк|тишерт|t-shirt|лонгслив|худи|свитшот|толстовк|олимпийк|куртк|ветровк|анорак|жакет|бомбер|пальто/i;
+
+type ProductType = "top" | "bottom" | "socks" | "accessory" | "other";
+
+function getProductType(product: { name?: string; category?: string; subcategory?: string }): ProductType {
+  const text = `${product.name || ""} ${product.category || ""} ${product.subcategory || ""}`.toLowerCase();
+  if (SOCK_PATTERN.test(text)) return "socks";
+  if (BOTTOM_PATTERN.test(text)) return "bottom";
+  if (ACCESSORY_PATTERN.test(text)) return "accessory";
+  if (TOP_PATTERN.test(text)) return "top";
+  return "other";
+}
+
 function hasUniqueDesign(name: string): boolean {
   return DESIGN_KEYWORDS.test(name);
+}
+
+// Есть ли принт — только для верха, носков и аксессуаров
+function hasPrint(product: { name?: string; category?: string; subcategory?: string }): boolean {
+  const type = getProductType(product);
+  if (type === "bottom") return false;          // у брюк/шорт принтов нет
+  return hasUniqueDesign(product.name || "");
 }
 
 // ── SEO Job ───────────────────────────────────────────────────────────────
@@ -242,10 +266,8 @@ export async function runSeoJob(): Promise<{ processed: number; skipped: number;
     if (requestsThisRun >= MAX_SEO_PER_RUN) break;
 
     try {
-      const isDesign = hasUniqueDesign(product.name);
-      const descSnippet = product.description
-        ? product.description.slice(0, 200)
-        : "";
+      const isPrint     = hasPrint(product);
+      const descSnippet = product.description ? product.description.slice(0, 200) : "";
       const composition = product.composition || "";
       const priceRub = product.price ? Math.round(product.price / 100) : 0;
 
@@ -254,7 +276,7 @@ export async function runSeoJob(): Promise<{ processed: number; skipped: number;
 Цена: ${priceRub} ₽
 Состав: ${composition || "—"}
 Описание: ${descSnippet || "—"}
-${isDesign ? "ВАЖНО: это товар с уникальным принтом, упомяни дизайн в общих чертах" : ""}
+${isPrint ? "ВАЖНО: это товар с авторским принтом, можно упомянуть характер дизайна" : ""}
 
 Сгенерируй seoTitle и seoDescription.`;
 
@@ -432,12 +454,12 @@ export async function runStaleProductsJob(): Promise<void> {
 
 // ── Description Improvement Job (dangerous → queue) ───────────────────────
 
-const DESC_SYSTEM = `Ты копирайтер для российского стритвир-бренда BMGBRAND (booomerangs.ru).
-Пиши на русском, живым молодёжным языком. Возвращай ТОЛЬКО текст описания без JSON, заголовков и лишних символов.
+const DESC_SYSTEM = `Ты копирайтер для российского бренда BMGBRAND (booomerangs.ru).
+Пиши на русском, живым молодёжным языком. Возвращай ТОЛЬКО текст описания — без JSON, заголовков и лишних символов.
 
-Описание: 3-5 предложений. Расскажи о товаре, его настроении, как носить, из чего сделан.
-Если это товар с принтом — упомяни характер дизайна в общих чертах (дерзкий, минималистичный и т.д.).
-Не придумывай конкретные детали принта — только атмосферу.`;
+Описание: 3-5 предложений. Используй ТОЛЬКО данные из промпта — не придумывай то, чего там нет.
+Расскажи о товаре: что это, настроение/посадка, из чего сделан, как и с чем носить.
+Никогда не упоминай принт, дизайн или рисунок, если это явно не указано в промпте.`;
 
 export async function runDescriptionJob(): Promise<void> {
   console.log("[AutonomousAgent] Starting description job...");
@@ -459,21 +481,35 @@ export async function runDescriptionJob(): Promise<void> {
     if (requestsThisRun >= MAX_QUEUE_PER_RUN) break;
 
     try {
-      const isDesign = hasUniqueDesign(product.name);
-      const priceRub = product.price ? Math.round(product.price / 100) : 0;
+      const productType = getProductType(product);
+      const isPrint     = hasPrint(product);
+      const priceRub    = product.price ? Math.round(product.price / 100) : 0;
+
+      // Инструкция под тип изделия
+      const typeHint: Record<ProductType, string> = {
+        top:       isPrint
+          ? "Это верх одежды с авторским принтом. Опиши настроение/атмосферу дизайна в общих чертах (дерзкий, минималистичный, графичный и т.д.) — без конкретных деталей рисунка. Расскажи о крое и посадке."
+          : "Это верх одежды без принта (базовая/однотонная). Акцент на крой, посадку, комфорт, универсальность образа. Не упоминай принт или дизайн.",
+        bottom:    "Это низ одежды (брюки, шорты, карго и т.п.). Никаких принтов — только крой, посадка, ткань, удобство и с чем носить.",
+        socks:     isPrint
+          ? "Это носки с принтом. Можно упомянуть характер дизайна (яркий, забавный, графичный). Без конкретных деталей рисунка — только атмосфера."
+          : "Это базовые носки. Акцент на материал, комфорт и универсальность.",
+        accessory: "Это аксессуар. Расскажи о функции, материале, дизайне и как впишется в образ.",
+        other:     "Расскажи о товаре: что это, из чего, как носить/использовать.",
+      };
 
       const prompt = `Товар: ${product.name}
 Категория: ${product.category || "—"}${product.subcategory ? " / " + product.subcategory : ""}
 Цена: ${priceRub} ₽
 Состав: ${product.composition || "—"}
-${isDesign ? "Это товар с уникальным принтом." : ""}
 
-Напиши описание товара для сайта.`;
+Задание: ${typeHint[productType]}`;
 
       const description = await groqComplete(prompt, DESC_SYSTEM, 1024);
       if (!description || description.length < 20) continue;
 
-      const flagForReview = isDesign;
+      // Флаг «проверь принт» только когда принт реально детектирован
+      const flagForReview = isPrint;
       await addToQueue({
         type: "description",
         title: `Описание для «${product.name}»${flagForReview ? " ⚠️ проверь принт" : ""}`,
