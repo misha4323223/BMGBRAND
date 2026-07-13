@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { z } from "zod";
-import { storage, warmRatingsCache, getCachedArtistHeroImage } from "./storage";
+import { storage, warmRatingsCache } from "./storage";
 import { authMiddleware, type AuthRequest } from "./auth-routes";
 import { sendAgentAlert, answerCallbackQuery, editMessageText } from "./telegram";
 import { vkNotifyAgentAlert } from "./vk";
@@ -1319,9 +1319,13 @@ export function registerProductInfoRoute(app: Express): void {
       const hasSizes = Array.isArray(product.sizes) && product.sizes.length > 0;
 
       // ── Artist collab context ──────────────────────────────────────────────
+      // Use storage.getPageSettings (not the raw getCachedArtistHeroImage cache read)
+      // so a cold/expired cache triggers a real YDB fetch instead of silently
+      // returning empty artist info to the AI.
       let artistContext = "";
       if (product.artistSlug) {
-        const artistInfo = getCachedArtistHeroImage(product.artistSlug);
+        const artistPages = await storage.getPageSettings("artist_pages");
+        const artistInfo = artistPages?.[product.artistSlug] || {};
         if (artistInfo.name) {
           const role = artistInfo.role ? ` — ${artistInfo.role}` : "";
           artistContext =

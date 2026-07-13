@@ -10,3 +10,4 @@
 - [Bot SSR middleware](bot-ssr-middleware.md) — server/bot-ssr.ts; только GET+бот-UA; только in-memory кэш; isPublicProduct() guards via getCachedProductsForRecommendations; собственный 5-мин кэш; next() при пустом кэше и ошибках
 - [Bot SSR subcategory fix](bot-ssr-subcategory.md) — CAT_META (локальный) ≠ CATEGORIES (schema); renderSubcategory использует getCachedRawPageSettings('site_config') + normalizeCategories для маппинга slug→name из YDB
 - [NODE_ENV=production breaks npm install](node-env-prod-npm-install.md) — если в Secrets есть NODE_ENV=production, обычный npm install пропускает devDependencies (vite/tsx/esbuild); нужен npm install --include=dev
+- [BOOOM AI artist-collab cache](ai-artist-collab-cache.md) — getCachedArtistHeroImage тихо протухает через 10 мин; для критичных мест (AI промпты) юзать storage.getPageSettings вместо getCached*
