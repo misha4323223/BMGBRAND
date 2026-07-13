@@ -16,8 +16,8 @@ export default function About() {
     <div className="min-h-screen bg-background text-foreground" data-testid="page-about">
       <SEO
         title="О бренде BOOOMERANGS — история, производство, команда"
-        description="BOOOMERANGS (BMGBRAND) — российский бренд одежды и аксессуаров из Тулы. Основан в 2006 году. Собственное производство с 2019 года. 200+ моделей носков, одежда и мерч для артистов. Делаем вещи, которые носим сами."
-        keywords="о бренде BOOOMERANGS, история бренда, BMGBRAND, российский бренд одежды, Тула, производство одежды, мерч"
+        description="BOOOMERANGS (BMGBRAND) — российский бренд одежды и аксессуаров из Тулы. Основан в 2006 году. Собственное производство с 2019 года. 200+ моделей носков, одежда и мерч для артистов. На сайте работает встроенный ИИ-консультант BOOOM AI. Делаем вещи, которые носим сами."
+        keywords="о бренде BOOOMERANGS, история бренда, BMGBRAND, российский бренд одежды, Тула, производство одежды, мерч, BOOOM AI"
         canonical="https://booomerangs.ru/about"
         jsonLd={[
           {
@@ -25,7 +25,7 @@ export default function About() {
             "@type": "Organization",
             "name": "BMGBRAND",
             "alternateName": ["Booomerangs", "BOOOMERANGS"],
-            "description": "Российский бренд одежды и аксессуаров с авторскими принтами из Тулы. Основан в 2006 году. Собственное производство с 2019 года. Худи, футболки, носки, аксессуары и мерч для артистов.",
+            "description": "Российский бренд одежды и аксессуаров с авторскими принтами из Тулы. Основан в 2006 году. Собственное производство с 2019 года. Худи, футболки, носки, аксессуары и мерч для артистов. На сайте работает встроенный ИИ-консультант BOOOM AI.",
             "url": "https://booomerangs.ru",
             "logo": "https://booomerangs.ru/favicon.png",
             "image": "https://booomerangs.ru/images/about-hero.webp",
@@ -50,7 +50,7 @@ export default function About() {
               "https://t.me/bmg_booomerangs"
             ],
             "numberOfEmployees": { "@type": "QuantitativeValue", "minValue": 10 },
-            "knowsAbout": ["streetwear", "мерч", "носки с принтом", "одежда с авторскими принтами"]
+            "knowsAbout": ["streetwear", "мерч", "носки с принтом", "одежда с авторскими принтами", "ИИ-консультант BOOOM AI"]
           },
           {
             "@context": "https://schema.org",
@@ -201,6 +201,10 @@ export default function About() {
               {
                 title: "Мерч под ключ",
                 text: "Производим официальный мерч для артистов, фестивалей и брендов. Официальный партнёр мерча «Дикая мята».",
+              },
+              {
+                title: "ИИ-консультант BOOOM AI",
+                text: "Встроенный ИИ-ассистент на странице каждого товара — помогает подобрать размер по параметрам тела, рассказывает о составе, уходе и коллаборациях с артистами.",
               },
             ].map(({ title, text }, i) => (
               <motion.div

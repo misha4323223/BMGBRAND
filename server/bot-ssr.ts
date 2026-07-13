@@ -271,7 +271,7 @@ function renderHome(): string | null {
       "@type": "Organization",
       "name": SITE_NAME,
       "alternateName": "Booomerangs",
-      "description": "Официальный магазин мерча российского бренда одежды и аксессуаров BMGBRAND.",
+      "description": "Официальный магазин мерча российского бренда одежды и аксессуаров BMGBRAND со встроенным ИИ-консультантом BOOOM AI, который помогает подобрать размер и рассказывает о товаре.",
       "url": SITE_URL,
       "logo": `${SITE_URL}/favicon.png`,
       "sameAs": ["https://vk.com/bmgbrand", "https://t.me/bmg_booomerangs"],
@@ -291,7 +291,7 @@ function renderHome(): string | null {
 
   const head = baseHead({
     title: `Официальный сайт бренда Booomerangs | ${SITE_NAME}`,
-    description: "Booomerangs (BMGBRAND) — официальный магазин мерча. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
+    description: "Booomerangs (BMGBRAND) — официальный магазин мерча со встроенным ИИ-консультантом BOOOM AI. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
     canonical: `${SITE_URL}/`,
     ogImage: `${SITE_URL}/og-image.png`,
     jsonLd,
@@ -299,7 +299,7 @@ function renderHome(): string | null {
 
   const body = `
 <h1>BOOOMERANGS — официальный магазин бренда BMGBRAND</h1>
-<p class="desc">Российский бренд одежды с авторскими принтами из Тулы. Худи, свитшоты, футболки, носки и аксессуары. Делаем вещи, которые носим сами. Доставка по всей России СДЭК и Яндекс Доставкой.</p>
+<p class="desc">Российский бренд одежды с авторскими принтами из Тулы. Худи, свитшоты, футболки, носки и аксессуары. Делаем вещи, которые носим сами. На каждой странице товара работает встроенный ИИ-консультант BOOOM AI — помогает подобрать размер и отвечает на вопросы о составе, уходе и коллаборациях. Доставка по всей России СДЭК и Яндекс Доставкой.</p>
 <h2>Категории товаров</h2>
 <div class="cats">${catLinks}</div>
 ${inStock.length > 0 ? `<h2>Популярные товары</h2><div class="grid">${cards}</div>` : ""}
@@ -777,7 +777,7 @@ function renderSubcategory(subSlug: string): string | null {
 }
 
 function renderAbout(): string {
-  const description = "BOOOMERANGS (BMGBRAND) — российский бренд одежды и аксессуаров с авторскими принтами из Тулы. Основан в 2006 году. Собственное производство с 2019 года. 200+ моделей носков, одежда и мерч для артистов.";
+  const description = "BOOOMERANGS (BMGBRAND) — российский бренд одежды из Тулы. Основан в 2006 году, своё производство с 2019 года. 200+ моделей носков, мерч для артистов, встроенный ИИ-консультант BOOOM AI.";
 
   const jsonLd = safeJsonLd([
     {
@@ -809,6 +809,7 @@ function renderAbout(): string {
         "https://vk.com/bmgbrand",
         "https://t.me/bmg_booomerangs",
       ],
+      "knowsAbout": ["streetwear", "мерч", "носки с принтом", "одежда с авторскими принтами", "ИИ-консультант BOOOM AI"],
     },
     {
       "@context": "https://schema.org",
@@ -882,6 +883,10 @@ function renderAbout(): string {
   <div class="card">
     <div class="name">Мерч под ключ</div>
     <p class="desc" style="margin:0">Производим официальный мерч для артистов, фестивалей и брендов. Официальный партнёр мерча «Дикая мята».</p>
+  </div>
+  <div class="card">
+    <div class="name">ИИ-консультант BOOOM AI</div>
+    <p class="desc" style="margin:0">Встроенный ИИ-ассистент на странице каждого товара — помогает подобрать размер по параметрам тела, рассказывает о составе, уходе и коллаборациях с артистами.</p>
   </div>
 </div>
 

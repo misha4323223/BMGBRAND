@@ -13,7 +13,7 @@ interface SEOProps {
 
 const SITE_NAME = "BMGBRAND";
 const CANONICAL_ORIGIN = "https://booomerangs.ru";
-const DEFAULT_DESCRIPTION = "BMGBRAND — российский бренд одежды и аксессуаров. Худи, футболки, носки, авторские принты. Оплата частями через Долями. Доставка по всей России.";
+const DEFAULT_DESCRIPTION = "BMGBRAND — российский бренд одежды и аксессуаров со встроенным ИИ-консультантом BOOOM AI, который помогает подобрать размер и расскажет о товаре. Худи, футболки, носки, авторские принты. Оплата частями через Долями. Доставка по всей России.";
 
 function getAbsoluteUrl(path: string): string {
   if (path.startsWith("http")) return path;
