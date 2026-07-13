@@ -1343,18 +1343,34 @@ export function registerProductInfoRoute(app: Express): void {
       const measurementCols = hasMeasurements
         ? Object.keys(product.measurements![0] as Record<string, any>).filter(k => k !== "size")
         : [];
+      // isFullSet: таблица содержит и верх (chest) и низ (waist/hips) — это костюм/комплект
+      const isFullSet = measurementCols.includes("chest") &&
+                        measurementCols.some(c => ["waist", "hips", "inseam"].includes(c));
       const isBottom = measurementCols.some(c => ["waist", "hips", "inseam"].includes(c)) &&
                        !measurementCols.includes("chest");
-      const hasChest = measurementCols.includes("chest");
+      // hasChest только для чистого верха (не костюма)
+      const hasChest = measurementCols.includes("chest") && !isFullSet;
 
       // Reference body measurements per size
       const bodyRefChest: Record<string, number> = { XS: 84, S: 88, M: 92, L: 96, XL: 100, XXL: 104, XXXL: 108 };
       const bodyRefWaist: Record<string, number> = { XS: 62, S: 66, M: 70, L: 74, XL: 78, XXL: 82, XXXL: 86 };
 
       let sizingRule = `- Чтобы найти размер: найди строку таблицы, где грудь изделия ближайшая к обхвату груди покупателя (без прибавок — замеры изделия уже включают свободу кроя)\n`;
+      // Что спросить у покупателя, если параметры не указаны
+      let askParamsLine = `- Если параметры не названы и вопрос про размер — попроси рост и обхват груди\n`;
 
       if (isOneSize) {
         sizingRule = `- Товар одного универсального размера (OneSize) — подбор размера не нужен, не спрашивай про рост и обхват груди.\n`;
+        askParamsLine = ``;
+      } else if (hasMeasurements && isFullSet) {
+        // Костюм/комплект: таблица содержит замеры и верха и низа
+        sizingRule =
+          `- КОМПЛЕКТ (верх + низ): подбирай ДВА размера отдельно.\n` +
+          `- Верх: найди строку, где грудь изделия БЛИЖАЙШАЯ к обхвату груди тела.\n` +
+          `- Низ: найди строку, где талия изделия БЛИЖАЙШАЯ к обхвату талии тела.\n` +
+          `- Если оба размера совпадают — назови один, если разные — укажи оба (например: верх M / низ L).\n` +
+          `⚠️ Не добавляй ничего к параметрам тела — таблица уже содержит замеры готового изделия.\n`;
+        askParamsLine = `- Если параметры не названы и вопрос про размер — попроси рост, обхват груди, талии и бёдер\n`;
       } else if (hasMeasurements && isBottom) {
         // Bottoms: use waist column, ask for waist (not chest)
         const firstRow = product.measurements![0] as Record<string, any>;
@@ -1376,6 +1392,7 @@ export function registerProductInfoRoute(app: Express): void {
           sizingRule =
             `- НИЗ ОДЕЖДЫ: подбирай по обхвату талии или бёдер — НЕ спрашивай обхват груди.\n`;
         }
+        askParamsLine = `- Если параметры не названы и вопрос про размер — попроси обхват талии или бёдер (НЕ грудь)\n`;
       } else if (hasMeasurements && hasChest) {
         // Tops: use chest column
         const firstRow = product.measurements![0] as Record<string, any>;
@@ -1396,6 +1413,7 @@ export function registerProductInfoRoute(app: Express): void {
               `- ПРИТАЛЕННЫЙ КРОй: найди строку, где грудь изделия БЛИЖАЙШАЯ к обхвату груди покупателя. ⚠️ Не добавляй ничего к параметрам тела — таблица уже содержит замеры готового изделия.\n`;
           }
         }
+        // askParamsLine остаётся "рост и обхват груди" (верх)
       } else {
         // No table: detect from product name whether it's a bottom
         const nameLower = (product.name || "").toLowerCase();
@@ -1404,10 +1422,12 @@ export function registerProductInfoRoute(app: Express): void {
           sizingRule =
             `- НИЗ ОДЕЖДЫ, таблицы замеров нет: спрашивай обхват талии или бёдер (НЕ грудь). ` +
             `Скажи, что точные замеры есть на странице товара.\n`;
+          askParamsLine = `- Если параметры не названы и вопрос про размер — попроси обхват талии или бёдер (НЕ грудь)\n`;
         } else {
           sizingRule =
             `- Таблицы замеров нет. BOOOMERANGS шьёт в свободном/оверсайз крое — рекомендуй на 1 размер меньше привычного. ` +
             `Скажи покупателю, что точные замеры есть на странице каждого товара.\n`;
+          // askParamsLine остаётся "рост и обхват груди"
         }
       }
 
@@ -1424,7 +1444,7 @@ export function registerProductInfoRoute(app: Express): void {
         `- Замеры в таблице — это размеры ИЗДЕЛИЯ, не тела покупателя\n` +
         sizingRule +
         `- Если покупатель назвал параметры тела — сразу называй конкретный размер, не переспрашивай\n` +
-        `- Если параметры не названы и вопрос про размер — попроси только рост и обхват груди\n` +
+        askParamsLine +
         `- Всегда объясни выбор в 1 предложении с причиной\n\n` +
         artistContext +
         `ТОВАР:\n` +
