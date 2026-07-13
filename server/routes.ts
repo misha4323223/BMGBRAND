@@ -1688,6 +1688,27 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // SEO: sitemap index — master entry point for Yandex Webmaster
+  // Register /sitemap_index.xml in Webmaster; it points only to sitemap.xml.
+  // yml-feed.xml is a product feed (not a sitemap) and should be submitted
+  // separately via Yandex Webmaster → Товары, not as a sitemap.
+  app.get("/sitemap_index.xml", (_req, res) => {
+    const host = _req.headers.host || "booomerangs.ru";
+    const baseUrl = `https://${host}`;
+    const today = new Date().toISOString().split("T")[0];
+    const xml =
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+      `  <sitemap>\n` +
+      `    <loc>${baseUrl}/sitemap.xml</loc>\n` +
+      `    <lastmod>${today}</lastmod>\n` +
+      `  </sitemap>\n` +
+      `</sitemapindex>`;
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.send(xml);
+  });
+
   // SEO: dynamic sitemap.xml
   app.get("/sitemap.xml", async (_req, res) => {
     const host = _req.headers.host || "";
@@ -1881,7 +1902,6 @@ BMGBRAND — официальный производитель и магазин
         xml += `        <description>${escXml(desc)}</description>\n`;
         xml += `        <vendor>BMGBRAND</vendor>\n`;
         xml += `        <vendorCode>${escXml(p.article || p.sku || String(p.id))}</vendorCode>\n`;
-        xml += `        <condition type="new"><reason/></condition>\n`;
         xml += `        <country_of_origin>Россия</country_of_origin>\n`;
         if (sizes.length > 0) {
           xml += `        <param name="Размер">${escXml(sizes.join(", "))}</param>\n`;

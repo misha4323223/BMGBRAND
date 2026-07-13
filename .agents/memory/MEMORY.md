@@ -8,3 +8,4 @@
 - [GROQ_PROXY_URL only for production](groq-proxy-url.md) — в Replit dev не должен быть установлен GROQ_PROXY_URL; он недоступен из Replit и вызывает молчаливый ai_unavailable за ~374ms без console.error
 - [Server restart cost](server-restart-cost.md) — перезапуск занимает ~3 минуты (YDB + кэш ~1181 товаров + CDEK 54k городов); НЕ перезапускать без явного согласия пользователя
 - [Bot SSR middleware](bot-ssr-middleware.md) — server/bot-ssr.ts; только GET+бот-UA; только in-memory кэш; isPublicProduct() guards via getCachedProductsForRecommendations; собственный 5-мин кэш; next() при пустом кэше и ошибках
+- [Bot SSR subcategory fix](bot-ssr-subcategory.md) — CAT_META (локальный) ≠ CATEGORIES (schema); renderSubcategory использует getCachedRawPageSettings('site_config') + normalizeCategories для маппинга slug→name из YDB

@@ -21,10 +21,11 @@ import {
   getCachedProductsForRecommendations,
   getCachedReviewsByProductId,
   getCachedProductsForVariantMatching,
+  getCachedRawPageSettings,
 } from "./storage";
 import { getRecommendationsSync } from "./recommendations";
 import { findProductVariantsSync } from "./variant-matching";
-import { CATEGORIES, findCategoryBySubcategorySlug } from "../shared/schema";
+import { CATEGORIES, normalizeCategories, findCategoryBySubcategorySlug } from "../shared/schema";
 
 // ─── Bot User-Agent detection ─────────────────────────────────────────────────
 // Only include server-side crawlers and link-preview fetchers.
@@ -86,7 +87,7 @@ function botCacheSet(key: string, html: string): void {
 const SITE_NAME = "BMGBRAND";
 const SITE_URL = (process.env.SITE_URL || "https://booomerangs.ru").replace(/\/$/, "");
 
-const CATEGORIES: Record<string, { name: string; title?: string; desc: string }> = {
+const CAT_META: Record<string, { name: string; title?: string; desc: string }> = {
   clothing:    { name: "Одежда",                    desc: "Купить одежду с авторскими принтами BMGBRAND — худи, свитшоты, футболки, шорты. Доставка по всей России." },
   merch:       { name: "Мерч",                      desc: "Купить официальный мерч артистов BMGBRAND — одежда и аксессуары с уникальными принтами. Доставка по всей России." },
   socks:       {
@@ -253,7 +254,7 @@ function renderHome(): string | null {
   if (products.length === 0) return null;
   const inStock = products.filter(p => p.stock > 0).slice(0, 12);
 
-  const catLinks = Object.entries(CATEGORIES)
+  const catLinks = Object.entries(CAT_META)
     .map(([slug, cat]) => `<a href="/products/${slug}" class="cat-link">${esc(cat.name)}</a>`)
     .join("\n");
 
@@ -317,7 +318,7 @@ function renderCatalog(): string | null {
     catGroups[p.category].push(p);
   }
 
-  const catBlocks = Object.entries(CATEGORIES).map(([slug, cat]) => {
+  const catBlocks = Object.entries(CAT_META).map(([slug, cat]) => {
     const catProducts = catGroups[slug] || [];
     if (catProducts.length === 0) return "";
     const items = catProducts.slice(0, 8).map(p =>
@@ -353,7 +354,7 @@ ${catBlocks || "<p>Товары загружаются...</p>"}`;
 }
 
 function renderCategory(catSlug: string): string | null {
-  const cat = CATEGORIES[catSlug];
+  const cat = CAT_META[catSlug];
   if (!cat) return null;
 
   const products = getCachedProductsByCategory(catSlug, 80);
@@ -570,7 +571,7 @@ function renderProduct(slug: string): string | null {
     }
   } catch { /* safe to skip */ }
 
-  const catName = meta.category ? CATEGORIES[meta.category]?.name || meta.category : "";
+  const catName = meta.category ? CAT_META[meta.category]?.name || meta.category : "";
   const breadcrumbItems: any[] = [
     { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
     { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${SITE_URL}/products` },
@@ -670,14 +671,30 @@ ${recsHtml}`;
 }
 
 function renderSubcategory(subSlug: string): string | null {
-  const found = findCategoryBySubcategorySlug(CATEGORIES, subSlug);
+  // Build the live category map the same way /api/categories does:
+  // read from the in-memory page-settings cache (site_config.categories_data),
+  // fall back to the static schema CATEGORIES if the cache is cold.
+  // This guarantees slug lookups match actual DB slugs (e.g. "hoodies", not "tolstovki").
+  let cats = CATEGORIES; // static fallback (schema slugs)
+  try {
+    const siteConfig = getCachedRawPageSettings('site_config');
+    if (siteConfig?.categories_data) {
+      const raw = typeof siteConfig.categories_data === 'string'
+        ? JSON.parse(siteConfig.categories_data)
+        : siteConfig.categories_data;
+      const normalized = normalizeCategories(raw);
+      if (Object.keys(normalized).length > 0) cats = normalized;
+    }
+  } catch { /* keep static fallback */ }
+
+  const found = findCategoryBySubcategorySlug(cats, subSlug);
   if (!found) return null;
 
   const { category, subcategory } = found;
-  const products = getCachedProductsByCategory(category.slug, 200);
+  const products = getCachedProductsByCategory(category.slug, 500);
   if (products.length === 0) return null;
 
-  const filtered = products.filter((p: any) =>
+  const filtered = (products as any[]).filter((p: any) =>
     p.subcategory && p.subcategory.toLowerCase().trim() === subcategory.name.toLowerCase().trim()
   );
   if (filtered.length === 0) return null;
@@ -686,13 +703,16 @@ function renderSubcategory(subSlug: string): string | null {
   const outOfStock = filtered.filter((p: any) => p.stock === 0);
   const allSorted = [...inStock, ...outOfStock];
 
+  const catMeta = CAT_META[category.slug];
+  const catName = catMeta?.name || category.name;
   const isMerch = category.slug === "merch";
+
   const title = isMerch
     ? `Мерч ${subcategory.name} — купить официальный мерч | ${SITE_NAME}`
-    : `${subcategory.name} — купить в ${SITE_NAME} | ${category.name}`;
+    : `${subcategory.name} — купить в ${SITE_NAME} | ${catName}`;
   const desc = isMerch
     ? `Официальный мерч ${subcategory.name} в интернет-магазине BMGBRAND: одежда и аксессуары с авторскими принтами. Доставка по всей России СДЭК и Яндекс Доставкой.`
-    : `${subcategory.name} от BMGBRAND — ${category.name.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России.`;
+    : `${subcategory.name} от BMGBRAND — ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России.`;
 
   const jsonLd = safeJsonLd([
     {
@@ -701,7 +721,7 @@ function renderSubcategory(subSlug: string): string | null {
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
         { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${SITE_URL}/products` },
-        { "@type": "ListItem", "position": 3, "name": category.name, "item": `${SITE_URL}/products/${category.slug}` },
+        { "@type": "ListItem", "position": 3, "name": catName, "item": `${SITE_URL}/products/${category.slug}` },
         { "@type": "ListItem", "position": 4, "name": subcategory.name, "item": `${SITE_URL}/${subSlug}` },
       ],
     },
@@ -746,12 +766,12 @@ function renderSubcategory(subSlug: string): string | null {
     </div>`).join("\n");
 
   const body = `
-<div class="breadcrumb"><a href="/">Главная</a> / <a href="/products">Каталог</a> / <a href="/products/${esc(category.slug)}">${esc(category.name)}</a> / ${esc(subcategory.name)}</div>
+<div class="breadcrumb"><a href="/">Главная</a> / <a href="/products">Каталог</a> / <a href="/products/${esc(category.slug)}">${esc(catName)}</a> / ${esc(subcategory.name)}</div>
 <h1>${esc(subcategory.name)}</h1>
 <p class="desc">${esc(desc)}</p>
 <p style="margin-bottom:1rem;color:#888;font-size:.9rem">Всего: <strong>${allSorted.length}</strong>. В наличии: <strong>${inStock.length}</strong>.</p>
 <div class="grid">${cards}</div>
-<p style="margin-top:1.5rem"><a href="/products/${esc(category.slug)}">← Все ${esc(category.name)}</a></p>`;
+<p style="margin-top:1.5rem"><a href="/products/${esc(category.slug)}">← Все ${esc(catName)}</a></p>`;
 
   return wrapPage(head, body);
 }
