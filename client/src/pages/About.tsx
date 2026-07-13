@@ -187,32 +187,27 @@ export default function About() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             {[
               {
-                emoji: "👕",
                 title: "Одежда",
                 text: "Футболки, худи, свитшоты, куртки, брюки — оверсайз-силуэт, унисекс. Ничего лишнего.",
               },
               {
-                emoji: "🧦",
                 title: "Носки",
                 text: "200+ моделей — мемные, яркие, классические. Одни из самых узнаваемых в России.",
               },
               {
-                emoji: "🎒",
                 title: "Аксессуары",
                 text: "Шопперы, кепки, шапки, сумки. Всё что завершает образ.",
               },
               {
-                emoji: "🎤",
                 title: "Мерч под ключ",
-                text: "Производим официальный мерч для артистов, фестивалей и брендов. Делали мерч для «Дикой Мяты».",
+                text: "Производим официальный мерч для артистов, фестивалей и брендов. Официальный партнёр мерча «Дикая мята».",
               },
-            ].map(({ emoji, title, text }, i) => (
+            ].map(({ title, text }, i) => (
               <motion.div
                 key={title}
                 {...fadeUp(i * 0.08)}
                 className="border border-border rounded-2xl p-6 sm:p-8 hover:border-primary/40 transition-colors duration-300"
               >
-                <span className="text-2xl sm:text-3xl mb-4 block">{emoji}</span>
                 <p className="font-bold text-foreground text-base sm:text-lg mb-1.5">{title}</p>
                 <p className="text-muted-foreground text-sm leading-relaxed">{text}</p>
               </motion.div>
