@@ -668,6 +668,126 @@ ${recsHtml}`;
   return wrapPage(head, body);
 }
 
+function renderAbout(): string {
+  const description = "BOOOMERANGS (BMGBRAND) — российский бренд одежды и аксессуаров с авторскими принтами из Тулы. Основан в 2006 году. Собственное производство с 2019 года. 200+ моделей носков, одежда и мерч для артистов.";
+
+  const jsonLd = safeJsonLd([
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "BMGBRAND",
+      "alternateName": ["Booomerangs", "BOOOMERANGS"],
+      "description": description,
+      "url": SITE_URL,
+      "logo": `${SITE_URL}/favicon.png`,
+      "image": `${SITE_URL}/images/about-hero.webp`,
+      "foundingDate": "2006",
+      "foundingLocation": {
+        "@type": "Place",
+        "name": "Тула, Россия",
+      },
+      "founder": {
+        "@type": "Person",
+        "name": "Евгений Соболев",
+        "jobTitle": "Основатель BOOOMERANGS",
+      },
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Тула",
+        "addressRegion": "Тульская область",
+        "addressCountry": "RU",
+      },
+      "sameAs": [
+        "https://vk.com/bmgbrand",
+        "https://t.me/bmg_booomerangs",
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
+        { "@type": "ListItem", "position": 2, "name": "О бренде", "item": `${SITE_URL}/about` },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "name": "Евгений Соболев",
+      "jobTitle": "Основатель",
+      "worksFor": {
+        "@type": "Organization",
+        "name": "BMGBRAND",
+        "url": SITE_URL,
+      },
+      "quote": "Сначала приходит вдохновение. Потом эскиз, подбор тканей, тестирование — стираем и носим сами, пока не убедимся что вещь готова. И только потом — в производство.",
+    },
+  ]);
+
+  const head = baseHead({
+    title: `О бренде BOOOMERANGS — история, производство, команда | ${SITE_NAME}`,
+    description,
+    canonical: `${SITE_URL}/about`,
+    ogImage: `${SITE_URL}/images/about-hero.webp`,
+    jsonLd,
+  });
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / О бренде</div>
+<h1>О бренде BOOOMERANGS (BMGBRAND)</h1>
+<p class="desc">${esc(description)}</p>
+
+<h2>Цифры</h2>
+<ul>
+  <li><strong>2006</strong> — год открытия первого магазина</li>
+  <li><strong>200+</strong> моделей носков в каталоге</li>
+  <li><strong>100+</strong> магазинов по всей России</li>
+</ul>
+
+<h2>История бренда</h2>
+<ul>
+  <li><strong>2006</strong> — открыли StreetWear — мультибренд уличной одежды. С него всё началось.</li>
+  <li><strong>2019</strong> — запустили полный производственный цикл в Узловском районе Тульской области. Теперь шьём, печатаем и упаковываем сами.</li>
+  <li><strong>2020</strong> — в пандемию сделали первые мемные носки с принтами соды, соли и сахара. Покупатели оценили.</li>
+</ul>
+
+<h2>Слово основателя</h2>
+<blockquote style="border-left:3px solid #ccc;padding-left:1rem;margin:1rem 0;color:#444;font-style:italic">
+  «Сначала приходит вдохновение. Потом эскиз, подбор тканей, тестирование — стираем и носим сами, пока не убедимся что вещь готова. И только потом — в производство.»
+</blockquote>
+<p style="color:#888;font-size:.9rem">Евгений Соболев — основатель BOOOMERANGS</p>
+
+<h2>Что мы делаем</h2>
+<div class="grid">
+  <div class="card">
+    <div class="name">Одежда</div>
+    <p class="desc" style="margin:0">Футболки, худи, свитшоты, куртки, брюки — оверсайз-силуэт, унисекс. Ничего лишнего.</p>
+  </div>
+  <div class="card">
+    <div class="name">Носки</div>
+    <p class="desc" style="margin:0">200+ моделей — мемные, яркие, классические. Одни из самых узнаваемых в России.</p>
+  </div>
+  <div class="card">
+    <div class="name">Аксессуары</div>
+    <p class="desc" style="margin:0">Шопперы, кепки, шапки, сумки. Всё что завершает образ.</p>
+  </div>
+  <div class="card">
+    <div class="name">Мерч под ключ</div>
+    <p class="desc" style="margin:0">Производим официальный мерч для артистов, фестивалей и брендов. Делали мерч для «Дикой Мяты».</p>
+  </div>
+</div>
+
+<h2>Признание</h2>
+<p>Участник VI федерального форума-фестиваля <strong>Российская Креативная Неделя</strong>. Включены в экосистему креативных индустрий Тульской области. Цель — стать одним из символов региона и продвигать Тулу как модную столицу.</p>
+
+<p style="margin-top:2rem">
+  <a href="/products" class="buy-btn" style="margin-right:1rem">Перейти в каталог</a>
+  <a href="/merch-na-zakaz" style="color:#1C1C1C;font-weight:600;text-decoration:underline">Заказать мерч</a>
+</p>`;
+
+  return wrapPage(head, body);
+}
+
 // ─── Express middleware ───────────────────────────────────────────────────────
 
 export function botSsrMiddleware(req: Request, res: Response, next: NextFunction): void {
@@ -705,6 +825,8 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
 
     if (reqPath === "/" || reqPath === "") {
       html = renderHome();
+    } else if (reqPath === "/about") {
+      html = renderAbout();
     } else if (reqPath === "/products") {
       html = renderCatalog();
     } else if (reqPath.startsWith("/products/")) {

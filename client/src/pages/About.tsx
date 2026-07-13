@@ -15,9 +15,52 @@ export default function About() {
   return (
     <div className="min-h-screen bg-background text-foreground" data-testid="page-about">
       <SEO
-        title="О бренде | BOOOMERANGS"
-        description="BOOOMERANGS — российский бренд одежды и аксессуаров из Тулы. История, философия и производство с 2006 года."
-        keywords="о бренде BOOOMERANGS, история бренда, BMGBRAND, российский бренд одежды, Тула"
+        title="О бренде BOOOMERANGS — история, производство, команда"
+        description="BOOOMERANGS (BMGBRAND) — российский бренд одежды и аксессуаров из Тулы. Основан в 2006 году. Собственное производство с 2019 года. 200+ моделей носков, одежда и мерч для артистов. Делаем вещи, которые носим сами."
+        keywords="о бренде BOOOMERANGS, история бренда, BMGBRAND, российский бренд одежды, Тула, производство одежды, мерч"
+        canonical="https://booomerangs.ru/about"
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "BMGBRAND",
+            "alternateName": ["Booomerangs", "BOOOMERANGS"],
+            "description": "Российский бренд одежды и аксессуаров с авторскими принтами из Тулы. Основан в 2006 году. Собственное производство с 2019 года. Худи, футболки, носки, аксессуары и мерч для артистов.",
+            "url": "https://booomerangs.ru",
+            "logo": "https://booomerangs.ru/favicon.png",
+            "image": "https://booomerangs.ru/images/about-hero.webp",
+            "foundingDate": "2006",
+            "foundingLocation": {
+              "@type": "Place",
+              "name": "Тула, Россия"
+            },
+            "founder": {
+              "@type": "Person",
+              "name": "Евгений Соболев",
+              "jobTitle": "Основатель BOOOMERANGS"
+            },
+            "address": {
+              "@type": "PostalAddress",
+              "addressLocality": "Тула",
+              "addressRegion": "Тульская область",
+              "addressCountry": "RU"
+            },
+            "sameAs": [
+              "https://vk.com/bmgbrand",
+              "https://t.me/bmg_booomerangs"
+            ],
+            "numberOfEmployees": { "@type": "QuantitativeValue", "minValue": 10 },
+            "knowsAbout": ["streetwear", "мерч", "носки с принтом", "одежда с авторскими принтами"]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Главная", "item": "https://booomerangs.ru" },
+              { "@type": "ListItem", "position": 2, "name": "О бренде", "item": "https://booomerangs.ru/about" }
+            ]
+          }
+        ]}
       />
       <Navbar />
 
