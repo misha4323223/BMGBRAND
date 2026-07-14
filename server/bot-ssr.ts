@@ -87,6 +87,42 @@ function botCacheSet(key: string, html: string): void {
 const SITE_NAME = "BMGBRAND";
 const SITE_URL = (process.env.SITE_URL || "https://booomerangs.ru").replace(/\/$/, "");
 
+// Единая сущность Organization с @id — используется как ссылка (brand/seller)
+// на карточках товаров, чтобы Google/Яндекс распознавали продавца как ту же
+// полноценную организацию, что описана на главной странице, а не как
+// анонимную заглушку без url/logo/sameAs. Держим в синхроне с server/static.ts.
+function buildOrganizationSchema() {
+  return {
+    "@type": "Organization",
+    "@id": `${SITE_URL}/#organization`,
+    "name": SITE_NAME,
+    "alternateName": "Booomerangs",
+    "url": SITE_URL,
+    "logo": `${SITE_URL}/favicon.png`,
+    "sameAs": [
+      "https://vk.com/bmgbrand",
+      "https://t.me/bmg_booomerangs",
+    ],
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Тула",
+      "addressCountry": "RU",
+    },
+  };
+}
+
+// Реальная политика возврата — 14 дней, совпадает с текстом FAQ/Terms/страницы товара.
+function buildMerchantReturnPolicy() {
+  return {
+    "@type": "MerchantReturnPolicy",
+    "applicableCountry": "RU",
+    "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+    "merchantReturnDays": 14,
+    "returnMethod": "https://schema.org/ReturnByMail",
+    "returnFees": "https://schema.org/ReturnFeesCustomerResponsibility",
+  };
+}
+
 const CAT_META: Record<string, { name: string; title?: string; desc: string }> = {
   clothing:    { name: "Одежда",                    desc: "Купить одежду с авторскими принтами BMGBRAND — худи, свитшоты, футболки, шорты. Доставка по всей России." },
   merch:       { name: "Мерч",                      desc: "Купить официальный мерч артистов BMGBRAND — одежда и аксессуары с уникальными принтами. Доставка по всей России." },
@@ -285,13 +321,8 @@ function renderHome(): string | null {
   const jsonLd = safeJsonLd([
     {
       "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": SITE_NAME,
-      "alternateName": "Booomerangs",
+      ...buildOrganizationSchema(),
       "description": "Официальный магазин мерча российского бренда одежды и аксессуаров BMGBRAND со встроенным ИИ-консультантом BOOOM AI, который помогает подобрать размер и рассказывает о товаре.",
-      "url": SITE_URL,
-      "logo": `${SITE_URL}/favicon.png`,
-      "sameAs": ["https://vk.com/bmgbrand", "https://t.me/bmg_booomerangs"],
     },
     {
       "@context": "https://schema.org",
@@ -485,6 +516,7 @@ function renderProduct(slug: string): string | null {
   const priceValidUntil = new Date(new Date().setFullYear(new Date().getFullYear() + 1))
     .toISOString().split("T")[0];
 
+  const organizationSchema = buildOrganizationSchema();
   const productSchema: Record<string, any> = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -493,7 +525,7 @@ function renderProduct(slug: string): string | null {
     "image": meta.images.length > 0 ? meta.images.slice(0, 6) : (meta.image ? [meta.image] : []),
     "url": `${SITE_URL}/${slug}`,
     "sku": meta.sku,
-    "brand": { "@type": "Brand", "name": SITE_NAME },
+    "brand": { "@id": organizationSchema["@id"] },
     "offers": {
       "@type": "Offer",
       "priceCurrency": "RUB",
@@ -502,7 +534,8 @@ function renderProduct(slug: string): string | null {
       "availability": availability,
       "itemCondition": "https://schema.org/NewCondition",
       "url": `${SITE_URL}/${slug}`,
-      "seller": { "@type": "Organization", "name": SITE_NAME },
+      "seller": { "@id": organizationSchema["@id"] },
+      "hasMerchantReturnPolicy": buildMerchantReturnPolicy(),
     },
   };
   if (rating && rating.reviewCount >= 1) {
@@ -615,7 +648,7 @@ function renderProduct(slug: string): string | null {
     canonical: `${SITE_URL}/${slug}`,
     ogImage,
     ogType: "product",
-    jsonLd: safeJsonLd([productSchema, breadcrumbSchema]),
+    jsonLd: safeJsonLd([productSchema, organizationSchema, breadcrumbSchema]),
   });
 
   const imagesHtml = meta.images.slice(0, 6).map((imgUrl, idx) =>

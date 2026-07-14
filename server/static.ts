@@ -278,6 +278,42 @@ function injectSeoBody(html: string, noscriptBlock: string): string {
   return html.replace("</body>", `${noscriptBlock}\n</body>`);
 }
 
+// Единая сущность Organization с @id — используется как ссылка (brand/seller)
+// на карточках товаров, чтобы Google/Яндекс распознавали продавца как ту же
+// полноценную организацию, что описана на главной странице, а не как
+// анонимную заглушку без url/logo/sameAs.
+function buildOrganizationSchema(siteUrl: string) {
+  return {
+    "@type": "Organization",
+    "@id": `${siteUrl}/#organization`,
+    "name": SITE_NAME,
+    "alternateName": "Booomerangs",
+    "url": siteUrl,
+    "logo": `${siteUrl}/favicon.png`,
+    "sameAs": [
+      "https://vk.com/bmgbrand",
+      "https://t.me/bmg_booomerangs",
+    ],
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Тула",
+      "addressCountry": "RU",
+    },
+  };
+}
+
+// Реальная политика возврата — 14 дней, совпадает с текстом FAQ/Terms/страницы товара.
+function buildMerchantReturnPolicy(siteUrl: string) {
+  return {
+    "@type": "MerchantReturnPolicy",
+    "applicableCountry": "RU",
+    "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+    "merchantReturnDays": 14,
+    "returnMethod": "https://schema.org/ReturnByMail",
+    "returnFees": "https://schema.org/ReturnFeesCustomerResponsibility",
+  };
+}
+
 function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProductMetaBySlug>>, slug: string, siteUrl: string): string {
   const isMerch = ["merch", "мерч"].includes(meta.category.toLowerCase());
   const pageDesc = meta.seoDescription || [
@@ -296,6 +332,7 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
       : "https://schema.org/OutOfStock";
 
   const rating = getCachedRatingByProductId(meta.productId);
+  const organizationSchema = buildOrganizationSchema(siteUrl);
 
   const productSchema = {
     "@context": "https://schema.org",
@@ -305,7 +342,7 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
     "image": meta.images.length > 0 ? meta.images : (meta.image ? [meta.image] : []),
     "url": productUrl,
     "sku": meta.sku,
-    "brand": { "@type": "Brand", "name": SITE_NAME },
+    "brand": { "@id": organizationSchema["@id"] },
     "offers": {
       "@type": "Offer",
       "priceCurrency": "RUB",
@@ -314,7 +351,8 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
       "availability": availability,
       "itemCondition": "https://schema.org/NewCondition",
       "url": productUrl,
-      "seller": { "@type": "Organization", "name": SITE_NAME },
+      "seller": { "@id": organizationSchema["@id"] },
+      "hasMerchantReturnPolicy": buildMerchantReturnPolicy(siteUrl),
     },
     ...(rating && rating.reviewCount >= 1 ? {
       "aggregateRating": {
@@ -355,7 +393,7 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
     ],
   };
 
-  return JSON.stringify([productSchema, breadcrumbSchema]);
+  return JSON.stringify([productSchema, organizationSchema, breadcrumbSchema]);
 }
 
 function injectMeta(html: string, opts: {
@@ -634,21 +672,8 @@ export function serveStatic(app: Express) {
         const homeJsonLd = JSON.stringify([
           {
             "@context": "https://schema.org",
-            "@type": "Organization",
-            "name": SITE_NAME,
-            "alternateName": "Booomerangs",
+            ...buildOrganizationSchema(siteUrl),
             "description": "Официальный магазин мерча российского бренда одежды и аксессуаров. Мерч Гудтаймс, Молодость внутри, Дикая мята и других артистов. Доставка по всей России.",
-            "logo": `${siteUrl}/favicon.png`,
-            "url": siteUrl,
-            "sameAs": [
-              "https://vk.com/bmgbrand",
-              "https://t.me/bmg_booomerangs",
-            ],
-            "address": {
-              "@type": "PostalAddress",
-              "addressLocality": "Тула",
-              "addressCountry": "RU",
-            },
           },
           {
             "@context": "https://schema.org",

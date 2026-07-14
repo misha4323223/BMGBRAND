@@ -762,6 +762,28 @@ export default function ProductDetail() {
     img.startsWith("http") ? img : `${origin}${img}`
   );
 
+  // Единая сущность Organization с @id — та же, что на главной странице
+  // (server/static.ts, server/bot-ssr.ts). brand/seller ссылаются на неё,
+  // а не создают анонимную заглушку без url/logo/sameAs.
+  const organizationSchema = {
+    "@type": "Organization",
+    "@id": `${origin}/#organization`,
+    "name": "BMGBRAND",
+    "alternateName": "Booomerangs",
+    "url": origin,
+    "logo": `${origin}/favicon.png`,
+    "sameAs": ["https://vk.com/bmgbrand", "https://t.me/bmg_booomerangs"],
+    "address": { "@type": "PostalAddress", "addressLocality": "Тула", "addressCountry": "RU" },
+  };
+  const merchantReturnPolicy = {
+    "@type": "MerchantReturnPolicy",
+    "applicableCountry": "RU",
+    "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+    "merchantReturnDays": 14,
+    "returnMethod": "https://schema.org/ReturnByMail",
+    "returnFees": "https://schema.org/ReturnFeesCustomerResponsibility",
+  };
+
   const productJsonLd = [
     {
       "@context": "https://schema.org",
@@ -771,7 +793,7 @@ export default function ProductDetail() {
       "image": allProductImages.length > 0 ? allProductImages : [productImage],
       "url": productUrl,
       "sku": (product as any).article || product.sku || product.id,
-      "brand": { "@type": "Brand", "name": "BMGBRAND" },
+      "brand": { "@id": organizationSchema["@id"] },
       "offers": {
         "@type": "Offer",
         "priceCurrency": "RUB",
@@ -784,7 +806,8 @@ export default function ProductDetail() {
             : "https://schema.org/OutOfStock",
         "itemCondition": "https://schema.org/NewCondition",
         "url": productUrl,
-        "seller": { "@type": "Organization", "name": "BMGBRAND" },
+        "seller": { "@id": organizationSchema["@id"] },
+        "hasMerchantReturnPolicy": merchantReturnPolicy,
       },
       ...(product.category ? { "category": product.category } : {}),
       ...((product.colors?.length > 0 || selectedColorName) ? { "color": product.colors?.length > 0 ? product.colors.join(", ") : selectedColorName } : {}),
@@ -816,6 +839,7 @@ export default function ProductDetail() {
         { "@type": "ListItem", "position": product.category ? 4 : 3, "name": product.name, "item": productUrl },
       ],
     },
+    { "@context": "https://schema.org", ...organizationSchema },
   ];
 
   return (
