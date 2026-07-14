@@ -123,6 +123,33 @@ function buildMerchantReturnPolicy() {
   };
 }
 
+// Дефолтные вопросы/ответы FAQ — держим в синхроне с client/src/pages/FAQ.tsx.
+// Используются только если админ ещё не сохранил свой faq_data в static_pages.
+const DEFAULT_FAQ_ITEMS: Array<{ question: string; answer: string }> = [
+  { question: "Как оформить заказ?", answer: "Выберите понравившиеся товары, добавьте их в корзину, перейдите к оформлению и заполните данные для доставки. После оформления заказа вам придёт уведомление на электронную почту. Отследить статус заказа и местонахождение посылки можно в личном кабинете." },
+  { question: "Какие способы оплаты доступны?", answer: "Мы принимаем оплату банковскими картами через ЮKassa и Т-Банк. Доступны банковские карты (Visa, MasterCard, МИР), СБП (Система быстрых платежей), а также Т-Pay." },
+  { question: "Сколько стоит доставка?", answer: "Доставка по России осуществляется через СДЭК и Яндекс Доставку. Стоимость рассчитывается автоматически при оформлении заказа в зависимости от региона и веса посылки." },
+  { question: "Сколько времени занимает доставка?", answer: "Срок доставки зависит от вашего региона и выбранного способа доставки — обычно от 1 до 10 рабочих дней по России." },
+  { question: "Можно ли вернуть или обменять товар?", answer: "Да, вы можете вернуть или обменять товар в течение 14 дней с момента получения. Товар должен сохранить товарный вид, бирки и упаковку. Подробнее в разделе 'Доставка и возврат' на странице товара." },
+  { question: "Как подобрать размер?", answer: "На странице каждого товара есть таблица размеров с точными замерами. Если у вас остались вопросы, напишите нам в Telegram или на почту — поможем с выбором." },
+  { question: "Есть ли у вас офлайн-магазин?", answer: "Мы работаем онлайн, но наша одежда уже представлена у дистрибьюторов более чем в 40 городах России. Также планируем открытие собственного шоурума — следите за новостями в наших соцсетях!" },
+  { question: "Как связаться с поддержкой?", answer: "Напишите нам на info@booomerangs.ru, в Telegram @bmg_booomerangs или в группу ВКонтакте vk.com/bmgbrand. Мы отвечаем в течение 24 часов." },
+];
+
+// Реальный контент FAQ, отредактированный в админке (static_pages.faq_data), с фолбэком —
+// та же логика парсинга, что в client/src/pages/FAQ.tsx и server/static.ts.
+function getFaqItems(): Array<{ question: string; answer: string }> {
+  try {
+    const staticPages = getCachedRawPageSettings("static_pages");
+    const raw = staticPages?.faq_data;
+    const parsed = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : null;
+    if (parsed?.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
+      return parsed.items;
+    }
+  } catch { /* keep defaults */ }
+  return DEFAULT_FAQ_ITEMS;
+}
+
 const CAT_META: Record<string, { name: string; title?: string; desc: string }> = {
   clothing:    { name: "Одежда",                    desc: "Купить одежду с авторскими принтами BMGBRAND — худи, свитшоты, футболки, шорты. Доставка по всей России." },
   merch:       { name: "Мерч",                      desc: "Купить официальный мерч артистов BMGBRAND — одежда и аксессуары с уникальными принтами. Доставка по всей России." },
@@ -957,6 +984,48 @@ function renderAbout(): string {
 
 // ─── Express middleware ───────────────────────────────────────────────────────
 
+function renderFaq(): string {
+  const faqItems = getFaqItems();
+  const description = "Ответы на частые вопросы о заказах, доставке, оплате и возврате в интернет-магазине BMGBRAND.";
+
+  const jsonLd = safeJsonLd([
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": faqItems.map(item => ({
+        "@type": "Question",
+        "name": item.question,
+        "acceptedAnswer": { "@type": "Answer", "text": item.answer },
+      })),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
+        { "@type": "ListItem", "position": 2, "name": "Вопросы и ответы", "item": `${SITE_URL}/faq` },
+      ],
+    },
+  ]);
+
+  const head = baseHead({
+    title: `Вопросы и ответы | ${SITE_NAME}`,
+    description,
+    canonical: `${SITE_URL}/faq`,
+    ogImage: `${SITE_URL}/favicon.png`,
+    jsonLd,
+  });
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / Вопросы и ответы</div>
+<h1>Часто задаваемые вопросы</h1>
+<p class="desc">${esc(description)}</p>
+${faqItems.map(item => `<h2>${esc(item.question)}</h2><p>${esc(item.answer)}</p>`).join("\n")}
+`;
+
+  return `<!DOCTYPE html><html lang="ru"><head>${head}</head><body>${body}</body></html>`;
+}
+
 export function botSsrMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Only GET requests
   if (req.method !== "GET") return next();
@@ -994,6 +1063,8 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
       html = renderHome();
     } else if (reqPath === "/about") {
       html = renderAbout();
+    } else if (reqPath === "/faq") {
+      html = renderFaq();
     } else if (reqPath === "/products") {
       html = renderCatalog();
     } else if (reqPath.startsWith("/products/")) {

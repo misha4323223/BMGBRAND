@@ -207,8 +207,25 @@ const DEFAULT_BLOG_POSTS: Array<{ title: string; date: string; category: string;
   { title: "Коллаб: BMG x Tula Artists", date: "5 января 2026", category: "Коллаборации", author: "BMG Team", excerpt: "Лимитированная серия, созданная совместно с локальными художниками Тулы." },
 ];
 
+// Читает реальный контент FAQ, отредактированный в админке (static_pages.faq_data),
+// с фолбэком на DEFAULT_FAQ_ITEMS — та же логика парсинга, что в client/src/pages/FAQ.tsx,
+// чтобы structured data и noscript-разметка всегда совпадали с тем, что видит пользователь.
+function getFaqItems(): Array<{ question: string; answer: string }> {
+  try {
+    const staticPages = getCachedRawPageSettings("static_pages");
+    const raw = staticPages?.faq_data;
+    const parsed = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : null;
+    if (parsed?.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
+      return parsed.items;
+    }
+  } catch (e) {
+    console.error("[Static] FAQ items parse error:", e);
+  }
+  return DEFAULT_FAQ_ITEMS;
+}
+
 function buildFaqNoscript(): string {
-  const items = DEFAULT_FAQ_ITEMS.map(item =>
+  const items = getFaqItems().map(item =>
     `<h2>${escHtml(item.question)}</h2><p>${escHtml(item.answer)}</p>`
   ).join("\n");
   return `<noscript><div>` +
@@ -1010,7 +1027,7 @@ export function serveStatic(app: Express) {
           staticJsonLd = JSON.stringify({
             "@context": "https://schema.org",
             "@type": "FAQPage",
-            "mainEntity": DEFAULT_FAQ_ITEMS.map(item => ({
+            "mainEntity": getFaqItems().map(item => ({
               "@type": "Question",
               "name": item.question,
               "acceptedAnswer": { "@type": "Answer", "text": item.answer },
