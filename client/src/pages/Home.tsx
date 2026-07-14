@@ -6,6 +6,7 @@ declare global {
     __HERO__?: {
       img: string;
       imgMobile: string;
+      imgAlt?: string;
       opacity: number;
       tagline1: string;
       tagline2: string;
@@ -653,7 +654,7 @@ export default function Home() {
                     {s.heroImageMobile && <source media="(max-width: 639px)" srcSet={s.heroImageMobile} />}
                     <img
                       src={s.heroImage || ""}
-                      alt="Booomerangs — российский бренд одежды и мерча"
+                      alt={s.heroImageAlt || "Booomerangs — российский бренд одежды и мерча"}
                       loading={i === 0 ? "eager" : "lazy"}
                       fetchpriority={i === 0 ? "high" : "low"}
                       className="w-full h-full object-cover object-center"
@@ -668,7 +669,7 @@ export default function Home() {
                   {window.__HERO__.imgMobile && <source media="(max-width: 639px)" srcSet={window.__HERO__.imgMobile} />}
                   <img
                     src={window.__HERO__.img}
-                    alt="Booomerangs — российский бренд одежды и мерча"
+                    alt={window.__HERO__.imgAlt || "Booomerangs — российский бренд одежды и мерча"}
                     loading="eager"
                     fetchpriority="high"
                     className="w-full h-full object-cover object-center"
@@ -683,7 +684,7 @@ export default function Home() {
                 ) : (
                   <picture className="absolute inset-0 block">
                     {pageSettings?.hero?.heroImageMobile && <source media="(max-width: 639px)" srcSet={pageSettings.hero.heroImageMobile} />}
-                    <img src={pageSettings?.hero?.heroImage || ""} alt="Booomerangs — российский бренд одежды и мерча" loading="eager" fetchpriority="high" className="w-full h-full object-cover object-center" />
+                    <img src={pageSettings?.hero?.heroImage || ""} alt={pageSettings?.hero?.heroImageAlt || "Booomerangs — российский бренд одежды и мерча"} loading="eager" fetchpriority="high" className="w-full h-full object-cover object-center" />
                   </picture>
                 )}
               </div>

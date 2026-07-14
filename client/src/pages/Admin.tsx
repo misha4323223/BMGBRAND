@@ -5783,9 +5783,9 @@ export default function Admin() {
                       <CardContent className="space-y-4">
                         {/* Hero section settings */}
                         {selectedSection === "hero" && (() => {
-                          const emptySlide = { heroImage: "", heroImageMobile: "", heroVideo: "", bgType: "image", tagline1: "", tagline2: "", buttonText: "", buttonLink: "", heroOpacity: "0.6" };
+                          const emptySlide = { heroImage: "", heroImageMobile: "", heroImageAlt: "", heroVideo: "", bgType: "image", tagline1: "", tagline2: "", buttonText: "", buttonLink: "", heroOpacity: "0.6" };
                           const rawSlides: any[] = sectionSettings.slides || [
-                            { heroImage: sectionSettings.heroImage || "", heroImageMobile: sectionSettings.heroImageMobile || "", heroVideo: sectionSettings.heroVideo || "", bgType: sectionSettings.bgType || "image", tagline1: sectionSettings.tagline1 || "", tagline2: sectionSettings.tagline2 || "", buttonText: sectionSettings.buttonText || "", buttonLink: sectionSettings.buttonLink || "", heroOpacity: sectionSettings.heroOpacity || "0.6" },
+                            { heroImage: sectionSettings.heroImage || "", heroImageMobile: sectionSettings.heroImageMobile || "", heroImageAlt: sectionSettings.heroImageAlt || "", heroVideo: sectionSettings.heroVideo || "", bgType: sectionSettings.bgType || "image", tagline1: sectionSettings.tagline1 || "", tagline2: sectionSettings.tagline2 || "", buttonText: sectionSettings.buttonText || "", buttonLink: sectionSettings.buttonLink || "", heroOpacity: sectionSettings.heroOpacity || "0.6" },
                           ];
                           // Всегда нормализуем до 4 слотов — чтобы legacy-данные с 3 слайдами корректно расширялись
                           const heroSlides: any[] = [...rawSlides];
@@ -5878,6 +5878,11 @@ export default function Admin() {
                                   <Label className="text-sm">Фоновое изображение (мобильный)</Label>
                                   <ImageUploadField value={currentSlide.heroImageMobile || ""} onChange={(url) => updateSlide({ heroImageMobile: url })} apiKey={apiKey} placeholder="URL или перетащите изображение" hint="1080×1920 px, вертикальное (portrait), WebP/JPG" />
                                   <p className="text-xs text-muted-foreground mt-1">Вертикальное фото — только для телефонов. Если не загружено — используется десктопное</p>
+                                </div>
+                                <div>
+                                  <Label className="text-sm">Alt-текст изображения (для SEO и скринридеров)</Label>
+                                  <Input value={currentSlide.heroImageAlt || ""} onChange={(e) => updateSlide({ heroImageAlt: e.target.value })} placeholder="Например: Модель в свитшоте BMGBRAND на фоне города" />
+                                  <p className="text-xs text-muted-foreground mt-1">Описывает, что на фото. Если пусто — используется общее описание бренда</p>
                                 </div>
                               </div>
                             ) : (

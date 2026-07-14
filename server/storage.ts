@@ -282,13 +282,14 @@ export function getCachedHeroImageUrl(): string {
   return hero.heroImage || "";
 }
 
-export function getCachedHeroData(): { img: string; imgMobile: string; opacity: number; tagline1: string; tagline2: string; buttonText: string; buttonLink: string } | null {
+export function getCachedHeroData(): { img: string; imgMobile: string; imgAlt: string; opacity: number; tagline1: string; tagline2: string; buttonText: string; buttonLink: string } | null {
   const homeSettings = pageSettingsCache.get("home");
   if (!homeSettings) return null;
   const hero = homeSettings.hero;
   if (!hero) return null;
   let img = "";
   let imgMobile = "";
+  let imgAlt = "";
   let opacity = 0.6;
   let tagline1 = "";
   let tagline2 = "";
@@ -298,6 +299,7 @@ export function getCachedHeroData(): { img: string; imgMobile: string; opacity: 
     const first = hero.slides[0];
     img = first?.heroImage || "";
     imgMobile = first?.heroImageMobile || "";
+    imgAlt = first?.heroImageAlt || "";
     opacity = parseFloat(first?.heroOpacity) || 0.6;
     tagline1 = first?.tagline1 || hero.tagline1 || "";
     tagline2 = first?.tagline2 || hero.tagline2 || "";
@@ -306,6 +308,7 @@ export function getCachedHeroData(): { img: string; imgMobile: string; opacity: 
   } else {
     img = hero.heroImage || "";
     imgMobile = hero.heroImageMobile || "";
+    imgAlt = hero.heroImageAlt || "";
     opacity = parseFloat(hero.heroOpacity) || 0.6;
     tagline1 = hero.tagline1 || "";
     tagline2 = hero.tagline2 || "";
@@ -313,7 +316,7 @@ export function getCachedHeroData(): { img: string; imgMobile: string; opacity: 
     buttonLink = hero.buttonLink || "";
   }
   if (!img) return null;
-  return { img, imgMobile, opacity, tagline1, tagline2, buttonText, buttonLink };
+  return { img, imgMobile, imgAlt, opacity, tagline1, tagline2, buttonText, buttonLink };
 }
 
 export function getCachedLcpImageUrls(): string[] {
