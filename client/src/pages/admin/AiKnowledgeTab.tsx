@@ -190,6 +190,7 @@ export function AiKnowledgeTab({ apiKey, adminFetch }: AiKnowledgeTabProps) {
       <div className="grid gap-1 text-xs text-muted-foreground bg-muted/40 border rounded-lg p-3">
         <p className="font-medium text-foreground mb-1">Как это работает:</p>
         <p>• <b>Базовый промт</b> — отправляется всегда</p>
+        <p>• <b>Ассортимент магазина</b> — отправляется всегда (не даёт ИИ выдумывать несуществующие товары)</p>
         <p>• <b>Тематические блоки</b> — подключаются автоматически по ключевым словам в вопросе пользователя</p>
         <p>• Итоговый промт в Groq: ~600–900 токенов. Кэш обновляется каждые 5 минут.</p>
       </div>
