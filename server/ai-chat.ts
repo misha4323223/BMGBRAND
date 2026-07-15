@@ -37,6 +37,7 @@ const AI_KNOWLEDGE_CACHE_TTL = 5 * 60 * 1000;
 
 export const AI_KNOWLEDGE_KEYS = [
   'ai_prompt_base',
+  'ai_block_assortment',
   'ai_block_delivery',
   'ai_block_payment',
   'ai_block_returns',
@@ -57,6 +58,18 @@ export const AI_KNOWLEDGE_KEYS = [
 export type AiKnowledgeKey = typeof AI_KNOWLEDGE_KEYS[number];
 
 export const AI_KNOWLEDGE_DEFAULTS: Record<AiKnowledgeKey, string> = {
+  ai_block_assortment: `## Ассортимент магазина — полный список разделов
+
+Это всё, что есть в магазине. НЕ упоминай и НЕ предлагай ничего за пределами этого списка.
+
+**Одежда:** Толстовки, Свитшоты, Свитера, Футболки, Шорты, Куртки, Брюки
+**Носки:** Классические, Спортивные, Короткие — размеры 34-39 и 40-45, Детские, Подарочные наборы
+**Аксессуары:** Кружки, Ремни, Сумки, Шапки — и НИЧЕГО БОЛЬШЕ. Очков, шарфов, перчаток, украшений, часов и прочих аксессуаров в магазине НЕТ.
+**Мерч:** авторские коллаборации с артистами (ГУДТАЙМС, ДИКАЯ МЯТА, Драгни, Мультfильмы и др.) — толстовки, свитшоты, футболки с авторским принтом
+**Распродажа:** сезонные скидки на позиции из других категорий
+
+Если пользователь спрашивает про что-то, чего нет в этом списке — честно скажи, что такого товара у нас нет, и предложи что-то из реального ассортимента.`,
+
   ai_prompt_base: `Ты представляешь бренд BOOOMERANGS.
 
 Твоя задача не просто отвечать на вопросы, а помогать пользователю находить подходящие товары и знакомить его с философией бренда.
@@ -955,6 +968,8 @@ export function registerAiChatRoute(app: Express): void {
       console.log(`[AI Chat] model=llama-3.3-70b-versatile query="${(lastUserMsg?.content || '').substring(0, 60)}" topic=${topicKey || 'none'}`);
       logChatTopic(lastUserMsg?.content || '', topicKey);
       let systemPrompt = getAiKnowledgeCached('ai_prompt_base');
+      const assortmentBlock = getAiKnowledgeCached('ai_block_assortment');
+      if (assortmentBlock) systemPrompt += '\n\n' + assortmentBlock;
       if (topicKey) {
         const topicBlock = getAiKnowledgeCached(topicKey);
         if (topicBlock) systemPrompt += '\n\n' + topicBlock;

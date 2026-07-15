@@ -5,11 +5,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Save, RotateCcw, RefreshCw, Bot, Truck, CreditCard, ArrowLeftRight, Ruler, Shirt, Handshake, Star, Building2, Gift, BarChart2, Trash2, Package, Trophy, Tag, User, Briefcase, Flame } from "lucide-react";
+import { Save, RotateCcw, RefreshCw, Bot, Truck, CreditCard, ArrowLeftRight, Ruler, Shirt, Handshake, Star, Building2, Gift, BarChart2, Trash2, Package, Trophy, Tag, User, Briefcase, Flame, LayoutGrid } from "lucide-react";
 import { AdminAgentChat } from "./AdminAgentChat";
 
 const BLOCK_META: Record<string, { label: string; desc: string; icon: any }> = {
   ai_prompt_base:      { label: "Базовый промт",            desc: "Личность, тон, правила поведения и информация о бренде. Используется в каждом запросе.",                    icon: Bot },
+  ai_block_assortment: { label: "Ассортимент магазина",     desc: "Полный список категорий и подкатегорий. Используется в КАЖДОМ запросе — не даёт ИИ выдумывать несуществующие товары.", icon: LayoutGrid },
   ai_block_delivery:   { label: "Доставка",                 desc: "СДЭК, Яндекс Доставка, сроки, стоимость, отслеживание. Подключается при вопросах о доставке.",             icon: Truck },
   ai_block_payment:    { label: "Оплата",                   desc: "ЮKassa, Т-Банк, Ozon Pay, рассрочка. Подключается при вопросах об оплате.",                                icon: CreditCard },
   ai_block_returns:    { label: "Возврат и обмен",          desc: "Условия возврата, сроки, порядок оформления. Подключается при вопросах о возврате.",                        icon: ArrowLeftRight },
@@ -29,6 +30,7 @@ const BLOCK_META: Record<string, { label: string; desc: string; icon: any }> = {
 
 const ORDERED_KEYS = [
   "ai_prompt_base",
+  "ai_block_assortment",
   "ai_block_delivery",
   "ai_block_payment",
   "ai_block_returns",
