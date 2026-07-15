@@ -253,46 +253,46 @@ function ReelPill({ item, onClick }: { item: any; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex flex-col shrink-0 cursor-pointer group focus:outline-none"
+      className="flex flex-col items-center shrink-0 cursor-pointer group focus:outline-none"
     >
-      <div
-        className="relative overflow-hidden border-2 border-primary/60 group-hover:border-primary active:border-primary transition-colors duration-200"
-        style={{ width: 68, height: 108, borderRadius: 18 }}
-      >
-        {/* video с preload="metadata" — браузер загружает первый кадр, не воспроизводит */}
-        {item.videoUrl ? (
-          <video
-            src={item.videoUrl}
-            poster={item.thumbnailUrl || undefined}
-            preload="metadata"
-            muted
-            playsInline
-            className="w-full h-full object-cover"
-          />
-        ) : item.thumbnailUrl ? (
-          <img
-            src={item.thumbnailUrl}
-            alt={item.label || ""}
-            className="w-full h-full object-cover"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-            <svg viewBox="0 0 24 24" className="w-7 h-7 fill-zinc-600" aria-hidden="true">
-              <path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/>
-            </svg>
-          </div>
-        )}
-        {/* иконка play внизу */}
-        <div className="absolute inset-0 flex items-end justify-center pb-2.5">
-          <div className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
-            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-white ml-0.5" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      {/* Внешнее кольцо — как в Telegram/Instagram: градиентный ободок + чёрный зазор перед превью */}
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full p-[2.5px] bg-gradient-to-tr from-primary via-red-500 to-orange-400 group-active:scale-95 transition-transform duration-150">
+        <div className="relative w-full h-full rounded-full overflow-hidden ring-2 ring-black">
+          {/* video с preload="metadata" — браузер загружает первый кадр, не воспроизводит */}
+          {item.videoUrl ? (
+            <video
+              src={item.videoUrl}
+              poster={item.thumbnailUrl || undefined}
+              preload="metadata"
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          ) : item.thumbnailUrl ? (
+            <img
+              src={item.thumbnailUrl}
+              alt={item.label || ""}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="w-6 h-6 fill-zinc-600" aria-hidden="true">
+                <path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/>
+              </svg>
+            </div>
+          )}
+          {/* иконка play по центру */}
+          <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/25 transition-colors">
+            <div className="w-6 h-6 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="w-3 h-3 fill-white ml-0.5" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            </div>
           </div>
         </div>
       </div>
       {item.label && (
-        <div className="mt-1.5 text-center" style={{ width: 68 }}>
+        <div className="mt-1.5 text-center w-20 sm:w-24">
           <span className="text-[7px] font-bold uppercase tracking-[0.1em] text-zinc-400 leading-tight line-clamp-2 group-hover:text-zinc-200 transition-colors">
             {item.label}
           </span>
