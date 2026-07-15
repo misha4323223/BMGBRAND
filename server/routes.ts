@@ -6992,7 +6992,8 @@ BMGBRAND — официальный производитель и магазин
         measurements, measurementSections, images, imageUrl, sku, color, wholesalePrice,
         isNew, badgeText, lookProducts, lookCategory, lookSubcategory,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate,
-        stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl, disabledNotifySizes
+        stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl, disabledNotifySizes,
+        seoTitle, seoDescription, imageAlts
       } = req.body;
       
       const updateData: any = {};
@@ -7106,6 +7107,9 @@ BMGBRAND — официальный производитель и магазин
       }
       if (noSize !== undefined) updateData.noSize = noSize;
       if (videoUrl !== undefined) updateData.videoUrl = videoUrl || null;
+      if (seoTitle !== undefined) updateData.seoTitle = seoTitle || '';
+      if (seoDescription !== undefined) updateData.seoDescription = seoDescription || '';
+      if (imageAlts !== undefined) updateData.imageAlts = Array.isArray(imageAlts) ? imageAlts : [];
       if (req.body.artistSlug !== undefined) {
         updateData.artistSlug = req.body.artistSlug || null;
         console.log(`[Admin] product ${id} artistSlug from request: "${req.body.artistSlug}" → stored as: "${updateData.artistSlug}"`);
