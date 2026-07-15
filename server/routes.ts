@@ -1746,7 +1746,10 @@ BMGBRAND — официальный производитель и магазин
 
     try {
       const allProducts = await storage.getProducts();
-      const visibleProducts = allProducts.filter((p: any) => !p.isHidden);
+      // Same visibility rule as bot-ssr's isPublicProduct(): a product must be
+      // unhidden, not artist-only (those only appear on their artist page), and priced.
+      // Otherwise the sitemap would submit URLs that bots can't actually render/index.
+      const visibleProducts = allProducts.filter((p: any) => !p.isHidden && !p.artistOnly && p.price > 0);
 
       let artistPages: Record<string, any> = {};
       try { artistPages = await storage.getPageSettings("artist_pages"); } catch {}

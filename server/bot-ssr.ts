@@ -603,6 +603,10 @@ function renderProduct(slug: string): string | null {
   if (meta.sizes.length > 0) {
     additionalProps.push({ "@type": "PropertyValue", "name": "Доступные размеры", "value": meta.sizes.join(", ") });
   }
+  if (meta.seoBody) {
+    const seoBodyText = stripHtml(meta.seoBody);
+    if (seoBodyText) additionalProps.push({ "@type": "PropertyValue", "name": "Подробнее о товаре", "value": seoBodyText });
+  }
   if (meta.specsHtml) {
     const specsText = stripHtml(meta.specsHtml);
     if (specsText) additionalProps.push({ "@type": "PropertyValue", "name": "Характеристики", "value": specsText });
