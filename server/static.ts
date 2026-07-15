@@ -69,6 +69,12 @@ function escHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// Strips HTML tags and collapses whitespace — used to feed admin-pasted HTML blocks
+// (seoBody, specsHtml) into plain-text schema.org fields for bots that don't render HTML.
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function formatPrice(kopecks: number): string {
   return Math.round(kopecks / 100).toLocaleString("ru-RU") + " ₽";
 }
@@ -127,6 +133,15 @@ function buildProductNoscript(meta: NonNullable<ReturnType<typeof getCachedProdu
     ? `<p>На странице доступен ИИ-подбор размера — нажмите «Подобрать размер с ИИ» для персональной рекомендации.</p>`
     : "";
 
+  const seoBodyHtml = meta.seoBody ? `<h2>Подробнее о товаре</h2>${meta.seoBody}` : "";
+  const specsHtmlBlock = meta.specsHtml
+    ? `<h2>Характеристики</h2>${meta.specsHtml}`
+    : (meta.composition || meta.careInstructions)
+      ? `<h2>Состав и уход</h2>` +
+        (meta.composition ? `<p>Состав: ${escHtml(meta.composition)}</p>` : "") +
+        (meta.careInstructions ? `<p>Уход: ${escHtml(meta.careInstructions)}</p>` : "")
+      : "";
+
   return `<noscript><div>` +
     `<h1>${escHtml(meta.title)} — купить</h1>` +
     `<p>Цена: ${escHtml(price)}. Статус: ${status}. ${escHtml(sizes)} ${escHtml(colors)} ${escHtml(catInfo)}</p>` +
@@ -135,6 +150,8 @@ function buildProductNoscript(meta: NonNullable<ReturnType<typeof getCachedProdu
     aiSizeNote +
     `<p>Доставка по всей России СДЭК и Яндекс Доставкой.</p>` +
     (imagesHtml ? `<div>${imagesHtml}</div>` : "") +
+    seoBodyHtml +
+    specsHtmlBlock +
     `<p><a href="${escHtml(siteUrl + "/" + slug)}">Купить ${escHtml(meta.title)}</a></p>` +
     recsHtml +
     `</div></noscript>`;
@@ -398,8 +415,9 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
     ...(meta.category ? { "category": meta.category } : {}),
     ...(meta.colors.length > 0 ? { "color": meta.colors.join(", ") } : {}),
     ...(meta.sizes.length > 0 ? { "size": meta.sizes.join(", ") } : {}),
-    ...(meta.sizes.length > 0 ? {
-      "additionalProperty": [
+    ...(meta.specsHtml ? { "material": stripHtml(meta.specsHtml) } : meta.composition ? { "material": meta.composition } : {}),
+    "additionalProperty": [
+      ...(meta.sizes.length > 0 ? [
         {
           "@type": "PropertyValue",
           "name": "Доступные размеры",
@@ -410,8 +428,14 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
           "name": "Подбор размера",
           "value": "На странице доступен ИИ-подбор размера по параметрам покупателя",
         },
-      ]
-    } : {}),
+      ] : []),
+      ...(meta.specsHtml
+        ? [{ "@type": "PropertyValue", "name": "Характеристики", "value": stripHtml(meta.specsHtml) }]
+        : [
+            ...(meta.composition ? [{ "@type": "PropertyValue", "name": "Состав", "value": meta.composition }] : []),
+            ...(meta.careInstructions ? [{ "@type": "PropertyValue", "name": "Уход", "value": meta.careInstructions }] : []),
+          ]),
+    ],
   };
 
   const breadcrumbSchema = {

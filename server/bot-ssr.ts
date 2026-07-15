@@ -180,6 +180,12 @@ function getSeoOverride(key: string): { title?: string; description?: string } {
 }
 
 // ─── HTML helpers ─────────────────────────────────────────────────────────────
+// Strips HTML tags and collapses whitespace — used to feed admin-pasted HTML blocks
+// (seoBody, specsHtml) into plain-text schema.org fields for bots that don't render HTML.
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function esc(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -597,12 +603,17 @@ function renderProduct(slug: string): string | null {
   if (meta.sizes.length > 0) {
     additionalProps.push({ "@type": "PropertyValue", "name": "Доступные размеры", "value": meta.sizes.join(", ") });
   }
-  if (meta.composition) {
-    productSchema.material = meta.composition;
-    additionalProps.push({ "@type": "PropertyValue", "name": "Состав", "value": meta.composition });
-  }
-  if (meta.careInstructions) {
-    additionalProps.push({ "@type": "PropertyValue", "name": "Уход", "value": meta.careInstructions });
+  if (meta.specsHtml) {
+    const specsText = stripHtml(meta.specsHtml);
+    if (specsText) additionalProps.push({ "@type": "PropertyValue", "name": "Характеристики", "value": specsText });
+  } else {
+    if (meta.composition) {
+      productSchema.material = meta.composition;
+      additionalProps.push({ "@type": "PropertyValue", "name": "Состав", "value": meta.composition });
+    }
+    if (meta.careInstructions) {
+      additionalProps.push({ "@type": "PropertyValue", "name": "Уход", "value": meta.careInstructions });
+    }
   }
   if (meta.measurements && meta.measurements.length > 0) {
     const measurementStr = meta.measurements.map(row =>
@@ -730,8 +741,12 @@ ${videoHtml}
   ${meta.colors.length > 0 ? `<p>Цвета: ${esc(meta.colors.join(", "))}</p>` : ""}
   ${catName ? `<p>Категория: <a href="/products/${esc(meta.category)}">${esc(catName)}</a></p>` : ""}
   ${meta.description ? `<p class="desc" style="margin-top:1rem;max-width:none">${esc(meta.description)}</p>` : ""}
-  ${meta.composition ? `<p style="margin-top:.75rem"><strong>Состав:</strong> ${esc(meta.composition)}</p>` : ""}
-  ${meta.careInstructions ? `<p style="margin-top:.5rem"><strong>Уход:</strong> ${esc(meta.careInstructions)}</p>` : ""}
+  ${meta.seoBody ? `<div style="margin-top:1rem"><h2>Подробнее о товаре</h2>${meta.seoBody}</div>` : ""}
+  ${meta.specsHtml
+    ? `<div style="margin-top:.75rem"><h2>Характеристики</h2>${meta.specsHtml}</div>`
+    : `${meta.composition ? `<p style="margin-top:.75rem"><strong>Состав:</strong> ${esc(meta.composition)}</p>` : ""}
+  ${meta.careInstructions ? `<p style="margin-top:.5rem"><strong>Уход:</strong> ${esc(meta.careInstructions)}</p>` : ""}`
+  }
   ${meta.measurements && meta.measurements.length > 0 ? (() => {
     const cols = Object.keys(meta.measurements[0]);
     const header = cols.map(c => `<th>${esc(c)}</th>`).join("");

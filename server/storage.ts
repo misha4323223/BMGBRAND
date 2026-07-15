@@ -373,7 +373,7 @@ export function getCachedProductMetaBySlug(slug: string): {
   productId: number; title: string; description: string; image: string; images: string[];
   price: number; sku: string; stock: number; category: string;
   sizes: string[]; colors: string[]; preorderEnabled: boolean;
-  seoTitle: string | null; seoDescription: string | null; seoBody: string | null; videoUrl: string | null;
+  seoTitle: string | null; seoDescription: string | null; seoBody: string | null; specsHtml: string | null; videoUrl: string | null;
   composition: string | null; careInstructions: string | null;
   measurements: Array<{ size: string; [key: string]: string }> | null;
 } | null {
@@ -404,6 +404,7 @@ export function getCachedProductMetaBySlug(slug: string): {
     seoTitle: (product as any).seoTitle || null,
     seoDescription: (product as any).seoDescription || null,
     seoBody: (product as any).seoBody || null,
+    specsHtml: (product as any).specsHtml || null,
     videoUrl: (product as any).videoUrl || null,
     composition: (product as any).composition || null,
     careInstructions: (product as any).careInstructions || null,
