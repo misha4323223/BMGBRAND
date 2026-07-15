@@ -2030,7 +2030,7 @@ export default function ProductDetail() {
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
                   <div className="max-h-[220px] overflow-y-auto pr-1">
-                    <p className="text-sm text-foreground/80 leading-relaxed">
+                    <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">
                       {product.description}
                     </p>
                   </div>
