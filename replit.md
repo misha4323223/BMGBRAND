@@ -34,6 +34,9 @@ NODE_ENV=development npx tsx server/index.ts
 - В dev-режиме фронтенд раздаётся через Vite (HMR); в production — через `serveStatic()` из `dist/`
 - Изображения хранятся в **Yandex Object Storage** — в preview Replit они могут не отображаться (CORS/CDN), это нормально
 
+### Повторный импорт (15.07.2026, второй раз в тот же день)
+Тот же сценарий: после импорта `node_modules` был пуст, workflow завис на подтверждении установки `tsx`. В Secrets был только `SESSION_SECRET`. Исправлено: `npm install --include=dev` → перезапуск workflow (сервер стартовал в dev-режиме, YDB отключена). Пользователь добавил все остальные секреты (YDB, платежи, CDEK, Telegram, VK, Yandex Storage, DaData и др.), включая `NODE_ENV=production`. После повторного `npm install --include=dev` и перезапуска workflow сервер подключился к боевой YDB, загрузил 827 товаров и 240 заказов — приложение полностью рабочее.
+
 ### Импорт проекта в Replit (08.07.2026)
 После импорта из GitHub `node_modules` отсутствовал — workflow зависал на подтверждении установки `tsx`. Исправлено: `npm install --include=dev`. После добавления всех секретов (YDB, платёжные шлюзы, CDEK, Telegram, VK и т.д.) сервер подключился к боевой YDB, загрузил 823 товара и 232 заказа — приложение полностью рабочее.
 
