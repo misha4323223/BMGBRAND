@@ -373,7 +373,7 @@ export function getCachedProductMetaBySlug(slug: string): {
   productId: number; title: string; description: string; image: string; images: string[];
   price: number; sku: string; stock: number; category: string;
   sizes: string[]; colors: string[]; preorderEnabled: boolean;
-  seoTitle: string | null; seoDescription: string | null; videoUrl: string | null;
+  seoTitle: string | null; seoDescription: string | null; seoBody: string | null; videoUrl: string | null;
   composition: string | null; careInstructions: string | null;
   measurements: Array<{ size: string; [key: string]: string }> | null;
 } | null {
@@ -403,6 +403,7 @@ export function getCachedProductMetaBySlug(slug: string): {
     preorderEnabled: !!(product as any).preorderEnabled,
     seoTitle: (product as any).seoTitle || null,
     seoDescription: (product as any).seoDescription || null,
+    seoBody: (product as any).seoBody || null,
     videoUrl: (product as any).videoUrl || null,
     composition: (product as any).composition || null,
     careInstructions: (product as any).careInstructions || null,
@@ -935,6 +936,7 @@ export class DatabaseStorage implements IStorage {
       lookSubcategory: data.look_subcategory || null,
       seoTitle: data.seo_title || null,
       seoDescription: data.seo_description || null,
+      seoBody: data.seo_body || null,
       imageAlts: (() => {
         if (data.image_alts) {
           if (typeof data.image_alts === 'string') {
@@ -1239,6 +1241,7 @@ export class DatabaseStorage implements IStorage {
       onSale: p.onSale || false,
       seoTitle: (p as any).seoTitle || null,
       seoDescription: (p as any).seoDescription || null,
+      seoBody: (p as any).seoBody || null,
       imageAlts: Array.isArray((p as any).imageAlts) ? (p as any).imageAlts : [],
       additionalCategories: Array.isArray((p as any).additionalCategories) ? (p as any).additionalCategories : [],
       createdAt: new Date(),
@@ -1281,6 +1284,7 @@ export class DatabaseStorage implements IStorage {
         DECLARE $return_policy AS Utf8;
         DECLARE $seo_title AS Utf8;
         DECLARE $seo_description AS Utf8;
+        DECLARE $seo_body AS Utf8;
         DECLARE $image_alts AS Json;
         DECLARE $additional_categories AS Json;
         DECLARE $artist_slug AS Utf8;
@@ -1293,7 +1297,7 @@ export class DatabaseStorage implements IStorage {
           is_new, in_stock, is_hidden, badge_text, slug,
           wholesale_price, stock, size_stock,
           composition, care_instructions, delivery, return_policy,
-          seo_title, seo_description, image_alts, additional_categories,
+          seo_title, seo_description, seo_body, image_alts, additional_categories,
           artist_slug, artist_only, size_characteristic_ids
         )
         VALUES (
@@ -1302,7 +1306,7 @@ export class DatabaseStorage implements IStorage {
           $is_new, $in_stock, $is_hidden, $badge_text, $slug,
           $wholesale_price, $stock, $size_stock,
           $composition, $care_instructions, $delivery, $return_policy,
-          $seo_title, $seo_description, $image_alts, $additional_categories,
+          $seo_title, $seo_description, $seo_body, $image_alts, $additional_categories,
           $artist_slug, $artist_only, $size_characteristic_ids
         );
       `;
@@ -1335,6 +1339,7 @@ export class DatabaseStorage implements IStorage {
         $return_policy: TypedValues.fromNative(Types.UTF8, (p as any).returnPolicy || ''),
         $seo_title: TypedValues.fromNative(Types.UTF8, (p as any).seoTitle || ''),
         $seo_description: TypedValues.fromNative(Types.UTF8, (p as any).seoDescription || ''),
+        $seo_body: TypedValues.fromNative(Types.UTF8, (p as any).seoBody || ''),
         $image_alts: TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).imageAlts || [])),
         $additional_categories: TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).additionalCategories || [])),
         $artist_slug: TypedValues.fromNative(Types.UTF8, (p as any).artistSlug || ''),
@@ -1601,6 +1606,12 @@ export class DatabaseStorage implements IStorage {
         declareStatements += 'DECLARE $seo_description AS Utf8;\n';
         setClauses.push('seo_description = $seo_description');
         params.$seo_description = TypedValues.fromNative(Types.UTF8, p.seoDescription || '');
+      }
+      
+      if ((p as any).seoBody !== undefined) {
+        declareStatements += 'DECLARE $seo_body AS Utf8;\n';
+        setClauses.push('seo_body = $seo_body');
+        params.$seo_body = TypedValues.fromNative(Types.UTF8, (p as any).seoBody || '');
       }
       
       if (p.imageAlts !== undefined) {

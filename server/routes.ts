@@ -449,6 +449,19 @@ const SIZE_ORDER: Record<string, number> = {
 };
 
 // Sort sizes in logical order
+// Sanitize the SEO body HTML block entered in the admin product editor:
+// - strips <title> entirely (invalid outside <head>, would just be dead weight in the page body)
+// - downgrades <h1> to <h2> so it never duplicates the product page's own <h1> (the product name)
+// Everything else (<p>, <strong>, <ul>, <li>, etc.) passes through untouched.
+function sanitizeSeoBody(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '')
+    .replace(/<h1(\s[^>]*)?>/gi, '<h2$1>')
+    .replace(/<\/h1>/gi, '</h2>')
+    .trim();
+}
+
 function sortSizes(sizes: string[]): string[] {
   return sizes.sort((a, b) => {
     const orderA = SIZE_ORDER[a.toUpperCase()] ?? 100;
@@ -6686,7 +6699,7 @@ BMGBRAND — официальный производитель и магазин
         name, description, price, category, subcategory,
         sizes, colors, composition, careInstructions, delivery, returnPolicy,
         measurements, images, imageUrl, sku, color, stock, sizeStock,
-        wholesalePrice, discountPercent, sizeDiscounts, seoTitle, seoDescription, imageAlts,
+        wholesalePrice, discountPercent, sizeDiscounts, seoTitle, seoDescription, seoBody, imageAlts,
         additionalCategories,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate, preorderNote,
       } = req.body;
@@ -6742,6 +6755,7 @@ BMGBRAND — официальный производитель и магазин
         sizeDiscounts: (sizeDiscounts && typeof sizeDiscounts === 'object') ? sizeDiscounts : {},
         seoTitle: seoTitle || '',
         seoDescription: seoDescription || '',
+        seoBody: sanitizeSeoBody(seoBody || ''),
         imageAlts: Array.isArray(imageAlts) ? imageAlts : [],
         additionalCategories: Array.isArray(additionalCategories) ? additionalCategories : [],
         preorderEnabled: preorderEnabled === true || preorderEnabled === 'true' || false,
@@ -6993,7 +7007,7 @@ BMGBRAND — официальный производитель и магазин
         isNew, badgeText, lookProducts, lookCategory, lookSubcategory,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate,
         stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl, disabledNotifySizes,
-        seoTitle, seoDescription, imageAlts
+        seoTitle, seoDescription, seoBody, imageAlts
       } = req.body;
       
       const updateData: any = {};
@@ -7109,6 +7123,7 @@ BMGBRAND — официальный производитель и магазин
       if (videoUrl !== undefined) updateData.videoUrl = videoUrl || null;
       if (seoTitle !== undefined) updateData.seoTitle = seoTitle || '';
       if (seoDescription !== undefined) updateData.seoDescription = seoDescription || '';
+      if (seoBody !== undefined) updateData.seoBody = sanitizeSeoBody(seoBody || '');
       if (imageAlts !== undefined) updateData.imageAlts = Array.isArray(imageAlts) ? imageAlts : [];
       if (req.body.artistSlug !== undefined) {
         updateData.artistSlug = req.body.artistSlug || null;

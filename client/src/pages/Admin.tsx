@@ -1042,6 +1042,7 @@ export default function Admin() {
     lookSubcategory: string;
     seoTitle: string;
     seoDescription: string;
+    seoBody: string;
     imageAlts: string[];
     slug: string;
     preorderEnabled: boolean;
@@ -1083,6 +1084,7 @@ export default function Admin() {
     lookSubcategory: "",
     seoTitle: "",
     seoDescription: "",
+    seoBody: "",
     imageAlts: [],
     slug: "",
     preorderEnabled: false,
@@ -2202,6 +2204,7 @@ export default function Admin() {
         lookSubcategory: p.lookSubcategory || "",
         seoTitle: p.seoTitle || "",
         seoDescription: p.seoDescription || "",
+        seoBody: (p as any).seoBody || "",
         imageAlts: p.imageAlts || [],
         slug: p.slug || "",
         preorderEnabled: p.preorderEnabled || false,
@@ -2291,6 +2294,7 @@ export default function Admin() {
       lookSubcategory: "",
       seoTitle: "",
       seoDescription: "",
+      seoBody: "",
       imageAlts: [],
       slug: "",
       preorderEnabled: false,
@@ -2339,6 +2343,7 @@ export default function Admin() {
         lookSubcategory: product.lookSubcategory || "",
         seoTitle: product.seoTitle || "",
         seoDescription: product.seoDescription || "",
+        seoBody: (product as any).seoBody || "",
         imageAlts: product.imageAlts || [],
         slug: product.slug || "",
         preorderEnabled: product.preorderEnabled || false,
@@ -10900,7 +10905,7 @@ export default function Admin() {
                             <div className="flex items-center gap-2">
                               <Search className="w-4 h-4 text-muted-foreground" />
                               SEO-настройки
-                              {(productForm.seoTitle || productForm.seoDescription || productForm.imageAlts.some(a => a.trim())) && (
+                              {(productForm.seoTitle || productForm.seoDescription || productForm.seoBody || productForm.imageAlts.some(a => a.trim())) && (
                                 <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">заполнено</span>
                               )}
                             </div>
@@ -11034,6 +11039,21 @@ export default function Admin() {
                                   </button>
                                 </div>
                               )}
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-medium text-muted-foreground block mb-1">SEO-текст на странице (HTML)</label>
+                              <Textarea
+                                placeholder={'Вставьте HTML-блок с описанием: <p>, <strong>, <ul>/<li>. Тег <h1> будет автоматически понижен до <h2>, <title> — вырезан.'}
+                                value={productForm.seoBody}
+                                onChange={(e) => setProductForm({...productForm, seoBody: e.target.value})}
+                                rows={8}
+                                className="font-mono text-xs"
+                                data-testid="input-seo-body"
+                              />
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                Показывается на странице товара под описанием (для этого конкретного цвета/варианта). Если оставить пустым — блок не появится. Из вставленного HTML тег &lt;h1&gt; автоматически станет &lt;h2&gt;, а &lt;title&gt; будет удалён — незачем их вырезать вручную.
+                              </p>
                             </div>
 
                             {productForm.images.length > 0 && (
