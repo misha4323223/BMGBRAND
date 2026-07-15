@@ -920,7 +920,7 @@ export default function Home() {
           const reelItems: any[] = reelsSettings.items || [];
           if (reelItems.length === 0) return null;
           return (
-            <div className="w-full border-t-2 border-primary" style={{ background: "radial-gradient(ellipse 100% 60% at 50% 0%, #1c1c1c 0%, #0a0a0a 65%)" }}>
+            <div key="section-reels" className="w-full border-t-2 border-primary" style={{ background: "radial-gradient(ellipse 100% 60% at 50% 0%, #1c1c1c 0%, #0a0a0a 65%)" }}>
               <div className="flex sm:hidden items-center px-4 pt-4 pb-1">
                 <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-zinc-300">
                   {reelsSettings.title || "Обзоры"}
