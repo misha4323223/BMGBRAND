@@ -459,6 +459,15 @@ export default function ProductDetail() {
     setCurrentImageIndex(0);
     if (product?.id) addViewed(product.id);
   }, [product?.id]);
+
+  // Reset AI size-advisor recommendation when navigating to a different product —
+  // it was computed for the previous product and must not carry over.
+  // Measurements (height/measure/hips) intentionally persist via localStorage.
+  useEffect(() => {
+    setSizeAdvisorResult(null);
+    setSizeAdvisorRecommended(null);
+    setSizeAdvisorOpen(false);
+  }, [product?.id]);
   
   // Auto-select size from variant's sizeRange when navigating between variants
   useEffect(() => {
