@@ -28,7 +28,7 @@ import { runAbandonedCartCheck, addAbandonedCartUnsub } from "./abandoned-cart";
 import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow } from "./new-products-notifier";
 import { enqueuePreorderProduct, getPreorderQueueStatus, triggerPreorderNotifierNow } from "./preorder-notifier";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
-import { CATEGORIES as SEO_CATEGORY_DEFAULTS, ARTISTS as SEO_ARTIST_DEFAULTS, HOME_SEO_DEFAULT, CONCEPT_SEO_DEFAULT } from "./static";
+import { CATEGORIES as SEO_CATEGORY_DEFAULTS, ARTISTS as SEO_ARTIST_DEFAULTS, HOME_SEO_DEFAULT, CONCEPT_SEO_DEFAULT, MERCH_ORDER_SEO_DEFAULT, PARTNER_REGISTER_SEO_DEFAULT } from "./static";
 import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
@@ -13309,6 +13309,39 @@ BMGBRAND — официальный производитель и магазин
           heroImage: conceptHero.heroImage || "",
           heroImageMobile: conceptHero.heroImageMobile || "",
           heroImageAlt: conceptHero.heroImageAlt || "",
+        },
+      });
+
+      // --- Merch na zakaz (custom merch landing) ---
+      let merchOrderSettings: Record<string, any> = {};
+      try { merchOrderSettings = await storage.getPageSettings("merch_order"); } catch { /* none yet */ }
+      const merchOrderHero = merchOrderSettings?.hero || {};
+      pages.push({
+        type: "merch_order",
+        key: "merch_order",
+        label: "Мерч на заказ",
+        fields: field(MERCH_ORDER_SEO_DEFAULT.title, MERCH_ORDER_SEO_DEFAULT.description, seoOverrides["merch_order"]),
+        hero: {
+          heroImage: merchOrderHero.heroImage || "",
+          heroImageMobile: merchOrderHero.heroImageMobile || "",
+          heroImageAlt: merchOrderHero.heroImageAlt || "",
+        },
+      });
+
+      // --- Partner register (become-a-partner landing) ---
+      let partnerRegisterSettings: Record<string, any> = {};
+      try { partnerRegisterSettings = await storage.getPageSettings("partner_register"); } catch { /* none yet */ }
+      const partnerRegisterHero = partnerRegisterSettings?.hero || {};
+      pages.push({
+        type: "partner_register",
+        key: "partner_register",
+        label: "Страница партнёра",
+        fields: field(PARTNER_REGISTER_SEO_DEFAULT.title, PARTNER_REGISTER_SEO_DEFAULT.description, seoOverrides["partner_register"]),
+        hero: {
+          heroImage: partnerRegisterHero.heroImage || "",
+          heroImageMobile: partnerRegisterHero.heroImageMobile || "",
+          heroImageAlt: partnerRegisterHero.heroImageAlt || "",
+          note: "Редактируется только 1-й слайд hero-баннера (реклама программы). 2-й слайд («Создавай вместе с BOOOMERANGS») остаётся неизменным.",
         },
       });
 

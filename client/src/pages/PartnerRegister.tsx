@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import artistBannerDesktop from "@assets/artist-banner-desktop.webp";
 import artistBannerMobile from "@assets/artist-banner-mobile.webp";
 import { Helmet } from "react-helmet-async";
@@ -82,7 +83,7 @@ const PARTNER_SLIDES = [
   },
 ];
 
-function PartnerBannerSlider() {
+function PartnerBannerSlider({ firstSlideOverride }: { firstSlideOverride?: { desktop?: string; mobile?: string; alt?: string } }) {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -101,7 +102,16 @@ function PartnerBannerSlider() {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [current, paused, next]);
 
-  const slide = PARTNER_SLIDES[current];
+  // Только 1-й слайд (реклама программы) может быть переопределён через админку SEO.
+  // 2-й слайд («Создавай вместе с BOOOMERANGS») остаётся неизменным.
+  const slides = PARTNER_SLIDES.map((s, i) => i === 0 ? {
+    ...s,
+    desktop: firstSlideOverride?.desktop || s.desktop,
+    mobile: firstSlideOverride?.mobile || s.mobile,
+    alt: firstSlideOverride?.alt || s.alt,
+  } : s);
+
+  const slide = slides[current];
 
   return (
     <div
@@ -118,7 +128,7 @@ function PartnerBannerSlider() {
       </button>
 
       {/* Изображения */}
-      {PARTNER_SLIDES.map((s, i) => (
+      {slides.map((s, i) => (
         <div
           key={i}
           className={`transition-opacity duration-700 ${i === current ? "opacity-100" : "opacity-0 absolute inset-0"}`}
@@ -184,6 +194,22 @@ function PartnerBannerSlider() {
 export default function PartnerRegister() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  const { data: partnerRegisterSettings } = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/partner_register"],
+  });
+  const { data: seoOverrides } = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/seo"],
+  });
+  const partnerSeo = seoOverrides?.partner_register || {};
+  const partnerHero = partnerRegisterSettings?.hero || {};
+  const partnerSeoTitle = partnerSeo.title || "Партнёрская программа BOOOMERANGS - зарабатывай на рекомендациях";
+  const partnerSeoDescription = partnerSeo.description || "Рекомендуй одежду BOOOMERANGS и получай комиссию 15–25% с каждого заказа. Программа для самозанятых, ИП и юридических лиц. Своя ссылка, личный кабинет, выплаты без минимума.";
+  const partnerFirstSlideOverride = (partnerHero.heroImage || partnerHero.heroImageMobile || partnerHero.heroImageAlt) ? {
+    desktop: partnerHero.heroImage,
+    mobile: partnerHero.heroImageMobile,
+    alt: partnerHero.heroImageAlt,
+  } : undefined;
 
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [legalStatus, setLegalStatus] = useState<LegalStatus | null>(null);
@@ -467,8 +493,8 @@ export default function PartnerRegister() {
   return (
     <>
       <SEO
-        title="Партнёрская программа BOOOMERANGS - зарабатывай на рекомендациях"
-        description="Рекомендуй одежду BOOOMERANGS и получай комиссию 15–25% с каждого заказа. Программа для самозанятых, ИП и юридических лиц. Своя ссылка, личный кабинет, выплаты без минимума."
+        title={partnerSeoTitle}
+        description={partnerSeoDescription}
         keywords="партнёрская программа одежда, заработок на рекомендациях, реферальная программа магазин одежды, партнёрка для самозанятых, комиссия с продаж одежды, партнёр бренда одежды, заработок на партнёрке, партнёрская программа BOOOMERANGS, партнёрка интернет-магазина одежды, заработок без вложений на одежде, реферальная программа Россия, стать амбассадором бренда, заработок для самозанятых онлайн, партнёрская программа для блогеров, партнёрка для ИП, комиссия за продажи одежды, заработок на рекомендациях одежды, реферальная ссылка магазин"
         canonical="https://www.booomerangs.ru/partner/register"
         ogImage="/og-partner.png"
@@ -574,7 +600,7 @@ export default function PartnerRegister() {
       </Helmet>
 
       {/* ── Hero-баннер — слайдер ── */}
-      <PartnerBannerSlider />
+      <PartnerBannerSlider firstSlideOverride={partnerFirstSlideOverride} />
       <h1 className="sr-only">Партнёрская программа BOOOMERANGS — зарабатывай 15–25% комиссии на рекомендациях одежды для самозанятых, ИП и блогеров</h1>
 
       {/* ── REFERRAL PROGRAM — тёмная секция ── */}

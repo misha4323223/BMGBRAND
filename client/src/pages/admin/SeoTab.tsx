@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, Save, Loader2, ChevronRight, Globe, Tag, Shirt, Mic2, Package, Image as ImageIcon } from "lucide-react";
+import { Search, Save, Loader2, ChevronRight, Globe, Tag, Shirt, Mic2, Package, Image as ImageIcon, ShoppingBag, Handshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,7 @@ import { ImageUploadField } from "@/components/admin/MediaUploadField";
 type SeoFieldState = { default: string; value: string };
 type SeoHero = { heroImage: string; heroImageMobile: string; heroImageAlt: string; note?: string };
 type SeoPage = {
-  type: "home" | "category" | "subcategory" | "artist" | "concept";
+  type: "home" | "category" | "subcategory" | "artist" | "concept" | "merch_order" | "partner_register";
   key: string;
   label: string;
   fields: { title: SeoFieldState; description: SeoFieldState };
@@ -23,6 +23,8 @@ const TYPE_LABELS: Record<SeoPage["type"], string> = {
   subcategory: "Подкатегории",
   artist: "Артисты",
   concept: "Pre-drop",
+  merch_order: "Мерч на заказ",
+  partner_register: "Партнёрская программа",
 };
 
 const TYPE_ICONS: Record<SeoPage["type"], typeof Globe> = {
@@ -31,6 +33,8 @@ const TYPE_ICONS: Record<SeoPage["type"], typeof Globe> = {
   subcategory: Shirt,
   artist: Mic2,
   concept: Package,
+  merch_order: ShoppingBag,
+  partner_register: Handshake,
 };
 
 export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (url: string, apiKey: string, opts?: RequestInit) => Promise<any> }) {
@@ -48,7 +52,7 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
 
   const pages = data?.pages || [];
   const grouped = useMemo(() => {
-    const groups: Record<SeoPage["type"], SeoPage[]> = { home: [], category: [], subcategory: [], artist: [], concept: [] };
+    const groups: Record<SeoPage["type"], SeoPage[]> = { home: [], category: [], subcategory: [], artist: [], concept: [], merch_order: [], partner_register: [] };
     for (const p of pages) groups[p.type].push(p);
     return groups;
   }, [pages]);
@@ -97,13 +101,13 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
             heroImageAlt: draft.heroImageAlt,
           }),
         });
-      } else if (selectedPage.type === "concept") {
-        await adminFetch(`/api/admin/page-settings/seo/concept`, apiKey, {
+      } else if (selectedPage.type === "concept" || selectedPage.type === "merch_order" || selectedPage.type === "partner_register") {
+        await adminFetch(`/api/admin/page-settings/seo/${selectedPage.type}`, apiKey, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title: draft.title, description: draft.description }),
         });
-        await adminFetch(`/api/admin/page-settings/concept/hero`, apiKey, {
+        await adminFetch(`/api/admin/page-settings/${selectedPage.type}/hero`, apiKey, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -126,6 +130,8 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
       queryClient.invalidateQueries({ queryKey: ["/api/page-settings/home"] });
       queryClient.invalidateQueries({ queryKey: ["/api/page-settings/concept"] });
       queryClient.invalidateQueries({ queryKey: ["/api/page-settings/artist_pages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/page-settings/merch_order"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/page-settings/partner_register"] });
     } catch (err: any) {
       toast({ title: "Ошибка сохранения", description: err.message, variant: "destructive" });
     } finally {
@@ -208,6 +214,9 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
                 {selectedPage.type === "category" && "Мета-теги категории — видны и людям (в <head>), и поисковым ботам."}
                 {selectedPage.type === "subcategory" && "Мета-теги подкатегории каталога."}
                 {selectedPage.type === "artist" && "То же поле, что и в разделе «Артисты» → SEO — изменения синхронизированы."}
+                {selectedPage.type === "concept" && "Мета-теги страницы Pre-drop (предзаказ)."}
+                {selectedPage.type === "merch_order" && "Мета-теги страницы «Мерч на заказ»."}
+                {selectedPage.type === "partner_register" && "Мета-теги страницы регистрации партнёров."}
               </p>
             </div>
 

@@ -35,6 +35,16 @@ export const CONCEPT_SEO_DEFAULT = {
   description: "Оформите предзаказ на будущие релизы BMGBRAND — доступ к лимитированным дропам раньше всех.",
 };
 
+export const MERCH_ORDER_SEO_DEFAULT = {
+  title: `Мерч на заказ — футболки, худи, носки с принтом от 180 ₽ | ${SITE_NAME}`,
+  description: "Производство мерча на заказ от BMGBRAND: футболки от 900 ₽, худи от 1800 ₽, носки от 180 ₽/пара. Тираж от 20 шт. Разработка дизайна бесплатно. Работаем с блогерами, артистами, компаниями. Доставка по всей России — Тула, Москва, регионы.",
+};
+
+export const PARTNER_REGISTER_SEO_DEFAULT = {
+  title: `Партнёрская программа ${SITE_NAME} — зарабатывай 15–25% на рекомендациях одежды`,
+  description: "Рекомендуй одежду BOOOMERANGS и зарабатывай комиссию 15–25% с каждого заказа. Для самозанятых, ИП и юрлиц. Реферальная ссылка, личный кабинет, выплаты без минимума за 5 дней.",
+};
+
 export const ARTISTS: Record<string, { name: string; desc: string }> = {
   "goodtimes":      { name: "ГУДТАЙМС",          desc: "Официальный мерч ГУДТАЙМС — купить футболки, худи, аксессуары с символикой артиста. Доставка по всей России." },
   "molodostvnutri": { name: "Молодость внутри",   desc: "Официальный мерч Молодость внутри — купить одежду и аксессуары. Доставка по всей России." },
@@ -925,9 +935,10 @@ export function serveStatic(app: Express) {
             ],
           },
         ]);
+        const merchSeo = getSeoOverride("merch_order");
         html = injectMeta(html, {
-          title: `Мерч на заказ — футболки, худи, носки с принтом от 180 ₽ | ${SITE_NAME}`,
-          description: "Производство мерча на заказ от BMGBRAND: футболки от 900 ₽, худи от 1800 ₽, носки от 180 ₽/пара. Тираж от 20 шт. Разработка дизайна бесплатно. Работаем с блогерами, артистами, компаниями. Доставка по всей России — Тула, Москва, регионы.",
+          title: merchSeo.title || MERCH_ORDER_SEO_DEFAULT.title,
+          description: merchSeo.description || MERCH_ORDER_SEO_DEFAULT.description,
           ogImage: `${siteUrl}/og-image.png`,
           ogType: "website",
           canonical: `${siteUrl}/merch-na-zakaz`,
@@ -971,9 +982,10 @@ export function serveStatic(app: Express) {
             ],
           },
         ]);
+        const partnerSeo = getSeoOverride("partner_register");
         html = injectMeta(html, {
-          title: `Партнёрская программа ${SITE_NAME} — зарабатывай 15–25% на рекомендациях одежды`,
-          description: "Рекомендуй одежду BOOOMERANGS и зарабатывай комиссию 15–25% с каждого заказа. Для самозанятых, ИП и юрлиц. Реферальная ссылка, личный кабинет, выплаты без минимума за 5 дней.",
+          title: partnerSeo.title || PARTNER_REGISTER_SEO_DEFAULT.title,
+          description: partnerSeo.description || PARTNER_REGISTER_SEO_DEFAULT.description,
           ogImage: `${siteUrl}/og-partner.png`,
           ogType: "website",
           canonical: `${siteUrl}/partner/register`,

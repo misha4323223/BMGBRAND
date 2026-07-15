@@ -18,7 +18,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle, Package, Palette, Truck, Users, Zap, ChevronRight, Store, Percent, Handshake, ArrowRight, ShieldCheck, Clock, Star } from "lucide-react";
@@ -111,6 +111,20 @@ export default function MerchOrder() {
   const { toast } = useToast();
   const [submitted, setSubmitted] = useState(false);
   const [wantedPartner, setWantedPartner] = useState(false);
+
+  const { data: merchSettings } = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/merch_order"],
+  });
+  const { data: seoOverrides } = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/seo"],
+  });
+  const merchSeo = seoOverrides?.merch_order || {};
+  const merchHero = merchSettings?.hero || {};
+  const seoTitle = merchSeo.title || "Мерч на заказ — футболки, худи, носки с принтом от 180 ₽ | BMGBRAND";
+  const seoDescription = merchSeo.description || "Производство мерча на заказ от BMGBRAND: футболки от 900 ₽, худи от 1800 ₽, носки от 180 ₽/пара. Тираж от 20 шт. Разработка дизайна бесплатно. Работаем с блогерами, артистами, компаниями. Доставка по всей России — Тула, Москва, регионы.";
+  const heroDesktopSrc: string = merchHero.heroImage || merchBannerDesktop;
+  const heroMobileSrc: string = merchHero.heroImageMobile || merchBannerMobile;
+  const heroAlt: string = merchHero.heroImageAlt || "Мерч на заказ — производство под ключ, доставка по всей России";
 
   const form = useForm<OrderForm>({
     resolver: zodResolver(orderSchema),
@@ -212,8 +226,8 @@ export default function MerchOrder() {
   return (
     <div className="min-h-screen bg-background text-foreground" data-testid="page-merch-order">
       <SEO
-        title="Мерч на заказ — футболки, худи, носки с принтом от 180 ₽ | BMGBRAND"
-        description="Производство мерча на заказ от BMGBRAND: футболки от 900 ₽, худи от 1800 ₽, носки от 180 ₽/пара. Тираж от 20 шт. Разработка дизайна бесплатно. Работаем с блогерами, артистами, компаниями. Доставка по всей России — Тула, Москва, регионы."
+        title={seoTitle}
+        description={seoDescription}
         keywords="мерч на заказ, создать мерч, заказать мерч, производство мерча, мерч для блогеров, мерч для артистов, корпоративный мерч, футболки на заказ, носки на заказ, худи на заказ с принтом, мерч Тула, брендированная одежда на заказ, мерч для мероприятий, мерч для фестиваля, печать на одежде, одежда с принтом на заказ, мерч под ключ"
         ogImage="/og-image.png"
         jsonLd={jsonLd}
@@ -225,8 +239,8 @@ export default function MerchOrder() {
       {/* ── HERO - мобильный (баннер полностью + кнопки снизу) ── */}
       <div className="block sm:hidden bg-zinc-950" data-testid="merch-order-hero">
         <img
-          src={merchBannerMobile}
-          alt="Мерч на заказ — производство под ключ, доставка по всей России"
+          src={heroMobileSrc}
+          alt={heroAlt}
           className="w-full h-auto"
           loading="eager"
         />
@@ -262,8 +276,8 @@ export default function MerchOrder() {
         data-testid="merch-order-hero-desktop"
       >
         <img
-          src={merchBannerDesktop}
-          alt="Мерч на заказ — производство под ключ, доставка по всей России"
+          src={heroDesktopSrc}
+          alt={heroAlt}
           className="absolute inset-0 w-full h-full object-cover object-center"
           loading="eager"
         />
