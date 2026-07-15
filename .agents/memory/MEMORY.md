@@ -13,3 +13,4 @@
 - [BOOOM AI artist-collab cache](ai-artist-collab-cache.md) — getCachedArtistHeroImage тихо протухает через 10 мин; для критичных мест (AI промпты) юзать storage.getPageSettings вместо getCached*
 - [SEO admin override architecture](seo-admin-overrides.md) — admin SEO tab: pageName="seo" for home/category/subcategory, reuses artist_pages for artists; static.ts/bot-ssr.ts read via cached sync getter only
 - [safeQuery silent write failures](safequery-silent-write-failures.md) — page-settings write endpoints can return {success:true} even when the YDB write itself silently timed out
+- [seoBody product field](seo-body-field.md) — per-product SEO HTML block; server strips <title>/downgrades <h1>→<h2>; renders on product page as visible accordion
