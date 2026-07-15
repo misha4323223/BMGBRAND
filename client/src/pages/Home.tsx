@@ -316,6 +316,7 @@ export default function Home() {
   const [reelMuted, setReelMuted] = useState(true);
   const [reelProduct, setReelProduct] = useState<any>(null);
   const modalVideoRef = useRef<HTMLVideoElement>(null);
+  const reelTouchStartX = useRef<number | null>(null);
 
   // Подгружаем данные товара при открытии рила
   useEffect(() => {
@@ -336,6 +337,18 @@ export default function Home() {
   const { data: pageSettings, isLoading: settingsLoading } = useQuery<Record<string, any>>({
     queryKey: ["/api/page-settings/home"],
   });
+
+  const reelItems: any[] = (pageSettings as any)?.reels?.items || [];
+  const goToReel = useCallback((delta: number) => {
+    setActiveReel((current: any) => {
+      if (!current || reelItems.length === 0) return current;
+      let idx = reelItems.findIndex((r: any) => r === current);
+      if (idx === -1 && current?.id != null) idx = reelItems.findIndex((r: any) => r.id === current.id);
+      if (idx === -1) idx = 0;
+      const nextIdx = (idx + delta + reelItems.length) % reelItems.length;
+      return reelItems[nextIdx];
+    });
+  }, [reelItems]);
 
   // Compute what products to fetch based on settings
   const productQueryConfig = useMemo(() => {
@@ -1646,20 +1659,47 @@ export default function Home() {
             className="relative w-full h-full sm:h-[95vh] sm:rounded-2xl sm:overflow-hidden sm:shadow-2xl"
             style={{ aspectRatio: undefined }}
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => { reelTouchStartX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              if (reelTouchStartX.current == null) return;
+              const deltaX = e.changedTouches[0].clientX - reelTouchStartX.current;
+              reelTouchStartX.current = null;
+              if (Math.abs(deltaX) < 40) return;
+              goToReel(deltaX < 0 ? 1 : -1);
+            }}
           >
             {/* Внутренний контейнер 9:16 только на десктопе */}
             <div className="w-full h-full sm:h-full sm:flex sm:items-center sm:justify-center">
+              {/* Стрелки — только на десктопе */}
+              {reelItems.length > 1 && (
+                <>
+                  <button
+                    className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); goToReel(-1); }}
+                    aria-label="Предыдущий рил"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); goToReel(1); }}
+                    aria-label="Следующий рил"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </>
+              )}
               <div className="relative w-full h-full sm:aspect-[9/16] sm:h-full sm:w-auto sm:max-w-full">
                 <video
                   ref={modalVideoRef}
                   key={activeReel.videoUrl}
                   src={activeReel.videoUrl}
                   autoPlay
-                  loop
                   playsInline
                   muted={reelMuted}
                   className="absolute inset-0 w-full h-full object-cover"
                   onCanPlay={(e) => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
+                  onEnded={() => goToReel(1)}
                 />
 
                 {/* Топ-бар: градиент + мут / название / закрыть */}
