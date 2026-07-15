@@ -2170,21 +2170,29 @@ export default function ProductDetail() {
                 </AccordionItem>
               )}
 
-              {/* Composition & Care */}
-              {(product.composition || product.careInstructions) && (
+              {/* Characteristics — HTML block from admin when filled, otherwise falls back to Состав/Уход fields */}
+              {((product as any).specsHtml || product.composition || product.careInstructions) && (
               <AccordionItem value="care" className="border-b border-border">
                 <AccordionTrigger className="py-4 text-sm font-medium text-foreground hover:no-underline" data-testid="accordion-care">
-                  Состав и уход
+                  Характеристики
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
-                  <div className="max-h-[220px] overflow-y-auto pr-1 space-y-3 text-sm text-foreground/80">
-                    {product.composition && (
-                      <p><span className="text-foreground font-medium">Состав:</span> {product.composition}</p>
-                    )}
-                    {product.careInstructions && (
-                      <p><span className="text-foreground font-medium">Уход:</span> {product.careInstructions}</p>
-                    )}
-                  </div>
+                  {(product as any).specsHtml ? (
+                    <div
+                      className="max-h-[220px] overflow-y-auto pr-1 text-sm text-foreground/80 leading-relaxed [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_li]:mb-1 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mb-2 [&_strong]:font-semibold [&_strong]:text-foreground"
+                      dangerouslySetInnerHTML={{ __html: (product as any).specsHtml }}
+                      data-testid="content-specs-html"
+                    />
+                  ) : (
+                    <div className="max-h-[220px] overflow-y-auto pr-1 space-y-3 text-sm text-foreground/80">
+                      {product.composition && (
+                        <p><span className="text-foreground font-medium">Состав:</span> {product.composition}</p>
+                      )}
+                      {product.careInstructions && (
+                        <p><span className="text-foreground font-medium">Уход:</span> {product.careInstructions}</p>
+                      )}
+                    </div>
+                  )}
                 </AccordionContent>
               </AccordionItem>
               )}

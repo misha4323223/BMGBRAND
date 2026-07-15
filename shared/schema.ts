@@ -172,6 +172,7 @@ export const products = pgTable("products", {
   seoTitle: text("seo_title"), // Custom SEO title override (auto-generated if empty)
   seoDescription: text("seo_description"), // Custom SEO meta description override (auto-generated if empty)
   seoBody: text("seo_body"), // Custom SEO HTML content block for product page (rich description for search engines)
+  specsHtml: text("specs_html"), // Custom HTML block for the "Характеристики" accordion (replaces composition/careInstructions display when filled)
   imageAlts: jsonb("image_alts").$type<string[]>().default([]), // Custom alt texts per image (auto-generated if empty)
   // Артикул (1С) и обложка карточки
   article: text("article"), // Артикул товара из 1С (отдельно от sku)

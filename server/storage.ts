@@ -937,6 +937,7 @@ export class DatabaseStorage implements IStorage {
       seoTitle: data.seo_title || null,
       seoDescription: data.seo_description || null,
       seoBody: data.seo_body || null,
+      specsHtml: data.specs_html || null,
       imageAlts: (() => {
         if (data.image_alts) {
           if (typeof data.image_alts === 'string') {
@@ -982,6 +983,7 @@ export class DatabaseStorage implements IStorage {
       createdAt: data.created_at ? new Date(Number(data.created_at) / 1000) : new Date(),
       composition: data.composition || null,
       careInstructions: data.care_instructions || null,
+      specsHtml: data.specs_html || null,
       note: data.note || null,
       delivery: data.delivery || null,
       returnPolicy: data.return_policy || null,
@@ -1285,6 +1287,7 @@ export class DatabaseStorage implements IStorage {
         DECLARE $seo_title AS Utf8;
         DECLARE $seo_description AS Utf8;
         DECLARE $seo_body AS Utf8;
+        DECLARE $specs_html AS Utf8;
         DECLARE $image_alts AS Json;
         DECLARE $additional_categories AS Json;
         DECLARE $artist_slug AS Utf8;
@@ -1297,7 +1300,7 @@ export class DatabaseStorage implements IStorage {
           is_new, in_stock, is_hidden, badge_text, slug,
           wholesale_price, stock, size_stock,
           composition, care_instructions, delivery, return_policy,
-          seo_title, seo_description, seo_body, image_alts, additional_categories,
+          seo_title, seo_description, seo_body, specs_html, image_alts, additional_categories,
           artist_slug, artist_only, size_characteristic_ids
         )
         VALUES (
@@ -1306,7 +1309,7 @@ export class DatabaseStorage implements IStorage {
           $is_new, $in_stock, $is_hidden, $badge_text, $slug,
           $wholesale_price, $stock, $size_stock,
           $composition, $care_instructions, $delivery, $return_policy,
-          $seo_title, $seo_description, $seo_body, $image_alts, $additional_categories,
+          $seo_title, $seo_description, $seo_body, $specs_html, $image_alts, $additional_categories,
           $artist_slug, $artist_only, $size_characteristic_ids
         );
       `;
@@ -1340,6 +1343,7 @@ export class DatabaseStorage implements IStorage {
         $seo_title: TypedValues.fromNative(Types.UTF8, (p as any).seoTitle || ''),
         $seo_description: TypedValues.fromNative(Types.UTF8, (p as any).seoDescription || ''),
         $seo_body: TypedValues.fromNative(Types.UTF8, (p as any).seoBody || ''),
+        $specs_html: TypedValues.fromNative(Types.UTF8, (p as any).specsHtml || ''),
         $image_alts: TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).imageAlts || [])),
         $additional_categories: TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).additionalCategories || [])),
         $artist_slug: TypedValues.fromNative(Types.UTF8, (p as any).artistSlug || ''),
@@ -1546,6 +1550,12 @@ export class DatabaseStorage implements IStorage {
         declareStatements += 'DECLARE $care_instructions AS Utf8;\n';
         setClauses.push('care_instructions = $care_instructions');
         params.$care_instructions = TypedValues.fromNative(Types.UTF8, (p as any).careInstructions || '');
+      }
+
+      if ((p as any).specsHtml !== undefined) {
+        declareStatements += 'DECLARE $specs_html AS Utf8;\n';
+        setClauses.push('specs_html = $specs_html');
+        params.$specs_html = TypedValues.fromNative(Types.UTF8, (p as any).specsHtml || '');
       }
 
       if ((p as any).note !== undefined) {

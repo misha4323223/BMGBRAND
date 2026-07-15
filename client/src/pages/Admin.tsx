@@ -1043,6 +1043,7 @@ export default function Admin() {
     seoTitle: string;
     seoDescription: string;
     seoBody: string;
+    specsHtml: string;
     imageAlts: string[];
     slug: string;
     preorderEnabled: boolean;
@@ -1085,6 +1086,7 @@ export default function Admin() {
     seoTitle: "",
     seoDescription: "",
     seoBody: "",
+    specsHtml: "",
     imageAlts: [],
     slug: "",
     preorderEnabled: false,
@@ -2205,6 +2207,7 @@ export default function Admin() {
         seoTitle: p.seoTitle || "",
         seoDescription: p.seoDescription || "",
         seoBody: (p as any).seoBody || "",
+        specsHtml: (p as any).specsHtml || "",
         imageAlts: p.imageAlts || [],
         slug: p.slug || "",
         preorderEnabled: p.preorderEnabled || false,
@@ -2295,6 +2298,7 @@ export default function Admin() {
       seoTitle: "",
       seoDescription: "",
       seoBody: "",
+      specsHtml: "",
       imageAlts: [],
       slug: "",
       preorderEnabled: false,
@@ -2344,6 +2348,7 @@ export default function Admin() {
         seoTitle: product.seoTitle || "",
         seoDescription: product.seoDescription || "",
         seoBody: (product as any).seoBody || "",
+        specsHtml: (product as any).specsHtml || "",
         imageAlts: product.imageAlts || [],
         slug: product.slug || "",
         preorderEnabled: product.preorderEnabled || false,
@@ -10055,6 +10060,21 @@ export default function Admin() {
                             data-testid="input-product-care"
                           />
                         </div>
+                      </div>
+
+                      {/* Characteristics HTML block — overrides Состав/Уход display on the product page when filled */}
+                      <div>
+                        <Label className="text-sm">Характеристики (HTML-блок)</Label>
+                        <textarea
+                          className="w-full min-h-32 p-3 rounded-md border border-input bg-background text-sm resize-y font-mono text-xs"
+                          value={productForm.specsHtml}
+                          onChange={(e) => setProductForm({...productForm, specsHtml: e.target.value})}
+                          placeholder={'Вставьте HTML-список характеристик: <ul><li>Материал: ...</li></ul>. Если оставить пустым, на странице товара покажутся обычные поля «Состав» и «Уход» выше.'}
+                          data-testid="textarea-product-specs-html"
+                        />
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Если заполнено — на странице товара блок «Характеристики» покажет этот HTML вместо «Состав»/«Уход». Тег &lt;h1&gt; станет &lt;h2&gt;, &lt;title&gt; будет удалён.
+                        </p>
                       </div>
 
                       {/* Note */}
