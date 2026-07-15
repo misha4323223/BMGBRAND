@@ -337,13 +337,14 @@ export function getCachedLcpImageUrls(): string[] {
   return results;
 }
 
-export function getCachedArtistHeroImage(slug: string): { img: string; imgMobile: string; name: string; role: string; heroOpacity: string } {
+export function getCachedArtistHeroImage(slug: string): { img: string; imgMobile: string; imgAlt: string; name: string; role: string; heroOpacity: string } {
   const artistPages = pageSettingsCache.get("artist_pages");
   const artist = artistPages?.[slug];
-  if (!artist) return { img: "", imgMobile: "", name: "", role: "", heroOpacity: "0.5" };
+  if (!artist) return { img: "", imgMobile: "", imgAlt: "", name: "", role: "", heroOpacity: "0.5" };
   return {
     img: artist.heroImage || "",
     imgMobile: artist.heroImageMobile || "",
+    imgAlt: artist.heroImageAlt || "",
     name: artist.name || "",
     role: artist.role || "",
     heroOpacity: artist.heroOpacity || "0.5",

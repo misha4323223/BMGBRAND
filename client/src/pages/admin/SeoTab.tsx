@@ -1,17 +1,20 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, Save, Loader2, ChevronRight, Globe, Tag, Shirt, Mic2 } from "lucide-react";
+import { Search, Save, Loader2, ChevronRight, Globe, Tag, Shirt, Mic2, Package, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { ImageUploadField } from "@/components/admin/MediaUploadField";
 
 type SeoFieldState = { default: string; value: string };
+type SeoHero = { heroImage: string; heroImageMobile: string; heroImageAlt: string; note?: string };
 type SeoPage = {
-  type: "home" | "category" | "subcategory" | "artist";
+  type: "home" | "category" | "subcategory" | "artist" | "concept";
   key: string;
   label: string;
   fields: { title: SeoFieldState; description: SeoFieldState };
+  hero?: SeoHero;
 };
 
 const TYPE_LABELS: Record<SeoPage["type"], string> = {
@@ -19,6 +22,7 @@ const TYPE_LABELS: Record<SeoPage["type"], string> = {
   category: "Категории",
   subcategory: "Подкатегории",
   artist: "Артисты",
+  concept: "Pre-drop",
 };
 
 const TYPE_ICONS: Record<SeoPage["type"], typeof Globe> = {
@@ -26,13 +30,14 @@ const TYPE_ICONS: Record<SeoPage["type"], typeof Globe> = {
   category: Tag,
   subcategory: Shirt,
   artist: Mic2,
+  concept: Package,
 };
 
 export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (url: string, apiKey: string, opts?: RequestInit) => Promise<any> }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ title: string; description: string } | null>(null);
+  const [draft, setDraft] = useState<{ title: string; description: string; heroImage: string; heroImageMobile: string; heroImageAlt: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery<{ pages: SeoPage[] }>({
@@ -43,7 +48,7 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
 
   const pages = data?.pages || [];
   const grouped = useMemo(() => {
-    const groups: Record<SeoPage["type"], SeoPage[]> = { home: [], category: [], subcategory: [], artist: [] };
+    const groups: Record<SeoPage["type"], SeoPage[]> = { home: [], category: [], subcategory: [], artist: [], concept: [] };
     for (const p of pages) groups[p.type].push(p);
     return groups;
   }, [pages]);
@@ -52,7 +57,13 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
 
   const selectPage = (p: SeoPage) => {
     setSelectedKey(`${p.type}:${p.key}`);
-    setDraft({ title: p.fields.title.value, description: p.fields.description.value });
+    setDraft({
+      title: p.fields.title.value,
+      description: p.fields.description.value,
+      heroImage: p.hero?.heroImage || "",
+      heroImageMobile: p.hero?.heroImageMobile || "",
+      heroImageAlt: p.hero?.heroImageAlt || "",
+    });
   };
 
   const handleSave = async () => {
@@ -63,10 +74,46 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
         await adminFetch(`/api/admin/page-settings/artist_pages/${selectedPage.key}`, apiKey, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ seoTitle: draft.title, seoDescription: draft.description }),
+          body: JSON.stringify({
+            seoTitle: draft.title,
+            seoDescription: draft.description,
+            heroImage: draft.heroImage,
+            heroImageMobile: draft.heroImageMobile,
+            heroImageAlt: draft.heroImageAlt,
+          }),
+        });
+      } else if (selectedPage.type === "home") {
+        await adminFetch(`/api/admin/page-settings/seo/home`, apiKey, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: draft.title, description: draft.description }),
+        });
+        await adminFetch(`/api/admin/seo/home-hero`, apiKey, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            heroImage: draft.heroImage,
+            heroImageMobile: draft.heroImageMobile,
+            heroImageAlt: draft.heroImageAlt,
+          }),
+        });
+      } else if (selectedPage.type === "concept") {
+        await adminFetch(`/api/admin/page-settings/seo/concept`, apiKey, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: draft.title, description: draft.description }),
+        });
+        await adminFetch(`/api/admin/page-settings/concept/hero`, apiKey, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            heroImage: draft.heroImage,
+            heroImageMobile: draft.heroImageMobile,
+            heroImageAlt: draft.heroImageAlt,
+          }),
         });
       } else {
-        const sectionId = selectedPage.type === "home" ? "home" : selectedPage.type === "category" ? `category:${selectedPage.key}` : `subcategory:${selectedPage.key}`;
+        const sectionId = selectedPage.type === "category" ? `category:${selectedPage.key}` : `subcategory:${selectedPage.key}`;
         await adminFetch(`/api/admin/page-settings/seo/${sectionId}`, apiKey, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -76,6 +123,9 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
       toast({ title: "SEO-текст сохранён" });
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["/api/page-settings/seo"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/page-settings/home"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/page-settings/concept"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/page-settings/artist_pages"] });
     } catch (err: any) {
       toast({ title: "Ошибка сохранения", description: err.message, variant: "destructive" });
     } finally {
@@ -184,6 +234,44 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
               <p className="text-xs text-muted-foreground">{draft.description.length} символов (рекомендуется 120–160)</p>
             </div>
 
+            {selectedPage.hero && (
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center gap-1.5">
+                  <ImageIcon className="w-4 h-4" />
+                  <h4 className="text-sm font-semibold">Hero-баннер (картинка + alt-текст)</h4>
+                </div>
+                {selectedPage.hero.note && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">{selectedPage.hero.note}</p>
+                )}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Изображение (десктоп)</label>
+                  <ImageUploadField
+                    value={draft.heroImage}
+                    onChange={url => setDraft({ ...draft, heroImage: url })}
+                    apiKey={apiKey}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Изображение (мобильная версия, опционально)</label>
+                  <ImageUploadField
+                    value={draft.heroImageMobile}
+                    onChange={url => setDraft({ ...draft, heroImageMobile: url })}
+                    apiKey={apiKey}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Alt-текст изображения</label>
+                  <Input
+                    value={draft.heroImageAlt}
+                    onChange={e => setDraft({ ...draft, heroImageAlt: e.target.value })}
+                    placeholder="Описание изображения для поисковиков и скринридеров"
+                    data-testid="input-seo-hero-alt"
+                  />
+                  <p className="text-xs text-muted-foreground">Помогает SEO и доступности — описывает, что изображено на баннере.</p>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-2 pt-2">
               <Button onClick={handleSave} disabled={saving} data-testid="button-seo-save">
                 {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
@@ -192,10 +280,14 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
               {(draft.title !== selectedPage.fields.title.default || draft.description !== selectedPage.fields.description.default) && (
                 <Button
                   variant="ghost"
-                  onClick={() => setDraft({ title: selectedPage.fields.title.default, description: selectedPage.fields.description.default })}
+                  onClick={() => setDraft({
+                    ...draft,
+                    title: selectedPage.fields.title.default,
+                    description: selectedPage.fields.description.default,
+                  })}
                   data-testid="button-seo-reset"
                 >
-                  Сбросить к значению по умолчанию
+                  Сбросить текст к значению по умолчанию
                 </Button>
               )}
             </div>

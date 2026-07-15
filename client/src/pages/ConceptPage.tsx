@@ -181,8 +181,14 @@ export default function ConceptPage() {
     queryKey: ["/api/page-settings/concept"],
   });
 
+  const { data: seoOverrides } = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/seo"],
+  });
+  const conceptSeo = seoOverrides?.concept || {};
+
   const heroBannerDesktop: string = conceptSettings?.hero?.heroImage || "";
   const heroBannerMobile: string = conceptSettings?.hero?.heroImageMobile || "";
+  const heroBannerAlt: string = conceptSettings?.hero?.heroImageAlt || "Предзаказ — твой доступ к будущим релизам";
   const [heroImgLoaded, setHeroImgLoaded] = useState(false);
   // Пока идёт запрос настроек ИЛИ картинка баннера ещё не отрисовалась — держим скелет,
   // чтобы баннер не «выпрыгивал» и не сдвигал контент после открытия страницы.
@@ -272,8 +278,8 @@ export default function ConceptPage() {
   return (
     <div className="min-h-screen bg-background text-foreground" data-testid="page-concept">
       <SEO
-        title="Pre-drop | BOOOMERANGS"
-        description="Pre-drop BOOOMERANGS — поддержи создание новых моделей одежды с авторскими принтами. Голосуй рублём за то, что хочешь носить."
+        title={conceptSeo.title || "Pre-drop | BOOOMERANGS"}
+        description={conceptSeo.description || "Pre-drop BOOOMERANGS — поддержи создание новых моделей одежды с авторскими принтами. Голосуй рублём за то, что хочешь носить."}
         keywords="предзаказ, pre-drop, российский бренд одежды с авторскими принтами, BOOOMERANGS"
       />
       {/* Hero banner — резервируем место сразу и держим скелет, пока картинка не отрисуется,
@@ -291,7 +297,7 @@ export default function ConceptPage() {
         {!heroLoading && heroBannerDesktop && (
           <img
             src={heroBannerDesktop}
-            alt="Предзаказ — твой доступ к будущим релизам"
+            alt={heroBannerAlt}
             loading="eager"
             // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
             fetchpriority="high"
@@ -305,7 +311,7 @@ export default function ConceptPage() {
         {!heroLoading && heroBannerMobile && (
           <img
             src={heroBannerMobile}
-            alt="Предзаказ — твой доступ к будущим релизам"
+            alt={heroBannerAlt}
             loading="eager"
             // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
             fetchpriority="high"

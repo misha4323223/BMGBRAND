@@ -28,7 +28,7 @@ import { runAbandonedCartCheck, addAbandonedCartUnsub } from "./abandoned-cart";
 import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow } from "./new-products-notifier";
 import { enqueuePreorderProduct, getPreorderQueueStatus, triggerPreorderNotifierNow } from "./preorder-notifier";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
-import { CATEGORIES as SEO_CATEGORY_DEFAULTS, ARTISTS as SEO_ARTIST_DEFAULTS, HOME_SEO_DEFAULT } from "./static";
+import { CATEGORIES as SEO_CATEGORY_DEFAULTS, ARTISTS as SEO_ARTIST_DEFAULTS, HOME_SEO_DEFAULT, CONCEPT_SEO_DEFAULT } from "./static";
 import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
@@ -13280,11 +13280,36 @@ BMGBRAND — официальный производитель и магазин
       const pages: any[] = [];
 
       // --- Home ---
+      const homeSettings = await storage.getPageSettings("home");
+      const homeHero = homeSettings?.hero || {};
+      const homeHeroSlide = Array.isArray(homeHero.slides) && homeHero.slides.length > 0 ? homeHero.slides[0] : homeHero;
       pages.push({
         type: "home",
         key: "home",
         label: "Главная страница",
         fields: field(HOME_SEO_DEFAULT.title, HOME_SEO_DEFAULT.description, seoOverrides["home"]),
+        hero: {
+          heroImage: homeHeroSlide?.heroImage || "",
+          heroImageMobile: homeHeroSlide?.heroImageMobile || "",
+          heroImageAlt: homeHeroSlide?.heroImageAlt || "",
+          note: Array.isArray(homeHero.slides) && homeHero.slides.length > 1 ? `Слайдер из ${homeHero.slides.length} слайдов — здесь редактируется только 1-й (главный) слайд. Остальные слайды и их картинки — в разделе «Страницы» → Hero.` : undefined,
+        },
+      });
+
+      // --- Concept / Pre-drop ---
+      let conceptSettings: Record<string, any> = {};
+      try { conceptSettings = await storage.getPageSettings("concept"); } catch { /* none yet */ }
+      const conceptHero = conceptSettings?.hero || {};
+      pages.push({
+        type: "concept",
+        key: "concept",
+        label: "Pre-drop (предзаказ)",
+        fields: field(CONCEPT_SEO_DEFAULT.title, CONCEPT_SEO_DEFAULT.description, seoOverrides["concept"]),
+        hero: {
+          heroImage: conceptHero.heroImage || "",
+          heroImageMobile: conceptHero.heroImageMobile || "",
+          heroImageAlt: conceptHero.heroImageAlt || "",
+        },
       });
 
       // --- Categories & subcategories (dynamic config with hardcoded fallback) ---
@@ -13336,10 +13361,42 @@ BMGBRAND — официальный производитель и магазин
             seoDefault?.desc,
             { title: settings.seoTitle, description: settings.seoDescription },
           ),
+          hero: {
+            heroImage: settings.heroImage || "",
+            heroImageMobile: settings.heroImageMobile || "",
+            heroImageAlt: settings.heroImageAlt || "",
+          },
         });
       }
 
       res.json({ pages });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: SEO tab — save hero image/alt for the home page without clobbering
+  // the multi-slide carousel (updates slide 0 only; other slides untouched).
+  app.post("/api/admin/seo/home-hero", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const { heroImage, heroImageMobile, heroImageAlt } = req.body;
+      const homeSettings = await storage.getPageSettings("home");
+      const hero = { ...(homeSettings?.hero || {}) };
+      if (Array.isArray(hero.slides) && hero.slides.length > 0) {
+        const newSlides = [...hero.slides];
+        newSlides[0] = { ...newSlides[0], heroImage, heroImageMobile, heroImageAlt };
+        hero.slides = newSlides;
+      } else {
+        hero.heroImage = heroImage;
+        hero.heroImageMobile = heroImageMobile;
+        hero.heroImageAlt = heroImageAlt;
+      }
+      await storage.setPageSectionSettings("home", "hero", hero);
+      res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

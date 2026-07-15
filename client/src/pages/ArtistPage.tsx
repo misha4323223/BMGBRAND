@@ -19,6 +19,7 @@ import { TrackList } from "@/components/TrackList";
 interface ArtistSettings {
   heroImage?: string;
   heroImageMobile?: string;
+  heroImageAlt?: string;
   heroVideo?: string;
   heroBgType?: string;
   heroOpacity?: string;
@@ -692,7 +693,7 @@ export default function ArtistPage() {
   const slug = params.slug?.replace(/^@/, '');
   // SSR-injected hero data — available before any API call completes
   const artistHeroSSR = typeof window !== 'undefined'
-    ? (window as any).__ARTIST_HERO__ as { img: string; imgMobile: string; name: string; role: string; heroOpacity: string } | undefined
+    ? (window as any).__ARTIST_HERO__ as { img: string; imgMobile: string; imgAlt: string; name: string; role: string; heroOpacity: string } | undefined
     : undefined;
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -754,6 +755,7 @@ export default function ArtistPage() {
   const artistRole = settings.role !== undefined ? settings.role : (homeArtist?.role || artistHeroSSR?.role || "");
   const heroImage = settings.heroImage || homeArtist?.image || artistHeroSSR?.img || "";
   const heroOpacity = settings.heroOpacity || artistHeroSSR?.heroOpacity || "0.5";
+  const heroImageAlt = settings.heroImageAlt || artistHeroSSR?.imgAlt || artistName;
 
   const productsLimit = settings.productsLimit ?? 8;
 
@@ -922,7 +924,7 @@ export default function ArtistPage() {
                   <>
                     <img
                       src={settings.heroImageMobile}
-                      alt={artistName}
+                      alt={heroImageAlt}
                       fetchPriority="high"
                       loading="eager"
                       decoding="async"
@@ -930,7 +932,7 @@ export default function ArtistPage() {
                     />
                     <img
                       src={heroImage}
-                      alt={artistName}
+                      alt={heroImageAlt}
                       fetchPriority="high"
                       loading="eager"
                       decoding="async"
@@ -940,7 +942,7 @@ export default function ArtistPage() {
                 ) : (
                   <img
                     src={heroImage}
-                    alt={artistName}
+                    alt={heroImageAlt}
                     fetchPriority="high"
                     loading="eager"
                     decoding="async"
