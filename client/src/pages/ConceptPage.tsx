@@ -397,92 +397,212 @@ export default function ConceptPage() {
 
       {/* Products */}
       <section
-        className="py-14 sm:py-20 relative overflow-hidden"
-        style={{ background: "#F2F2F2" }}
+        className="py-16 sm:py-24 relative overflow-hidden"
+        style={{ background: "#06060a" }}
       >
-        {/* Отголосок космических свечений из секции подписки */}
+        {/* Фоновые блобы — подчёркивают свечение пластинок */}
         <div
-          className="absolute -top-20 -left-20 w-[45vw] h-[45vw] max-w-[460px] max-h-[460px] rounded-full opacity-[0.07] blur-[110px] pointer-events-none"
-          style={{ background: "radial-gradient(circle, #E53935 0%, transparent 70%)" }}
+          className="absolute top-1/4 -left-32 w-[55vw] h-[55vw] max-w-[600px] max-h-[600px] rounded-full opacity-[0.12] blur-[120px] pointer-events-none"
+          style={{ background: "radial-gradient(circle, #E53935 0%, transparent 65%)" }}
         />
         <div
-          className="absolute -bottom-24 -right-16 w-[40vw] h-[40vw] max-w-[420px] max-h-[420px] rounded-full opacity-[0.06] blur-[110px] pointer-events-none"
-          style={{ background: "radial-gradient(circle, #7C4DFF 0%, transparent 70%)" }}
+          className="absolute bottom-1/4 -right-32 w-[50vw] h-[50vw] max-w-[560px] max-h-[560px] rounded-full opacity-[0.10] blur-[120px] pointer-events-none"
+          style={{ background: "radial-gradient(circle, #7C4DFF 0%, transparent 65%)" }}
         />
 
-        {/* Едва заметная звёздная пыль */}
+        {/* Тонкая сетка-текстура */}
         <div
-          className="absolute inset-0 opacity-[0.5] pointer-events-none"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: "radial-gradient(circle, rgba(30,25,20,0.05) 1px, transparent 1px)",
-            backgroundSize: "26px 26px",
+            backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
           }}
         />
 
-        {/* Watermark logo */}
+        {/* Watermark */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-          <img
-            src="/images/boomerangs-logo.webp"
-            alt=""
-            className="w-[90%] max-w-[1000px] opacity-[0.04]"
-            draggable="false"
-          />
+          <img src="/images/boomerangs-logo.webp" alt="" className="w-[80%] max-w-[900px] opacity-[0.025]" draggable="false" />
         </div>
 
         <div className="px-4 sm:px-6 lg:px-12 relative z-10">
           {(isLoading || campaignsLoading) ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-14 sm:gap-x-10 sm:gap-y-20">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <ProductSkeleton key={i} />
+            <div className="flex flex-wrap justify-center gap-20">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="flex flex-col items-center gap-8">
+                  <div className="w-[320px] h-[320px] sm:w-[360px] sm:h-[360px] rounded-full bg-zinc-900 animate-pulse" />
+                  <div className="space-y-2 text-center">
+                    <div className="h-3 w-32 bg-zinc-800 rounded mx-auto animate-pulse" />
+                    <div className="h-5 w-48 bg-zinc-800 rounded mx-auto animate-pulse" />
+                  </div>
+                </div>
               ))}
             </div>
           ) : hasCampaigns ? (
-            /* ── Список коллабораций — Editorial style ── */
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+            /* ── Виниловые пластинки ── */
+            <div className="flex flex-wrap justify-center gap-x-24 gap-y-28">
               {campaigns!.map((c) => (
                 <Link
                   key={c.slug}
                   href={`/concept/${c.slug}`}
-                  className="group flex flex-col overflow-hidden rounded-xl bg-zinc-900 border border-white/[0.06] hover:border-white/[0.14] transition-colors duration-300"
+                  className="vinyl-card group flex flex-col items-center gap-10 cursor-pointer"
                   data-testid={`card-campaign-${c.slug}`}
                 >
-                  {/* ── Фото — чистое, без градиента ── */}
-                  <div className="relative overflow-hidden aspect-[3/2]">
-                    {c.coverImage ? (
-                      <img
-                        src={c.coverImage}
-                        alt={c.title}
-                        loading="lazy"
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  {/* ── Vinyl Disc ── */}
+                  <div className="relative" style={{ width: 340, height: 340 }}>
+
+                    {/* Внешнее радужное свечение — появляется при ховере */}
+                    <div
+                      className="vinyl-outer-glow absolute rounded-full pointer-events-none opacity-0"
+                      style={{
+                        inset: -28,
+                        background: "conic-gradient(from 0deg, rgba(255,0,102,0.6), rgba(255,140,0,0.5), rgba(64,224,208,0.6), rgba(124,77,255,0.6), rgba(255,0,102,0.6))",
+                        filter: "blur(28px)",
+                      }}
+                    />
+
+                    {/* Пластинка — вращается при ховере */}
+                    <div
+                      className="vinyl-disc absolute inset-0 rounded-full overflow-hidden"
+                      style={{
+                        boxShadow: "0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05)",
+                      }}
+                    >
+                      {/* Обложка альбома (очень тёмная, сквозь бороздки) */}
+                      {c.coverImage && (
+                        <img
+                          src={c.coverImage}
+                          alt={c.title}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          style={{ opacity: 0.18, filter: "saturate(0.5)" }}
+                          draggable="false"
+                        />
+                      )}
+
+                      {/* Виниловое тело — тёмный радиальный градиент */}
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          background: "radial-gradient(circle at 38% 36%, #262626 0%, #0e0e0e 48%, #040404 100%)",
+                        }}
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-zinc-800">
-                        <Package className="w-12 h-12 text-zinc-600" />
+
+                      {/* Бороздки — повторяющийся радиальный паттерн */}
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          background: `repeating-radial-gradient(circle at center,
+                            transparent 0px, transparent 6px,
+                            rgba(255,255,255,0.032) 6px, rgba(255,255,255,0.032) 7px
+                          )`,
+                        }}
+                      />
+
+                      {/* Иридесцентный блик — вращается вместе с диском */}
+                      <div
+                        className="vinyl-sheen absolute inset-0"
+                        style={{
+                          background: "conic-gradient(from 40deg at 50% 50%, rgba(255,0,102,0.28) 0deg, rgba(255,140,0,0.22) 65deg, rgba(64,224,208,0.26) 140deg, rgba(124,77,255,0.28) 210deg, rgba(255,255,255,0.12) 280deg, rgba(255,0,102,0.24) 360deg)",
+                          mixBlendMode: "screen",
+                        }}
+                      />
+
+                      {/* Статичный блик — имитация отражения света */}
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                          background: "radial-gradient(ellipse 55% 35% at 32% 28%, rgba(255,255,255,0.08) 0%, transparent 65%)",
+                        }}
+                      />
+
+                      {/* Внутренняя тень у края */}
+                      <div
+                        className="absolute inset-0 rounded-full pointer-events-none"
+                        style={{
+                          boxShadow: "inset 0 0 0 14px rgba(0,0,0,0.35), inset 0 0 0 2px rgba(255,255,255,0.04)",
+                        }}
+                      />
+
+                      {/* ── Центральный лейбл ── */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div
+                          className="relative rounded-full flex flex-col items-center justify-center overflow-hidden"
+                          style={{
+                            width: "34%",
+                            height: "34%",
+                            boxShadow: "0 3px 16px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.07)",
+                          }}
+                        >
+                          {/* Фон лейбла — арт кампании затемнённый */}
+                          {c.coverImage && (
+                            <img
+                              src={c.coverImage}
+                              alt=""
+                              className="absolute inset-0 w-full h-full object-cover"
+                              style={{ opacity: 0.35 }}
+                              draggable="false"
+                            />
+                          )}
+                          <div
+                            className="absolute inset-0"
+                            style={{ background: "radial-gradient(circle at 45% 40%, rgba(15,8,8,0.55) 0%, rgba(6,3,3,0.88) 100%)" }}
+                          />
+                          {/* Логотип */}
+                          <img
+                            src="/images/boomerangs-logo.webp"
+                            alt=""
+                            className="relative object-contain"
+                            style={{ width: "54%", opacity: 0.85, filter: "invert(1) brightness(0.9)" }}
+                            draggable="false"
+                          />
+                          <span className="relative text-[4.5px] uppercase tracking-[0.2em] text-white/35 mt-0.5 font-mono leading-none">
+                            BOOOMERANGS
+                          </span>
+                          {/* Отверстие шпинделя */}
+                          <div
+                            className="absolute rounded-full bg-black"
+                            style={{
+                              width: "13%",
+                              height: "13%",
+                              boxShadow: "inset 0 1px 3px rgba(255,255,255,0.08)",
+                            }}
+                          />
+                        </div>
                       </div>
-                    )}
-                    {/* Бейдж поверх фото */}
-                    <div className="absolute top-3 left-3">
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-mono tracking-[0.15em] uppercase px-2.5 py-1 rounded-full bg-black/55 text-white/90 border border-white/10 backdrop-blur-sm">
+                    </div>
+
+                    {/* Бейдж — снизу под диском */}
+                    <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 z-20">
+                      <span
+                        className="inline-flex items-center gap-1.5 text-[10px] font-mono tracking-[0.15em] uppercase px-3 py-1.5 rounded-full whitespace-nowrap"
+                        style={{
+                          background: "rgba(8,8,12,0.9)",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          backdropFilter: "blur(8px)",
+                          color: "rgba(255,255,255,0.88)",
+                        }}
+                      >
                         <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
                         {c.activeProductCount > 0 ? "Сбор заявок" : "Предзаказ"}
                       </span>
                     </div>
                   </div>
 
-                  {/* ── Текстовая плашка — отдельно под фото ── */}
-                  <div className="flex flex-col flex-1 px-5 py-4 gap-1 border-t border-white/[0.06]">
+                  {/* ── Название и ссылка под пластинкой ── */}
+                  <div className="vinyl-info text-center">
                     {c.subtitle && (
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-400 leading-none">{c.subtitle}</p>
+                      <p className="text-[10px] uppercase tracking-[0.28em] text-white/35 mb-1.5 font-mono">
+                        {c.subtitle}
+                      </p>
                     )}
-                    <h3 className="text-base sm:text-lg font-bold uppercase tracking-tight text-white leading-snug">
+                    <h3 className="text-xl sm:text-2xl font-bold uppercase tracking-tight text-white leading-tight">
                       {c.title}
                     </h3>
-                    <div className="flex items-center justify-between mt-auto pt-3">
-                      <span className="text-[11px] text-zinc-400">
+                    <div className="flex items-center justify-center gap-5 mt-3">
+                      <span className="text-xs text-white/35">
                         {c.productCount} {c.productCount === 1 ? "товар" : c.productCount < 5 ? "товара" : "товаров"}
                       </span>
-                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-white/80 group-hover:text-white group-hover:gap-2.5 transition-all duration-200">
-                        Смотреть <ArrowRight className="w-3 h-3" />
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/60 group-hover:text-white group-hover:gap-3 transition-all duration-300">
+                        Смотреть <ArrowRight className="w-3.5 h-3.5" />
                       </span>
                     </div>
                   </div>

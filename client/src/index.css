@@ -510,3 +510,54 @@ body.lb-open nav {
 @media (prefers-reduced-motion: reduce) {
   .fd-scan-line, .fd-cursor, .fd-cta-glow, .fd-bracket, .fd-progress-shimmer { animation: none !important; }
 }
+
+/* ── Vinyl Record Card ──────────────────────────────────────── */
+@keyframes vinyl-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes vinyl-glow-breathe {
+  0%, 100% { opacity: 0;   transform: scale(0.88); }
+  50%       { opacity: 0.8; transform: scale(1.04); }
+}
+@keyframes vinyl-sheen-in {
+  from { opacity: 0; }
+  to   { opacity: 0.5; }
+}
+
+/* Disc spins on hover */
+.vinyl-card:hover .vinyl-disc {
+  animation: vinyl-spin 5s linear infinite;
+}
+/* Rainbow outer glow pulses on hover */
+.vinyl-card:hover .vinyl-outer-glow {
+  animation: vinyl-glow-breathe 2.2s ease-in-out infinite;
+}
+/* Iridescent sheen fades in (disc child → rotates with it) */
+.vinyl-sheen {
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+.vinyl-card:hover .vinyl-sheen {
+  opacity: 0.5;
+}
+/* Lift on hover */
+.vinyl-disc {
+  transition: box-shadow 0.5s ease, transform 0.5s ease;
+}
+.vinyl-card:hover .vinyl-disc {
+  box-shadow: 0 40px 100px rgba(0,0,0,0.85), 0 0 0 1.5px rgba(255,255,255,0.07) !important;
+  transform-origin: center center;
+}
+/* Info text fades up on hover */
+.vinyl-info {
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+.vinyl-card:hover .vinyl-info {
+  transform: translateY(-4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vinyl-card:hover .vinyl-disc,
+  .vinyl-card:hover .vinyl-outer-glow { animation: none !important; }
+}
