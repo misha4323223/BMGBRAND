@@ -6323,15 +6323,14 @@ BMGBRAND — официальный производитель и магазин
       const ydb = await import("ydb-sdk");
       const ydbDriver = await waitForDriver();
       if (!ydbDriver) return res.status(503).json({ error: "YDB not available" });
-      const jsonType = ydb.Ydb.Type.create({ optionalType: { item: { typeId: ydb.Ydb.Type.PrimitiveTypeId.JSON } } });
       try {
         await ydbDriver.tableClient.withSession(async (session) => {
-          await session.alterTable('products', { addColumns: [{ name: 'feature_badge_ids', type: jsonType }] } as any);
+          await session.executeQuery(`ALTER TABLE products ADD COLUMN feature_badge_ids Json`);
         });
         console.log("[Migration] Added column: feature_badge_ids");
         res.json({ success: true, message: "feature_badge_ids: added" });
       } catch (err: any) {
-        if (err.message?.includes("already exists") || err.message?.includes("Duplicate column") || err.message?.includes("Cannot alter type")) {
+        if (err.message?.includes("already exists") || err.message?.includes("Duplicate column") || err.message?.includes("Cannot alter type") || err.message?.includes("Member not found")) {
           res.json({ success: true, message: "feature_badge_ids: already exists" });
         } else {
           throw err;
