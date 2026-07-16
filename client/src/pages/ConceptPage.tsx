@@ -398,30 +398,31 @@ export default function ConceptPage() {
       {/* Products */}
       <section
         className="py-16 sm:py-24 relative overflow-hidden"
-        style={{ background: "#06060a" }}
+        style={{ background: "#1c1a1a" }}
       >
-        {/* Фоновые блобы — подчёркивают свечение пластинок */}
+        {/* Тёплый блоб слева */}
         <div
-          className="absolute top-1/4 -left-32 w-[55vw] h-[55vw] max-w-[600px] max-h-[600px] rounded-full opacity-[0.12] blur-[120px] pointer-events-none"
-          style={{ background: "radial-gradient(circle, #E53935 0%, transparent 65%)" }}
+          className="absolute top-1/4 -left-32 w-[55vw] h-[55vw] max-w-[600px] max-h-[600px] rounded-full opacity-[0.20] blur-[130px] pointer-events-none"
+          style={{ background: "radial-gradient(circle, #c62828 0%, transparent 65%)" }}
         />
+        {/* Холодный блоб справа */}
         <div
-          className="absolute bottom-1/4 -right-32 w-[50vw] h-[50vw] max-w-[560px] max-h-[560px] rounded-full opacity-[0.10] blur-[120px] pointer-events-none"
-          style={{ background: "radial-gradient(circle, #7C4DFF 0%, transparent 65%)" }}
+          className="absolute bottom-1/4 -right-32 w-[50vw] h-[50vw] max-w-[560px] max-h-[560px] rounded-full opacity-[0.15] blur-[130px] pointer-events-none"
+          style={{ background: "radial-gradient(circle, #4a148c 0%, transparent 65%)" }}
         />
 
         {/* Тонкая сетка-текстура */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)",
-            backgroundSize: "28px 28px",
+            backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)",
+            backgroundSize: "26px 26px",
           }}
         />
 
         {/* Watermark */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-          <img src="/images/boomerangs-logo.webp" alt="" className="w-[80%] max-w-[900px] opacity-[0.025]" draggable="false" />
+          <img src="/images/boomerangs-logo.webp" alt="" className="w-[80%] max-w-[900px] opacity-[0.04]" draggable="false" />
         </div>
 
         <div className="px-4 sm:px-6 lg:px-12 relative z-10">
@@ -450,13 +451,13 @@ export default function ConceptPage() {
                   {/* ── Vinyl Disc ── */}
                   <div className="relative w-[72vw] h-[72vw] sm:w-[300px] sm:h-[300px] lg:w-[340px] lg:h-[340px]" style={{ maxWidth: 340, maxHeight: 340 }}>
 
-                    {/* Постоянное мягкое свечение — отделяет диск от тёмного фона */}
+                    {/* Постоянное свечение — диск отрывается от фона */}
                     <div
                       className="absolute rounded-full pointer-events-none"
                       style={{
-                        inset: -18,
-                        background: "radial-gradient(circle, rgba(180,160,140,0.18) 0%, rgba(120,100,80,0.08) 55%, transparent 75%)",
-                        filter: "blur(16px)",
+                        inset: -24,
+                        background: "radial-gradient(circle, rgba(220,200,180,0.28) 0%, rgba(160,130,110,0.14) 50%, transparent 72%)",
+                        filter: "blur(20px)",
                       }}
                     />
                     {/* Внешнее радужное свечение — появляется при ховере */}
