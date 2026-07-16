@@ -428,7 +428,7 @@ async function seedDefaultLegalDocuments() {
         } catch (err) {
           console.error("[Warmup] Failed to warm reviews cache:", err);
         }
-        const criticalPages = ["home", "navbar", "footer", "artist_pages", "seo", "static_pages"];
+        const criticalPages = ["home", "navbar", "footer", "artist_pages", "seo", "static_pages", "product_feature_templates"];
         for (const page of criticalPages) {
           try {
             await new Promise(resolve => setTimeout(resolve, 300));

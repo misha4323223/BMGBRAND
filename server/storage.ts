@@ -376,6 +376,7 @@ export function getCachedProductMetaBySlug(slug: string): {
   seoTitle: string | null; seoDescription: string | null; seoBody: string | null; specsHtml: string | null; videoUrl: string | null;
   composition: string | null; careInstructions: string | null;
   measurements: Array<{ size: string; [key: string]: string }> | null;
+  featureBadgeIds: string[];
 } | null {
   const products = productsCache.get("all");
   if (!products || products.length === 0) return null;
@@ -411,6 +412,7 @@ export function getCachedProductMetaBySlug(slug: string): {
     measurements: Array.isArray((product as any).measurements) && (product as any).measurements.length > 0
       ? (product as any).measurements
       : null,
+    featureBadgeIds: Array.isArray((product as any).featureBadgeIds) ? (product as any).featureBadgeIds : [],
   };
 }
 
@@ -949,6 +951,16 @@ export class DatabaseStorage implements IStorage {
         }
         return [];
       })(),
+      featureBadgeIds: (() => {
+        if (data.feature_badge_ids) {
+          if (typeof data.feature_badge_ids === 'string') {
+            try { return JSON.parse(data.feature_badge_ids); } catch { return []; }
+          } else if (Array.isArray(data.feature_badge_ids)) {
+            return data.feature_badge_ids;
+          }
+        }
+        return [];
+      })(),
       noSize: data.no_size === true,
       preorderEnabled: data.preorder_enabled === true,
       wholesalePreorderEnabled: data.wholesale_preorder_enabled === true,
@@ -1246,6 +1258,7 @@ export class DatabaseStorage implements IStorage {
       seoDescription: (p as any).seoDescription || null,
       seoBody: (p as any).seoBody || null,
       imageAlts: Array.isArray((p as any).imageAlts) ? (p as any).imageAlts : [],
+      featureBadgeIds: Array.isArray((p as any).featureBadgeIds) ? (p as any).featureBadgeIds : [],
       additionalCategories: Array.isArray((p as any).additionalCategories) ? (p as any).additionalCategories : [],
       createdAt: new Date(),
     };
@@ -1290,6 +1303,7 @@ export class DatabaseStorage implements IStorage {
         DECLARE $seo_body AS Utf8;
         DECLARE $specs_html AS Utf8;
         DECLARE $image_alts AS Json;
+        DECLARE $feature_badge_ids AS Json;
         DECLARE $additional_categories AS Json;
         DECLARE $artist_slug AS Utf8;
         DECLARE $artist_only AS Bool;
@@ -1301,7 +1315,7 @@ export class DatabaseStorage implements IStorage {
           is_new, in_stock, is_hidden, badge_text, slug,
           wholesale_price, stock, size_stock,
           composition, care_instructions, delivery, return_policy,
-          seo_title, seo_description, seo_body, specs_html, image_alts, additional_categories,
+          seo_title, seo_description, seo_body, specs_html, image_alts, feature_badge_ids, additional_categories,
           artist_slug, artist_only, size_characteristic_ids
         )
         VALUES (
@@ -1310,7 +1324,7 @@ export class DatabaseStorage implements IStorage {
           $is_new, $in_stock, $is_hidden, $badge_text, $slug,
           $wholesale_price, $stock, $size_stock,
           $composition, $care_instructions, $delivery, $return_policy,
-          $seo_title, $seo_description, $seo_body, $specs_html, $image_alts, $additional_categories,
+          $seo_title, $seo_description, $seo_body, $specs_html, $image_alts, $feature_badge_ids, $additional_categories,
           $artist_slug, $artist_only, $size_characteristic_ids
         );
       `;
@@ -1346,6 +1360,7 @@ export class DatabaseStorage implements IStorage {
         $seo_body: TypedValues.fromNative(Types.UTF8, (p as any).seoBody || ''),
         $specs_html: TypedValues.fromNative(Types.UTF8, (p as any).specsHtml || ''),
         $image_alts: TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).imageAlts || [])),
+        $feature_badge_ids: TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).featureBadgeIds || [])),
         $additional_categories: TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).additionalCategories || [])),
         $artist_slug: TypedValues.fromNative(Types.UTF8, (p as any).artistSlug || ''),
         $artist_only: TypedValues.fromNative(Types.BOOL, (p as any).artistOnly ?? false),
@@ -1629,6 +1644,12 @@ export class DatabaseStorage implements IStorage {
         declareStatements += 'DECLARE $image_alts AS Json;\n';
         setClauses.push('image_alts = $image_alts');
         params.$image_alts = TypedValues.fromNative(Types.JSON, JSON.stringify(p.imageAlts || []));
+      }
+      
+      if ((p as any).featureBadgeIds !== undefined) {
+        declareStatements += 'DECLARE $feature_badge_ids AS Json;\n';
+        setClauses.push('feature_badge_ids = $feature_badge_ids');
+        params.$feature_badge_ids = TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).featureBadgeIds || []));
       }
       
       if ((p as any).preorderEnabled !== undefined) {
@@ -3982,6 +4003,17 @@ export class DatabaseStorage implements IStorage {
         results.push(err.message?.includes("already exists") || err.message?.includes("Member not found")
           ? "products.video_url: exists"
           : `products.video_url: ${err.message}`);
+      }
+
+      try {
+        await driver.tableClient.withSession(async (session: ydb.Session) => {
+          await session.executeQuery(`ALTER TABLE products ADD COLUMN feature_badge_ids Json`);
+        });
+        results.push("products.feature_badge_ids: added");
+      } catch (err: any) {
+        results.push(err.message?.includes("already exists") || err.message?.includes("Member not found")
+          ? "products.feature_badge_ids: exists"
+          : `products.feature_badge_ids: ${err.message}`);
       }
 
       return { success: true, message: results.join("; ") };

@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, RefreshCw, Lock, Search, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Image, MoveRight, MoreVertical, Settings, CheckSquare, Building2, Check, X, Users, Package, EyeOff, Eye, Gift, ShoppingCart, Clock, Truck, CreditCard, Ban, Star, Mail, TrendingUp, TrendingDown, Tag, Save, Plus, Pencil, Loader2, Layout, Type, ImageIcon, DollarSign, Upload, MessageSquare, Send, CheckCircle2, LogOut, Heart, Copy, Target, GripVertical, Bell, Phone, User, ChevronDown, ChevronRight, PlusCircle, MinusCircle, FileText, Ruler, Download, Music, Headphones, Play } from "lucide-react";
+import { Trash2, RefreshCw, Lock, Search, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Image, MoveRight, MoreVertical, Settings, CheckSquare, Building2, Check, X, Users, Package, EyeOff, Eye, Gift, ShoppingCart, Clock, Truck, CreditCard, Ban, Star, Mail, TrendingUp, TrendingDown, Tag, Save, Plus, Pencil, Loader2, Layout, Type, ImageIcon, DollarSign, Upload, MessageSquare, Send, CheckCircle2, LogOut, Heart, Copy, Target, GripVertical, Bell, Phone, User, ChevronDown, ChevronRight, PlusCircle, MinusCircle, FileText, Ruler, Download, Music, Headphones, Play, Sparkles } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +38,7 @@ import { FooterEditor } from "@/components/FooterEditor";
 import { CheckoutEditor } from "@/components/CheckoutEditor";
 import EmailEditor from "@/components/EmailEditor";
 import { MediaUploadField, ImageUploadField, VideoUploadField } from "@/components/admin/MediaUploadField";
+import { FEATURE_BADGE_ICONS, getFeatureBadgeIcon, type FeatureBadgeTemplate } from "@/lib/featureBadgeIcons";
 
 interface WholesaleUser {
   id: number;
@@ -241,6 +242,171 @@ const DEFAULT_VACANCIES: VacancyItem[] = [
     visible: true,
   },
 ];
+
+function FeatureBadgeTemplatesManager({ apiKey }: { apiKey: string }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftIcon, setDraftIcon] = useState("Sparkles");
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
+
+  const { data: templatesRaw, refetch } = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/product_feature_templates"],
+    queryFn: async () => {
+      const res = await fetch("/api/page-settings/product_feature_templates");
+      if (!res.ok) return {};
+      return res.json();
+    },
+  });
+
+  const templates: FeatureBadgeTemplate[] = Object.entries(templatesRaw || {}).map(([id, t]: [string, any]) => ({
+    id,
+    icon: t.icon || "Sparkles",
+    title: t.title || "",
+    description: t.description || "",
+  }));
+
+  const resetDraft = () => {
+    setEditingId(null);
+    setDraftIcon("Sparkles");
+    setDraftTitle("");
+    setDraftDescription("");
+  };
+
+  const startEdit = (t: FeatureBadgeTemplate) => {
+    setEditingId(t.id);
+    setDraftIcon(t.icon);
+    setDraftTitle(t.title);
+    setDraftDescription(t.description);
+  };
+
+  const handleSave = async () => {
+    if (!draftTitle.trim()) {
+      toast({ title: "Укажите заголовок", variant: "destructive" });
+      return;
+    }
+    const id = editingId || `badge_${Date.now()}`;
+    try {
+      await adminFetch(`/api/admin/page-settings/product_feature_templates/${id}`, apiKey, {
+        method: "POST",
+        body: JSON.stringify({ icon: draftIcon, title: draftTitle.trim(), description: draftDescription.trim() }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/page-settings/product_feature_templates"] });
+      await refetch();
+      resetDraft();
+      toast({ title: editingId ? "Шаблон обновлён" : "Шаблон создан" });
+    } catch (err: any) {
+      toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Удалить шаблон? Он перестанет отображаться на товарах, где выбран.")) return;
+    try {
+      await adminFetch(`/api/admin/page-settings/product_feature_templates/${id}`, apiKey, { method: "DELETE" });
+      queryClient.invalidateQueries({ queryKey: ["/api/page-settings/product_feature_templates"] });
+      await refetch();
+      toast({ title: "Шаблон удалён" });
+    } catch (err: any) {
+      toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="border rounded-lg mb-4">
+      <button
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium"
+        onClick={() => setOpen(!open)}
+        data-testid="button-toggle-feature-badge-templates"
+      >
+        <span className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-primary" />
+          Шаблоны характеристик товара ({templates.length})
+        </span>
+        {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Шаблон — это иконка + заголовок + подпись (например «100% хлопок» / «Приятная к телу»).
+            Создайте один раз, дальше просто отмечайте нужные шаблоны у каждого товара — иконку каждый раз выбирать не нужно.
+          </p>
+
+          {/* Existing templates */}
+          <div className="space-y-2">
+            {templates.map((t) => {
+              const Icon = getFeatureBadgeIcon(t.icon);
+              return (
+                <div key={t.id} className="flex items-center gap-3 border rounded-md p-2" data-testid={`row-feature-badge-template-${t.id}`}>
+                  <Icon className="w-5 h-5 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{t.title}</div>
+                    {t.description && <div className="text-xs text-muted-foreground truncate">{t.description}</div>}
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => startEdit(t)} data-testid={`button-edit-feature-badge-${t.id}`}>
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => handleDelete(t.id)} data-testid={`button-delete-feature-badge-${t.id}`}>
+                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                  </Button>
+                </div>
+              );
+            })}
+            {templates.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">Пока нет ни одного шаблона.</p>
+            )}
+          </div>
+
+          {/* Create / edit form */}
+          <div className="border-t pt-3 space-y-2">
+            <label className="text-xs font-medium text-muted-foreground block">
+              {editingId ? "Редактировать шаблон" : "Новый шаблон"}
+            </label>
+            <div className="flex flex-wrap gap-1.5" data-testid="grid-feature-badge-icon-picker">
+              {FEATURE_BADGE_ICONS.map(({ name, label, Icon }) => (
+                <button
+                  key={name}
+                  type="button"
+                  title={label}
+                  onClick={() => setDraftIcon(name)}
+                  className={`w-9 h-9 flex items-center justify-center rounded-md border transition-colors ${
+                    draftIcon === name ? "border-primary bg-primary/10 text-primary" : "border-border text-foreground/60 hover:text-foreground"
+                  }`}
+                  data-testid={`button-pick-icon-${name}`}
+                >
+                  <Icon className="w-4 h-4" />
+                </button>
+              ))}
+            </div>
+            <Input
+              placeholder="Заголовок, например: 100% хлопок"
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              data-testid="input-feature-badge-title"
+            />
+            <Input
+              placeholder="Подпись, например: Приятная к телу"
+              value={draftDescription}
+              onChange={(e) => setDraftDescription(e.target.value)}
+              data-testid="input-feature-badge-description"
+            />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleSave} data-testid="button-save-feature-badge-template">
+                {editingId ? "Сохранить изменения" : "Добавить шаблон"}
+              </Button>
+              {editingId && (
+                <Button size="sm" variant="ghost" onClick={resetDraft} data-testid="button-cancel-feature-badge-edit">
+                  Отмена
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ConceptPageEditor({ apiKey }: { apiKey: string }) {
   const { toast } = useToast();
@@ -1045,6 +1211,7 @@ export default function Admin() {
     seoBody: string;
     specsHtml: string;
     imageAlts: string[];
+    featureBadgeIds: string[];
     slug: string;
     preorderEnabled: boolean;
     preorderDeadline: string;
@@ -1088,6 +1255,7 @@ export default function Admin() {
     seoBody: "",
     specsHtml: "",
     imageAlts: [],
+    featureBadgeIds: [],
     slug: "",
     preorderEnabled: false,
     preorderDeadline: "",
@@ -2114,6 +2282,22 @@ export default function Admin() {
     enabled: isAuthenticated,
   });
 
+  const featureBadgeTemplatesQuery = useQuery<Record<string, any>>({
+    queryKey: ["/api/page-settings/product_feature_templates"],
+    queryFn: async () => {
+      const res = await fetch("/api/page-settings/product_feature_templates");
+      if (!res.ok) return {};
+      return res.json();
+    },
+    enabled: isAuthenticated && activeTab === "products",
+  });
+  const featureBadgeTemplatesList: FeatureBadgeTemplate[] = Object.entries(featureBadgeTemplatesQuery.data || {}).map(([id, t]: [string, any]) => ({
+    id,
+    icon: t.icon || "Sparkles",
+    title: t.title || "",
+    description: t.description || "",
+  }));
+
   useEffect(() => {
     if (categoriesQuery.data?.categories) {
       const normalized = normalizeCategories(categoriesQuery.data.categories);
@@ -2209,6 +2393,7 @@ export default function Admin() {
         seoBody: (p as any).seoBody || "",
         specsHtml: (p as any).specsHtml || "",
         imageAlts: p.imageAlts || [],
+        featureBadgeIds: (p as any).featureBadgeIds || [],
         slug: p.slug || "",
         preorderEnabled: p.preorderEnabled || false,
         preorderDeadline: p.preorderDeadline || "",
@@ -2300,6 +2485,7 @@ export default function Admin() {
       seoBody: "",
       specsHtml: "",
       imageAlts: [],
+      featureBadgeIds: [],
       slug: "",
       preorderEnabled: false,
       preorderDeadline: "",
@@ -2350,6 +2536,7 @@ export default function Admin() {
         seoBody: (product as any).seoBody || "",
         specsHtml: (product as any).specsHtml || "",
         imageAlts: product.imageAlts || [],
+        featureBadgeIds: (product as any).featureBadgeIds || [],
         slug: product.slug || "",
         preorderEnabled: product.preorderEnabled || false,
         preorderDeadline: product.preorderDeadline || "",
@@ -11111,6 +11298,44 @@ export default function Admin() {
                                 </div>
                               </div>
                             )}
+
+                            <div className="mt-4">
+                              <label className="text-xs font-medium text-muted-foreground block mb-2">Блок характеристик (иконки) на странице товара</label>
+                              <p className="text-[10px] text-muted-foreground mb-2">
+                                Отметьте, какие шаблоны показать под кнопкой «В корзину». Управлять списком шаблонов — в разделе выше, над списком товаров. Если ничего не выбрано — блок не показывается.
+                              </p>
+                              {featureBadgeTemplatesList.length === 0 ? (
+                                <p className="text-[10px] text-muted-foreground italic">Шаблонов пока нет — создайте их в разделе «Шаблоны характеристик товара» над списком товаров.</p>
+                              ) : (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {featureBadgeTemplatesList.map((t) => {
+                                    const Icon = getFeatureBadgeIcon(t.icon);
+                                    const active = productForm.featureBadgeIds.includes(t.id);
+                                    return (
+                                      <button
+                                        key={t.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setProductForm({
+                                            ...productForm,
+                                            featureBadgeIds: active
+                                              ? productForm.featureBadgeIds.filter((id) => id !== t.id)
+                                              : [...productForm.featureBadgeIds, t.id],
+                                          });
+                                        }}
+                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs transition-colors ${
+                                          active ? "border-primary bg-primary/10 text-primary" : "border-border text-foreground/60 hover:text-foreground"
+                                        }`}
+                                        data-testid={`button-toggle-feature-badge-${t.id}`}
+                                      >
+                                        <Icon className="w-3.5 h-3.5" />
+                                        {t.title}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </AccordionContent>
                         </AccordionItem>
                       </Accordion>
@@ -12194,6 +12419,8 @@ export default function Admin() {
 
         {/* Products Tab */}
         {activeTab === "products" && (
+          <>
+            <FeatureBadgeTemplatesManager apiKey={apiKey} />
           <div className="flex gap-4">
             {/* Category sidebar */}
             <div className="w-48 shrink-0 space-y-1">
@@ -12603,6 +12830,7 @@ export default function Admin() {
               )}
             </div>
           </div>
+          </>
         )}
         {/* Floating bottom bar — mobile only, appears when products selected */}
         {selectedProducts.size > 0 && (

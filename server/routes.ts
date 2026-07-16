@@ -6314,6 +6314,35 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // Add feature_badge_ids column to products table (migration)
+  app.post("/api/migrate-feature-badge-ids-column", async (req, res) => {
+    const expectedKey = getAdminKey();
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const ydb = await import("ydb-sdk");
+      const ydbDriver = await waitForDriver();
+      if (!ydbDriver) return res.status(503).json({ error: "YDB not available" });
+      const jsonType = ydb.Ydb.Type.create({ optionalType: { item: { typeId: ydb.Ydb.Type.PrimitiveTypeId.JSON } } });
+      try {
+        await ydbDriver.tableClient.withSession(async (session) => {
+          await session.alterTable('products', { addColumns: [{ name: 'feature_badge_ids', type: jsonType }] } as any);
+        });
+        console.log("[Migration] Added column: feature_badge_ids");
+        res.json({ success: true, message: "feature_badge_ids: added" });
+      } catch (err: any) {
+        if (err.message?.includes("already exists") || err.message?.includes("Duplicate column") || err.message?.includes("Cannot alter type")) {
+          res.json({ success: true, message: "feature_badge_ids: already exists" });
+        } else {
+          throw err;
+        }
+      }
+    } catch (error) {
+      console.error("[Migration] Error:", error);
+      res.status(500).json({ error: "Migration failed", details: String(error) });
+    }
+  });
+
   // Add stock column to products table (migration)
   app.post("/api/migrate-stock-column", async (req, res) => {
     const expectedKey = getAdminKey();
@@ -6702,7 +6731,7 @@ BMGBRAND — официальный производитель и магазин
         name, description, price, category, subcategory,
         sizes, colors, composition, careInstructions, delivery, returnPolicy,
         measurements, images, imageUrl, sku, color, stock, sizeStock,
-        wholesalePrice, discountPercent, sizeDiscounts, seoTitle, seoDescription, seoBody, specsHtml, imageAlts,
+        wholesalePrice, discountPercent, sizeDiscounts, seoTitle, seoDescription, seoBody, specsHtml, imageAlts, featureBadgeIds,
         additionalCategories,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate, preorderNote,
       } = req.body;
@@ -6761,6 +6790,7 @@ BMGBRAND — официальный производитель и магазин
         seoBody: sanitizeHtmlBlock(seoBody || ''),
         specsHtml: sanitizeHtmlBlock(specsHtml || ''),
         imageAlts: Array.isArray(imageAlts) ? imageAlts : [],
+        featureBadgeIds: Array.isArray(featureBadgeIds) ? featureBadgeIds : [],
         additionalCategories: Array.isArray(additionalCategories) ? additionalCategories : [],
         preorderEnabled: preorderEnabled === true || preorderEnabled === 'true' || false,
         preorderGoal: preorderGoal ? parseInt(preorderGoal) : null,
@@ -7011,7 +7041,7 @@ BMGBRAND — официальный производитель и магазин
         isNew, badgeText, lookProducts, lookCategory, lookSubcategory,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate,
         stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl, disabledNotifySizes,
-        seoTitle, seoDescription, seoBody, specsHtml, imageAlts
+        seoTitle, seoDescription, seoBody, specsHtml, imageAlts, featureBadgeIds
       } = req.body;
       
       const updateData: any = {};
@@ -7130,6 +7160,7 @@ BMGBRAND — официальный производитель и магазин
       if (seoBody !== undefined) updateData.seoBody = sanitizeHtmlBlock(seoBody || '');
       if (specsHtml !== undefined) updateData.specsHtml = sanitizeHtmlBlock(specsHtml || '');
       if (imageAlts !== undefined) updateData.imageAlts = Array.isArray(imageAlts) ? imageAlts : [];
+      if (featureBadgeIds !== undefined) updateData.featureBadgeIds = Array.isArray(featureBadgeIds) ? featureBadgeIds : [];
       if (req.body.artistSlug !== undefined) {
         updateData.artistSlug = req.body.artistSlug || null;
         console.log(`[Admin] product ${id} artistSlug from request: "${req.body.artistSlug}" → stored as: "${updateData.artistSlug}"`);

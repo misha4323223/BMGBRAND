@@ -174,6 +174,7 @@ export const products = pgTable("products", {
   seoBody: text("seo_body"), // Custom SEO HTML content block for product page (rich description for search engines)
   specsHtml: text("specs_html"), // Custom HTML block for the "Характеристики" accordion (replaces composition/careInstructions display when filled)
   imageAlts: jsonb("image_alts").$type<string[]>().default([]), // Custom alt texts per image (auto-generated if empty)
+  featureBadgeIds: jsonb("feature_badge_ids").$type<string[]>().default([]), // Selected "feature badge" template IDs (icon+title+desc), shown as a row on the product page. Empty = block hidden.
   // Артикул (1С) и обложка карточки
   article: text("article"), // Артикул товара из 1С (отдельно от sku)
   cardImageUrl: text("card_image_url"), // Кастомная обложка карточки в каталоге (если задана — используется вместо thumbnail)

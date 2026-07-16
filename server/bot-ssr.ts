@@ -625,6 +625,23 @@ function renderProduct(slug: string): string | null {
     ).join(" | ");
     additionalProps.push({ "@type": "PropertyValue", "name": "Таблица размеров", "value": measurementStr });
   }
+  // Feature badges (admin-editable templates: icon + title + description) — exposed as visible text + schema for bots/AI crawlers
+  let featureBadgesHtml = "";
+  if (Array.isArray((meta as any).featureBadgeIds) && (meta as any).featureBadgeIds.length > 0) {
+    try {
+      const templates = getCachedRawPageSettings("product_feature_templates") || {};
+      const badges = (meta as any).featureBadgeIds
+        .map((id: string) => templates[id])
+        .filter((t: any) => t && t.title);
+      if (badges.length > 0) {
+        featureBadgesHtml = `<ul class="feature-badges" style="margin-top:1rem;list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:.5rem">${badges.map((b: any) =>
+          `<li style="border:1px solid #ddd;border-radius:.5rem;padding:.5rem .75rem"><strong>${esc(b.title)}</strong>${b.description ? ` — ${esc(b.description)}` : ""}</li>`
+        ).join("\n")}</ul>`;
+        additionalProps.push({ "@type": "PropertyValue", "name": "Особенности товара", "value": badges.map((b: any) => b.description ? `${b.title}: ${b.description}` : b.title).join("; ") });
+      }
+    } catch { /* safe to skip */ }
+  }
+
   if (additionalProps.length > 0) {
     productSchema.additionalProperty = additionalProps;
   }
@@ -745,6 +762,7 @@ ${videoHtml}
   ${meta.colors.length > 0 ? `<p>Цвета: ${esc(meta.colors.join(", "))}</p>` : ""}
   ${catName ? `<p>Категория: <a href="/products/${esc(meta.category)}">${esc(catName)}</a></p>` : ""}
   ${meta.description ? `<p class="desc" style="margin-top:1rem;max-width:none">${esc(meta.description)}</p>` : ""}
+  ${featureBadgesHtml}
   ${meta.seoBody ? `<div style="margin-top:1rem"><h2>Подробнее о товаре</h2>${meta.seoBody}</div>` : ""}
   ${meta.specsHtml
     ? `<div style="margin-top:.75rem"><h2>Характеристики</h2>${meta.specsHtml}</div>`

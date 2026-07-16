@@ -14,6 +14,7 @@ import { BrandLoader } from "@/components/BrandLoader";
 import { Badge } from "@/components/ui/badge";
 import SEO from "@/components/SEO";
 import { Minus, Plus, ShoppingBag, ShoppingCart, ChevronLeft, ChevronRight, Loader2, X, Percent, Flame, ArrowRight, Target, Clock, Landmark, Share2, Check, Home, ZoomIn, ZoomOut, Bell, TrendingUp, TrendingDown, LogIn, AlertTriangle, MapPin, Truck, RotateCcw, Gift, Ruler } from "lucide-react";
+import { getFeatureBadgeIcon } from "@/lib/featureBadgeIcons";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import { ProductCard } from "@/components/ProductCard";
 import { RecommendationBlock } from "@/components/RecommendationBlock";
@@ -334,6 +335,11 @@ export default function ProductDetail() {
   const { data: productReviews = [] } = useQuery<{ rating: number; comment?: string | null; authorName: string; createdAt?: string }[]>({
     queryKey: ["/api/reviews", id],
     enabled: !!id,
+  });
+
+  const { data: featureBadgeTemplatesData } = useQuery<Record<string, { icon?: string; title?: string; description?: string }>>({
+    queryKey: ["/api/page-settings/product_feature_templates"],
+    enabled: Array.isArray((product as any)?.featureBadgeIds) && (product as any).featureBadgeIds.length > 0,
   });
   const reviewCount = productReviews.length;
   const avgRating = reviewCount > 0
@@ -2020,6 +2026,29 @@ export default function ProductDetail() {
                 </div>
               </>
             )}
+
+            {/* Feature badges row (admin-editable templates: icon + title + description) */}
+            {(() => {
+              const badgeIds: string[] = Array.isArray((product as any).featureBadgeIds) ? (product as any).featureBadgeIds : [];
+              if (badgeIds.length === 0) return null;
+              const templates = (featureBadgeTemplatesData || {}) as Record<string, { icon?: string; title?: string; description?: string }>;
+              const badges = badgeIds.map((id) => templates[id]).filter((t): t is { icon?: string; title?: string; description?: string } => !!t && !!t.title);
+              if (badges.length === 0) return null;
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6" data-testid="section-feature-badges">
+                  {badges.map((b, idx) => {
+                    const Icon = getFeatureBadgeIcon(b.icon);
+                    return (
+                      <div key={idx} className="flex flex-col items-center text-center gap-1.5 border border-border rounded-xl p-3" data-testid={`badge-feature-${idx}`}>
+                        <Icon className="w-5 h-5 text-primary" />
+                        <span className="text-xs font-medium text-foreground leading-tight">{b.title}</span>
+                        {b.description && <span className="text-[11px] text-muted-foreground leading-tight">{b.description}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             {/* Product Info Accordion */}
             <Accordion type="multiple" className="w-full border-t border-border">
