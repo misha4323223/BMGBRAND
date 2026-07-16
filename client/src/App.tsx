@@ -111,6 +111,7 @@ function Router() {
     <Suspense fallback={<LoadingFallback />}>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/products/:catSlug/:subSlug/:subSubSlug">{() => <ProductList />}</Route>
         <Route path="/products/:catSlug/:subSlug">{() => <ProductList />}</Route>
         <Route path="/products/:catSlug">{() => <ProductList />}</Route>
         <Route path="/products">{() => <ProductList />}</Route>

@@ -12,7 +12,7 @@ import { uploadToYandexStorage, downloadFromYandexStorage, listObjectsFromYandex
 import sharp from "sharp";
 import { mapProductCategory, isOnSale, extractColorFromName, extractSizesFromName, mapGroupHierarchyToCategory, isIgnoredRootGroup, isAllowedRootGroup, getRootGroupCategorySlug, getArtistSlugFromName, type GroupHierarchy } from "./categoryMapper";
 import { CATEGORIES, normalizeCategories, transliterateToSlug, insertPromoCodeSchema, insertLoyaltyTierSchema, insertNewsletterSubscriptionSchema, insertBonusSettingSchema, PARTNER_COOKIE_NAME, PARTNER_DEFAULT_COMMISSION_PERCENT, getProgressiveCommissionRate } from "@shared/schema";
-import type { SubcategoryConfig, CategoryConfig } from "@shared/schema";
+import type { SubcategoryConfig, SubSubcategoryConfig, CategoryConfig } from "@shared/schema";
 import authRoutes, { authMiddleware, requireAdminRole, type AuthRequest } from "./auth-routes";
 import { notifyError } from "./error-monitor";
 import partnerRoutes, { partnerRefQueryMiddleware, partnerRefRedirectHandler, getApprovedPartnerCached, getGlobalPartnerCommissionPercentCached, getGlobalPartnerHoldDaysCached } from "./partner-routes";
@@ -1345,6 +1345,10 @@ export async function registerRoutes(
   app.get('/shop', (_req, res) => res.redirect(301, '/products'));
   app.get('/shop/', (_req, res) => res.redirect(301, '/products'));
 
+  // /products/:catSlug/:subSlug/:subSubSlug — под-подкатегория, отдаём SPA (без редиректа)
+  app.get('/products/:catSlug/:subSlug/:subSubSlug', (_req, res, next) => next());
+  app.get('/products/:catSlug/:subSlug/:subSubSlug/', (_req, res, next) => next());
+
   // /products/:catSlug/:subSlug → 301 redirect to /:subSlug (flat subcategory URL)
   app.get('/products/:catSlug/:subSlug', (req, res, next) => {
     const { subSlug } = req.params;
@@ -1779,7 +1783,7 @@ BMGBRAND — официальный производитель и магазин
       let dynamicCategories: any = {};
       try { dynamicCategories = await (storage as any).getCategories(); } catch {}
       const seenSubUrls = new Set<string>();
-      for (const [, cat] of Object.entries<any>(dynamicCategories)) {
+      for (const [catSlug, cat] of Object.entries<any>(dynamicCategories)) {
         for (const sub of (cat.subcategories || [])) {
           // Only include subcategories with a proper URL-safe slug (flat canonical URL)
           const subSlug = typeof sub === 'object' ? sub.slug : null;
@@ -1793,6 +1797,22 @@ BMGBRAND — официальный производитель и магазин
               xml += `    <changefreq>weekly</changefreq>\n`;
               xml += `    <priority>0.7</priority>\n`;
               xml += `  </url>\n`;
+            }
+            // Sub-subcategories: /products/:catSlug/:subSlug/:subSubSlug
+            for (const subSub of (sub.subSubcategories || [])) {
+              const ssSlug = typeof subSub === 'object' ? subSub.slug : null;
+              if (ssSlug && typeof ssSlug === 'string' && /^[a-z0-9][a-z0-9-]*[a-z0-9]?$/.test(ssSlug)) {
+                const ssUrl = `${baseUrl}/products/${catSlug}/${subSlug}/${ssSlug}`;
+                if (!seenSubUrls.has(ssUrl)) {
+                  seenSubUrls.add(ssUrl);
+                  xml += `  <url>\n`;
+                  xml += `    <loc>${ssUrl}</loc>\n`;
+                  xml += `    <lastmod>${today}</lastmod>\n`;
+                  xml += `    <changefreq>weekly</changefreq>\n`;
+                  xml += `    <priority>0.75</priority>\n`;
+                  xml += `  </url>\n`;
+                }
+              }
             }
           }
         }
@@ -8222,7 +8242,31 @@ BMGBRAND — официальный производитель и магазин
             subSlug = `${subSlug}-${counter}`;
           }
           subSlugsSeen.add(subSlug);
-          normalizedSubs.push({ name: subName, slug: subSlug });
+          // Normalize sub-subcategories
+          const normalizedSubSubs: SubSubcategoryConfig[] = [];
+          if (Array.isArray((s as any).subSubcategories)) {
+            const ssSlugsSeen = new Set<string>();
+            for (const ss of (s as any).subSubcategories) {
+              let ssName: string;
+              let ssSlug: string;
+              if (typeof ss === 'string') {
+                ssName = ss.trim();
+                ssSlug = transliterateToSlug(ssName);
+              } else if (ss && typeof ss === 'object' && ss.name) {
+                ssName = ss.name.trim();
+                ssSlug = (ss.slug && slugRegex.test(ss.slug)) ? ss.slug : transliterateToSlug(ssName);
+              } else continue;
+              if (!ssName) continue;
+              if (ssSlugsSeen.has(ssSlug)) {
+                let counter = 2;
+                while (ssSlugsSeen.has(`${ssSlug}-${counter}`)) counter++;
+                ssSlug = `${ssSlug}-${counter}`;
+              }
+              ssSlugsSeen.add(ssSlug);
+              normalizedSubSubs.push({ name: ssName, slug: ssSlug });
+            }
+          }
+          normalizedSubs.push({ name: subName, slug: subSlug, ...(normalizedSubSubs.length > 0 ? { subSubcategories: normalizedSubSubs } : {}) });
         }
         (categories as any)[slug] = { name: c.name.trim(), slug, subcategories: normalizedSubs };
       }
@@ -8644,6 +8688,7 @@ BMGBRAND — официальный производитель и магазин
       const limit = Math.min(maxLimit, Math.max(1, requestedLimit));
       const category = req.query.category as string | undefined;
       const subcategory = req.query.subcategory as string | undefined;
+      const subSubcategory = req.query.subSubcategory as string | undefined;
       const onSale = req.query.sale === "true";
       const search = req.query.search as string | undefined;
       const minPrice = req.query.minPrice ? parseInt(req.query.minPrice as string) : undefined;
@@ -8803,8 +8848,6 @@ BMGBRAND — официальный производитель и магазин
           const decodedSub = normalize(decodeURIComponent(subcategory));
           const rawSub = normalize(subcategory);
           
-          console.log(`[API] Filtering by subcategory: "${subcategory}" (decoded: "${decodedSub}", raw: "${rawSub}")`);
-          
           filtered = filtered.filter(p => {
             if (p.category?.toLowerCase() === catLower && p.subcategory) {
               const pSub = normalize(p.subcategory);
@@ -8817,6 +8860,15 @@ BMGBRAND — официальный производитель и магазин
               return ns === decodedSub || ns === rawSub;
             });
           });
+
+          if (subSubcategory) {
+            const decodedSubSub = normalize(decodeURIComponent(subSubcategory));
+            const rawSubSub = normalize(subSubcategory);
+            filtered = filtered.filter(p => {
+              const pss = normalize((p as any).subSubcategory || '');
+              return pss && (pss === decodedSubSub || pss === rawSubSub);
+            });
+          }
         }
       }
       

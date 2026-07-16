@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { CATEGORIES, CategorySlug, normalizeCategories } from "@shared/schema";
-import type { CategoryConfig, SubcategoryConfig } from "@shared/schema";
+import type { CategoryConfig, SubcategoryConfig, SubSubcategoryConfig } from "@shared/schema";
 import { useRoute, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
@@ -1423,6 +1423,7 @@ interface ProductListProps {
 
 export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlug }: ProductListProps = {}) {
   const { isWholesale } = useWholesalePrice();
+  const [, catSubSubParams] = useRoute("/products/:catSlug/:subSlug/:subSubSlug");
   const [, catSubParams] = useRoute("/products/:catSlug/:subSlug");
   const [, catOnlyParams] = useRoute("/products/:catSlug");
 
@@ -1458,8 +1459,9 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     queryKey: ["/api/page-settings/seo"],
   });
 
-  const pathCatSlug = catSubParams?.catSlug || catOnlyParams?.catSlug || null;
-  const pathSubSlug = catSubParams?.subSlug || null;
+  const pathCatSlug = catSubSubParams?.catSlug || catSubParams?.catSlug || catOnlyParams?.catSlug || null;
+  const pathSubSlug = catSubSubParams?.subSlug || catSubParams?.subSlug || null;
+  const pathSubSubSlug = catSubSubParams?.subSubSlug || null;
 
   const categoryParam = useMemo(() => {
     if (forcedCatSlug) return forcedCatSlug;
@@ -1482,6 +1484,22 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     if (!rawSubcategory) return null;
     return decodeURIComponent(rawSubcategory).trim();
   }, [forcedSubName, pathSubSlug, categoryParam, categories, params]);
+
+  const subSubcategoryParam = useMemo(() => {
+    if (pathSubSubSlug && categoryParam && pathSubSlug) {
+      const cat = categories[categoryParam];
+      if (cat) {
+        const sub = cat.subcategories.find(s => s.slug === pathSubSlug);
+        if (sub) {
+          const found = (sub.subSubcategories || []).find(ss => ss.slug === pathSubSubSlug);
+          if (found) return found.name;
+        }
+      }
+    }
+    const rawSS = params.get("subSubcategory");
+    if (!rawSS) return null;
+    return decodeURIComponent(rawSS).trim();
+  }, [pathSubSubSlug, pathSubSlug, categoryParam, categories, params]);
   
   const saleParam = params.get("sale") === "true";
   const searchParam = params.get("search") || undefined;
@@ -1542,12 +1560,12 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   const queryClient = useQueryClient();
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: [api.products.list.path] });
-  }, [categoryParam, subcategoryParam, searchParam, queryClient]);
+  }, [categoryParam, subcategoryParam, subSubcategoryParam, searchParam, queryClient]);
 
   useEffect(() => {
     resetFilters();
     cachedSizesRef.current = [];
-  }, [categoryParam, subcategoryParam]);
+  }, [categoryParam, subcategoryParam, subSubcategoryParam]);
 
 
   const { 
@@ -1557,7 +1575,7 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     fetchNextPage, 
     hasNextPage, 
     isFetchingNextPage 
-  } = usePaginatedProducts(24, categoryParam || undefined, subcategoryParam || undefined, saleParam, searchParam, appliedFilters);
+  } = usePaginatedProducts(24, categoryParam || undefined, subcategoryParam || undefined, saleParam, searchParam, appliedFilters, subSubcategoryParam || undefined);
 
   const allProducts = useMemo(() => {
     if (!data?.pages) return [];
@@ -1723,10 +1741,17 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     : (currentCategory ? `category:${currentCategory.slug}` : null);
   const seoOverride = seoOverrideKey ? seoOverrides?.[seoOverrideKey] : null;
 
+  // Current subcategory and its sub-subcategories for filter panel
+  const currentSubcategory = useMemo(() => {
+    if (!currentCategory || !subcategoryParam) return null;
+    return currentCategory.subcategories.find(s => s.name === subcategoryParam) || null;
+  }, [currentCategory, subcategoryParam]);
+
   // Dynamic SEO based on active filters
   const catalogSeoTitle = seoOverride?.title || (() => {
     if (searchParam) return `Поиск: «${searchParam}» — BMGBRAND`;
     if (saleParam) return "Распродажа — скидки на одежду";
+    if (subSubcategoryParam) return `${subSubcategoryParam} — купить | ${subcategoryParam || ''} BMGBRAND`;
     if (subcategoryParam && isMerch) return `Мерч ${subcategoryParam} — купить официальный мерч`;
     if (subcategoryParam) return `${subcategoryParam} — купить`;
     if (currentCategory?.slug === 'socks') return "Купить необычные носки с принтом — прикольные носки с мемами | BMGBRAND";
@@ -1757,6 +1782,9 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   })();
 
   const catalogSeoDescription = seoOverride?.description || (() => {
+    if (subSubcategoryParam) {
+      return `${subSubcategoryParam} — ${subcategoryParam || ''} в официальном магазине BMGBRAND. Одежда с авторскими принтами. Оплата частями через Долями. Доставка по всей России.`;
+    }
     if (subcategoryParam && isMerch) {
       return `Купить мерч ${subcategoryParam} — официальный магазин BMGBRAND. Футболки, худи, аксессуары. Оплата частями через Долями. Доставка по России СДЭК и Яндекс Доставкой.`;
     }
@@ -1799,6 +1827,11 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
 
   const catalogCanonical = (() => {
     const base = window.location.origin;
+    if (categoryParam && subcategoryParam && subSubcategoryParam) {
+      const subSlugFound = categories[categoryParam]?.subcategories.find(s => s.name === subcategoryParam)?.slug ?? pathSubSlug;
+      const subSubSlugFound = pathSubSubSlug;
+      if (subSlugFound && subSubSlugFound) return `${base}/products/${categoryParam}/${subSlugFound}/${subSubSlugFound}`;
+    }
     if (categoryParam && subcategoryParam) {
       // Canonical for subcategory is the flat slug URL (/:subSlug), not ?subcategory=
       const subSlugFound = categories[categoryParam]?.subcategories.find(s => s.name === subcategoryParam)?.slug
@@ -1817,7 +1850,15 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     breadcrumbItems.push({ "@type": "ListItem", "position": 3, "name": currentCategory.name, "item": `${window.location.origin}/products/${categoryParam}` });
   }
   if (subcategoryParam) {
-    breadcrumbItems.push({ "@type": "ListItem", "position": breadcrumbItems.length + 1, "name": subcategoryParam, "item": catalogCanonical });
+    const subCanonical = (() => {
+      const base = window.location.origin;
+      const subSlugFound = categoryParam ? categories[categoryParam]?.subcategories.find(s => s.name === subcategoryParam)?.slug ?? pathSubSlug : null;
+      return subSlugFound ? `${base}/${subSlugFound}` : catalogCanonical;
+    })();
+    breadcrumbItems.push({ "@type": "ListItem", "position": breadcrumbItems.length + 1, "name": subcategoryParam, "item": subCanonical });
+  }
+  if (subSubcategoryParam) {
+    breadcrumbItems.push({ "@type": "ListItem", "position": breadcrumbItems.length + 1, "name": subSubcategoryParam, "item": catalogCanonical });
   }
 
   const pageContent = (
@@ -2018,20 +2059,52 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
                             >
                               Все {catData.name}
                             </button>
-                            {catSubcats.map(sub => (
-                              <button
-                                key={sub.slug}
-                                onClick={() => { navigate(`/${sub.slug}`, true); setFiltersOpen(false); }}
-                                data-testid={`button-subcategory-${sub.slug}`}
-                                className={`w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors ${
-                                  isActive && subcategoryParam === sub.name
-                                    ? isDarkThemed ? "text-white font-medium" : isMinta ? "text-[#ffa000] font-medium" : "text-foreground font-medium"
-                                    : isDarkThemed ? "text-white/60 hover:text-white" : isMinta ? "text-[#2e2e2e]/60 hover:text-[#2e2e2e]" : "text-muted-foreground hover:text-foreground"
-                                }`}
-                              >
-                                {sub.name}
-                              </button>
-                            ))}
+                            {catSubcats.map(sub => {
+                              const isSubActive = isActive && subcategoryParam === sub.name;
+                              const hasSubSubs = (sub.subSubcategories || []).length > 0;
+                              return (
+                                <div key={sub.slug}>
+                                  <button
+                                    onClick={() => { navigate(`/${sub.slug}`, true); setFiltersOpen(false); }}
+                                    data-testid={`button-subcategory-${sub.slug}`}
+                                    className={`w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors ${
+                                      isSubActive
+                                        ? isDarkThemed ? "text-white font-medium" : isMinta ? "text-[#ffa000] font-medium" : "text-foreground font-medium"
+                                        : isDarkThemed ? "text-white/60 hover:text-white" : isMinta ? "text-[#2e2e2e]/60 hover:text-[#2e2e2e]" : "text-muted-foreground hover:text-foreground"
+                                    }`}
+                                  >
+                                    {sub.name}
+                                  </button>
+                                  {isSubActive && hasSubSubs && (
+                                    <div className="ml-3 mt-0.5 mb-1 border-l border-border/50 pl-2 space-y-0.5">
+                                      <button
+                                        onClick={() => { navigate(`/${sub.slug}`, true); setFiltersOpen(false); }}
+                                        className={`w-full text-left text-[11px] px-2 py-1 rounded-md transition-colors ${
+                                          !subSubcategoryParam
+                                            ? isDarkThemed ? "text-white font-medium" : "text-foreground font-medium"
+                                            : isDarkThemed ? "text-white/50 hover:text-white" : "text-muted-foreground hover:text-foreground"
+                                        }`}
+                                      >
+                                        Все {sub.name}
+                                      </button>
+                                      {(sub.subSubcategories || []).map(ss => (
+                                        <button
+                                          key={ss.slug}
+                                          onClick={() => { navigate(`/products/${slug}/${sub.slug}/${ss.slug}`, true); setFiltersOpen(false); }}
+                                          className={`w-full text-left text-[11px] px-2 py-1 rounded-md transition-colors ${
+                                            subSubcategoryParam === ss.name
+                                              ? isDarkThemed ? "text-white font-medium" : "text-foreground font-medium"
+                                              : isDarkThemed ? "text-white/50 hover:text-white" : "text-muted-foreground hover:text-foreground"
+                                          }`}
+                                        >
+                                          {ss.name}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>

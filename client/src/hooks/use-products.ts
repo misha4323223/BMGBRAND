@@ -39,11 +39,13 @@ export function usePaginatedProducts(
   subcategory?: string,
   sale?: boolean,
   search?: string,
-  filters?: ProductFilters
+  filters?: ProductFilters,
+  subSubcategory?: string
 ) {
   const queryParams = new URLSearchParams();
   if (category) queryParams.set("category", category);
   if (subcategory) queryParams.set("subcategory", subcategory);
+  if (subSubcategory) queryParams.set("subSubcategory", subSubcategory);
   if (sale && !category) queryParams.set("sale", "true");
   if (search) queryParams.set("search", search);
   if (filters?.minPrice !== undefined) queryParams.set("minPrice", String(filters.minPrice));
@@ -61,6 +63,7 @@ export function usePaginatedProducts(
       params.set("limit", String(limit));
       if (category) params.set("category", category);
       if (subcategory) params.set("subcategory", subcategory);
+      if (subSubcategory) params.set("subSubcategory", subSubcategory);
       if (sale && !category) params.set("sale", "true");
       if (search) params.set("search", search);
       if (filters?.minPrice !== undefined) params.set("minPrice", String(filters.minPrice));

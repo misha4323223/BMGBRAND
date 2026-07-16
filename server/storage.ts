@@ -892,6 +892,7 @@ export class DatabaseStorage implements IStorage {
       images, // Include images array for gallery
       category: data.category || '',
       subcategory: data.subcategory || null,
+      subSubcategory: data.sub_subcategory || null,
       color: data.color || null, // Color of this specific variant
       sizes,
       colors,
@@ -1283,6 +1284,7 @@ export class DatabaseStorage implements IStorage {
         DECLARE $images AS Json;
         DECLARE $category AS Utf8;
         DECLARE $subcategory AS Utf8;
+        DECLARE $sub_subcategory AS Utf8;
         DECLARE $sizes AS Json;
         DECLARE $colors AS Json;
         DECLARE $color AS Utf8;
@@ -1311,7 +1313,7 @@ export class DatabaseStorage implements IStorage {
         
         UPSERT INTO products (
           id, external_id, sku, name, description, price, old_price, images,
-          category, subcategory, sizes, colors, color,
+          category, subcategory, sub_subcategory, sizes, colors, color,
           is_new, in_stock, is_hidden, badge_text, slug,
           wholesale_price, stock, size_stock,
           composition, care_instructions, delivery, return_policy,
@@ -1320,7 +1322,7 @@ export class DatabaseStorage implements IStorage {
         )
         VALUES (
           $id, $external_id, $sku, $name, $description, $price, $old_price, $images,
-          $category, $subcategory, $sizes, $colors, $color,
+          $category, $subcategory, $sub_subcategory, $sizes, $colors, $color,
           $is_new, $in_stock, $is_hidden, $badge_text, $slug,
           $wholesale_price, $stock, $size_stock,
           $composition, $care_instructions, $delivery, $return_policy,
@@ -1340,6 +1342,7 @@ export class DatabaseStorage implements IStorage {
         $images: TypedValues.fromNative(Types.JSON, JSON.stringify(imagesArray)),
         $category: TypedValues.fromNative(Types.UTF8, p.category || ''),
         $subcategory: TypedValues.fromNative(Types.UTF8, p.subcategory || ''),
+        $sub_subcategory: TypedValues.fromNative(Types.UTF8, (p as any).subSubcategory || ''),
         $sizes: TypedValues.fromNative(Types.JSON, JSON.stringify(p.sizes || [])),
         $colors: TypedValues.fromNative(Types.JSON, JSON.stringify(p.colors || [])),
         $color: TypedValues.fromNative(Types.UTF8, (p as any).color || ''),
@@ -1447,6 +1450,11 @@ export class DatabaseStorage implements IStorage {
         declareStatements += 'DECLARE $subcategory AS Utf8;\n';
         setClauses.push('subcategory = $subcategory');
         params.$subcategory = TypedValues.fromNative(Types.UTF8, p.subcategory || '');
+      }
+      if ((p as any).subSubcategory !== undefined) {
+        declareStatements += 'DECLARE $sub_subcategory AS Utf8;\n';
+        setClauses.push('sub_subcategory = $sub_subcategory');
+        params.$sub_subcategory = TypedValues.fromNative(Types.UTF8, (p as any).subSubcategory || '');
       }
       if ((p as any).additionalCategories !== undefined) {
         declareStatements += 'DECLARE $additional_categories AS Json;\n';

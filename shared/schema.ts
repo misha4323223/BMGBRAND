@@ -22,9 +22,15 @@ export function transliterateToSlug(text: string): string {
     .replace(/-{2,}/g, '-');
 }
 
+export interface SubSubcategoryConfig {
+  name: string;
+  slug: string;
+}
+
 export interface SubcategoryConfig {
   name: string;
   slug: string;
+  subSubcategories?: SubSubcategoryConfig[];
 }
 
 export interface CategoryConfig {
@@ -89,13 +95,43 @@ export function normalizeCategories(cats: any): Record<string, CategoryConfig> {
         if (typeof s === 'string') {
           subs.push({ name: s, slug: transliterateToSlug(s) });
         } else if (s && typeof s === 'object' && s.name) {
-          subs.push({ name: s.name, slug: s.slug || transliterateToSlug(s.name) });
+          const subSubcategories: SubSubcategoryConfig[] = [];
+          if (Array.isArray(s.subSubcategories)) {
+            for (const ss of s.subSubcategories) {
+              if (typeof ss === 'string') {
+                subSubcategories.push({ name: ss, slug: transliterateToSlug(ss) });
+              } else if (ss && typeof ss === 'object' && ss.name) {
+                subSubcategories.push({ name: ss.name, slug: ss.slug || transliterateToSlug(ss.name) });
+              }
+            }
+          }
+          subs.push({
+            name: s.name,
+            slug: s.slug || transliterateToSlug(s.name),
+            ...(subSubcategories.length > 0 ? { subSubcategories } : {}),
+          });
         }
       }
     }
     result[slug] = { name: c.name, slug: c.slug || slug, subcategories: subs };
   }
   return Object.keys(result).length > 0 ? result : CATEGORIES;
+}
+
+export function findCategoryBySubSubcategorySlug(
+  cats: Record<string, CategoryConfig>,
+  subSlug: string,
+  subSubSlug: string
+): { category: CategoryConfig; subcategory: SubcategoryConfig; subSubcategory: SubSubcategoryConfig } | null {
+  for (const cat of Object.values(cats)) {
+    for (const sub of cat.subcategories) {
+      if (sub.slug === subSlug) {
+        const subSub = (sub.subSubcategories || []).find(ss => ss.slug === subSubSlug);
+        if (subSub) return { category: cat, subcategory: sub, subSubcategory: subSub };
+      }
+    }
+  }
+  return null;
 }
 
 export function findCategoryBySubcategorySlug(cats: Record<string, CategoryConfig>, subSlug: string): { category: CategoryConfig; subcategory: SubcategoryConfig } | null {

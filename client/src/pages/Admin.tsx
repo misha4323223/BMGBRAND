@@ -1170,13 +1170,16 @@ export default function Admin() {
   const [blogPostSettings, setBlogPostSettings] = useState<Record<string, any>>({});
   
   // Category editor state
-  type AdminSubcategoryConfig = { name: string; slug: string };
+  type AdminSubSubcategoryConfig = { name: string; slug: string };
+  type AdminSubcategoryConfig = { name: string; slug: string; subSubcategories?: AdminSubSubcategoryConfig[] };
   type AdminCategoryConfig = { name: string; slug: string; subcategories: AdminSubcategoryConfig[] };
   const [editingCategories, setEditingCategories] = useState<Record<string, AdminCategoryConfig>>({});
   const [editingCategorySlug, setEditingCategorySlug] = useState<string | null>(null);
   const [newCategoryForm, setNewCategoryForm] = useState({ slug: "", name: "" });
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newSubcategory, setNewSubcategory] = useState("");
+  const [expandedSubcategoryIdx, setExpandedSubcategoryIdx] = useState<number | null>(null);
+  const [newSubSubcategory, setNewSubSubcategory] = useState("");
   
   // Product editor state
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
@@ -1225,6 +1228,7 @@ export default function Admin() {
     disabledNotifySizes: string[];
     noSize: boolean;
     additionalCategories: Array<{category: string, subcategory: string}>;
+    subSubcategory: string;
     artistSlug: string;
     videoUrl: string;
   }>({
@@ -1235,6 +1239,7 @@ export default function Admin() {
     discountPercent: "",
     category: "clothing",
     subcategory: "",
+    subSubcategory: "",
     sku: "",
     color: "",
     sizes: [],
@@ -2516,6 +2521,7 @@ export default function Admin() {
         discountPercent: product.discountPercent ? String(product.discountPercent) : "",
         category: product.category || "clothing",
         subcategory: product.subcategory || "",
+        subSubcategory: (product as any).subSubcategory || "",
         sku: product.sku || "",
         color: product.color || "",
         sizes: product.sizes || [],
@@ -2549,6 +2555,7 @@ export default function Admin() {
         disabledNotifySizes: (product as any).disabledNotifySizes || [],
         noSize: product.noSize || false,
         additionalCategories: product.additionalCategories || [],
+        subSubcategory: (product as any).subSubcategory || "",
         artistSlug: product.artistSlug || "",
         videoUrl: (product as any).videoUrl || "",
       });
@@ -7545,61 +7552,133 @@ export default function Admin() {
                             <Label className="text-xs mb-2 block">Подкатегории ({editingCategories[editingCategorySlug].subcategories.length})</Label>
                             <div className="space-y-2">
                               {editingCategories[editingCategorySlug].subcategories.map((sub, idx) => (
-                                <div key={idx} className="flex items-center gap-2">
-                                  <div className="flex-1 grid grid-cols-2 gap-2">
-                                    <Input
-                                      value={typeof sub === 'string' ? sub : sub.name}
-                                      onChange={(e) => {
-                                        const subs = [...editingCategories[editingCategorySlug].subcategories];
-                                        const current = subs[idx];
-                                        subs[idx] = { name: e.target.value, slug: typeof current === 'string' ? '' : current.slug };
-                                        setEditingCategories({
-                                          ...editingCategories,
-                                          [editingCategorySlug]: {
-                                            ...editingCategories[editingCategorySlug],
-                                            subcategories: subs,
-                                          }
-                                        });
+                                <div key={idx} className="border border-border/50 rounded-md p-2 space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 grid grid-cols-2 gap-2">
+                                      <Input
+                                        value={typeof sub === 'string' ? sub : sub.name}
+                                        onChange={(e) => {
+                                          const subs = [...editingCategories[editingCategorySlug].subcategories];
+                                          const current = subs[idx];
+                                          subs[idx] = { ...(typeof current === 'string' ? { name: current, slug: '' } : current), name: e.target.value };
+                                          setEditingCategories({ ...editingCategories, [editingCategorySlug]: { ...editingCategories[editingCategorySlug], subcategories: subs } });
+                                        }}
+                                        placeholder="Название"
+                                        data-testid={`input-subcategory-name-${idx}`}
+                                      />
+                                      <Input
+                                        value={typeof sub === 'string' ? '' : sub.slug}
+                                        onChange={(e) => {
+                                          const subs = [...editingCategories[editingCategorySlug].subcategories];
+                                          const current = subs[idx];
+                                          subs[idx] = { ...(typeof current === 'string' ? { name: current, slug: '' } : current), slug: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '') };
+                                          setEditingCategories({ ...editingCategories, [editingCategorySlug]: { ...editingCategories[editingCategorySlug], subcategories: subs } });
+                                        }}
+                                        placeholder="slug (латиница)"
+                                        className="font-mono text-xs"
+                                        data-testid={`input-subcategory-slug-${idx}`}
+                                      />
+                                    </div>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setExpandedSubcategoryIdx(null);
+                                        const subs = editingCategories[editingCategorySlug].subcategories.filter((_, i) => i !== idx);
+                                        setEditingCategories({ ...editingCategories, [editingCategorySlug]: { ...editingCategories[editingCategorySlug], subcategories: subs } });
                                       }}
-                                      placeholder="Название"
-                                      data-testid={`input-subcategory-name-${idx}`}
-                                    />
-                                    <Input
-                                      value={typeof sub === 'string' ? '' : sub.slug}
-                                      onChange={(e) => {
-                                        const subs = [...editingCategories[editingCategorySlug].subcategories];
-                                        const current = subs[idx];
-                                        subs[idx] = { name: typeof current === 'string' ? current : current.name, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '') };
-                                        setEditingCategories({
-                                          ...editingCategories,
-                                          [editingCategorySlug]: {
-                                            ...editingCategories[editingCategorySlug],
-                                            subcategories: subs,
-                                          }
-                                        });
-                                      }}
-                                      placeholder="slug (латиница)"
-                                      className="font-mono text-xs"
-                                      data-testid={`input-subcategory-slug-${idx}`}
-                                    />
+                                      data-testid={`button-delete-subcategory-${idx}`}
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      title="Под-подкатегории"
+                                      onClick={() => setExpandedSubcategoryIdx(expandedSubcategoryIdx === idx ? null : idx)}
+                                    >
+                                      <ChevronDown className={`w-4 h-4 transition-transform ${expandedSubcategoryIdx === idx ? '' : '-rotate-90'}`} />
+                                    </Button>
                                   </div>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      const subs = editingCategories[editingCategorySlug].subcategories.filter((_, i) => i !== idx);
-                                      setEditingCategories({
-                                        ...editingCategories,
-                                        [editingCategorySlug]: {
-                                          ...editingCategories[editingCategorySlug],
-                                          subcategories: subs,
-                                        }
-                                      });
-                                    }}
-                                    data-testid={`button-delete-subcategory-${idx}`}
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </Button>
+                                  {/* Sub-subcategories */}
+                                  {expandedSubcategoryIdx === idx && (
+                                    <div className="ml-2 pl-2 border-l border-border space-y-1.5">
+                                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Под-подкатегории (3-й уровень)</p>
+                                      {((sub as any).subSubcategories || []).map((ss: any, ssIdx: number) => (
+                                        <div key={ssIdx} className="flex items-center gap-2">
+                                          <Input
+                                            value={ss.name || ''}
+                                            onChange={(e) => {
+                                              const subs = [...editingCategories[editingCategorySlug].subcategories];
+                                              const subSubs = [...((subs[idx] as any).subSubcategories || [])];
+                                              subSubs[ssIdx] = { ...subSubs[ssIdx], name: e.target.value };
+                                              (subs[idx] as any) = { ...subs[idx], subSubcategories: subSubs };
+                                              setEditingCategories({ ...editingCategories, [editingCategorySlug]: { ...editingCategories[editingCategorySlug], subcategories: subs } });
+                                            }}
+                                            placeholder="Название"
+                                            className="text-xs"
+                                          />
+                                          <Input
+                                            value={ss.slug || ''}
+                                            onChange={(e) => {
+                                              const subs = [...editingCategories[editingCategorySlug].subcategories];
+                                              const subSubs = [...((subs[idx] as any).subSubcategories || [])];
+                                              subSubs[ssIdx] = { ...subSubs[ssIdx], slug: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '') };
+                                              (subs[idx] as any) = { ...subs[idx], subSubcategories: subSubs };
+                                              setEditingCategories({ ...editingCategories, [editingCategorySlug]: { ...editingCategories[editingCategorySlug], subcategories: subs } });
+                                            }}
+                                            placeholder="slug"
+                                            className="font-mono text-xs"
+                                          />
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => {
+                                              const subs = [...editingCategories[editingCategorySlug].subcategories];
+                                              const subSubs = ((subs[idx] as any).subSubcategories || []).filter((_: any, i: number) => i !== ssIdx);
+                                              (subs[idx] as any) = { ...subs[idx], subSubcategories: subSubs };
+                                              setEditingCategories({ ...editingCategories, [editingCategorySlug]: { ...editingCategories[editingCategorySlug], subcategories: subs } });
+                                            }}
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                      ))}
+                                      <div className="flex gap-2">
+                                        <Input
+                                          value={newSubSubcategory}
+                                          onChange={(e) => setNewSubSubcategory(e.target.value)}
+                                          placeholder="Новая под-подкатегория..."
+                                          className="text-xs"
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && newSubSubcategory.trim()) {
+                                              const subs = [...editingCategories[editingCategorySlug].subcategories];
+                                              const subSubs = [...((subs[idx] as any).subSubcategories || [])];
+                                              subSubs.push({ name: newSubSubcategory.trim(), slug: '' });
+                                              (subs[idx] as any) = { ...subs[idx], subSubcategories: subSubs };
+                                              setEditingCategories({ ...editingCategories, [editingCategorySlug]: { ...editingCategories[editingCategorySlug], subcategories: subs } });
+                                              setNewSubSubcategory('');
+                                            }
+                                          }}
+                                        />
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            if (!newSubSubcategory.trim()) return;
+                                            const subs = [...editingCategories[editingCategorySlug].subcategories];
+                                            const subSubs = [...((subs[idx] as any).subSubcategories || [])];
+                                            subSubs.push({ name: newSubSubcategory.trim(), slug: '' });
+                                            (subs[idx] as any) = { ...subs[idx], subSubcategories: subSubs };
+                                            setEditingCategories({ ...editingCategories, [editingCategorySlug]: { ...editingCategories[editingCategorySlug], subcategories: subs } });
+                                            setNewSubSubcategory('');
+                                          }}
+                                        >
+                                          <Plus className="w-3 h-3 mr-1" /> Добавить
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -10091,7 +10170,7 @@ export default function Admin() {
                           {productForm.category && mergedSubcategoriesFor(productForm.category).length > 0 ? (
                             <Select
                               value={productForm.subcategory || "__none__"}
-                              onValueChange={(v) => setProductForm({...productForm, subcategory: v === "__none__" ? "" : v})}
+                              onValueChange={(v) => setProductForm({...productForm, subcategory: v === "__none__" ? "" : v, subSubcategory: ""})}
                             >
                               <SelectTrigger data-testid="select-product-subcategory">
                                 <SelectValue placeholder="Без подкатегории" />
@@ -10112,6 +10191,32 @@ export default function Admin() {
                             />
                           )}
                         </div>
+                        {/* Sub-subcategory — only shown when current subcategory has sub-subcategories */}
+                        {(() => {
+                          const cat = productForm.category ? (editingCategories[productForm.category] || CATEGORIES[productForm.category as keyof typeof CATEGORIES]) : null;
+                          const sub = (cat as any)?.subcategories?.find((s: any) => s.name === productForm.subcategory);
+                          const subSubs: Array<{name: string; slug: string}> = (sub as any)?.subSubcategories || [];
+                          if (!productForm.subcategory || subSubs.length === 0) return null;
+                          return (
+                            <div>
+                              <Label className="text-sm">Под-подкатегория</Label>
+                              <Select
+                                value={productForm.subSubcategory || "__none__"}
+                                onValueChange={(v) => setProductForm({...productForm, subSubcategory: v === "__none__" ? "" : v})}
+                              >
+                                <SelectTrigger data-testid="select-product-subsubcategory">
+                                  <SelectValue placeholder="Без под-подкатегории" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">Без под-подкатегории</SelectItem>
+                                  {subSubs.map((ss) => (
+                                    <SelectItem key={ss.name} value={ss.name}>{ss.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Additional Categories */}
