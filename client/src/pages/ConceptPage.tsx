@@ -518,11 +518,18 @@ export default function ConceptPage() {
                         }}
                       />
 
-                      {/* Затемнение у края — виниловый обод */}
+                      {/* Виниловый обод — тёмный край с лёгким бликом */}
                       <div
                         className="absolute inset-0 rounded-full pointer-events-none"
                         style={{
-                          background: "radial-gradient(circle at center, transparent 62%, rgba(0,0,0,0.7) 82%, rgba(0,0,0,0.9) 100%)",
+                          background: "radial-gradient(circle at center, transparent 58%, rgba(0,0,0,0.45) 72%, rgba(0,0,0,0.82) 88%, rgba(0,0,0,0.95) 100%)",
+                        }}
+                      />
+                      {/* Тонкий светлый блик по ободу — имитация глянца края */}
+                      <div
+                        className="absolute inset-0 rounded-full pointer-events-none"
+                        style={{
+                          boxShadow: "inset 0 0 0 3px rgba(255,255,255,0.07), inset 0 0 0 5px rgba(0,0,0,0.4)",
                         }}
                       />
 
