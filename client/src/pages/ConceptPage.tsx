@@ -841,7 +841,7 @@ export default function ConceptPage() {
                         )}
                         {salePrice >= 300000 && salePrice <= 3000000 && (
                           <div className="flex justify-center" onClick={(e) => e.preventDefault()}>
-                            <DolyameWidget price={salePrice} productId={product.id} />
+                            <DolyameWidget price={salePrice} productId={product.id} isDark={true} />
                           </div>
                         )}
                         {!isCancelled && (

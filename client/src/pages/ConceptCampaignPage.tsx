@@ -295,10 +295,12 @@ export default function ConceptCampaignPage() {
       })()}
 
       {/* Goods grid */}
-      <section className="py-14 sm:py-20 relative overflow-hidden" style={{ background: "#F2F2F2" }}>
-        <div className="absolute -top-20 -left-20 w-[45vw] h-[45vw] max-w-[460px] max-h-[460px] rounded-full opacity-[0.07] blur-[110px] pointer-events-none" style={{ background: "radial-gradient(circle, #E53935 0%, transparent 70%)" }} />
-        <div className="absolute -bottom-24 -right-16 w-[40vw] h-[40vw] max-w-[420px] max-h-[420px] rounded-full opacity-[0.06] blur-[110px] pointer-events-none" style={{ background: "radial-gradient(circle, #7C4DFF 0%, transparent 70%)" }} />
-        <div className="absolute inset-0 opacity-[0.5] pointer-events-none" style={{ backgroundImage: "radial-gradient(circle, rgba(30,25,20,0.05) 1px, transparent 1px)", backgroundSize: "26px 26px" }} />
+      <section className="py-14 sm:py-20 relative overflow-hidden" style={{ background: "#1c1a1a" }}>
+        {/* Тёплый блоб слева */}
+        <div className="absolute top-1/4 -left-32 w-[55vw] h-[55vw] max-w-[600px] max-h-[600px] rounded-full opacity-[0.18] blur-[130px] pointer-events-none" style={{ background: "radial-gradient(circle, #c62828 0%, transparent 65%)" }} />
+        {/* Холодный блоб справа */}
+        <div className="absolute bottom-1/4 -right-32 w-[50vw] h-[50vw] max-w-[560px] max-h-[560px] rounded-full opacity-[0.13] blur-[130px] pointer-events-none" style={{ background: "radial-gradient(circle, #4a148c 0%, transparent 65%)" }} />
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "26px 26px" }} />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
           <img src="/images/boomerangs-logo.webp" alt="" className="w-[90%] max-w-[1000px] opacity-[0.04]" draggable="false" />
         </div>
@@ -307,8 +309,8 @@ export default function ConceptCampaignPage() {
           {/* Заголовок кампании */}
           {(pageTitle || pageSubtitle) && (
             <div className="mb-10 sm:mb-14 text-center">
-              {pageSubtitle && <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground mb-2">{pageSubtitle}</p>}
-              {pageTitle && <h1 className="text-2xl sm:text-4xl font-bold uppercase tracking-tight">{pageTitle}</h1>}
+              {pageSubtitle && <p className="text-xs uppercase tracking-[0.25em] text-white/50 mb-2">{pageSubtitle}</p>}
+              {pageTitle && <h1 className="text-2xl sm:text-4xl font-bold uppercase tracking-tight text-white">{pageTitle}</h1>}
             </div>
           )}
 
@@ -382,7 +384,7 @@ export default function ConceptCampaignPage() {
                         )}
                         {salePrice >= 300000 && salePrice <= 3000000 && (
                           <div className="flex justify-center" onClick={(e) => e.preventDefault()}>
-                            <DolyameWidget price={salePrice} productId={product.id} />
+                            <DolyameWidget price={salePrice} productId={product.id} isDark={true} />
                           </div>
                         )}
                         {!isCancelled && (
