@@ -445,11 +445,11 @@ export default function ConceptPage() {
                 <Link
                   key={c.slug}
                   href={`/concept/${c.slug}`}
-                  className="vinyl-card group flex flex-col items-center gap-8 sm:gap-10 cursor-pointer w-full sm:w-auto"
+                  className="vinyl-card group flex flex-col items-center gap-5 sm:gap-6 cursor-pointer w-full sm:w-auto"
                   data-testid={`card-campaign-${c.slug}`}
                 >
                   {/* ── Vinyl Disc ── */}
-                  <div className="relative w-[72vw] h-[72vw] sm:w-[300px] sm:h-[300px] lg:w-[340px] lg:h-[340px]" style={{ maxWidth: 340, maxHeight: 340 }}>
+                  <div className="relative w-[72vw] h-[72vw] sm:w-[300px] sm:h-[300px] lg:w-[400px] lg:h-[400px]" style={{ maxWidth: 400, maxHeight: 400 }}>
 
                     {/* Постоянное свечение — диск отрывается от фона */}
                     <div
@@ -598,15 +598,16 @@ export default function ConceptPage() {
                       </div>
                     </div>
 
-                    {/* Бейдж — снизу под диском */}
-                    <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 z-20">
+                    {/* Бейдж — сверху над диском */}
+                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-20">
                       <span
                         className="inline-flex items-center gap-1.5 text-[10px] font-mono tracking-[0.15em] uppercase px-3 py-1.5 rounded-full whitespace-nowrap"
                         style={{
-                          background: "rgba(8,8,12,0.9)",
-                          border: "1px solid rgba(255,255,255,0.12)",
+                          background: "rgba(8,8,12,0.92)",
+                          border: "1px solid rgba(255,255,255,0.18)",
                           backdropFilter: "blur(8px)",
-                          color: "rgba(255,255,255,0.88)",
+                          color: "rgba(255,255,255,0.95)",
+                          boxShadow: "0 0 12px rgba(74,222,128,0.2)",
                         }}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
@@ -616,7 +617,7 @@ export default function ConceptPage() {
                   </div>
 
                   {/* ── Конверт альбома — текст под пластинкой ── */}
-                  <div className="vinyl-info text-center w-[72vw] sm:w-[300px] lg:w-[340px]" style={{ maxWidth: 340 }}>
+                  <div className="vinyl-info text-center w-[72vw] sm:w-[300px] lg:w-[400px]" style={{ maxWidth: 400 }}>
                     {/* Лейбл бренда */}
                     <p className="text-[9px] font-mono uppercase tracking-[0.38em] text-white/60 mb-3">
                       BOOOMERANGS
