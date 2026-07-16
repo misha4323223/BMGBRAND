@@ -14990,6 +14990,7 @@ ${offersXml}
             productCount: groupProducts.length,
             activeProductCount: activeCount,
             visible: hero.visible !== false,
+            cardStyle: (hero.cardStyle as "vinyl" | "poster") || "vinyl",
           };
         })
       );
@@ -15037,6 +15038,7 @@ ${offersXml}
               (p: any) => (p.preorderStatus || "collecting") === "collecting"
             ).length,
             visible: hero.visible !== false,
+            cardStyle: (hero.cardStyle as "vinyl" | "poster") || "vinyl",
           };
         })
       );
@@ -15055,7 +15057,7 @@ ${offersXml}
     if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
 
     try {
-      const { slug, title, subtitle, heroImage, heroImageMobile, heroImageAlt, description, seoTitle, seoDescription, visible } = req.body;
+      const { slug, title, subtitle, heroImage, heroImageMobile, heroImageAlt, description, seoTitle, seoDescription, visible, cardStyle } = req.body;
       if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
         return res.status(400).json({ error: "Slug обязателен и должен содержать только строчные буквы, цифры и дефисы" });
       }
@@ -15071,6 +15073,7 @@ ${offersXml}
         seoTitle: seoTitle || "",
         seoDescription: seoDescription || "",
         visible: visible !== false,
+        cardStyle: cardStyle === "poster" ? "poster" : "vinyl",
       });
 
       // Добавляем slug в мастер-список (если нет)

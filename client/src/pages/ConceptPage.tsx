@@ -179,6 +179,7 @@ interface Campaign {
   coverImage: string;
   productCount: number;
   activeProductCount: number;
+  cardStyle?: "vinyl" | "poster";
 }
 
 export default function ConceptPage() {
@@ -456,9 +457,72 @@ export default function ConceptPage() {
               ))}
             </div>
           ) : hasCampaigns ? (
-            /* ── Виниловые пластинки ── */
+            /* ── Карточки кампаний ── */
             <div className="flex flex-wrap justify-center gap-x-16 gap-y-20 sm:gap-x-20 sm:gap-y-24 lg:gap-x-24 lg:gap-y-28">
-              {campaigns!.map((c) => (
+              {campaigns!.map((c) => c.cardStyle === "poster" ? (
+                /* ── Постер (фестивальный стиль) ── */
+                <Link
+                  key={c.slug}
+                  href={`/concept/${c.slug}`}
+                  className="poster-card group relative cursor-pointer w-[72vw] sm:w-[300px] lg:w-[360px] overflow-hidden rounded-sm"
+                  style={{ maxWidth: 360, aspectRatio: "2/3" }}
+                  data-testid={`card-campaign-${c.slug}`}
+                >
+                  {/* Фоновое изображение */}
+                  {c.coverImage ? (
+                    <img
+                      src={c.coverImage}
+                      alt={c.title}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      draggable="false"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-zinc-900" />
+                  )}
+
+                  {/* Градиентный оверлей снизу */}
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0.12) 100%)" }} />
+
+                  {/* Бейдж сверху */}
+                  <div className="absolute top-4 left-4 z-10">
+                    <span
+                      className="inline-flex items-center gap-1.5 text-[10px] font-mono tracking-[0.15em] uppercase px-3 py-1.5 rounded-full"
+                      style={{
+                        background: "rgba(8,8,12,0.88)",
+                        border: "1px solid rgba(255,255,255,0.18)",
+                        backdropFilter: "blur(8px)",
+                        color: "rgba(255,255,255,0.95)",
+                        boxShadow: "0 0 12px rgba(74,222,128,0.2)",
+                      }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
+                      {c.activeProductCount > 0 ? "Сбор заявок" : "Предзаказ"}
+                    </span>
+                  </div>
+
+                  {/* Текст снизу */}
+                  <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
+                    <p className="text-[9px] font-mono uppercase tracking-[0.38em] text-white/50 mb-2">BOOOMERANGS</p>
+                    <h3 className="text-2xl font-black uppercase tracking-wide text-white leading-tight mb-1">
+                      {c.title}
+                    </h3>
+                    {c.subtitle && (
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-white/65 font-mono mb-4">
+                        {c.subtitle}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-[10px] font-mono text-white/60 uppercase tracking-widest">
+                        {c.productCount}&nbsp;{c.productCount === 1 ? "товар" : c.productCount < 5 ? "товара" : "товаров"}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.18em] px-3.5 py-1.5 rounded-full border border-white/40 text-white group-hover:border-white group-hover:bg-white/10 transition-all duration-300">
+                        Смотреть <ArrowRight className="w-2.5 h-2.5" />
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ) : (
+                /* ── Виниловая пластинка (стиль по умолчанию) ── */
                 <Link
                   key={c.slug}
                   href={`/concept/${c.slug}`}
@@ -667,6 +731,7 @@ export default function ConceptPage() {
               ))}
             </div>
           ) : !products || products.length === 0 ? (
+
             <div className="text-center py-32">
               <Package className="w-10 h-10 text-muted-foreground/40 mx-auto mb-5" />
               <p className="text-sm uppercase tracking-widest text-muted-foreground/50">

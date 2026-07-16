@@ -14364,7 +14364,7 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
   // Campaigns state
   const [showCampaignForm, setShowCampaignForm] = useState(false);
   const [editingCampaignSlug, setEditingCampaignSlug] = useState<string | null>(null);
-  const [campaignForm, setCampaignForm] = useState({ slug: "", title: "", subtitle: "", description: "", heroImage: "", heroImageMobile: "", seoTitle: "", seoDescription: "", visible: true });
+  const [campaignForm, setCampaignForm] = useState({ slug: "", title: "", subtitle: "", description: "", heroImage: "", heroImageMobile: "", seoTitle: "", seoDescription: "", visible: true, cardStyle: "vinyl" as "vinyl" | "poster" });
   const [savingCampaign, setSavingCampaign] = useState(false);
   const [deletingCampaignSlug, setDeletingCampaignSlug] = useState<string | null>(null);
   const { data: adminCampaigns = [], isLoading: campaignsLoading, refetch: refetchCampaigns } = useQuery<any[]>({
@@ -15611,6 +15611,29 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
                 <label className="text-xs text-muted-foreground block mb-1">SEO описание (необязательно)</label>
                 <Input value={campaignForm.seoDescription} onChange={e => setCampaignForm(f => ({ ...f, seoDescription: e.target.value }))} placeholder="Предзаказ..." />
               </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-2">Стиль карточки на главной странице предзаказа</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCampaignForm(f => ({ ...f, cardStyle: "vinyl" }))}
+                    className={`flex-1 flex flex-col items-center gap-1.5 p-3 rounded-md border text-xs transition-all ${campaignForm.cardStyle === "vinyl" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-muted-foreground"}`}
+                  >
+                    <span className="text-xl">🎵</span>
+                    <span className="font-medium">Пластинка</span>
+                    <span className="text-[10px] opacity-70">Для артистов</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCampaignForm(f => ({ ...f, cardStyle: "poster" }))}
+                    className={`flex-1 flex flex-col items-center gap-1.5 p-3 rounded-md border text-xs transition-all ${campaignForm.cardStyle === "poster" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-muted-foreground"}`}
+                  >
+                    <span className="text-xl">🎪</span>
+                    <span className="font-medium">Постер</span>
+                    <span className="text-[10px] opacity-70">Для фестивалей</span>
+                  </button>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <Switch checked={campaignForm.visible} onCheckedChange={v => setCampaignForm(f => ({ ...f, visible: v }))} />
                 <Label className="text-sm">Показывать на странице /concept</Label>
@@ -15626,7 +15649,7 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
                       await adminFetch("/api/admin/preorder/campaigns", apiKey, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ slug, title: campaignForm.title, subtitle: campaignForm.subtitle, description: campaignForm.description, heroImage: campaignForm.heroImage, heroImageMobile: campaignForm.heroImageMobile, seoTitle: campaignForm.seoTitle, seoDescription: campaignForm.seoDescription, visible: campaignForm.visible }),
+                        body: JSON.stringify({ slug, title: campaignForm.title, subtitle: campaignForm.subtitle, description: campaignForm.description, heroImage: campaignForm.heroImage, heroImageMobile: campaignForm.heroImageMobile, seoTitle: campaignForm.seoTitle, seoDescription: campaignForm.seoDescription, visible: campaignForm.visible, cardStyle: campaignForm.cardStyle }),
                       });
                       toast({ title: "Сохранено" });
                       setShowCampaignForm(false);
@@ -15679,7 +15702,7 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
                         variant="outline"
                         onClick={() => {
                           setEditingCampaignSlug(c.slug);
-                          setCampaignForm({ slug: c.slug, title: c.title || "", subtitle: c.subtitle || "", description: c.description || "", heroImage: c.coverImage || "", heroImageMobile: c.heroImageMobile || "", seoTitle: c.seoTitle || "", seoDescription: c.seoDescription || "", visible: c.visible });
+                          setCampaignForm({ slug: c.slug, title: c.title || "", subtitle: c.subtitle || "", description: c.description || "", heroImage: c.coverImage || "", heroImageMobile: c.heroImageMobile || "", seoTitle: c.seoTitle || "", seoDescription: c.seoDescription || "", visible: c.visible, cardStyle: c.cardStyle === "poster" ? "poster" : "vinyl" });
                           setShowCampaignForm(true);
                         }}
                       >
