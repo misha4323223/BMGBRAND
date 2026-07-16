@@ -562,7 +562,7 @@ export default function ConceptPage() {
                             }}
                           />
                           {/* Логотип — выше центра */}
-                          <div className="absolute flex flex-col items-center" style={{ top: "8%", left: 0, right: 0 }}>
+                          <div className="absolute flex flex-col items-center" style={{ top: "4%", left: 0, right: 0 }}>
                             <img
                               src="/images/boomerangs-logo.webp"
                               alt=""
