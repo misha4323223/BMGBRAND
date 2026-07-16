@@ -45,7 +45,6 @@ stack = "FULLSTACK_JS"
 [userenv]
 
 [userenv.shared]
-CDN_URL = "https://cdn.booomerangs.ru"
 
 [userenv.production]
 NODE_ENV = "production"
