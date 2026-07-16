@@ -476,54 +476,53 @@ export default function ConceptPage() {
                         boxShadow: "0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05)",
                       }}
                     >
-                      {/* Обложка альбома — яркая, насыщенная */}
+                      {/* Постер — яркий, во весь диск */}
                       {c.coverImage && (
                         <img
                           src={c.coverImage}
                           alt={c.title}
                           className="absolute inset-0 w-full h-full object-cover"
-                          style={{ opacity: 0.68, filter: "saturate(0.9) brightness(1.0)" }}
+                          style={{ opacity: 1, filter: "saturate(1.1) brightness(1.05)" }}
                           draggable="false"
                         />
                       )}
 
-                      {/* Виниловое тело — лёгкая тёмная вуаль, не глушит арт */}
-                      <div
-                        className="absolute inset-0"
-                        style={{
-                          background: "radial-gradient(circle at 38% 36%, #2e2e2e 0%, #141414 55%, #080808 100%)",
-                          opacity: 0.48,
-                        }}
-                      />
-
-                      {/* Бороздки — тонкие, не перекрывают изображение */}
+                      {/* Тонкие бороздки поверх постера */}
                       <div
                         className="absolute inset-0"
                         style={{
                           background: `repeating-radial-gradient(circle at center,
-                            transparent 0px, transparent 6px,
-                            rgba(0,0,0,0.28) 6px, rgba(0,0,0,0.28) 7px,
-                            transparent 7px, transparent 10px,
-                            rgba(255,255,255,0.055) 10px, rgba(255,255,255,0.055) 11px
+                            transparent 0px, transparent 7px,
+                            rgba(0,0,0,0.18) 7px, rgba(0,0,0,0.18) 8px,
+                            transparent 8px, transparent 12px,
+                            rgba(255,255,255,0.04) 12px, rgba(255,255,255,0.04) 13px
                           )`,
                         }}
                       />
 
-                      {/* Иридесцентный блик — заметен всегда, ярче при ховере */}
+                      {/* Иридесцентный блик поверх постера */}
                       <div
                         className="vinyl-sheen absolute inset-0"
                         style={{
-                          background: "conic-gradient(from 40deg at 50% 50%, rgba(255,0,102,0.38) 0deg, rgba(255,140,0,0.30) 65deg, rgba(64,224,208,0.35) 140deg, rgba(124,77,255,0.38) 210deg, rgba(255,255,255,0.22) 280deg, rgba(255,0,102,0.33) 360deg)",
+                          background: "conic-gradient(from 40deg at 50% 50%, rgba(255,0,102,0.22) 0deg, rgba(255,140,0,0.18) 65deg, rgba(64,224,208,0.20) 140deg, rgba(124,77,255,0.22) 210deg, rgba(255,255,255,0.14) 280deg, rgba(255,0,102,0.18) 360deg)",
                           mixBlendMode: "screen",
-                          opacity: 0.28,
+                          opacity: 0.22,
                         }}
                       />
 
-                      {/* Статичный блик — широкое отражение */}
+                      {/* Блик-отражение */}
                       <div
                         className="absolute inset-0 pointer-events-none"
                         style={{
-                          background: "radial-gradient(ellipse 65% 45% at 28% 24%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.05) 55%, transparent 75%)",
+                          background: "radial-gradient(ellipse 55% 38% at 28% 22%, rgba(255,255,255,0.18) 0%, transparent 65%)",
+                        }}
+                      />
+
+                      {/* Затемнение у края — виниловый обод */}
+                      <div
+                        className="absolute inset-0 rounded-full pointer-events-none"
+                        style={{
+                          background: "radial-gradient(circle at center, transparent 62%, rgba(0,0,0,0.7) 82%, rgba(0,0,0,0.9) 100%)",
                         }}
                       />
 
@@ -545,40 +544,41 @@ export default function ConceptPage() {
                             boxShadow: "0 3px 16px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.07)",
                           }}
                         >
-                          {/* Арт кампании — хорошо виден */}
-                          {c.coverImage ? (
-                            <img
-                              src={c.coverImage}
-                              alt=""
-                              className="absolute inset-0 w-full h-full object-cover"
-                              style={{ opacity: 1 }}
-                              draggable="false"
-                            />
-                          ) : (
-                            <div className="absolute inset-0 bg-zinc-800" />
-                          )}
-                          {/* Лёгкое виньетирование по краю лейбла */}
+                          {/* Тёмный фон лейбла */}
                           <div
                             className="absolute inset-0"
-                            style={{ background: "radial-gradient(circle at center, transparent 45%, rgba(0,0,0,0.55) 100%)" }}
+                            style={{
+                              background: "radial-gradient(circle at 40% 38%, #1c1c1c, #080808 80%)",
+                            }}
                           />
-                          {/* Логотип внизу лейбла — маленький, не перекрывает арт */}
-                          <div className="absolute bottom-[18%] left-0 right-0 flex flex-col items-center gap-0.5">
-                            <img
-                              src="/images/boomerangs-logo.webp"
-                              alt=""
-                              className="object-contain"
-                              style={{ width: "38%", opacity: 0.9, filter: "invert(1) drop-shadow(0 1px 2px rgba(0,0,0,0.8))" }}
-                              draggable="false"
-                            />
-                          </div>
+                          {/* Тонкие бороздки на лейбле */}
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              background: `repeating-radial-gradient(circle at center,
+                                transparent 0px, transparent 4px,
+                                rgba(255,255,255,0.03) 4px, rgba(255,255,255,0.03) 5px
+                              )`,
+                            }}
+                          />
+                          {/* Логотип по центру */}
+                          <img
+                            src="/images/boomerangs-logo.webp"
+                            alt=""
+                            className="relative object-contain"
+                            style={{ width: "56%", opacity: 0.9, filter: "invert(1) brightness(0.95)" }}
+                            draggable="false"
+                          />
+                          <span className="relative text-[4.5px] uppercase tracking-[0.22em] text-white/40 mt-0.5 font-mono leading-none">
+                            BOOOMERANGS
+                          </span>
                           {/* Отверстие шпинделя */}
                           <div
                             className="absolute rounded-full bg-black"
                             style={{
                               width: "13%",
                               height: "13%",
-                              boxShadow: "inset 0 1px 3px rgba(255,255,255,0.08), 0 0 0 1px rgba(255,255,255,0.06)",
+                              boxShadow: "inset 0 1px 3px rgba(255,255,255,0.1), 0 0 0 1px rgba(255,255,255,0.07)",
                             }}
                           />
                         </div>
