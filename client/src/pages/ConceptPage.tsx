@@ -536,38 +536,40 @@ export default function ConceptPage() {
                             boxShadow: "0 3px 16px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.07)",
                           }}
                         >
-                          {/* Фон лейбла — арт кампании затемнённый */}
-                          {c.coverImage && (
+                          {/* Арт кампании — хорошо виден */}
+                          {c.coverImage ? (
                             <img
                               src={c.coverImage}
                               alt=""
                               className="absolute inset-0 w-full h-full object-cover"
-                              style={{ opacity: 0.35 }}
+                              style={{ opacity: 1 }}
                               draggable="false"
                             />
+                          ) : (
+                            <div className="absolute inset-0 bg-zinc-800" />
                           )}
+                          {/* Лёгкое виньетирование по краю лейбла */}
                           <div
                             className="absolute inset-0"
-                            style={{ background: "radial-gradient(circle at 45% 40%, rgba(15,8,8,0.55) 0%, rgba(6,3,3,0.88) 100%)" }}
+                            style={{ background: "radial-gradient(circle at center, transparent 45%, rgba(0,0,0,0.55) 100%)" }}
                           />
-                          {/* Логотип */}
-                          <img
-                            src="/images/boomerangs-logo.webp"
-                            alt=""
-                            className="relative object-contain"
-                            style={{ width: "54%", opacity: 0.85, filter: "invert(1) brightness(0.9)" }}
-                            draggable="false"
-                          />
-                          <span className="relative text-[4.5px] uppercase tracking-[0.2em] text-white/35 mt-0.5 font-mono leading-none">
-                            BOOOMERANGS
-                          </span>
+                          {/* Логотип внизу лейбла — маленький, не перекрывает арт */}
+                          <div className="absolute bottom-[18%] left-0 right-0 flex flex-col items-center gap-0.5">
+                            <img
+                              src="/images/boomerangs-logo.webp"
+                              alt=""
+                              className="object-contain"
+                              style={{ width: "38%", opacity: 0.9, filter: "invert(1) drop-shadow(0 1px 2px rgba(0,0,0,0.8))" }}
+                              draggable="false"
+                            />
+                          </div>
                           {/* Отверстие шпинделя */}
                           <div
                             className="absolute rounded-full bg-black"
                             style={{
                               width: "13%",
                               height: "13%",
-                              boxShadow: "inset 0 1px 3px rgba(255,255,255,0.08)",
+                              boxShadow: "inset 0 1px 3px rgba(255,255,255,0.08), 0 0 0 1px rgba(255,255,255,0.06)",
                             }}
                           />
                         </div>
