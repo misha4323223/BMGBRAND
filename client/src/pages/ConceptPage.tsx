@@ -437,44 +437,52 @@ export default function ConceptPage() {
               ))}
             </div>
           ) : hasCampaigns ? (
-            /* ── Список коллабораций ── */
+            /* ── Список коллабораций — Editorial style ── */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
               {campaigns!.map((c) => (
                 <Link
                   key={c.slug}
                   href={`/concept/${c.slug}`}
-                  className="group relative block overflow-hidden rounded-xl bg-zinc-900 aspect-[4/5]"
+                  className="group flex flex-col overflow-hidden rounded-xl bg-zinc-900 border border-white/[0.06] hover:border-white/[0.14] transition-colors duration-300"
                   data-testid={`card-campaign-${c.slug}`}
                 >
-                  {c.coverImage ? (
-                    <img
-                      src={c.coverImage}
-                      alt={c.title}
-                      loading="lazy"
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-800">
-                      <Package className="w-12 h-12 text-zinc-600" />
+                  {/* ── Фото — чистое, без градиента ── */}
+                  <div className="relative overflow-hidden aspect-[3/2]">
+                    {c.coverImage ? (
+                      <img
+                        src={c.coverImage}
+                        alt={c.title}
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-zinc-800">
+                        <Package className="w-12 h-12 text-zinc-600" />
+                      </div>
+                    )}
+                    {/* Бейдж поверх фото */}
+                    <div className="absolute top-3 left-3">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-mono tracking-[0.15em] uppercase px-2.5 py-1 rounded-full bg-black/55 text-white/90 border border-white/10 backdrop-blur-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
+                        {c.activeProductCount > 0 ? "Сбор заявок" : "Предзаказ"}
+                      </span>
                     </div>
-                  )}
-                  {/* Gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
-                  {/* Badge */}
-                  <div className="absolute top-4 left-4">
-                    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono tracking-[0.2em] uppercase px-3 py-1.5 rounded-full text-white/90" style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.15)", backdropFilter: "blur(4px)" }}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
-                      {c.activeProductCount > 0 ? "Сбор заявок" : "Предзаказ"}
-                    </span>
                   </div>
-                  {/* Info */}
-                  <div className="absolute bottom-0 left-0 right-0 p-5">
-                    {c.subtitle && <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-1">{c.subtitle}</p>}
-                    <h3 className="text-xl sm:text-2xl font-bold uppercase tracking-tight text-white leading-tight">{c.title}</h3>
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-xs text-white/50">{c.productCount} {c.productCount === 1 ? "товар" : c.productCount < 5 ? "товара" : "товаров"}</span>
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white group-hover:gap-2.5 transition-all">
-                        Смотреть <ArrowRight className="w-3.5 h-3.5" />
+
+                  {/* ── Текстовая плашка — отдельно под фото ── */}
+                  <div className="flex flex-col flex-1 px-5 py-4 gap-1 border-t border-white/[0.06]">
+                    {c.subtitle && (
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500 leading-none">{c.subtitle}</p>
+                    )}
+                    <h3 className="text-base sm:text-lg font-bold uppercase tracking-tight text-foreground leading-snug">
+                      {c.title}
+                    </h3>
+                    <div className="flex items-center justify-between mt-auto pt-3">
+                      <span className="text-[11px] text-zinc-500">
+                        {c.productCount} {c.productCount === 1 ? "товар" : c.productCount < 5 ? "товара" : "товаров"}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-foreground/80 group-hover:text-foreground group-hover:gap-2.5 transition-all duration-200">
+                        Смотреть <ArrowRight className="w-3 h-3" />
                       </span>
                     </div>
                   </div>
