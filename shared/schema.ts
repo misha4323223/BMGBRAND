@@ -224,6 +224,7 @@ export const products = pgTable("products", {
   preorderProductionDate: text("preorder_production_date"), // Планируемая дата производства
   preorderShippingDate: text("preorder_shipping_date"), // Планируемая дата отгрузки
   preorderStatus: text("preorder_status"), // collecting | confirmed | shipped | cancelled
+  preorderGroup: text("preorder_group"), // Slug коллаборации/кампании предзаказа (e.g. 'molodost-vnutri')
   artistSlug: text("artist_slug"), // Slug артиста-партнёра (если товар принадлежит артисту)
   artistOnly: boolean("artist_only").default(false), // Товар создан артистом — виден только на его странице, не в общем каталоге
   videoUrl: text("video_url"), // URL видео-ролика для галереи на странице товара (MP4/WebM)

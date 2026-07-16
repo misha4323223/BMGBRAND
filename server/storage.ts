@@ -953,7 +953,6 @@ export class DatabaseStorage implements IStorage {
       seoTitle: data.seo_title || null,
       seoDescription: data.seo_description || null,
       seoBody: data.seo_body || null,
-      specsHtml: data.specs_html || null,
       imageAlts: (() => {
         if (data.image_alts) {
           if (typeof data.image_alts === 'string') {
@@ -1016,6 +1015,7 @@ export class DatabaseStorage implements IStorage {
       artistSlug: data.artist_slug ? String(data.artist_slug) : null,
       artistOnly: data.artist_only === true,
       videoUrl: data.video_url ? String(data.video_url) : null,
+      preorderGroup: data.preorder_group ? String(data.preorder_group) : null,
     } as unknown as Product;
   }
 
@@ -1746,7 +1746,13 @@ export class DatabaseStorage implements IStorage {
         setClauses.push('video_url = $video_url');
         params.$video_url = TypedValues.fromNative(Types.UTF8, (p as any).videoUrl || '');
       }
-      
+
+      if ((p as any).preorderGroup !== undefined) {
+        declareStatements += 'DECLARE $preorder_group AS Utf8;\n';
+        setClauses.push('preorder_group = $preorder_group');
+        params.$preorder_group = TypedValues.fromNative(Types.UTF8, (p as any).preorderGroup || '');
+      }
+
       if (setClauses.length === 0) return null;
       
       const query = `

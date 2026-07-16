@@ -172,10 +172,25 @@ function ProductSkeleton() {
   );
 }
 
+interface Campaign {
+  slug: string;
+  title: string;
+  subtitle: string;
+  coverImage: string;
+  productCount: number;
+  activeProductCount: number;
+}
+
 export default function ConceptPage() {
   const { data: products, isLoading } = useQuery<PreorderProduct[]>({
     queryKey: ["/api/preorder/products"],
   });
+
+  const { data: campaigns, isLoading: campaignsLoading } = useQuery<Campaign[]>({
+    queryKey: ["/api/preorder/campaigns"],
+  });
+
+  const hasCampaigns = !!campaigns && campaigns.length > 0;
 
   const { data: conceptSettings, isLoading: heroLoading } = useQuery<Record<string, any>>({
     queryKey: ["/api/page-settings/concept"],
@@ -415,10 +430,55 @@ export default function ConceptPage() {
         </div>
 
         <div className="px-4 sm:px-6 lg:px-12 relative z-10">
-          {isLoading ? (
+          {(isLoading || campaignsLoading) ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-14 sm:gap-x-10 sm:gap-y-20">
               {Array.from({ length: 3 }).map((_, i) => (
                 <ProductSkeleton key={i} />
+              ))}
+            </div>
+          ) : hasCampaigns ? (
+            /* ── Список коллабораций ── */
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+              {campaigns!.map((c) => (
+                <Link
+                  key={c.slug}
+                  href={`/concept/${c.slug}`}
+                  className="group relative block overflow-hidden rounded-xl bg-zinc-900 aspect-[4/5]"
+                  data-testid={`card-campaign-${c.slug}`}
+                >
+                  {c.coverImage ? (
+                    <img
+                      src={c.coverImage}
+                      alt={c.title}
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-800">
+                      <Package className="w-12 h-12 text-zinc-600" />
+                    </div>
+                  )}
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+                  {/* Badge */}
+                  <div className="absolute top-4 left-4">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono tracking-[0.2em] uppercase px-3 py-1.5 rounded-full text-white/90" style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.15)", backdropFilter: "blur(4px)" }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                      {c.activeProductCount > 0 ? "Сбор заявок" : "Предзаказ"}
+                    </span>
+                  </div>
+                  {/* Info */}
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    {c.subtitle && <p className="text-[10px] uppercase tracking-[0.2em] text-white/50 mb-1">{c.subtitle}</p>}
+                    <h3 className="text-xl sm:text-2xl font-bold uppercase tracking-tight text-white leading-tight">{c.title}</h3>
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-xs text-white/50">{c.productCount} {c.productCount === 1 ? "товар" : c.productCount < 5 ? "товара" : "товаров"}</span>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white group-hover:gap-2.5 transition-all">
+                        Смотреть <ArrowRight className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  </div>
+                </Link>
               ))}
             </div>
           ) : !products || products.length === 0 ? (

@@ -6753,6 +6753,7 @@ BMGBRAND — официальный производитель и магазин
         wholesalePrice, discountPercent, sizeDiscounts, seoTitle, seoDescription, seoBody, specsHtml, imageAlts, featureBadgeIds,
         additionalCategories,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate, preorderNote,
+        preorderGroup,
       } = req.body;
       
       if (!name || !price || !category) {
@@ -6817,6 +6818,7 @@ BMGBRAND — официальный производитель и магазин
         preorderProductionDate: preorderProductionDate || null,
         preorderShippingDate: preorderShippingDate || null,
         preorderNote: preorderNote || null,
+        preorderGroup: preorderGroup || null,
         preorderStatus: (preorderEnabled === true || preorderEnabled === 'true') ? 'collecting' : null,
         externalId: generatedExternalId,
         sizeCharacteristicIds: generatedSizeCharIds,
@@ -7158,6 +7160,7 @@ BMGBRAND — официальный производитель и магазин
       if (preorderDeadline !== undefined) updateData.preorderDeadline = preorderDeadline || null;
       if (preorderProductionDate !== undefined) updateData.preorderProductionDate = preorderProductionDate || null;
       if (preorderShippingDate !== undefined) updateData.preorderShippingDate = preorderShippingDate || null;
+      if (req.body.preorderGroup !== undefined) updateData.preorderGroup = req.body.preorderGroup || null;
       if (preorderEnabled && !product.preorderStatus) updateData.preorderStatus = "collecting";
       if (preorderEnabled && product.isHidden) {
         updateData.isHidden = false;
@@ -14939,13 +14942,179 @@ ${offersXml}
 
   // ==================== Preorder Routes ====================
 
-  app.get("/api/preorder/products", async (_req, res) => {
+  app.get("/api/preorder/products", async (req, res) => {
     try {
       const products = await storage.getPreorderProducts();
-      res.json(products);
+      const group = req.query.group as string | undefined;
+      const result = group
+        ? products.filter((p: any) => p.preorderGroup === group)
+        : products;
+      res.json(result);
     } catch (err: any) {
       console.error("[Preorder] Get products error:", err.message);
       res.status(500).json({ error: "Failed to get preorder products" });
+    }
+  });
+
+  // Список коллабораций предзаказа (для публичной страницы /concept)
+  app.get("/api/preorder/campaigns", async (_req, res) => {
+    try {
+      const products = await storage.getPreorderProducts();
+
+      // Уникальные slugи групп из товаров
+      const slugsFromProducts = [
+        ...new Set(
+          products.map((p: any) => p.preorderGroup).filter(Boolean) as string[]
+        ),
+      ];
+
+      // Дополнительные кампании из ручного списка (без товаров)
+      const campaignsListSettings = await storage.getPageSettings("concept_campaigns");
+      const manualSlugs: string[] = campaignsListSettings?.list?.slugs || [];
+
+      const allSlugs = [...new Set([...slugsFromProducts, ...manualSlugs])];
+
+      const campaigns = await Promise.all(
+        allSlugs.map(async (slug) => {
+          const settings = await storage.getPageSettings(`concept_campaign_${slug}`);
+          const hero = settings?.hero || {};
+          const groupProducts = products.filter((p: any) => p.preorderGroup === slug);
+          const activeCount = groupProducts.filter(
+            (p: any) => (p.preorderStatus || "collecting") === "collecting"
+          ).length;
+          return {
+            slug,
+            title: hero.title || slug,
+            subtitle: hero.subtitle || "",
+            coverImage: hero.heroImage || groupProducts[0]?.images?.[0] || groupProducts[0]?.imageUrl || "",
+            productCount: groupProducts.length,
+            activeProductCount: activeCount,
+            visible: hero.visible !== false,
+          };
+        })
+      );
+
+      res.json(campaigns.filter((c) => c.visible));
+    } catch (err: any) {
+      console.error("[Preorder] Get campaigns error:", err.message);
+      res.status(500).json({ error: "Failed to get campaigns" });
+    }
+  });
+
+  // Все кампании для админки (включая скрытые)
+  app.get("/api/admin/preorder/campaigns", async (req, res) => {
+    const expectedKey = getAdminKey();
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      const products = await storage.getPreorderProducts();
+      const slugsFromProducts = [
+        ...new Set(
+          products.map((p: any) => p.preorderGroup).filter(Boolean) as string[]
+        ),
+      ];
+      const campaignsListSettings = await storage.getPageSettings("concept_campaigns");
+      const manualSlugs: string[] = campaignsListSettings?.list?.slugs || [];
+      const allSlugs = [...new Set([...slugsFromProducts, ...manualSlugs])];
+
+      const campaigns = await Promise.all(
+        allSlugs.map(async (slug) => {
+          const settings = await storage.getPageSettings(`concept_campaign_${slug}`);
+          const hero = settings?.hero || {};
+          const groupProducts = products.filter((p: any) => p.preorderGroup === slug);
+          return {
+            slug,
+            title: hero.title || slug,
+            subtitle: hero.subtitle || "",
+            coverImage: hero.heroImage || groupProducts[0]?.images?.[0] || groupProducts[0]?.imageUrl || "",
+            heroImageMobile: hero.heroImageMobile || "",
+            description: hero.description || "",
+            seoTitle: hero.seoTitle || "",
+            seoDescription: hero.seoDescription || "",
+            productCount: groupProducts.length,
+            activeProductCount: groupProducts.filter(
+              (p: any) => (p.preorderStatus || "collecting") === "collecting"
+            ).length,
+            visible: hero.visible !== false,
+          };
+        })
+      );
+
+      res.json(campaigns);
+    } catch (err: any) {
+      console.error("[Preorder] Admin get campaigns error:", err.message);
+      res.status(500).json({ error: "Failed to get campaigns" });
+    }
+  });
+
+  // Создать или обновить кампанию (сохраняет настройки + добавляет в список)
+  app.post("/api/admin/preorder/campaigns", async (req, res) => {
+    const expectedKey = getAdminKey();
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      const { slug, title, subtitle, heroImage, heroImageMobile, heroImageAlt, description, seoTitle, seoDescription, visible } = req.body;
+      if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
+        return res.status(400).json({ error: "Slug обязателен и должен содержать только строчные буквы, цифры и дефисы" });
+      }
+
+      // Сохраняем настройки кампании
+      await storage.setPageSectionSettings(`concept_campaign_${slug}`, "hero", {
+        title: title || "",
+        subtitle: subtitle || "",
+        heroImage: heroImage || "",
+        heroImageMobile: heroImageMobile || "",
+        heroImageAlt: heroImageAlt || "",
+        description: description || "",
+        seoTitle: seoTitle || "",
+        seoDescription: seoDescription || "",
+        visible: visible !== false,
+      });
+
+      // Добавляем slug в мастер-список (если нет)
+      const existingList = await storage.getPageSettings("concept_campaigns");
+      const currentSlugs: string[] = existingList?.list?.slugs || [];
+      if (!currentSlugs.includes(slug)) {
+        await storage.setPageSectionSettings("concept_campaigns", "list", {
+          slugs: [...currentSlugs, slug],
+        });
+      }
+
+      res.json({ success: true, slug });
+    } catch (err: any) {
+      console.error("[Preorder] Create campaign error:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Удалить кампанию из списка
+  app.delete("/api/admin/preorder/campaigns/:slug", async (req, res) => {
+    const expectedKey = getAdminKey();
+    const apiKey = req.headers["x-api-key"] || req.query.key;
+    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      const { slug } = req.params;
+
+      // Убираем из мастер-списка
+      const existingList = await storage.getPageSettings("concept_campaigns");
+      const currentSlugs: string[] = existingList?.list?.slugs || [];
+      await storage.setPageSectionSettings("concept_campaigns", "list", {
+        slugs: currentSlugs.filter((s) => s !== slug),
+      });
+
+      // Скрываем кампанию (не удаляем настройки, чтобы не потерять)
+      await storage.setPageSectionSettings(`concept_campaign_${slug}`, "hero", {
+        ...(await storage.getPageSettings(`concept_campaign_${slug}`))?.hero,
+        visible: false,
+      });
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[Preorder] Delete campaign error:", err.message);
+      res.status(500).json({ error: err.message });
     }
   });
 

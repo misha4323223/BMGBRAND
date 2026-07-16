@@ -1221,6 +1221,7 @@ export default function Admin() {
     preorderDeadline: string;
     preorderProductionDate: string;
     preorderShippingDate: string;
+    preorderGroup: string;
     discountPercent: string;
     salePrice: string;
     stock: string;
@@ -1267,6 +1268,7 @@ export default function Admin() {
     preorderDeadline: "",
     preorderProductionDate: "",
     preorderShippingDate: "",
+    preorderGroup: "",
     salePrice: "",
     stock: "",
     sizeStock: {},
@@ -2405,12 +2407,14 @@ export default function Admin() {
         preorderDeadline: p.preorderDeadline || "",
         preorderProductionDate: p.preorderProductionDate || "",
         preorderShippingDate: p.preorderShippingDate || "",
+        preorderGroup: (p as any).preorderGroup || "",
         stock: p.stock !== undefined && p.stock !== null ? String(p.stock) : "",
         sizeStock: p.sizeStock || {},
         sizeDiscounts: p.sizeDiscounts || {},
         disabledNotifySizes: (p as any).disabledNotifySizes || [],
         noSize: p.noSize || false,
         additionalCategories: p.additionalCategories || [],
+        subSubcategory: (p as any).subSubcategory || "",
         artistSlug: (p as any).artistSlug || "",
         videoUrl: (p as any).videoUrl || "",
         measurementSections: (p as any).measurementSections || [],
@@ -2497,6 +2501,7 @@ export default function Admin() {
       preorderDeadline: "",
       preorderProductionDate: "",
       preorderShippingDate: "",
+      preorderGroup: "",
       salePrice: "",
       stock: "",
       sizeStock: {},
@@ -2504,6 +2509,7 @@ export default function Admin() {
       disabledNotifySizes: [],
       noSize: false,
       additionalCategories: [],
+      subSubcategory: "",
       artistSlug: "",
       videoUrl: "",
     });
@@ -2548,6 +2554,7 @@ export default function Admin() {
         preorderDeadline: product.preorderDeadline || "",
         preorderProductionDate: product.preorderProductionDate || "",
         preorderShippingDate: product.preorderShippingDate || "",
+        preorderGroup: (product as any).preorderGroup || "",
         salePrice: product.salePrice ? String(product.salePrice) : "",
         stock: product.stock !== undefined && product.stock !== null ? String(product.stock) : "",
         sizeStock: product.sizeStock || {},
@@ -11228,6 +11235,18 @@ export default function Admin() {
                                     data-testid="input-preorder-shipping-date"
                                   />
                                 </div>
+                                <div>
+                                  <label className="text-xs font-medium text-muted-foreground block mb-1">Коллаборация</label>
+                                  <Input
+                                    value={productForm.preorderGroup}
+                                    onChange={(e) => setProductForm({...productForm, preorderGroup: e.target.value})}
+                                    placeholder="slug кампании (напр. molodost-vnutri)"
+                                    data-testid="input-preorder-group"
+                                  />
+                                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                                    Slug коллаборации. Создайте кампании в разделе Предзаказы → Коллаборации
+                                  </p>
+                                </div>
                                 <p className="text-xs text-muted-foreground">
                                   Покупатель оплачивает полную стоимость при оформлении предзаказа.
                                 </p>
@@ -11502,6 +11521,7 @@ export default function Admin() {
                               preorderDeadline: productForm.preorderDeadline || null,
                               preorderProductionDate: productForm.preorderProductionDate || null,
                               preorderShippingDate: productForm.preorderShippingDate || null,
+                              preorderGroup: productForm.preorderGroup || null,
                               stock: productForm.stock !== "" ? parseInt(productForm.stock) : undefined,
                               sizeStock: Object.keys(productForm.sizeStock).length > 0 ? productForm.sizeStock : undefined,
                               sizeDiscounts: productForm.sizeDiscounts,
@@ -14339,7 +14359,20 @@ export default function Admin() {
 
 function AdminPreordersTab({ apiKey }: { apiKey: string }) {
   const { toast } = useToast();
-  const [subTab, setSubTab] = useState<"products" | "customers" | "wholesale" | "pickup">("products");
+  const [subTab, setSubTab] = useState<"products" | "customers" | "wholesale" | "pickup" | "campaigns">("products");
+
+  // Campaigns state
+  const [showCampaignForm, setShowCampaignForm] = useState(false);
+  const [editingCampaignSlug, setEditingCampaignSlug] = useState<string | null>(null);
+  const [campaignForm, setCampaignForm] = useState({ slug: "", title: "", subtitle: "", description: "", heroImage: "", heroImageMobile: "", seoTitle: "", seoDescription: "", visible: true });
+  const [savingCampaign, setSavingCampaign] = useState(false);
+  const [deletingCampaignSlug, setDeletingCampaignSlug] = useState<string | null>(null);
+  const { data: adminCampaigns = [], isLoading: campaignsLoading, refetch: refetchCampaigns } = useQuery<any[]>({
+    queryKey: ["/api/admin/preorder/campaigns"],
+    queryFn: () => adminFetch("/api/admin/preorder/campaigns", apiKey),
+    enabled: subTab === "campaigns",
+  });
+
   const [wholesaleOrderSearch, setWholesaleOrderSearch] = useState("");
   const [wholesaleOrderStatusFilter, setWholesaleOrderStatusFilter] = useState<string>("all");
   const [wholesaleOrderTypeFilter, setWholesaleOrderTypeFilter] = useState<"all" | "preorder" | "order">("all");
@@ -14620,6 +14653,15 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
         >
           <MapPin className="w-4 h-4 mr-1" />
           Точки выдачи ({pickupPoints.length})
+        </Button>
+        <Button
+          variant={subTab === "campaigns" ? "secondary" : "ghost"}
+          size="sm"
+          onClick={() => setSubTab("campaigns")}
+          data-testid="button-preorders-campaigns-tab"
+        >
+          <Layout className="w-4 h-4 mr-1" />
+          Коллаборации
         </Button>
       </div>
 
@@ -15503,6 +15545,164 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* КОЛЛАБОРАЦИИ */}
+      {subTab === "campaigns" && (
+        <div className="space-y-4">
+          {!showCampaignForm && (
+            <Button size="sm" onClick={() => {
+              setShowCampaignForm(true);
+              setEditingCampaignSlug(null);
+              setCampaignForm({ slug: "", title: "", subtitle: "", description: "", heroImage: "", heroImageMobile: "", seoTitle: "", seoDescription: "", visible: true });
+            }} data-testid="button-create-campaign">
+              <Plus className="w-4 h-4 mr-1" /> Создать коллаборацию
+            </Button>
+          )}
+
+          {showCampaignForm && (
+            <Card className="p-4 space-y-3">
+              <h3 className="font-semibold text-sm">{editingCampaignSlug ? `Редактировать: ${editingCampaignSlug}` : "Создать коллаборацию"}</h3>
+              {!editingCampaignSlug && (
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Slug * (латиница, цифры, дефисы)</label>
+                  <Input
+                    value={campaignForm.slug}
+                    onChange={e => setCampaignForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))}
+                    placeholder="molodost-vnutri"
+                    data-testid="input-campaign-slug"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Название</label>
+                <Input value={campaignForm.title} onChange={e => setCampaignForm(f => ({ ...f, title: e.target.value }))} placeholder="Молодость внутри" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Подзаголовок</label>
+                <Input value={campaignForm.subtitle} onChange={e => setCampaignForm(f => ({ ...f, subtitle: e.target.value }))} placeholder="Коллаборация BOOOMERANGS" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Баннер десктоп — URL картинки</label>
+                <Input value={campaignForm.heroImage} onChange={e => setCampaignForm(f => ({ ...f, heroImage: e.target.value }))} placeholder="https://storage.yandex..." />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Баннер мобайл — URL картинки</label>
+                <Input value={campaignForm.heroImageMobile} onChange={e => setCampaignForm(f => ({ ...f, heroImageMobile: e.target.value }))} placeholder="https://storage.yandex..." />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">SEO заголовок (необязательно)</label>
+                <Input value={campaignForm.seoTitle} onChange={e => setCampaignForm(f => ({ ...f, seoTitle: e.target.value }))} placeholder={`${campaignForm.title || "Название"} | Pre-drop BOOOMERANGS`} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">SEO описание (необязательно)</label>
+                <Input value={campaignForm.seoDescription} onChange={e => setCampaignForm(f => ({ ...f, seoDescription: e.target.value }))} placeholder="Предзаказ..." />
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={campaignForm.visible} onCheckedChange={v => setCampaignForm(f => ({ ...f, visible: v }))} />
+                <Label className="text-sm">Показывать на странице /concept</Label>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  size="sm"
+                  disabled={savingCampaign || (!editingCampaignSlug && !campaignForm.slug)}
+                  onClick={async () => {
+                    setSavingCampaign(true);
+                    try {
+                      const slug = editingCampaignSlug || campaignForm.slug;
+                      await adminFetch("/api/admin/preorder/campaigns", apiKey, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ slug, title: campaignForm.title, subtitle: campaignForm.subtitle, description: campaignForm.description, heroImage: campaignForm.heroImage, heroImageMobile: campaignForm.heroImageMobile, seoTitle: campaignForm.seoTitle, seoDescription: campaignForm.seoDescription, visible: campaignForm.visible }),
+                      });
+                      toast({ title: "Сохранено" });
+                      setShowCampaignForm(false);
+                      setEditingCampaignSlug(null);
+                      refetchCampaigns();
+                    } catch (e: any) {
+                      toast({ title: "Ошибка", description: e.message, variant: "destructive" });
+                    } finally {
+                      setSavingCampaign(false);
+                    }
+                  }}
+                  data-testid="button-save-campaign"
+                >
+                  {savingCampaign ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
+                  Сохранить
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => { setShowCampaignForm(false); setEditingCampaignSlug(null); }}>Отмена</Button>
+              </div>
+            </Card>
+          )}
+
+          {campaignsLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          ) : adminCampaigns.length === 0 ? (
+            <Card className="p-6 text-center">
+              <p className="text-muted-foreground text-sm">Коллаборации не созданы</p>
+              <p className="text-xs text-muted-foreground mt-1">Создайте первую коллаборацию и назначьте товарам Коллаборацию в редакторе товара (раздел Предзаказ)</p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {adminCampaigns.map((c: any) => (
+                <Card key={c.slug} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex gap-3">
+                      {c.coverImage && (
+                        <img src={c.coverImage} alt={c.title} className="w-14 h-14 object-cover rounded-md shrink-0 bg-muted" />
+                      )}
+                      <div>
+                        <p className="font-semibold text-sm">{c.title || c.slug}</p>
+                        <p className="text-xs text-muted-foreground">/concept/{c.slug}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-muted-foreground">{c.productCount} товаров · {c.activeProductCount} активных</span>
+                          {!c.visible && <span className="text-[10px] bg-orange-500/10 text-orange-500 px-1.5 py-0.5 rounded">скрыта</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingCampaignSlug(c.slug);
+                          setCampaignForm({ slug: c.slug, title: c.title || "", subtitle: c.subtitle || "", description: c.description || "", heroImage: c.coverImage || "", heroImageMobile: c.heroImageMobile || "", seoTitle: c.seoTitle || "", seoDescription: c.seoDescription || "", visible: c.visible });
+                          setShowCampaignForm(true);
+                        }}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={deletingCampaignSlug === c.slug}
+                        onClick={async () => {
+                          if (!confirm(`Удалить коллаборацию «${c.title || c.slug}»? Товары останутся, но будут отвязаны от неё.`)) return;
+                          setDeletingCampaignSlug(c.slug);
+                          try {
+                            await adminFetch(`/api/admin/preorder/campaigns/${c.slug}`, apiKey, { method: "DELETE" });
+                            toast({ title: "Коллаборация удалена" });
+                            refetchCampaigns();
+                          } catch (e: any) {
+                            toast({ title: "Ошибка", description: e.message, variant: "destructive" });
+                          } finally {
+                            setDeletingCampaignSlug(null);
+                          }
+                        }}
+                      >
+                        {deletingCampaignSlug === c.slug ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground pt-2">
+            Страница коллаборации: <span className="font-mono">/concept/[slug]</span>. Назначьте товарам коллаборацию в редакторе товара → раздел «Предзаказ».
+          </p>
         </div>
       )}
     </div>

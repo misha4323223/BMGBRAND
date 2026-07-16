@@ -57,6 +57,7 @@ const Favorites = lazy(() => import("@/pages/Favorites"));
 const Links = lazy(() => import("@/pages/Links"));
 const TrackOrder = lazy(() => import("@/pages/TrackOrder"));
 const ConceptPage = lazy(() => import("@/pages/ConceptPage"));
+const ConceptCampaignPage = lazy(() => import("@/pages/ConceptCampaignPage"));
 const PreorderCheckout = lazy(() => import("@/pages/PreorderCheckout"));
 const WholesalePreorder = lazy(() => import("@/pages/WholesalePreorder"));
 const Care = lazy(() => import("@/pages/Care"));
@@ -148,6 +149,7 @@ function Router() {
         <Route path="/links" component={Links} />
         <Route path="/track/:trackNumber" component={TrackOrder} />
         <Route path="/concept" component={ConceptPage} />
+        <Route path="/concept/:slug" component={ConceptCampaignPage} />
         <Route path="/predrop/checkout" component={PreorderCheckout} />
         <Route path="/merch-na-zakaz" component={MerchOrder} />
         <Route path="/:slug">
