@@ -11105,6 +11105,51 @@ export default function Admin() {
                         </AccordionItem>
                       </Accordion>
 
+                      {/* Feature Badge Block */}
+                      <div className="border rounded-md px-3 py-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Значки-характеристики</span>
+                          {productForm.featureBadgeIds.length > 0 && (
+                            <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">{productForm.featureBadgeIds.length} выбрано</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Отметьте блоки, которые покажутся под кнопкой «В корзину». Шаблоны создаются в разделе «Шаблоны значков» над списком товаров. Если ничего не выбрано — блок не показывается.
+                        </p>
+                        {featureBadgeTemplatesList.length === 0 ? (
+                          <p className="text-[10px] text-muted-foreground italic">Шаблонов пока нет — создайте их в разделе «Шаблоны характеристик товара» над списком товаров.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {featureBadgeTemplatesList.map((t) => {
+                              const Icon = getFeatureBadgeIcon(t.icon);
+                              const active = productForm.featureBadgeIds.includes(t.id);
+                              return (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setProductForm({
+                                      ...productForm,
+                                      featureBadgeIds: active
+                                        ? productForm.featureBadgeIds.filter((id) => id !== t.id)
+                                        : [...productForm.featureBadgeIds, t.id],
+                                    });
+                                  }}
+                                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs transition-colors ${
+                                    active ? "border-primary bg-primary/10 text-primary" : "border-border text-foreground/60 hover:text-foreground"
+                                  }`}
+                                  data-testid={`button-toggle-feature-badge-${t.id}`}
+                                >
+                                  <Icon className="w-3.5 h-3.5" />
+                                  {t.title}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
                       {/* SEO Settings */}
                       <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="seo" className="border rounded-md px-3">
@@ -11299,43 +11344,6 @@ export default function Admin() {
                               </div>
                             )}
 
-                            <div className="mt-4">
-                              <label className="text-xs font-medium text-muted-foreground block mb-2">Блок характеристик (иконки) на странице товара</label>
-                              <p className="text-[10px] text-muted-foreground mb-2">
-                                Отметьте, какие шаблоны показать под кнопкой «В корзину». Управлять списком шаблонов — в разделе выше, над списком товаров. Если ничего не выбрано — блок не показывается.
-                              </p>
-                              {featureBadgeTemplatesList.length === 0 ? (
-                                <p className="text-[10px] text-muted-foreground italic">Шаблонов пока нет — создайте их в разделе «Шаблоны характеристик товара» над списком товаров.</p>
-                              ) : (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {featureBadgeTemplatesList.map((t) => {
-                                    const Icon = getFeatureBadgeIcon(t.icon);
-                                    const active = productForm.featureBadgeIds.includes(t.id);
-                                    return (
-                                      <button
-                                        key={t.id}
-                                        type="button"
-                                        onClick={() => {
-                                          setProductForm({
-                                            ...productForm,
-                                            featureBadgeIds: active
-                                              ? productForm.featureBadgeIds.filter((id) => id !== t.id)
-                                              : [...productForm.featureBadgeIds, t.id],
-                                          });
-                                        }}
-                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs transition-colors ${
-                                          active ? "border-primary bg-primary/10 text-primary" : "border-border text-foreground/60 hover:text-foreground"
-                                        }`}
-                                        data-testid={`button-toggle-feature-badge-${t.id}`}
-                                      >
-                                        <Icon className="w-3.5 h-3.5" />
-                                        {t.title}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
                           </AccordionContent>
                         </AccordionItem>
                       </Accordion>
