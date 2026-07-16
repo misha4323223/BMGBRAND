@@ -132,8 +132,20 @@ export async function initYdb() {
       // Иначе используем MetadataAuthService (для Yandex Serverless Containers)
       if (process.env.YDB_SA_KEY) {
         // Создаём временный файл с ключом для SDK
+        // В Replit Secrets символы \n хранятся как буквальные два символа \+n,
+        // поэтому восстанавливаем реальные переносы строк в private_key
         const tmpFile = path.join(os.tmpdir(), 'ydb-sa-key.json');
-        fs.writeFileSync(tmpFile, process.env.YDB_SA_KEY);
+        let saKeyJson = process.env.YDB_SA_KEY;
+        try {
+          const parsed = JSON.parse(saKeyJson);
+          if (parsed.private_key && typeof parsed.private_key === 'string') {
+            parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+            saKeyJson = JSON.stringify(parsed);
+          }
+        } catch {
+          // если не парсится как JSON — записываем как есть
+        }
+        fs.writeFileSync(tmpFile, saKeyJson);
         const saCredentials = getSACredentialsFromJson(tmpFile);
         authService = new ydb.IamAuthService(saCredentials);
         console.log("[YDB] Created IamAuthService from SA key");
