@@ -599,7 +599,7 @@ export default function ConceptPage() {
                     </div>
 
                     {/* Бейдж — сверху над диском */}
-                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-20">
+                    <div className="absolute -top-9 left-1/2 -translate-x-1/2 z-20">
                       <span
                         className="inline-flex items-center gap-1.5 text-[10px] font-mono tracking-[0.15em] uppercase px-3 py-1.5 rounded-full whitespace-nowrap"
                         style={{
