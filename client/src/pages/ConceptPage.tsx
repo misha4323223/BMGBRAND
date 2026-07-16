@@ -460,15 +460,6 @@ export default function ConceptPage() {
                         filter: "blur(20px)",
                       }}
                     />
-                    {/* Внешнее радужное свечение — появляется при ховере */}
-                    <div
-                      className="vinyl-outer-glow absolute rounded-full pointer-events-none opacity-0"
-                      style={{
-                        inset: -28,
-                        background: "conic-gradient(from 0deg, rgba(255,0,102,0.6), rgba(255,140,0,0.5), rgba(64,224,208,0.6), rgba(124,77,255,0.6), rgba(255,0,102,0.6))",
-                        filter: "blur(28px)",
-                      }}
-                    />
 
                     {/* Пластинка — вращается при ховере */}
                     <div
