@@ -519,7 +519,7 @@ export default function ConceptPage() {
                         }}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
-                        {c.activeProductCount > 0 ? "Сбор заявок" : "Предзаказ"}
+                        Предзаказ
                       </span>
                     </div>
                   </div>
@@ -715,7 +715,7 @@ export default function ConceptPage() {
                         }}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
-                        {c.activeProductCount > 0 ? "Сбор заявок" : "Предзаказ"}
+                        Предзаказ
                       </span>
                     </div>
                   </div>
