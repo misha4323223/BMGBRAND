@@ -467,50 +467,54 @@ export default function ConceptPage() {
                         boxShadow: "0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05)",
                       }}
                     >
-                      {/* Обложка альбома (очень тёмная, сквозь бороздки) */}
+                      {/* Обложка альбома — хорошо видна сквозь бороздки */}
                       {c.coverImage && (
                         <img
                           src={c.coverImage}
                           alt={c.title}
                           className="absolute inset-0 w-full h-full object-cover"
-                          style={{ opacity: 0.18, filter: "saturate(0.5)" }}
+                          style={{ opacity: 0.52, filter: "saturate(0.75) brightness(0.85)" }}
                           draggable="false"
                         />
                       )}
 
-                      {/* Виниловое тело — тёмный радиальный градиент */}
+                      {/* Виниловое тело — тёмный, но не чёрный */}
                       <div
                         className="absolute inset-0"
                         style={{
-                          background: "radial-gradient(circle at 38% 36%, #262626 0%, #0e0e0e 48%, #040404 100%)",
+                          background: "radial-gradient(circle at 38% 36%, #383838 0%, #1a1a1a 50%, #0c0c0c 100%)",
+                          opacity: 0.72,
                         }}
                       />
 
-                      {/* Бороздки — повторяющийся радиальный паттерн */}
+                      {/* Бороздки — заметные концентрические кольца */}
                       <div
                         className="absolute inset-0"
                         style={{
                           background: `repeating-radial-gradient(circle at center,
-                            transparent 0px, transparent 6px,
-                            rgba(255,255,255,0.032) 6px, rgba(255,255,255,0.032) 7px
+                            transparent 0px, transparent 5px,
+                            rgba(0,0,0,0.55) 5px, rgba(0,0,0,0.55) 6px,
+                            transparent 6px, transparent 9px,
+                            rgba(255,255,255,0.045) 9px, rgba(255,255,255,0.045) 10px
                           )`,
                         }}
                       />
 
-                      {/* Иридесцентный блик — вращается вместе с диском */}
+                      {/* Иридесцентный блик — всегда чуть виден, на ховере разгорается */}
                       <div
                         className="vinyl-sheen absolute inset-0"
                         style={{
-                          background: "conic-gradient(from 40deg at 50% 50%, rgba(255,0,102,0.28) 0deg, rgba(255,140,0,0.22) 65deg, rgba(64,224,208,0.26) 140deg, rgba(124,77,255,0.28) 210deg, rgba(255,255,255,0.12) 280deg, rgba(255,0,102,0.24) 360deg)",
+                          background: "conic-gradient(from 40deg at 50% 50%, rgba(255,0,102,0.35) 0deg, rgba(255,140,0,0.28) 65deg, rgba(64,224,208,0.32) 140deg, rgba(124,77,255,0.35) 210deg, rgba(255,255,255,0.18) 280deg, rgba(255,0,102,0.30) 360deg)",
                           mixBlendMode: "screen",
+                          opacity: 0.18,
                         }}
                       />
 
-                      {/* Статичный блик — имитация отражения света */}
+                      {/* Статичный блик — крупное отражение света */}
                       <div
                         className="absolute inset-0 pointer-events-none"
                         style={{
-                          background: "radial-gradient(ellipse 55% 35% at 32% 28%, rgba(255,255,255,0.08) 0%, transparent 65%)",
+                          background: "radial-gradient(ellipse 60% 40% at 30% 26%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 50%, transparent 70%)",
                         }}
                       />
 
@@ -518,7 +522,7 @@ export default function ConceptPage() {
                       <div
                         className="absolute inset-0 rounded-full pointer-events-none"
                         style={{
-                          boxShadow: "inset 0 0 0 14px rgba(0,0,0,0.35), inset 0 0 0 2px rgba(255,255,255,0.04)",
+                          boxShadow: "inset 0 0 0 16px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(255,255,255,0.07)",
                         }}
                       />
 
