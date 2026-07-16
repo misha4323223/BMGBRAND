@@ -275,3 +275,9 @@ id = "zeKQZFyD0erhBhVeEYDAg"
 uri = "file://attached_assets/extracted_images/molodost_vnutri-017-016.jpg"
 type = "image"
 title = "Фото 17"
+
+[[outputs]]
+id = "CX2NLjs41cFHkh3MMQval"
+uri = "file://attached_assets/banner_molodost_1200x800.jpg"
+type = "image"
+title = "banner_molodost_1200x800.jpg"
