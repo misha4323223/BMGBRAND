@@ -439,16 +439,16 @@ export default function ConceptPage() {
             </div>
           ) : hasCampaigns ? (
             /* ── Виниловые пластинки ── */
-            <div className="flex flex-wrap justify-center gap-x-24 gap-y-28">
+            <div className="flex flex-wrap justify-center gap-x-16 gap-y-20 sm:gap-x-20 sm:gap-y-24 lg:gap-x-24 lg:gap-y-28">
               {campaigns!.map((c) => (
                 <Link
                   key={c.slug}
                   href={`/concept/${c.slug}`}
-                  className="vinyl-card group flex flex-col items-center gap-10 cursor-pointer"
+                  className="vinyl-card group flex flex-col items-center gap-8 sm:gap-10 cursor-pointer w-full sm:w-auto"
                   data-testid={`card-campaign-${c.slug}`}
                 >
                   {/* ── Vinyl Disc ── */}
-                  <div className="relative" style={{ width: 340, height: 340 }}>
+                  <div className="relative w-[72vw] h-[72vw] sm:w-[300px] sm:h-[300px] lg:w-[340px] lg:h-[340px]" style={{ maxWidth: 340, maxHeight: 340 }}>
 
                     {/* Постоянное мягкое свечение — отделяет диск от тёмного фона */}
                     <div
@@ -615,9 +615,9 @@ export default function ConceptPage() {
                   </div>
 
                   {/* ── Конверт альбома — текст под пластинкой ── */}
-                  <div className="vinyl-info text-center w-full" style={{ maxWidth: 320 }}>
+                  <div className="vinyl-info text-center w-[72vw] sm:w-[300px] lg:w-[340px]" style={{ maxWidth: 340 }}>
                     {/* Лейбл бренда */}
-                    <p className="text-[9px] font-mono uppercase tracking-[0.38em] text-white/25 mb-3">
+                    <p className="text-[9px] font-mono uppercase tracking-[0.38em] text-white/60 mb-3">
                       BOOOMERANGS
                     </p>
 
@@ -628,25 +628,25 @@ export default function ConceptPage() {
 
                     {/* Подзаголовок */}
                     {c.subtitle && (
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-white/35 mt-1.5 font-mono">
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-white/70 mt-1.5 font-mono">
                         {c.subtitle}
                       </p>
                     )}
 
                     {/* Разделитель */}
                     <div className="flex items-center gap-3 my-4">
-                      <div className="flex-1 h-px bg-white/10" />
-                      <span className="text-[8px] font-mono uppercase tracking-[0.3em] text-white/20">Предзаказ</span>
-                      <div className="flex-1 h-px bg-white/10" />
+                      <div className="flex-1 h-px bg-white/25" />
+                      <span className="text-[8px] font-mono uppercase tracking-[0.3em] text-white/60">Предзаказ</span>
+                      <div className="flex-1 h-px bg-white/25" />
                     </div>
 
                     {/* Нижняя строка */}
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">
+                      <span className="text-[10px] font-mono text-white/70 uppercase tracking-widest">
                         {c.productCount}&nbsp;{c.productCount === 1 ? "товар" : c.productCount < 5 ? "товара" : "товаров"}
                       </span>
                       <span
-                        className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.18em] px-3.5 py-1.5 rounded-full border border-white/15 text-white/60 group-hover:border-white/40 group-hover:text-white transition-all duration-300"
+                        className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.18em] px-3.5 py-1.5 rounded-full border border-white/40 text-white group-hover:border-white group-hover:bg-white/10 transition-all duration-300"
                       >
                         Смотреть <ArrowRight className="w-2.5 h-2.5" />
                       </span>
