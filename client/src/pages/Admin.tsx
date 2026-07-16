@@ -15584,12 +15584,24 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
                 <Input value={campaignForm.subtitle} onChange={e => setCampaignForm(f => ({ ...f, subtitle: e.target.value }))} placeholder="Коллаборация BOOOMERANGS" />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground block mb-1">Баннер десктоп — URL картинки</label>
-                <Input value={campaignForm.heroImage} onChange={e => setCampaignForm(f => ({ ...f, heroImage: e.target.value }))} placeholder="https://storage.yandex..." />
+                <label className="text-xs text-muted-foreground block mb-1">Баннер десктоп</label>
+                <ImageUploadField
+                  value={campaignForm.heroImage}
+                  onChange={url => setCampaignForm(f => ({ ...f, heroImage: url }))}
+                  apiKey={apiKey}
+                  placeholder="Вставьте URL или загрузите файл"
+                  hint="1200×800 px, соотношение 3:2, JPEG/WebP до 300 KB"
+                />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground block mb-1">Баннер мобайл — URL картинки</label>
-                <Input value={campaignForm.heroImageMobile} onChange={e => setCampaignForm(f => ({ ...f, heroImageMobile: e.target.value }))} placeholder="https://storage.yandex..." />
+                <label className="text-xs text-muted-foreground block mb-1">Баннер мобайл</label>
+                <ImageUploadField
+                  value={campaignForm.heroImageMobile}
+                  onChange={url => setCampaignForm(f => ({ ...f, heroImageMobile: url }))}
+                  apiKey={apiKey}
+                  placeholder="Вставьте URL или загрузите файл"
+                  hint="800×1067 px, соотношение 3:4 (вертикальное), JPEG/WebP до 200 KB"
+                />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">SEO заголовок (необязательно)</label>
