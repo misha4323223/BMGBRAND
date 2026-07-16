@@ -614,22 +614,41 @@ export default function ConceptPage() {
                     </div>
                   </div>
 
-                  {/* ── Название и ссылка под пластинкой ── */}
-                  <div className="vinyl-info text-center">
+                  {/* ── Конверт альбома — текст под пластинкой ── */}
+                  <div className="vinyl-info text-center w-full" style={{ maxWidth: 320 }}>
+                    {/* Лейбл бренда */}
+                    <p className="text-[9px] font-mono uppercase tracking-[0.38em] text-white/25 mb-3">
+                      BOOOMERANGS
+                    </p>
+
+                    {/* Название кампании — крупно */}
+                    <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-wide text-white leading-none">
+                      {c.title}
+                    </h3>
+
+                    {/* Подзаголовок */}
                     {c.subtitle && (
-                      <p className="text-[10px] uppercase tracking-[0.28em] text-white/35 mb-1.5 font-mono">
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-white/35 mt-1.5 font-mono">
                         {c.subtitle}
                       </p>
                     )}
-                    <h3 className="text-xl sm:text-2xl font-bold uppercase tracking-tight text-white leading-tight">
-                      {c.title}
-                    </h3>
-                    <div className="flex items-center justify-center gap-5 mt-3">
-                      <span className="text-xs text-white/35">
-                        {c.productCount} {c.productCount === 1 ? "товар" : c.productCount < 5 ? "товара" : "товаров"}
+
+                    {/* Разделитель */}
+                    <div className="flex items-center gap-3 my-4">
+                      <div className="flex-1 h-px bg-white/10" />
+                      <span className="text-[8px] font-mono uppercase tracking-[0.3em] text-white/20">Предзаказ</span>
+                      <div className="flex-1 h-px bg-white/10" />
+                    </div>
+
+                    {/* Нижняя строка */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">
+                        {c.productCount}&nbsp;{c.productCount === 1 ? "товар" : c.productCount < 5 ? "товара" : "товаров"}
                       </span>
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/60 group-hover:text-white group-hover:gap-3 transition-all duration-300">
-                        Смотреть <ArrowRight className="w-3.5 h-3.5" />
+                      <span
+                        className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.18em] px-3.5 py-1.5 rounded-full border border-white/15 text-white/60 group-hover:border-white/40 group-hover:text-white transition-all duration-300"
+                      >
+                        Смотреть <ArrowRight className="w-2.5 h-2.5" />
                       </span>
                     </div>
                   </div>
