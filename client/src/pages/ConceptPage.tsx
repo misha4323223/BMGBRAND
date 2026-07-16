@@ -905,7 +905,7 @@ export default function ConceptPage() {
                                         isExhausted ? "opacity-40 border-border" : qty > 0 ? "border-primary bg-primary/5" : "border-border"
                                       }`}
                                     >
-                                      <span className={`text-xs font-semibold ${isExhausted ? "line-through text-muted-foreground" : qty > 0 ? "text-primary" : ""}`}>
+                                      <span className={`text-xs font-semibold ${isExhausted ? "line-through text-white/40" : qty > 0 ? "text-primary" : "text-white"}`}>
                                         {size}
                                         {isExhausted && <span className="text-[9px] ml-1 font-normal">нет</span>}
                                       </span>
@@ -914,15 +914,15 @@ export default function ConceptPage() {
                                           type="button"
                                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPopupSizeQty(prev => { const n = Math.max(0, (prev[size] || 0) - 1); const u = { ...prev, [size]: n }; if (n === 0) delete u[size]; return u; }); }}
                                           disabled={qty === 0}
-                                          className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none bg-muted disabled:opacity-20 hover:bg-muted/70 transition-colors"
+                                          className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none text-white bg-white/15 disabled:opacity-20 hover:bg-white/25 transition-colors"
                                           data-testid={`qty-minus-${product.id}-${size}`}
                                         >−</button>
-                                        <span className="w-4 text-center text-xs font-bold tabular-nums">{qty}</span>
+                                        <span className="w-4 text-center text-xs font-bold tabular-nums text-white">{qty}</span>
                                         <button
                                           type="button"
                                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (isExhausted || qty >= maxAllowed) return; setPopupSizeQty(prev => ({ ...prev, [size]: (prev[size] || 0) + 1 })); }}
                                           disabled={isExhausted || qty >= maxAllowed}
-                                          className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none bg-muted disabled:opacity-20 hover:bg-muted/70 transition-colors"
+                                          className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none text-white bg-white/15 disabled:opacity-20 hover:bg-white/25 transition-colors"
                                           data-testid={`qty-plus-${product.id}-${size}`}
                                         >+</button>
                                       </div>
