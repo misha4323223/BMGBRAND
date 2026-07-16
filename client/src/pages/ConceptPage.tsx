@@ -450,6 +450,15 @@ export default function ConceptPage() {
                   {/* ── Vinyl Disc ── */}
                   <div className="relative" style={{ width: 340, height: 340 }}>
 
+                    {/* Постоянное мягкое свечение — отделяет диск от тёмного фона */}
+                    <div
+                      className="absolute rounded-full pointer-events-none"
+                      style={{
+                        inset: -18,
+                        background: "radial-gradient(circle, rgba(180,160,140,0.18) 0%, rgba(120,100,80,0.08) 55%, transparent 75%)",
+                        filter: "blur(16px)",
+                      }}
+                    />
                     {/* Внешнее радужное свечение — появляется при ховере */}
                     <div
                       className="vinyl-outer-glow absolute rounded-full pointer-events-none opacity-0"
@@ -467,54 +476,54 @@ export default function ConceptPage() {
                         boxShadow: "0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05)",
                       }}
                     >
-                      {/* Обложка альбома — хорошо видна сквозь бороздки */}
+                      {/* Обложка альбома — яркая, насыщенная */}
                       {c.coverImage && (
                         <img
                           src={c.coverImage}
                           alt={c.title}
                           className="absolute inset-0 w-full h-full object-cover"
-                          style={{ opacity: 0.52, filter: "saturate(0.75) brightness(0.85)" }}
+                          style={{ opacity: 0.68, filter: "saturate(0.9) brightness(1.0)" }}
                           draggable="false"
                         />
                       )}
 
-                      {/* Виниловое тело — тёмный, но не чёрный */}
+                      {/* Виниловое тело — лёгкая тёмная вуаль, не глушит арт */}
                       <div
                         className="absolute inset-0"
                         style={{
-                          background: "radial-gradient(circle at 38% 36%, #383838 0%, #1a1a1a 50%, #0c0c0c 100%)",
-                          opacity: 0.72,
+                          background: "radial-gradient(circle at 38% 36%, #2e2e2e 0%, #141414 55%, #080808 100%)",
+                          opacity: 0.48,
                         }}
                       />
 
-                      {/* Бороздки — заметные концентрические кольца */}
+                      {/* Бороздки — тонкие, не перекрывают изображение */}
                       <div
                         className="absolute inset-0"
                         style={{
                           background: `repeating-radial-gradient(circle at center,
-                            transparent 0px, transparent 5px,
-                            rgba(0,0,0,0.55) 5px, rgba(0,0,0,0.55) 6px,
-                            transparent 6px, transparent 9px,
-                            rgba(255,255,255,0.045) 9px, rgba(255,255,255,0.045) 10px
+                            transparent 0px, transparent 6px,
+                            rgba(0,0,0,0.28) 6px, rgba(0,0,0,0.28) 7px,
+                            transparent 7px, transparent 10px,
+                            rgba(255,255,255,0.055) 10px, rgba(255,255,255,0.055) 11px
                           )`,
                         }}
                       />
 
-                      {/* Иридесцентный блик — всегда чуть виден, на ховере разгорается */}
+                      {/* Иридесцентный блик — заметен всегда, ярче при ховере */}
                       <div
                         className="vinyl-sheen absolute inset-0"
                         style={{
-                          background: "conic-gradient(from 40deg at 50% 50%, rgba(255,0,102,0.35) 0deg, rgba(255,140,0,0.28) 65deg, rgba(64,224,208,0.32) 140deg, rgba(124,77,255,0.35) 210deg, rgba(255,255,255,0.18) 280deg, rgba(255,0,102,0.30) 360deg)",
+                          background: "conic-gradient(from 40deg at 50% 50%, rgba(255,0,102,0.38) 0deg, rgba(255,140,0,0.30) 65deg, rgba(64,224,208,0.35) 140deg, rgba(124,77,255,0.38) 210deg, rgba(255,255,255,0.22) 280deg, rgba(255,0,102,0.33) 360deg)",
                           mixBlendMode: "screen",
-                          opacity: 0.18,
+                          opacity: 0.28,
                         }}
                       />
 
-                      {/* Статичный блик — крупное отражение света */}
+                      {/* Статичный блик — широкое отражение */}
                       <div
                         className="absolute inset-0 pointer-events-none"
                         style={{
-                          background: "radial-gradient(ellipse 60% 40% at 30% 26%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 50%, transparent 70%)",
+                          background: "radial-gradient(ellipse 65% 45% at 28% 24%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.05) 55%, transparent 75%)",
                         }}
                       />
 
