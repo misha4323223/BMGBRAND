@@ -2521,7 +2521,6 @@ export default function Admin() {
         discountPercent: product.discountPercent ? String(product.discountPercent) : "",
         category: product.category || "clothing",
         subcategory: product.subcategory || "",
-        subSubcategory: (product as any).subSubcategory || "",
         sku: product.sku || "",
         color: product.color || "",
         sizes: product.sizes || [],
@@ -7596,8 +7595,14 @@ export default function Admin() {
                                       variant="ghost"
                                       title="Под-подкатегории"
                                       onClick={() => setExpandedSubcategoryIdx(expandedSubcategoryIdx === idx ? null : idx)}
+                                      className="relative"
                                     >
                                       <ChevronDown className={`w-4 h-4 transition-transform ${expandedSubcategoryIdx === idx ? '' : '-rotate-90'}`} />
+                                      {((sub as any).subSubcategories || []).length > 0 && (
+                                        <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] rounded-full w-3.5 h-3.5 flex items-center justify-center font-bold leading-none">
+                                          {((sub as any).subSubcategories || []).length}
+                                        </span>
+                                      )}
                                     </Button>
                                   </div>
                                   {/* Sub-subcategories */}

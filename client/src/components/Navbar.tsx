@@ -928,9 +928,9 @@ export function Navbar() {
                             </button>
                             <div
                               style={{
-                                maxHeight: mobileExpandedCat === slug ? "400px" : "0px",
+                                maxHeight: mobileExpandedCat === slug ? "1200px" : "0px",
                                 overflow: "hidden",
-                                transition: "max-height 0.25s ease",
+                                transition: "max-height 0.35s ease",
                               }}
                             >
                               <div className="pl-3 pt-1 pb-2 space-y-1">
