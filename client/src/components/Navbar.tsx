@@ -119,8 +119,10 @@ export function Navbar() {
   const shopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shopMenuRef = useRef<HTMLDivElement>(null);
   const [hoveredCat, setHoveredCat] = useState<string | null>(null);
+  const [hoveredSub, setHoveredSub] = useState<string | null>(null);
   const [mobileShopOpen, setMobileShopOpen] = useState(false);
   const [mobileExpandedCat, setMobileExpandedCat] = useState<string | null>(null);
+  const [mobileExpandedSub, setMobileExpandedSub] = useState<string | null>(null);
   const [isMusicDrawerOpen, setIsMusicDrawerOpen] = useState(false);
   const [isMobileTracksOpen, setIsMobileTracksOpen] = useState(false);
   const { currentTrack } = usePlayer();
@@ -260,6 +262,8 @@ export function Navbar() {
     setIsOpen(false);
     setMobileShopOpen(false);
     setMobileExpandedCat(null);
+    setMobileExpandedSub(null);
+    setHoveredSub(null);
   };
 
   const getNavWrapperClasses = () => {
@@ -563,11 +567,11 @@ export function Navbar() {
                         {categoryEntries.map(([slug, cat]) => (
                           <button
                             key={slug}
-                            onMouseEnter={() => { if (!isTouchDevice.current) setHoveredCat(slug); }}
+                            onMouseEnter={() => { if (!isTouchDevice.current) { setHoveredCat(slug); setHoveredSub(null); } }}
                             onClick={() => {
                               if (isTouchDevice.current) {
                                 if (hoveredCat === slug) { navigate(`/products/${slug}`); closeAll(); }
-                                else { setHoveredCat(slug); }
+                                else { setHoveredCat(slug); setHoveredSub(null); }
                               } else {
                                 navigate(`/products/${slug}`); closeAll();
                               }
@@ -596,14 +600,78 @@ export function Navbar() {
                               {allCategoryLabel(categories[hoveredCat].name)}
                             </Link>
                             <div className="my-1 mx-3 border-t border-slate-100" />
-                            {categories[hoveredCat].subcategories.map((sub) => (
-                              <Link key={sub.slug} href={`/${sub.slug}`} onClick={closeAll} data-testid={`link-subcategory-${sub.slug}`} className="block px-4 py-2 text-sm text-slate-700 hover:text-slate-900 hover:bg-white/60 rounded-lg transition-colors">
-                                {sub.name}
-                              </Link>
-                            ))}
+                            {categories[hoveredCat].subcategories.map((sub) => {
+                              const hasSubSubs = (sub.subSubcategories || []).length > 0;
+                              return hasSubSubs ? (
+                                <button
+                                  key={sub.slug}
+                                  onMouseEnter={() => { if (!isTouchDevice.current) setHoveredSub(sub.slug); }}
+                                  onClick={() => {
+                                    if (isTouchDevice.current) {
+                                      if (hoveredSub === sub.slug) { navigate(`/${sub.slug}`); closeAll(); }
+                                      else setHoveredSub(sub.slug);
+                                    } else {
+                                      navigate(`/${sub.slug}`); closeAll();
+                                    }
+                                  }}
+                                  data-testid={`button-subcategory-${sub.slug}`}
+                                  className={`flex items-center justify-between w-full px-4 py-2 text-sm rounded-lg transition-colors ${hoveredSub === sub.slug ? "bg-white/70 text-slate-900 font-medium" : "text-slate-700 hover:bg-white/55 hover:text-slate-900"}`}
+                                >
+                                  {sub.name}
+                                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                                </button>
+                              ) : (
+                                <Link key={sub.slug} href={`/${sub.slug}`} onClick={closeAll} data-testid={`link-subcategory-${sub.slug}`} className="block px-4 py-2 text-sm text-slate-700 hover:text-slate-900 hover:bg-white/60 rounded-lg transition-colors">
+                                  {sub.name}
+                                </Link>
+                              );
+                            })}
                           </>
                         )}
                       </div>
+                      {/* 3rd column: sub-subcategories */}
+                      {(() => {
+                        const activeSub = hoveredCat && hoveredSub
+                          ? categories[hoveredCat]?.subcategories.find(s => s.slug === hoveredSub)
+                          : null;
+                        const subSubs = activeSub?.subSubcategories || [];
+                        return (
+                          <div
+                            className={`${getShopMenuClasses()} py-2 min-w-[160px]`}
+                            style={{
+                              ...iceStyle,
+                              opacity: subSubs.length > 0 ? 1 : 0,
+                              pointerEvents: subSubs.length > 0 ? "auto" : "none",
+                              transform: subSubs.length > 0 ? "translateX(0)" : "translateX(-6px)",
+                              transition: "opacity 0.15s ease, transform 0.15s ease",
+                            }}
+                          >
+                            {activeSub && subSubs.length > 0 && (
+                              <>
+                                <Link
+                                  href={`/${activeSub.slug}`}
+                                  onClick={closeAll}
+                                  className="flex items-center justify-between w-full px-4 py-2 text-sm text-slate-400 hover:text-slate-800 hover:bg-white/60 rounded-lg transition-colors"
+                                >
+                                  {allCategoryLabel(activeSub.name)}
+                                </Link>
+                                <div className="my-1 mx-3 border-t border-slate-100" />
+                                {subSubs.map((ss) => (
+                                  <Link
+                                    key={ss.slug}
+                                    href={`/products/${hoveredCat}/${activeSub.slug}/${ss.slug}`}
+                                    onClick={closeAll}
+                                    data-testid={`link-subsubcategory-${ss.slug}`}
+                                    className="block px-4 py-2 text-sm text-slate-700 hover:text-slate-900 hover:bg-white/60 rounded-lg transition-colors"
+                                  >
+                                    {ss.name}
+                                  </Link>
+                                ))}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
@@ -873,17 +941,62 @@ export function Navbar() {
                                 >
                                   {allCategoryLabel(cat.name)}
                                 </Link>
-                                {cat.subcategories.map((sub) => (
-                                  <Link
-                                    key={sub.slug}
-                                    href={`/${sub.slug}`}
-                                    onClick={closeAll}
-                                    data-testid={`link-mobile-subcategory-${sub.slug}`}
-                                    className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-0.5"
-                                  >
-                                    {sub.name}
-                                  </Link>
-                                ))}
+                                {cat.subcategories.map((sub) => {
+                                  const hasSubSubs = (sub.subSubcategories || []).length > 0;
+                                  return (
+                                    <div key={sub.slug}>
+                                      {hasSubSubs ? (
+                                        <button
+                                          onClick={() => setMobileExpandedSub(mobileExpandedSub === sub.slug ? null : sub.slug)}
+                                          className="flex items-center justify-between w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-0.5"
+                                          data-testid={`button-mobile-sub-${sub.slug}`}
+                                        >
+                                          {sub.name}
+                                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${mobileExpandedSub === sub.slug ? "rotate-180" : ""}`} />
+                                        </button>
+                                      ) : (
+                                        <Link
+                                          href={`/${sub.slug}`}
+                                          onClick={closeAll}
+                                          data-testid={`link-mobile-subcategory-${sub.slug}`}
+                                          className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-0.5"
+                                        >
+                                          {sub.name}
+                                        </Link>
+                                      )}
+                                      {hasSubSubs && (
+                                        <div
+                                          style={{
+                                            maxHeight: mobileExpandedSub === sub.slug ? "600px" : "0px",
+                                            overflow: "hidden",
+                                            transition: "max-height 0.25s ease",
+                                          }}
+                                        >
+                                          <div className="pl-3 pt-0.5 pb-1 space-y-0.5">
+                                            <Link
+                                              href={`/${sub.slug}`}
+                                              onClick={closeAll}
+                                              className="block text-xs text-muted-foreground/70 hover:text-foreground transition-colors py-0.5"
+                                            >
+                                              {allCategoryLabel(sub.name)}
+                                            </Link>
+                                            {(sub.subSubcategories || []).map((ss) => (
+                                              <Link
+                                                key={ss.slug}
+                                                href={`/products/${slug}/${sub.slug}/${ss.slug}`}
+                                                onClick={closeAll}
+                                                data-testid={`link-mobile-subsub-${ss.slug}`}
+                                                className="block text-xs text-muted-foreground/80 hover:text-foreground transition-colors py-0.5"
+                                              >
+                                                {ss.name}
+                                              </Link>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           </div>
