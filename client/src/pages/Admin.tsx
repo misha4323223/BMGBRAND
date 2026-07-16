@@ -15555,7 +15555,7 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
             <Button size="sm" onClick={() => {
               setShowCampaignForm(true);
               setEditingCampaignSlug(null);
-              setCampaignForm({ slug: "", title: "", subtitle: "", description: "", heroImage: "", heroImageMobile: "", seoTitle: "", seoDescription: "", visible: true });
+              setCampaignForm({ slug: "", title: "", subtitle: "", description: "", heroImage: "", heroImageMobile: "", seoTitle: "", seoDescription: "", visible: true, cardStyle: "vinyl" });
             }} data-testid="button-create-campaign">
               <Plus className="w-4 h-4 mr-1" /> Создать коллаборацию
             </Button>
