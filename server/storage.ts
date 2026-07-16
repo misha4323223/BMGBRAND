@@ -1,5 +1,17 @@
 import { driver, waitForDriver, isAuthError, reconnectYdb } from "./db";
 
+// CDN URL substitution: replaces storage.yandexcloud.net/{bucket}/ with CDN_URL/
+// when CDN_URL env var is set (e.g. https://cdn.booomerangs.ru)
+const _cdnBase = process.env.CDN_URL?.replace(/\/$/, '') || '';
+const _storageBase = `https://storage.yandexcloud.net/${process.env.YANDEX_STORAGE_BUCKET_NAME || 'bmg'}/`;
+export function toCdnUrl(url: string | null | undefined): string {
+  if (!url) return url as string;
+  if (_cdnBase && url.startsWith(_storageBase)) {
+    return _cdnBase + '/' + url.slice(_storageBase.length);
+  }
+  return url;
+}
+
 export interface PickupPoint {
   id: string;
   name: string;
@@ -886,10 +898,10 @@ export class DatabaseStorage implements IStorage {
       wholesalePrice: parsedWholesalePrice,
       discountPercent: data.old_price ? Number(data.old_price) : null,
       salePrice: data.sale_price ? Number(data.sale_price) : null,
-      imageUrl: images.length > 0 ? images[0] : (data.image_url || ''),
-      thumbnailUrl: data.thumbnail_url || null,
-      hoverThumbnailUrl: data.hover_thumbnail_url || null,
-      images, // Include images array for gallery
+      imageUrl: toCdnUrl(images.length > 0 ? images[0] : (data.image_url || '')),
+      thumbnailUrl: toCdnUrl(data.thumbnail_url || null),
+      hoverThumbnailUrl: toCdnUrl(data.hover_thumbnail_url || null),
+      images: images.map(toCdnUrl), // Include images array for gallery
       category: data.category || '',
       subcategory: data.subcategory || null,
       subSubcategory: data.sub_subcategory || null,
