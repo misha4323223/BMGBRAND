@@ -6943,7 +6943,7 @@ BMGBRAND — официальный производитель и магазин
     }
 
     try {
-      const { productIds, category, subcategory } = req.body;
+      const { productIds, category, subcategory, subSubcategory: bulkSubSubcategory } = req.body;
       
       if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
         return res.status(400).json({ message: "productIds array required" });
@@ -6958,7 +6958,8 @@ BMGBRAND — официальный производитель и магазин
         try {
           await storage.updateProduct(id, { 
             category, 
-            subcategory: subcategory || null 
+            subcategory: subcategory || null,
+            subSubcategory: bulkSubSubcategory || null,
           } as any);
           updated++;
         } catch (err) {
@@ -6966,8 +6967,8 @@ BMGBRAND — официальный производитель и магазин
         }
       }
 
-      console.log(`[Admin] Moved ${updated} products to category: ${category}/${subcategory || 'none'}`);
-      res.json({ success: true, updated, category, subcategory });
+      console.log(`[Admin] Moved ${updated} products to category: ${category}/${subcategory || 'none'}/${bulkSubSubcategory || 'none'}`);
+      res.json({ success: true, updated, category, subcategory, subSubcategory: bulkSubSubcategory || null });
     } catch (err) {
       console.error("[Admin] Update category error:", err);
       res.status(500).json({ success: false, message: "Update failed" });
@@ -7054,7 +7055,7 @@ BMGBRAND — официальный производитель и магазин
       }
       
       const { 
-        name, description, price, category, subcategory, additionalCategories,
+        name, description, price, category, subcategory, subSubcategory, additionalCategories,
         sizes, colors, composition, careInstructions, note, delivery, returnPolicy,
         measurements, measurementSections, images, imageUrl, sku, color, wholesalePrice,
         isNew, badgeText, lookProducts, lookCategory, lookSubcategory,
@@ -7070,6 +7071,7 @@ BMGBRAND — официальный производитель и магазин
       if (price !== undefined) updateData.price = parseInt(price);
       if (category !== undefined) updateData.category = category;
       if (subcategory !== undefined) updateData.subcategory = subcategory;
+      if (subSubcategory !== undefined) updateData.subSubcategory = subSubcategory || null;
       if (additionalCategories !== undefined) {
         updateData.additionalCategories = Array.isArray(additionalCategories) ? additionalCategories : [];
       }

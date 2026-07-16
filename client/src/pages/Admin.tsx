@@ -1073,6 +1073,7 @@ export default function Admin() {
   const [badgeDialogText, setBadgeDialogText] = useState("NEW");
   const [targetCategory, setTargetCategory] = useState<CategorySlug | "">("");
   const [targetSubcategory, setTargetSubcategory] = useState<string>("");
+  const [targetSubSubcategory, setTargetSubSubcategory] = useState<string>("");
   const [addlCategory, setAddlCategory] = useState<string>("");
   const [addlSubcategory, setAddlSubcategory] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"products" | "orders" | "wholesale" | "problems" | "bonuses" | "pages" | "reviews" | "favorites" | "preorders" | "security" | "clients" | "analytics" | "partners" | "ai" | "seo">("products");
@@ -3087,11 +3088,11 @@ export default function Admin() {
   });
 
   const moveCategoryMutation = useMutation({
-    mutationFn: async ({ ids, category, subcategory }: { ids: number[], category: string, subcategory?: string }) => {
+    mutationFn: async ({ ids, category, subcategory, subSubcategory }: { ids: number[], category: string, subcategory?: string, subSubcategory?: string }) => {
       return adminFetch("/api/admin/products/category", apiKey, {
         method: "PATCH",
         headers: { "Content-Type": "application/json; charset=utf-8" },
-        body: JSON.stringify({ productIds: ids, category, subcategory }),
+        body: JSON.stringify({ productIds: ids, category, subcategory, subSubcategory }),
       });
     },
     onSuccess: (data) => {
@@ -3106,6 +3107,7 @@ export default function Admin() {
       setSelectedProducts(new Set());
       setTargetCategory("");
       setTargetSubcategory("");
+      setTargetSubSubcategory("");
     },
     onError: (error: Error) => {
       toast({ title: "Ошибка перемещения", description: error.message, variant: "destructive" });
@@ -3113,6 +3115,11 @@ export default function Admin() {
   });
 
   const availableSubcategories = targetCategory ? mergedSubcategoriesFor(targetCategory) : [];
+  const availableTargetSubSubcategories: Array<{name: string; slug: string}> = (() => {
+    if (!targetSubcategory || targetSubcategory === "_none_") return [];
+    const sub = availableSubcategories.find((s) => (typeof s === 'string' ? s : s.name) === targetSubcategory);
+    return (sub as any)?.subSubcategories || [];
+  })();
 
   const bulkAddlCategoryMutation = useMutation({
     mutationFn: async ({ ids, category, subcategory, action }: { ids: number[], category: string, subcategory?: string, action?: string }) => {
@@ -3674,6 +3681,7 @@ export default function Admin() {
                 onValueChange={(v) => {
                   setTargetCategory(v as CategorySlug);
                   setTargetSubcategory("");
+                  setTargetSubSubcategory("");
                 }}
               >
                 <SelectTrigger className="w-32 h-8 text-xs" data-testid="select-target-category">
@@ -3688,7 +3696,7 @@ export default function Admin() {
                 </SelectContent>
               </Select>
               {availableSubcategories.length > 0 && (
-                <Select value={targetSubcategory} onValueChange={setTargetSubcategory}>
+                <Select value={targetSubcategory} onValueChange={(v) => { setTargetSubcategory(v); setTargetSubSubcategory(""); }}>
                   <SelectTrigger className="w-36 h-8 text-xs" data-testid="select-target-subcategory">
                     <SelectValue placeholder="Подкатегория" />
                   </SelectTrigger>
@@ -3696,6 +3704,19 @@ export default function Admin() {
                     <SelectItem value="_none_" className="text-zinc-100 focus:bg-zinc-800 focus:text-white">Без подкатегории</SelectItem>
                     {availableSubcategories.map((sub) => (
                       <SelectItem key={typeof sub === 'string' ? sub : sub.name} value={typeof sub === 'string' ? sub : sub.name} className="text-zinc-100 focus:bg-zinc-800 focus:text-white">{typeof sub === 'string' ? sub : sub.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {availableTargetSubSubcategories.length > 0 && (
+                <Select value={targetSubSubcategory} onValueChange={setTargetSubSubcategory}>
+                  <SelectTrigger className="w-40 h-8 text-xs" data-testid="select-target-subsubcategory">
+                    <SelectValue placeholder="Под-подкатегория" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                    <SelectItem value="_none_" className="text-zinc-100 focus:bg-zinc-800 focus:text-white">Без под-подкатегории</SelectItem>
+                    {availableTargetSubSubcategories.map((ss) => (
+                      <SelectItem key={ss.name} value={ss.name} className="text-zinc-100 focus:bg-zinc-800 focus:text-white">{ss.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -3708,7 +3729,8 @@ export default function Admin() {
                     moveCategoryMutation.mutate({ 
                       ids: Array.from(selectedProducts), 
                       category: targetCategory,
-                      subcategory: targetSubcategory === "_none_" ? undefined : targetSubcategory || undefined
+                      subcategory: targetSubcategory === "_none_" ? undefined : targetSubcategory || undefined,
+                      subSubcategory: targetSubSubcategory === "_none_" ? undefined : targetSubSubcategory || undefined,
                     });
                   }
                 }}
