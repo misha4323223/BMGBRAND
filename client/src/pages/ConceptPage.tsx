@@ -472,16 +472,16 @@ export default function ConceptPage() {
                   {/* ── Текстовая плашка — отдельно под фото ── */}
                   <div className="flex flex-col flex-1 px-5 py-4 gap-1 border-t border-white/[0.06]">
                     {c.subtitle && (
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500 leading-none">{c.subtitle}</p>
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-400 leading-none">{c.subtitle}</p>
                     )}
-                    <h3 className="text-base sm:text-lg font-bold uppercase tracking-tight text-foreground leading-snug">
+                    <h3 className="text-base sm:text-lg font-bold uppercase tracking-tight text-white leading-snug">
                       {c.title}
                     </h3>
                     <div className="flex items-center justify-between mt-auto pt-3">
-                      <span className="text-[11px] text-zinc-500">
+                      <span className="text-[11px] text-zinc-400">
                         {c.productCount} {c.productCount === 1 ? "товар" : c.productCount < 5 ? "товара" : "товаров"}
                       </span>
-                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-foreground/80 group-hover:text-foreground group-hover:gap-2.5 transition-all duration-200">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-white/80 group-hover:text-white group-hover:gap-2.5 transition-all duration-200">
                         Смотреть <ArrowRight className="w-3 h-3" />
                       </span>
                     </div>
