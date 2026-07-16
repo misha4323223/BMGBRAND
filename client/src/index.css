@@ -538,8 +538,7 @@ body.lb-open nav {
   transition: transform 0.4s ease;
 }
 
-/* Все hover-эффекты — только на устройствах с настоящим курсором (десктоп).
-   На мобильном касание не триггерит :hover бесконечно. */
+/* Десктоп — ховер мышью */
 @media (hover: hover) {
   .vinyl-card:hover .vinyl-disc {
     animation: vinyl-spin 5s linear infinite;
@@ -551,6 +550,19 @@ body.lb-open nav {
   .vinyl-card:hover .vinyl-info {
     transform: translateY(-4px);
   }
+}
+
+/* Мобильный — тап включает вращение через JS-класс.
+   Скролл убирает класс → анимация останавливается. */
+.vinyl-card.vinyl-spinning .vinyl-disc {
+  animation: vinyl-spin 5s linear infinite;
+  box-shadow: 0 40px 100px rgba(0,0,0,0.85), 0 0 0 1.5px rgba(255,255,255,0.07) !important;
+}
+.vinyl-card.vinyl-spinning .vinyl-sheen {
+  opacity: 0.5;
+}
+.vinyl-card.vinyl-spinning .vinyl-info {
+  transform: translateY(-4px);
 }
 
 @media (prefers-reduced-motion: reduce) {

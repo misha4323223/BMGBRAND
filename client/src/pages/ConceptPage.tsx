@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { ArrowRight, Package, ShoppingCart, ArrowLeft, AlertTriangle, Info, Megaphone, Flame } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
@@ -221,6 +221,15 @@ export default function ConceptPage() {
   const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [spinningSlug, setSpinningSlug] = useState<string | null>(null);
+
+  // Скролл — останавливает пластинку на мобильном
+  useEffect(() => {
+    const stop = () => setSpinningSlug(null);
+    window.addEventListener("scroll", stop, { passive: true });
+    return () => window.removeEventListener("scroll", stop);
+  }, []);
+
   const [sizePopupId, setSizePopupId] = useState<number | null>(null);
   const [popupSizes, setPopupSizes] = useState<string[]>([]);
   const [popupSizeStock, setPopupSizeStock] = useState<Record<string, number>>({});
@@ -445,8 +454,9 @@ export default function ConceptPage() {
                 <Link
                   key={c.slug}
                   href={`/concept/${c.slug}`}
-                  className="vinyl-card group flex flex-col items-center gap-5 sm:gap-6 cursor-pointer w-full sm:w-auto"
+                  className={`vinyl-card group flex flex-col items-center gap-5 sm:gap-6 cursor-pointer w-full sm:w-auto${spinningSlug === c.slug ? " vinyl-spinning" : ""}`}
                   data-testid={`card-campaign-${c.slug}`}
+                  onTouchStart={() => setSpinningSlug(prev => prev === c.slug ? null : c.slug)}
                 >
                   {/* ── Vinyl Disc ── */}
                   <div className="relative w-[72vw] h-[72vw] sm:w-[300px] sm:h-[300px] lg:w-[400px] lg:h-[400px]" style={{ maxWidth: 400, maxHeight: 400 }}>
