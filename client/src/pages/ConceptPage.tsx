@@ -809,14 +809,14 @@ export default function ConceptPage() {
 
                       {/* Оверлей «Отменено» */}
                       {isCancelled && (
-                        <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                          <span className="text-xs uppercase tracking-widest text-foreground/60">Отменено</span>
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <span className="text-xs uppercase tracking-widest text-white/60">Отменено</span>
                         </div>
                       )}
 
                       {/* Hover CTA */}
                       {!isLocked && (
-                        <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-foreground/90 backdrop-blur-sm text-background text-xs font-semibold uppercase tracking-widest flex items-center justify-center gap-2 py-3">
+                        <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-white/90 backdrop-blur-sm text-zinc-900 text-xs font-semibold uppercase tracking-widest flex items-center justify-center gap-2 py-3">
                           Подробнее <ArrowRight className="w-3.5 h-3.5" />
                         </div>
                       )}
@@ -824,7 +824,7 @@ export default function ConceptPage() {
 
                     {/* Info */}
                     <div className="space-y-2.5">
-                      <h3 className={`text-sm font-medium text-foreground leading-tight line-clamp-2 ${isLocked ? "" : "group-hover:text-primary transition-colors"}`}>
+                      <h3 className={`text-sm font-medium text-white leading-tight line-clamp-2 ${isLocked ? "" : "group-hover:text-primary transition-colors"}`}>
                         {product.name}
                       </h3>
 
@@ -832,12 +832,12 @@ export default function ConceptPage() {
                       <div className="space-y-1 text-center mt-2">
                         {hasDiscount ? (
                           <>
-                            <p className="text-[10px] font-medium text-foreground uppercase tracking-wide">Предпродажная цена</p>
-                            <p className="text-base font-bold text-foreground">{formatPrice(salePrice)}</p>
-                            <p className="text-[10px] text-foreground">Цена после релиза — {formatPrice(product.price)}</p>
+                            <p className="text-[10px] font-medium text-white/60 uppercase tracking-wide">Предпродажная цена</p>
+                            <p className="text-base font-bold text-white">{formatPrice(salePrice)}</p>
+                            <p className="text-[10px] text-white/50">Цена после релиза — {formatPrice(product.price)}</p>
                           </>
                         ) : (
-                          <span className="text-base font-bold text-foreground">{formatPrice(product.price)}</span>
+                          <span className="text-base font-bold text-white">{formatPrice(product.price)}</span>
                         )}
                         {salePrice >= 300000 && salePrice <= 3000000 && (
                           <div className="flex justify-center" onClick={(e) => e.preventDefault()}>
@@ -847,10 +847,10 @@ export default function ConceptPage() {
                         {!isCancelled && (
                           <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full mx-auto ${
                             status === "collecting"
-                              ? "bg-primary/10 text-primary"
-                              : "bg-muted text-muted-foreground"
+                              ? "bg-primary/15 text-primary"
+                              : "bg-white/10 text-white/50"
                           }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status === "collecting" ? "bg-primary" : "bg-muted-foreground/50"}`} />
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status === "collecting" ? "bg-primary" : "bg-white/30"}`} />
                             {cfg.label}
                           </span>
                         )}
@@ -863,7 +863,7 @@ export default function ConceptPage() {
                             className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all border ${
                               inCart
                                 ? "bg-primary text-white border-primary hover:bg-primary/90"
-                                : "bg-foreground text-background border-foreground hover:bg-foreground/85"
+                                : "bg-white text-zinc-900 border-white hover:bg-white/90"
                             }`}
                             onClick={(e) => openSizePopup(e, product)}
                             data-testid={`button-preorder-cart-${product.id}`}
@@ -887,10 +887,10 @@ export default function ConceptPage() {
                           {/* Size picker popup */}
                           {sizePopupId === product.id && (
                             <div
-                              className="absolute bottom-full mb-2 left-0 right-0 z-30 bg-background border border-border rounded-xl shadow-xl p-3"
+                              className="absolute bottom-full mb-2 left-0 right-0 z-30 bg-zinc-900 border border-white/15 rounded-xl shadow-xl p-3"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Размер и количество</p>
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50 mb-2">Размер и количество</p>
                               <div className="flex flex-col gap-1.5">
                                 {popupSizes.map((size) => {
                                   const stockLimit = popupSizeStock[size];
@@ -982,10 +982,10 @@ export default function ConceptPage() {
                             return (
                               <div key={step} className="flex-1 flex flex-col gap-1 min-w-0">
                                 <div className={`h-0.5 w-full rounded-full transition-colors ${
-                                  done ? "bg-foreground" : active ? "bg-primary" : "bg-muted-foreground/20"
+                                  done ? "bg-white" : active ? "bg-primary" : "bg-white/20"
                                 }`} />
-                                <span className={`text-[9px] uppercase tracking-wide truncate text-foreground ${
-                                  active ? "font-semibold" : "opacity-70"
+                                <span className={`text-[9px] uppercase tracking-wide truncate text-white ${
+                                  active ? "font-semibold" : "opacity-50"
                                 }`}>
                                   {step}
                                 </span>
@@ -997,7 +997,7 @@ export default function ConceptPage() {
 
                       {/* Dates */}
                       {(product.preorderDeadline || product.preorderShippingDate) && (
-                        <div className="text-[10px] text-foreground space-y-0.5">
+                        <div className="text-[10px] text-white/60 space-y-0.5">
                           {product.preorderDeadline && (
                             <p>Сбор до {formatDate(product.preorderDeadline)}</p>
                           )}
