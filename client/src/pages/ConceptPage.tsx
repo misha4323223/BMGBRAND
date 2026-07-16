@@ -460,63 +460,151 @@ export default function ConceptPage() {
             /* ── Карточки кампаний ── */
             <div className="flex flex-wrap justify-center gap-x-16 gap-y-20 sm:gap-x-20 sm:gap-y-24 lg:gap-x-24 lg:gap-y-28">
               {campaigns!.map((c) => c.cardStyle === "poster" ? (
-                /* ── Постер (фестивальный стиль) ── */
+                /* ── Билет (фестивальный стиль) ── */
                 <Link
                   key={c.slug}
                   href={`/concept/${c.slug}`}
-                  className="poster-card group relative cursor-pointer w-[72vw] sm:w-[300px] lg:w-[360px] overflow-hidden rounded-sm"
-                  style={{ maxWidth: 360, aspectRatio: "2/3" }}
+                  className="ticket-card group cursor-pointer select-none"
+                  style={{ width: "min(72vw, 320px)", display: "block" }}
                   data-testid={`card-campaign-${c.slug}`}
                 >
-                  {/* Фоновое изображение */}
-                  {c.coverImage ? (
-                    <img
-                      src={c.coverImage}
-                      alt={c.title}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                      draggable="false"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-zinc-900" />
-                  )}
+                  {/* ── Верхняя часть билета — фото ── */}
+                  <div
+                    className="relative overflow-hidden"
+                    style={{
+                      borderRadius: "8px 8px 0 0",
+                      height: "min(48vw, 213px)",
+                      boxShadow: "0 -4px 24px rgba(0,0,0,0.5)",
+                    }}
+                  >
+                    {c.coverImage ? (
+                      <img
+                        src={c.coverImage}
+                        alt={c.title}
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        draggable="false"
+                      />
+                    ) : (
+                      <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)" }} />
+                    )}
 
-                  {/* Градиентный оверлей снизу */}
-                  <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0.12) 100%)" }} />
+                    {/* Сканлайны */}
+                    <div className="absolute inset-0 pointer-events-none" style={{
+                      backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px)",
+                    }} />
 
-                  {/* Бейдж сверху */}
-                  <div className="absolute top-4 left-4 z-10">
-                    <span
-                      className="inline-flex items-center gap-1.5 text-[10px] font-mono tracking-[0.15em] uppercase px-3 py-1.5 rounded-full"
-                      style={{
-                        background: "rgba(8,8,12,0.88)",
-                        border: "1px solid rgba(255,255,255,0.18)",
-                        backdropFilter: "blur(8px)",
-                        color: "rgba(255,255,255,0.95)",
-                        boxShadow: "0 0 12px rgba(74,222,128,0.2)",
-                      }}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
-                      {c.activeProductCount > 0 ? "Сбор заявок" : "Предзаказ"}
-                    </span>
+                    {/* Диагональный текст-водяной знак */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+                      <span style={{
+                        fontSize: 14,
+                        fontFamily: "monospace",
+                        letterSpacing: "0.4em",
+                        color: "rgba(255,255,255,0.07)",
+                        transform: "rotate(-35deg)",
+                        whiteSpace: "nowrap",
+                        userSelect: "none",
+                        fontWeight: 900,
+                      }}>
+                        BOOOMERANGS · BOOOMERANGS · BOOOMERANGS
+                      </span>
+                    </div>
+
+                    {/* Статус бейдж */}
+                    <div className="absolute top-3 left-3 z-10">
+                      <span className="inline-flex items-center gap-1.5 text-[9px] font-mono tracking-[0.18em] uppercase px-2.5 py-1 rounded-full"
+                        style={{
+                          background: "rgba(0,0,0,0.75)",
+                          border: "1px solid rgba(255,255,255,0.2)",
+                          backdropFilter: "blur(6px)",
+                          color: "rgba(255,255,255,0.9)",
+                        }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
+                        {c.activeProductCount > 0 ? "Сбор заявок" : "Предзаказ"}
+                      </span>
+                    </div>
+
+                    {/* Номер — как на билете */}
+                    <div className="absolute bottom-2.5 right-3 z-10">
+                      <span className="text-[9px] font-mono text-white/40 tracking-widest">
+                        #{String(c.slug).toUpperCase().slice(0, 8).padEnd(8, "0")}
+                      </span>
+                    </div>
+
+                    {/* Затемнение снизу для перехода */}
+                    <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(15,15,15,1), transparent)" }} />
                   </div>
 
-                  {/* Текст снизу */}
-                  <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
-                    <p className="text-[9px] font-mono uppercase tracking-[0.38em] text-white/50 mb-2">BOOOMERANGS</p>
-                    <h3 className="text-2xl font-black uppercase tracking-wide text-white leading-tight mb-1">
+                  {/* ── Перфорация ── */}
+                  <div className="relative flex items-center" style={{ background: "#0f0f0f", height: 20 }}>
+                    {/* Полукруг слева */}
+                    <div className="absolute -left-3 w-6 h-6 rounded-full" style={{ background: "#000", zIndex: 2 }} />
+                    {/* Полукруг справа */}
+                    <div className="absolute -right-3 w-6 h-6 rounded-full" style={{ background: "#000", zIndex: 2 }} />
+                    {/* Пунктир */}
+                    <div className="flex-1 mx-5" style={{
+                      borderTop: "2px dashed rgba(255,255,255,0.12)",
+                    }} />
+                    {/* Ножницы по центру */}
+                    <div className="absolute left-1/2 -translate-x-1/2 text-white/20" style={{ fontSize: 10, lineHeight: 1 }}>✂</div>
+                  </div>
+
+                  {/* ── Нижняя часть билета — инфо ── */}
+                  <div
+                    className="relative px-5 pt-3 pb-4"
+                    style={{
+                      background: "#0f0f0f",
+                      borderRadius: "0 0 8px 8px",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+                    }}
+                  >
+                    {/* Лейбл */}
+                    <p className="text-[8px] font-mono uppercase tracking-[0.45em] mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>
+                      BOOOMERANGS · PRE-DROP
+                    </p>
+
+                    {/* Название */}
+                    <h3 className="font-black uppercase leading-none mb-1 transition-all duration-300 group-hover:tracking-wider"
+                      style={{ fontSize: "clamp(18px, 5vw, 24px)", color: "#fff", letterSpacing: "0.04em" }}>
                       {c.title}
                     </h3>
+
                     {c.subtitle && (
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-white/65 font-mono mb-4">
+                      <p className="text-[9px] uppercase tracking-[0.25em] font-mono mt-1 mb-0" style={{ color: "rgba(255,255,255,0.5)" }}>
                         {c.subtitle}
                       </p>
                     )}
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-[10px] font-mono text-white/60 uppercase tracking-widest">
-                        {c.productCount}&nbsp;{c.productCount === 1 ? "товар" : c.productCount < 5 ? "товара" : "товаров"}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.18em] px-3.5 py-1.5 rounded-full border border-white/40 text-white group-hover:border-white group-hover:bg-white/10 transition-all duration-300">
-                        Смотреть <ArrowRight className="w-2.5 h-2.5" />
+
+                    {/* Разделитель */}
+                    <div className="my-3" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }} />
+
+                    {/* Нижняя строка */}
+                    <div className="flex items-end justify-between gap-2">
+                      {/* Псевдо-штрих-код */}
+                      <div className="flex items-end gap-px" style={{ height: 20 }}>
+                        {Array.from({ length: 22 }).map((_, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              width: i % 3 === 0 ? 2 : 1,
+                              height: `${55 + Math.sin(i * 1.7) * 35}%`,
+                              background: `rgba(255,255,255,${0.15 + (i % 4 === 0 ? 0.25 : 0)})`,
+                            }}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Кнопка */}
+                      <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-[0.2em] px-3 py-1.5 transition-all duration-300"
+                        style={{
+                          border: "1px solid rgba(255,255,255,0.25)",
+                          borderRadius: 3,
+                          color: "rgba(255,255,255,0.8)",
+                          background: "rgba(255,255,255,0.04)",
+                        }}
+                      >
+                        {c.productCount} {c.productCount === 1 ? "товар" : c.productCount < 5 ? "товара" : "товаров"}
+                        <ArrowRight className="w-2.5 h-2.5" />
                       </span>
                     </div>
                   </div>
