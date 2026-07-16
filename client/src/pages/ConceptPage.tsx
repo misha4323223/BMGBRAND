@@ -220,6 +220,14 @@ export default function ConceptPage() {
   const { addOrUpdateItem, items: cartPreorderItems } = usePreorderCart();
   const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
   const [, setLocation] = useLocation();
+
+  // Если кампания одна — сразу переходим на её страницу
+  useEffect(() => {
+    if (!campaignsLoading && campaigns && campaigns.length === 1) {
+      setLocation(`/concept/${campaigns[0].slug}`);
+    }
+  }, [campaigns, campaignsLoading]);
+
   const { toast } = useToast();
   const [spinningSlug, setSpinningSlug] = useState<string | null>(null);
 
