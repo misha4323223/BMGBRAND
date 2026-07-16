@@ -1504,6 +1504,13 @@ export default function Admin() {
     refetchOnMount: "always",
   });
 
+  const { data: preorderCampaignsList = [] } = useQuery<any[]>({
+    queryKey: ["/api/preorder/campaigns"],
+    queryFn: () => fetch("/api/preorder/campaigns").then((r) => r.json()),
+    enabled: isAuthenticated,
+    staleTime: 60_000,
+  });
+
   const { data: artistProductsData, refetch: refetchArtistProducts } = useQuery<{ products: any[] }>({
     queryKey: ["/api/admin/artist-only-products"],
     queryFn: async () => {
@@ -11246,7 +11253,7 @@ export default function Admin() {
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="__none__">— Не привязан —</SelectItem>
-                                      {adminCampaigns.map((c: any) => (
+                                      {preorderCampaignsList.map((c: any) => (
                                         <SelectItem key={c.slug} value={c.slug}>
                                           {c.title} ({c.slug})
                                         </SelectItem>
