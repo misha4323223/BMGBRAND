@@ -11237,15 +11237,22 @@ export default function Admin() {
                                 </div>
                                 <div>
                                   <label className="text-xs font-medium text-muted-foreground block mb-1">Коллаборация</label>
-                                  <Input
-                                    value={productForm.preorderGroup}
-                                    onChange={(e) => setProductForm({...productForm, preorderGroup: e.target.value})}
-                                    placeholder="slug кампании (напр. molodost-vnutri)"
-                                    data-testid="input-preorder-group"
-                                  />
-                                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                                    Slug коллаборации. Создайте кампании в разделе Предзаказы → Коллаборации
-                                  </p>
+                                  <Select
+                                    value={productForm.preorderGroup || "__none__"}
+                                    onValueChange={(v) => setProductForm({...productForm, preorderGroup: v === "__none__" ? "" : v})}
+                                  >
+                                    <SelectTrigger data-testid="input-preorder-group">
+                                      <SelectValue placeholder="Выберите кампанию…" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="__none__">— Не привязан —</SelectItem>
+                                      {adminCampaigns.map((c: any) => (
+                                        <SelectItem key={c.slug} value={c.slug}>
+                                          {c.title} ({c.slug})
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
                                   Покупатель оплачивает полную стоимость при оформлении предзаказа.
@@ -14370,7 +14377,7 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
   const { data: adminCampaigns = [], isLoading: campaignsLoading, refetch: refetchCampaigns } = useQuery<any[]>({
     queryKey: ["/api/admin/preorder/campaigns"],
     queryFn: () => adminFetch("/api/admin/preorder/campaigns", apiKey),
-    enabled: subTab === "campaigns",
+    enabled: !!apiKey,
   });
 
   const [wholesaleOrderSearch, setWholesaleOrderSearch] = useState("");

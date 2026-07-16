@@ -15114,6 +15114,16 @@ ${offersXml}
         visible: false,
       });
 
+      // Сбрасываем привязку у всех товаров с этим preorderGroup
+      try {
+        const allProducts = await storage.getProducts();
+        const bound = allProducts.filter((p: any) => p.preorderGroup === slug);
+        await Promise.all(bound.map((p: any) => storage.updateProduct(p.id, { preorderGroup: "" } as any)));
+        if (bound.length > 0) console.log(`[Preorder] Cleared preorderGroup for ${bound.length} products`);
+      } catch (clearErr: any) {
+        console.warn("[Preorder] Could not clear product bindings:", clearErr.message);
+      }
+
       res.json({ success: true });
     } catch (err: any) {
       console.error("[Preorder] Delete campaign error:", err.message);
