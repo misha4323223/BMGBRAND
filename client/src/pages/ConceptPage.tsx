@@ -561,23 +561,28 @@ export default function ConceptPage() {
                               )`,
                             }}
                           />
-                          {/* Логотип по центру */}
-                          <img
-                            src="/images/boomerangs-logo.webp"
-                            alt=""
-                            className="relative object-contain"
-                            style={{ width: "56%", opacity: 0.9, filter: "invert(1) brightness(0.95)" }}
-                            draggable="false"
-                          />
-                          <span className="relative text-[4.5px] uppercase tracking-[0.22em] text-white/40 mt-0.5 font-mono leading-none">
-                            BOOOMERANGS
-                          </span>
-                          {/* Отверстие шпинделя */}
+                          {/* Логотип — выше центра */}
+                          <div className="absolute flex flex-col items-center" style={{ top: "8%", left: 0, right: 0 }}>
+                            <img
+                              src="/images/boomerangs-logo.webp"
+                              alt=""
+                              className="object-contain"
+                              style={{ width: "54%", opacity: 0.9, filter: "invert(1) brightness(0.95)" }}
+                              draggable="false"
+                            />
+                            <span className="text-[4px] uppercase tracking-[0.22em] text-white/40 mt-0.5 font-mono leading-none">
+                              BOOOMERANGS
+                            </span>
+                          </div>
+                          {/* Отверстие шпинделя — строго по центру */}
                           <div
                             className="absolute rounded-full bg-black"
                             style={{
                               width: "13%",
                               height: "13%",
+                              top: "50%",
+                              left: "50%",
+                              transform: "translate(-50%, -50%)",
                               boxShadow: "inset 0 1px 3px rgba(255,255,255,0.1), 0 0 0 1px rgba(255,255,255,0.07)",
                             }}
                           />
