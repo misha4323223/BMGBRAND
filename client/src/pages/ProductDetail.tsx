@@ -1014,6 +1014,28 @@ export default function ProductDetail() {
                 />
               </div>
             )}
+            {/* Feature badges — mobile (below image gallery) */}
+            {(() => {
+              const badgeIds: string[] = Array.isArray((product as any).featureBadgeIds) ? (product as any).featureBadgeIds : [];
+              if (badgeIds.length === 0) return null;
+              const templates = (featureBadgeTemplatesData || {}) as Record<string, { icon?: string; title?: string; description?: string }>;
+              const badges = badgeIds.map((id) => templates[id]).filter((t): t is { icon?: string; title?: string; description?: string } => !!t && !!t.title);
+              if (badges.length === 0) return null;
+              return (
+                <div className="grid grid-cols-3 gap-2 mt-3" data-testid="section-feature-badges-mobile">
+                  {badges.map((b, idx) => {
+                    const Icon = getFeatureBadgeIcon(b.icon);
+                    return (
+                      <div key={idx} className="flex flex-col items-center text-center gap-1.5 border border-border rounded-xl p-3" data-testid={`badge-feature-mobile-${idx}`}>
+                        <Icon className="w-5 h-5 text-primary" />
+                        <span className="text-xs font-medium text-foreground leading-tight">{b.title}</span>
+                        {b.description && <span className="text-[11px] text-muted-foreground leading-tight">{b.description}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </motion.div>
 
           {/* Details */}
@@ -2027,29 +2049,6 @@ export default function ProductDetail() {
               </>
             )}
 
-            {/* Feature badges row (admin-editable templates: icon + title + description) */}
-            {(() => {
-              const badgeIds: string[] = Array.isArray((product as any).featureBadgeIds) ? (product as any).featureBadgeIds : [];
-              if (badgeIds.length === 0) return null;
-              const templates = (featureBadgeTemplatesData || {}) as Record<string, { icon?: string; title?: string; description?: string }>;
-              const badges = badgeIds.map((id) => templates[id]).filter((t): t is { icon?: string; title?: string; description?: string } => !!t && !!t.title);
-              if (badges.length === 0) return null;
-              return (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6" data-testid="section-feature-badges">
-                  {badges.map((b, idx) => {
-                    const Icon = getFeatureBadgeIcon(b.icon);
-                    return (
-                      <div key={idx} className="flex flex-col items-center text-center gap-1.5 border border-border rounded-xl p-3" data-testid={`badge-feature-${idx}`}>
-                        <Icon className="w-5 h-5 text-primary" />
-                        <span className="text-xs font-medium text-foreground leading-tight">{b.title}</span>
-                        {b.description && <span className="text-[11px] text-muted-foreground leading-tight">{b.description}</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-
             {/* Product Info Accordion */}
             <Accordion type="multiple" className="w-full border-t border-border">
               {/* Description */}
@@ -2409,6 +2408,28 @@ export default function ProductDetail() {
                 />
               </div>
             )}
+            {/* Feature badges — desktop (below image gallery) */}
+            {(() => {
+              const badgeIds: string[] = Array.isArray((product as any).featureBadgeIds) ? (product as any).featureBadgeIds : [];
+              if (badgeIds.length === 0) return null;
+              const templates = (featureBadgeTemplatesData || {}) as Record<string, { icon?: string; title?: string; description?: string }>;
+              const badges = badgeIds.map((id) => templates[id]).filter((t): t is { icon?: string; title?: string; description?: string } => !!t && !!t.title);
+              if (badges.length === 0) return null;
+              return (
+                <div className="grid grid-cols-3 gap-2 mt-4" data-testid="section-feature-badges-desktop">
+                  {badges.map((b, idx) => {
+                    const Icon = getFeatureBadgeIcon(b.icon);
+                    return (
+                      <div key={idx} className="flex flex-col items-center text-center gap-1.5 border border-border rounded-xl p-3" data-testid={`badge-feature-desktop-${idx}`}>
+                        <Icon className="w-5 h-5 text-primary" />
+                        <span className="text-xs font-medium text-foreground leading-tight">{b.title}</span>
+                        {b.description && <span className="text-[11px] text-muted-foreground leading-tight">{b.description}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </motion.div>
         </div>
       </div>
