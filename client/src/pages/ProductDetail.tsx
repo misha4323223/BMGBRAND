@@ -1022,14 +1022,18 @@ export default function ProductDetail() {
               const badges = badgeIds.map((id) => templates[id]).filter((t): t is { icon?: string; title?: string; description?: string } => !!t && !!t.title);
               if (badges.length === 0) return null;
               return (
-                <div className="grid grid-cols-3 gap-2 mt-3" data-testid="section-feature-badges-mobile">
+                <div className="grid grid-cols-3 gap-x-2 gap-y-2 mt-3" data-testid="section-feature-badges-mobile">
                   {badges.map((b, idx) => {
                     const Icon = getFeatureBadgeIcon(b.icon);
                     return (
-                      <div key={idx} className="flex flex-col items-center text-center gap-1.5 border border-border rounded-xl p-3" data-testid={`badge-feature-mobile-${idx}`}>
-                        <Icon className="w-5 h-5 text-primary" />
-                        <span className="text-xs font-medium text-foreground leading-tight">{b.title}</span>
-                        {b.description && <span className="text-[11px] text-muted-foreground leading-tight">{b.description}</span>}
+                      <div key={idx} className="flex items-start gap-2" data-testid={`badge-feature-mobile-${idx}`}>
+                        <div className="w-7 h-7 rounded-lg bg-foreground/[0.06] flex items-center justify-center shrink-0 mt-0.5">
+                          <Icon className="w-3.5 h-3.5 text-foreground/60" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold text-foreground leading-tight">{b.title}</p>
+                          {b.description && <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{b.description}</p>}
+                        </div>
                       </div>
                     );
                   })}
@@ -2416,14 +2420,18 @@ export default function ProductDetail() {
               const badges = badgeIds.map((id) => templates[id]).filter((t): t is { icon?: string; title?: string; description?: string } => !!t && !!t.title);
               if (badges.length === 0) return null;
               return (
-                <div className="grid grid-cols-3 gap-2 mt-4" data-testid="section-feature-badges-desktop">
+                <div className="grid grid-cols-3 gap-x-3 gap-y-2 mt-4" data-testid="section-feature-badges-desktop">
                   {badges.map((b, idx) => {
                     const Icon = getFeatureBadgeIcon(b.icon);
                     return (
-                      <div key={idx} className="flex flex-col items-center text-center gap-1.5 border border-border rounded-xl p-3" data-testid={`badge-feature-desktop-${idx}`}>
-                        <Icon className="w-5 h-5 text-primary" />
-                        <span className="text-xs font-medium text-foreground leading-tight">{b.title}</span>
-                        {b.description && <span className="text-[11px] text-muted-foreground leading-tight">{b.description}</span>}
+                      <div key={idx} className="flex items-start gap-2" data-testid={`badge-feature-desktop-${idx}`}>
+                        <div className="w-7 h-7 rounded-lg bg-foreground/[0.06] flex items-center justify-center shrink-0 mt-0.5">
+                          <Icon className="w-3.5 h-3.5 text-foreground/60" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold text-foreground leading-tight">{b.title}</p>
+                          {b.description && <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{b.description}</p>}
+                        </div>
                       </div>
                     );
                   })}
