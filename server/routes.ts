@@ -8633,8 +8633,16 @@ BMGBRAND — официальный производитель и магазин
         const scored: ScoredProduct[] = [];
 
         for (const p of filtered) {
+          // Full text (incl. description) — used only for literal token matching
           const searchableText = [
             p.name, p.description, p.sku, p.category, p.subcategory, p.color
+          ].filter(Boolean).join(' ').toLowerCase();
+
+          // Structural text (no description) — used for concept/category matching
+          // Excludes description so that cross-sell mentions ("подходит к худи") don't
+          // cause a coat/dress to appear in hoodie search results.
+          const structuralText = [
+            p.name, p.sku, p.category, p.subcategory, p.color
           ].filter(Boolean).join(' ').toLowerCase();
 
           // All literal (non-concept) tokens must be present in product text
@@ -8648,7 +8656,7 @@ BMGBRAND — официальный производитель и магазин
 
           let hits = 0;
           for (const idx of activatedConcepts) {
-            if (CONCEPTS[idx].productTerms.some(term => searchableText.includes(term))) hits++;
+            if (CONCEPTS[idx].productTerms.some(term => structuralText.includes(term))) hits++;
           }
 
           const score = hits / totalConcepts;
