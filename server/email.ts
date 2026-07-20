@@ -803,6 +803,75 @@ export function getPreorderStatusEmailHtml(params: {
   `;
 }
 
+export function getPreorderStatusBatchEmailHtml(params: {
+  customerName: string;
+  entries: Array<{
+    productName: string;
+    productId: number;
+    status: string;
+    cdekTrack?: string;
+    pointAddress?: string;
+    productUrl?: string;
+  }>;
+}): string {
+  const { customerName, entries } = params;
+  const firstName = customerName?.split(' ')[0] || customerName || 'Покупатель';
+  const statusLabels: Record<string, { label: string; color: string; icon: string; desc: string }> = {
+    production: { label: 'Производство', color: '#1565C0', icon: '🏭', desc: 'Передан в производство.' },
+    shipping:   { label: 'Отправка',     color: '#E65100', icon: '📦', desc: 'Укомплектован и готовится к отправке через СДЭК.' },
+    shipped:    { label: 'Отправлено',   color: '#2E7D32', icon: '🚚', desc: 'Отправлен! Посылка уже в пути.' },
+    cancelled:  { label: 'Отменён',      color: '#C62828', icon: '❌', desc: 'К сожалению, предзаказ отменён.' },
+  };
+  const cards = entries.map(e => {
+    const s = statusLabels[e.status] || { label: e.status, color: '#333', icon: '🔄', desc: 'Статус обновлён.' };
+    return `
+      <div style="border:1px solid #e0e0e0;border-radius:8px;padding:16px 20px;margin:12px 0;">
+        <div style="font-weight:bold;font-size:15px;margin-bottom:8px;">
+          ${e.productUrl ? `<a href="${e.productUrl}" style="color:#1C1C1C;text-decoration:none;">${e.productName}</a>` : e.productName}
+        </div>
+        <div style="background:${s.color}18;border-left:4px solid ${s.color};padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:${e.cdekTrack || e.pointAddress ? '10px' : '0'};">
+          <span style="font-weight:bold;color:${s.color};">${s.icon} ${s.label}</span>
+          <span style="color:#555;margin-left:8px;font-size:13px;">${s.desc}</span>
+        </div>
+        ${e.cdekTrack ? `
+        <div style="background:#1C1C1C;color:#fff;padding:10px 16px;border-radius:6px;font-family:monospace;font-size:16px;letter-spacing:2px;text-align:center;margin-top:8px;">
+          ${e.cdekTrack}
+        </div>
+        <p style="text-align:center;margin:6px 0 0;">
+          <a href="https://www.cdek.ru/ru/tracking?order_id=${e.cdekTrack}" style="color:#E53935;font-size:13px;">Отследить →</a>
+        </p>` : ''}
+        ${e.pointAddress ? `<div style="font-size:13px;color:#555;margin-top:6px;">📍 ${e.pointAddress}</div>` : ''}
+      </div>`;
+  }).join('');
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .logo { font-size: 24px; font-weight: bold; color: #1C1C1C; }
+        .footer { margin-top: 40px; font-size: 12px; color: #666; border-top: 1px solid #eee; padding-top: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="logo">BOOOMERANGS</div>
+        <h2 style="margin-top:20px;">🔄 Обновление по вашим предзаказам</h2>
+        <p>Здравствуйте, ${firstName}!</p>
+        <p>Статус следующих товаров изменился:</p>
+        ${cards}
+        <div class="footer">
+          <p>Это письмо отправлено автоматически. Если у вас есть вопросы — ответьте на это письмо или напишите нам.</p>
+          <p>© BOOOMERANGS</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 export function getPasswordResetEmailHtml(name: string, resetUrl: string): string {
   return `
     <!DOCTYPE html>

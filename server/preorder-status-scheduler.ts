@@ -15,7 +15,7 @@
  */
 
 import { storage } from "./storage";
-import { sendEmail, getPreorderStatusEmailHtml } from "./email";
+import { queuePreorderStatusEmail } from "./lib/preorder-email-buffer";
 import { notifyPreorderStatusChange } from "./telegram";
 import { vkNotifyPreorderStatusChange } from "./vk";
 import { createCdekWaybillForOrder } from "./lib/cdek-waybill";
@@ -38,14 +38,6 @@ async function sendStatusEmails(
   productId: number,
   status: string
 ): Promise<void> {
-  const siteUrl = process.env.SITE_URL || "https://booomerangs.ru";
-  const subjectMap: Record<string, string> = {
-    production: `Ваш предзаказ в производстве — ${productName}`,
-    shipping: `Ваш предзаказ готовится к отправке — ${productName}`,
-    shipped: `Ваш предзаказ отправлен — ${productName}`,
-    cancelled: `Предзаказ отменён — ${productName}`,
-  };
-
   const seenEmails = new Set<string>();
   for (const o of productOrders) {
     const email = o.customerEmail;
@@ -57,22 +49,18 @@ async function sendStatusEmails(
       try { cdekInfo = JSON.parse(typeof o.cdekData === "string" ? o.cdekData : JSON.stringify(o.cdekData)); } catch {}
     }
 
-    const html = getPreorderStatusEmailHtml({
+    queuePreorderStatusEmail(email, {
       customerName: o.customerName || "Покупатель",
       productName,
-      newStatus: status,
-      trackNumber: cdekInfo?.cdekNumber || cdekInfo?.trackNumber || undefined,
+      productId,
+      status,
+      cdekTrack:    cdekInfo?.cdekNumber || cdekInfo?.trackNumber || undefined,
       pointAddress: cdekInfo?.pointAddress || undefined,
-      productUrl: `${siteUrl}/products/${productId}`,
     });
-
-    sendEmail({ to: email, subject: subjectMap[status] || `Обновление предзаказа — ${productName}`, html })
-      .then(ok => console.log(`[PreorderScheduler] Email to ${email}: ${ok ? "OK" : "FAIL"}`))
-      .catch(err => console.error(`[PreorderScheduler] Email error for ${email}:`, err.message));
   }
 
   if (seenEmails.size > 0) {
-    console.log(`[PreorderScheduler] Sent status emails to ${seenEmails.size} unique customers (${productOrders.length} orders) status=${status}`);
+    console.log(`[PreorderScheduler] Queued status emails for ${seenEmails.size} unique customers (${productOrders.length} orders) status=${status}`);
   }
 }
 

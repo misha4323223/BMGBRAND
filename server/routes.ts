@@ -10,6 +10,7 @@ import fs from "fs";
 import { XMLParser, XMLBuilder } from "fast-xml-parser";
 import { uploadToYandexStorage, downloadFromYandexStorage, listObjectsFromYandexStorage, downloadBinaryFromYandexStorage, deleteFromYandexStorage, checkFileExistsInYandexStorage } from "./lib/storage-s3";
 import { createCdekWaybillForOrder, recreateCdekWaybillForOrder } from "./lib/cdek-waybill";
+import { queuePreorderStatusEmail } from "./lib/preorder-email-buffer";
 import sharp from "sharp";
 import { mapProductCategory, isOnSale, extractColorFromName, extractSizesFromName, mapGroupHierarchyToCategory, isIgnoredRootGroup, isAllowedRootGroup, getRootGroupCategorySlug, getArtistSlugFromName, type GroupHierarchy } from "./categoryMapper";
 import { CATEGORIES, normalizeCategories, transliterateToSlug, insertPromoCodeSchema, insertLoyaltyTierSchema, insertNewsletterSubscriptionSchema, insertBonusSettingSchema, PARTNER_COOKIE_NAME, PARTNER_DEFAULT_COMMISSION_PERCENT, getProgressiveCommissionRate } from "@shared/schema";
@@ -15850,11 +15851,11 @@ ${offersXml}
         return items.some((i: any) => i.productId === productId);
       });
 
-      // Send status change email to each customer (only for statuses customers care about)
-      // Deduplicate by email — one email per customer even if they have multiple orders
+      // Queue status change email for each unique customer.
+      // The buffer (preorder-email-buffer.ts) waits 10 min before sending,
+      // combining all product notifications for the same customer into one email.
       const notifyStatuses = ["production", "shipping", "shipped", "cancelled"];
       if (notifyStatuses.includes(status)) {
-        const siteUrl = process.env.SITE_URL || "https://booomerangs.ru";
         const seenEmails = new Set<string>();
         for (const o of productOrders) {
           const email = o.customerEmail;
@@ -15864,25 +15865,16 @@ ${offersXml}
           if (o.cdekData) {
             try { cdekInfo = JSON.parse(typeof o.cdekData === 'string' ? o.cdekData : JSON.stringify(o.cdekData)); } catch {}
           }
-          const html = getPreorderStatusEmailHtml({
+          queuePreorderStatusEmail(email, {
             customerName: o.customerName || "Покупатель",
-            productName: product.name,
-            newStatus: status,
-            trackNumber: cdekInfo?.cdekNumber || cdekInfo?.trackNumber || undefined,
+            productName:  product.name,
+            productId,
+            status,
+            cdekTrack:    cdekInfo?.cdekNumber || cdekInfo?.trackNumber || undefined,
             pointAddress: cdekInfo?.pointAddress || undefined,
-            productUrl: `${siteUrl}/products/${productId}`,
           });
-          const subjectMap: Record<string, string> = {
-            production: `Ваш предзаказ в производстве — ${product.name}`,
-            shipping: `Ваш предзаказ готовится к отправке — ${product.name}`,
-            shipped: `Ваш предзаказ отправлен — ${product.name}`,
-            cancelled: `Предзаказ отменён — ${product.name}`,
-          };
-          sendEmail({ to: email, subject: subjectMap[status] || `Обновление предзаказа — ${product.name}`, html })
-            .then(ok => console.log(`[Preorder] Status email to ${email}: ${ok ? 'OK' : 'FAIL'}`))
-            .catch(err => console.error(`[Preorder] Status email error for ${email}:`, err.message));
         }
-        console.log(`[Preorder] Sending status emails to ${seenEmails.size} unique customers (${productOrders.length} total orders) for status=${status}`);
+        console.log(`[Preorder] Queued status emails for ${seenEmails.size} unique customers (${productOrders.length} total orders), status=${status}`);
       }
 
       if (status === "shipping") {
