@@ -28,9 +28,10 @@ export async function addAbandonedCartUnsub(email: string): Promise<void> {
   }
 }
 
-const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // повтор не чаще раза в 7 дней
+const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;       // повтор не чаще раза в 7 дней
 const CHECK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // каждые 7 дней
-const FIRST_RUN_DELAY_MS = 1 * 60 * 1000; // первая проверка через 1 мин после старта
+const FIRST_RUN_DELAY_MS = 6 * 60 * 60 * 1000;     // первая проверка через 6 ч после старта (не 1 мин — чтобы рестарт сервера не давал волну писем)
+const MIN_CART_AGE_MS = 24 * 60 * 60 * 1000;        // корзина должна быть брошена минимум 24 ч
 
 export function startAbandonedCartJob(): void {
   setTimeout(() => {
@@ -49,15 +50,28 @@ export async function runAbandonedCartCheck(): Promise<void> {
   try {
     console.log('[AbandonedCart] Running check...');
     const sessions: string[] = await db.getAbandonedCartUserSessions();
+
+    // Загружаем даты создания корзин — чтобы пропускать свежие (< 24 ч)
+    const cartDates: Record<string, number> = typeof db.getCartSessionDates === 'function'
+      ? await db.getCartSessionDates()
+      : {};
+
     let sent = 0;
     let skipped = 0;
 
-    let emptyCart = 0, noEmail = 0, cooldown = 0;
+    let emptyCart = 0, noEmail = 0, cooldown = 0, tooFresh = 0;
     for (const sessionId of sessions) {
       try {
         const userIdStr = sessionId.replace('user_', '');
         const userId = parseInt(userIdStr, 10);
         if (isNaN(userId) || userId <= 0) continue;
+
+        // Пропускаем корзины моложе 24 часов — не брошенные ещё
+        const cartCreatedAt = cartDates[sessionId];
+        if (!cartCreatedAt || (Date.now() - cartCreatedAt) < MIN_CART_AGE_MS) {
+          tooFresh++;
+          continue;
+        }
 
         // Получаем товары корзины
         const cartItems = await storage.getCartItems(sessionId);
@@ -123,7 +137,7 @@ export async function runAbandonedCartCheck(): Promise<void> {
       }
     }
 
-    console.log(`[AbandonedCart] Done. Sent: ${sent}, cooldown: ${cooldown}, emptyCart: ${emptyCart}, noEmail: ${noEmail}, total sessions: ${sessions.length}`);
+    console.log(`[AbandonedCart] Done. Sent: ${sent}, cooldown: ${cooldown}, tooFresh: ${tooFresh}, emptyCart: ${emptyCart}, noEmail: ${noEmail}, total sessions: ${sessions.length}`);
   } catch (err: any) {
     console.error('[AbandonedCart] Job crashed:', err.message);
   }
