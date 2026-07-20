@@ -1,3 +1,4 @@
+- [Merch page SEO & Bot SSR](merch-na-zakaz-seo.md) — /merch-na-zakaz требовал renderMerchOrder() в bot-ssr.ts; ботам раньше отдавался пустой div
 - [Wouter v3 Switch strips path](wouter-switch-routing.md) — useRoute внутри компонента не совпадает в Switch; мерч-сабы открываются через /{slug} → SlugResolver с forcedSubSlug prop
 - [AI chat module](ai-chat-module.md) — вся AI логика в server/ai-chat.ts; экспорты, admin-роуты, 5 починенных багов
 - [tsx no watch mode](tsx-no-watch.md) — сервер запущен без --watch, изменения backend требуют перезапуска workflow вручную

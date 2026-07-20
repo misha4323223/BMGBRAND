@@ -1541,7 +1541,7 @@ BMGBRAND — официальный производитель и магазин
       { loc: "/gift-cards", changefreq: "monthly", priority: "0.6" },
       { loc: "/wholesale/register", changefreq: "monthly", priority: "0.5" },
       { loc: "/partner/register", changefreq: "monthly", priority: "0.8" },
-      { loc: "/merch-na-zakaz", changefreq: "monthly", priority: "0.8" },
+      { loc: "/merch-na-zakaz", changefreq: "weekly", priority: "0.9" },
       { loc: "/terms", changefreq: "yearly", priority: "0.2" },
       { loc: "/privacy", changefreq: "yearly", priority: "0.2" },
     ];

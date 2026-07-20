@@ -354,6 +354,53 @@ export default function MerchOrder() {
         </div>
       </section>
 
+      {/* ── SEO-ТЕКСТОВЫЙ БЛОК - ключевые запросы + технологии + гео ── */}
+      <section className="py-16 px-6 bg-zinc-950" data-testid="merch-order-seo-text">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid sm:grid-cols-3 gap-8">
+            <div>
+              <h2 className="text-base font-black uppercase tracking-tight text-white mb-3">
+                Футболки с логотипом на заказ
+              </h2>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Оверсайз и классический крой с нанесением логотипа или авторского принта — от 900&nbsp;₽. Шелкография, термотрансфер. Подходит для корпоративных подарков, мерча блогеров, фирменной одежды сотрудников.
+              </p>
+            </div>
+            <div>
+              <h2 className="text-base font-black uppercase tracking-tight text-white mb-3">
+                Худи и толстовки с принтом
+              </h2>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Трёхнитка с начёсом, вышивка или шелкография — от 1&nbsp;800&nbsp;₽. Собственный пошив на производстве в Туле. Популярный формат мерча для музыкантов, спортивных команд и корпоративного гардероба.
+              </p>
+            </div>
+            <div>
+              <h2 className="text-base font-black uppercase tracking-tight text-white mb-3">
+                Носки с символикой компании
+              </h2>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                От 180&nbsp;₽/пара при тираже от 50 пар. 200+ авторских дизайнов. Хлопок 75%, полиамид 17%, эластан 8%. Один из самых популярных форматов корпоративных подарков для партнёров.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-10 pt-8 border-t border-zinc-800 grid sm:grid-cols-2 gap-8">
+            <div>
+              <p className="text-xs font-medium tracking-[0.3em] uppercase text-primary mb-2">Технологии нанесения</p>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Используем <strong className="text-zinc-200">шелкографию</strong>, <strong className="text-zinc-200">термотрансфер</strong> и <strong className="text-zinc-200">вышивку</strong> — долговечный яркий принт после многократных стирок. Подбираем технологию под ваш дизайн и тираж.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium tracking-[0.3em] uppercase text-primary mb-2">Корпоративный мерч и B2B</p>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Работаем с юридическими лицами и ИП — закрывающие документы, договор, счёт. Тираж от 20 штук одежды или от 50 пар носков. Доставляем по всей России: <strong className="text-zinc-200">Москва</strong>, <strong className="text-zinc-200">Санкт-Петербург</strong> и регионы.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── КАК ЭТО РАБОТАЕТ - тёмная ── */}
       <section className="py-20 px-6 bg-zinc-950" data-testid="merch-order-process">
         <div className="max-w-6xl mx-auto">
@@ -555,6 +602,37 @@ export default function MerchOrder() {
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed">{client.desc}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── ЧАСТО ЗАКАЗЫВАЮТ - внутренняя перелинковка ── */}
+      <section className="py-16 px-6 bg-background" data-testid="merch-order-popular">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+            <div>
+              <p className="text-xs font-medium tracking-[0.3em] uppercase text-primary mb-2">Популярное</p>
+              <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight">Часто заказывают</h2>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {[
+              { href: "/products/clothing", label: "Футболки с логотипом", sub: "от 900 ₽" },
+              { href: "/products/clothing", label: "Худи с вышивкой", sub: "от 1 800 ₽" },
+              { href: "/products/socks", label: "Носки с логотипом", sub: "от 180 ₽/пара" },
+              { href: "/products/accessories", label: "Аксессуары с принтом", sub: "шапки, сумки, кепки" },
+              { href: "/products/merch", label: "Мерч для артистов", sub: "под ключ" },
+            ].map(({ href, label, sub }) => (
+              <Link
+                key={label}
+                href={href}
+                className="group flex flex-col gap-1 p-4 rounded-2xl border border-border hover:border-primary/40 hover:bg-card/60 transition-all duration-200"
+                data-testid={`popular-link-${label}`}
+              >
+                <span className="text-sm font-bold leading-snug group-hover:text-primary transition-colors">{label}</span>
+                <span className="text-xs text-muted-foreground">{sub}</span>
+              </Link>
             ))}
           </div>
         </div>
