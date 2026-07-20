@@ -119,12 +119,20 @@ export default function MerchOrder() {
     queryKey: ["/api/page-settings/seo"],
   });
   const merchSeo = seoOverrides?.merch_order || {};
-  const merchHero = merchSettings?.hero || {};
-  const seoTitle = merchSeo.title || "Мерч на заказ — футболки, худи, носки с принтом от 180 ₽ | BMGBRAND";
-  const seoDescription = merchSeo.description || "Производство мерча на заказ от BMGBRAND: футболки от 900 ₽, худи от 1800 ₽, носки от 180 ₽/пара. Тираж от 20 шт. Разработка дизайна бесплатно. Работаем с блогерами, артистами, компаниями. Доставка по всей России — Тула, Москва, регионы.";
-  const heroDesktopSrc: string = merchHero.heroImage || merchBannerDesktop;
-  const heroMobileSrc: string = merchHero.heroImageMobile || merchBannerMobile;
+  const merchHero = (merchSettings?.hero as Record<string, string>) || {};
+  const merchContent = (merchSettings?.content as Record<string, any>) || {};
+  const seoTitle = (merchSeo as any).title || "Мерч на заказ — футболки, худи, носки с принтом от 180 ₽ | BMGBRAND";
+  const seoDescription = (merchSeo as any).description || "Производство мерча на заказ от BMGBRAND: футболки от 900 ₽, худи от 1800 ₽, носки от 180 ₽/пара. Тираж от 20 шт. Разработка дизайна бесплатно. Работаем с блогерами, артистами, компаниями. Доставка по всей России — Тула, Москва, регионы.";
+  const heroDesktopSrc: string = merchHero.heroImage || (merchBannerDesktop as unknown as string);
+  const heroMobileSrc: string = merchHero.heroImageMobile || (merchBannerMobile as unknown as string);
   const heroAlt: string = merchHero.heroImageAlt || "Мерч на заказ — производство под ключ, доставка по всей России";
+  const pageH1: string = merchContent.h1 || "Мерч на заказ — производство мерча под ключ от BMGBRAND";
+  const techText: string = merchContent.techText || "";
+  const b2bText: string = merchContent.b2bText || "";
+  const faqItemsResolved: Array<{ question: string; answer: string }> =
+    Array.isArray(merchContent.faqItems) && merchContent.faqItems.length > 0
+      ? merchContent.faqItems
+      : FAQ_ITEMS;
 
   const form = useForm<OrderForm>({
     resolver: zodResolver(orderSchema),
@@ -207,7 +215,7 @@ export default function MerchOrder() {
     {
       "@context": "https://schema.org",
       "@type": "FAQPage",
-      "mainEntity": FAQ_ITEMS.map(item => ({
+      "mainEntity": faqItemsResolved.map(item => ({
         "@type": "Question",
         "name": item.question,
         "acceptedAnswer": { "@type": "Answer", "text": item.answer },
@@ -234,7 +242,7 @@ export default function MerchOrder() {
         canonical="https://www.booomerangs.ru/merch-na-zakaz"
       />
       <Navbar />
-      <h1 className="sr-only">Мерч на заказ — производство мерча под ключ: футболки, худи, носки с принтом от BMGBRAND (Booomerangs). Доставка по всей России.</h1>
+      <h1 className="sr-only">{pageH1}</h1>
 
       {/* ── HERO - мобильный (баннер полностью + кнопки снизу) ── */}
       <div className="block sm:hidden bg-zinc-950" data-testid="merch-order-hero">
@@ -388,13 +396,13 @@ export default function MerchOrder() {
             <div>
               <p className="text-xs font-medium tracking-[0.3em] uppercase text-primary mb-2">Технологии нанесения</p>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Используем <strong className="text-zinc-200">шелкографию</strong>, <strong className="text-zinc-200">термотрансфер</strong> и <strong className="text-zinc-200">вышивку</strong> — долговечный яркий принт после многократных стирок. Подбираем технологию под ваш дизайн и тираж.
+                {techText || <>Используем <strong className="text-zinc-200">шелкографию</strong>, <strong className="text-zinc-200">термотрансфер</strong> и <strong className="text-zinc-200">вышивку</strong> — долговечный яркий принт после многократных стирок. Подбираем технологию под ваш дизайн и тираж.</>}
               </p>
             </div>
             <div>
               <p className="text-xs font-medium tracking-[0.3em] uppercase text-primary mb-2">Корпоративный мерч и B2B</p>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Работаем с юридическими лицами и ИП — закрывающие документы, договор, счёт. Тираж от 20 штук одежды или от 50 пар носков. Доставляем по всей России: <strong className="text-zinc-200">Москва</strong>, <strong className="text-zinc-200">Санкт-Петербург</strong> и регионы.
+                {b2bText || <>Работаем с юридическими лицами и ИП — закрывающие документы, договор, счёт. Тираж от 20 штук одежды или от 50 пар носков. Доставляем по всей России: <strong className="text-zinc-200">Москва</strong>, <strong className="text-zinc-200">Санкт-Петербург</strong> и регионы.</>}
               </p>
             </div>
           </div>
@@ -646,7 +654,7 @@ export default function MerchOrder() {
             Частые вопросы
           </h2>
           <Accordion type="single" collapsible className="space-y-2">
-            {FAQ_ITEMS.map((item, i) => (
+            {faqItemsResolved.map((item, i) => (
               <AccordionItem
                 key={i}
                 value={`faq-${i}`}

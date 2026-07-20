@@ -9,12 +9,20 @@ import { ImageUploadField } from "@/components/admin/MediaUploadField";
 
 type SeoFieldState = { default: string; value: string };
 type SeoHero = { heroImage: string; heroImageMobile: string; heroImageAlt: string; note?: string };
+type SeoMerchContent = {
+  h1: string;
+  introParagraph: string;
+  techText: string;
+  b2bText: string;
+  faqItems: Array<{ question: string; answer: string }>;
+};
 type SeoPage = {
   type: "home" | "category" | "subcategory" | "subsubcategory" | "artist" | "concept" | "merch_order" | "partner_register" | "static";
   key: string;
   label: string;
   fields: { title: SeoFieldState; description: SeoFieldState };
   hero?: SeoHero;
+  content?: SeoMerchContent;
 };
 
 const TYPE_LABELS: Record<SeoPage["type"], string> = {
@@ -45,7 +53,7 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ title: string; description: string; heroImage: string; heroImageMobile: string; heroImageAlt: string } | null>(null);
+  const [draft, setDraft] = useState<{ title: string; description: string; heroImage: string; heroImageMobile: string; heroImageAlt: string; h1: string; introParagraph: string; techText: string; b2bText: string; faqItems: Array<{ question: string; answer: string }> } | null>(null);
   const [saving, setSaving] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery<{ pages: SeoPage[] }>({
@@ -71,6 +79,11 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
       heroImage: p.hero?.heroImage || "",
       heroImageMobile: p.hero?.heroImageMobile || "",
       heroImageAlt: p.hero?.heroImageAlt || "",
+      h1: p.content?.h1 || "",
+      introParagraph: p.content?.introParagraph || "",
+      techText: p.content?.techText || "",
+      b2bText: p.content?.b2bText || "",
+      faqItems: p.content?.faqItems || [],
     });
   };
 
@@ -120,6 +133,19 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
             heroImageAlt: draft.heroImageAlt,
           }),
         });
+        if (selectedPage.type === "merch_order") {
+          await adminFetch(`/api/admin/page-settings/merch_order/content`, apiKey, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              h1: draft.h1,
+              introParagraph: draft.introParagraph,
+              techText: draft.techText,
+              b2bText: draft.b2bText,
+              faqItems: draft.faqItems,
+            }),
+          });
+        }
       } else if (selectedPage.type === "subsubcategory") {
         await adminFetch(`/api/admin/page-settings/seo/subsubcategory:${selectedPage.key}`, apiKey, {
           method: "POST",
@@ -260,6 +286,95 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
               />
               <p className="text-xs text-muted-foreground">{draft.description.length} символов (рекомендуется 120–160)</p>
             </div>
+
+            {selectedPage.type === "merch_order" && draft && (
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center gap-1.5">
+                  <FileText className="w-4 h-4" />
+                  <h4 className="text-sm font-semibold">Контент страницы (H1, тексты, FAQ)</h4>
+                </div>
+                <p className="text-xs text-muted-foreground">Пустые поля — используются значения по умолчанию из кода. Применяется и к видимой странице, и к HTML для поисковых ботов.</p>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">H1 — главный заголовок (скрытый, для SEO)</label>
+                  <Input
+                    value={draft.h1}
+                    onChange={e => setDraft({ ...draft, h1: e.target.value })}
+                    placeholder="Мерч на заказ — производство мерча под ключ от BMGBRAND"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Технологии нанесения (абзац)</label>
+                  <Textarea
+                    value={draft.techText}
+                    onChange={e => setDraft({ ...draft, techText: e.target.value })}
+                    placeholder="Используем шелкографию, термотрансфер и вышивку..."
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Корпоративный мерч / B2B (абзац)</label>
+                  <Textarea
+                    value={draft.b2bText}
+                    onChange={e => setDraft({ ...draft, b2bText: e.target.value })}
+                    placeholder="Работаем с юридическими лицами и ИП..."
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold">FAQ — вопросы и ответы</label>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-7 px-2"
+                      onClick={() => setDraft({ ...draft, faqItems: [...draft.faqItems, { question: "", answer: "" }] })}
+                    >
+                      + Добавить
+                    </Button>
+                  </div>
+                  {draft.faqItems.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic">Не задано — используется список по умолчанию из кода (9 вопросов).</p>
+                  )}
+                  {draft.faqItems.map((item, idx) => (
+                    <div key={idx} className="border border-border rounded-lg p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-muted-foreground w-5 shrink-0">{idx + 1}.</span>
+                        <Input
+                          value={item.question}
+                          onChange={e => {
+                            const updated = [...draft.faqItems];
+                            updated[idx] = { ...updated[idx], question: e.target.value };
+                            setDraft({ ...draft, faqItems: updated });
+                          }}
+                          placeholder="Вопрос"
+                          className="text-xs"
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => {
+                            const updated = draft.faqItems.filter((_, i) => i !== idx);
+                            setDraft({ ...draft, faqItems: updated });
+                          }}
+                        >×</Button>
+                      </div>
+                      <Textarea
+                        value={item.answer}
+                        onChange={e => {
+                          const updated = [...draft.faqItems];
+                          updated[idx] = { ...updated[idx], answer: e.target.value };
+                          setDraft({ ...draft, faqItems: updated });
+                        }}
+                        placeholder="Ответ"
+                        rows={2}
+                        className="text-xs"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {selectedPage.hero && (
               <div className="space-y-4 pt-4 border-t">

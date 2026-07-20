@@ -13260,6 +13260,7 @@ BMGBRAND — официальный производитель и магазин
       let merchOrderSettings: Record<string, any> = {};
       try { merchOrderSettings = await storage.getPageSettings("merch_order"); } catch { /* none yet */ }
       const merchOrderHero = merchOrderSettings?.hero || {};
+      const merchOrderContent = (merchOrderSettings?.content as Record<string, any>) || {};
       pages.push({
         type: "merch_order",
         key: "merch_order",
@@ -13269,6 +13270,15 @@ BMGBRAND — официальный производитель и магазин
           heroImage: merchOrderHero.heroImage || "",
           heroImageMobile: merchOrderHero.heroImageMobile || "",
           heroImageAlt: merchOrderHero.heroImageAlt || "",
+        },
+        content: {
+          h1: (merchOrderContent.h1 as string) || "",
+          introParagraph: (merchOrderContent.introParagraph as string) || "",
+          techText: (merchOrderContent.techText as string) || "",
+          b2bText: (merchOrderContent.b2bText as string) || "",
+          faqItems: Array.isArray(merchOrderContent.faqItems) && merchOrderContent.faqItems.length > 0
+            ? merchOrderContent.faqItems as Array<{ question: string; answer: string }>
+            : [],
         },
       });
 
