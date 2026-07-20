@@ -3716,6 +3716,19 @@ BMGBRAND — официальный производитель и магазин
           if (!isNaN(addonOrderId)) {
             console.log(`[YooKassa Webhook] Addon payment succeeded for order ${addonOrderId}, paymentId=${paymentId}`);
             await processAddonOrderPaid(addonOrderId, paymentId, "yookassa", "[YooKassa Webhook]");
+            // If a CDEK waybill was already created for this order, recreate it with the updated items list
+            const addonOrderForCdek = await storage.getOrder(addonOrderId);
+            if (addonOrderForCdek?.cdekData) {
+              try {
+                const cdekInfo = JSON.parse(addonOrderForCdek.cdekData as string);
+                if (cdekInfo?.orderUuid) {
+                  console.log(`[YooKassa Webhook] Addon order ${addonOrderId} has existing CDEK waybill, recreating with updated items`);
+                  recreateCdekWaybillForOrder(addonOrderId).catch(err =>
+                    console.error(`[YooKassa Webhook] CDEK recreate after addon failed for order ${addonOrderId}:`, err.message)
+                  );
+                }
+              } catch {}
+            }
           }
         } else {
           const numericId = Number(orderId);
@@ -4117,6 +4130,19 @@ BMGBRAND — официальный производитель и магазин
           if (!isNaN(addonOrderId)) {
             console.log(`[T-Bank Webhook] Addon payment succeeded for order ${addonOrderId}, paymentId=${PaymentId}`);
             await processAddonOrderPaid(addonOrderId, String(PaymentId), "tbank", "[T-Bank Webhook]");
+            // If a CDEK waybill was already created for this order, recreate it with the updated items list
+            const addonOrderForCdek = await storage.getOrder(addonOrderId);
+            if (addonOrderForCdek?.cdekData) {
+              try {
+                const cdekInfo = JSON.parse(addonOrderForCdek.cdekData as string);
+                if (cdekInfo?.orderUuid) {
+                  console.log(`[T-Bank Webhook] Addon order ${addonOrderId} has existing CDEK waybill, recreating with updated items`);
+                  recreateCdekWaybillForOrder(addonOrderId).catch(err =>
+                    console.error(`[T-Bank Webhook] CDEK recreate after addon failed for order ${addonOrderId}:`, err.message)
+                  );
+                }
+              } catch {}
+            }
           }
         } else {
           // Could be either a single gift card or a regular order
@@ -16028,12 +16054,15 @@ ${offersXml}
       });
 
       // Send status change email to each customer (only for statuses customers care about)
+      // Deduplicate by email — one email per customer even if they have multiple orders
       const notifyStatuses = ["production", "shipping", "shipped", "cancelled"];
       if (notifyStatuses.includes(status)) {
         const siteUrl = process.env.SITE_URL || "https://booomerangs.ru";
+        const seenEmails = new Set<string>();
         for (const o of productOrders) {
           const email = o.customerEmail;
-          if (!email) continue;
+          if (!email || seenEmails.has(email)) continue;
+          seenEmails.add(email);
           let cdekInfo: any = null;
           if (o.cdekData) {
             try { cdekInfo = JSON.parse(typeof o.cdekData === 'string' ? o.cdekData : JSON.stringify(o.cdekData)); } catch {}
@@ -16056,10 +16085,17 @@ ${offersXml}
             .then(ok => console.log(`[Preorder] Status email to ${email}: ${ok ? 'OK' : 'FAIL'}`))
             .catch(err => console.error(`[Preorder] Status email error for ${email}:`, err.message));
         }
-        console.log(`[Preorder] Sending status emails to ${productOrders.length} customers for status=${status}`);
+        console.log(`[Preorder] Sending status emails to ${seenEmails.size} unique customers (${productOrders.length} total orders) for status=${status}`);
       }
 
       if (status === "shipping") {
+        // Update order status paid → processing for all affected orders
+        for (const o of productOrders) {
+          if (o.status === "paid") {
+            await storage.updateOrderStatus(o.id, "processing");
+            console.log(`[Preorder] Order #${o.id} status updated: paid → processing`);
+          }
+        }
         console.log(`[Preorder] Triggering CDEK waybills for ${productOrders.length} orders of product ${productId}`);
         for (const o of productOrders) {
           createCdekWaybillForOrder(o.id).then(r => {

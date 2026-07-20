@@ -781,7 +781,7 @@ export function notifyAddonOrderPaid(order: {
   });
   text += sep;
   text += `<b>Доплата: ${price(addedTotal)}</b>\n`;
-  text += `⚠️ Накладная CDEK обновляется автоматически`;
+  text += `📦 Если накладная CDEK уже создана — она пересоздаётся автоматически с новым составом`;
 
   sendRetailMessage(text).catch(err => console.error("[Telegram] notifyAddonOrderPaid failed:", err));
 }
