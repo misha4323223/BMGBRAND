@@ -618,10 +618,10 @@ export default function MerchOrder() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {[
-              { href: "/products/clothing", label: "Футболки с логотипом", sub: "от 900 ₽" },
-              { href: "/products/clothing", label: "Худи с вышивкой", sub: "от 1 800 ₽" },
+              { href: "/products/clothing", label: "Футболки бланковые / с принтами", sub: "от 900 ₽" },
+              { href: "/products/clothing", label: "Худи, свитшоты", sub: "от 1 800 ₽" },
               { href: "/products/socks", label: "Носки с логотипом", sub: "от 180 ₽/пара" },
-              { href: "/products/accessories", label: "Аксессуары с принтом", sub: "шапки, сумки, кепки" },
+              { href: "/products/accessories", label: "Аксессуары", sub: "шапки, сумки, кепки" },
               { href: "/products/merch", label: "Мерч для артистов", sub: "под ключ" },
             ].map(({ href, label, sub }) => (
               <Link
