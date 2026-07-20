@@ -1200,7 +1200,13 @@ export default function Admin() {
   const [targetSubSubcategory, setTargetSubSubcategory] = useState<string>("");
   const [addlCategory, setAddlCategory] = useState<string>("");
   const [addlSubcategory, setAddlSubcategory] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"products" | "orders" | "wholesale" | "problems" | "bonuses" | "pages" | "reviews" | "favorites" | "preorders" | "security" | "clients" | "analytics" | "partners" | "ai" | "seo">("products");
+  const VALID_TABS = ["products","orders","wholesale","problems","bonuses","pages","reviews","favorites","preorders","security","clients","analytics","partners","ai","seo"] as const;
+  type AdminTab = typeof VALID_TABS[number];
+  const [activeTab, setActiveTabRaw] = useState<AdminTab>(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("admin_active_tab") : null;
+    return (saved && (VALID_TABS as readonly string[]).includes(saved) ? saved : "products") as AdminTab;
+  });
+  const setActiveTab = (tab: AdminTab) => { localStorage.setItem("admin_active_tab", tab); setActiveTabRaw(tab); };
   const [clientSearch, setClientSearch] = useState("");
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [clientsTypeTab, setClientsTypeTab] = useState<"retail" | "wholesale">("retail");
