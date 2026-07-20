@@ -24,6 +24,7 @@ import { initPostPurchaseEmailJob } from "./post-purchase-email";
 import { initAutonomousAgent } from "./autonomous-agent";
 import { startNewProductsNotifierJob } from "./new-products-notifier";
 import { startPreorderNotifierJob } from "./preorder-notifier";
+import { startPreorderStatusScheduler } from "./preorder-status-scheduler";
 import { notifyError } from "./error-monitor";
 
 // Last-resort safety net: if a YDB-related promise escapes try/catch (e.g.
@@ -444,6 +445,7 @@ async function seedDefaultLegalDocuments() {
       initAutonomousAgent();
       startNewProductsNotifierJob();
       startPreorderNotifierJob();
+      startPreorderStatusScheduler();
       migrateAiKnowledgeDefaults();
     },
   );
