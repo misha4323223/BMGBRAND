@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { CATEGORIES, CategorySlug, normalizeCategories } from "@shared/schema";
 import type { CategoryConfig, SubcategoryConfig, SubSubcategoryConfig } from "@shared/schema";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { Loader2, X, ChevronDown, ChevronRight, ChevronLeft, PanelLeft, PanelLeftClose, ArrowRight, Heart, ShoppingBag, ArrowLeft, BrainCog, MessageCircle, Menu, Play, Pause, Headphones, Music } from "lucide-react";
@@ -1427,24 +1427,14 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   const [, catSubParams] = useRoute("/products/:catSlug/:subSlug");
   const [, catOnlyParams] = useRoute("/products/:catSlug");
 
-  const [search, setSearch] = useState(window.location.search);
-  
-  useEffect(() => {
-    const handleLocationChange = () => {
-      setSearch(window.location.search);
-    };
-    window.addEventListener("popstate", handleLocationChange);
-    return () => window.removeEventListener("popstate", handleLocationChange);
-  }, []);
-  
+  const search = useSearch();
+
   const navigate = useCallback((path: string, replace = false) => {
     if (replace) {
       window.history.replaceState(null, "", path);
     } else {
       window.history.pushState(null, "", path);
     }
-    const url = new URL(path, window.location.origin);
-    setSearch(url.search);
   }, []);
   
   const params = useMemo(() => new URLSearchParams(search), [search]);
