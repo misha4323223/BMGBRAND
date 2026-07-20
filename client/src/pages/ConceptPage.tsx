@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowRight, Package, ShoppingCart, ArrowLeft, AlertTriangle, Info, Megaphone, Flame } from "lucide-react";
+import { ArrowRight, Package, ShoppingCart, ArrowLeft, AlertTriangle, Info, Megaphone, Flame, ChevronLeft, ChevronRight } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
@@ -202,13 +202,21 @@ export default function ConceptPage() {
   });
   const conceptSeo = seoOverrides?.concept || {};
 
-  const heroBannerDesktop: string = conceptSettings?.hero?.heroImage || "";
-  const heroBannerMobile: string = conceptSettings?.hero?.heroImageMobile || "";
-  const heroBannerAlt: string = conceptSettings?.hero?.heroImageAlt || "Предзаказ — твой доступ к будущим релизам";
-  const [heroImgLoaded, setHeroImgLoaded] = useState(false);
-  // Пока идёт запрос настроек ИЛИ картинка баннера ещё не отрисовалась — держим скелет,
-  // чтобы баннер не «выпрыгивал» и не сдвигал контент после открытия страницы.
-  const showHeroSkeleton = heroLoading || (!heroImgLoaded && !!(heroBannerDesktop || heroBannerMobile));
+  // Слайды — обратная совместимость: если slides нет, берём одиночный hero.heroImage
+  const getConceptSlides = (): any[] => {
+    const hero = conceptSettings?.hero;
+    if (!hero) return [];
+    if (hero.slides && Array.isArray(hero.slides)) {
+      return hero.slides.filter((s: any) => s.heroImage || s.heroVideo);
+    }
+    if (hero.heroImage) return [{ heroImage: hero.heroImage, heroImageMobile: hero.heroImageMobile || "", heroImageAlt: hero.heroImageAlt || "", bgType: "image", heroVideo: "" }];
+    return [];
+  };
+  const conceptSlides = getConceptSlides();
+  const [heroSlideIndex, setHeroSlideIndex] = useState(0);
+  const [heroPaused, setHeroPaused] = useState(false);
+  const [heroAnimKey, setHeroAnimKey] = useState(0);
+  const activeSlideIndex = conceptSlides.length > 0 ? heroSlideIndex % conceptSlides.length : 0;
 
   const promoBanner = conceptSettings?.promo_banner || {};
   const bannerEnabled: boolean = !!promoBanner.enabled;
@@ -228,6 +236,27 @@ export default function ConceptPage() {
       setLocation(`/concept/${campaigns[0].slug}`);
     }
   }, [campaigns, campaignsLoading]);
+
+  // Авто-смена слайдов (только при нескольких заполненных слайдах)
+  useEffect(() => {
+    if (conceptSlides.length <= 1) return;
+    const timer = setInterval(() => {
+      if (heroPaused) return;
+      setHeroSlideIndex(prev => (prev + 1) % conceptSlides.length);
+      setHeroAnimKey(k => k + 1);
+    }, 7000);
+    return () => clearInterval(timer);
+  }, [conceptSettings, heroPaused]);
+
+  // Предзагрузка следующих слайдов
+  useEffect(() => {
+    if (conceptSlides.length <= 1) return;
+    const isMobile = window.innerWidth < 640;
+    conceptSlides.slice(1).forEach((s: any) => {
+      const src = isMobile && s.heroImageMobile ? s.heroImageMobile : s.heroImage;
+      if (src) { const img = new Image(); img.src = src; }
+    });
+  }, [conceptSettings]);
 
   const { toast } = useToast();
   const [spinningSlug, setSpinningSlug] = useState<string | null>(null);
@@ -315,56 +344,126 @@ export default function ConceptPage() {
         description={conceptSeo.description || "Pre-drop BOOOMERANGS — поддержи создание новых моделей одежды с авторскими принтами. Голосуй рублём за то, что хочешь носить."}
         keywords="предзаказ, pre-drop, российский бренд одежды с авторскими принтами, BOOOMERANGS"
       />
-      {/* Hero banner — резервируем место сразу и держим скелет, пока картинка не отрисуется,
-          чтобы баннер не «выпрыгивал» и не сдвигал контент после открытия страницы */}
-      <section
-        className={`bg-black relative overflow-hidden ${
-          showHeroSkeleton ? "h-[52vw] max-h-[480px] min-h-[200px] sm:h-[34vw] sm:max-h-[560px]" : ""
-        }`}
-      >
-        {showHeroSkeleton && (
-          <div className="absolute inset-0 bg-zinc-900 animate-pulse" />
-        )}
-
-        {/* Desktop image */}
-        {!heroLoading && heroBannerDesktop && (
-          <img
-            src={heroBannerDesktop}
-            alt={heroBannerAlt}
-            loading="eager"
-            // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
-            fetchpriority="high"
-            onLoad={() => setHeroImgLoaded(true)}
-            className={`hidden sm:block w-full object-cover transition-opacity duration-300 ${
-              heroImgLoaded ? "opacity-100" : "opacity-0"
-            }`}
-          />
-        )}
-        {/* Mobile image */}
-        {!heroLoading && heroBannerMobile && (
-          <img
-            src={heroBannerMobile}
-            alt={heroBannerAlt}
-            loading="eager"
-            // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
-            fetchpriority="high"
-            onLoad={() => setHeroImgLoaded(true)}
-            className={`block sm:hidden w-full object-cover transition-opacity duration-300 ${
-              heroImgLoaded ? "opacity-100" : "opacity-0"
-            }`}
-          />
-        )}
-
-        {/* Кнопка «назад» — верхний левый угол, видна всегда независимо от баннера */}
-        <button
-          onClick={() => window.history.length > 1 ? window.history.back() : window.location.href = '/'}
-          className="absolute top-4 left-4 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-white px-2 py-2 sm:px-3 rounded-full text-sm font-medium hover:bg-black/70 transition-colors"
-          data-testid="button-back-hero"
+      {/* Hero — слайдер до 3 слайдов, обратно совместим с одиночным баннером */}
+      {(heroLoading || conceptSlides.length > 0) && (
+        <section
+          className="relative bg-black overflow-hidden"
+          onTouchStart={() => setHeroPaused(true)}
+          onTouchEnd={() => setHeroPaused(false)}
+          onTouchCancel={() => setHeroPaused(false)}
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="hidden sm:inline">Назад</span>
-        </button>
-      </section>
+          {/* Skeleton пока грузятся настройки */}
+          {heroLoading && (
+            <div className="h-[45vw] max-h-[480px] min-h-[160px] bg-zinc-900 animate-pulse" />
+          )}
+
+          {/* Слайды */}
+          {!heroLoading && conceptSlides.length > 0 && (
+            <div className="relative h-[45vw] max-h-[480px] min-h-[160px]">
+              {conceptSlides.map((s: any, i: number) => (
+                <div
+                  key={i === activeSlideIndex ? `active-${heroAnimKey}` : i}
+                  className="absolute inset-0 transition-opacity duration-700"
+                  style={{ opacity: i === activeSlideIndex ? 1 : 0, zIndex: i === activeSlideIndex ? 1 : 0 }}
+                >
+                  {s.bgType === "video" && s.heroVideo ? (
+                    <video
+                      src={s.heroVideo}
+                      autoPlay loop muted playsInline
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : (
+                    <picture className="absolute inset-0 block">
+                      {s.heroImageMobile && (
+                        <source media="(max-width: 639px)" srcSet={s.heroImageMobile} />
+                      )}
+                      <img
+                        src={s.heroImage || ""}
+                        alt={s.heroImageAlt || "BOOOMERANGS Pre-drop"}
+                        loading={i === 0 ? "eager" : "lazy"}
+                        // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
+                        fetchpriority={i === 0 ? "high" : "low"}
+                        className="w-full h-full object-cover"
+                      />
+                    </picture>
+                  )}
+
+                  {/* Текст и кнопка поверх слайда */}
+                  {(s.tagline1 || s.tagline2 || s.buttonText) && (
+                    <>
+                      <div className="absolute inset-0 bg-black/40 pointer-events-none" />
+                      <div className="absolute inset-0 flex flex-col items-center justify-end pb-8 sm:pb-10 z-10 px-4">
+                        {(s.tagline1 || s.tagline2) && (
+                          <p className="font-mono text-[9px] sm:text-xs text-white uppercase tracking-[0.2em] text-center leading-relaxed drop-shadow-lg mb-4">
+                            {s.tagline1}{s.tagline1 && s.tagline2 ? <><br />{s.tagline2}</> : s.tagline2}
+                          </p>
+                        )}
+                        {s.buttonText && (
+                          <Link href={s.buttonLink || "/concept"}>
+                            <button className="bg-white/80 backdrop-blur-sm text-black hover:bg-white transition-colors px-5 py-2 rounded-full text-xs font-semibold uppercase tracking-widest">
+                              {s.buttonText}
+                            </button>
+                          </Link>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+
+              {/* Стрелки навигации — только при нескольких слайдах */}
+              {conceptSlides.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Предыдущий слайд"
+                    onClick={() => { setHeroSlideIndex((activeSlideIndex - 1 + conceptSlides.length) % conceptSlides.length); setHeroAnimKey(k => k + 1); }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 z-20 p-2 text-white/70 hover:text-white transition-colors"
+                  >
+                    <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7 stroke-[1.5]" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Следующий слайд"
+                    onClick={() => { setHeroSlideIndex((activeSlideIndex + 1) % conceptSlides.length); setHeroAnimKey(k => k + 1); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-2 text-white/70 hover:text-white transition-colors"
+                  >
+                    <ChevronRight className="w-6 h-6 sm:w-7 sm:h-7 stroke-[1.5]" />
+                  </button>
+                </>
+              )}
+
+              {/* Точки-индикаторы */}
+              {conceptSlides.length > 1 && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+                  {conceptSlides.map((_: any, i: number) => (
+                    <button
+                      key={i}
+                      onClick={() => { setHeroSlideIndex(i); setHeroAnimKey(k => k + 1); }}
+                      aria-label={`Слайд ${i + 1}`}
+                      className={`rounded-full transition-all duration-300 ${
+                        i === activeSlideIndex
+                          ? "w-4 h-1.5 bg-white"
+                          : "w-1.5 h-1.5 bg-white/50 hover:bg-white/80"
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Кнопка «назад» — поверх всего */}
+          <button
+            onClick={() => window.history.length > 1 ? window.history.back() : (window.location.href = '/')}
+            className="absolute top-4 left-4 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-white px-2 py-2 sm:px-3 rounded-full text-sm font-medium hover:bg-black/70 transition-colors"
+            data-testid="button-back-hero"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Назад</span>
+          </button>
+        </section>
+      )}
 
       {/* Виджет подписки */}
       <PreorderSubscribeWidget />
