@@ -8572,13 +8572,14 @@ BMGBRAND — официальный производитель и магазин
           },
           // categories
           { triggers: ["костюм", "suit", "комплект"], productTerms: ["костюм", "suit", "комплект"] },
-          { triggers: ["толстовк", "худи", "hoodie", "свитшот", "sweatshirt"], productTerms: ["толстовк", "худи", "hoodie", "свитшот", "sweatshirt"] },
+          { triggers: ["толстовк", "худи", "hoodie"], productTerms: ["толстовк", "худи", "hoodie"] },
+          { triggers: ["свитшот", "sweatshirt"], productTerms: ["свитшот", "sweatshirt"] },
           { triggers: ["футболк", "tshirt", "t-shirt"], productTerms: ["футболк", "tshirt", "t-shirt"] },
           { triggers: ["свитер", "sweater", "джемпер", "jumper", "кофт"], productTerms: ["свитер", "sweater", "джемпер", "jumper", "кофт"] },
           { triggers: ["штаны", "брюки", "джоггер", "jogger", "pants", "трек"], productTerms: ["штаны", "брюки", "джоггер", "jogger", "pants", "трек"] },
           { triggers: ["шорты", "shorts"], productTerms: ["шорты", "shorts"] },
           { triggers: ["носки", "носк", "socks"], productTerms: ["носки", "носк", "socks"] },
-          { triggers: ["куртк", "jacket", "coat", "пальто"], productTerms: ["куртк", "jacket", "coat", "пальто"] },
+          { triggers: ["куртк", "jacket", "coat", "пальто", "плащ", "ветровк", "анорак"], productTerms: ["куртк", "jacket", "coat", "пальто", "плащ", "ветровк", "анорак"] },
           { triggers: ["платье", "dress"], productTerms: ["платье", "dress"] },
           { triggers: ["юбка", "skirt"], productTerms: ["юбка", "skirt"] },
           // style / fit
