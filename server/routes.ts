@@ -13318,7 +13318,43 @@ BMGBRAND — официальный производитель и магазин
             label: `${cat.name} → ${sub.name}`,
             fields: field(undefined, undefined, seoOverrides[`subcategory:${subKey}`]),
           });
+          for (const subSub of (sub.subSubcategories || [])) {
+            const subSubKey = `${slug}:${sub.slug}:${subSub.slug}`;
+            pages.push({
+              type: "subsubcategory",
+              key: subSubKey,
+              label: `${cat.name} → ${sub.name} → ${subSub.name}`,
+              fields: field(
+                `${subSub.name} — купить в BMGBRAND | ${sub.name}, ${cat.name}`,
+                undefined,
+                seoOverrides[`subsubcategory:${subSubKey}`]
+              ),
+            });
+          }
         }
+      }
+
+      // --- Static / informational pages ---
+      const staticPageDefs = [
+        { key: "catalog",            label: "Каталог (/products)",                        defaultTitle: "Каталог — одежда и аксессуары | BMGBRAND",                                              defaultDesc: "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России." },
+        { key: "about",              label: "О нас (/about)",                              defaultTitle: "О бренде BOOOMERANGS — история, производство, команда | BMGBRAND",                     defaultDesc: "BOOOMERANGS (BMGBRAND) — российский бренд одежды из Тулы. Основан в 2006 году, своё производство с 2019 года." },
+        { key: "faq",                label: "FAQ — Вопросы и ответы (/faq)",               defaultTitle: "Вопросы и ответы | BMGBRAND",                                                          defaultDesc: "Ответы на частые вопросы о заказах, доставке, оплате и возврате в интернет-магазине BMGBRAND." },
+        { key: "blog",               label: "Блог (/blog)",                                defaultTitle: "Блог BMGBRAND",                                                                        defaultDesc: "Новости, статьи и истории бренда BMGBRAND." },
+        { key: "vacancies",          label: "Вакансии (/vacancies)",                       defaultTitle: "Вакансии — BMGBRAND",                                                                  defaultDesc: "Открытые вакансии в команду BMGBRAND." },
+        { key: "terms",              label: "Пользовательское соглашение (/terms)",        defaultTitle: "Пользовательское соглашение | BMGBRAND",                                               defaultDesc: "Условия использования сайта BMGBRAND." },
+        { key: "privacy",            label: "Политика конфиденциальности (/privacy)",      defaultTitle: "Политика конфиденциальности | BMGBRAND",                                               defaultDesc: "Политика обработки персональных данных BMGBRAND." },
+        { key: "care",               label: "Уход за изделиями (/care)",                   defaultTitle: "Уход за изделиями | BMGBRAND",                                                         defaultDesc: "Рекомендации по уходу за одеждой и аксессуарами BMGBRAND." },
+        { key: "links",              label: "Ссылки (/links)",                             defaultTitle: "BMGBRAND — Ссылки",                                                                    defaultDesc: "Официальные ссылки и соцсети бренда BMGBRAND." },
+        { key: "gift_cards",         label: "Подарочные карты (/gift-cards)",              defaultTitle: "Подарочные карты BMGBRAND",                                                            defaultDesc: "Подарочные карты интернет-магазина BMGBRAND — идеальный подарок." },
+        { key: "wholesale_register", label: "Оптовая программа (/wholesale/register)",     defaultTitle: "Оптовая программа BMGBRAND",                                                           defaultDesc: "Стать оптовым партнёром BMGBRAND — условия сотрудничества и регистрация." },
+      ];
+      for (const sp of staticPageDefs) {
+        pages.push({
+          type: "static",
+          key: sp.key,
+          label: sp.label,
+          fields: field(sp.defaultTitle, sp.defaultDesc, seoOverrides[`static:${sp.key}`]),
+        });
       }
 
       // --- Artists ---

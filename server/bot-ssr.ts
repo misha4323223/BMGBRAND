@@ -418,9 +418,10 @@ function renderCatalog(): string | null {
     ],
   });
 
+  const catalogSeo = getSeoOverride("static:catalog");
   const head = baseHead({
-    title: `Каталог — одежда и аксессуары | ${SITE_NAME}`,
-    description: "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.",
+    title: catalogSeo.title || `Каталог — одежда и аксессуары | ${SITE_NAME}`,
+    description: catalogSeo.description || "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.",
     canonical: `${SITE_URL}/products`,
     ogImage: `${SITE_URL}/favicon.png`,
     jsonLd,
@@ -922,8 +923,9 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
   const catName = catMeta?.name || category.name;
   const pageUrl = `${SITE_URL}/products/${category.slug}/${subSlug}/${subSubSlug}`;
 
-  const title = `${subSubcategory.name} — купить в ${SITE_NAME} | ${subcategory.name}, ${catName}`;
-  const desc = `${subSubcategory.name} от BMGBRAND — ${subcategory.name.toLowerCase()}, ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России СДЭК и Яндекс Доставкой.`;
+  const subSubSeo = getSeoOverride(`subsubcategory:${catSlug}:${subSlug}:${subSubSlug}`);
+  const title = subSubSeo.title || `${subSubcategory.name} — купить в ${SITE_NAME} | ${subcategory.name}, ${catName}`;
+  const desc = subSubSeo.description || `${subSubcategory.name} от BMGBRAND — ${subcategory.name.toLowerCase()}, ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России СДЭК и Яндекс Доставкой.`;
 
   const jsonLd = safeJsonLd([
     {
@@ -1039,9 +1041,10 @@ function renderAbout(): string {
     },
   ]);
 
+  const aboutSeo = getSeoOverride("static:about");
   const head = baseHead({
-    title: `О бренде BOOOMERANGS — история, производство, команда | ${SITE_NAME}`,
-    description,
+    title: aboutSeo.title || `О бренде BOOOMERANGS — история, производство, команда | ${SITE_NAME}`,
+    description: aboutSeo.description || description,
     canonical: `${SITE_URL}/about`,
     ogImage: `${SITE_URL}/images/about-hero.webp`,
     jsonLd,
@@ -1133,9 +1136,10 @@ function renderFaq(): string {
     },
   ]);
 
+  const faqSeo = getSeoOverride("static:faq");
   const head = baseHead({
-    title: `Вопросы и ответы | ${SITE_NAME}`,
-    description,
+    title: faqSeo.title || `Вопросы и ответы | ${SITE_NAME}`,
+    description: faqSeo.description || description,
     canonical: `${SITE_URL}/faq`,
     ogImage: `${SITE_URL}/favicon.png`,
     jsonLd,
