@@ -1213,6 +1213,8 @@ export default function Admin() {
   const [thumbProgress, setThumbProgress] = useState<{ generated: number; failed: number; remaining: number; nextOffset: number } | null>(null);
   const [filterCategory, setFilterCategory] = useState<CategorySlug | "all">("all");
   const [filterSubcategory, setFilterSubcategory] = useState<string | null>(null);
+  const [filterSubSubcategory, setFilterSubSubcategory] = useState<string | null>(null);
+  const [productsVisible, setProductsVisible] = useState(false);
   const [ordersSubTab, setOrdersSubTab] = useState<"retail" | "wholesale" | "drafts">("retail");
   const [expandedOrderItems, setExpandedOrderItems] = useState<Set<string | number>>(new Set());
   const [wholesalePreorderSearch, setWholesalePreorderSearch] = useState("");
@@ -3007,7 +3009,7 @@ export default function Admin() {
   });
   const [promoCatOpen, setPromoCatOpen] = useState(false);
 
-  // Filter by category/subcategory first, then by search
+  // Filter by category/subcategory/subSubcategory first, then by search
   const filteredProducts = products.filter(p => {
     // Category filter
     if (filterCategory !== "all") {
@@ -3023,6 +3025,12 @@ export default function Admin() {
           ac.category === filterCategory && ac.subcategory && norm(ac.subcategory) === subNorm
         );
         if (!mainSubMatch && !addlSubMatch) return false;
+        // Sub-subcategory filter
+        if (filterSubSubcategory) {
+          const subSubNorm = norm(filterSubSubcategory);
+          const mainSubSubMatch = inMainCat && (p as any).subSubcategory && norm((p as any).subSubcategory) === subSubNorm;
+          if (!mainSubSubMatch) return false;
+        }
       }
     }
     // Search filter
@@ -3159,6 +3167,21 @@ export default function Admin() {
         acc[ac.subcategory] = (acc[ac.subcategory] || 0) + 1;
       }
     });
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Calculate sub-subcategory counts for the selected subcategory
+  const subSubcategoryCounts = products.reduce((acc, p) => {
+    const norm = (s: string) => s.toLowerCase().trim();
+    if (
+      p.category === filterCategory &&
+      filterSubcategory &&
+      p.subcategory && norm(p.subcategory) === norm(filterSubcategory) &&
+      (p as any).subSubcategory
+    ) {
+      const ss = (p as any).subSubcategory as string;
+      acc[ss] = (acc[ss] || 0) + 1;
+    }
     return acc;
   }, {} as Record<string, number>);
 
@@ -12726,7 +12749,7 @@ export default function Admin() {
                 variant={filterCategory === "all" ? "secondary" : "ghost"}
                 size="sm"
                 className="w-full justify-start h-8"
-                onClick={() => { setFilterCategory("all"); setFilterSubcategory(null); }}
+                onClick={() => { setFilterCategory("all"); setFilterSubcategory(null); setFilterSubSubcategory(null); setProductsVisible(true); }}
                 data-testid="button-category-all"
               >
                 Все товары
@@ -12739,7 +12762,7 @@ export default function Admin() {
                     variant={filterCategory === slug && !filterSubcategory ? "secondary" : "ghost"}
                     size="sm"
                     className="w-full justify-start h-8"
-                    onClick={() => { setFilterCategory(slug as CategorySlug); setFilterSubcategory(null); }}
+                    onClick={() => { setFilterCategory(slug as CategorySlug); setFilterSubcategory(null); setFilterSubSubcategory(null); setProductsVisible(true); }}
                     data-testid={`button-category-${slug}`}
                   >
                     {cat.name}
@@ -12751,20 +12774,42 @@ export default function Admin() {
                     <div className="ml-3 mt-1 space-y-0.5">
                       {cat.subcategories.map(sub => {
                         const subName = typeof sub === 'string' ? sub : sub.name;
+                        const subSubcategories: AdminSubSubcategoryConfig[] = (sub as any).subSubcategories || [];
                         return (
-                        <Button
-                          key={subName}
-                          variant={filterSubcategory === subName ? "secondary" : "ghost"}
-                          size="sm"
-                          className="w-full justify-start h-7 text-xs"
-                          onClick={() => setFilterSubcategory(subName)}
-                          data-testid={`button-subcategory-${subName}`}
-                        >
-                          {subName}
-                          <Badge variant="outline" className="ml-auto text-xs">
-                            {subcategoryCounts[subName] || 0}
-                          </Badge>
-                        </Button>
+                          <div key={subName}>
+                            <Button
+                              variant={filterSubcategory === subName ? "secondary" : "ghost"}
+                              size="sm"
+                              className="w-full justify-start h-7 text-xs"
+                              onClick={() => { setFilterSubcategory(subName); setFilterSubSubcategory(null); setProductsVisible(true); }}
+                              data-testid={`button-subcategory-${subName}`}
+                            >
+                              {subName}
+                              <Badge variant="outline" className="ml-auto text-xs">
+                                {subcategoryCounts[subName] || 0}
+                              </Badge>
+                            </Button>
+                            {/* Sub-subcategories */}
+                            {filterSubcategory === subName && subSubcategories.length > 0 && (
+                              <div className="ml-3 mt-0.5 space-y-0.5">
+                                {subSubcategories.map(ss => (
+                                  <Button
+                                    key={ss.name}
+                                    variant={filterSubSubcategory === ss.name ? "secondary" : "ghost"}
+                                    size="sm"
+                                    className="w-full justify-start h-6 text-xs"
+                                    onClick={() => { setFilterSubSubcategory(ss.name); setProductsVisible(true); }}
+                                    data-testid={`button-subsubcategory-${ss.name}`}
+                                  >
+                                    <span className="truncate">{ss.name}</span>
+                                    <Badge variant="outline" className="ml-auto text-xs shrink-0">
+                                      {subSubcategoryCounts[ss.name] || 0}
+                                    </Badge>
+                                  </Button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
@@ -12775,13 +12820,19 @@ export default function Admin() {
 
             {/* Products list */}
             <div className="flex-1 min-w-0">
-              {isLoading ? (
+              {!productsVisible ? (
+                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground select-none">
+                  <span className="text-5xl mb-4">📦</span>
+                  <p className="font-medium text-base mb-1">Выберите категорию</p>
+                  <p className="text-sm">Нажмите на категорию слева, чтобы загрузить товары</p>
+                </div>
+              ) : isLoading ? (
                 <div className="text-center py-8 text-muted-foreground">Загрузка...</div>
               ) : filteredProducts.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   Товары не найдены
                   {filterCategory !== "all" && (
-                    <Button variant="ghost" onClick={() => { setFilterCategory("all"); setFilterSubcategory(null); }}>
+                    <Button variant="ghost" onClick={() => { setFilterCategory("all"); setFilterSubcategory(null); setFilterSubSubcategory(null); }}>
                       Показать все
                     </Button>
                   )}
