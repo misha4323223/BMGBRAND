@@ -351,36 +351,36 @@ export default function ConceptCampaignPage() {
                     data-testid={`card-preorder-${product.id}`}
                     className={`block ${isLocked ? "pointer-events-none cursor-default" : "group"}`}
                   >
-                    <div className={`relative aspect-[3/4] bg-muted overflow-hidden rounded-sm mb-3 ${isLocked ? "opacity-70" : ""}`}>
+                    <div className={`relative aspect-[3/4] bg-zinc-800 overflow-hidden rounded-sm mb-3 ${isLocked ? "opacity-70" : ""}`}>
                       {cardImages.length > 0
                         ? <SwipeableCardImages images={cardImages} alt={product.name} isLocked={isLocked} />
-                        : <div className="w-full h-full flex items-center justify-center"><Package className="w-10 h-10 text-muted-foreground/30" /></div>
+                        : <div className="w-full h-full flex items-center justify-center"><Package className="w-10 h-10 text-white/20" /></div>
                       }
                       {isCancelled && (
-                        <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                          <span className="text-xs uppercase tracking-widest text-foreground/60">Отменено</span>
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <span className="text-xs uppercase tracking-widest text-white/60">Отменено</span>
                         </div>
                       )}
                       {!isLocked && (
-                        <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-foreground/90 backdrop-blur-sm text-background text-xs font-semibold uppercase tracking-widest flex items-center justify-center gap-2 py-3">
+                        <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-white/90 backdrop-blur-sm text-zinc-900 text-xs font-semibold uppercase tracking-widest flex items-center justify-center gap-2 py-3">
                           Подробнее <ArrowRight className="w-3.5 h-3.5" />
                         </div>
                       )}
                     </div>
 
                     <div className="space-y-2.5">
-                      <h3 className={`text-sm font-medium text-foreground leading-tight line-clamp-2 ${isLocked ? "" : "group-hover:text-primary transition-colors"}`}>
+                      <h3 className={`text-sm font-medium text-white leading-tight line-clamp-2 ${isLocked ? "" : "group-hover:text-primary transition-colors"}`}>
                         {product.name}
                       </h3>
                       <div className="space-y-1 text-center mt-2">
                         {hasDiscount ? (
                           <>
-                            <p className="text-[10px] font-medium text-foreground uppercase tracking-wide">Предпродажная цена</p>
-                            <p className="text-base font-bold text-foreground">{formatPrice(salePrice)}</p>
-                            <p className="text-[10px] text-foreground">Цена после релиза — {formatPrice(product.price)}</p>
+                            <p className="text-[10px] font-medium text-white/60 uppercase tracking-wide">Предпродажная цена</p>
+                            <p className="text-base font-bold text-white">{formatPrice(salePrice)}</p>
+                            <p className="text-[10px] text-white/50">Цена после релиза — {formatPrice(product.price)}</p>
                           </>
                         ) : (
-                          <span className="text-base font-bold text-foreground">{formatPrice(product.price)}</span>
+                          <span className="text-base font-bold text-white">{formatPrice(product.price)}</span>
                         )}
                         {salePrice >= 300000 && salePrice <= 3000000 && (
                           <div className="flex justify-center" onClick={(e) => e.preventDefault()}>
@@ -388,8 +388,8 @@ export default function ConceptCampaignPage() {
                           </div>
                         )}
                         {!isCancelled && (
-                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full mx-auto ${status === "collecting" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status === "collecting" ? "bg-primary" : "bg-muted-foreground/50"}`} />
+                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full mx-auto ${status === "collecting" ? "bg-primary/15 text-primary" : "bg-white/10 text-white/50"}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status === "collecting" ? "bg-primary" : "bg-white/30"}`} />
                             {cfg.label}
                           </span>
                         )}
@@ -398,7 +398,7 @@ export default function ConceptCampaignPage() {
                       {!isLocked && (
                         <div className="relative" onClick={e => e.preventDefault()}>
                           <button
-                            className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all border ${inCart ? "bg-primary text-white border-primary hover:bg-primary/90" : "bg-foreground text-background border-foreground hover:bg-foreground/85"}`}
+                            className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all border ${inCart ? "bg-primary text-white border-primary hover:bg-primary/90" : "bg-white text-zinc-900 border-white hover:bg-white/90"}`}
                             onClick={(e) => openSizePopup(e, product)}
                             data-testid={`button-preorder-cart-${product.id}`}
                           >
@@ -411,8 +411,8 @@ export default function ConceptCampaignPage() {
                           </button>
 
                           {sizePopupId === product.id && (
-                            <div className="absolute bottom-full mb-2 left-0 right-0 z-30 bg-background border border-border rounded-xl shadow-xl p-3" onClick={(e) => e.stopPropagation()}>
-                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Размер и количество</p>
+                            <div className="absolute bottom-full mb-2 left-0 right-0 z-30 bg-zinc-900 border border-white/15 rounded-xl shadow-xl p-3" onClick={(e) => e.stopPropagation()}>
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50 mb-2">Размер и количество</p>
                               <div className="flex flex-col gap-1.5">
                                 {popupSizes.map((size) => {
                                   const stockLimit = popupSizeStock[size];
@@ -421,14 +421,14 @@ export default function ConceptCampaignPage() {
                                   const qty = popupSizeQty[size] || 0;
                                   const isExhausted = maxAllowed <= 0;
                                   return (
-                                    <div key={size} className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-colors ${isExhausted ? "opacity-40 border-border" : qty > 0 ? "border-primary bg-primary/5" : "border-border"}`}>
-                                      <span className={`text-xs font-semibold ${isExhausted ? "line-through text-muted-foreground" : qty > 0 ? "text-primary" : ""}`}>
+                                    <div key={size} className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-colors ${isExhausted ? "opacity-40 border-white/15" : qty > 0 ? "border-primary bg-primary/5" : "border-white/15"}`}>
+                                      <span className={`text-xs font-semibold ${isExhausted ? "line-through text-white/40" : qty > 0 ? "text-primary" : "text-white"}`}>
                                         {size}{isExhausted && <span className="text-[9px] ml-1 font-normal">нет</span>}
                                       </span>
                                       <div className="flex items-center gap-1.5">
-                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPopupSizeQty(prev => { const n = Math.max(0,(prev[size]||0)-1); const u={...prev,[size]:n}; if(n===0)delete u[size]; return u; }); }} disabled={qty===0} className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none bg-muted disabled:opacity-20 hover:bg-muted/70 transition-colors">−</button>
-                                        <span className="w-4 text-center text-xs font-bold tabular-nums">{qty}</span>
-                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if(isExhausted||qty>=maxAllowed)return; setPopupSizeQty(prev=>({...prev,[size]:(prev[size]||0)+1})); }} disabled={isExhausted||qty>=maxAllowed} className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none bg-muted disabled:opacity-20 hover:bg-muted/70 transition-colors">+</button>
+                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPopupSizeQty(prev => { const n = Math.max(0,(prev[size]||0)-1); const u={...prev,[size]:n}; if(n===0)delete u[size]; return u; }); }} disabled={qty===0} className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none text-white bg-white/15 disabled:opacity-20 hover:bg-white/25 transition-colors">−</button>
+                                        <span className="w-4 text-center text-xs font-bold tabular-nums text-white">{qty}</span>
+                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if(isExhausted||qty>=maxAllowed)return; setPopupSizeQty(prev=>({...prev,[size]:(prev[size]||0)+1})); }} disabled={isExhausted||qty>=maxAllowed} className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none text-white bg-white/15 disabled:opacity-20 hover:bg-white/25 transition-colors">+</button>
                                       </div>
                                     </div>
                                   );
@@ -438,7 +438,7 @@ export default function ConceptCampaignPage() {
                                 const totalQty = Object.values(popupSizeQty).reduce((s,q)=>s+q,0);
                                 return (
                                   <button
-                                    className={`mt-2.5 w-full py-2 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all ${totalQty>0 ? "bg-foreground text-background hover:bg-foreground/85" : "bg-muted text-muted-foreground cursor-not-allowed"}`}
+                                    className={`mt-2.5 w-full py-2 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all ${totalQty>0 ? "bg-white text-zinc-900 hover:bg-white/90" : "bg-white/10 text-white/40 cursor-not-allowed"}`}
                                     disabled={totalQty===0}
                                     onClick={() => {
                                       if (totalQty===0) return;
@@ -452,7 +452,7 @@ export default function ConceptCampaignPage() {
                                   </button>
                                 );
                               })()}
-                              <button className="mt-1.5 w-full text-[10px] text-muted-foreground hover:text-foreground transition-colors" onClick={() => { setSizePopupId(null); setPopupSizeQty({}); }}>Отмена</button>
+                              <button className="mt-1.5 w-full text-[10px] text-white/40 hover:text-white transition-colors" onClick={() => { setSizePopupId(null); setPopupSizeQty({}); }}>Отмена</button>
                             </div>
                           )}
                         </div>

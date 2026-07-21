@@ -863,8 +863,8 @@ export default function ConceptPage() {
           ) : !products || products.length === 0 ? (
 
             <div className="text-center py-32">
-              <Package className="w-10 h-10 text-muted-foreground/40 mx-auto mb-5" />
-              <p className="text-sm uppercase tracking-widest text-muted-foreground/50">
+              <Package className="w-10 h-10 text-white/30 mx-auto mb-5" />
+              <p className="text-sm uppercase tracking-widest text-white/40">
                 Нет активных предзаказов
               </p>
             </div>
@@ -897,12 +897,12 @@ export default function ConceptPage() {
                     className={`block ${isLocked ? "pointer-events-none cursor-default" : "group"}`}
                   >
                     {/* Image — свайп в сторону между фото товара */}
-                    <div className={`relative aspect-[3/4] bg-muted overflow-hidden rounded-sm mb-3 ${isLocked ? "opacity-70" : ""}`}>
+                    <div className={`relative aspect-[3/4] bg-zinc-800 overflow-hidden rounded-sm mb-3 ${isLocked ? "opacity-70" : ""}`}>
                       {cardImages.length > 0 ? (
                         <SwipeableCardImages images={cardImages} alt={product.name} isLocked={isLocked} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Package className="w-10 h-10 text-muted-foreground/30" />
+                          <Package className="w-10 h-10 text-white/20" />
                         </div>
                       )}
 
@@ -1001,7 +1001,7 @@ export default function ConceptPage() {
                                     <div
                                       key={size}
                                       className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-colors ${
-                                        isExhausted ? "opacity-40 border-border" : qty > 0 ? "border-primary bg-primary/5" : "border-border"
+                                        isExhausted ? "opacity-40 border-white/15" : qty > 0 ? "border-primary bg-primary/5" : "border-white/15"
                                       }`}
                                     >
                                       <span className={`text-xs font-semibold ${isExhausted ? "line-through text-white/40" : qty > 0 ? "text-primary" : "text-white"}`}>
@@ -1035,8 +1035,8 @@ export default function ConceptPage() {
                                   <button
                                     className={`mt-2.5 w-full py-2 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all ${
                                       totalQty > 0
-                                        ? "bg-foreground text-background hover:bg-foreground/85"
-                                        : "bg-muted text-muted-foreground cursor-not-allowed"
+                                        ? "bg-white text-zinc-900 hover:bg-white/90"
+                                        : "bg-white/10 text-white/40 cursor-not-allowed"
                                     }`}
                                     disabled={totalQty === 0}
                                     onClick={(e) => {
@@ -1061,7 +1061,7 @@ export default function ConceptPage() {
                                 );
                               })()}
                               <button
-                                className="mt-1 w-full text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                className="mt-1 w-full text-[10px] text-white/40 hover:text-white transition-colors"
                                 onClick={() => { setSizePopupId(null); setPopupSizeQty({}); }}
                               >
                                 Отмена
