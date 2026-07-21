@@ -177,6 +177,7 @@ interface Campaign {
   title: string;
   subtitle: string;
   coverImage: string;
+  badgeImage?: string;
   productCount: number;
   activeProductCount: number;
   cardStyle?: "vinyl" | "poster";
@@ -605,6 +606,43 @@ export default function ConceptPage() {
                       }} />
                     </div>
 
+                    {/* Изображение-билет — нижний правый угол, выходит за рамку */}
+                    {c.badgeImage && (
+                      <div
+                        className="absolute z-20 pointer-events-none"
+                        style={{
+                          bottom: -18,
+                          right: -14,
+                          width: "42%",
+                          filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.7)) drop-shadow(0 2px 6px rgba(0,0,0,0.5))",
+                          transform: "rotate(4deg)",
+                        }}
+                      >
+                        {/* Белая рамка как у физического билета */}
+                        <div
+                          style={{
+                            background: "#fff",
+                            borderRadius: 5,
+                            padding: 4,
+                            boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.08)",
+                          }}
+                        >
+                          <img
+                            src={c.badgeImage}
+                            alt=""
+                            draggable={false}
+                            style={{
+                              width: "100%",
+                              display: "block",
+                              borderRadius: 3,
+                              objectFit: "cover",
+                              aspectRatio: "3/2",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {/* Бейдж — сверху над картинкой (как у пластинки) */}
                     <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-20">
                       <span
@@ -817,6 +855,42 @@ export default function ConceptPage() {
                         Предзаказ
                       </span>
                     </div>
+
+                    {/* Изображение-билет — выходит снизу-справа от пластинки */}
+                    {c.badgeImage && (
+                      <div
+                        className="absolute z-20 pointer-events-none"
+                        style={{
+                          bottom: -20,
+                          right: -20,
+                          width: "38%",
+                          filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.8)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))",
+                          transform: "rotate(-5deg)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            background: "#fff",
+                            borderRadius: 5,
+                            padding: 4,
+                            boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.08)",
+                          }}
+                        >
+                          <img
+                            src={c.badgeImage}
+                            alt=""
+                            draggable={false}
+                            style={{
+                              width: "100%",
+                              display: "block",
+                              borderRadius: 3,
+                              objectFit: "cover",
+                              aspectRatio: "3/2",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* ── Конверт альбома — текст под пластинкой ── */}

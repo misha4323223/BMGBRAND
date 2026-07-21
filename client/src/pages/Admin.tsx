@@ -14559,7 +14559,7 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
   // Campaigns state
   const [showCampaignForm, setShowCampaignForm] = useState(false);
   const [editingCampaignSlug, setEditingCampaignSlug] = useState<string | null>(null);
-  const [campaignForm, setCampaignForm] = useState({ slug: "", title: "", subtitle: "", description: "", heroImage: "", heroImageMobile: "", seoTitle: "", seoDescription: "", visible: true, cardStyle: "vinyl" as "vinyl" | "poster" });
+  const [campaignForm, setCampaignForm] = useState({ slug: "", title: "", subtitle: "", description: "", heroImage: "", heroImageMobile: "", badgeImage: "", seoTitle: "", seoDescription: "", visible: true, cardStyle: "vinyl" as "vinyl" | "poster" });
   const [savingCampaign, setSavingCampaign] = useState(false);
   const [deletingCampaignSlug, setDeletingCampaignSlug] = useState<string | null>(null);
   const { data: adminCampaigns = [], isLoading: campaignsLoading, refetch: refetchCampaigns } = useQuery<any[]>({
@@ -15750,7 +15750,7 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
             <Button size="sm" onClick={() => {
               setShowCampaignForm(true);
               setEditingCampaignSlug(null);
-              setCampaignForm({ slug: "", title: "", subtitle: "", description: "", heroImage: "", heroImageMobile: "", seoTitle: "", seoDescription: "", visible: true, cardStyle: "vinyl" });
+              setCampaignForm({ slug: "", title: "", subtitle: "", description: "", heroImage: "", heroImageMobile: "", badgeImage: "", seoTitle: "", seoDescription: "", visible: true, cardStyle: "vinyl" });
             }} data-testid="button-create-campaign">
               <Plus className="w-4 h-4 mr-1" /> Создать коллаборацию
             </Button>
@@ -15799,6 +15799,19 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
                 />
               </div>
               <div>
+                <label className="text-xs text-muted-foreground block mb-1">
+                  Изображение-билет <span className="text-white/40">(необязательно)</span>
+                </label>
+                <p className="text-[10px] text-muted-foreground mb-1.5">Маленькое изображение в стиле билета/стикера поверх карточки — логотип артиста, марка фестиваля и т.п.</p>
+                <ImageUploadField
+                  value={campaignForm.badgeImage}
+                  onChange={url => setCampaignForm(f => ({ ...f, badgeImage: url }))}
+                  apiKey={apiKey}
+                  placeholder="Вставьте URL или загрузите файл"
+                  hint="Квадрат или горизонталь, PNG/WebP с прозрачностью до 100 KB"
+                />
+              </div>
+              <div>
                 <label className="text-xs text-muted-foreground block mb-1">SEO заголовок (необязательно)</label>
                 <Input value={campaignForm.seoTitle} onChange={e => setCampaignForm(f => ({ ...f, seoTitle: e.target.value }))} placeholder={`${campaignForm.title || "Название"} | Pre-drop BOOOMERANGS`} />
               </div>
@@ -15844,7 +15857,7 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
                       await adminFetch("/api/admin/preorder/campaigns", apiKey, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ slug, title: campaignForm.title, subtitle: campaignForm.subtitle, description: campaignForm.description, heroImage: campaignForm.heroImage, heroImageMobile: campaignForm.heroImageMobile, seoTitle: campaignForm.seoTitle, seoDescription: campaignForm.seoDescription, visible: campaignForm.visible, cardStyle: campaignForm.cardStyle }),
+                        body: JSON.stringify({ slug, title: campaignForm.title, subtitle: campaignForm.subtitle, description: campaignForm.description, heroImage: campaignForm.heroImage, heroImageMobile: campaignForm.heroImageMobile, badgeImage: campaignForm.badgeImage, seoTitle: campaignForm.seoTitle, seoDescription: campaignForm.seoDescription, visible: campaignForm.visible, cardStyle: campaignForm.cardStyle }),
                       });
                       toast({ title: "Сохранено" });
                       setShowCampaignForm(false);
@@ -15897,7 +15910,7 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
                         variant="outline"
                         onClick={() => {
                           setEditingCampaignSlug(c.slug);
-                          setCampaignForm({ slug: c.slug, title: c.title || "", subtitle: c.subtitle || "", description: c.description || "", heroImage: c.coverImage || "", heroImageMobile: c.heroImageMobile || "", seoTitle: c.seoTitle || "", seoDescription: c.seoDescription || "", visible: c.visible, cardStyle: c.cardStyle === "poster" ? "poster" : "vinyl" });
+                          setCampaignForm({ slug: c.slug, title: c.title || "", subtitle: c.subtitle || "", description: c.description || "", heroImage: c.coverImage || "", heroImageMobile: c.heroImageMobile || "", badgeImage: c.badgeImage || "", seoTitle: c.seoTitle || "", seoDescription: c.seoDescription || "", visible: c.visible, cardStyle: c.cardStyle === "poster" ? "poster" : "vinyl" });
                           setShowCampaignForm(true);
                         }}
                       >
