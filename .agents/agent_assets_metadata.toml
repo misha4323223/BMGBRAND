@@ -281,3 +281,9 @@ id = "CX2NLjs41cFHkh3MMQval"
 uri = "file://attached_assets/banner_molodost_1200x800.jpg"
 type = "image"
 title = "banner_molodost_1200x800.jpg"
+
+[[outputs]]
+id = "E9p9z7lUDn7no17CEyNj0"
+uri = "file://attached_assets/2_1784640849946_compressed.webp"
+type = "image"
+title = "2_1784640849946_compressed.webp"
