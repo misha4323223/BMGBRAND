@@ -14876,7 +14876,7 @@ ${offersXml}
             slug,
             title: hero.title || slug,
             subtitle: hero.subtitle || "",
-            coverImage: hero.heroImage || groupProducts[0]?.images?.[0] || groupProducts[0]?.imageUrl || "",
+            coverImage: hero.coverImage || hero.heroImage || groupProducts[0]?.images?.[0] || groupProducts[0]?.imageUrl || "",
             badgeImage: hero.badgeImage || "",
             productCount: groupProducts.length,
             activeProductCount: activeCount,
@@ -14919,8 +14919,10 @@ ${offersXml}
             slug,
             title: hero.title || slug,
             subtitle: hero.subtitle || "",
-            coverImage: hero.heroImage || groupProducts[0]?.images?.[0] || groupProducts[0]?.imageUrl || "",
+            coverImage: hero.coverImage || hero.heroImage || groupProducts[0]?.images?.[0] || groupProducts[0]?.imageUrl || "",
+            dedicatedCoverImage: hero.coverImage || "",
             badgeImage: hero.badgeImage || "",
+            heroImage: hero.heroImage || "",
             heroImageMobile: hero.heroImageMobile || "",
             description: hero.description || "",
             seoTitle: hero.seoTitle || "",
@@ -14949,7 +14951,7 @@ ${offersXml}
     if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
 
     try {
-      const { slug, title, subtitle, heroImage, heroImageMobile, heroImageAlt, badgeImage, description, seoTitle, seoDescription, visible, cardStyle } = req.body;
+      const { slug, title, subtitle, heroImage, heroImageMobile, heroImageAlt, badgeImage, coverImage, description, seoTitle, seoDescription, visible, cardStyle } = req.body;
       if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
         return res.status(400).json({ error: "Slug обязателен и должен содержать только строчные буквы, цифры и дефисы" });
       }
@@ -14962,6 +14964,7 @@ ${offersXml}
         heroImageMobile: heroImageMobile || "",
         heroImageAlt: heroImageAlt || "",
         badgeImage: badgeImage || "",
+        coverImage: coverImage || "",
         description: description || "",
         seoTitle: seoTitle || "",
         seoDescription: seoDescription || "",
