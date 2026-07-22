@@ -326,7 +326,6 @@ export default function ConceptCampaignPage() {
                   <img
                     src="/images/boomerangs-logo.webp"
                     alt="BOOOMERANGS"
-                    loading="lazy"
                     className="h-[72px] sm:h-[160px] w-auto object-contain"
                     style={{ maxWidth: "clamp(120px, 38vw, 360px)" }}
                   />
@@ -334,7 +333,6 @@ export default function ConceptCampaignPage() {
                   <img
                     src={campaignLogoUrl}
                     alt={pageTitle}
-                    loading="lazy"
                     className="h-[72px] sm:h-[160px] w-auto object-contain"
                     style={{ maxWidth: "clamp(120px, 38vw, 360px)" }}
                   />
