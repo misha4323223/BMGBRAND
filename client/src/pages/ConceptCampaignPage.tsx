@@ -315,18 +315,30 @@ export default function ConceptCampaignPage() {
             <div className="mb-10 sm:mb-14 text-center">
               {pageSubtitle && <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">{pageSubtitle}</p>}
               {campaignLogoUrl ? (
-                <div className="flex items-center justify-center gap-4 sm:gap-6">
-                  <img
-                    src="/images/boomerangs-logo.webp"
-                    alt="BOOOMERANGS"
-                    style={{ height: "160px", maxWidth: "360px", width: "auto", objectFit: "contain" }}
-                  />
-                  <span className="select-none leading-none" style={{ fontSize: "64px", fontWeight: 100, color: "#71717a", letterSpacing: "-0.05em", lineHeight: 1 }}>×</span>
-                  <img
-                    src={campaignLogoUrl}
-                    alt={pageTitle}
-                    style={{ height: "160px", maxWidth: "360px", width: "auto", objectFit: "contain" }}
-                  />
+                <div className="inline-flex flex-col items-center gap-5">
+                  {/* Лейбл */}
+                  <div className="flex items-center gap-3 w-full">
+                    <span className="flex-1 h-px bg-zinc-300" />
+                    <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-400 select-none whitespace-nowrap">Official Collab</span>
+                    <span className="flex-1 h-px bg-zinc-300" />
+                  </div>
+                  {/* Карточка с логотипами */}
+                  <div
+                    className="flex items-center justify-center gap-6 sm:gap-10 bg-white rounded-2xl px-10 py-8"
+                    style={{ boxShadow: "0 2px 24px 0 rgba(0,0,0,0.07)" }}
+                  >
+                    <img
+                      src="/images/boomerangs-logo.webp"
+                      alt="BOOOMERANGS"
+                      style={{ height: "160px", maxWidth: "360px", width: "auto", objectFit: "contain" }}
+                    />
+                    <span className="select-none leading-none" style={{ fontSize: "64px", fontWeight: 100, color: "#71717a", letterSpacing: "-0.05em", lineHeight: 1 }}>×</span>
+                    <img
+                      src={campaignLogoUrl}
+                      alt={pageTitle}
+                      style={{ height: "160px", maxWidth: "360px", width: "auto", objectFit: "contain" }}
+                    />
+                  </div>
                 </div>
               ) : (
                 pageTitle && <h1 className="text-2xl sm:text-4xl font-bold uppercase tracking-tight text-zinc-900">{pageTitle}</h1>
