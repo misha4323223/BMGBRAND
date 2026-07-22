@@ -371,9 +371,9 @@ export default function ConceptCampaignPage() {
                       <div className="space-y-1 text-center mt-2">
                         {hasDiscount ? (
                           <>
-                            <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide">Предпродажная цена</p>
+                            <p className="text-[10px] font-medium text-zinc-900 uppercase tracking-wide">Предпродажная цена</p>
                             <p className="text-base font-bold text-zinc-900">{formatPrice(salePrice)}</p>
-                            <p className="text-[10px] text-zinc-500">Цена после релиза — {formatPrice(product.price)}</p>
+                            <p className="text-[10px] text-zinc-900">Цена после релиза — {formatPrice(product.price)}</p>
                           </>
                         ) : (
                           <span className="text-base font-bold text-zinc-900">{formatPrice(product.price)}</span>
