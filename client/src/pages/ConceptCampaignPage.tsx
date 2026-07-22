@@ -295,22 +295,18 @@ export default function ConceptCampaignPage() {
       })()}
 
       {/* Goods grid */}
-      <section className="py-14 sm:py-20 relative overflow-hidden" style={{ background: "#1c1a1a" }}>
-        {/* Тёплый блоб слева */}
-        <div className="absolute top-1/4 -left-32 w-[55vw] h-[55vw] max-w-[600px] max-h-[600px] rounded-full opacity-[0.18] blur-[130px] pointer-events-none" style={{ background: "radial-gradient(circle, #c62828 0%, transparent 65%)" }} />
-        {/* Холодный блоб справа */}
-        <div className="absolute bottom-1/4 -right-32 w-[50vw] h-[50vw] max-w-[560px] max-h-[560px] rounded-full opacity-[0.13] blur-[130px] pointer-events-none" style={{ background: "radial-gradient(circle, #4a148c 0%, transparent 65%)" }} />
-        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "26px 26px" }} />
+      <section className="py-14 sm:py-20 relative overflow-hidden" style={{ background: "#f2f2f2" }}>
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px)", backgroundSize: "26px 26px" }} />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-          <img src="/images/boomerangs-logo.webp" alt="" className="w-[90%] max-w-[1000px] opacity-[0.04]" draggable="false" />
+          <img src="/images/boomerangs-logo.webp" alt="" className="w-[90%] max-w-[1000px] opacity-[0.03]" draggable="false" />
         </div>
 
         <div className="px-4 sm:px-6 lg:px-12 relative z-10">
           {/* Заголовок кампании */}
           {(pageTitle || pageSubtitle) && (
             <div className="mb-10 sm:mb-14 text-center">
-              {pageSubtitle && <p className="text-xs uppercase tracking-[0.25em] text-white/50 mb-2">{pageSubtitle}</p>}
-              {pageTitle && <h1 className="text-2xl sm:text-4xl font-bold uppercase tracking-tight text-white">{pageTitle}</h1>}
+              {pageSubtitle && <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">{pageSubtitle}</p>}
+              {pageTitle && <h1 className="text-2xl sm:text-4xl font-bold uppercase tracking-tight text-zinc-900">{pageTitle}</h1>}
             </div>
           )}
 
@@ -351,7 +347,7 @@ export default function ConceptCampaignPage() {
                     data-testid={`card-preorder-${product.id}`}
                     className={`block ${isLocked ? "pointer-events-none cursor-default" : "group"}`}
                   >
-                    <div className={`relative aspect-[3/4] bg-zinc-800 overflow-hidden rounded-sm mb-3 ${isLocked ? "opacity-70" : ""}`}>
+                    <div className={`relative aspect-[3/4] bg-zinc-200 overflow-hidden rounded-sm mb-3 ${isLocked ? "opacity-70" : ""}`}>
                       {cardImages.length > 0
                         ? <SwipeableCardImages images={cardImages} alt={product.name} isLocked={isLocked} />
                         : <div className="w-full h-full flex items-center justify-center"><Package className="w-10 h-10 text-white/20" /></div>
@@ -369,27 +365,27 @@ export default function ConceptCampaignPage() {
                     </div>
 
                     <div className="space-y-2.5">
-                      <h3 className={`text-sm font-medium text-white leading-tight line-clamp-2 ${isLocked ? "" : "group-hover:text-primary transition-colors"}`}>
+                      <h3 className={`text-sm font-medium text-zinc-900 leading-tight line-clamp-2 ${isLocked ? "" : "group-hover:text-primary transition-colors"}`}>
                         {product.name}
                       </h3>
                       <div className="space-y-1 text-center mt-2">
                         {hasDiscount ? (
                           <>
-                            <p className="text-[10px] font-medium text-white/60 uppercase tracking-wide">Предпродажная цена</p>
-                            <p className="text-base font-bold text-white">{formatPrice(salePrice)}</p>
-                            <p className="text-[10px] text-white/50">Цена после релиза — {formatPrice(product.price)}</p>
+                            <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide">Предпродажная цена</p>
+                            <p className="text-base font-bold text-zinc-900">{formatPrice(salePrice)}</p>
+                            <p className="text-[10px] text-zinc-500">Цена после релиза — {formatPrice(product.price)}</p>
                           </>
                         ) : (
-                          <span className="text-base font-bold text-white">{formatPrice(product.price)}</span>
+                          <span className="text-base font-bold text-zinc-900">{formatPrice(product.price)}</span>
                         )}
                         {salePrice >= 300000 && salePrice <= 3000000 && (
                           <div className="flex justify-center" onClick={(e) => e.preventDefault()}>
-                            <DolyameWidget price={salePrice} productId={product.id} isDark={true} />
+                            <DolyameWidget price={salePrice} productId={product.id} isDark={false} />
                           </div>
                         )}
                         {!isCancelled && (
-                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full mx-auto ${status === "collecting" ? "bg-primary/15 text-primary" : "bg-white/10 text-white/50"}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status === "collecting" ? "bg-primary" : "bg-white/30"}`} />
+                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full mx-auto ${status === "collecting" ? "bg-primary/15 text-primary" : "bg-zinc-900/10 text-zinc-500"}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status === "collecting" ? "bg-primary" : "bg-zinc-400"}`} />
                             {cfg.label}
                           </span>
                         )}
@@ -398,7 +394,7 @@ export default function ConceptCampaignPage() {
                       {!isLocked && (
                         <div className="relative" onClick={e => e.preventDefault()}>
                           <button
-                            className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all border ${inCart ? "bg-primary text-white border-primary hover:bg-primary/90" : "bg-white text-zinc-900 border-white hover:bg-white/90"}`}
+                            className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all border ${inCart ? "bg-primary text-white border-primary hover:bg-primary/90" : "bg-zinc-900 text-white border-zinc-900 hover:bg-zinc-700"}`}
                             onClick={(e) => openSizePopup(e, product)}
                             data-testid={`button-preorder-cart-${product.id}`}
                           >
@@ -411,8 +407,8 @@ export default function ConceptCampaignPage() {
                           </button>
 
                           {sizePopupId === product.id && (
-                            <div className="absolute bottom-full mb-2 left-0 right-0 z-30 bg-zinc-900 border border-white/15 rounded-xl shadow-xl p-3" onClick={(e) => e.stopPropagation()}>
-                              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50 mb-2">Размер и количество</p>
+                            <div className="absolute bottom-full mb-2 left-0 right-0 z-30 bg-white border border-zinc-200 rounded-xl shadow-xl p-3" onClick={(e) => e.stopPropagation()}>
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-2">Размер и количество</p>
                               <div className="flex flex-col gap-1.5">
                                 {popupSizes.map((size) => {
                                   const stockLimit = popupSizeStock[size];
@@ -421,14 +417,14 @@ export default function ConceptCampaignPage() {
                                   const qty = popupSizeQty[size] || 0;
                                   const isExhausted = maxAllowed <= 0;
                                   return (
-                                    <div key={size} className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-colors ${isExhausted ? "opacity-40 border-white/15" : qty > 0 ? "border-primary bg-primary/5" : "border-white/15"}`}>
-                                      <span className={`text-xs font-semibold ${isExhausted ? "line-through text-white/40" : qty > 0 ? "text-primary" : "text-white"}`}>
+                                    <div key={size} className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-colors ${isExhausted ? "opacity-40 border-zinc-200" : qty > 0 ? "border-primary bg-primary/5" : "border-zinc-200"}`}>
+                                      <span className={`text-xs font-semibold ${isExhausted ? "line-through text-zinc-300" : qty > 0 ? "text-primary" : "text-zinc-900"}`}>
                                         {size}{isExhausted && <span className="text-[9px] ml-1 font-normal">нет</span>}
                                       </span>
                                       <div className="flex items-center gap-1.5">
-                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPopupSizeQty(prev => { const n = Math.max(0,(prev[size]||0)-1); const u={...prev,[size]:n}; if(n===0)delete u[size]; return u; }); }} disabled={qty===0} className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none text-white bg-white/15 disabled:opacity-20 hover:bg-white/25 transition-colors">−</button>
-                                        <span className="w-4 text-center text-xs font-bold tabular-nums text-white">{qty}</span>
-                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if(isExhausted||qty>=maxAllowed)return; setPopupSizeQty(prev=>({...prev,[size]:(prev[size]||0)+1})); }} disabled={isExhausted||qty>=maxAllowed} className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none text-white bg-white/15 disabled:opacity-20 hover:bg-white/25 transition-colors">+</button>
+                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPopupSizeQty(prev => { const n = Math.max(0,(prev[size]||0)-1); const u={...prev,[size]:n}; if(n===0)delete u[size]; return u; }); }} disabled={qty===0} className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none text-zinc-900 bg-zinc-100 disabled:opacity-20 hover:bg-zinc-200 transition-colors">−</button>
+                                        <span className="w-4 text-center text-xs font-bold tabular-nums text-zinc-900">{qty}</span>
+                                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if(isExhausted||qty>=maxAllowed)return; setPopupSizeQty(prev=>({...prev,[size]:(prev[size]||0)+1})); }} disabled={isExhausted||qty>=maxAllowed} className="w-5 h-5 flex items-center justify-center rounded-full text-sm leading-none text-zinc-900 bg-zinc-100 disabled:opacity-20 hover:bg-zinc-200 transition-colors">+</button>
                                       </div>
                                     </div>
                                   );
@@ -438,7 +434,7 @@ export default function ConceptCampaignPage() {
                                 const totalQty = Object.values(popupSizeQty).reduce((s,q)=>s+q,0);
                                 return (
                                   <button
-                                    className={`mt-2.5 w-full py-2 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all ${totalQty>0 ? "bg-white text-zinc-900 hover:bg-white/90" : "bg-white/10 text-white/40 cursor-not-allowed"}`}
+                                    className={`mt-2.5 w-full py-2 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all ${totalQty>0 ? "bg-zinc-900 text-white hover:bg-zinc-700" : "bg-zinc-100 text-zinc-400 cursor-not-allowed"}`}
                                     disabled={totalQty===0}
                                     onClick={() => {
                                       if (totalQty===0) return;
@@ -452,7 +448,7 @@ export default function ConceptCampaignPage() {
                                   </button>
                                 );
                               })()}
-                              <button className="mt-1.5 w-full text-[10px] text-white/40 hover:text-white transition-colors" onClick={() => { setSizePopupId(null); setPopupSizeQty({}); }}>Отмена</button>
+                              <button className="mt-1.5 w-full text-[10px] text-zinc-400 hover:text-zinc-700 transition-colors" onClick={() => { setSizePopupId(null); setPopupSizeQty({}); }}>Отмена</button>
                             </div>
                           )}
                         </div>
