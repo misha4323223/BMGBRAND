@@ -532,6 +532,7 @@ body.lb-open nav {
 /* Disc transition base */
 .vinyl-disc {
   transition: box-shadow 0.5s ease;
+  will-change: transform;
 }
 /* Info text transition */
 .vinyl-info {
@@ -553,10 +554,10 @@ body.lb-open nav {
 }
 
 /* Мобильный — тап включает вращение через JS-класс.
-   Скролл убирает класс → анимация останавливается. */
+   Скролл убирает класс → анимация останавливается.
+   box-shadow намеренно убран на мобильном — он не GPU-composited и вызывает репейнты. */
 .vinyl-card.vinyl-spinning .vinyl-disc {
   animation: vinyl-spin 5s linear infinite;
-  box-shadow: 0 40px 100px rgba(0,0,0,0.85), 0 0 0 1.5px rgba(255,255,255,0.07) !important;
 }
 .vinyl-card.vinyl-spinning .vinyl-sheen {
   opacity: 0.5;

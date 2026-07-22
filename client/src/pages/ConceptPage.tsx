@@ -518,15 +518,15 @@ export default function ConceptPage() {
         className="py-16 sm:py-24 relative overflow-hidden"
         style={{ background: "#1c1a1a" }}
       >
-        {/* Тёплый блоб слева */}
+        {/* Тёплый блоб слева — только десктоп, blur убран с мобильного */}
         <div
-          className="absolute top-1/4 -left-32 w-[55vw] h-[55vw] max-w-[600px] max-h-[600px] rounded-full opacity-[0.20] blur-[130px] pointer-events-none"
-          style={{ background: "radial-gradient(circle, #c62828 0%, transparent 65%)" }}
+          className="absolute top-1/4 -left-32 w-[55vw] h-[55vw] max-w-[600px] max-h-[600px] rounded-full opacity-[0.20] pointer-events-none hidden sm:block"
+          style={{ background: "radial-gradient(circle, #c62828 0%, transparent 65%)", filter: "blur(130px)" }}
         />
-        {/* Холодный блоб справа */}
+        {/* Холодный блоб справа — только десктоп */}
         <div
-          className="absolute bottom-1/4 -right-32 w-[50vw] h-[50vw] max-w-[560px] max-h-[560px] rounded-full opacity-[0.15] blur-[130px] pointer-events-none"
-          style={{ background: "radial-gradient(circle, #4a148c 0%, transparent 65%)" }}
+          className="absolute bottom-1/4 -right-32 w-[50vw] h-[50vw] max-w-[560px] max-h-[560px] rounded-full opacity-[0.15] pointer-events-none hidden sm:block"
+          style={{ background: "radial-gradient(circle, #4a148c 0%, transparent 65%)", filter: "blur(130px)" }}
         />
 
         {/* Тонкая сетка-текстура */}
