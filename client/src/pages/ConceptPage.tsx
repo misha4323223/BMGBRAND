@@ -339,12 +339,21 @@ export default function ConceptPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground" data-testid="page-concept">
+    <div className="min-h-screen bg-background text-foreground relative" data-testid="page-concept">
       <SEO
         title={conceptSeo.title || "Pre-drop | BOOOMERANGS"}
         description={conceptSeo.description || "Pre-drop BOOOMERANGS — поддержи создание новых моделей одежды с авторскими принтами. Голосуй рублём за то, что хочешь носить."}
         keywords="предзаказ, pre-drop, российский бренд одежды с авторскими принтами, BOOOMERANGS"
       />
+      {/* Кнопка «назад» — всегда видна независимо от наличия hero */}
+      <button
+        onClick={() => window.history.length > 1 ? window.history.back() : (window.location.href = '/')}
+        className="absolute top-4 left-4 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-white px-2 py-2 sm:px-3 rounded-full text-sm font-medium hover:bg-black/70 transition-colors"
+        data-testid="button-back-hero"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span className="hidden sm:inline">Назад</span>
+      </button>
       {/* Hero — слайдер до 3 слайдов, обратно совместим с одиночным баннером */}
       {(heroLoading || conceptSlides.length > 0) && (
         <section
@@ -454,15 +463,6 @@ export default function ConceptPage() {
             </div>
           )}
 
-          {/* Кнопка «назад» — поверх всего */}
-          <button
-            onClick={() => window.history.length > 1 ? window.history.back() : (window.location.href = '/')}
-            className="absolute top-4 left-4 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-white px-2 py-2 sm:px-3 rounded-full text-sm font-medium hover:bg-black/70 transition-colors"
-            data-testid="button-back-hero"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Назад</span>
-          </button>
         </section>
       )}
 
