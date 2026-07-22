@@ -406,8 +406,8 @@ body.lb-open nav {
   0%, 100% { transform: translate(10%, 8%) scale(1.1); }
   50%      { transform: translate(-12%, -6%) scale(0.9); }
 }
-.predrop-blob-1 { animation: predrop-blob-1 12s ease-in-out infinite; }
-.predrop-blob-2 { animation: predrop-blob-2 15s ease-in-out infinite; }
+.predrop-blob-1 { animation: predrop-blob-1 12s ease-in-out infinite; will-change: transform; }
+.predrop-blob-2 { animation: predrop-blob-2 15s ease-in-out infinite; will-change: transform; }
 
 @keyframes predrop-star-twinkle {
   0%, 100% { opacity: 0.15; transform: scale(0.8); }

@@ -48,10 +48,12 @@ function SwipeableCardImages({
   images,
   alt,
   isLocked,
+  loading = "lazy",
 }: {
   images: string[];
   alt: string;
   isLocked?: boolean;
+  loading?: "lazy" | "eager";
 }) {
   const [index, setIndex] = useState(0);
   const [dragX, setDragX] = useState(0);
@@ -111,7 +113,7 @@ function SwipeableCardImages({
             <img
               src={src}
               alt={alt}
-              loading="lazy"
+              loading={loading}
               draggable={false}
               className={`w-full h-full object-cover pointer-events-none ${isLocked ? "" : "transition-transform duration-500 group-hover:scale-105"}`}
             />
@@ -243,13 +245,18 @@ export default function ConceptCampaignPage() {
       {/* Hero banner */}
       <section className={`bg-black relative overflow-hidden ${showHeroSkeleton ? "h-[52vw] max-h-[480px] min-h-[200px] sm:h-[34vw] sm:max-h-[560px]" : ""}`}>
         {showHeroSkeleton && <div className="absolute inset-0 bg-zinc-900 animate-pulse" />}
-        {!heroLoading && heroBannerDesktop && (
-          <img src={heroBannerDesktop} alt={heroBannerAlt} loading="eager" onLoad={() => setHeroImgLoaded(true)}
-            className={`hidden sm:block w-full object-cover transition-opacity duration-300 ${heroImgLoaded ? "opacity-100" : "opacity-0"}`} />
-        )}
-        {!heroLoading && heroBannerMobile && (
-          <img src={heroBannerMobile} alt={heroBannerAlt} loading="eager" onLoad={() => setHeroImgLoaded(true)}
-            className={`block sm:hidden w-full object-cover transition-opacity duration-300 ${heroImgLoaded ? "opacity-100" : "opacity-0"}`} />
+        {!heroLoading && (heroBannerDesktop || heroBannerMobile) && (
+          <picture>
+            {heroBannerDesktop && <source media="(min-width: 640px)" srcSet={heroBannerDesktop} />}
+            <img
+              src={heroBannerMobile || heroBannerDesktop}
+              alt={heroBannerAlt}
+              loading="eager"
+              fetchpriority="high"
+              onLoad={() => setHeroImgLoaded(true)}
+              className={`w-full object-cover transition-opacity duration-300 ${heroImgLoaded ? "opacity-100" : "opacity-0"}`}
+            />
+          </picture>
         )}
 
         {/* Кнопка назад — к списку коллаборации */}
@@ -306,7 +313,7 @@ export default function ConceptCampaignPage() {
       <section className="py-14 sm:py-20 relative overflow-hidden" style={{ background: "#f2f2f2" }}>
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px)", backgroundSize: "26px 26px" }} />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-          <img src="/images/boomerangs-logo.webp" alt="" className="w-[90%] max-w-[1000px] opacity-[0.03]" draggable="false" />
+          <img src="/images/boomerangs-logo.webp" alt="" aria-hidden="true" loading="lazy" className="w-[90%] max-w-[1000px] opacity-[0.03]" draggable="false" />
         </div>
 
         <div className="px-4 sm:px-6 lg:px-12 relative z-10">
@@ -319,6 +326,7 @@ export default function ConceptCampaignPage() {
                   <img
                     src="/images/boomerangs-logo.webp"
                     alt="BOOOMERANGS"
+                    loading="lazy"
                     className="h-[72px] sm:h-[160px] w-auto object-contain"
                     style={{ maxWidth: "clamp(120px, 38vw, 360px)" }}
                   />
@@ -326,6 +334,7 @@ export default function ConceptCampaignPage() {
                   <img
                     src={campaignLogoUrl}
                     alt={pageTitle}
+                    loading="lazy"
                     className="h-[72px] sm:h-[160px] w-auto object-contain"
                     style={{ maxWidth: "clamp(120px, 38vw, 360px)" }}
                   />
@@ -350,7 +359,7 @@ export default function ConceptCampaignPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-14 sm:gap-x-10 sm:gap-y-20">
-              {[...products].reverse().map((product) => {
+              {[...products].reverse().map((product, idx) => {
                 const cardImages: string[] = product.images && product.images.length > 0
                   ? product.images
                   : [product.thumbnailUrl || product.imageUrl || ""].filter(Boolean);
@@ -375,7 +384,7 @@ export default function ConceptCampaignPage() {
                   >
                     <div className={`relative aspect-[3/4] bg-zinc-200 overflow-hidden rounded-sm mb-3 ${isLocked ? "opacity-70" : ""}`}>
                       {cardImages.length > 0
-                        ? <SwipeableCardImages images={cardImages} alt={product.name} isLocked={isLocked} />
+                        ? <SwipeableCardImages images={cardImages} alt={product.name} isLocked={isLocked} loading={idx < 3 ? "eager" : "lazy"} />
                         : <div className="w-full h-full flex items-center justify-center"><Package className="w-10 h-10 text-white/20" /></div>
                       }
                       {isCancelled && (

@@ -42,7 +42,7 @@ export function PreorderSubscribeWidget() {
     onSuccess: () => setSubscribed(true),
   });
 
-  const stars = useMemo(() => Array.from({ length: 26 }).map((_, i) => ({
+  const stars = useMemo(() => Array.from({ length: 16 }).map((_, i) => ({
     id: i,
     top: `${Math.random() * 100}%`,
     left: `${Math.random() * 100}%`,
