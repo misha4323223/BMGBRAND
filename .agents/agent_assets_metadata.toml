@@ -293,3 +293,9 @@ id = "cyCaM6P-g7tAwXeKsknWc"
 uri = "file://attached_assets/logo_compressed.jpg"
 type = "image"
 title = "logo_compressed.jpg — 13 KB"
+
+[[outputs]]
+id = "R1kI5ycyyCDWdEWA_KOz-"
+uri = "file://attached_assets/logo_q50.jpg"
+type = "image"
+title = "logo_compressed.jpg — 14 KB"
