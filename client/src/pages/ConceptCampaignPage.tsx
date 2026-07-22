@@ -384,8 +384,8 @@ export default function ConceptCampaignPage() {
                           </div>
                         )}
                         {!isCancelled && (
-                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full mx-auto ${status === "collecting" ? "bg-primary/15 text-primary" : "bg-zinc-900/10 text-zinc-500"}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status === "collecting" ? "bg-primary" : "bg-zinc-400"}`} />
+                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full mx-auto ${status === "collecting" ? "bg-green-100 text-green-700" : "bg-zinc-900/10 text-zinc-500"}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status === "collecting" ? "bg-green-500" : "bg-zinc-400"}`} />
                             {cfg.label}
                           </span>
                         )}
