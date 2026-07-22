@@ -2995,8 +2995,8 @@ export class DatabaseStorage implements IStorage {
       let currentTotal = 0;
       if (rows.length > 0) {
         const row = rows[0] as any;
-        try { existingItems = JSON.parse(row.items?.bytesValue?.toString('utf8') || row.items?.textValue || '[]'); } catch {}
-        currentTotal = Number(row.total?.int32Value ?? row.total?.int64Value ?? 0);
+        try { existingItems = JSON.parse(this.extractTypedValue(row.items[0]) || '[]'); } catch {}
+        currentTotal = Number(this.extractTypedValue(row.items[1]) ?? 0);
       }
       const mergedItems = [...existingItems, ...newItems];
       const newTotal = currentTotal + addedTotal;
