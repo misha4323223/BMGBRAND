@@ -161,6 +161,7 @@ export default function ConceptCampaignPage() {
   const heroBannerAlt: string = hero.heroImageAlt || hero.title || "Предзаказ";
   const pageTitle: string = hero.title || slug;
   const pageSubtitle: string = hero.subtitle || "";
+  const campaignLogoUrl: string = hero.logoUrl || "";
   const seoTitle: string = hero.seoTitle || `${pageTitle} | Pre-drop BOOOMERANGS`;
   const seoDescription: string = hero.seoDescription || `Предзаказ ${pageTitle} — BOOOMERANGS`;
 
@@ -303,10 +304,19 @@ export default function ConceptCampaignPage() {
 
         <div className="px-4 sm:px-6 lg:px-12 relative z-10">
           {/* Заголовок кампании */}
-          {(pageTitle || pageSubtitle) && (
+          {(pageTitle || pageSubtitle || campaignLogoUrl) && (
             <div className="mb-10 sm:mb-14 text-center">
               {pageSubtitle && <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">{pageSubtitle}</p>}
-              {pageTitle && <h1 className="text-2xl sm:text-4xl font-bold uppercase tracking-tight text-zinc-900">{pageTitle}</h1>}
+              {campaignLogoUrl ? (
+                <img
+                  src={campaignLogoUrl}
+                  alt={pageTitle}
+                  className="mx-auto"
+                  style={{ maxHeight: "80px", maxWidth: "min(520px, 90vw)", width: "auto", objectFit: "contain" }}
+                />
+              ) : (
+                pageTitle && <h1 className="text-2xl sm:text-4xl font-bold uppercase tracking-tight text-zinc-900">{pageTitle}</h1>
+              )}
             </div>
           )}
 

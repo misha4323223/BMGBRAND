@@ -14924,6 +14924,7 @@ ${offersXml}
             badgeImage: hero.badgeImage || "",
             heroImage: hero.heroImage || "",
             heroImageMobile: hero.heroImageMobile || "",
+            logoUrl: hero.logoUrl || "",
             description: hero.description || "",
             seoTitle: hero.seoTitle || "",
             seoDescription: hero.seoDescription || "",
@@ -14951,7 +14952,7 @@ ${offersXml}
     if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
 
     try {
-      const { slug, title, subtitle, heroImage, heroImageMobile, heroImageAlt, badgeImage, coverImage, description, seoTitle, seoDescription, visible, cardStyle } = req.body;
+      const { slug, title, subtitle, heroImage, heroImageMobile, heroImageAlt, badgeImage, coverImage, logoUrl, description, seoTitle, seoDescription, visible, cardStyle } = req.body;
       if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
         return res.status(400).json({ error: "Slug обязателен и должен содержать только строчные буквы, цифры и дефисы" });
       }
@@ -14965,6 +14966,7 @@ ${offersXml}
         heroImageAlt: heroImageAlt || "",
         badgeImage: badgeImage || "",
         coverImage: coverImage || "",
+        logoUrl: logoUrl || "",
         description: description || "",
         seoTitle: seoTitle || "",
         seoDescription: seoDescription || "",
