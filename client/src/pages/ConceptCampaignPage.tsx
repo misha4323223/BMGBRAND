@@ -308,12 +308,19 @@ export default function ConceptCampaignPage() {
             <div className="mb-10 sm:mb-14 text-center">
               {pageSubtitle && <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">{pageSubtitle}</p>}
               {campaignLogoUrl ? (
-                <img
-                  src={campaignLogoUrl}
-                  alt={pageTitle}
-                  className="mx-auto"
-                  style={{ maxHeight: "80px", maxWidth: "min(520px, 90vw)", width: "auto", objectFit: "contain" }}
-                />
+                <div className="flex items-center justify-center gap-4 sm:gap-6">
+                  <img
+                    src="/images/boomerangs-logo.webp"
+                    alt="BOOOMERANGS"
+                    style={{ height: "64px", width: "auto", objectFit: "contain" }}
+                  />
+                  <span className="text-2xl sm:text-3xl font-light text-zinc-400 select-none leading-none">×</span>
+                  <img
+                    src={campaignLogoUrl}
+                    alt={pageTitle}
+                    style={{ height: "64px", maxWidth: "min(300px, 45vw)", width: "auto", objectFit: "contain" }}
+                  />
+                </div>
               ) : (
                 pageTitle && <h1 className="text-2xl sm:text-4xl font-bold uppercase tracking-tight text-zinc-900">{pageTitle}</h1>
               )}
