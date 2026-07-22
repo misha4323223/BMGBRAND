@@ -314,7 +314,7 @@ export default function ConceptCampaignPage() {
                     alt="BOOOMERANGS"
                     style={{ width: "360px", height: "160px", objectFit: "contain" }}
                   />
-                  <span className="text-2xl sm:text-3xl font-light text-zinc-400 select-none leading-none">×</span>
+                  <span className="select-none leading-none" style={{ fontSize: "64px", fontWeight: 100, color: "#71717a", letterSpacing: "-0.05em", lineHeight: 1 }}>×</span>
                   <img
                     src={campaignLogoUrl}
                     alt={pageTitle}
