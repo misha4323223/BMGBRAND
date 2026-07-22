@@ -408,7 +408,7 @@ export default function ConceptCampaignPage() {
 
                           {sizePopupId === product.id && (
                             <div className="absolute bottom-full mb-2 left-0 right-0 z-30 bg-white border border-zinc-200 rounded-xl shadow-xl p-3" onClick={(e) => e.stopPropagation()}>
-                              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-2">Размер и количество</p>
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-900 mb-2">Размер и количество</p>
                               <div className="flex flex-col gap-1.5">
                                 {popupSizes.map((size) => {
                                   const stockLimit = popupSizeStock[size];
@@ -434,7 +434,7 @@ export default function ConceptCampaignPage() {
                                 const totalQty = Object.values(popupSizeQty).reduce((s,q)=>s+q,0);
                                 return (
                                   <button
-                                    className={`mt-2.5 w-full py-2 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all ${totalQty>0 ? "bg-zinc-900 text-white hover:bg-zinc-700" : "bg-zinc-100 text-zinc-400 cursor-not-allowed"}`}
+                                    className={`mt-2.5 w-full py-2 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all ${totalQty>0 ? "bg-zinc-900 text-white hover:bg-zinc-700" : "bg-zinc-100 text-zinc-900 cursor-not-allowed"}`}
                                     disabled={totalQty===0}
                                     onClick={() => {
                                       if (totalQty===0) return;
@@ -448,7 +448,7 @@ export default function ConceptCampaignPage() {
                                   </button>
                                 );
                               })()}
-                              <button className="mt-1.5 w-full text-[10px] text-zinc-400 hover:text-zinc-700 transition-colors" onClick={() => { setSizePopupId(null); setPopupSizeQty({}); }}>Отмена</button>
+                              <button className="mt-1.5 w-full text-[10px] text-zinc-900 hover:text-zinc-600 transition-colors" onClick={() => { setSizePopupId(null); setPopupSizeQty({}); }}>Отмена</button>
                             </div>
                           )}
                         </div>
