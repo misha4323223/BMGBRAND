@@ -12772,17 +12772,8 @@ BMGBRAND — официальный производитель и магазин
         return res.status(404).json({ error: "Order not found" });
       }
 
-      if (order.cdekData) {
-        const cdekInfo = JSON.parse(order.cdekData);
-        if (cdekInfo.status === "creating" || cdekInfo.status === "error") {
-          cdekInfo.status = "pending_retry";
-          delete cdekInfo.error;
-          await storage.updateOrderCdekData(orderId, JSON.stringify(cdekInfo));
-        }
-      }
-
-      const result = await createCdekWaybillForOrder(orderId);
-      res.json(result);
+      await recreateCdekWaybillForOrder(orderId);
+      res.json({ success: true });
     } catch (err: any) {
       console.error("[Admin] CDEK retry error:", err.message);
       res.status(500).json({ error: err.message });

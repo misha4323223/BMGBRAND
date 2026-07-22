@@ -14771,7 +14771,7 @@ export default function Admin() {
                             <Pencil className="w-4 h-4 mr-1" />
                             Товары
                           </Button>
-                          {order.transportCompany === 'cdek' && (
+                          {(order.transportCompany === 'cdek' || (order.cdekData && order.transportCompany !== 'yandex')) && (
                             <Button
                               size="sm"
                               variant="outline"
