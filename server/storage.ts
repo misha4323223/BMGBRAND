@@ -488,6 +488,7 @@ export interface IStorage {
   deleteOrder(id: number): Promise<boolean>;
   deleteExpiredDraftOrders(maxAgeMinutes: number): Promise<number>;
   updateOrderAddonData(orderId: number, addonData: string): Promise<void>;
+  updateOrderItems(orderId: number, items: any[], totalKopeks: number): Promise<void>;
   appendOrderItems(orderId: number, newItems: any[], addedTotal: number): Promise<void>;
   getDraftOrders(): Promise<any[]>;
   // Gift cards
@@ -2977,6 +2978,24 @@ export class DatabaseStorage implements IStorage {
       return await session.executeQuery(query, {
         $id: TypedValues.uint64(orderId),
         $addon_data: TypedValues.utf8(addonData),
+      });
+    });
+  }
+
+  async updateOrderItems(orderId: number, items: any[], totalKopeks: number): Promise<void> {
+    if (!driver) return;
+    await this.safeQuery(async (session) => {
+      const { TypedValues } = await import("ydb-sdk");
+      const query = `
+        DECLARE $id AS Uint64;
+        DECLARE $items AS Json;
+        DECLARE $total AS Int32;
+        UPDATE orders SET items = $items, total = $total WHERE id = $id;
+      `;
+      return await session.executeQuery(query, {
+        $id: TypedValues.uint64(orderId),
+        $items: TypedValues.json(JSON.stringify(items)),
+        $total: TypedValues.int32(totalKopeks),
       });
     });
   }

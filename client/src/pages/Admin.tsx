@@ -1223,6 +1223,25 @@ export default function Admin() {
   const [productsVisible, setProductsVisible] = useState(false);
   const [ordersSubTab, setOrdersSubTab] = useState<"retail" | "wholesale" | "drafts">("retail");
   const [expandedOrderItems, setExpandedOrderItems] = useState<Set<string | number>>(new Set());
+
+  // --- Edit order items modal ---
+  const [editItemsOrder, setEditItemsOrder] = useState<any | null>(null);
+  const [editItemsList, setEditItemsList] = useState<any[]>([]);
+  const [editItemSearch, setEditItemSearch] = useState("");
+  const [addItemForm, setAddItemForm] = useState<{ selectedProduct: any | null; size: string; color: string; quantity: number; priceRub: string }>({
+    selectedProduct: null, size: "", color: "", quantity: 1, priceRub: ""
+  });
+
+  function openEditItemsModal(order: any) {
+    setEditItemsOrder(order);
+    setEditItemsList(Array.isArray(order.items) ? order.items.map((it: any) => ({ ...it })) : []);
+    setEditItemSearch("");
+    setAddItemForm({ selectedProduct: null, size: "", color: "", quantity: 1, priceRub: "" });
+  }
+
+  function editItemsTotal() {
+    return editItemsList.reduce((s, it) => s + Math.round((it.price || 0) * (it.quantity || 1)), 0);
+  }
   const [wholesalePreorderSearch, setWholesalePreorderSearch] = useState("");
   const [pdfUploading, setPdfUploading] = useState(false);
   const [wholesalePreorderDates, setWholesalePreorderDates] = useState<Record<number, { deadline: string; shipping: string; production: string }>>({});
@@ -1619,6 +1638,23 @@ export default function Admin() {
     },
     onError: (err: any) => {
       toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const updateOrderItemsMutation = useMutation({
+    mutationFn: async ({ id, items }: { id: number; items: any[] }) => {
+      return adminFetch(`/api/admin/orders/${id}/items`, apiKey, {
+        method: "PATCH",
+        body: JSON.stringify({ items }),
+      });
+    },
+    onSuccess: (_data, variables) => {
+      refetchOrders();
+      setEditItemsOrder(null);
+      toast({ title: "Состав заказа обновлён" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Ошибка сохранения", description: err.message, variant: "destructive" });
     },
   });
 
@@ -14238,6 +14274,238 @@ export default function Admin() {
           </div>
         )}
 
+        {/* ── Модальное окно редактирования товаров в заказе ── */}
+        <Dialog open={!!editItemsOrder} onOpenChange={(o) => { if (!o) setEditItemsOrder(null); }}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Редактировать товары — заказ #{editItemsOrder?.id}</DialogTitle>
+            </DialogHeader>
+
+            {/* Список текущих позиций */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Текущий состав ({editItemsList.length} поз.)</p>
+              {editItemsList.length === 0 && (
+                <p className="text-sm text-muted-foreground italic">Товаров нет</p>
+              )}
+              {editItemsList.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-2 border rounded-md p-2 text-sm">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{item.name || item.productName}</p>
+                    <p className="text-xs text-muted-foreground">{[item.size, item.color].filter(Boolean).join(" / ")}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <label className="text-xs text-muted-foreground">Кол:</label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={item.quantity}
+                      onChange={e => setEditItemsList(prev => prev.map((it, i) => i === idx ? { ...it, quantity: Math.max(1, Number(e.target.value)) } : it))}
+                      className="w-14 h-7 text-xs text-center px-1"
+                    />
+                    <label className="text-xs text-muted-foreground ml-1">₽:</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={Math.round(item.price / 100 * 100) / 100}
+                      onChange={e => setEditItemsList(prev => prev.map((it, i) => i === idx ? { ...it, price: Math.round(Number(e.target.value) * 100) } : it))}
+                      className="w-20 h-7 text-xs text-center px-1"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-destructive hover:text-destructive shrink-0"
+                    onClick={() => setEditItemsList(prev => prev.filter((_, i) => i !== idx))}
+                    title="Удалить позицию"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+              {editItemsList.length > 0 && (
+                <div className="text-right text-sm font-semibold pr-9">
+                  Итого: {(editItemsTotal() / 100).toLocaleString("ru-RU")} ₽
+                </div>
+              )}
+            </div>
+
+            {/* Добавить товар */}
+            <div className="border-t pt-3 space-y-3">
+              <p className="text-sm font-medium">Добавить товар из каталога</p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Поиск по названию..."
+                  value={editItemSearch}
+                  onChange={e => { setEditItemSearch(e.target.value); setAddItemForm(f => ({ ...f, selectedProduct: null, size: "", color: "", priceRub: "" })); }}
+                  className="pl-8 h-8 text-sm"
+                />
+              </div>
+
+              {/* Результаты поиска */}
+              {editItemSearch.trim().length >= 2 && !addItemForm.selectedProduct && (() => {
+                const q = editItemSearch.toLowerCase();
+                const matched = products.filter((p: any) => (p.name || "").toLowerCase().includes(q)).slice(0, 8);
+                if (!matched.length) return <p className="text-xs text-muted-foreground">Ничего не найдено</p>;
+                return (
+                  <div className="border rounded-md divide-y max-h-44 overflow-y-auto">
+                    {matched.map((p: any) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                        onClick={() => {
+                          setAddItemForm(f => ({
+                            ...f,
+                            selectedProduct: p,
+                            size: p.sizes?.[0] || "",
+                            color: (p.colors?.[0]) || p.color || "",
+                            priceRub: String(Math.round((p.price || 0) / 100 * 100) / 100),
+                          }));
+                          setEditItemSearch(p.name);
+                        }}
+                      >
+                        <span className="font-medium">{p.name}</span>
+                        <span className="text-muted-foreground ml-2">{((p.price || 0) / 100).toLocaleString("ru-RU")} ₽</span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Форма выбранного товара */}
+              {addItemForm.selectedProduct && (
+                <div className="border rounded-md p-3 space-y-2 bg-muted/20">
+                  <p className="text-sm font-medium truncate">{addItemForm.selectedProduct.name}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {addItemForm.selectedProduct.sizes?.length > 0 && (
+                      <div>
+                        <label className="text-xs text-muted-foreground">Размер</label>
+                        <Select value={addItemForm.size} onValueChange={v => setAddItemForm(f => ({ ...f, size: v }))}>
+                          <SelectTrigger className="h-8 text-sm mt-0.5">
+                            <SelectValue placeholder="Размер" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {addItemForm.selectedProduct.sizes.map((s: string) => (
+                              <SelectItem key={s} value={s}>{s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {(addItemForm.selectedProduct.colors?.length > 0) && (
+                      <div>
+                        <label className="text-xs text-muted-foreground">Цвет</label>
+                        <Select value={addItemForm.color} onValueChange={v => setAddItemForm(f => ({ ...f, color: v }))}>
+                          <SelectTrigger className="h-8 text-sm mt-0.5">
+                            <SelectValue placeholder="Цвет" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {addItemForm.selectedProduct.colors.map((c: string) => (
+                              <SelectItem key={c} value={c}>{c}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-xs text-muted-foreground">Кол-во</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={addItemForm.quantity}
+                        onChange={e => setAddItemForm(f => ({ ...f, quantity: Math.max(1, Number(e.target.value)) }))}
+                        className="h-8 text-sm mt-0.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Цена, ₽</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={addItemForm.priceRub}
+                        onChange={e => setAddItemForm(f => ({ ...f, priceRub: e.target.value }))}
+                        className="h-8 text-sm mt-0.5"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      const p = addItemForm.selectedProduct;
+                      const priceKopeks = Math.round(Number(addItemForm.priceRub) * 100);
+                      setEditItemsList(prev => [...prev, {
+                        productId: p.id,
+                        name: p.name,
+                        size: addItemForm.size,
+                        color: addItemForm.color,
+                        quantity: addItemForm.quantity,
+                        price: priceKopeks,
+                      }]);
+                      setAddItemForm({ selectedProduct: null, size: "", color: "", quantity: 1, priceRub: "" });
+                      setEditItemSearch("");
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Добавить в заказ
+                  </Button>
+                </div>
+              )}
+
+              {/* Добавить произвольную позицию */}
+              <details className="text-sm">
+                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">+ Добавить произвольную позицию (без каталога)</summary>
+                <div className="mt-2 border rounded-md p-3 space-y-2 bg-muted/10">
+                  <Input
+                    placeholder="Название товара"
+                    id="custom-item-name"
+                    className="h-8 text-sm"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input placeholder="Размер" id="custom-item-size" className="h-8 text-sm" />
+                    <Input placeholder="Цвет" id="custom-item-color" className="h-8 text-sm" />
+                    <Input placeholder="Кол-во" type="number" min={1} defaultValue={1} id="custom-item-qty" className="h-8 text-sm" />
+                  </div>
+                  <Input placeholder="Цена, ₽" type="number" min={0} step={0.01} id="custom-item-price" className="h-8 text-sm" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      const name = (document.getElementById("custom-item-name") as HTMLInputElement)?.value?.trim();
+                      const size = (document.getElementById("custom-item-size") as HTMLInputElement)?.value?.trim();
+                      const color = (document.getElementById("custom-item-color") as HTMLInputElement)?.value?.trim();
+                      const qty = Math.max(1, Number((document.getElementById("custom-item-qty") as HTMLInputElement)?.value));
+                      const priceRub = Number((document.getElementById("custom-item-price") as HTMLInputElement)?.value);
+                      if (!name) return;
+                      setEditItemsList(prev => [...prev, {
+                        name, size, color, quantity: qty, price: Math.round(priceRub * 100)
+                      }]);
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Добавить
+                  </Button>
+                </div>
+              </details>
+            </div>
+
+            <DialogFooter className="gap-2 mt-2">
+              <Button variant="outline" onClick={() => setEditItemsOrder(null)}>Отмена</Button>
+              <Button
+                disabled={updateOrderItemsMutation.isPending}
+                onClick={() => editItemsOrder && updateOrderItemsMutation.mutate({ id: editItemsOrder.id, items: editItemsList })}
+              >
+                {updateOrderItemsMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+                Сохранить
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {activeTab === "orders" && (
           <div className="p-4 space-y-4">
             <div className="flex items-center justify-between">
@@ -14482,6 +14750,15 @@ export default function Admin() {
                               <SelectItem value="cancelled">Отменен</SelectItem>
                             </SelectContent>
                           </Select>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditItemsModal(order)}
+                            data-testid={`button-edit-items-order-${order.id}`}
+                          >
+                            <Pencil className="w-4 h-4 mr-1" />
+                            Товары
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"

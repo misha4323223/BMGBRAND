@@ -12828,6 +12828,29 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // Admin: update order items (no notifications sent to customer)
+  app.patch("/api/admin/orders/:id/items", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const expectedKey = getAdminKey();
+    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const orderId = Number(req.params.id);
+      if (!orderId) return res.status(400).json({ error: "Invalid order id" });
+      const { items } = req.body;
+      if (!Array.isArray(items)) return res.status(400).json({ error: "items must be an array" });
+      // Recalculate total from items (price in kopeks * quantity)
+      const totalKopeks = items.reduce((sum: number, item: any) => {
+        return sum + Math.round((item.price || 0) * (item.quantity || 1));
+      }, 0);
+      await storage.updateOrderItems(orderId, items, totalKopeks);
+      console.log(`[Admin] Order #${orderId} items updated by admin: ${items.length} items, total ${totalKopeks} kopeks`);
+      res.json({ success: true, total: totalKopeks });
+    } catch (err: any) {
+      console.error("[Admin] Update order items error:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.patch("/api/admin/orders/:id/cdek-data", async (req, res) => {
     const apiKey = req.headers["x-api-key"];
     const expectedKey = getAdminKey();
