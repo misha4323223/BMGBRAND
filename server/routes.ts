@@ -14957,21 +14957,26 @@ ${offersXml}
         return res.status(400).json({ error: "Slug обязателен и должен содержать только строчные буквы, цифры и дефисы" });
       }
 
-      // Сохраняем настройки кампании
+      // Читаем существующие настройки чтобы не потерять поля которых нет в форме
+      const existingSettings = await storage.getPageSettings(`concept_campaign_${slug}`);
+      const existingHero = existingSettings?.hero || {};
+
+      // Сохраняем настройки кампании — merge: существующие поля + новые значения из формы
       await storage.setPageSectionSettings(`concept_campaign_${slug}`, "hero", {
-        title: title || "",
-        subtitle: subtitle || "",
-        heroImage: heroImage || "",
-        heroImageMobile: heroImageMobile || "",
-        heroImageAlt: heroImageAlt || "",
-        badgeImage: badgeImage || "",
-        coverImage: coverImage || "",
-        logoUrl: logoUrl || "",
-        description: description || "",
-        seoTitle: seoTitle || "",
-        seoDescription: seoDescription || "",
-        visible: visible !== false,
-        cardStyle: cardStyle === "poster" ? "poster" : "vinyl",
+        ...existingHero,
+        title: title !== undefined ? (title || "") : (existingHero.title || ""),
+        subtitle: subtitle !== undefined ? (subtitle || "") : (existingHero.subtitle || ""),
+        heroImage: heroImage !== undefined ? (heroImage || "") : (existingHero.heroImage || ""),
+        heroImageMobile: heroImageMobile !== undefined ? (heroImageMobile || "") : (existingHero.heroImageMobile || ""),
+        heroImageAlt: heroImageAlt !== undefined ? (heroImageAlt || "") : (existingHero.heroImageAlt || ""),
+        badgeImage: badgeImage !== undefined ? (badgeImage || "") : (existingHero.badgeImage || ""),
+        coverImage: coverImage !== undefined ? (coverImage || "") : (existingHero.coverImage || ""),
+        logoUrl: logoUrl !== undefined ? logoUrl : (existingHero.logoUrl || ""),
+        description: description !== undefined ? (description || "") : (existingHero.description || ""),
+        seoTitle: seoTitle !== undefined ? (seoTitle || "") : (existingHero.seoTitle || ""),
+        seoDescription: seoDescription !== undefined ? (seoDescription || "") : (existingHero.seoDescription || ""),
+        visible: visible !== undefined ? (visible !== false) : (existingHero.visible !== false),
+        cardStyle: cardStyle !== undefined ? (cardStyle === "poster" ? "poster" : "vinyl") : (existingHero.cardStyle || "vinyl"),
       });
 
       // Добавляем slug в мастер-список (если нет)
