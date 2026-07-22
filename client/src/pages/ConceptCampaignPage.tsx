@@ -265,6 +265,13 @@ export default function ConceptCampaignPage() {
       {/* Виджет подписки */}
       <PreorderSubscribeWidget />
 
+      {/* Волновой переход: чёрный → светлый */}
+      <div style={{ background: "#000", lineHeight: 0, marginBottom: "-1px" }}>
+        <svg viewBox="0 0 1440 72" preserveAspectRatio="none" style={{ display: "block", width: "100%", height: "72px" }}>
+          <path d="M0,72 C360,0 1080,72 1440,20 L1440,72 L0,72 Z" fill="#f2f2f2" />
+        </svg>
+      </div>
+
       {/* Promo banner */}
       {bannerEnabled && (bannerTitle || bannerText) && (() => {
         const styleMap: Record<string, { wrap: string; icon: string; iconBg: string; btn: string }> = {
