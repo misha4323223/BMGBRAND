@@ -312,13 +312,13 @@ export default function ConceptCampaignPage() {
                   <img
                     src="/images/boomerangs-logo.webp"
                     alt="BOOOMERANGS"
-                    style={{ width: "360px", height: "160px", objectFit: "contain" }}
+                    style={{ height: "160px", maxWidth: "360px", width: "auto", objectFit: "contain" }}
                   />
                   <span className="select-none leading-none" style={{ fontSize: "64px", fontWeight: 100, color: "#71717a", letterSpacing: "-0.05em", lineHeight: 1 }}>×</span>
                   <img
                     src={campaignLogoUrl}
                     alt={pageTitle}
-                    style={{ width: "360px", height: "160px", objectFit: "contain" }}
+                    style={{ height: "160px", maxWidth: "360px", width: "auto", objectFit: "contain" }}
                   />
                 </div>
               ) : (
