@@ -1658,6 +1658,18 @@ export default function Admin() {
     },
   });
 
+  const cdekRetryMutation = useMutation({
+    mutationFn: async (orderId: number) =>
+      adminFetch(`/api/admin/orders/${orderId}/cdek-retry`, apiKey, { method: "POST" }),
+    onSuccess: () => {
+      refetchOrders();
+      toast({ title: "Накладная СДЭК пересоздаётся", description: "Обновится через несколько секунд" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Ошибка СДЭК", description: err.message, variant: "destructive" });
+    },
+  });
+
   const { data, isLoading, refetch } = useQuery<{ products: Product[] }>({
     queryKey: ["/api/products", "admin"],
     queryFn: async () => {
@@ -14759,6 +14771,18 @@ export default function Admin() {
                             <Pencil className="w-4 h-4 mr-1" />
                             Товары
                           </Button>
+                          {order.transportCompany === 'cdek' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              title="Удалить старую накладную в СДЭК и создать новую по текущему составу заказа"
+                              disabled={cdekRetryMutation.isPending}
+                              onClick={() => confirm(`Пересоздать накладную СДЭК для заказа #${order.id}?`) && cdekRetryMutation.mutate(order.id)}
+                              data-testid={`button-cdek-retry-order-${order.id}`}
+                            >
+                              🔄 СДЭК
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
