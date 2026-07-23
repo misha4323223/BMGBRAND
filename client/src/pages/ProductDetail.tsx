@@ -2076,35 +2076,27 @@ export default function ProductDetail() {
 
             {/* Product Info Accordion */}
             <Accordion type="multiple" className="w-full border-t border-border">
-              {/* Description */}
+              {/* Description — если есть seoBody, показываем его вместо plain-text описания */}
               <AccordionItem value="description" className="border-b border-border">
                 <AccordionTrigger className="py-4 text-sm font-medium text-foreground hover:no-underline" data-testid="accordion-description">
                   Описание
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
-                  <div className="max-h-[220px] overflow-y-auto pr-1">
-                    <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">
-                      {product.description}
-                    </p>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* SEO body — extended HTML description for search engines, filled per-color in admin */}
-              {(product as any).seoBody && (
-                <AccordionItem value="seo-body" className="border-b border-border">
-                  <AccordionTrigger className="py-4 text-sm font-medium text-foreground hover:no-underline" data-testid="accordion-seo-body">
-                    Подробнее о товаре
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-4">
+                  {(product as any).seoBody ? (
                     <div
                       className="text-sm text-foreground/80 leading-relaxed [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_li]:mb-1 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mb-2 [&_strong]:font-semibold [&_strong]:text-foreground"
                       dangerouslySetInnerHTML={{ __html: (product as any).seoBody }}
                       data-testid="content-seo-body"
                     />
-                  </AccordionContent>
-                </AccordionItem>
-              )}
+                  ) : (
+                    <div className="max-h-[220px] overflow-y-auto pr-1">
+                      <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">
+                        {product.description}
+                      </p>
+                    </div>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
 
               {/* Measurements - multi-section (suits) or single table */}
               {((product as any).measurementSections?.length > 0 || (product.measurements && (product.measurements as SizeMeasurement[]).length > 0)) && (
