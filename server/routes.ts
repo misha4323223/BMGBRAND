@@ -13632,6 +13632,7 @@ BMGBRAND — официальный производитель и магазин
       const { mkdtemp, readFile, rm } = await import("fs/promises");
       const { tmpdir } = await import("os");
       const { join } = await import("path");
+      const { createHash } = await import("crypto");
       const execAsync = promisify(exec);
 
       const tmpDir = await mkdtemp(join(tmpdir(), "vthumb-"));
@@ -13647,16 +13648,18 @@ BMGBRAND — официальный производитель и магазин
 
         const jpegBuffer = await readFile(outPath);
 
-        // Конвертируем в WebP через sharp и заливаем в Storage
+        // Конвертируем в WebP через sharp — 400px достаточно для кружка 80–96px
         const sharp = (await import("sharp")).default;
         const webpBuffer = await sharp(jpegBuffer)
-          .resize(800, null, { withoutEnlargement: true })
-          .webp({ quality: 85 })
+          .resize(400, null, { withoutEnlargement: true })
+          .webp({ quality: 82 })
           .toBuffer();
 
-        const ts = Date.now();
+        // Детерминированное имя: MD5 от videoUrl — один файл на видео,
+        // повторное извлечение перезаписывает тот же объект, мусора нет
+        const urlHash = createHash("md5").update(videoUrl).digest("hex").slice(0, 16);
         const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || "bmg";
-        const s3Key = `site/thumb_${ts}.webp`;
+        const s3Key = `site/thumb_${urlHash}.webp`;
 
         const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
         const s3 = new S3Client({
