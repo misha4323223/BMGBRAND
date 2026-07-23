@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { getPushSubs, savePushSubs, sendPushToAll as _sendPushToAllSvc, getAdminPushSubs, saveAdminPushSubs, sendPushToAdmins as _sendPushToAdminsSvc, acquirePushLock, releasePushLock, getPushHistory, sendPushToUser, orderStatusPushPayload } from './push-service';
 import type { Server } from "http";
-import { storage, warmRatingsCache } from "./storage";
+import { storage, warmRatingsCache, getCachedRawPageSettings } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import express from "express";
@@ -3157,7 +3157,16 @@ BMGBRAND — официальный производитель и магазин
   // YANDEX DELIVERY API
   // ============================================
 
+  function isYandexDeliveryEnabled(): boolean {
+    const settings = getCachedRawPageSettings("checkout");
+    const data = settings?.checkout_data ?? settings;
+    // Default is true only if explicitly set; if we can't read settings, block for safety
+    if (!data) return false;
+    return data.yandexDeliveryEnabled !== false;
+  }
+
   app.post("/api/yandex-delivery/geo-id", async (req, res) => {
+    if (!isYandexDeliveryEnabled()) return res.status(403).json({ error: "Yandex delivery is disabled" });
     try {
       const { location } = req.body;
       if (!location || typeof location !== "string" || location.trim().length < 2) {
@@ -3172,6 +3181,7 @@ BMGBRAND — официальный производитель и магазин
   });
 
   app.post("/api/yandex-delivery/pickup-points", async (req, res) => {
+    if (!isYandexDeliveryEnabled()) return res.status(403).json({ error: "Yandex delivery is disabled" });
     try {
       const { geo_id } = req.body;
       if (!geo_id || typeof geo_id !== "number") {
@@ -3186,6 +3196,7 @@ BMGBRAND — официальный производитель и магазин
   });
 
   app.get("/api/yandex-delivery/warehouses", async (_req, res) => {
+    if (!isYandexDeliveryEnabled()) return res.status(403).json({ error: "Yandex delivery is disabled" });
     try {
       const warehouses = await yandexDeliveryService.listWarehouses();
       res.json({ warehouses });
@@ -3196,6 +3207,7 @@ BMGBRAND — официальный производитель и магазин
   });
 
   app.post("/api/yandex-delivery/calculate", async (req, res) => {
+    if (!isYandexDeliveryEnabled()) return res.status(403).json({ error: "Yandex delivery is disabled" });
     try {
       const { destination_address, destination_station_id, total_weight, total_price } = req.body;
       if (!destination_address && !destination_station_id) {
@@ -10289,6 +10301,10 @@ BMGBRAND — официальный производитель и магазин
       const ydPointId = req.body.ydPointId || undefined;
       const ydPointName = req.body.ydPointName || undefined;
       const ydGeoId = req.body.ydGeoId || undefined;
+      // Block Yandex delivery if disabled in admin settings
+      if (ydPointId && !isYandexDeliveryEnabled()) {
+        return res.status(403).json({ error: "Yandex delivery is not available" });
+      }
       const deliveryService = req.body.deliveryService === "ozon" ? "ozon" : (ydPointId ? "yandex" : "cdek");
       
       const isWholesale = req.body.isWholesale === true;
