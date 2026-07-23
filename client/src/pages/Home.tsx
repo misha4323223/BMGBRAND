@@ -815,7 +815,8 @@ export default function Home() {
                                 src={getOptimizedImageUrl(artist.image)}
                                 alt={artist.name}
                                 loading={idx < 5 ? "eager" : "lazy"}
-                                fetchPriority={idx < 5 ? "high" : "auto"}
+                                // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
+                                fetchpriority={idx < 5 ? "high" : "auto"}
                                 decoding={idx < 5 ? "sync" : "async"}
                                 width={86}
                                 height={110}

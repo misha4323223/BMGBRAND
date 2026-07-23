@@ -355,20 +355,16 @@ export default function ConceptPage() {
         <span className="hidden sm:inline">Назад</span>
       </button>
       {/* Hero — слайдер до 3 слайдов, обратно совместим с одиночным баннером */}
-      {(heroLoading || conceptSlides.length > 0) && (
+      {/* Рендерим только когда данные пришли и слайды есть — без скелетона, без прыжка */}
+      {!heroLoading && conceptSlides.length > 0 && (
         <section
           className="relative bg-black overflow-hidden"
           onTouchStart={() => setHeroPaused(true)}
           onTouchEnd={() => setHeroPaused(false)}
           onTouchCancel={() => setHeroPaused(false)}
         >
-          {/* Skeleton пока грузятся настройки */}
-          {heroLoading && (
-            <div className="h-[45vw] max-h-[480px] min-h-[160px] bg-zinc-900 animate-pulse" />
-          )}
-
           {/* Слайды */}
-          {!heroLoading && conceptSlides.length > 0 && (
+          {true && (
             <div className="relative h-[45vw] max-h-[480px] min-h-[160px]">
               {conceptSlides.map((s: any, i: number) => (
                 <div
