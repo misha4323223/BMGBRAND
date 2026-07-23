@@ -10,7 +10,8 @@ import {
   Loader2, Package, TrendingUp, ShoppingBag, BarChart2, Percent,
   BadgeDollarSign, ExternalLink, Save,
   X, ImageIcon, Plus, GripVertical, Globe, Eye, EyeOff, Users,
-  Monitor, Smartphone, Pencil, Trash2, Upload,
+  Monitor, Smartphone, Pencil, Trash2, Upload, Link, HardDriveUpload,
+  Video, CheckCircle2,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -382,6 +383,152 @@ function fmtMonth(ym: string) {
   const [y, m] = ym.split("-");
   const months = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
   return `${months[parseInt(m, 10) - 1]} ${y}`;
+}
+
+// ─── Video Uploader ───────────────────────────────────────────────────────────
+function VideoUploader({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [tab, setTab] = useState<"url" | "file">(value && !value.startsWith("http") ? "url" : value?.startsWith("https://storage.yandexcloud.net") ? "file" : "url");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const uploadFile = useCallback(async (file: File) => {
+    const allowed = ["video/mp4", "video/quicktime", "video/webm", "video/x-msvideo", "video/mpeg"];
+    if (!allowed.includes(file.type)) {
+      toast({ title: "Неподдерживаемый формат", description: "Допустимые форматы: MP4, MOV, WebM, AVI", variant: "destructive" });
+      return;
+    }
+    if (file.size > 500 * 1024 * 1024) {
+      toast({ title: "Файл слишком большой", description: "Максимум 500 МБ", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    setProgress(0);
+    try {
+      // XHR для отображения прогресса загрузки
+      const url = await new Promise<string>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/partner/artist/upload-video");
+        xhr.setRequestHeader("x-filename", encodeURIComponent(file.name));
+        xhr.setRequestHeader("content-type", file.type);
+        xhr.withCredentials = true;
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try { resolve(JSON.parse(xhr.responseText).url); }
+            catch { reject(new Error("Некорректный ответ сервера")); }
+          } else {
+            try { reject(new Error(JSON.parse(xhr.responseText).error || "Ошибка загрузки")); }
+            catch { reject(new Error(`Ошибка ${xhr.status}`)); }
+          }
+        };
+        xhr.onerror = () => reject(new Error("Ошибка сети"));
+        xhr.send(file);
+      });
+      onChange(url);
+      toast({ title: "Видео загружено", description: "Файл сохранён в облаке" });
+    } catch (e: any) {
+      toast({ title: "Ошибка загрузки", description: e?.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
+  }, [onChange, toast]);
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
+    e.target.value = "";
+  };
+
+  const isCloudUrl = value?.startsWith("https://storage.yandexcloud.net");
+
+  return (
+    <div className="space-y-2">
+      {/* Табы */}
+      <div className="flex rounded-lg border border-border/60 overflow-hidden text-xs font-medium">
+        <button
+          type="button"
+          onClick={() => setTab("url")}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 transition-colors ${tab === "url" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted/60"}`}
+        >
+          <Link className="w-3 h-3" />
+          Ссылка
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("file")}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 transition-colors ${tab === "file" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted/60"}`}
+        >
+          <HardDriveUpload className="w-3 h-3" />
+          Файл с устройства
+        </button>
+      </div>
+
+      {tab === "url" ? (
+        <Input
+          value={isCloudUrl ? "" : (value || "")}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://youtube.com/watch?v=... или ссылка на Яндекс Диск"
+          data-testid="input-artist-video-url"
+        />
+      ) : (
+        <div>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="video/mp4,video/quicktime,video/webm,video/x-msvideo,video/mpeg"
+            className="hidden"
+            onChange={onFileChange}
+          />
+          {isCloudUrl && !uploading ? (
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-3">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Видео загружено</p>
+                <p className="text-[10px] text-emerald-600/70 dark:text-emerald-500/70 truncate">{value.split("/").pop()}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="text-[11px] text-emerald-700 dark:text-emerald-400 underline underline-offset-2 shrink-0"
+              >
+                Заменить
+              </button>
+            </div>
+          ) : uploading ? (
+            <div className="rounded-lg border border-border/60 bg-muted/40 p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Загрузка... {progress}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-foreground rounded-full transition-all duration-200"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="w-full flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border/60 hover:border-border bg-muted/20 hover:bg-muted/40 p-6 transition-colors"
+            >
+              <Video className="w-6 h-6 text-muted-foreground" />
+              <div className="text-center">
+                <p className="text-xs font-medium">Выберите видео или перетащите сюда</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">MP4, MOV, WebM — до 500 МБ</p>
+              </div>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Single Image Uploader ────────────────────────────────────────────────────
@@ -968,8 +1115,11 @@ export function PageEditor({ partnerSlug }: { partnerSlug: string }) {
                 </div>
                 <div className={`space-y-3 transition-opacity ${!(form.videoVisible ?? true) ? 'opacity-40 pointer-events-none select-none' : ''}`}>
                 <div>
-                  <label className="text-xs font-medium mb-1 block">Ссылка на видео</label>
-                  <Input value={form.videoUrl || ""} onChange={f("videoUrl")} placeholder="https://youtube.com/watch?v=... или ссылка на Яндекс Диск" data-testid="input-artist-video-url" />
+                  <label className="text-xs font-medium mb-1 block">Видео</label>
+                  <VideoUploader
+                    value={form.videoUrl || ""}
+                    onChange={(url) => setForm(p => ({ ...p, videoUrl: url }))}
+                  />
                   {/* Подсказка по формату видео */}
                   <div className="mt-2 rounded-lg border border-border/60 bg-muted/40 p-3 space-y-2.5">
                     <p className="text-[11px] font-medium text-muted-foreground">Рекомендуемый формат — 16:9 (горизонтальное)</p>
@@ -999,14 +1149,15 @@ export function PageEditor({ partnerSlug }: { partnerSlug: string }) {
                         <span className="text-[10px] text-muted-foreground/70 text-center leading-tight">на всю ширину</span>
                       </div>
                     </div>
-                    {/* Поддерживаемые платформы */}
+                    {/* Поддерживаемые источники */}
                     <div className="space-y-1 pt-0.5">
-                      <p className="text-[10px] font-medium text-muted-foreground">Поддерживаемые источники:</p>
+                      <p className="text-[10px] font-medium text-muted-foreground">Вкладка «Ссылка» — поддерживаемые источники:</p>
                       <div className="grid grid-cols-1 gap-0.5 text-[10px] text-muted-foreground/80">
                         <span>✅ <b>YouTube</b> — просто вставьте ссылку</span>
                         <span>✅ <b>VK Video</b> — просто вставьте ссылку</span>
                         <span>✅ <b>Яндекс Диск</b> — вставьте публичную ссылку на файл</span>
                         <span>✅ <b>Другие сайты</b> — нажмите «Поделиться → Встроить» на видео и вставьте весь код целиком</span>
+                        <span className="mt-0.5">📁 <b>Файл с ПК или телефона</b> — переключитесь на вкладку «Файл с устройства»</span>
                       </div>
                     </div>
                   </div>

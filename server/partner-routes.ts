@@ -1250,6 +1250,62 @@ router.post('/artist/upload-logo', authMiddleware, requirePartnerRole, async (re
   }
 });
 
+// POST upload video for artist page (to Yandex S3, artist subfolder)
+router.post('/artist/upload-video', authMiddleware, requirePartnerRole, async (req: AuthRequest, res: Response) => {
+  try {
+    const partner = await storage.getPartnerById(req.user!.partnerId!);
+    if (!partner || !partner.isArtist || !partner.partnerSlug) {
+      return res.status(403).json({ error: 'Нет доступа' });
+    }
+
+    const contentType = (req.headers['content-type'] || '').split(';')[0].trim();
+    const allowedTypes = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/mpeg'];
+    if (!allowedTypes.includes(contentType)) {
+      return res.status(400).json({ error: 'Допустимые форматы: MP4, MOV, WebM, AVI' });
+    }
+
+    const rawFilename = (req.headers['x-filename'] as string) || `video_${Date.now()}.mp4`;
+    const filename = (() => { try { return decodeURIComponent(rawFilename); } catch { return rawFilename; } })();
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(Buffer.from(chunk));
+    const buffer = Buffer.concat(chunks);
+    if (buffer.length === 0) return res.status(400).json({ error: 'Пустой файл' });
+    if (buffer.length > 500 * 1024 * 1024) return res.status(400).json({ error: 'Файл не должен превышать 500 МБ' });
+
+    const ts = Date.now();
+    const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || 'bmg';
+    const ext = filename.match(/\.[^.]+$/)?.[0] || '.mp4';
+    const cleanName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const s3Key = `site/artist/${partner.partnerSlug}/videos/${ts}_${cleanName}`;
+
+    const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const s3 = new S3Client({
+      region: 'ru-central1',
+      endpoint: 'https://storage.yandexcloud.net',
+      credentials: {
+        accessKeyId: process.env.YANDEX_STORAGE_ACCESS_KEY || '',
+        secretAccessKey: process.env.YANDEX_STORAGE_SECRET_KEY || '',
+      },
+    });
+    await s3.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: s3Key,
+      Body: buffer,
+      ContentType: contentType,
+      ACL: 'public-read',
+      CacheControl: 'public, max-age=31536000, immutable',
+    }));
+
+    const url = `https://storage.yandexcloud.net/${bucketName}/${s3Key}`;
+    console.log(`[Artist Video Upload] ${partner.partnerSlug}: ${url} (${(buffer.length / 1024 / 1024).toFixed(1)} MB)`);
+    res.json({ url, success: true });
+  } catch (error: any) {
+    console.error('[Artist Video Upload] error:', error);
+    res.status(500).json({ error: error?.message || 'Ошибка загрузки видео' });
+  }
+});
+
 // GET artist page settings
 router.get('/artist/page', authMiddleware, requirePartnerRole, async (req: AuthRequest, res: Response) => {
   try {
