@@ -267,8 +267,8 @@ export default function ConceptCampaignPage() {
             <span className="hidden sm:inline">Все предзаказы</span>
           </Link>
         </section>
-      ) : !heroLoading ? (
-        /* Нет изображений — показываем только кнопку назад без высокого блока */
+      ) : (
+        /* Нет изображений — показываем кнопку назад сразу, не ждём heroLoading */
         <div className="bg-black px-4 pt-4 pb-2">
           <Link
             href="/concept"
@@ -278,7 +278,7 @@ export default function ConceptCampaignPage() {
             <span>Все предзаказы</span>
           </Link>
         </div>
-      ) : null}
+      )}
 
       {/* Виджет подписки */}
       <PreorderSubscribeWidget />
@@ -337,6 +337,9 @@ export default function ConceptCampaignPage() {
                   <img
                     src="/images/boomerangs-logo.webp"
                     alt="BOOOMERANGS"
+                    loading="eager"
+                    // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
+                    fetchpriority="high"
                     className="h-[72px] sm:h-[160px] w-auto object-contain"
                     style={{ maxWidth: "clamp(120px, 38vw, 360px)" }}
                   />
@@ -344,6 +347,9 @@ export default function ConceptCampaignPage() {
                   <img
                     src={campaignLogoUrl}
                     alt={pageTitle}
+                    loading="eager"
+                    // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
+                    fetchpriority="high"
                     className="h-[72px] sm:h-[160px] w-auto object-contain"
                     style={{ maxWidth: "clamp(120px, 38vw, 360px)" }}
                   />
