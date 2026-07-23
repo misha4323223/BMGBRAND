@@ -154,7 +154,7 @@ export function PreorderSubscribeWidget() {
       </div>
 
       {/* Заголовок — по центру на всю ширину */}
-      <div className="relative max-w-2xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-8 sm:pb-10 text-center">
+      <div className="relative max-w-2xl mx-auto px-4 sm:px-6 pt-7 sm:pt-9 pb-5 sm:pb-6 text-center">
         <div className="relative inline-flex items-center justify-center w-12 h-12 mb-4">
           <span className="predrop-ring absolute inset-0 rounded-full border border-[#E53935]/60" />
           <span className="predrop-ring absolute inset-0 rounded-full border border-[#E53935]/60" style={{ animationDelay: "0.6s" }} />
@@ -174,15 +174,15 @@ export function PreorderSubscribeWidget() {
       </div>
 
       {/* Две панели на всю ширину */}
-      <div className="relative w-full flex flex-col sm:flex-row border-t border-white/10 pb-10 sm:pb-14">
+      <div className="relative w-full flex flex-col sm:flex-row border-t border-white/10">
 
         {/* Левая панель — Email */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-10 lg:px-16 py-10 sm:py-12 text-center border-b sm:border-b-0 sm:border-r border-white/10">
-          <div className="w-12 h-12 rounded-full bg-[#E53935]/10 border border-[#E53935]/30 flex items-center justify-center mb-5">
-            <Rocket className="w-5 h-5" style={{ color: "#E53935" }} />
+        <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-10 lg:px-16 py-7 sm:py-8 text-center border-b sm:border-b-0 sm:border-r border-white/10">
+          <div className="w-10 h-10 rounded-full bg-[#E53935]/10 border border-[#E53935]/30 flex items-center justify-center mb-3">
+            <Rocket className="w-4 h-4" style={{ color: "#E53935" }} />
           </div>
-          <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Подписка на email</h3>
-          <p className="text-sm text-white/40 mb-6 max-w-xs leading-relaxed">
+          <h3 className="text-base sm:text-lg font-bold text-white mb-1">Подписка на email</h3>
+          <p className="text-xs text-white/40 mb-4 max-w-xs leading-relaxed">
             Письмо в момент открытия нового предзаказа. Никакого спама.
           </p>
 
@@ -259,7 +259,7 @@ export function PreorderSubscribeWidget() {
         </div>
 
         {/* Правая панель — Push */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-10 lg:px-16 py-10 sm:py-12 text-center">
+        <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-10 lg:px-16 py-7 sm:py-8 text-center">
           {pushState === "unsupported" ? (
             <>
               <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-5">
@@ -286,11 +286,11 @@ export function PreorderSubscribeWidget() {
             </>
           ) : (
             <>
-              <div className="w-12 h-12 rounded-full bg-white/5 border border-white/15 flex items-center justify-center mb-5">
-                <BellRing className="w-5 h-5 text-white/60" />
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/15 flex items-center justify-center mb-3">
+                <BellRing className="w-4 h-4 text-white/60" />
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Уведомления в браузере</h3>
-              <p className="text-sm text-white/40 mb-6 max-w-xs leading-relaxed">
+              <h3 className="text-base sm:text-lg font-bold text-white mb-1">Уведомления в браузере</h3>
+              <p className="text-xs text-white/40 mb-4 max-w-xs leading-relaxed">
                 Мгновенное оповещение без email — прямо на экран, даже когда сайт закрыт.
               </p>
               <div className="w-full max-w-sm">
