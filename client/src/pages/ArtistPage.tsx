@@ -925,7 +925,8 @@ export default function ArtistPage() {
                     <img
                       src={settings.heroImageMobile}
                       alt={heroImageAlt}
-                      fetchPriority="high"
+                      // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
+                      fetchpriority="high"
                       loading="eager"
                       decoding="async"
                       className="block lg:hidden absolute inset-0 w-full h-full object-cover"
@@ -933,7 +934,8 @@ export default function ArtistPage() {
                     <img
                       src={heroImage}
                       alt={heroImageAlt}
-                      fetchPriority="high"
+                      // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
+                      fetchpriority="high"
                       loading="eager"
                       decoding="async"
                       className="hidden lg:block absolute inset-0 w-full h-full object-cover"
@@ -943,7 +945,8 @@ export default function ArtistPage() {
                   <img
                     src={heroImage}
                     alt={heroImageAlt}
-                    fetchPriority="high"
+                    // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
+                    fetchpriority="high"
                     loading="eager"
                     decoding="async"
                     className="absolute inset-0 w-full h-full object-cover"
@@ -999,7 +1002,8 @@ export default function ArtistPage() {
                         alt={artistName}
                         className="block"
                         loading="eager"
-                        fetchPriority="high"
+                        // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
+                        fetchpriority="high"
                         style={{
                           width: settings.logoSize ? `${settings.logoSize}px` : '280px',
                           height: 'auto',
