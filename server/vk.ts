@@ -595,14 +595,19 @@ export function vkNotifyAddonOrderPaid(order: {
   id: number;
   customerName: string;
   customerPhone: string;
-}, addonItems: Array<{ productName: string; size?: string; color?: string; quantity: number; price: number }>, addedTotal: number): void {
+  customerEmail?: string;
+}, addonItems: Array<{ productName: string; size?: string; color?: string; quantity: number; price: number; sku?: string }>, addedTotal: number): void {
   const sep = "\n────────────────────\n";
-  let text = `🛒 Дозаказ к #${order.id}  •  ${order.customerName}\n${order.customerPhone}`;
+  let text = `🛒 Дозаказ к #${order.id}  •  ${order.customerName}`;
+  if (order.customerPhone) text += `\n${order.customerPhone}`;
+  if (order.customerEmail) text += `  ${order.customerEmail}`;
   text += sep;
   addonItems.forEach((it, i) => {
     const meta = [it.size, it.color].filter(Boolean).join("/");
-    const nm = it.productName.length > 30 ? it.productName.substring(0, 28) + "…" : it.productName;
-    text += `${i + 1}. ${nm}${meta ? ` (${meta})` : ""} ×${it.quantity} ${(it.price * it.quantity / 100).toLocaleString('ru-RU')}₽\n`;
+    text += `${i + 1}. ${it.productName}`;
+    if (it.sku) text += ` [${it.sku}]`;
+    if (meta) text += ` (${meta})`;
+    text += ` ×${it.quantity} ${(it.price * it.quantity / 100).toLocaleString('ru-RU')}₽\n`;
   });
   text += sep;
   text += `Доплата: ${(addedTotal / 100).toLocaleString('ru-RU')} ₽\n⚠️ Накладная CDEK обновляется`;

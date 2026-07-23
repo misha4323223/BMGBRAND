@@ -764,24 +764,33 @@ export function notifyAddonOrderPaid(order: {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
-}, addonItems: Array<{ productName: string; size?: string; color?: string; quantity: number; price: number }>, addedTotal: number): void {
+}, addonItems: Array<{ productName: string; size?: string; color?: string; quantity: number; price: number; sku?: string }>, addedTotal: number): void {
   const { token, chatId } = getConfig();
   if (!token || !chatId) return;
 
   const sep = "\n──────────────────────\n";
   let text = `🛒 <b>Дозаказ к #${order.id}</b>\n`;
-  text += `${esc(order.customerName)}  •  ${esc(order.customerPhone)}\n`;
-  text += `${esc(order.customerEmail)}`;
+  text += `${esc(order.customerName)}`;
+  if (order.customerPhone) text += `  •  ${esc(order.customerPhone)}`;
+  if (order.customerEmail) text += `\n${esc(order.customerEmail)}`;
   text += sep;
   addonItems.forEach((it, i) => {
     const meta = [it.size, it.color].filter(Boolean).join("/");
     text += `${i + 1}. ${esc(it.productName)}`;
+    if (it.sku) text += ` <code>${esc(it.sku)}</code>`;
     if (meta) text += ` <i>${esc(meta)}</i>`;
     text += ` ×${it.quantity} ${price(it.price * it.quantity)}\n`;
   });
   text += sep;
   text += `<b>Доплата: ${price(addedTotal)}</b>\n`;
   text += `📦 Если накладная CDEK уже создана — она пересоздаётся автоматически с новым составом`;
+
+  // Telegram HTML limit — trim middle items if needed, always keep header + total
+  if (text.length > 4000) {
+    const header = `🛒 <b>Дозаказ к #${order.id}</b>\n${esc(order.customerName)}${order.customerPhone ? `  •  ${esc(order.customerPhone)}` : ""}${order.customerEmail ? `\n${esc(order.customerEmail)}` : ""}${sep}`;
+    const footer = `${sep}<b>Доплата: ${price(addedTotal)}</b> (${addonItems.length} позиций)\n📦 Накладная CDEK пересоздаётся`;
+    text = header + `…сообщение обрезано, ${addonItems.length} позиций…` + footer;
+  }
 
   sendRetailMessage(text).catch(err => console.error("[Telegram] notifyAddonOrderPaid failed:", err));
 }
