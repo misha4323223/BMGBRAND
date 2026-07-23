@@ -375,20 +375,27 @@ export function VideoUploadField({ value, onChange, apiKey, placeholder, onThumb
     e.target.value = "";
   };
 
-  /** Извлечь превью из уже загруженного URL (нужен CORS на Storage) */
+  /** Извлечь превью через сервер (ffmpeg) — без CORS, работает для любых URL */
   const handleExtractFromUrl = async () => {
     if (!value || !onThumbnailGenerated) return;
     setThumbStatus("extracting");
-    const blob = await extractFrameFromUrl(value, 0.5);
-    if (!blob) {
-      setThumbStatus("error");
-      return;
-    }
-    const url = await uploadThumbnailBlob(blob, apiKey);
-    if (url) {
-      onThumbnailGenerated(url);
-      setThumbStatus("ok");
-    } else {
+    try {
+      const res = await fetch("/api/admin/extract-video-thumbnail", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": apiKey,
+        },
+        body: JSON.stringify({ videoUrl: value }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        onThumbnailGenerated(data.url);
+        setThumbStatus("ok");
+      } else {
+        setThumbStatus("error");
+      }
+    } catch {
       setThumbStatus("error");
     }
   };

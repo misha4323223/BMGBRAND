@@ -13614,6 +13614,81 @@ BMGBRAND — официальный производитель и магазин
     }
   });
 
+  // Admin: Extract video thumbnail via ffmpeg (server-side, no CORS issues)
+  app.post("/api/admin/extract-video-thumbnail", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const expectedKey = getAdminKey();
+    if (apiKey !== expectedKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const { videoUrl } = req.body as { videoUrl?: string };
+      if (!videoUrl || typeof videoUrl !== "string") {
+        return res.status(400).json({ error: "videoUrl required" });
+      }
+
+      const { exec } = await import("child_process");
+      const { promisify } = await import("util");
+      const { mkdtemp, readFile, rm } = await import("fs/promises");
+      const { tmpdir } = await import("os");
+      const { join } = await import("path");
+      const execAsync = promisify(exec);
+
+      const tmpDir = await mkdtemp(join(tmpdir(), "vthumb-"));
+      const outPath = join(tmpDir, "thumb.jpg");
+
+      try {
+        // ffmpeg читает видео по URL напрямую, берёт 1 кадр на 0.5с
+        // -ss перед -i для быстрого seek; timeout 30s
+        await execAsync(
+          `ffmpeg -y -ss 0.5 -i "${videoUrl.replace(/"/g, '\\"')}" -vframes 1 -q:v 3 "${outPath}"`,
+          { timeout: 30000 }
+        );
+
+        const jpegBuffer = await readFile(outPath);
+
+        // Конвертируем в WebP через sharp и заливаем в Storage
+        const sharp = (await import("sharp")).default;
+        const webpBuffer = await sharp(jpegBuffer)
+          .resize(800, null, { withoutEnlargement: true })
+          .webp({ quality: 85 })
+          .toBuffer();
+
+        const ts = Date.now();
+        const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || "bmg";
+        const s3Key = `site/thumb_${ts}.webp`;
+
+        const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
+        const s3 = new S3Client({
+          region: "ru-central1",
+          endpoint: "https://storage.yandexcloud.net",
+          credentials: {
+            accessKeyId: process.env.YANDEX_STORAGE_ACCESS_KEY || "",
+            secretAccessKey: process.env.YANDEX_STORAGE_SECRET_KEY || "",
+          },
+        });
+
+        await s3.send(new PutObjectCommand({
+          Bucket: bucketName,
+          Key: s3Key,
+          Body: webpBuffer,
+          ContentType: "image/webp",
+          ACL: "public-read",
+          CacheControl: "public, max-age=31536000, immutable",
+        }));
+
+        const url = `https://storage.yandexcloud.net/${bucketName}/${s3Key}`;
+        console.log(`[Thumbnail] Extracted from video: ${url}`);
+        res.json({ url, success: true });
+      } finally {
+        await rm(tmpDir, { recursive: true, force: true });
+      }
+    } catch (err: any) {
+      console.error("[Thumbnail] ffmpeg error:", err.message);
+      res.status(500).json({ error: "Не удалось извлечь кадр: " + err.message });
+    }
+  });
+
   // Admin: Get users with loyalty data
   app.get("/api/admin/loyalty-users", async (req, res) => {
     const apiKey = req.headers["x-api-key"];
