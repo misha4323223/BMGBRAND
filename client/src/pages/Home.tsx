@@ -338,6 +338,13 @@ export default function Home() {
     queryKey: ["/api/page-settings/home"],
   });
 
+  // Артисты — отдельная подписка на тот же кэш, не блокирует остальные секции
+  const { data: artistStripItems } = useQuery<any[]>({
+    queryKey: ["/api/page-settings/home"],
+    select: (data: any) => data?.artists?.items ?? null,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const reelItems: any[] = (pageSettings as any)?.reels?.items || [];
   const goToReel = useCallback((delta: number) => {
     setActiveReel((current: any) => {
@@ -748,7 +755,7 @@ export default function Home() {
         </section>
         {renderPromoBanner("after_hero")}
         {(() => {
-          const stripItems: any[] = pageSettings?.artists?.items || artists;
+          const stripItems: any[] = artistStripItems || pageSettings?.artists?.items || artists;
           if (!stripItems || stripItems.length === 0) return null;
           return (
             <div className="w-full border-t-2 border-primary" style={{ background: "radial-gradient(ellipse 100% 60% at 50% 0%, #1c1c1c 0%, #0a0a0a 65%)" }}>
@@ -807,8 +814,9 @@ export default function Home() {
                               <img
                                 src={getOptimizedImageUrl(artist.image)}
                                 alt={artist.name}
-                                loading="lazy"
-                                decoding="async"
+                                loading={idx < 5 ? "eager" : "lazy"}
+                                fetchPriority={idx < 5 ? "high" : "auto"}
+                                decoding={idx < 5 ? "sync" : "async"}
                                 width={86}
                                 height={110}
                                 className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
