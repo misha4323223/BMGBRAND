@@ -10428,9 +10428,9 @@ BMGBRAND — официальный производитель и магазин
           verifiedDeliveryCost = clientDeliveryCost;
           console.log(`[Order] CDEK calculation failed, using client delivery cost: ${clientDeliveryCost/100} RUB. Error: ${cdekErr.message}`);
         }
-      } else if (!isWholesale && clientDeliveryCost > 0) {
+      } else if (!isWholesale && clientDeliveryCost > 0 && (deliveryService === "yandex" || deliveryService === "ozon")) {
         verifiedDeliveryCost = clientDeliveryCost;
-        console.log(`[Order] No CDEK city code, using client delivery cost: ${clientDeliveryCost/100} RUB`);
+        console.log(`[Order] Non-CDEK delivery (${deliveryService}), using client delivery cost: ${clientDeliveryCost/100} RUB`);
       }
 
       // Free shipping for retail orders >= 5000 RUB
@@ -11063,6 +11063,14 @@ BMGBRAND — официальный производитель и магазин
       const order = await storage.getOrder(Number(orderId));
       
       if (!order) {
+        return res.status(404).json({ error: "Заказ не найден" });
+      }
+
+      // Verify the requester owns this order
+      const requestUserId = (req as any).user?.id;
+      const ownsViaSession = order.sessionId === req.sessionID;
+      const ownsViaUser = requestUserId && order.userId === requestUserId;
+      if (!ownsViaSession && !ownsViaUser) {
         return res.status(404).json({ error: "Заказ не найден" });
       }
 
@@ -15102,7 +15110,28 @@ ${offersXml}
         : [{ size: undefined, quantity: 1 }];
 
       const totalQty = sizeItems.reduce((s: number, i: any) => s + i.quantity, 0);
-      const deliveryCost = cdekDeliverySum ? Number(cdekDeliverySum) : 0;
+      let deliveryCost = 0;
+      if (cdekDeliverySum && cdekCityCode) {
+        try {
+          const packageWeight = Math.max(500, totalQty * CDEK_ITEM_WEIGHT_GRAMS);
+          const tariffs = await cdekService.calculateTariffs({
+            from_location: { code: CDEK_SENDER_CITY_CODE },
+            to_location: { code: Number(cdekCityCode) },
+            packages: [{ weight: packageWeight, length: CDEK_DEFAULT_PACKAGE.length, width: CDEK_DEFAULT_PACKAGE.width, height: CDEK_DEFAULT_PACKAGE.height }],
+          });
+          if (tariffs && tariffs.length > 0) {
+            const matchingTariff = cdekTariffCode ? tariffs.find((t: any) => t.tariff_code === Number(cdekTariffCode)) : null;
+            const cheapest = tariffs.reduce((min: any, t: any) => t.delivery_sum < min.delivery_sum ? t : min, tariffs[0]);
+            const serverCost = (matchingTariff?.delivery_sum || cheapest.delivery_sum) * 100;
+            const tolerance = Math.round(serverCost * 0.20);
+            deliveryCost = Math.abs(Number(cdekDeliverySum) - serverCost) <= tolerance ? Number(cdekDeliverySum) : serverCost;
+            console.log(`[Preorder] CDEK delivery verified: client=${Number(cdekDeliverySum)/100}, server=${serverCost/100}, used=${deliveryCost/100} RUB`);
+          }
+        } catch (err: any) {
+          console.log(`[Preorder] CDEK verification failed, no delivery charge: ${err.message}`);
+          deliveryCost = 0;
+        }
+      }
       const totalPrice = product.price * totalQty + deliveryCost;
 
       const orderItems = sizeItems.map((item: any) => {
@@ -15405,7 +15434,7 @@ ${offersXml}
       }
 
       const fullName = [customerLastName.trim(), customerFirstName.trim(), customerMiddleName?.trim()].filter(Boolean).join(" ");
-      const deliveryCost = cdekDeliverySum ? Number(cdekDeliverySum) : 0;
+      let deliveryCost = 0;
 
       const orderItems = reqItems.filter((i: any) => i.quantity > 0).map((i: any) => ({
         productId: Number(i.productId),
@@ -15450,6 +15479,43 @@ ${offersXml}
           code: "STOCK_INSUFFICIENT",
           stockIssues: preorderStockIssues,
         });
+      }
+
+      // Verify prices against database — do not trust client-provided prices
+      for (const item of orderItems) {
+        const product = await storage.getProduct(item.productId);
+        if (!product) {
+          return res.status(400).json({ error: `Товар ${item.productId} не найден` });
+        }
+        if (!(product as any).preorderEnabled) {
+          return res.status(400).json({ error: `Товар "${product.name}" недоступен для предзаказа` });
+        }
+        item.price = product.price;
+        item.productName = product.name;
+      }
+
+      // Verify delivery cost via CDEK if city code is provided; otherwise no charge
+      if (cdekDeliverySum && cdekCityCode) {
+        try {
+          const totalItemCount = orderItems.reduce((s: number, i: any) => s + i.quantity, 0);
+          const packageWeight = Math.max(500, totalItemCount * CDEK_ITEM_WEIGHT_GRAMS);
+          const tariffs = await cdekService.calculateTariffs({
+            from_location: { code: CDEK_SENDER_CITY_CODE },
+            to_location: { code: Number(cdekCityCode) },
+            packages: [{ weight: packageWeight, length: CDEK_DEFAULT_PACKAGE.length, width: CDEK_DEFAULT_PACKAGE.width, height: CDEK_DEFAULT_PACKAGE.height }],
+          });
+          if (tariffs && tariffs.length > 0) {
+            const matchingTariff = cdekTariffCode ? tariffs.find((t: any) => t.tariff_code === Number(cdekTariffCode)) : null;
+            const cheapest = tariffs.reduce((min: any, t: any) => t.delivery_sum < min.delivery_sum ? t : min, tariffs[0]);
+            const serverCost = (matchingTariff?.delivery_sum || cheapest.delivery_sum) * 100;
+            const tolerance = Math.round(serverCost * 0.20);
+            deliveryCost = Math.abs(Number(cdekDeliverySum) - serverCost) <= tolerance ? Number(cdekDeliverySum) : serverCost;
+            console.log(`[Preorder Multi] CDEK delivery verified: client=${Number(cdekDeliverySum)/100}, server=${serverCost/100}, used=${deliveryCost/100} RUB`);
+          }
+        } catch (err: any) {
+          console.log(`[Preorder Multi] CDEK verification failed, no delivery charge: ${err.message}`);
+          deliveryCost = 0;
+        }
       }
 
       const totalPrice = orderItems.reduce((s: number, i: any) => s + i.price * i.quantity, 0) + deliveryCost;
@@ -15933,6 +15999,8 @@ ${offersXml}
   });
 
   app.post("/api/admin/preorder/:productId/status", async (req: any, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
     try {
       const productId = Number(req.params.productId);
       const { status } = req.body;
