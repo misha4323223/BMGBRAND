@@ -153,8 +153,8 @@ export function PreorderSubscribeWidget() {
         </div>
       </div>
 
-      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14 text-center">
-        {/* Иконка с пульсирующими кольцами */}
+      {/* Заголовок — по центру на всю ширину */}
+      <div className="relative max-w-2xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-8 sm:pb-10 text-center">
         <div className="relative inline-flex items-center justify-center w-12 h-12 mb-4">
           <span className="predrop-ring absolute inset-0 rounded-full border border-[#E53935]/60" />
           <span className="predrop-ring absolute inset-0 rounded-full border border-[#E53935]/60" style={{ animationDelay: "0.6s" }} />
@@ -168,110 +168,151 @@ export function PreorderSubscribeWidget() {
           НЕ ПРОПУСТИ<br className="hidden sm:block" /> СЛЕДУЮЩИЙ ДРОП
         </h2>
 
-        <p className="text-sm sm:text-base text-white/50 max-w-lg mx-auto mb-6 leading-relaxed">
-          Подпишись - и узнаешь о новой предпродажи раньше всех. Никакого спама,
-          только моменты, когда решается, что мы шьём дальше.
+        <p className="text-sm sm:text-base text-white/50 max-w-lg mx-auto leading-relaxed">
+          Выбери как узнавать первым — на почту или прямо в браузер, без регистрации.
         </p>
+      </div>
 
-        {subscribed ? (
-          <div className="relative flex flex-col items-center gap-3 py-6" data-testid="predrop-subscribed-message">
-            <div className="relative">
-              <Sparks />
-              <CheckCircle2 className="w-12 h-12 relative z-10" style={{ color: "#E53935" }} />
-            </div>
-            <p className="text-lg font-bold text-white">Готово, ты в списке!</p>
-            <p className="text-sm text-white/50 max-w-xs">
-              Как только откроется новый pre-drop — пришлём письмо первым делом
-            </p>
+      {/* Две панели на всю ширину */}
+      <div className="relative w-full flex flex-col sm:flex-row border-t border-white/10 pb-10 sm:pb-14">
+
+        {/* Левая панель — Email */}
+        <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-10 lg:px-16 py-10 sm:py-12 text-center border-b sm:border-b-0 sm:border-r border-white/10">
+          <div className="w-12 h-12 rounded-full bg-[#E53935]/10 border border-[#E53935]/30 flex items-center justify-center mb-5">
+            <Rocket className="w-5 h-5" style={{ color: "#E53935" }} />
           </div>
-        ) : (
-          <div className="max-w-md mx-auto space-y-4">
-            <div className="predrop-form-glow">
-              <div className="flex flex-col sm:flex-row gap-2 bg-black rounded-full p-1.5">
-                <Input
-                  type="email"
-                  placeholder="Твой email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && email && agreed && subscribeMutation.mutate()}
-                  className="flex-1 bg-transparent border-0 text-white placeholder:text-white/30 focus-visible:ring-0 h-11 px-4 rounded-full"
-                  data-testid="input-preorder-email"
+          <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Подписка на email</h3>
+          <p className="text-sm text-white/40 mb-6 max-w-xs leading-relaxed">
+            Письмо в момент открытия нового предзаказа. Никакого спама.
+          </p>
+
+          {subscribed ? (
+            <div className="relative flex flex-col items-center gap-3" data-testid="predrop-subscribed-message">
+              <div className="relative">
+                <Sparks />
+                <CheckCircle2 className="w-10 h-10 relative z-10" style={{ color: "#E53935" }} />
+              </div>
+              <p className="text-base font-bold text-white">Готово, ты в списке!</p>
+              <p className="text-xs text-white/40 max-w-[200px]">Пришлём письмо как только откроется pre-drop</p>
+            </div>
+          ) : (
+            <div className="w-full max-w-sm space-y-4">
+              <div className="predrop-form-glow">
+                <div className="flex flex-col gap-2 bg-white/5 rounded-2xl p-3 border border-white/10">
+                  <Input
+                    type="email"
+                    placeholder="Твой email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && email && agreed && subscribeMutation.mutate()}
+                    className="bg-transparent border-0 text-white placeholder:text-white/30 focus-visible:ring-0 h-11 px-3 rounded-xl"
+                    data-testid="input-preorder-email"
+                  />
+                  <button
+                    onClick={() => subscribeMutation.mutate()}
+                    disabled={!email || !agreed || subscribeMutation.isPending}
+                    className="w-full h-11 rounded-xl text-sm font-bold text-black hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
+                    style={{ backgroundColor: "#E53935" }}
+                    data-testid="button-preorder-subscribe"
+                  >
+                    {subscribeMutation.isPending ? (
+                      <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin block" />
+                    ) : (
+                      <>Подписаться <Rocket className="w-3.5 h-3.5" /></>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <label className="flex items-start gap-2 cursor-pointer group justify-center">
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={e => setAgreed(e.target.checked)}
+                  className="mt-0.5 shrink-0"
+                  style={{ accentColor: "#E53935" }}
+                  data-testid="checkbox-preorder-agree"
                 />
+                <span className="text-[11px] text-white/35 group-hover:text-white/55 transition-colors leading-relaxed text-left max-w-xs">
+                  Соглашаюсь получать уведомления о новых предзаказах. Отписаться можно в любой момент в личном кабинете.
+                </span>
+              </label>
+
+              {subscribeMutation.isError && (
+                <p className="text-red-400 text-xs">Ошибка. Попробуй ещё раз.</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Разделитель «или» по центру — только на десктопе */}
+        <div className="hidden sm:flex flex-col items-center justify-center px-0 relative">
+          <div className="absolute inset-y-0 left-1/2 w-px bg-white/10 -translate-x-1/2" />
+          <span className="relative z-10 bg-black text-[11px] font-semibold tracking-[0.2em] text-white/25 uppercase py-2 px-1">или</span>
+        </div>
+
+        {/* Мобильный разделитель «или» */}
+        <div className="sm:hidden flex items-center gap-3 px-6 py-4">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-[11px] font-semibold tracking-[0.2em] text-white/25 uppercase">или</span>
+          <div className="flex-1 h-px bg-white/10" />
+        </div>
+
+        {/* Правая панель — Push */}
+        <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-10 lg:px-16 py-10 sm:py-12 text-center">
+          {pushState === "unsupported" ? (
+            <>
+              <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-5">
+                <BellOff className="w-5 h-5 text-white/30" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-white/30 mb-1">Уведомления в браузере</h3>
+              <p className="text-sm text-white/25 max-w-xs">Твой браузер не поддерживает push-уведомления</p>
+            </>
+          ) : pushState === "subscribed" ? (
+            <>
+              <div className="w-12 h-12 rounded-full bg-[#E53935]/10 border border-[#E53935]/30 flex items-center justify-center mb-5">
+                <BellRing className="w-5 h-5" style={{ color: "#E53935" }} />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Уведомления включены</h3>
+              <p className="text-sm text-white/40 max-w-xs">Браузер оповестит тебя мгновенно, даже когда сайт закрыт</p>
+            </>
+          ) : pushState === "denied" ? (
+            <>
+              <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-5">
+                <BellOff className="w-5 h-5 text-white/30" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-white/50 mb-1">Уведомления заблокированы</h3>
+              <p className="text-sm text-white/30 max-w-xs">Разреши уведомления в настройках браузера и обнови страницу</p>
+            </>
+          ) : (
+            <>
+              <div className="w-12 h-12 rounded-full bg-white/5 border border-white/15 flex items-center justify-center mb-5">
+                <BellRing className="w-5 h-5 text-white/60" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Уведомления в браузере</h3>
+              <p className="text-sm text-white/40 mb-6 max-w-xs leading-relaxed">
+                Мгновенное оповещение без email — прямо на экран, даже когда сайт закрыт.
+              </p>
+              <div className="w-full max-w-sm">
                 <button
-                  onClick={() => subscribeMutation.mutate()}
-                  disabled={!email || !agreed || subscribeMutation.isPending}
-                  className="shrink-0 h-11 px-6 rounded-full text-sm font-bold text-black hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
-                  style={{ backgroundColor: "#E53935" }}
-                  data-testid="button-preorder-subscribe"
+                  onClick={handlePushSubscribe}
+                  disabled={pushState === "loading"}
+                  className="w-full h-12 rounded-2xl border border-white/20 text-sm font-bold text-white hover:bg-white/10 hover:border-white/40 disabled:opacity-40 transition-all flex items-center justify-center gap-2.5"
                 >
-                  {subscribeMutation.isPending ? (
-                    <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin block" />
+                  {pushState === "loading" ? (
+                    <span className="w-4 h-4 border-2 border-white/20 border-t-white/70 rounded-full animate-spin block" />
                   ) : (
                     <>
-                      Подписаться <Rocket className="w-3.5 h-3.5" />
+                      <Bell className="w-4 h-4" />
+                      Включить уведомления
                     </>
                   )}
                 </button>
+                <p className="text-[11px] text-white/25 mt-3">Без регистрации — браузер спросит разрешение</p>
               </div>
-            </div>
-
-            <label className="flex items-start gap-2 cursor-pointer group justify-center">
-              <input
-                type="checkbox"
-                checked={agreed}
-                onChange={e => setAgreed(e.target.checked)}
-                className="mt-0.5 shrink-0"
-                style={{ accentColor: "#E53935" }}
-                data-testid="checkbox-preorder-agree"
-              />
-              <span className="text-[11px] text-white/35 group-hover:text-white/55 transition-colors leading-relaxed text-left max-w-xs">
-                Соглашаюсь получать уведомления о новых предзаказах. Отписаться можно в любой момент в личном кабинете.
-              </span>
-            </label>
-
-            {subscribeMutation.isError && (
-              <p className="text-red-400 text-xs">Ошибка. Попробуй ещё раз.</p>
-            )}
-          </div>
-        )}
-
-        {/* Разделитель — только если пуш доступен и ещё не подписан */}
-        {pushState !== "unsupported" && (
-          <div className="max-w-md mx-auto mt-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="flex-1 h-px bg-white/10" />
-              <span className="text-[11px] font-medium tracking-[0.2em] text-white/25 uppercase">или</span>
-              <div className="flex-1 h-px bg-white/10" />
-            </div>
-
-            {pushState === "subscribed" ? (
-              <div className="flex items-center justify-center gap-2 text-sm text-white/40">
-                <BellRing className="w-4 h-4 shrink-0" style={{ color: "#E53935" }} />
-                <span>Пуш-уведомления включены</span>
-              </div>
-            ) : pushState === "denied" ? (
-              <div className="flex items-center justify-center gap-2 text-sm text-white/30">
-                <BellOff className="w-4 h-4 shrink-0" />
-                <span>Уведомления заблокированы в браузере</span>
-              </div>
-            ) : (
-              <button
-                onClick={handlePushSubscribe}
-                disabled={pushState === "loading"}
-                className="w-full h-11 rounded-full border border-white/15 text-sm font-semibold text-white/70 hover:border-white/30 hover:text-white hover:bg-white/5 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
-              >
-                {pushState === "loading" ? (
-                  <span className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin block" />
-                ) : (
-                  <>
-                    <Bell className="w-4 h-4" />
-                    Уведомления в браузере — без email
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </section>
   );
