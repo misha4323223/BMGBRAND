@@ -242,10 +242,12 @@ export default function ConceptCampaignPage() {
     <div className="min-h-screen bg-background text-foreground" data-testid="page-concept-campaign">
       <SEO title={seoTitle} description={seoDescription} keywords={`предзаказ, pre-drop, ${pageTitle}, BOOOMERANGS`} />
 
-      {/* Hero banner */}
-      <section className={`bg-black relative overflow-hidden ${showHeroSkeleton ? "h-[52vw] max-h-[480px] min-h-[200px] sm:h-[34vw] sm:max-h-[560px]" : ""}`}>
-        {showHeroSkeleton && <div className="absolute inset-0 bg-zinc-900 animate-pulse" />}
-        {!heroLoading && (heroBannerDesktop || heroBannerMobile) && (
+      {/* Hero banner — рендерим только если изображения точно есть.
+          Пока данные грузятся (heroLoading) — ничего не показываем,
+          чтобы избежать прыжка layout когда оказывается что картинок нет. */}
+      {!heroLoading && (heroBannerDesktop || heroBannerMobile) ? (
+        <section className={`bg-black relative overflow-hidden ${!heroImgLoaded ? "h-[52vw] max-h-[480px] min-h-[200px] sm:h-[34vw] sm:max-h-[560px]" : ""}`}>
+          {!heroImgLoaded && <div className="absolute inset-0 bg-zinc-900 animate-pulse" />}
           <picture>
             {heroBannerDesktop && <source media="(min-width: 640px)" srcSet={heroBannerDesktop} />}
             <img
@@ -257,17 +259,26 @@ export default function ConceptCampaignPage() {
               className={`w-full object-cover transition-opacity duration-300 ${heroImgLoaded ? "opacity-100" : "opacity-0"}`}
             />
           </picture>
-        )}
-
-        {/* Кнопка назад — к списку коллаборации */}
-        <Link
-          href="/concept"
-          className="absolute top-4 left-4 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-white px-3 py-2 rounded-full text-sm font-medium hover:bg-black/70 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="hidden sm:inline">Все предзаказы</span>
-        </Link>
-      </section>
+          <Link
+            href="/concept"
+            className="absolute top-4 left-4 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm text-white px-3 py-2 rounded-full text-sm font-medium hover:bg-black/70 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Все предзаказы</span>
+          </Link>
+        </section>
+      ) : !heroLoading ? (
+        /* Нет изображений — показываем только кнопку назад без высокого блока */
+        <div className="bg-black px-4 pt-4 pb-2">
+          <Link
+            href="/concept"
+            className="inline-flex items-center gap-1.5 bg-white/10 text-white px-3 py-2 rounded-full text-sm font-medium hover:bg-white/20 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Все предзаказы</span>
+          </Link>
+        </div>
+      ) : null}
 
       {/* Виджет подписки */}
       <PreorderSubscribeWidget />
