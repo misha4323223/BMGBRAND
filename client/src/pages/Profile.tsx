@@ -51,8 +51,6 @@ interface CdekData {
     city?: string;
   }>;
   deliveryService?: string;
-  ydRequestId?: string;
-  ydPointName?: string;
   ydStatus?: string;
   ydStatuses?: Array<{
     code: string;
@@ -453,31 +451,6 @@ export default function Profile() {
         });
       }
       toast({ title: "Статус обновлён" });
-    },
-    onError: () => {
-      toast({ title: "Не удалось обновить статус", description: "Попробуйте через несколько минут", variant: "destructive" });
-    },
-  });
-
-  const refreshYandexTrackingMutation = useMutation({
-    mutationFn: async (orderId: number) => {
-      const res = await apiRequest("POST", `/api/auth/orders/${orderId}/refresh-yandex-tracking`);
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Ошибка обновления');
-      }
-      return res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/orders"] });
-      if (selectedOrder) {
-        setSelectedOrder({
-          ...selectedOrder,
-          cdekData: JSON.stringify(data.cdekData),
-          status: data.status || selectedOrder.status,
-        });
-      }
-      toast({ title: "Статус Яндекс Доставки обновлён" });
     },
     onError: () => {
       toast({ title: "Не удалось обновить статус", description: "Попробуйте через несколько минут", variant: "destructive" });
@@ -1996,9 +1969,6 @@ export default function Profile() {
               const cdek = parseCdekData(selectedOrder);
               const trackNumber = cdek?.cdekNumber;
               const hasCdekOrder = !!(cdek?.orderUuid);
-              const isYandexOrder = cdek?.deliveryService === "yandex";
-              const hasYandexRequest = !!(cdek?.ydRequestId);
-              const ydPointName = cdek?.ydPointName as string | undefined;
               const ydStatus = cdek?.ydStatus as string | undefined;
               
               const statusSteps = [
@@ -2190,90 +2160,6 @@ export default function Profile() {
                       </div>
                     )}
 
-                    {/* Yandex Delivery Tracking */}
-                    {isYandexOrder && (() => {
-                      const ydStatuses: any[] = cdek?.ydStatuses || [];
-                      const ydStatusName = cdek?.ydStatusName as string | undefined;
-                      const ydStatusDate = cdek?.ydStatusDate as string | undefined;
-                      return (
-                        <div className="bg-muted/30 rounded-md p-3" data-testid={`yd-tracking-${selectedOrder.id}`}>
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Truck className="w-4 h-4 text-primary shrink-0" />
-                              <span className="text-sm text-foreground">Яндекс Доставка</span>
-                              {!hasYandexRequest && (
-                                <span className="text-sm text-muted-foreground">
-                                  {ydStatus === "creating" ? "— формируется..." : ydStatus === "error" ? "— ошибка" : "— ожидает оплаты"}
-                                </span>
-                              )}
-                            </div>
-                            {hasYandexRequest && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => { e.stopPropagation(); refreshYandexTrackingMutation.mutate(selectedOrder.id); }}
-                                disabled={refreshYandexTrackingMutation.isPending}
-                                data-testid={`button-refresh-yd-tracking-${selectedOrder.id}`}
-                              >
-                                {refreshYandexTrackingMutation.isPending ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                                ) : (
-                                  <RefreshCw className="w-3.5 h-3.5 mr-1" />
-                                )}
-                                Обновить
-                              </Button>
-                            )}
-                          </div>
-
-                          {ydPointName && (
-                            <div className="mt-1.5 flex items-center gap-1.5">
-                              <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                              <span className="text-xs text-muted-foreground">{ydPointName}</span>
-                            </div>
-                          )}
-
-                          {ydStatuses.length > 0 && (
-                            <div className="mt-3 border-t pt-3" data-testid={`yd-statuses-${selectedOrder.id}`}>
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                                <span className="text-xs font-medium text-foreground">Путь посылки</span>
-                              </div>
-                              <div className="space-y-0">
-                                {ydStatuses.map((s: any, idx: number) => (
-                                  <div key={idx} className="flex gap-2.5 relative" data-testid={`yd-status-${selectedOrder.id}-${idx}`}>
-                                    <div className="flex flex-col items-center">
-                                      <div className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${idx === 0 ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
-                                      {idx < ydStatuses.length - 1 && <div className="w-px flex-1 bg-muted mt-0.5" />}
-                                    </div>
-                                    <div className="flex-1 min-w-0 pb-2.5">
-                                      <p className={`text-xs leading-tight ${idx === 0 ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
-                                        {s.name || s.code}
-                                      </p>
-                                      {s.date && (
-                                        <span className="text-[10px] text-muted-foreground">
-                                          {new Date(s.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {ydStatuses.length === 0 && hasYandexRequest && (
-                            <div className="mt-2 flex items-center justify-between gap-2">
-                              <span className="text-xs text-muted-foreground">
-                                {ydStatusName || "Заявка создана — ожидайте отправки"}
-                                {ydStatusDate && (
-                                  <span> — {new Date(ydStatusDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                                )}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
 
                     <div>
                       <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">

@@ -9,6 +9,21 @@
 3. **SEO-текстовый блок** (`client/src/pages/MerchOrder.tsx`) — новая секция между "Что мы производим" и "Как это работает": три H2 с ключевыми запросами + текст о технологиях нанесения + B2B/гео абзацы. Стилизована под дизайн страницы (тёмная, bg-zinc-950).
 4. **"Часто заказывают"** (`client/src/pages/MerchOrder.tsx`) — блок с 5 ссылками на категории (футболки, худи, носки, аксессуары, мерч для артистов) перед FAQ. Улучшает внутреннюю перелинковку.
 
+## Удаление Яндекс Доставки (23.07.2026)
+
+Яндекс Доставка (NDD) полностью удалена из проекта. Затронуто 9 файлов:
+
+- `server/yandex-delivery.ts` — удалён целиком (492 строки)
+- `server/routes.ts` — удалён импорт, функция `createYandexDeliveryForOrder`, все 7 API-эндпоинтов `/api/yandex-delivery/*`, 6 вызовов функции, переменные `ydPointId/ydPointName` из создания заказа
+- `server/auth-routes.ts` — удалён импорт, словарь `YD_STATUS_LABELS`, маршрут `/orders/:id/refresh-yandex-tracking`
+- `server/storage.ts` — убраны `ydPointId/ydPointName` из сигнатуры `createOrder`, упрощена `cdekData`
+- `server/telegram.ts`, `server/vk.ts`, `server/bitrix24.ts` — убрана ЯД-специфичная логика в уведомлениях
+- `client/src/pages/Checkout.tsx` — удалены интерфейсы, стейт, 3 useQuery-запроса, радио-кнопка, 3 UI-блока
+- `client/src/pages/Profile.tsx` — удалён `refreshYandexTrackingMutation`, UI-блок трекинга ЯД
+- `client/src/components/CheckoutEditor.tsx`, `checkout-settings.ts` — удалён переключатель и настройка
+
+Схема YDB не менялась (поле `cdek_data` осталось). Старые заказы с ЯД-данными отображаются корректно — Admin.tsx читает `ydPointName` из JSON как fallback. Секреты `YANDEX_DELIVERY_TOKEN` и `YANDEX_DELIVERY_PLATFORM_STATION_ID` можно удалить из Replit Secrets.
+
 ## Как запустить проект в Replit
 
 ### Workflow (автозапуск)

@@ -208,17 +208,6 @@ export function CheckoutEditor({ apiKey }: CheckoutEditorProps) {
         <Card>
           <CardContent className="p-4 space-y-4">
             <h4 className="font-medium text-sm text-foreground">Настройки доставки</h4>
-            <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-lg border">
-              <Switch
-                checked={settings.yandexDeliveryEnabled}
-                onCheckedChange={(v) => update("yandexDeliveryEnabled", v)}
-                data-testid="switch-yandex-delivery"
-              />
-              <div>
-                <Label className="text-sm font-medium">Яндекс Доставка включена</Label>
-                <p className="text-xs text-muted-foreground">Если выключить — опция Яндекс Доставки скроется у покупателей на странице оформления заказа</p>
-              </div>
-            </div>
             {renderField("Название СДЭК", "cdekOptionTitle")}
             {renderField("Описание СДЭК", "cdekOptionDescription")}
             {renderField("Подпись поиска города", "citySearchLabel")}

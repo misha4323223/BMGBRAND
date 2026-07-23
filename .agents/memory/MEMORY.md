@@ -15,3 +15,4 @@
 - [SEO admin override architecture](seo-admin-overrides.md) — admin SEO tab: pageName="seo" for home/category/subcategory, reuses artist_pages for artists; static.ts/bot-ssr.ts read via cached sync getter only
 - [safeQuery silent write failures](safequery-silent-write-failures.md) — page-settings write endpoints can return {success:true} even when the YDB write itself silently timed out
 - [seoBody product field](seo-body-field.md) — per-product SEO HTML block; server strips <title>/downgrades <h1>→<h2>; renders on product page as visible accordion
+- [Yandex Delivery removed](yandex-delivery-removed.md) — ЯД полностью удалена; 9 файлов; секреты YANDEX_DELIVERY_TOKEN/PLATFORM_STATION_ID можно удалить

@@ -135,7 +135,6 @@ interface OrderNotification {
   companyName?: string;
   inn?: string;
   deliveryService?: string;
-  ydPointName?: string;
 }
 
 export function vkNotifyNewOrder(order: OrderNotification): void {
@@ -155,11 +154,7 @@ export function vkNotifyNewOrder(order: OrderNotification): void {
   }
 
   if (!isWh && order.deliveryService) {
-    const svc = order.deliveryService === "yandex" ? "🟡 Яндекс" : "🟢 СДЭК";
-    header += `\n${svc}`;
-    if (order.deliveryService === "yandex" && order.ydPointName) {
-      header += ` • ${order.ydPointName}`;
-    }
+    header += `\n🟢 СДЭК`;
   }
 
   if (order.address) header += `\n📍 ${order.address}`;

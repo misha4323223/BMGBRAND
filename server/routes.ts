@@ -24,7 +24,7 @@ import { paymentService } from "./payments";
 import { ozonPayService } from "./ozon-pay";
 import { ozonDeliveryOAuth, OZON_OAUTH_KEYS, OZON_OAUTH_REDIRECT_URI } from "./ozon-delivery-oauth";
 import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PVZ_CODE, CDEK_DEFAULT_PACKAGE, CDEK_TARIFFS, isTariffToDoor, isTariffFromPvz } from "./cdek";
-import { yandexDeliveryService } from "./yandex-delivery";
+
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
 import { runAbandonedCartCheck, addAbandonedCartUnsub } from "./abandoned-cart";
 import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow } from "./new-products-notifier";
@@ -131,109 +131,6 @@ function invalidateSubscriptionPromosCache() {
 
 const CDEK_ITEM_WEIGHT_GRAMS = 300;
 
-const ydWaybillLocks = new Set<number>();
-
-async function createYandexDeliveryForOrder(orderId: number): Promise<{ success: boolean; requestId?: string; error?: string }> {
-  if (ydWaybillLocks.has(orderId)) {
-    console.log(`[YD Waybill] Order #${orderId} already being processed, skipping`);
-    return { success: false, error: "Already processing" };
-  }
-  ydWaybillLocks.add(orderId);
-
-  try {
-    const order = await storage.getOrder(orderId);
-    if (!order) return { success: false, error: "Order not found" };
-
-    if (order.isWholesale) {
-      console.log(`[YD Waybill] Skipping wholesale order #${orderId}`);
-      return { success: false, error: "Wholesale order" };
-    }
-
-    let ydInfo: any = {};
-    if (order.cdekData) {
-      try { ydInfo = JSON.parse(order.cdekData); } catch {}
-    }
-
-    if (ydInfo.deliveryService !== "yandex" || !ydInfo.ydPointId) {
-      console.log(`[YD Waybill] Order #${orderId} is not a Yandex delivery order, skipping`);
-      return { success: false, error: "Not a Yandex delivery order" };
-    }
-
-    if (ydInfo.ydRequestId) {
-      console.log(`[YD Waybill] Order #${orderId} already has Yandex request: ${ydInfo.ydRequestId}`);
-      return { success: true, requestId: ydInfo.ydRequestId };
-    }
-
-    if (ydInfo.ydStatus === "creating") {
-      console.log(`[YD Waybill] Order #${orderId} Yandex request already being created, skipping`);
-      return { success: false, error: "Already creating" };
-    }
-
-    ydInfo.ydStatus = "creating";
-    await storage.updateOrderCdekData(orderId, JSON.stringify(ydInfo));
-
-    const rawItems = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
-    const items = (Array.isArray(rawItems) ? rawItems : [])
-      .filter((item: any) => !item._discountDetails)
-      .map((item: any) => ({
-        name: item.productName || "Товар",
-        article: item.sku || String(item.productId || ""),
-        count: item.quantity || 1,
-        unitPrice: item.price || 0,
-        weight: 300,
-      }));
-
-    if (items.length === 0) {
-      ydInfo.ydStatus = "error";
-      ydInfo.ydError = "No items in order";
-      await storage.updateOrderCdekData(orderId, JSON.stringify(ydInfo));
-      return { success: false, error: "No items" };
-    }
-
-    const operatorRequestId = `${orderId}-${Date.now()}`;
-    console.log(`[YD Waybill] Creating request for order #${orderId}, point: ${ydInfo.ydPointId}, operatorId: ${operatorRequestId}`);
-    const requestResult = await yandexDeliveryService.createRequest({
-      operatorRequestId,
-      destinationStationId: ydInfo.ydPointId,
-      items,
-      recipientName: order.customerName,
-      recipientPhone: order.customerPhone,
-      recipientEmail: order.customerEmail || "",
-      comment: `Заказ #${orderId}`,
-    });
-
-    const requestId = requestResult?.request_id || requestResult?.id || null;
-    if (!requestId) {
-      ydInfo.ydStatus = "error";
-      ydInfo.ydError = `No request_id in response: ${JSON.stringify(requestResult).slice(0, 200)}`;
-      await storage.updateOrderCdekData(orderId, JSON.stringify(ydInfo));
-      return { success: false, error: "No request_id" };
-    }
-
-    ydInfo.ydRequestId = requestId;
-    ydInfo.ydStatus = "created";
-    delete ydInfo.ydError;
-    await storage.updateOrderCdekData(orderId, JSON.stringify(ydInfo));
-
-    console.log(`[YD Waybill] Created for order #${orderId}: requestId=${requestId}`);
-    return { success: true, requestId };
-
-  } catch (error: any) {
-    try {
-      const order = await storage.getOrder(orderId);
-      if (order?.cdekData) {
-        const info = JSON.parse(order.cdekData);
-        info.ydStatus = "error";
-        info.ydError = error.message;
-        await storage.updateOrderCdekData(orderId, JSON.stringify(info));
-      }
-    } catch {}
-    console.error(`[YD Waybill] Error for order #${orderId}:`, error.message);
-    return { success: false, error: error.message };
-  } finally {
-    ydWaybillLocks.delete(orderId);
-  }
-}
 
 // Throttle helper to prevent YDB RESOURCE_EXHAUSTED errors during bulk imports
 const THROTTLE_DELAY_MS = 600; // 600ms delay between DB write operations for YDB stability
@@ -3154,141 +3051,6 @@ BMGBRAND — официальный производитель и магазин
   });
   
   // ============================================
-  // YANDEX DELIVERY API
-  // ============================================
-
-  function isYandexDeliveryEnabled(): boolean {
-    const settings = getCachedRawPageSettings("checkout");
-    const data = settings?.checkout_data ?? settings;
-    // Default is true only if explicitly set; if we can't read settings, block for safety
-    if (!data) return false;
-    return data.yandexDeliveryEnabled !== false;
-  }
-
-  app.post("/api/yandex-delivery/geo-id", async (req, res) => {
-    if (!isYandexDeliveryEnabled()) return res.status(403).json({ error: "Yandex delivery is disabled" });
-    try {
-      const { location } = req.body;
-      if (!location || typeof location !== "string" || location.trim().length < 2) {
-        return res.status(400).json({ error: "Location is required (min 2 chars)" });
-      }
-      const variants = await yandexDeliveryService.detectGeoId(location.trim());
-      res.json({ variants });
-    } catch (error: any) {
-      console.error("[YD Route] geo-id error:", error.message);
-      res.status(500).json({ error: "Failed to detect geo_id" });
-    }
-  });
-
-  app.post("/api/yandex-delivery/pickup-points", async (req, res) => {
-    if (!isYandexDeliveryEnabled()) return res.status(403).json({ error: "Yandex delivery is disabled" });
-    try {
-      const { geo_id } = req.body;
-      if (!geo_id || typeof geo_id !== "number") {
-        return res.status(400).json({ error: "geo_id is required (number)" });
-      }
-      const points = await yandexDeliveryService.getPickupPoints(geo_id);
-      res.json({ points });
-    } catch (error: any) {
-      console.error("[YD Route] pickup-points error:", error.message);
-      res.status(500).json({ error: "Failed to get pickup points" });
-    }
-  });
-
-  app.get("/api/yandex-delivery/warehouses", async (_req, res) => {
-    if (!isYandexDeliveryEnabled()) return res.status(403).json({ error: "Yandex delivery is disabled" });
-    try {
-      const warehouses = await yandexDeliveryService.listWarehouses();
-      res.json({ warehouses });
-    } catch (error: any) {
-      console.error("[YD Route] warehouses error:", error.message);
-      res.status(500).json({ error: "Failed to list warehouses" });
-    }
-  });
-
-  app.post("/api/yandex-delivery/calculate", async (req, res) => {
-    if (!isYandexDeliveryEnabled()) return res.status(403).json({ error: "Yandex delivery is disabled" });
-    try {
-      const { destination_address, destination_station_id, total_weight, total_price } = req.body;
-      if (!destination_address && !destination_station_id) {
-        return res.status(400).json({ error: "destination_address or destination_station_id required" });
-      }
-      const result = await yandexDeliveryService.calculatePrice({
-        destinationAddress: destination_address,
-        destinationStationId: destination_station_id,
-        totalWeight: total_weight ? Number(total_weight) : undefined,
-        totalPrice: total_price ? Number(total_price) : undefined,
-      });
-      if (!result) {
-        return res.status(404).json({ error: "Could not calculate price for this destination" });
-      }
-      const pricingValue = parseFloat(String(result.pricing_total).replace(/[^\d.]/g, "")) || 0;
-      res.json({
-        pricing_total_rub: pricingValue,
-        delivery_days: result.delivery_days || 0,
-      });
-    } catch (error: any) {
-      console.error("[YD Route] calculate error:", error.message);
-      res.status(500).json({ error: "Failed to calculate delivery price" });
-    }
-  });
-
-  app.post("/api/yandex-delivery/create-order", async (req, res) => {
-    try {
-      const result = await yandexDeliveryService.createOffer(req.body);
-      res.json(result);
-    } catch (error: any) {
-      console.error("[YD Route] create-order error:", error.message);
-      res.status(500).json({ error: "Failed to create Yandex Delivery order" });
-    }
-  });
-
-  app.post("/api/yandex-delivery/confirm", async (req, res) => {
-    try {
-      const { offer_id, operator_request_id } = req.body;
-      if (!offer_id || !operator_request_id) {
-        return res.status(400).json({ error: "offer_id and operator_request_id required" });
-      }
-      const result = await yandexDeliveryService.confirmOffer(offer_id, operator_request_id);
-      res.json(result);
-    } catch (error: any) {
-      console.error("[YD Route] confirm error:", error.message);
-      res.status(500).json({ error: "Failed to confirm order" });
-    }
-  });
-
-  app.post("/api/yandex-delivery/cancel", async (req, res) => {
-    try {
-      const { request_id } = req.body;
-      if (!request_id) {
-        return res.status(400).json({ error: "request_id required" });
-      }
-      const result = await yandexDeliveryService.cancelRequest(request_id);
-      res.json(result);
-    } catch (error: any) {
-      console.error("[YD Route] cancel error:", error.message);
-      res.status(500).json({ error: "Failed to cancel order" });
-    }
-  });
-
-  app.post("/api/yandex-delivery/status", async (req, res) => {
-    try {
-      const { request_id } = req.body;
-      if (!request_id) {
-        return res.status(400).json({ error: "request_id required" });
-      }
-      const result = await yandexDeliveryService.getRequestInfo(request_id);
-      if (!result) {
-        return res.status(404).json({ error: "Order not found" });
-      }
-      res.json(result);
-    } catch (error: any) {
-      console.error("[YD Route] status error:", error.message);
-      res.status(500).json({ error: "Failed to get order status" });
-    }
-  });
-
-  // ============================================
   // STOCK DECREMENT HELPER
   // ============================================
 
@@ -3627,9 +3389,6 @@ BMGBRAND — официальный производитель и магазин
 
                 createCdekWaybillForOrder(numericId).catch(err => 
                   console.error(`[YooKassa Webhook] CDEK waybill error for order ${numericId}:`, err.message)
-                );
-                createYandexDeliveryForOrder(numericId).catch(err =>
-                  console.error(`[YooKassa Webhook] YD waybill error for order ${numericId}:`, err.message)
                 );
 
                 const orderItemsParsed = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
@@ -4096,9 +3855,6 @@ BMGBRAND — официальный производитель и магазин
 
                 createCdekWaybillForOrder(numericId).catch(err => 
                   console.error(`[T-Bank Webhook] CDEK waybill error for order ${numericId}:`, err.message)
-                );
-                createYandexDeliveryForOrder(numericId).catch(err =>
-                  console.error(`[T-Bank Webhook] YD waybill error for order ${numericId}:`, err.message)
                 );
 
                 if (order) {
@@ -10007,9 +9763,6 @@ BMGBRAND — официальный производитель и магазин
         createCdekWaybillForOrder(orderId).catch(err => 
           console.error(`[Sync] CDEK waybill error for order ${orderId}:`, err.message)
         );
-        createYandexDeliveryForOrder(orderId).catch(err =>
-          console.error(`[Sync] YD waybill error for order ${orderId}:`, err.message)
-        );
       }
 
       res.json(order);
@@ -10298,18 +10051,11 @@ BMGBRAND — официальный производитель и магазин
       const cdekDeliveryType = req.body.cdekDeliveryType || "pickup";
       const cdekDoorAddress = req.body.cdekDoorAddress || undefined;
       
-      const ydPointId = req.body.ydPointId || undefined;
-      const ydPointName = req.body.ydPointName || undefined;
-      const ydGeoId = req.body.ydGeoId || undefined;
-      // Block Yandex delivery if disabled in admin settings
-      if (ydPointId && !isYandexDeliveryEnabled()) {
-        return res.status(403).json({ error: "Yandex delivery is not available" });
-      }
-      const deliveryService = req.body.deliveryService === "ozon" ? "ozon" : (ydPointId ? "yandex" : "cdek");
+      const deliveryService = req.body.deliveryService === "ozon" ? "ozon" : "cdek";
       
       const isWholesale = req.body.isWholesale === true;
       const clientDeliveryCost = Number(req.body.deliveryCost) || 0;
-      console.log(`[Order] Creating order, isWholesale: ${isWholesale}, transportCompany: ${transportCompany}, userId: ${userId}, cdekPoint: ${cdekPointCode}, cdekTariff: ${cdekTariffCode}, ydPoint: ${ydPointId}, deliveryService: ${deliveryService}, clientDeliveryCost: ${clientDeliveryCost/100}`);
+      console.log(`[Order] Creating order, isWholesale: ${isWholesale}, transportCompany: ${transportCompany}, userId: ${userId}, cdekPoint: ${cdekPointCode}, cdekTariff: ${cdekTariffCode}, deliveryService: ${deliveryService}, clientDeliveryCost: ${clientDeliveryCost/100}`);
       
       // Calculate total and get items from cart
       const cartItems = await storage.getCartItems(input.sessionId);
@@ -10428,7 +10174,7 @@ BMGBRAND — официальный производитель и магазин
           verifiedDeliveryCost = clientDeliveryCost;
           console.log(`[Order] CDEK calculation failed, using client delivery cost: ${clientDeliveryCost/100} RUB. Error: ${cdekErr.message}`);
         }
-      } else if (!isWholesale && clientDeliveryCost > 0 && (deliveryService === "yandex" || deliveryService === "ozon")) {
+      } else if (!isWholesale && clientDeliveryCost > 0 && deliveryService === "ozon") {
         verifiedDeliveryCost = clientDeliveryCost;
         console.log(`[Order] Non-CDEK delivery (${deliveryService}), using client delivery cost: ${clientDeliveryCost/100} RUB`);
       }
@@ -10623,8 +10369,6 @@ BMGBRAND — официальный производитель и магазин
         cdekTariffCode: cdekTariffCode,
         cdekDeliveryType: cdekDeliveryType,
         cdekDoorAddress: cdekDoorAddress,
-        ydPointId: ydPointId,
-        ydPointName: ydPointName,
       });
 
       // Create pending commission for partner-attributed orders.
@@ -10805,7 +10549,6 @@ BMGBRAND — официальный производитель и магазин
         promoCode: promoCode,
         cdekPointCode: cdekPointCode,
         deliveryService: deliveryService,
-        ydPointName: ydPointName,
         discountDetails: discountDetails,
       };
       if (isWholesale && req.user) {
@@ -10837,7 +10580,6 @@ BMGBRAND — официальный производитель и магазин
           companyName: isWholesale && req.user ? req.user.companyName : undefined,
           inn: isWholesale && req.user ? req.user.inn : undefined,
           deliveryService: deliveryService,
-          ydPointName: ydPointName,
         });
         vkNotifyNewOrder({
           orderId: order.id,
@@ -10854,7 +10596,6 @@ BMGBRAND — официальный производитель и магазин
           companyName: isWholesale && req.user ? req.user.companyName : undefined,
           inn: isWholesale && req.user ? req.user.inn : undefined,
           deliveryService: deliveryService,
-          ydPointName: ydPointName,
         });
       }
 
@@ -10890,9 +10631,6 @@ BMGBRAND — официальный производитель и магазин
 
         createCdekWaybillForOrder(order.id).catch(err => 
           console.error(`[Order] CDEK waybill error for gift-card order ${order.id}:`, err.message)
-        );
-        createYandexDeliveryForOrder(order.id).catch(err =>
-          console.error(`[Order] YD waybill error for gift-card order ${order.id}:`, err.message)
         );
       } else if (paymentMethod === "tbank" && paymentService.isTBankEnabled()) {
         const baseUrl = process.env.APP_DOMAIN || `https://${req.get('host')}`;
@@ -11126,9 +10864,6 @@ BMGBRAND — официальный производитель и магазин
             
             createCdekWaybillForOrder(order.id).catch(err => 
               console.error(`[Orders] CDEK waybill error for order ${order.id}:`, err.message)
-            );
-            createYandexDeliveryForOrder(order.id).catch(err =>
-              console.error(`[Orders] YD waybill error for order ${order.id}:`, err.message)
             );
 
             storage.getOrderBitrixDealId(order.id).then(dealId => {
@@ -12750,9 +12485,6 @@ BMGBRAND — официальный производитель и магазин
       if (status === "paid") {
         createCdekWaybillForOrder(orderId).catch(err => 
           console.error(`[Admin] CDEK waybill error for order ${orderId}:`, err.message)
-        );
-        createYandexDeliveryForOrder(orderId).catch(err =>
-          console.error(`[Admin] YD waybill error for order ${orderId}:`, err.message)
         );
       }
 

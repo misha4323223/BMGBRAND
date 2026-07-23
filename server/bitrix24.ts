@@ -48,7 +48,6 @@ interface OrderForBitrix {
   promoCode?: string;
   cdekPointCode?: string;
   deliveryService?: string;
-  ydPointName?: string;
   companyName?: string;
   inn?: string;
   kpp?: string;
@@ -407,13 +406,8 @@ export async function sendOrderToBitrix(order: OrderForBitrix): Promise<{ succes
     }
 
     const deliveryInfo = [];
-    if (order.deliveryService === "yandex") {
-      deliveryInfo.push(`Служба доставки: Яндекс Доставка`);
-      if (order.ydPointName) deliveryInfo.push(`ПВЗ Яндекс: ${order.ydPointName}`);
-    } else {
-      deliveryInfo.push(`Служба доставки: СДЭК`);
-      if (order.cdekPointCode) deliveryInfo.push(`ПВЗ СДЭК: ${order.cdekPointCode}`);
-    }
+    deliveryInfo.push(`Служба доставки: СДЭК`);
+    if (order.cdekPointCode) deliveryInfo.push(`ПВЗ СДЭК: ${order.cdekPointCode}`);
     if (order.address) deliveryInfo.push(`Адрес: ${order.address}`);
     if (order.transportCompany) deliveryInfo.push(`ТК: ${order.transportCompany}`);
 
@@ -488,9 +482,7 @@ export async function sendOrderToBitrix(order: OrderForBitrix): Promise<{ succes
 
     if (dd && dd.deliveryCost > 0) {
       productRows.push({
-        PRODUCT_NAME: order.deliveryService === "yandex" 
-          ? `Доставка Яндекс${order.ydPointName ? ` (ПВЗ: ${order.ydPointName})` : ''}`
-          : order.cdekPointCode ? `Доставка СДЭК (ПВЗ: ${order.cdekPointCode})` : 'Доставка СДЭК',
+        PRODUCT_NAME: order.cdekPointCode ? `Доставка СДЭК (ПВЗ: ${order.cdekPointCode})` : 'Доставка СДЭК',
         PRICE: dd.deliveryCost / 100,
         QUANTITY: 1,
       });

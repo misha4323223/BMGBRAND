@@ -1,7 +1,7 @@
 import SEO from "@/components/SEO";
 import { DolyameWidget, DolyameLogo } from "@/components/DolyameWidget";
 import YooKassaWidget, { loadWidgetScript } from "@/components/YooKassaWidget";
-import yandexDeliveryLogo from "@assets/yandex-delivery-logo.webp";
+
 import yookassaLogo from "@assets/yookassa-logo.webp";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
@@ -75,37 +75,10 @@ interface CdekTariff {
   period_max: number;
 }
 
-interface YdGeoVariant {
-  geo_id: number;
-  address: string;
-}
-
-interface YdPickupPoint {
-  id: string;
-  name: string;
-  type: string;
-  position: { latitude: number; longitude: number };
-  address: {
-    full_address?: string;
-    locality?: string;
-    street?: string;
-    house?: string;
-    region?: string;
-    comment?: string;
-  };
-  instruction?: string;
-  schedule?: {
-    restrictions?: Array<{
-      days?: number[];
-      time_from?: { hours: number; minutes: number };
-      time_to?: { hours: number; minutes: number };
-    }>;
-  };
-}
 
 const CDEK_DOOR_TARIFFS = [137, 139, 184, 480, 482, 486];
 
-type DeliveryService = "cdek" | "yandex" | "ozon";
+type DeliveryService = "cdek" | "ozon";
 
 interface GiftCardValidationResponse {
   valid: boolean;
@@ -196,14 +169,6 @@ export default function Checkout() {
   // Delivery service selection
   const [deliveryService, setDeliveryService] = useState<DeliveryService>("cdek");
 
-  // Reset to cdek if Yandex delivery gets disabled in admin
-  useEffect(() => {
-    if (cs.yandexDeliveryEnabled === false && deliveryService === "yandex") {
-      setDeliveryService("cdek");
-      setYdSelectedPoint(null);
-    }
-  }, [cs.yandexDeliveryEnabled, deliveryService]);
-
   // CDEK state
   const [deliveryType, setDeliveryType] = useState<"pickup" | "door">("pickup");
   const [citySearch, setCitySearch] = useState("");
@@ -222,14 +187,6 @@ export default function Checkout() {
   const [cdekDoorApartment, setCdekDoorApartment] = useState("");
   const [cdekDoorEntrance, setCdekDoorEntrance] = useState("");
   const [cdekDoorFloor, setCdekDoorFloor] = useState("");
-
-  // Yandex Delivery state
-  const [ydCitySearch, setYdCitySearch] = useState("");
-  const [ydGeoId, setYdGeoId] = useState<number | null>(null);
-  const [ydGeoAddress, setYdGeoAddress] = useState<string>("");
-  const [ydSelectedPoint, setYdSelectedPoint] = useState<YdPickupPoint | null>(null);
-  const [ydShowCityDropdown, setYdShowCityDropdown] = useState(false);
-  const [ydPointSearch, setYdPointSearch] = useState("");
 
   // Wholesale transport company
   const [selectedTransport, setSelectedTransport] = useState<string>("cdek");
@@ -599,82 +556,8 @@ export default function Checkout() {
   const cheapestTariff = pvzTariffs.length ? pvzTariffs.reduce((min, t) => t.delivery_sum < min.delivery_sum ? t : min, pvzTariffs[0]) : null;
   const cheapestDoorTariff = doorTariffs.length ? doorTariffs.reduce((min, t) => t.delivery_sum < min.delivery_sum ? t : min, doorTariffs[0]) : null;
 
-  // Yandex Delivery queries
-  const debouncedYdCitySearch = useDebounce(ydCitySearch, 400);
-
-  const { data: ydGeoVariants, isLoading: ydGeoLoading } = useQuery<{ variants: YdGeoVariant[] }>({
-    queryKey: ["/api/yandex-delivery/geo-id", debouncedYdCitySearch],
-    queryFn: async () => {
-      const res = await fetch("/api/yandex-delivery/geo-id", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ location: debouncedYdCitySearch }),
-      });
-      if (!res.ok) throw new Error("Failed to detect location");
-      return res.json();
-    },
-    enabled: debouncedYdCitySearch.length >= 2 && !ydGeoId && deliveryService === "yandex",
-  });
-
-  useEffect(() => {
-    if (ydGeoVariants?.variants && ydGeoVariants.variants.length > 0 && !ydGeoId && ydCitySearch.length >= 2) {
-      setYdShowCityDropdown(true);
-    }
-  }, [ydGeoVariants, ydGeoId, ydCitySearch]);
-
-  const { data: ydPickupPointsData, isLoading: ydPointsLoading } = useQuery<{ points: YdPickupPoint[] }>({
-    queryKey: ["/api/yandex-delivery/pickup-points", ydGeoId],
-    queryFn: async () => {
-      const res = await fetch("/api/yandex-delivery/pickup-points", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ geo_id: ydGeoId }),
-      });
-      if (!res.ok) throw new Error("Failed to fetch pickup points");
-      return res.json();
-    },
-    enabled: !!ydGeoId && deliveryService === "yandex",
-  });
-
-  const ydPickupPoints = ydPickupPointsData?.points || [];
-
-  const filteredYdPoints = useMemo(() => {
-    if (!ydPointSearch.trim()) return ydPickupPoints.slice(0, 50);
-    const q = ydPointSearch.toLowerCase();
-    return ydPickupPoints.filter(p => 
-      (p.address?.full_address || "").toLowerCase().includes(q) ||
-      (p.name || "").toLowerCase().includes(q) ||
-      (p.address?.street || "").toLowerCase().includes(q)
-    ).slice(0, 50);
-  }, [ydPickupPoints, ydPointSearch]);
-
-  const ydSelectedPointAddress = ydSelectedPoint?.address?.full_address 
-    || [ydSelectedPoint?.address?.region, ydSelectedPoint?.address?.locality, ydSelectedPoint?.address?.street, ydSelectedPoint?.address?.house].filter(Boolean).join(", ")
-    || "";
-
-  const { data: ydPricing, isLoading: ydCalcLoading } = useQuery<{ pricing_total_rub: number; delivery_days: number }>({
-    queryKey: ["/api/yandex-delivery/calculate", ydSelectedPoint?.id],
-    queryFn: async () => {
-      const res = await fetch("/api/yandex-delivery/calculate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          destination_station_id: ydSelectedPoint?.id,
-          destination_address: ydSelectedPointAddress,
-          total_weight: 500,
-          total_price: Math.round(subtotal / 100),
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to calculate");
-      return res.json();
-    },
-    enabled: !!ydSelectedPoint?.id && deliveryService === "yandex",
-  });
-
   const FREE_SHIPPING_THRESHOLD = 500000;
   const isFreeShipping = !isWholesale && subtotal >= FREE_SHIPPING_THRESHOLD;
-
-  const ydDeliveryCostRub = ydPricing?.pricing_total_rub || 0;
 
   const cdekDeliveryCost = !isWholesale 
     ? (deliveryType === "door" 
@@ -684,9 +567,7 @@ export default function Checkout() {
         : (cheapestTariff ? cheapestTariff.delivery_sum * 100 : 0)))
     : 0;
   
-  const ydDeliveryCostKop = Math.round(ydDeliveryCostRub * 100);
-
-  const rawDeliveryCost = isWholesale ? 0 : deliveryService === "ozon" ? 0 : (deliveryService === "yandex" ? ydDeliveryCostKop : cdekDeliveryCost);
+  const rawDeliveryCost = isWholesale ? 0 : deliveryService === "ozon" ? 0 : cdekDeliveryCost;
   const deliveryCost = isFreeShipping ? 0 : rawDeliveryCost;
   // Calculate promo discount: percent-based or fixed amount
   // If promo has category restrictions, eligibleAmount is the sum of matching items
@@ -722,11 +603,8 @@ export default function Checkout() {
       setValue("address", `СДЭК Курьер: ${selectedCity.city}, ${parts.join(', ')}`);
     } else if (deliveryService === "cdek" && deliveryType === "pickup" && selectedPoint && selectedCity) {
       setValue("address", `СДЭК ПВЗ: ${selectedCity.city}, ${selectedPoint.location.address_full || selectedPoint.location.address}`);
-    } else if (deliveryService === "yandex" && ydSelectedPoint) {
-      const addr = ydSelectedPoint.address?.full_address || ydSelectedPoint.name;
-      setValue("address", `Яндекс Доставка ПВЗ: ${ydGeoAddress}, ${addr}`);
     }
-  }, [deliveryService, deliveryType, selectedPoint, selectedCity, ydSelectedPoint, ydGeoAddress, cdekDoorStreet, cdekDoorHouse, cdekDoorApartment, cdekDoorEntrance, cdekDoorFloor, setValue]);
+  }, [deliveryService, deliveryType, selectedPoint, selectedCity, cdekDoorStreet, cdekDoorHouse, cdekDoorApartment, cdekDoorEntrance, cdekDoorFloor, setValue]);
 
   const onSubmit = (data: CheckoutForm) => {
     const customerName = [data.customerLastName, data.customerFirstName, data.customerPatronymic].filter(Boolean).join(' ');
@@ -760,9 +638,6 @@ export default function Checkout() {
         entrance: cdekDoorEntrance || undefined,
         floor: cdekDoorFloor || undefined,
       } : undefined,
-      ydPointId: deliveryService === "yandex" ? (ydSelectedPoint?.id || undefined) : undefined,
-      ydPointName: deliveryService === "yandex" ? (ydSelectedPoint?.name || undefined) : undefined,
-      ydGeoId: deliveryService === "yandex" ? (ydGeoId || undefined) : undefined,
     };
 
     if (isWholesale) {
@@ -1017,15 +892,9 @@ export default function Checkout() {
                 onValueChange={(v) => {
                   const svc = v as DeliveryService;
                   setDeliveryService(svc);
-                  if (svc === "cdek") {
-                    setYdSelectedPoint(null);
-                  } else if (svc === "yandex") {
+                  if (svc === "ozon") {
                     setSelectedPoint(null);
                     setWidgetDelivery(null);
-                  } else if (svc === "ozon") {
-                    setSelectedPoint(null);
-                    setWidgetDelivery(null);
-                    setYdSelectedPoint(null);
                   }
                 }}
                 className="space-y-3"
@@ -1033,7 +902,7 @@ export default function Checkout() {
                 {ozonPayEnabled && (
                 <div
                   className={`flex items-center space-x-3 p-3 border rounded-lg hover-elevate cursor-pointer ${deliveryService === "ozon" ? "border-primary bg-primary/5" : ""}`}
-                  onClick={() => { setDeliveryService("ozon"); setSelectedPoint(null); setWidgetDelivery(null); setYdSelectedPoint(null); }}
+                  onClick={() => { setDeliveryService("ozon"); setSelectedPoint(null); setWidgetDelivery(null); }}
                 >
                   <RadioGroupItem value="ozon" id="delivery-ozon" data-testid="radio-ozon" />
                   <Label htmlFor="delivery-ozon" className="flex-1 cursor-pointer">
@@ -1046,7 +915,7 @@ export default function Checkout() {
                   </Label>
                 </div>
                 )}
-                <div className={`flex items-center space-x-3 p-3 border rounded-lg hover-elevate cursor-pointer ${deliveryService === "cdek" ? "border-primary bg-primary/5" : ""}`} onClick={() => { setDeliveryService("cdek"); setYdSelectedPoint(null); }}>
+                <div className={`flex items-center space-x-3 p-3 border rounded-lg hover-elevate cursor-pointer ${deliveryService === "cdek" ? "border-primary bg-primary/5" : ""}`} onClick={() => { setDeliveryService("cdek"); }}>
                   <RadioGroupItem value="cdek" id="delivery-cdek" data-testid="radio-cdek" />
                   <Label htmlFor="delivery-cdek" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
@@ -1054,14 +923,6 @@ export default function Checkout() {
                     </div>
                   </Label>
                 </div>
-                {cs.yandexDeliveryEnabled !== false && (
-                <div className={`flex items-center space-x-3 p-3 border rounded-lg hover-elevate cursor-pointer ${deliveryService === "yandex" ? "border-primary bg-primary/5" : ""}`} onClick={() => { setDeliveryService("yandex"); setSelectedPoint(null); setWidgetDelivery(null); setCdekDoorStreet(""); setCdekDoorHouse(""); setCdekDoorApartment(""); setCdekDoorEntrance(""); setCdekDoorFloor(""); }}>
-                  <RadioGroupItem value="yandex" id="delivery-yandex" data-testid="radio-yandex" />
-                  <Label htmlFor="delivery-yandex" className="flex-1 cursor-pointer">
-                    <img src={yandexDeliveryLogo} alt="Яндекс Доставка" className="h-7 object-contain object-left" />
-                  </Label>
-                </div>
-                )}
               </RadioGroup>
               )}
 
@@ -1315,148 +1176,6 @@ export default function Checkout() {
                 </div>
               )}
 
-              {/* Yandex Delivery: City Search */}
-              {!isWholesale && deliveryService === "yandex" && (
-              <div className="mt-6 space-y-2 relative">
-                <Label>Город доставки</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    value={ydGeoId ? ydGeoAddress : ydCitySearch}
-                    onChange={(e) => {
-                      setYdCitySearch(e.target.value);
-                      if (ydGeoId && e.target.value !== ydGeoAddress) {
-                        setYdGeoId(null);
-                        setYdGeoAddress("");
-                        setYdSelectedPoint(null);
-                      }
-                      setYdShowCityDropdown(true);
-                    }}
-                    onFocus={() => setYdShowCityDropdown(true)}
-                    placeholder="Введите город..."
-                    className="pl-10"
-                    data-testid="input-yd-city-search"
-                  />
-                  {ydGeoLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin" />}
-                </div>
-                
-                {ydShowCityDropdown && ydGeoVariants?.variants && ydGeoVariants.variants.length > 0 && !ydGeoId && (
-                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {ydGeoVariants.variants.map((v) => (
-                      <button
-                        key={v.geo_id}
-                        type="button"
-                        className="w-full px-4 py-3 text-left hover:bg-accent/50 flex items-center gap-2"
-                        onClick={() => {
-                          setYdGeoId(v.geo_id);
-                          setYdGeoAddress(v.address);
-                          setYdCitySearch(v.address);
-                          setYdShowCityDropdown(false);
-                        }}
-                        data-testid={`yd-city-option-${v.geo_id}`}
-                      >
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <p className="font-medium text-foreground">{v.address}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              )}
-
-              {/* Yandex Delivery: Pickup Points */}
-              {!isWholesale && deliveryService === "yandex" && ydGeoId && (
-                <div className="mt-6 space-y-4">
-                  <Label>Пункт выдачи Яндекс Доставки</Label>
-                  
-                  {ydPointsLoading && (
-                    <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Загрузка пунктов выдачи...
-                    </div>
-                  )}
-
-                  {!ydPointsLoading && ydPickupPoints.length > 0 && (
-                    <>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          value={ydPointSearch}
-                          onChange={(e) => setYdPointSearch(e.target.value)}
-                          placeholder="Поиск по адресу ПВЗ..."
-                          className="pl-10"
-                          data-testid="input-yd-point-search"
-                        />
-                      </div>
-                      <div className="max-h-[300px] overflow-y-auto border rounded-lg divide-y">
-                        {filteredYdPoints.map((point) => (
-                          <button
-                            key={point.id}
-                            type="button"
-                            className={`w-full px-4 py-3 text-left hover:bg-accent/50 transition-colors ${ydSelectedPoint?.id === point.id ? "bg-primary/10 border-l-2 border-l-primary" : ""}`}
-                            onClick={() => setYdSelectedPoint(point)}
-                            data-testid={`yd-point-${point.id}`}
-                          >
-                            <p className="font-medium text-sm text-foreground">{point.name}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{point.address?.full_address || `${point.address?.street || ""} ${point.address?.house || ""}`}</p>
-                            {point.instruction && (
-                              <p className="text-xs text-muted-foreground/70 mt-0.5">{point.instruction}</p>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Найдено {ydPickupPoints.length} пунктов выдачи{ydPointSearch ? `, показано ${filteredYdPoints.length}` : ""}
-                      </p>
-                    </>
-                  )}
-
-                  {!ydPointsLoading && ydPickupPoints.length === 0 && ydGeoId && (
-                    <p className="text-sm text-muted-foreground py-2">Пункты выдачи не найдены в данном регионе</p>
-                  )}
-
-                  {ydSelectedPoint && (
-                    <div className="p-4 bg-primary/5 border border-primary rounded-lg flex items-start gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
-                      <div>
-                        <p className="font-semibold text-foreground">Выбранный пункт выдачи</p>
-                        <p className="text-sm font-medium">{ydSelectedPoint.name}</p>
-                        <p className="text-sm text-muted-foreground">{ydSelectedPoint.address?.full_address}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Yandex Delivery: Cost info */}
-              {!isWholesale && deliveryService === "yandex" && ydSelectedPoint && ydPricing && !ydCalcLoading && (
-                <div className="mt-4 p-3 bg-accent/30 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Стоимость доставки</p>
-                      {ydPricing.delivery_days > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          {ydPricing.delivery_days} {ydPricing.delivery_days === 1 ? "день" : ydPricing.delivery_days < 5 ? "дня" : "дней"}
-                        </p>
-                      )}
-                    </div>
-                    {isFreeShipping ? (
-                      <div className="text-right">
-                        <p className="text-sm line-through text-muted-foreground">{formatPrice(ydDeliveryCostKop)}</p>
-                        <p className="text-lg font-semibold text-green-600">Бесплатно</p>
-                      </div>
-                    ) : (
-                      <p className="text-lg font-semibold text-foreground">{formatPrice(ydDeliveryCostKop)}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-              {!isWholesale && deliveryService === "yandex" && ydCalcLoading && ydSelectedPoint && (
-                <div className="mt-4 flex items-center gap-2 text-muted-foreground text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Расчёт стоимости доставки...
-                </div>
-              )}
 
               {/* CDEK: Delivery cost info (PVZ mode only — door mode shows cost inside its own section) */}
               {!isWholesale && deliveryService === "cdek" && deliveryType === "pickup" && selectedCity && (widgetDelivery || cheapestTariff) && (
@@ -1743,7 +1462,7 @@ export default function Checkout() {
                   size="lg"
                   className="w-full"
                   data-testid="button-submit-order"
-                  disabled={createOrder.isPending || !agreeOffer || !agreePolicy || (!isWholesale && deliveryService === "cdek" && deliveryType === "pickup" && !selectedPoint) || (!isWholesale && deliveryService === "cdek" && deliveryType === "door" && (!cdekDoorStreet || !cdekDoorHouse || !cheapestDoorTariff)) || (!isWholesale && deliveryService === "yandex" && !ydSelectedPoint) || (!isWholesale && deliveryService === "cdek" && !selectedCity) || (!isWholesale && deliveryService === "yandex" && !ydGeoId) || isWholesaleBelowMin}
+                  disabled={createOrder.isPending || !agreeOffer || !agreePolicy || (!isWholesale && deliveryService === "cdek" && deliveryType === "pickup" && !selectedPoint) || (!isWholesale && deliveryService === "cdek" && deliveryType === "door" && (!cdekDoorStreet || !cdekDoorHouse || !cheapestDoorTariff)) || (!isWholesale && deliveryService === "cdek" && !selectedCity) || isWholesaleBelowMin}
                 >
                   {createOrder.isPending ? <Loader2 className="animate-spin mr-2" /> : null}
                   {cs.submitButtonText} · {formatPrice(total)}
@@ -1764,10 +1483,7 @@ export default function Checkout() {
                 {!isWholesale && deliveryService === "cdek" && deliveryType === "door" && selectedCity && (!cdekDoorStreet || !cdekDoorHouse) && (
                   <p className="text-sm text-center text-muted-foreground">Введите улицу и дом для курьерской доставки</p>
                 )}
-                {!isWholesale && deliveryService === "yandex" && !ydSelectedPoint && ydGeoId && (
-                  <p className="text-sm text-center text-muted-foreground">{cs.selectPointHint}</p>
-                )}
-                {!isWholesale && ((deliveryService === "cdek" && !selectedCity) || (deliveryService === "yandex" && !ydGeoId)) && (
+                {!isWholesale && deliveryService === "cdek" && !selectedCity && (
                   <p className="text-sm text-center text-muted-foreground">{cs.selectCityHint}</p>
                 )}
               </form>
@@ -1968,7 +1684,7 @@ export default function Checkout() {
                   <span>
                     {isWholesale 
                       ? `${cs.summaryDeliveryLabelWholesale} ${TRANSPORT_COMPANIES.find(tc => tc.id === selectedTransport)?.name || 'ТК'}` 
-                      : deliveryService === "yandex" ? "Яндекс Доставка" : cs.summaryDeliveryLabel
+                      : cs.summaryDeliveryLabel
                     }
                   </span>
                   <span className={isFreeShipping ? "text-green-600 font-medium" : ""}>

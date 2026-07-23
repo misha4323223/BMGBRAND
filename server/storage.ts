@@ -3218,7 +3218,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async createOrder(order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string }, ydPointId?: string, ydPointName?: string }): Promise<Order> {
+  async createOrder(order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string } }): Promise<Order> {
     if (!driver) {
       console.error('[Storage] YDB driver not initialized for createOrder');
       throw new Error('Database not available');
@@ -3253,16 +3253,13 @@ export class DatabaseStorage implements IStorage {
         `;
         
         const cdekData = JSON.stringify({
-          deliveryService: order.ydPointId ? "yandex" : "cdek",
+          deliveryService: "cdek",
           pointCode: order.cdekPointCode || null,
           cityCode: order.cdekCityCode || null,
           tariffCode: order.cdekTariffCode || null,
           deliveryType: order.cdekDeliveryType || "pickup",
           doorAddress: order.cdekDoorAddress || null,
           orderUuid: null,
-          ydPointId: order.ydPointId || null,
-          ydPointName: order.ydPointName || null,
-          ydRequestId: null,
         });
         
         const params: Record<string, any> = {

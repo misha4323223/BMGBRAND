@@ -229,7 +229,6 @@ interface OrderNotification {
   companyName?: string;
   inn?: string;
   deliveryService?: string;
-  ydPointName?: string;
 }
 
 export function notifyNewOrder(order: OrderNotification): void {
@@ -250,11 +249,7 @@ export function notifyNewOrder(order: OrderNotification): void {
   }
 
   if (!isWh && order.deliveryService) {
-    const svc = order.deliveryService === "yandex" ? "\u{1F7E1} Яндекс" : "\u{1F7E2} СДЭК";
-    header += `\n${svc}`;
-    if (order.deliveryService === "yandex" && order.ydPointName) {
-      header += ` \u{2022} ${esc(order.ydPointName)}`;
-    }
+    header += `\n\u{1F7E2} СДЭК`;
   }
 
   if (order.address) {

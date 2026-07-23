@@ -11,7 +11,7 @@ import { sendWholesaleRegistrationToBitrix, syncOrderStatusToBitrix } from './bi
 import { notifyWholesaleRegistration, notifyPartnerRegistration, answerCallbackQuery, editMessageText } from './telegram';
 import { vkNotifyWholesaleRegistration } from './vk';
 import { cdekService } from './cdek';
-import { yandexDeliveryService } from './yandex-delivery';
+
 import { generateInvoicePDF, generateUpdPDF, generateTorg12PDF } from './invoice';
 import { partnerRegisterSchema, LEGAL_DOCUMENT_SLUGS, type LegalDocumentSlug } from '@shared/schema';
 
@@ -1511,111 +1511,6 @@ router.post('/orders/:id/refresh-tracking', authMiddleware, async (req: AuthRequ
   }
 });
 
-const YD_STATUS_LABELS: Record<string, string> = {
-  NEW: 'Новая заявка',
-  CREATED: 'Принята',
-  ACCEPTED: 'Принята в обработку',
-  PROCESSING: 'Обрабатывается',
-  COLLECTING: 'Идёт сбор посылки',
-  ACQUIRED: 'Передана в доставку',
-  SORTING_CENTER_LOADED: 'Создана в сортировочном центре',
-  IN_TRANSIT: 'В пути',
-  ARRIVED: 'Прибыла в пункт выдачи',
-  DELIVERED: 'Доставлена',
-  CANCELLED: 'Отменена',
-  RETURNED: 'Возврат',
-  RETURNING: 'Возвращается',
-  LOST: 'Утеряна',
-};
-
-router.post('/orders/:id/refresh-yandex-tracking', authMiddleware, async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.user) return res.status(401).json({ error: 'Не авторизован' });
-
-    const orderId = Number(req.params.id);
-    if (isNaN(orderId)) return res.status(400).json({ error: 'Некорректный ID заказа' });
-
-    const order = await storage.getOrder(orderId);
-    if (!order) return res.status(404).json({ error: 'Заказ не найден' });
-    if (order.userId !== req.user.id) return res.status(403).json({ error: 'Нет доступа к этому заказу' });
-
-    let ydInfo: any = {};
-    try { ydInfo = JSON.parse(typeof order.cdekData === 'string' ? order.cdekData : JSON.stringify(order.cdekData || '{}')); } catch {}
-
-    if (!ydInfo.ydRequestId) {
-      return res.status(400).json({ error: 'Нет данных Яндекс Доставки для этого заказа' });
-    }
-
-    const [info, history] = await Promise.all([
-      yandexDeliveryService.getRequestInfo(ydInfo.ydRequestId),
-      yandexDeliveryService.getRequestHistory(ydInfo.ydRequestId),
-    ]);
-    if (!info) return res.status(502).json({ error: 'Не удалось получить статус из Яндекс Доставки' });
-
-    console.log(`[Auth] Yandex tracking info for order #${orderId}:`, JSON.stringify(info).slice(0, 300));
-    console.log(`[Auth] Yandex history for order #${orderId}: ${history.length} entries`, JSON.stringify(history).slice(0, 300));
-
-    const currentStatus: string = info.status || info.request_status || '';
-    const statusLabel = YD_STATUS_LABELS[currentStatus] || currentStatus;
-    const updatedAt: string = info.updated_at || info.last_updated || new Date().toISOString();
-
-    let ydStatuses: any[] = [];
-    let latestCode = currentStatus;
-    let latestLabel = statusLabel;
-    let latestDate = updatedAt;
-
-    if (history.length > 0) {
-      ydStatuses = [...history].reverse().map((h: any) => {
-        const code: string = h.status || '';
-        const ts = h.timestamp_utc || (h.timestamp ? new Date(h.timestamp * 1000).toISOString() : '');
-        const name = h.description || YD_STATUS_LABELS[code] || code;
-        return { code, name, date: ts };
-      });
-      const latest = ydStatuses[ydStatuses.length - 1];
-      if (latest) {
-        latestCode = latest.code || latestCode;
-        latestLabel = latest.name || latestLabel;
-        latestDate = latest.date || latestDate;
-      }
-      ydStatuses = ydStatuses.reverse();
-    } else {
-      const existingStatuses: any[] = ydInfo.ydStatuses || [];
-      const alreadyHas = existingStatuses.some(s => s.code === latestCode && s.date === latestDate);
-      if (latestCode && !alreadyHas) {
-        existingStatuses.unshift({ code: latestCode, name: latestLabel, date: latestDate });
-        if (existingStatuses.length > 20) existingStatuses.pop();
-      }
-      ydStatuses = existingStatuses;
-    }
-
-    ydInfo.ydStatus = latestCode || ydInfo.ydStatus;
-    ydInfo.ydStatusName = latestLabel;
-    ydInfo.ydStatusDate = latestDate;
-    ydInfo.ydStatuses = ydStatuses;
-
-    let newOrderStatus: string | null = null;
-    if (['ACQUIRED', 'IN_TRANSIT', 'ARRIVED', 'SORTING_CENTER_LOADED'].includes(latestCode) && order.status !== 'shipped') {
-      newOrderStatus = 'shipped';
-    } else if (latestCode === 'DELIVERED') {
-      newOrderStatus = 'delivered';
-    }
-
-    await storage.updateOrderCdekData(order.id, JSON.stringify(ydInfo));
-
-    if (newOrderStatus && newOrderStatus !== order.status) {
-      await storage.updateOrderStatus(order.id, newOrderStatus);
-      order.status = newOrderStatus;
-      storage.getOrderBitrixDealId(order.id).then(dealId => {
-        if (dealId) syncOrderStatusToBitrix(order.id, newOrderStatus!, dealId);
-      }).catch(() => {});
-    }
-
-    res.json({ success: true, cdekData: ydInfo, status: order.status });
-  } catch (error: any) {
-    console.error('[Auth] Refresh Yandex tracking error:', error.message);
-    res.status(500).json({ error: 'Ошибка обновления трекинга Яндекс Доставки' });
-  }
-});
 
 // Update user profile (name, phone)
 router.patch('/profile', authMiddleware, async (req: AuthRequest, res: Response) => {

@@ -65,7 +65,7 @@ export interface CheckoutSettings {
   freeDeliveryText: string;
   showFreeDeliveryBanner: boolean;
   freeDeliveryThreshold: number;
-  yandexDeliveryEnabled: boolean;
+
 }
 
 export const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
@@ -110,7 +110,7 @@ export const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
   deliveryInfoButtonText: "Информация о доставке",
   deliveryInfoTitle: "Информация о доставке",
   retailDeliveryInfoItems: [
-    { text: "Доставка по всей России через СДЭК и Яндекс Доставку. Выберите удобный способ при оформлении заказа.", visible: true },
+    { text: "Доставка по всей России через СДЭК. Выберите удобный пункт выдачи или курьерскую доставку при оформлении заказа.", visible: true },
     { text: "Сроки и стоимость доставки рассчитываются автоматически в зависимости от вашего региона.", visible: true },
     { text: "При доставке одежды через СДЭК доступна функция примерки. Если вещь не подошла — можно отказаться прямо на месте.", visible: true },
     { text: "Носки возврату и обмену не подлежат в соответствии с Постановлением Правительства РФ № 55.", visible: true },
@@ -136,5 +136,5 @@ export const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
   freeDeliveryText: "При заказе от {threshold} доставка бесплатная",
   showFreeDeliveryBanner: true,
   freeDeliveryThreshold: 500000,
-  yandexDeliveryEnabled: true,
+
 };
