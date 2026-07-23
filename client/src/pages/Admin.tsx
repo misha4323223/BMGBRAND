@@ -7207,6 +7207,16 @@ export default function Admin() {
                                         items[idx] = { ...items[idx], videoUrl: url };
                                         setSectionSettings({...sectionSettings, items});
                                       }}
+                                      onThumbnailGenerated={(thumbUrl) => {
+                                        // Заполняем обложку автоматически только если она ещё не задана
+                                        setSectionSettings((prev: any) => {
+                                          const items = [...(prev.items || [])];
+                                          if (!items[idx]?.thumbnailUrl) {
+                                            items[idx] = { ...items[idx], thumbnailUrl: thumbUrl };
+                                          }
+                                          return { ...prev, items };
+                                        });
+                                      }}
                                       apiKey={apiKey}
                                       placeholder="URL или загрузить видео"
                                     />
