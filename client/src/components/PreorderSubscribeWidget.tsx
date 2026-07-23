@@ -169,7 +169,7 @@ export function PreorderSubscribeWidget() {
         </h2>
 
         <p className="text-sm sm:text-base text-white/50 max-w-lg mx-auto leading-relaxed">
-          Выбери как узнавать первым — на почту или прямо в браузер, без регистрации.
+          Два способа быть первым.
         </p>
       </div>
 
