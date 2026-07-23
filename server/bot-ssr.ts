@@ -1313,6 +1313,232 @@ ${MERCH_FAQ.map(({ q, a }) => `<h3>${esc(q)}</h3><p>${esc(a)}</p>`).join("\n")}
   return wrapPage(head, body);
 }
 
+// ─── /concept — список кампаний предзаказа ────────────────────────────────────
+
+function renderConceptIndex(): string | null {
+  // Собираем слаги кампаний из двух источников (как в /api/preorder/campaigns):
+  // 1. товары с preorderEnabled + preorderGroup из тёплого кэша
+  // 2. ручной список slugs из page_settings("concept_campaigns")
+  const allProducts = getCachedProductsForRecommendations(2000);
+  const preorderProducts = allProducts.filter((p: any) => p.preorderEnabled && p.preorderGroup);
+  const slugsFromProducts = [...new Set(preorderProducts.map((p: any) => p.preorderGroup as string))];
+
+  const campaignsList = getCachedRawPageSettings("concept_campaigns");
+  const manualSlugs: string[] = campaignsList?.list?.slugs || [];
+  const allSlugs = [...new Set([...slugsFromProducts, ...manualSlugs])];
+
+  // Для каждого слага подтягиваем настройки из кэша
+  const campaigns: Array<{
+    slug: string; title: string; subtitle: string;
+    coverImage: string; productCount: number;
+  }> = [];
+
+  for (const slug of allSlugs) {
+    const settings = getCachedRawPageSettings(`concept_campaign_${slug}`);
+    const hero = settings?.hero || {};
+    // Пропускаем скрытые кампании (hero.visible === false)
+    if (hero.visible === false) continue;
+
+    const groupProducts = preorderProducts.filter((p: any) => p.preorderGroup === slug);
+    const firstImg: string = (groupProducts[0] as any)?.imageUrl || (groupProducts[0] as any)?.thumbnailUrl || "";
+    campaigns.push({
+      slug,
+      title: hero.title || slug,
+      subtitle: hero.subtitle || "",
+      coverImage: hero.coverImage || hero.heroImage || firstImg,
+      productCount: groupProducts.length,
+    });
+  }
+
+  // Кэш пустой или кампаний нет — пропускаем до React SPA
+  if (campaigns.length === 0) return null;
+
+  const conceptSettings = getCachedRawPageSettings("concept");
+  const hero = conceptSettings?.hero || {};
+  const seoSettings = getCachedRawPageSettings("seo");
+  const conceptSeo = seoSettings?.concept || {};
+  const pageTitle = conceptSeo.title || `Pre-drop — предзаказы BOOOMERANGS | ${SITE_NAME}`;
+  const pageDesc = conceptSeo.description || "Предзаказы и коллаборации BOOOMERANGS — оформи предзаказ на ограниченные коллекции до старта продаж. Уникальный мерч артистов.";
+
+  const jsonLd = safeJsonLd([
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
+        { "@type": "ListItem", "position": 2, "name": "Pre-drop", "item": `${SITE_URL}/concept` },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "Коллаборации и предзаказы BOOOMERANGS",
+      "description": pageDesc,
+      "url": `${SITE_URL}/concept`,
+      "numberOfItems": campaigns.length,
+      "itemListElement": campaigns.map((c, i) => ({
+        "@type": "ListItem",
+        "position": i + 1,
+        "item": {
+          "@type": "WebPage",
+          "name": c.title,
+          "url": `${SITE_URL}/concept/${c.slug}`,
+          "description": c.subtitle || `Предзаказ ${c.title} — BOOOMERANGS`,
+        },
+      })),
+    },
+  ]);
+
+  const head = baseHead({
+    title: pageTitle,
+    description: pageDesc,
+    canonical: `${SITE_URL}/concept`,
+    ogImage: campaigns[0]?.coverImage || `${SITE_URL}/og-image.png`,
+    jsonLd,
+  });
+
+  const heroImgHtml = hero.heroImage
+    ? `<div style="margin-bottom:1.5rem"><img src="${esc(hero.heroImage)}" alt="Pre-drop BOOOMERANGS" style="width:100%;max-height:400px;object-fit:cover;border-radius:8px" loading="eager"></div>`
+    : "";
+
+  const cards = campaigns.map(c => {
+    const imgHtml = c.coverImage
+      ? `<div style="aspect-ratio:3/4;overflow:hidden;border-radius:6px;margin-bottom:.75rem"><img src="${esc(c.coverImage)}" alt="${esc(c.title)}" style="width:100%;height:100%;object-fit:cover" loading="lazy"></div>`
+      : "";
+    return `<div class="card" style="padding:0;overflow:hidden">
+      ${imgHtml}
+      <div style="padding:1rem">
+        <div class="name"><a href="/concept/${esc(c.slug)}">${esc(c.title)}</a></div>
+        ${c.subtitle ? `<p class="status" style="margin-top:.25rem">${esc(c.subtitle)}</p>` : ""}
+        ${c.productCount > 0 ? `<p class="status" style="margin-top:.25rem">${c.productCount} тов.</p>` : ""}
+        <a href="/concept/${esc(c.slug)}" class="buy-btn" style="margin-top:.75rem;padding:.5rem 1.25rem;font-size:.85rem;display:inline-block">Смотреть →</a>
+      </div>
+    </div>`;
+  }).join("\n");
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / Pre-drop</div>
+<h1>Pre-drop — предзаказы и коллаборации</h1>
+<p class="desc">Оформи предзаказ на ограниченные коллекции до старта официальных продаж. Уникальный мерч артистов и фестивалей — только для тех, кто успел.</p>
+${heroImgHtml}
+<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">
+${cards}
+</div>`;
+
+  return wrapPage(head, body);
+}
+
+// ─── /concept/:slug — страница конкретной кампании ───────────────────────────
+
+function renderConceptCampaign(slug: string): string | null {
+  const settings = getCachedRawPageSettings(`concept_campaign_${slug}`);
+  // Если нет настроек — проверим хотя бы есть ли товары в этой группе
+  const hero = settings?.hero || {};
+
+  // Пропускаем скрытые кампании
+  if (hero.visible === false) return null;
+
+  // Собираем товары этой кампании из тёплого кэша
+  const allProducts = getCachedProductsForRecommendations(2000);
+  const campaignProducts = allProducts.filter(
+    (p: any) => p.preorderEnabled && p.preorderGroup === slug
+  );
+
+  // Если ни настроек, ни товаров — страница не существует
+  if (!settings && campaignProducts.length === 0) return null;
+
+  const pageTitle: string = hero.title || slug;
+  const pageSubtitle: string = hero.subtitle || "";
+  const coverImage: string = hero.heroImage || hero.heroImageMobile || hero.coverImage || "";
+  const seoTitle: string = hero.seoTitle || `${pageTitle} | Pre-drop BOOOMERANGS`;
+  const seoDesc: string = hero.seoDescription || `Предзаказ ${pageTitle} — BOOOMERANGS. Ограниченная коллекция. Оформи предзаказ первым.`;
+
+  const STATUS_LABELS: Record<string, string> = {
+    collecting: "Сбор заявок",
+    production: "Производство",
+    shipping: "Отправка",
+    shipped: "Отправлено",
+    cancelled: "Отменено",
+  };
+
+  const jsonLd = safeJsonLd([
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
+        { "@type": "ListItem", "position": 2, "name": "Pre-drop", "item": `${SITE_URL}/concept` },
+        { "@type": "ListItem", "position": 3, "name": pageTitle, "item": `${SITE_URL}/concept/${slug}` },
+      ],
+    },
+    ...(campaignProducts.length > 0 ? [{
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": `Предзаказ ${pageTitle}`,
+      "description": seoDesc,
+      "url": `${SITE_URL}/concept/${slug}`,
+      "numberOfItems": campaignProducts.length,
+      "itemListElement": campaignProducts.slice(0, 20).map((p: any, i: number) => ({
+        "@type": "ListItem",
+        "position": i + 1,
+        "item": {
+          "@type": "Product",
+          "name": p.name,
+          "url": p.slug ? `${SITE_URL}/${p.slug}` : `${SITE_URL}/concept/${slug}`,
+          "offers": {
+            "@type": "Offer",
+            "priceCurrency": "RUB",
+            "price": (p.price / 100).toFixed(2),
+            "availability": "https://schema.org/PreOrder",
+          },
+        },
+      })),
+    }] : []),
+  ]);
+
+  const ogImage = coverImage && coverImage.startsWith("http")
+    ? coverImage
+    : coverImage ? `${SITE_URL}${coverImage}` : `${SITE_URL}/og-image.png`;
+
+  const head = baseHead({
+    title: seoTitle,
+    description: seoDesc,
+    canonical: `${SITE_URL}/concept/${slug}`,
+    ogImage,
+    jsonLd,
+  });
+
+  const heroHtml = coverImage
+    ? `<div style="margin-bottom:1.5rem"><img src="${esc(coverImage)}" alt="${esc(pageTitle)}" style="width:100%;max-height:480px;object-fit:cover;border-radius:8px" loading="eager"></div>`
+    : "";
+
+  const productCards = campaignProducts.map((p: any) => {
+    const imgUrl: string = p.imageUrl || p.thumbnailUrl || "";
+    const statusLabel: string = STATUS_LABELS[p.preorderStatus || "collecting"] || "Предзаказ";
+    const productUrl = p.slug ? `/${esc(p.slug)}` : `/concept/${esc(slug)}`;
+    return `<div class="card">
+      ${imgUrl ? `<div style="aspect-ratio:3/4;overflow:hidden;border-radius:4px;margin-bottom:.75rem"><img src="${esc(imgUrl)}" alt="${esc(p.name)}" style="width:100%;height:100%;object-fit:cover" loading="lazy"></div>` : ""}
+      <div class="name"><a href="${productUrl}">${esc(p.name)}</a></div>
+      <div class="price">${price(p.price)}</div>
+      <div class="status preorder" style="margin-top:.25rem">${esc(statusLabel)}</div>
+    </div>`;
+  }).join("\n");
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / <a href="/concept">Pre-drop</a> / ${esc(pageTitle)}</div>
+${heroHtml}
+<h1>${esc(pageTitle)}</h1>
+${pageSubtitle ? `<p class="desc">${esc(pageSubtitle)}</p>` : ""}
+<p class="desc" style="margin-top:.5rem">Ограниченная коллекция в предзаказе — оформи заявку до старта официальных продаж.</p>
+${campaignProducts.length > 0
+  ? `<h2>Товары коллекции (${campaignProducts.length})</h2>
+<div class="grid">${productCards}</div>`
+  : `<p style="color:#888;margin-top:1.5rem">Товары скоро появятся. <a href="/concept">← Все предзаказы</a></p>`}
+<p style="margin-top:2rem"><a href="/concept" style="color:#888">← Все предзаказы</a></p>`;
+
+  return wrapPage(head, body);
+}
+
 export function botSsrMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Only GET requests
   if (req.method !== "GET") return next();
@@ -1354,6 +1580,14 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
       html = renderFaq();
     } else if (reqPath === "/merch-na-zakaz") {
       html = renderMerchOrder();
+    } else if (reqPath === "/concept") {
+      html = renderConceptIndex();
+    } else if (reqPath.startsWith("/concept/")) {
+      const campaignSlug = reqPath.slice("/concept/".length).replace(/\/$/, "");
+      // Только валидные slug-строки: строчные буквы/цифры/дефис
+      if (campaignSlug && /^[a-z0-9][a-z0-9-]*$/.test(campaignSlug)) {
+        html = renderConceptCampaign(campaignSlug);
+      }
     } else if (reqPath === "/products") {
       html = renderCatalog();
     } else if (reqPath.startsWith("/products/")) {
