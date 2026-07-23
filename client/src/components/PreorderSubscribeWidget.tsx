@@ -205,7 +205,7 @@ export function PreorderSubscribeWidget() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && email && agreed && subscribeMutation.mutate()}
-                    className="bg-transparent border-0 text-white placeholder:text-white/30 focus-visible:ring-0 h-11 px-3 rounded-xl"
+                    className="bg-transparent border-0 text-white placeholder:text-white/60 focus-visible:ring-0 h-11 px-3 rounded-xl"
                     data-testid="input-preorder-email"
                   />
                   <button
@@ -248,13 +248,13 @@ export function PreorderSubscribeWidget() {
         {/* Разделитель «или» по центру — только на десктопе */}
         <div className="hidden sm:flex flex-col items-center justify-center px-0 relative">
           <div className="absolute inset-y-0 left-1/2 w-px bg-white/10 -translate-x-1/2" />
-          <span className="relative z-10 bg-black text-[11px] font-semibold tracking-[0.2em] text-white/25 uppercase py-2 px-1">или</span>
+          <span className="relative z-10 bg-black text-[11px] font-semibold tracking-[0.2em] text-white/60 uppercase py-2 px-1">или</span>
         </div>
 
         {/* Мобильный разделитель «или» */}
         <div className="sm:hidden flex items-center gap-3 px-6 py-4">
           <div className="flex-1 h-px bg-white/10" />
-          <span className="text-[11px] font-semibold tracking-[0.2em] text-white/25 uppercase">или</span>
+          <span className="text-[11px] font-semibold tracking-[0.2em] text-white/60 uppercase">или</span>
           <div className="flex-1 h-px bg-white/10" />
         </div>
 
