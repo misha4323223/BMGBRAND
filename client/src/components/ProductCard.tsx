@@ -229,6 +229,13 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
   const isModalPreorderCollecting = (activeProduct as any).preorderEnabled && (activeProduct as any).preorderStatus === "collecting";
   const showModalPreorderLabels = isModalPreorderCollecting && !!activeHasDiscount;
 
+  // Предзаказ закрыт для новых заявок (производство / отправка / отправлено / отменён)
+  const isPreorderLocked = !!(
+    (product as any).preorderEnabled &&
+    (product as any).preorderStatus &&
+    (product as any).preorderStatus !== "collecting"
+  );
+
   const handleAddToCart = () => {
     const activeSizeStock = (activeProduct as any).sizeStock as Record<string, number> | null;
     const activeSizeStockKeys = activeSizeStock ? Object.keys(activeSizeStock) : [];
@@ -271,7 +278,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
   };
 
   return (
-    <div ref={cardRef} className="group cursor-pointer block relative -mr-px w-[calc(100%+1px)] hover:z-10" style={{ contain: 'layout style paint' }} data-testid={`product-card-${product.id}`}>
+    <div ref={cardRef} className={`group block relative -mr-px w-[calc(100%+1px)] hover:z-10 ${isPreorderLocked ? "cursor-default" : "cursor-pointer"}`} style={{ contain: 'layout style paint' }} data-testid={`product-card-${product.id}`}>
       <Dialog open={isModalOpen} onOpenChange={(open) => {
         setIsModalOpen(open);
         if (!open) {
@@ -281,6 +288,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
       }}>
         <div 
           onClick={() => {
+            if (isPreorderLocked) return;
             if (cardWasSwiped.current) { cardWasSwiped.current = false; return; }
             if (!showWholesaleOverlay) setIsModalOpen(true);
           }}
@@ -1075,8 +1083,8 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
         </DialogContent>
       </Dialog>
       
-      <Link href={`/${product.slug || product.id}`}>
-        {(isJDM || isMinta || isMerch) ? (
+      {(() => {
+        const inner = (isJDM || isMinta || isMerch) ? (
           <div className={`px-3 pt-2.5 pb-3 sm:px-4 sm:pt-3 sm:pb-4 ${isJDM ? "bg-zinc-900" : isMinta ? "bg-[#f7ece4]" : "bg-zinc-900"}`}>
             <h3 className={`text-[13px] sm:text-sm font-medium leading-snug line-clamp-2 mb-1.5 transition-colors ${isJDM ? "text-white group-hover:text-red-400" : isMinta ? "group-hover:text-[#2e2e2e]/60" : "text-white group-hover:text-white/70"}`} style={isMinta ? { color: '#2e2e2e' } : undefined}>
               {displayName(product.name)}
@@ -1116,8 +1124,9 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
               </div>
             </div>
           </div>
-        )}
-      </Link>
+        );
+        return isPreorderLocked ? <div>{inner}</div> : <Link href={`/${product.slug || product.id}`}>{inner}</Link>;
+      })()}
     </div>
   );
 }

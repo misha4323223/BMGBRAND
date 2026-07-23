@@ -1845,6 +1845,27 @@ export default function ProductDetail() {
                 return <PreorderButton product={product} selectedSize={selectedSize} selectedColor={selectedColor} />;
               }
 
+              // Предзаказ включён, но сбор заявок уже завершён — блокируем обычную покупку
+              if ((product as any).preorderEnabled && (product as any).preorderStatus && (product as any).preorderStatus !== "collecting") {
+                const statusLabels: Record<string, string> = {
+                  production: "Товар в производстве",
+                  shipping: "Товар готовится к отправке",
+                  shipped: "Товар отправлен участникам предзаказа",
+                  cancelled: "Предзаказ отменён",
+                };
+                const statusLabel = statusLabels[(product as any).preorderStatus] || "Предзаказ завершён";
+                return (
+                  <div className="mb-8 space-y-3" data-testid="block-preorder-closed">
+                    <div className="flex items-center justify-center h-11 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium">
+                      {statusLabel}
+                    </div>
+                    <p className="text-center text-xs text-foreground/50">
+                      Приём новых заявок на предзаказ закрыт
+                    </p>
+                  </div>
+                );
+              }
+
               if (allSizesOutOfStock || selectedSizeOutOfStock) {
                 const hasSizes = product.sizes?.length > 0;
                 const sizeStockKeys = hasSizeStockData ? Object.keys(sizeStockData) : [];
