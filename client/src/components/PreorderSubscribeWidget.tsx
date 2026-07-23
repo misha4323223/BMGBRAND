@@ -1,8 +1,58 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Bell, CheckCircle2, Rocket } from "lucide-react";
+import { Bell, CheckCircle2, Rocket, BellRing, BellOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
+
+type PushState = "idle" | "loading" | "subscribed" | "denied" | "unsupported";
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function subscribeToPush(): Promise<PushState> {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
+
+  const permission = await Notification.requestPermission();
+  if (permission === "denied") return "denied";
+  if (permission !== "granted") return "idle";
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const keyRes = await fetch("/api/push/vapid-public-key");
+    if (!keyRes.ok) return "idle";
+    const { publicKey } = await keyRes.json();
+
+    const subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    });
+
+    const res = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription }),
+    });
+    return res.ok ? "subscribed" : "idle";
+  } catch {
+    return "idle";
+  }
+}
+
+async function getPushStatus(): Promise<"subscribed" | "idle" | "unsupported"> {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
+  if (Notification.permission === "denied") return "idle";
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return sub ? "subscribed" : "idle";
+  } catch {
+    return "idle";
+  }
+}
 
 const TICKER_TEXT = "PRE-DROP  •  ЛИМИТИРОВАННЫЕ КОЛЛЕКЦИИ  •  ";
 
@@ -34,6 +84,14 @@ export function PreorderSubscribeWidget() {
   const [email, setEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  const [pushState, setPushState] = useState<PushState>("idle");
+
+  useEffect(() => {
+    getPushStatus().then(status => {
+      if (status === "unsupported") setPushState("unsupported");
+      else if (status === "subscribed") setPushState("subscribed");
+    });
+  }, []);
 
   const subscribeMutation = useMutation({
     mutationFn: async () => {
@@ -41,6 +99,12 @@ export function PreorderSubscribeWidget() {
     },
     onSuccess: () => setSubscribed(true),
   });
+
+  async function handlePushSubscribe() {
+    setPushState("loading");
+    const result = await subscribeToPush();
+    setPushState(result);
+  }
 
   const stars = useMemo(() => Array.from({ length: 16 }).map((_, i) => ({
     id: i,
@@ -167,6 +231,44 @@ export function PreorderSubscribeWidget() {
 
             {subscribeMutation.isError && (
               <p className="text-red-400 text-xs">Ошибка. Попробуй ещё раз.</p>
+            )}
+          </div>
+        )}
+
+        {/* Разделитель — только если пуш доступен и ещё не подписан */}
+        {pushState !== "unsupported" && (
+          <div className="max-w-md mx-auto mt-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-[11px] font-medium tracking-[0.2em] text-white/25 uppercase">или</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+
+            {pushState === "subscribed" ? (
+              <div className="flex items-center justify-center gap-2 text-sm text-white/40">
+                <BellRing className="w-4 h-4 shrink-0" style={{ color: "#E53935" }} />
+                <span>Пуш-уведомления включены</span>
+              </div>
+            ) : pushState === "denied" ? (
+              <div className="flex items-center justify-center gap-2 text-sm text-white/30">
+                <BellOff className="w-4 h-4 shrink-0" />
+                <span>Уведомления заблокированы в браузере</span>
+              </div>
+            ) : (
+              <button
+                onClick={handlePushSubscribe}
+                disabled={pushState === "loading"}
+                className="w-full h-11 rounded-full border border-white/15 text-sm font-semibold text-white/70 hover:border-white/30 hover:text-white hover:bg-white/5 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
+              >
+                {pushState === "loading" ? (
+                  <span className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin block" />
+                ) : (
+                  <>
+                    <Bell className="w-4 h-4" />
+                    Уведомления в браузере — без email
+                  </>
+                )}
+              </button>
             )}
           </div>
         )}
