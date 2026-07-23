@@ -168,7 +168,7 @@ export function PreorderSubscribeWidget() {
           НЕ ПРОПУСТИ<br className="hidden sm:block" /> СЛЕДУЮЩИЙ ДРОП
         </h2>
 
-        <p className="text-sm sm:text-base text-white/50 max-w-lg mx-auto leading-relaxed">
+        <p className="text-sm sm:text-base text-white/75 max-w-lg mx-auto leading-relaxed">
           Два способа быть первым.
         </p>
       </div>
@@ -182,7 +182,7 @@ export function PreorderSubscribeWidget() {
             <Rocket className="w-4 h-4" style={{ color: "#E53935" }} />
           </div>
           <h3 className="text-base sm:text-lg font-bold text-white mb-1">Подписка на email</h3>
-          <p className="text-xs text-white/40 mb-4 max-w-xs leading-relaxed">
+          <p className="text-xs text-white/70 mb-4 max-w-xs leading-relaxed">
             Письмо в момент открытия нового предзаказа. Никакого спама.
           </p>
 
@@ -193,7 +193,7 @@ export function PreorderSubscribeWidget() {
                 <CheckCircle2 className="w-10 h-10 relative z-10" style={{ color: "#E53935" }} />
               </div>
               <p className="text-base font-bold text-white">Готово, ты в списке!</p>
-              <p className="text-xs text-white/40 max-w-[200px]">Пришлём письмо как только откроется pre-drop</p>
+              <p className="text-xs text-white/70 max-w-[200px]">Пришлём письмо как только откроется pre-drop</p>
             </div>
           ) : (
             <div className="w-full max-w-sm space-y-4">
@@ -233,7 +233,7 @@ export function PreorderSubscribeWidget() {
                   style={{ accentColor: "#E53935" }}
                   data-testid="checkbox-preorder-agree"
                 />
-                <span className="text-[11px] text-white/35 group-hover:text-white/55 transition-colors leading-relaxed text-left max-w-xs">
+                <span className="text-[11px] text-white/60 group-hover:text-white/80 transition-colors leading-relaxed text-left max-w-xs">
                   Соглашаюсь получать уведомления о новых предзаказах. Отписаться можно в любой момент в личном кабинете.
                 </span>
               </label>
@@ -274,7 +274,7 @@ export function PreorderSubscribeWidget() {
                 <BellRing className="w-5 h-5" style={{ color: "#E53935" }} />
               </div>
               <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Уведомления включены</h3>
-              <p className="text-sm text-white/40 max-w-xs">Браузер оповестит тебя мгновенно, даже когда сайт закрыт</p>
+              <p className="text-sm text-white/70 max-w-xs">Браузер оповестит тебя мгновенно, даже когда сайт закрыт</p>
             </>
           ) : pushState === "denied" ? (
             <>
@@ -290,7 +290,7 @@ export function PreorderSubscribeWidget() {
                 <BellRing className="w-4 h-4 text-white/60" />
               </div>
               <h3 className="text-base sm:text-lg font-bold text-white mb-1">ПУШ-уведомления</h3>
-              <p className="text-xs text-white/40 mb-4 max-w-xs leading-relaxed">
+              <p className="text-xs text-white/70 mb-4 max-w-xs leading-relaxed">
                 Тихо всплывёт на экране в нужный момент.
               </p>
               <div className="w-full max-w-sm">
@@ -308,7 +308,7 @@ export function PreorderSubscribeWidget() {
                     </>
                   )}
                 </button>
-                <p className="text-[11px] text-white/25 mt-3">Без регистрации — браузер спросит разрешение</p>
+                <p className="text-[11px] text-white/60 mt-3">Без регистрации — браузер спросит разрешение</p>
               </div>
             </>
           )}
