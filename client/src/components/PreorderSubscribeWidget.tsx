@@ -289,9 +289,9 @@ export function PreorderSubscribeWidget() {
               <div className="w-10 h-10 rounded-full bg-white/5 border border-white/15 flex items-center justify-center mb-3">
                 <BellRing className="w-4 h-4 text-white/60" />
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-white mb-1">Уведомления в браузере</h3>
+              <h3 className="text-base sm:text-lg font-bold text-white mb-1">ПУШ-уведомления</h3>
               <p className="text-xs text-white/40 mb-4 max-w-xs leading-relaxed">
-                Мгновенное оповещение без email — прямо на экран, даже когда сайт закрыт.
+                Тихо всплывёт на экране в нужный момент.
               </p>
               <div className="w-full max-w-sm">
                 <button
