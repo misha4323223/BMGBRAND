@@ -65,7 +65,7 @@ export function isBot(ua: string): boolean {
 interface BotCacheEntry { html: string; ts: number }
 const botCache = new Map<string, BotCacheEntry>();
 const BOT_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const BOT_CACHE_MAX = 500;              // max cached paths
+const BOT_CACHE_MAX = 2000;             // max cached paths
 
 function botCacheGet(key: string): string | null {
   const entry = botCache.get(key);
@@ -266,8 +266,10 @@ function baseHead(opts: {
   ogImage: string;
   ogType?: string;
   jsonLd?: string;
+  /** Raw HTML to inject verbatim into <head> — use for noindex etc. */
+  extra?: string;
 }): string {
-  const { title, description, canonical, ogImage, ogType = "website", jsonLd } = opts;
+  const { title, description, canonical, ogImage, ogType = "website", jsonLd, extra } = opts;
   const t = esc(title);
   const d = esc(description.slice(0, 220));
   return [
@@ -275,7 +277,7 @@ function baseHead(opts: {
     `  <meta name="viewport" content="width=device-width, initial-scale=1.0">`,
     `  <title>${t}</title>`,
     `  <meta name="description" content="${d}">`,
-    `  <meta name="robots" content="index, follow">`,
+    extra || `  <meta name="robots" content="index, follow">`,
     `  <link rel="canonical" href="${esc(canonical)}">`,
     `  <meta property="og:type" content="${esc(ogType)}">`,
     `  <meta property="og:title" content="${t}">`,
@@ -391,7 +393,7 @@ ${inStock.length > 0 ? `<h2>Популярные товары</h2><div class="gr
 }
 
 function renderCatalog(): string | null {
-  const products = getCachedAllVisibleProducts(80);
+  const products = getCachedAllVisibleProducts(500);
   // If cache is still warming — pass through to React SPA
   if (products.length === 0) return null;
   const catGroups: Record<string, typeof products> = {};
@@ -440,7 +442,7 @@ function renderCategory(catSlug: string): string | null {
   const cat = CAT_META[catSlug];
   if (!cat) return null;
 
-  const products = getCachedProductsByCategory(catSlug, 80);
+  const products = getCachedProductsByCategory(catSlug, 500);
   // If cache is still warming, pass through to the React app
   if (products.length === 0) return null;
 
@@ -1539,6 +1541,253 @@ ${campaignProducts.length > 0
   return wrapPage(head, body);
 }
 
+// ─── Static-content page renderers ───────────────────────────────────────────
+
+function renderBlog(): string {
+  const homeSettings  = getCachedRawPageSettings("home")  as Record<string, any> | null;
+  const blogPageMeta  = getCachedRawPageSettings("blog_pages") as Record<string, any> | null;
+  const blogSeo       = getSeoOverride("blog");
+
+  const defaultPosts = [
+    { title: "SS'26: Новая эстетика уличной моды",    date: "15 января 2026",  category: "Коллекции",    excerpt: "Исследуем грани между российской уличной модой и современным искусством в новом дропе." },
+    { title: "Лукбук: Urban Vibes в ритме города",    date: "10 января 2026",  category: "Лукбук",       excerpt: "Как сочетать комфорт и стиль в динамичной городской среде. Наш взгляд на повседневность." },
+    { title: "Коллаб: BMG x Tula Artists",            date: "5 января 2026",   category: "Коллаборации", excerpt: "Лимитированная серия, созданная совместно с локальными художниками Тулы." },
+  ];
+
+  const rawItems: any[] = homeSettings?.blog?.items || defaultPosts;
+  const posts = rawItems.map((item: any, idx: number) => {
+    const meta = blogPageMeta?.[String(idx)] || {};
+    return {
+      title:    meta.title    || item.title    || "",
+      date:     meta.date     || item.date     || "",
+      category: meta.category || item.category || "",
+      excerpt:  meta.excerpt  || item.excerpt  || "",
+    };
+  }).filter((p: any) => p.title);
+
+  const jsonLd = safeJsonLd([
+    {
+      "@context": "https://schema.org",
+      "@type": "Blog",
+      "name": "Блог BMGBRAND",
+      "url": `${SITE_URL}/blog`,
+      "description": "Новости бренда, тренды российской моды, новые коллекции и коллаборации.",
+      "publisher": { "@type": "Organization", "@id": `${SITE_URL}/#organization` },
+      "blogPost": posts.map((p: any) => ({
+        "@type": "BlogPosting",
+        "headline": p.title,
+        "datePublished": p.date,
+        "articleSection": p.category,
+        "description": p.excerpt,
+        "url": `${SITE_URL}/blog`,
+        "author": { "@type": "Organization", "name": "BMGBRAND" },
+      })),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
+        { "@type": "ListItem", "position": 2, "name": "Блог",    "item": `${SITE_URL}/blog` },
+      ],
+    },
+  ]);
+
+  const head = baseHead({
+    title:       blogSeo.title       || `Блог BMGBRAND — новости, коллекции, коллаборации | ${SITE_NAME}`,
+    description: blogSeo.description || "Блог BMGBRAND — новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами.",
+    canonical:   `${SITE_URL}/blog`,
+    ogImage:     `${SITE_URL}/og-image.png`,
+    jsonLd,
+  });
+
+  const cards = posts.map((p: any) => `
+    <div class="card">
+      <div style="font-size:.75rem;color:#888;margin-bottom:.25rem">${esc(p.category)} · ${esc(p.date)}</div>
+      <div class="name">${esc(p.title)}</div>
+      <p class="desc" style="margin:.25rem 0 0">${esc(p.excerpt)}</p>
+    </div>`).join("\n");
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / Блог</div>
+<h1>Блог BMGBRAND</h1>
+<p class="desc">Новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами.</p>
+${posts.length > 0 ? `<div class="grid">${cards}</div>` : "<p>Статьи скоро появятся.</p>"}
+<p style="margin-top:2rem"><a href="/products">Перейти в каталог →</a></p>`;
+
+  return wrapPage(head, body);
+}
+
+function renderVacancies(): string {
+  const pageSettings  = getCachedRawPageSettings("vacancies") as Record<string, any> | null;
+  const vacSeo        = getSeoOverride("vacancies");
+
+  const defaultVacancies = [
+    { id: "1", title: "Менеджер по продажам",  location: "Тула",      type: "Полная занятость",    description: "Ищем активного менеджера для работы с клиентами и развития продаж." },
+    { id: "2", title: "SMM-специалист",         location: "Удалённо",  type: "Частичная занятость", description: "Ведение социальных сетей бренда, создание контента, взаимодействие с аудиторией." },
+    { id: "3", title: "Дизайнер одежды",        location: "Тула",      type: "Полная занятость",    description: "Разработка новых коллекций, работа с принтами и паттернами, подбор материалов." },
+  ];
+
+  const raw = pageSettings?.vacancies_data;
+  const settings = raw
+    ? (typeof raw === "string" ? JSON.parse(raw) : raw)
+    : { vacancies: defaultVacancies, pageTitle: "Вакансии", pageSubtitle: "Присоединяйся к команде BMGBRAND!", hrEmail: "hr@booomerangs.ru" };
+
+  if (settings.pageVisible === false) {
+    // Page is hidden — render minimal placeholder (still valid HTML for bots)
+    const head = baseHead({
+      title: "Вакансии — BMGBRAND",
+      description: "Открытые вакансии в команду BMGBRAND.",
+      canonical: `${SITE_URL}/vacancies`,
+      ogImage: `${SITE_URL}/favicon.png`,
+    });
+    return wrapPage(head, `<h1>Вакансии временно недоступны</h1><p><a href="/">На главную</a></p>`);
+  }
+
+  const vacancies: any[] = (settings.vacancies || defaultVacancies).filter((v: any) => v.visible !== false);
+  const hrEmail   = settings.hrEmail   || "hr@booomerangs.ru";
+  const pageTitle = settings.pageTitle || "Вакансии";
+  const subtitle  = settings.pageSubtitle || "Присоединяйся к команде BMGBRAND!";
+
+  const jsonLd = safeJsonLd([
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Главная",  "item": SITE_URL },
+        { "@type": "ListItem", "position": 2, "name": "Вакансии", "item": `${SITE_URL}/vacancies` },
+      ],
+    },
+    ...vacancies.map((v: any) => ({
+      "@context": "https://schema.org",
+      "@type": "JobPosting",
+      "title": v.title,
+      "description": v.description,
+      "hiringOrganization": { "@type": "Organization", "@id": `${SITE_URL}/#organization` },
+      "jobLocation": { "@type": "Place", "address": { "@type": "PostalAddress", "addressLocality": v.location || "Тула", "addressCountry": "RU" } },
+      "employmentType": v.type === "Удалённо" ? "TELECOMMUTE" : "FULL_TIME",
+    })),
+  ]);
+
+  const head = baseHead({
+    title:       vacSeo.title       || `Вакансии — присоединяйся к команде BMGBRAND | ${SITE_NAME}`,
+    description: vacSeo.description || `Открытые вакансии в команду BMGBRAND. ${vacancies.map((v: any) => v.title).join(", ")}.`,
+    canonical:   `${SITE_URL}/vacancies`,
+    ogImage:     `${SITE_URL}/favicon.png`,
+    jsonLd,
+  });
+
+  const cards = vacancies.map((v: any) => `
+    <div class="card">
+      <div class="name">${esc(v.title)}</div>
+      <div style="font-size:.8rem;color:#888;margin:.25rem 0">${esc(v.location || "Тула")} · ${esc(v.type || "")}</div>
+      <p class="desc" style="margin:0">${esc(v.description || "")}</p>
+    </div>`).join("\n");
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / Вакансии</div>
+<h1>${esc(pageTitle)}</h1>
+<p class="desc">${esc(subtitle)}</p>
+${vacancies.length > 0
+  ? `<div class="grid">${cards}</div>`
+  : `<p>Сейчас открытых вакансий нет.</p>`}
+<p style="margin-top:2rem">Отправьте резюме: <a href="mailto:${esc(hrEmail)}">${esc(hrEmail)}</a></p>`;
+
+  return wrapPage(head, body);
+}
+
+/** Strips Tailwind utility class names from an HTML string for cleaner bot output. */
+function stripTailwindClasses(html: string): string {
+  return html.replace(/ class="[^"]*"/g, "");
+}
+
+function renderTerms(): string {
+  const staticPages = getCachedRawPageSettings("static_pages") as Record<string, any> | null;
+  const raw         = staticPages?.terms_data;
+  const parsed      = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : null;
+
+  const DEFAULT_TERMS = `<h1>Публичная оферта</h1>
+<p>Публичная оферта о продаже товаров через интернет-магазин. г. Новомосковск.</p>
+<p>Настоящая оферта является официальным предложением ИП Соболев Дмитрий Анатольевич, ИНН 711614027971, ОГРНИП 316715400111210 (Продавец).</p>
+<h2>1. Общие положения</h2><ul>
+<li>Заказ товара означает полное принятие условий настоящей Оферты.</li>
+<li>Продавец вправе изменять условия без предварительного уведомления.</li></ul>
+<h2>2. Предмет договора</h2><ul>
+<li>Продавец обязуется передать товар из интернет-магазина booomerangs.ru, Покупатель — оплатить и принять его.</li></ul>
+<h2>3. Оформление заказа и оплата</h2><ul>
+<li>Заказ оформляется на сайте. Оплата — Т-Банк, ЮKassa. Цены в рублях, включая налоги.</li></ul>
+<h2>3.1. Предзаказ</h2><ul>
+<li>Предоплата 100%. Отмена возможна до передачи в производство.</li></ul>
+<h2>4. Доставка</h2><ul>
+<li>Доставка по России СДЭК и Яндекс Доставкой. Стоимость рассчитывается при оформлении.</li></ul>
+<h2>5. Возврат и обмен</h2><ul>
+<li>Возврат товара надлежащего качества — в течение 14 дней при сохранении товарного вида.</li></ul>
+<h2>6. Ответственность</h2><ul>
+<li>Продавец не несёт ответственности за задержки транспортных компаний.</li></ul>
+<h2>7. Конфиденциальность</h2><ul>
+<li>Данные обрабатываются в соответствии со ст. 152-ФЗ «О персональных данных».</li></ul>
+<h2>Реквизиты</h2>
+<p>ИП Соболев Дмитрий Анатольевич, ИНН 711614027971, ОГРНИП 316715400111210.<br>
+E-mail: <a href="mailto:info@booomerangs.ru">info@booomerangs.ru</a></p>`;
+
+  const content = parsed?.content ? stripTailwindClasses(parsed.content) : DEFAULT_TERMS;
+
+  const head = baseHead({
+    title:       `Пользовательское соглашение | ${SITE_NAME}`,
+    description: "Условия использования и публичная оферта интернет-магазина BMGBRAND.",
+    canonical:   `${SITE_URL}/terms`,
+    ogImage:     `${SITE_URL}/favicon.png`,
+    extra:       '<meta name="robots" content="noindex, follow">',
+  });
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / Условия использования</div>
+${content}
+<p style="margin-top:2rem"><a href="/">На главную</a></p>`;
+
+  return wrapPage(head, body);
+}
+
+function renderPrivacy(): string {
+  const staticPages = getCachedRawPageSettings("static_pages") as Record<string, any> | null;
+  const raw         = staticPages?.privacy_data;
+  const parsed      = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : null;
+
+  const DEFAULT_PRIVACY = `<h1>Политика конфиденциальности</h1>
+<p>Дата последнего обновления: 01 сентября 2025 г.</p>
+<p>Настоящая Политика действует в отношении всей информации, которую сайт booomerangs.ru может получить о Пользователе.</p>
+<h2>1. Общие положения</h2><p>Политика составлена в соответствии с ФЗ №152 «О персональных данных». Использование сайта означает согласие с Политикой.</p>
+<h2>2. Собираемые данные</h2><ul>
+<li>ФИО, телефон, e-mail (при указании);</li>
+<li>IP-адрес, cookies, данные браузера, время доступа.</li></ul>
+<h2>3. Цели обработки</h2><ul>
+<li>Идентификация пользователя, выполнение заказов, улучшение качества сервиса.</li></ul>
+<h2>4. Cookie и аналитика</h2><p>Используется Яндекс.Метрика. Пользователь может отключить cookies в настройках браузера.</p>
+<h2>5. Передача данных</h2><p>Данные передаются: ЮKassa, Т-Банк, СДЭК, Яндекс — только для выполнения заказов. По законным основаниям — государственным органам РФ.</p>
+<h2>6. Права пользователя</h2><p>Получить информацию, потребовать уточнения или удаления данных, отозвать согласие.</p>
+<h2>7. Контакты</h2>
+<p>E-mail: <a href="mailto:info@booomerangs.ru">info@booomerangs.ru</a><br>
+Телефон: <a href="tel:+79606000047">+7 (960) 600-00-47</a><br>
+301666, Тульская область, г. Новомосковск, ул. Генерала Белова, д. 21, кв. 48.</p>`;
+
+  const content = parsed?.content ? stripTailwindClasses(parsed.content) : DEFAULT_PRIVACY;
+
+  const head = baseHead({
+    title:       `Политика конфиденциальности | ${SITE_NAME}`,
+    description: "Политика конфиденциальности и обработки персональных данных BMGBRAND.",
+    canonical:   `${SITE_URL}/privacy`,
+    ogImage:     `${SITE_URL}/favicon.png`,
+    extra:       '<meta name="robots" content="noindex, follow">',
+  });
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / Политика конфиденциальности</div>
+${content}
+<p style="margin-top:2rem"><a href="/">На главную</a></p>`;
+
+  return wrapPage(head, body);
+}
+
 export function botSsrMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Only GET requests
   if (req.method !== "GET") return next();
@@ -1580,6 +1829,14 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
       html = renderFaq();
     } else if (reqPath === "/merch-na-zakaz") {
       html = renderMerchOrder();
+    } else if (reqPath === "/blog") {
+      html = renderBlog();
+    } else if (reqPath === "/vacancies") {
+      html = renderVacancies();
+    } else if (reqPath === "/terms") {
+      html = renderTerms();
+    } else if (reqPath === "/privacy") {
+      html = renderPrivacy();
     } else if (reqPath === "/concept") {
       html = renderConceptIndex();
     } else if (reqPath.startsWith("/concept/")) {
