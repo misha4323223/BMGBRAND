@@ -872,6 +872,38 @@ export default function ArtistPage() {
         description={settings?.seoDescription || `Купить мерч ${artistName} — официальный магазин Booomerangs. ${settings?.aboutText?.slice(0, 100) || "Футболки, худи, аксессуары с доставкой по всей России."}`}
         keywords={`мерч ${artistName}, купить мерч ${artistName}, ${artistName}, Booomerangs, BMGBRAND`}
         ogImage={heroImage || undefined}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Главная", "item": window.location.origin },
+              { "@type": "ListItem", "position": 2, "name": "Мерч", "item": `${window.location.origin}/products/merch` },
+              { "@type": "ListItem", "position": 3, "name": artistName, "item": `${window.location.origin}/@${slug}` },
+            ],
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "@id": `${window.location.origin}/@${slug}#webpage`,
+            "url": `${window.location.origin}/@${slug}`,
+            "name": settings?.seoTitle || `Мерч ${artistName} — купить официальный мерч | Booomerangs`,
+            "description": settings?.seoDescription || `Купить мерч ${artistName} — официальный магазин Booomerangs. Футболки, худи, аксессуары с доставкой по всей России.`,
+            "inLanguage": "ru-RU",
+            "isPartOf": { "@id": `${window.location.origin}/#website` },
+            ...(heroImage ? { "primaryImageOfPage": { "@type": "ImageObject", "url": heroImage } } : {}),
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Person",
+            "@id": `${window.location.origin}/@${slug}#artist`,
+            "name": artistName,
+            ...(artistRole ? { "jobTitle": artistRole } : {}),
+            ...(heroImage ? { "image": heroImage } : {}),
+            ...(settings?.aboutText ? { "description": settings.aboutText.slice(0, 300) } : {}),
+            "url": `${window.location.origin}/@${slug}`,
+          },
+        ]}
       />
       <main className="min-h-screen" style={isColored ? { background: tc.bg } : {}}>
 

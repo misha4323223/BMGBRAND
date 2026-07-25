@@ -385,6 +385,8 @@ function renderHome(): string | null {
       <div class="status in-stock">в наличии</div>
     </div>`).join("\n");
 
+  const homeSeoTitle = getSeoOverride("home").title || `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
+  const homeSeoDesc = getSeoOverride("home").description || "Booomerangs (BMGBRAND) — официальный магазин мерча со встроенным ИИ-консультантом BOOOM AI. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.";
   const jsonLd = safeJsonLd([
     {
       "@context": "https://schema.org",
@@ -394,12 +396,31 @@ function renderHome(): string | null {
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
       "name": "Booomerangs",
+      "alternateName": SITE_NAME,
       "url": `${SITE_URL}/`,
+      "inLanguage": "ru-RU",
+      "publisher": { "@id": `${SITE_URL}/#organization` },
       "potentialAction": {
         "@type": "SearchAction",
         "target": `${SITE_URL}/products?search={search_term_string}`,
         "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": `${SITE_URL}/#webpage`,
+      "url": `${SITE_URL}/`,
+      "name": homeSeoTitle,
+      "description": homeSeoDesc,
+      "inLanguage": "ru-RU",
+      "isPartOf": { "@id": `${SITE_URL}/#website` },
+      "about": { "@id": `${SITE_URL}/#organization` },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "xpath": ["/html/head/title", "/html/head/meta[@name='description']/@content", "//h1"],
       },
     },
   ]);
@@ -481,9 +502,11 @@ function renderCatalog(): string | null {
   ]);
 
   const catalogSeo = getSeoOverride("static:catalog");
+  const catalogTitle = catalogSeo.title || `Каталог — одежда и аксессуары | ${SITE_NAME}`;
+  const catalogDesc = catalogSeo.description || "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.";
   const head = baseHead({
-    title: catalogSeo.title || `Каталог — одежда и аксессуары | ${SITE_NAME}`,
-    description: catalogSeo.description || "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.",
+    title: catalogTitle,
+    description: catalogDesc,
     canonical: `${SITE_URL}/products`,
     ogImage: `${SITE_URL}/favicon.png`,
     jsonLd,

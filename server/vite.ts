@@ -58,7 +58,7 @@ function injectMeta(html: string, opts: {
   }
 
   if (jsonLd) {
-    html = html.replace('</head>', `    <script type="application/ld+json">${jsonLd}</script>\n  </head>`);
+    html = html.replace('</head>', `    <script type="application/ld+json" data-rh="true">${jsonLd}</script>\n  </head>`);
   }
 
   return html;

@@ -594,13 +594,31 @@ export default function Home() {
           {
             "@context": "https://schema.org",
             "@type": "WebSite",
+            "@id": `${window.location.origin}/#website`,
             "name": "Booomerangs",
             "alternateName": "BMGBRAND",
             "url": `${window.location.origin}/`,
+            "inLanguage": "ru-RU",
+            "publisher": { "@id": `${window.location.origin}/#organization` },
             "potentialAction": {
               "@type": "SearchAction",
               "target": `${window.location.origin}/products?search={search_term_string}`,
               "query-input": "required name=search_term_string",
+            },
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "@id": `${window.location.origin}/#webpage`,
+            "url": `${window.location.origin}/`,
+            "name": homeSeoOverride?.title || "Официальный сайт бренда Booomerangs | BMGBRAND",
+            "description": homeSeoOverride?.description || "Booomerangs (BMGBRAND) — официальный магазин мерча. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
+            "inLanguage": "ru-RU",
+            "isPartOf": { "@id": `${window.location.origin}/#website` },
+            "about": { "@id": `${window.location.origin}/#organization` },
+            "speakable": {
+              "@type": "SpeakableSpecification",
+              "xpath": ["/html/head/title", "/html/head/meta[@name='description']/@content", "//h1"],
             },
           },
         ]}

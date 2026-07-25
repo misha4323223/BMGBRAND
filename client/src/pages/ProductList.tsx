@@ -1865,6 +1865,16 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
             "@type": "BreadcrumbList",
             "itemListElement": breadcrumbItems,
           },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "@id": `${catalogCanonical}#webpage`,
+            "url": catalogCanonical,
+            "name": catalogSeoTitle,
+            "description": catalogSeoDescription,
+            "inLanguage": "ru-RU",
+            "isPartOf": { "@id": `${window.location.origin}/#website` },
+          },
           ...(currentCategory && allProducts.length > 0 ? [{
             "@context": "https://schema.org",
             "@type": "CollectionPage",

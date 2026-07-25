@@ -485,7 +485,7 @@ function injectMeta(html: string, opts: {
   }
 
   if (jsonLd) {
-    const ldTag = `<script type="application/ld+json">${jsonLd}</script>`;
+    const ldTag = `<script type="application/ld+json" data-rh="true">${jsonLd}</script>`;
     html = html.replace('</head>', `    ${ldTag}\n  </head>`);
   }
 
