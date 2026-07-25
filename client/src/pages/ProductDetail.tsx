@@ -730,7 +730,7 @@ export default function ProductDetail() {
       : `Купить ${product.name} BOOOMERANGS`,
     selectedColorName ? `цвет: ${selectedColorName}` : "",
     sizesText ? `Размеры: ${sizesText}.` : "",
-    "Доставка по России СДЭК и Яндекс Доставкой.",
+    "Доставка по России СДЭК.",
     product.description ? product.description.slice(0, 80) : "",
   ].filter(Boolean);
   const autoSeoDescription = seoDescParts.join(" ").slice(0, 220);

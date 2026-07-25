@@ -20,6 +20,11 @@ function getAbsoluteUrl(path: string): string {
   return `${CANONICAL_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+interface SEOPropsExtended extends SEOProps {
+  ogImageWidth?: string;
+  ogImageHeight?: string;
+}
+
 export default function SEO({
   title,
   description = DEFAULT_DESCRIPTION,
@@ -29,7 +34,9 @@ export default function SEO({
   canonical,
   noindex = false,
   jsonLd,
-}: SEOProps) {
+  ogImageWidth = "1200",
+  ogImageHeight = "630",
+}: SEOPropsExtended) {
   const fullTitle = title ? `${title} | ${SITE_NAME}` : `Booomerangs — Российский бренд одежды Booomerangs/BMGBRAND`;
   const absoluteOgImage = getAbsoluteUrl(ogImage);
   const canonicalUrl = canonical || `${CANONICAL_ORIGIN}${window.location.pathname}`;
@@ -39,13 +46,19 @@ export default function SEO({
       <title>{fullTitle}</title>
       <meta name="description" content={description} />
       {keywords && <meta name="keywords" content={keywords} />}
-      {noindex && <meta name="robots" content="noindex, nofollow" />}
-      {!noindex && <link rel="canonical" href={canonicalUrl} />}
+      {noindex
+        ? <meta name="robots" content="noindex, follow" />
+        : <meta name="robots" content="index, follow" />
+      }
+      {/* Canonical always present — even noindex pages need it to avoid duplication signals */}
+      <link rel="canonical" href={canonicalUrl} />
 
       <meta property="og:type" content={ogType} />
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={absoluteOgImage} />
+      <meta property="og:image:width" content={ogImageWidth} />
+      <meta property="og:image:height" content={ogImageHeight} />
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:site_name" content={SITE_NAME} />
       <meta property="og:locale" content="ru_RU" />

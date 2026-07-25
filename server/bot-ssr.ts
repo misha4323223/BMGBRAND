@@ -123,12 +123,44 @@ function buildMerchantReturnPolicy() {
   };
 }
 
+// Стандартные условия доставки по России СДЭК/Яндекс.
+function buildShippingDetails() {
+  return {
+    "@type": "OfferShippingDetails",
+    "shippingRate": {
+      "@type": "MonetaryAmount",
+      "currency": "RUB",
+      "minValue": "0",
+      "maxValue": "600",
+    },
+    "shippingDestination": {
+      "@type": "DefinedRegion",
+      "addressCountry": "RU",
+    },
+    "deliveryTime": {
+      "@type": "ShippingDeliveryTime",
+      "handlingTime": {
+        "@type": "QuantitativeValue",
+        "minValue": 1,
+        "maxValue": 2,
+        "unitCode": "DAY",
+      },
+      "transitTime": {
+        "@type": "QuantitativeValue",
+        "minValue": 1,
+        "maxValue": 10,
+        "unitCode": "DAY",
+      },
+    },
+  };
+}
+
 // Дефолтные вопросы/ответы FAQ — держим в синхроне с client/src/pages/FAQ.tsx.
 // Используются только если админ ещё не сохранил свой faq_data в static_pages.
 const DEFAULT_FAQ_ITEMS: Array<{ question: string; answer: string }> = [
   { question: "Как оформить заказ?", answer: "Выберите понравившиеся товары, добавьте их в корзину, перейдите к оформлению и заполните данные для доставки. После оформления заказа вам придёт уведомление на электронную почту. Отследить статус заказа и местонахождение посылки можно в личном кабинете." },
   { question: "Какие способы оплаты доступны?", answer: "Мы принимаем оплату банковскими картами через ЮKassa и Т-Банк. Доступны банковские карты (Visa, MasterCard, МИР), СБП (Система быстрых платежей), а также Т-Pay." },
-  { question: "Сколько стоит доставка?", answer: "Доставка по России осуществляется через СДЭК и Яндекс Доставку. Стоимость рассчитывается автоматически при оформлении заказа в зависимости от региона и веса посылки." },
+  { question: "Сколько стоит доставка?", answer: "Доставка по России осуществляется через СДЭК. Стоимость рассчитывается автоматически при оформлении заказа в зависимости от региона и веса посылки." },
   { question: "Сколько времени занимает доставка?", answer: "Срок доставки зависит от вашего региона и выбранного способа доставки — обычно от 1 до 10 рабочих дней по России." },
   { question: "Можно ли вернуть или обменять товар?", answer: "Да, вы можете вернуть или обменять товар в течение 14 дней с момента получения. Товар должен сохранить товарный вид, бирки и упаковку. Подробнее в разделе 'Доставка и возврат' на странице товара." },
   { question: "Как подобрать размер?", answer: "На странице каждого товара есть таблица размеров с точными замерами. Если у вас остались вопросы, напишите нам в Telegram или на почту — поможем с выбором." },
@@ -156,7 +188,7 @@ const CAT_META: Record<string, { name: string; title?: string; desc: string }> =
   socks:       {
     name: "Необычные носки с принтом",
     title: "Купить необычные носки с принтом — прикольные носки с мемами | BMGBRAND",
-    desc: "Купить необычные носки с принтом BOOOMERANGS: оригинальные носки с мемами, прикольные авторские рисунки, носки хорошего качества — хлопок 75%. Большой выбор принтов. Доставка по всей России СДЭК и Яндекс Доставкой.",
+    desc: "Купить необычные носки с принтом BOOOMERANGS: оригинальные носки с мемами, прикольные авторские рисунки, носки хорошего качества — хлопок 75%. Большой выбор принтов. Доставка по всей России СДЭК.",
   },
   accessories: { name: "Аксессуары",                desc: "Купить аксессуары BMGBRAND — шапки, сумки, ремни и другие аксессуары. Доставка по всей России." },
   sale:        { name: "Распродажа",                desc: "Распродажа BMGBRAND — выгодные цены на одежду и аксессуары. Доставка по всей России." },
@@ -383,7 +415,7 @@ function renderHome(): string | null {
 
   const body = `
 <h1>BOOOMERANGS — официальный магазин бренда BMGBRAND</h1>
-<p class="desc">Российский бренд одежды с авторскими принтами из Тулы. Худи, свитшоты, футболки, носки и аксессуары. Делаем вещи, которые носим сами. На каждой странице товара работает встроенный ИИ-консультант BOOOM AI — помогает подобрать размер и отвечает на вопросы о составе, уходе и коллаборациях. Доставка по всей России СДЭК и Яндекс Доставкой.</p>
+<p class="desc">Российский бренд одежды с авторскими принтами из Тулы. Худи, свитшоты, футболки, носки и аксессуары. Делаем вещи, которые носим сами. На каждой странице товара работает встроенный ИИ-консультант BOOOM AI — помогает подобрать размер и отвечает на вопросы о составе, уходе и коллаборациях. Доставка по всей России СДЭК.</p>
 <h2>Категории товаров</h2>
 <div class="cats">${catLinks}</div>
 ${inStock.length > 0 ? `<h2>Популярные товары</h2><div class="grid">${cards}</div>` : ""}
@@ -538,7 +570,7 @@ function renderProduct(slug: string): string | null {
   const desc = meta.seoDescription || [
     isMerch ? `Купить мерч ${meta.title} BOOOMERANGS` : `Купить ${meta.title} BOOOMERANGS`,
     meta.sizes.length > 0 ? `Размеры: ${meta.sizes.join(", ")}.` : "",
-    "Доставка по России СДЭК и Яндекс Доставкой.",
+    "Доставка по России СДЭК.",
     meta.description ? meta.description.slice(0, 80) : "",
   ].filter(Boolean).join(" ").slice(0, 220);
 
@@ -553,12 +585,19 @@ function renderProduct(slug: string): string | null {
     .toISOString().split("T")[0];
 
   const organizationSchema = buildOrganizationSchema();
+  const rawImages: string[] = meta.images.length > 0 ? meta.images.slice(0, 6) : (meta.image ? [meta.image] : []);
   const productSchema: Record<string, any> = {
     "@context": "https://schema.org",
     "@type": "Product",
     "name": meta.title,
     "description": desc,
-    "image": meta.images.length > 0 ? meta.images.slice(0, 6) : (meta.image ? [meta.image] : []),
+    "image": rawImages.map((url, i) => ({
+      "@type": "ImageObject",
+      "url": url,
+      "contentUrl": url,
+      "name": i === 0 ? `${meta.title} — фото` : `${meta.title} — фото ${i + 1}`,
+      "representativeOfPage": i === 0,
+    })),
     "url": `${SITE_URL}/${slug}`,
     "sku": meta.sku,
     "brand": { "@id": organizationSchema["@id"] },
@@ -572,6 +611,7 @@ function renderProduct(slug: string): string | null {
       "url": `${SITE_URL}/${slug}`,
       "seller": { "@id": organizationSchema["@id"] },
       "hasMerchantReturnPolicy": buildMerchantReturnPolicy(),
+      "shippingDetails": buildShippingDetails(),
     },
   };
   if (rating && rating.reviewCount >= 1) {
@@ -780,7 +820,7 @@ ${videoHtml}
     ).join("\n");
     return `<div style="margin-top:.75rem;overflow-x:auto"><strong>Таблица размеров (см):</strong><table style="border-collapse:collapse;margin-top:.4rem;font-size:.85rem"><thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table></div>`;
   })() : ""}
-  <p style="margin-top:.75rem">Доставка по всей России СДЭК и Яндекс Доставкой.</p>
+  <p style="margin-top:.75rem">Доставка по всей России СДЭК.</p>
   <a href="/${esc(slug)}" class="buy-btn">Купить на сайте</a>
 </div>
 ${variantsHtml}
@@ -832,7 +872,7 @@ function renderSubcategory(subSlug: string): string | null {
     ? `Мерч ${subcategory.name} — купить официальный мерч | ${SITE_NAME}`
     : `${subcategory.name} — купить в ${SITE_NAME} | ${catName}`);
   const desc = subSeo.description || (isMerch
-    ? `Официальный мерч ${subcategory.name} в интернет-магазине BMGBRAND: одежда и аксессуары с авторскими принтами. Доставка по всей России СДЭК и Яндекс Доставкой.`
+    ? `Официальный мерч ${subcategory.name} в интернет-магазине BMGBRAND: одежда и аксессуары с авторскими принтами. Доставка по всей России СДЭК.`
     : `${subcategory.name} от BMGBRAND — ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России.`);
 
   const jsonLd = safeJsonLd([
@@ -927,7 +967,7 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
 
   const subSubSeo = getSeoOverride(`subsubcategory:${catSlug}:${subSlug}:${subSubSlug}`);
   const title = subSubSeo.title || `${subSubcategory.name} — купить в ${SITE_NAME} | ${subcategory.name}, ${catName}`;
-  const desc = subSubSeo.description || `${subSubcategory.name} от BMGBRAND — ${subcategory.name.toLowerCase()}, ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России СДЭК и Яндекс Доставкой.`;
+  const desc = subSubSeo.description || `${subSubcategory.name} от BMGBRAND — ${subcategory.name.toLowerCase()}, ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России СДЭК.`;
 
   const jsonLd = safeJsonLd([
     {
@@ -1719,7 +1759,7 @@ function renderTerms(): string {
 <h2>3.1. Предзаказ</h2><ul>
 <li>Предоплата 100%. Отмена возможна до передачи в производство.</li></ul>
 <h2>4. Доставка</h2><ul>
-<li>Доставка по России СДЭК и Яндекс Доставкой. Стоимость рассчитывается при оформлении.</li></ul>
+<li>Доставка по России СДЭК. Стоимость рассчитывается при оформлении.</li></ul>
 <h2>5. Возврат и обмен</h2><ul>
 <li>Возврат товара надлежащего качества — в течение 14 дней при сохранении товарного вида.</li></ul>
 <h2>6. Ответственность</h2><ul>

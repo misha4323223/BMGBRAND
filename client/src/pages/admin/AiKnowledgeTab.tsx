@@ -11,7 +11,7 @@ import { AdminAgentChat } from "./AdminAgentChat";
 const BLOCK_META: Record<string, { label: string; desc: string; icon: any }> = {
   ai_prompt_base:      { label: "Базовый промт",            desc: "Личность, тон, правила поведения и информация о бренде. Используется в каждом запросе.",                    icon: Bot },
   ai_block_assortment: { label: "Ассортимент магазина",     desc: "Полный список категорий и подкатегорий. Используется в КАЖДОМ запросе — не даёт ИИ выдумывать несуществующие товары.", icon: LayoutGrid },
-  ai_block_delivery:   { label: "Доставка",                 desc: "СДЭК, Яндекс Доставка, сроки, стоимость, отслеживание. Подключается при вопросах о доставке.",             icon: Truck },
+  ai_block_delivery:   { label: "Доставка",                 desc: "СДЭК, сроки, стоимость, отслеживание. Подключается при вопросах о доставке.",             icon: Truck },
   ai_block_payment:    { label: "Оплата",                   desc: "ЮKassa, Т-Банк, Ozon Pay, рассрочка. Подключается при вопросах об оплате.",                                icon: CreditCard },
   ai_block_returns:    { label: "Возврат и обмен",          desc: "Условия возврата, сроки, порядок оформления. Подключается при вопросах о возврате.",                        icon: ArrowLeftRight },
   ai_block_sizing:     { label: "Размеры",                  desc: "Размерная сетка, рекомендации, особенности. Подключается при вопросах о размерах.",                        icon: Ruler },

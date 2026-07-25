@@ -83,7 +83,7 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
         const desc = meta.seoDescription || [
           isMerch ? `Купить мерч ${meta.title} BOOOMERANGS` : `Купить ${meta.title} BOOOMERANGS`,
           meta.sizes.length > 0 ? `Размеры: ${meta.sizes.join(", ")}.` : "",
-          "Доставка по России СДЭК и Яндекс Доставкой.",
+          "Доставка по России СДЭК.",
           meta.description ? meta.description.slice(0, 80) : "",
         ].filter(Boolean).join(" ").slice(0, 220);
         const image = meta.image.startsWith("http") ? meta.image : `${origin}${meta.image}`;

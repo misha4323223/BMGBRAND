@@ -1363,7 +1363,7 @@ BMGBRAND — официальный производитель и магазин
 
 ## Доставка и оплата
 
-- Доставка по всей России: СДЭК (курьер, ПВЗ, постаматы), Яндекс Доставка
+- Доставка по всей России: СДЭК (курьер, ПВЗ, постаматы)
 - Производство и отгрузка: Тула / Новомосковск
 - Оплата: банковские карты МИР/Visa/MasterCard, Т-Банк (Тинькофф), ЮKassa, подарочные карты BMGBRAND
 
@@ -1454,7 +1454,7 @@ BMGBRAND — официальный производитель и магазин
       try { artistPages = await storage.getPageSettings("artist_pages"); } catch {}
 
       let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-      xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+      xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
 
       for (const page of staticPages) {
         xml += `  <url>\n`;
@@ -1530,13 +1530,69 @@ BMGBRAND — официальный производитель и магазин
 
       for (const product of visibleProducts) {
         const productPath = product.slug || product.id;
+        // Per-product lastmod: prefer real update date over today's date
+        const productLastmod = (product as any).updatedAt
+          ? String((product as any).updatedAt).split("T")[0]
+          : (product as any).createdAt
+            ? String((product as any).createdAt).split("T")[0]
+            : today;
         xml += `  <url>\n`;
         xml += `    <loc>${baseUrl}/${productPath}</loc>\n`;
-        xml += `    <lastmod>${today}</lastmod>\n`;
+        xml += `    <lastmod>${productLastmod}</lastmod>\n`;
         xml += `    <changefreq>weekly</changefreq>\n`;
         xml += `    <priority>0.8</priority>\n`;
+        // image:image — helps Google/Yandex index product photos directly
+        const imgUrl = (product as any).imageUrl || (product as any).thumbnailUrl;
+        if (imgUrl && typeof imgUrl === "string" && imgUrl.startsWith("http")) {
+          const safeImg = imgUrl.replace(/&/g, "&amp;");
+          const safeTitle = ((product as any).name || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          xml += `    <image:image>\n`;
+          xml += `      <image:loc>${safeImg}</image:loc>\n`;
+          if (safeTitle) xml += `      <image:title>${safeTitle}</image:title>\n`;
+          xml += `    </image:image>\n`;
+        }
         xml += `  </url>\n`;
       }
+
+      // Concept campaign pages (/concept/:slug)
+      try {
+        const conceptCampaignsList = await storage.getPageSettings("concept_campaigns");
+        const conceptSlugs: string[] = Array.isArray(conceptCampaignsList?.campaigns)
+          ? conceptCampaignsList.campaigns.map((c: any) => c.slug).filter(Boolean)
+          : Object.keys(conceptCampaignsList || {}).filter(k => k !== "campaigns" && /^[a-z0-9][a-z0-9-]*$/.test(k));
+
+        // /concept index
+        if (conceptSlugs.length > 0) {
+          xml += `  <url>\n`;
+          xml += `    <loc>${baseUrl}/concept</loc>\n`;
+          xml += `    <lastmod>${today}</lastmod>\n`;
+          xml += `    <changefreq>weekly</changefreq>\n`;
+          xml += `    <priority>0.7</priority>\n`;
+          xml += `  </url>\n`;
+        }
+        for (const slug of conceptSlugs) {
+          xml += `  <url>\n`;
+          xml += `    <loc>${baseUrl}/concept/${slug}</loc>\n`;
+          xml += `    <lastmod>${today}</lastmod>\n`;
+          xml += `    <changefreq>weekly</changefreq>\n`;
+          xml += `    <priority>0.75</priority>\n`;
+          xml += `  </url>\n`;
+        }
+      } catch { /* skip if concept settings not available */ }
+
+      // Blog post detail pages (/blog/:index)
+      try {
+        const homeSettings = await storage.getPageSettings("home");
+        const blogItems: any[] = homeSettings?.blog?.items || [];
+        for (let i = 0; i < blogItems.length; i++) {
+          xml += `  <url>\n`;
+          xml += `    <loc>${baseUrl}/blog/${i}</loc>\n`;
+          xml += `    <lastmod>${today}</lastmod>\n`;
+          xml += `    <changefreq>monthly</changefreq>\n`;
+          xml += `    <priority>0.6</priority>\n`;
+          xml += `  </url>\n`;
+        }
+      } catch { /* skip if blog settings not available */ }
 
       xml += `</urlset>`;
       serveGeneratedXml(res, "sitemap.xml", xml);
