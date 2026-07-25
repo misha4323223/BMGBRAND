@@ -855,6 +855,24 @@ export default function ProductDetail() {
       ],
     },
     { "@context": "https://schema.org", ...organizationSchema },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": `${productUrl}#webpage`,
+      "url": productUrl,
+      "name": seoTitle,
+      "description": seoDescription,
+      "inLanguage": "ru-RU",
+      "isPartOf": { "@id": `${origin}/#website` },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "xpath": [
+          "/html/head/title",
+          "/html/head/meta[@name='description']/@content",
+          "//h1",
+        ],
+      },
+    },
   ];
 
   return (

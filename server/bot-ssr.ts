@@ -309,7 +309,7 @@ function baseHead(opts: {
     `  <meta name="viewport" content="width=device-width, initial-scale=1.0">`,
     `  <title>${t}</title>`,
     `  <meta name="description" content="${d}">`,
-    extra || `  <meta name="robots" content="index, follow">`,
+    extra || `  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">`,
     `  <link rel="canonical" href="${esc(canonical)}">`,
     `  <meta property="og:type" content="${esc(ogType)}">`,
     `  <meta property="og:title" content="${t}">`,
@@ -443,14 +443,42 @@ function renderCatalog(): string | null {
     return `<h2><a href="/products/${slug}">${esc(cat.name)}</a> <span style="font-size:.75rem;font-weight:400;text-transform:none;color:#888">(${catProducts.length} тов.)</span></h2><div class="grid">${items}</div>`;
   }).filter(Boolean).join("\n");
 
-  const jsonLd = safeJsonLd({
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [
-      { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
-      { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${SITE_URL}/products` },
-    ],
-  });
+  const topProducts = products.slice(0, 12);
+  const jsonLd = safeJsonLd([
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
+        { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${SITE_URL}/products` },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      "name": "Каталог BMGBRAND — одежда и аксессуары",
+      "description": "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.",
+      "url": `${SITE_URL}/products`,
+      "numberOfItems": products.length,
+      "itemListElement": topProducts.map((p, i) => ({
+        "@type": "ListItem",
+        "position": i + 1,
+        "item": {
+          "@type": "Product",
+          "name": p.name,
+          "url": `${SITE_URL}/${p.slug}`,
+          "offers": {
+            "@type": "Offer",
+            "priceCurrency": "RUB",
+            "price": (p.price / 100).toFixed(2),
+            "availability": p.stock > 0
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
+          },
+        },
+      })),
+    },
+  ]);
 
   const catalogSeo = getSeoOverride("static:catalog");
   const head = baseHead({

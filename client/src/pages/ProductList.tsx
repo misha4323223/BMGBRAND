@@ -1859,11 +1859,38 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
         keywords={catalogSeoKeywords}
         canonical={catalogCanonical}
         noindex={shouldNoIndex}
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          "itemListElement": breadcrumbItems,
-        }}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": breadcrumbItems,
+          },
+          ...(currentCategory && allProducts.length > 0 ? [{
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            "name": catalogSeoTitle,
+            "description": catalogSeoDescription,
+            "url": catalogCanonical,
+            "numberOfItems": allProducts.length,
+            "itemListElement": allProducts.slice(0, 12).map((p: any, i: number) => ({
+              "@type": "ListItem",
+              "position": i + 1,
+              "item": {
+                "@type": "Product",
+                "name": p.name,
+                "url": `${window.location.origin}/${p.slug}`,
+                "offers": {
+                  "@type": "Offer",
+                  "priceCurrency": "RUB",
+                  "price": ((p.price || 0) / 100).toFixed(2),
+                  "availability": (p.stock ?? 0) > 0
+                    ? "https://schema.org/InStock"
+                    : "https://schema.org/OutOfStock",
+                },
+              },
+            })),
+          }] : []),
+        ]}
       />
       {isMerch ? <MerchNavbar /> : <Navbar />}
 

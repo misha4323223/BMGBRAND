@@ -77,6 +77,38 @@ export default function Blog() {
         title="Блог"
         description="Блог BMGBRAND — новости бренда, тренды российской моды, новые коллекции и коллаборации."
         keywords="блог BMGBRAND, новости российской одежды, тренды, коллекции"
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Blog",
+            "name": homeData?.blog?.title || "BMG Журнал",
+            "description": "Блог BMGBRAND — новости бренда, тренды российской моды, новые коллекции и коллаборации.",
+            "url": `${window.location.origin}/blog`,
+            "publisher": {
+              "@type": "Organization",
+              "@id": `${window.location.origin}/#organization`,
+              "name": "BMGBRAND",
+              "logo": { "@type": "ImageObject", "url": `${window.location.origin}/favicon.png` },
+            },
+            "blogPost": posts.map((post: any, idx: number) => ({
+              "@type": "BlogPosting",
+              "headline": post.title,
+              "description": post.excerpt || post.title,
+              "url": `${window.location.origin}/blog/${idx}`,
+              "image": post.image ? (post.image.startsWith("http") ? post.image : `${window.location.origin}${post.image}`) : `${window.location.origin}/og-image.png`,
+              "datePublished": post.date,
+              "author": { "@type": "Organization", "name": post.author || "BMG Team" },
+            })),
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Главная", "item": window.location.origin },
+              { "@type": "ListItem", "position": 2, "name": "Блог", "item": `${window.location.origin}/blog` },
+            ],
+          },
+        ]}
       />
       <Navbar />
       <main className="pt-24 pb-16 sm:pb-24">

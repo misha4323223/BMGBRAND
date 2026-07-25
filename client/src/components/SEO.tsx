@@ -48,7 +48,7 @@ export default function SEO({
       {keywords && <meta name="keywords" content={keywords} />}
       {noindex
         ? <meta name="robots" content="noindex, follow" />
-        : <meta name="robots" content="index, follow" />
+        : <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
       }
       {/* Canonical always present — even noindex pages need it to avoid duplication signals */}
       <link rel="canonical" href={canonicalUrl} />

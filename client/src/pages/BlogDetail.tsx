@@ -72,6 +72,23 @@ const defaultBlogPosts = [
   },
 ];
 
+const RUSSIAN_MONTHS: Record<string, string> = {
+  "января": "01", "февраля": "02", "марта": "03", "апреля": "04",
+  "мая": "05", "июня": "06", "июля": "07", "августа": "08",
+  "сентября": "09", "октября": "10", "ноября": "11", "декабря": "12",
+};
+
+function parseBlogDate(ruDate: string): string {
+  const parts = (ruDate || "").trim().split(" ");
+  if (parts.length === 3) {
+    const day = parts[0].padStart(2, "0");
+    const month = RUSSIAN_MONTHS[parts[1].toLowerCase()];
+    const year = parts[2];
+    if (day && month && year && /^\d{4}$/.test(year)) return `${year}-${month}-${day}`;
+  }
+  return ruDate;
+}
+
 function extractIframeSrc(html: string): string | null {
   const match = html.match(/src=["']([^"']+)["']/i);
   return match ? match[1] : null;
@@ -270,6 +287,47 @@ export default function BlogDetail() {
         title={post.seoTitle || post.title || "Статья"}
         description={post.seoDescription || post.excerpt || post.content?.slice(0, 160) || "Блог BMGBRAND — статьи о российской моде и авторских дизайнах."}
         ogType="article"
+        ogImage={post.image || "/og-image.png"}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            "headline": post.title,
+            "description": post.seoDescription || post.excerpt || "",
+            "image": post.image ? (post.image.startsWith("http") ? post.image : `${window.location.origin}${post.image}`) : `${window.location.origin}/og-image.png`,
+            "url": window.location.href,
+            "datePublished": parseBlogDate(post.date),
+            "dateModified": parseBlogDate(post.date),
+            "author": {
+              "@type": "Organization",
+              "@id": `${window.location.origin}/#organization`,
+              "name": post.author || "BMG Team",
+            },
+            "publisher": {
+              "@type": "Organization",
+              "@id": `${window.location.origin}/#organization`,
+              "name": "BMGBRAND",
+              "logo": {
+                "@type": "ImageObject",
+                "url": `${window.location.origin}/favicon.png`,
+              },
+            },
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": window.location.href,
+            },
+            ...(post.tags && post.tags.length > 0 ? { "keywords": post.tags.join(", ") } : {}),
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Главная", "item": window.location.origin },
+              { "@type": "ListItem", "position": 2, "name": "Блог", "item": `${window.location.origin}/blog` },
+              { "@type": "ListItem", "position": 3, "name": post.title, "item": window.location.href },
+            ],
+          },
+        ]}
       />
       <Navbar />
       <main className="pt-24 pb-16">
