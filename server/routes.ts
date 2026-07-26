@@ -1544,11 +1544,21 @@ BMGBRAND — официальный производитель и магазин
         // image:image — helps Google/Yandex index product photos directly
         const imgUrl = (product as any).imageUrl || (product as any).thumbnailUrl;
         if (imgUrl && typeof imgUrl === "string" && imgUrl.startsWith("http")) {
+          const escAttr = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
           const safeImg = imgUrl.replace(/&/g, "&amp;");
-          const safeTitle = ((product as any).name || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          const safeTitle = escAttr((product as any).name || "");
+          // image:caption — used by Yandex.Images and Google Images to describe
+          // the photo in search results. Prefer product description (≤200 chars),
+          // fall back to "name — официальный мерч BMGBRAND".
+          const rawDesc = ((product as any).description || "").replace(/<[^>]*>/g, "").trim();
+          const captionText = rawDesc
+            ? `${rawDesc.slice(0, 180)}${rawDesc.length > 180 ? "…" : ""}`
+            : `${(product as any).name || ""} — официальный мерч BMGBRAND`;
+          const safeCaption = escAttr(captionText);
           xml += `    <image:image>\n`;
           xml += `      <image:loc>${safeImg}</image:loc>\n`;
           if (safeTitle) xml += `      <image:title>${safeTitle}</image:title>\n`;
+          if (safeCaption) xml += `      <image:caption>${safeCaption}</image:caption>\n`;
           xml += `    </image:image>\n`;
         }
         xml += `  </url>\n`;

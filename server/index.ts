@@ -146,6 +146,25 @@ app.use(compression({
 }));
 app.use(cookieParser());
 
+// SEO: Vary: Accept-Encoding — tells CDN/proxy caches to store separate
+// versions for gzip and identity clients. compression() already sets this
+// for responses it compresses; res.vary() here is an explicit safety net
+// that ensures the header is present on every response (Express deduplicates
+// the value automatically if compression already added it).
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.vary('Accept-Encoding');
+  next();
+});
+
+// SEO: X-Robots-Tag — prevents /admin pages and /api endpoints from being
+// indexed by search engines. robots.txt disallow is advisory; this header
+// is enforced even if a crawler ignores robots.txt.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith('/admin') || req.path.startsWith('/api/')) {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  }
+  next();
+});
 
 app.use((req, res, next) => {
   if (req.method === 'PATCH' || req.method === 'PUT' || req.method === 'DELETE') {
