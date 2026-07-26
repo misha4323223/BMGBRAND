@@ -425,10 +425,9 @@ function renderHome(): string | null {
     },
   ]);
 
-  const homeSeo = getSeoOverride("home");
   const head = baseHead({
-    title: homeSeo.title || `Официальный сайт бренда Booomerangs | ${SITE_NAME}`,
-    description: homeSeo.description || "Booomerangs (BMGBRAND) — официальный магазин мерча со встроенным ИИ-консультантом BOOOM AI. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
+    title: homeSeoTitle,
+    description: homeSeoDesc,
     canonical: `${SITE_URL}/`,
     ogImage: `${SITE_URL}/og-image.png`,
     jsonLd,
@@ -465,6 +464,9 @@ function renderCatalog(): string | null {
   }).filter(Boolean).join("\n");
 
   const topProducts = products.slice(0, 12);
+  const catalogSeo = getSeoOverride("static:catalog");
+  const catalogTitle = catalogSeo.title || `Каталог — одежда и аксессуары | ${SITE_NAME}`;
+  const catalogDesc = catalogSeo.description || "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.";
   const jsonLd = safeJsonLd([
     {
       "@context": "https://schema.org",
@@ -476,9 +478,19 @@ function renderCatalog(): string | null {
     },
     {
       "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": `${SITE_URL}/products#webpage`,
+      "url": `${SITE_URL}/products`,
+      "name": catalogTitle,
+      "description": catalogDesc,
+      "inLanguage": "ru-RU",
+      "isPartOf": { "@id": `${SITE_URL}/#website` },
+    },
+    {
+      "@context": "https://schema.org",
       "@type": "CollectionPage",
-      "name": "Каталог BMGBRAND — одежда и аксессуары",
-      "description": "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.",
+      "name": catalogTitle,
+      "description": catalogDesc,
       "url": `${SITE_URL}/products`,
       "numberOfItems": products.length,
       "itemListElement": topProducts.map((p, i) => ({
@@ -501,9 +513,6 @@ function renderCatalog(): string | null {
     },
   ]);
 
-  const catalogSeo = getSeoOverride("static:catalog");
-  const catalogTitle = catalogSeo.title || `Каталог — одежда и аксессуары | ${SITE_NAME}`;
-  const catalogDesc = catalogSeo.description || "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.";
   const head = baseHead({
     title: catalogTitle,
     description: catalogDesc,
@@ -552,6 +561,16 @@ function renderCategory(catSlug: string): string | null {
         { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${SITE_URL}/products` },
         { "@type": "ListItem", "position": 3, "name": cat.name, "item": `${SITE_URL}/products/${catSlug}` },
       ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": `${SITE_URL}/products/${catSlug}#webpage`,
+      "url": `${SITE_URL}/products/${catSlug}`,
+      "name": title,
+      "description": desc,
+      "inLanguage": "ru-RU",
+      "isPartOf": { "@id": `${SITE_URL}/#website` },
     },
     {
       "@context": "https://schema.org",
