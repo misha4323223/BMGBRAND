@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, Save, Loader2, ChevronRight, Globe, Tag, Shirt, Mic2, Package, Image as ImageIcon, ShoppingBag, Handshake, Layers, FileText } from "lucide-react";
+import { Search, Save, Loader2, ChevronRight, Globe, Tag, Shirt, Mic2, Package, Image as ImageIcon, ShoppingBag, Handshake, Layers, FileText, Settings2, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadField } from "@/components/admin/MediaUploadField";
+import { SeoAuditTab } from "./SeoAuditTab";
 
 type SeoFieldState = { default: string; value: string };
 type SeoHero = { heroImage: string; heroImageMobile: string; heroImageAlt: string; note?: string };
@@ -64,6 +65,7 @@ const MERCH_ORDER_DEFAULT_FAQ: Array<{ question: string; answer: string }> = [
 export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (url: string, apiKey: string, opts?: RequestInit) => Promise<any> }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [subTab, setSubTab] = useState<"settings" | "audit">("settings");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ title: string; description: string; heroImage: string; heroImageMobile: string; heroImageAlt: string; h1: string; introParagraph: string; techText: string; b2bText: string; faqItems: Array<{ question: string; answer: string }> } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -206,7 +208,37 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
   }
 
   return (
-    <div className="p-4 flex flex-col lg:flex-row gap-4">
+    <div className="p-4 space-y-4">
+      {/* Sub-tab switcher */}
+      <div className="flex gap-1 border-b pb-3">
+        <button
+          onClick={() => setSubTab("settings")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            subTab === "settings" ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="button-seo-subtab-settings"
+        >
+          <Settings2 className="w-4 h-4" />
+          Настройки SEO
+        </button>
+        <button
+          onClick={() => setSubTab("audit")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            subTab === "audit" ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="button-seo-subtab-audit"
+        >
+          <BarChart3 className="w-4 h-4" />
+          Аудит SEO
+        </button>
+      </div>
+
+      {subTab === "audit" && (
+        <SeoAuditTab apiKey={apiKey} adminFetch={adminFetch} />
+      )}
+
+      {subTab === "settings" && (
+      <div className="flex flex-col lg:flex-row gap-4">
       <div className="lg:w-80 shrink-0 space-y-4">
         <div className="flex items-center gap-2">
           <Search className="w-5 h-5" />
@@ -449,5 +481,7 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
         )}
       </div>
     </div>
+    )}
+  </div>
   );
 }

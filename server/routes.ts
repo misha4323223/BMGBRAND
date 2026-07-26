@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { getPushSubs, savePushSubs, sendPushToAll as _sendPushToAllSvc, getAdminPushSubs, saveAdminPushSubs, sendPushToAdmins as _sendPushToAdminsSvc, acquirePushLock, releasePushLock, getPushHistory, sendPushToUser, orderStatusPushPayload } from './push-service';
 import type { Server } from "http";
-import { storage, warmRatingsCache, getCachedRawPageSettings } from "./storage";
+import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsForSeoAudit } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import express from "express";
@@ -13026,6 +13026,46 @@ BMGBRAND — официальный производитель и магазин
       const { pageName, sectionId } = req.params;
       await storage.deletePageSectionSettings(pageName, sectionId);
       res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: SEO audit — technical health check for structured data and meta coverage
+  app.get("/api/admin/seo-audit", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const all = getCachedProductsForSeoAudit();
+      const visible = all.filter(p => !p.isHidden && !p.artistOnly && p.price > 0);
+      const hidden = all.filter(p => p.isHidden || p.artistOnly || p.price === 0);
+
+      const withSeoTitle = visible.filter(p => p.hasSeoTitle).length;
+      const withSeoDesc = visible.filter(p => p.hasSeoDesc).length;
+      const withSeoBody = visible.filter(p => p.hasSeoBody).length;
+      const withImage = visible.filter(p => p.hasImage).length;
+
+      const missingTitle = visible.filter(p => !p.hasSeoTitle).slice(0, 50).map(p => ({ id: p.id, slug: p.slug, name: p.name, category: p.category }));
+      const missingDesc = visible.filter(p => !p.hasSeoDesc).slice(0, 50).map(p => ({ id: p.id, slug: p.slug, name: p.name, category: p.category }));
+      const missingBody = visible.filter(p => !p.hasSeoBody).slice(0, 50).map(p => ({ id: p.id, slug: p.slug, name: p.name, category: p.category }));
+
+      res.json({
+        products: {
+          total: all.length,
+          visible: visible.length,
+          hidden: hidden.length,
+          withSeoTitle,
+          withSeoDesc,
+          withSeoBody,
+          withImage,
+          pctTitle: visible.length ? Math.round(withSeoTitle / visible.length * 100) : 0,
+          pctDesc: visible.length ? Math.round(withSeoDesc / visible.length * 100) : 0,
+          pctBody: visible.length ? Math.round(withSeoBody / visible.length * 100) : 0,
+          missingTitle,
+          missingDesc,
+          missingBody,
+        },
+      });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

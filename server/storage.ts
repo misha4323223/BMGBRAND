@@ -276,6 +276,27 @@ export function getCachedProductsForVariantMatching(): Array<{
   }));
 }
 
+export function getCachedProductsForSeoAudit(): Array<{
+  id: number; slug: string; name: string; category: string; isHidden: boolean; artistOnly: boolean; price: number;
+  hasSeoTitle: boolean; hasSeoDesc: boolean; hasSeoBody: boolean; hasImage: boolean;
+}> {
+  const products = productsCache.get("all");
+  if (!products || products.length === 0) return [];
+  return products.map((p: any) => ({
+    id: Number(p.id),
+    slug: String(p.slug || ""),
+    name: String(p.name || ""),
+    category: String(p.category || ""),
+    isHidden: !!p.isHidden,
+    artistOnly: !!p.artistOnly,
+    price: Number(p.price || 0),
+    hasSeoTitle: !!(p.seoTitle && String(p.seoTitle).trim()),
+    hasSeoDesc: !!(p.seoDescription && String(p.seoDescription).trim()),
+    hasSeoBody: !!(p.seoBody && String(p.seoBody).trim()),
+    hasImage: !!(p.imageUrl || p.thumbnailUrl || (Array.isArray(p.images) && p.images.length > 0)),
+  }));
+}
+
 export function clearAllCaches() {
   productsCache.clear();
   productCache.clear();
