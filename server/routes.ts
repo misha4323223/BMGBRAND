@@ -1441,6 +1441,8 @@ BMGBRAND — официальный производитель и магазин
       { loc: "/merch-na-zakaz", changefreq: "weekly", priority: "0.9" },
       { loc: "/terms", changefreq: "yearly", priority: "0.2" },
       { loc: "/privacy", changefreq: "yearly", priority: "0.2" },
+      { loc: "/care", changefreq: "yearly", priority: "0.4" },
+      { loc: "/links", changefreq: "monthly", priority: "0.3" },
     ];
 
     try {
