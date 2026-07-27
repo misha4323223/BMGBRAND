@@ -300,8 +300,11 @@ function baseHead(opts: {
   jsonLd?: string;
   /** Raw HTML to inject verbatim into <head> — use for noindex etc. */
   extra?: string;
+  /** LCP image URL — emits <link rel="preload"> so the browser starts
+   *  fetching the hero/product photo before it parses the <img> tag. */
+  preloadImage?: string;
 }): string {
-  const { title, description, canonical, ogImage, ogType = "website", jsonLd, extra } = opts;
+  const { title, description, canonical, ogImage, ogType = "website", jsonLd, extra, preloadImage } = opts;
   const t = esc(title);
   const d = esc(description.slice(0, 220));
   return [
@@ -311,6 +314,9 @@ function baseHead(opts: {
     `  <meta name="description" content="${d}">`,
     extra || `  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">`,
     `  <link rel="canonical" href="${esc(canonical)}">`,
+    // LCP preload: browser begins fetching the main product image immediately,
+    // before it encounters the <img> tag further down the page.
+    preloadImage ? `  <link rel="preload" as="image" href="${esc(preloadImage)}" fetchpriority="high">` : "",
     `  <meta property="og:type" content="${esc(ogType)}">`,
     `  <meta property="og:title" content="${t}">`,
     `  <meta property="og:description" content="${d}">`,
@@ -379,11 +385,11 @@ function renderHome(): string | null {
     .join("\n");
 
   const cards = inStock.map(p => `
-    <div class="card">
+    <article class="card">
       <div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div>
       <div class="price">${price(p.price)}</div>
       <div class="status in-stock">в наличии</div>
-    </div>`).join("\n");
+    </article>`).join("\n");
 
   const homeSeoTitle = getSeoOverride("home").title || `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
   const homeSeoDesc = getSeoOverride("home").description || "Booomerangs (BMGBRAND) — официальный магазин мерча со встроенным ИИ-консультантом BOOOM AI. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.";
@@ -458,7 +464,7 @@ function renderCatalog(): string | null {
     const catProducts = catGroups[slug] || [];
     if (catProducts.length === 0) return "";
     const items = catProducts.slice(0, 8).map(p =>
-      `<div class="card"><div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div><div class="price">${price(p.price)}</div><div class="status">${p.stock > 0 ? "в наличии" : "под заказ"}</div></div>`
+      `<article class="card"><div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div><div class="price">${price(p.price)}</div><div class="status">${p.stock > 0 ? "в наличии" : "под заказ"}</div></article>`
     ).join("\n");
     return `<h2><a href="/products/${slug}">${esc(cat.name)}</a> <span style="font-size:.75rem;font-weight:400;text-transform:none;color:#888">(${catProducts.length} тов.)</span></h2><div class="grid">${items}</div>`;
   }).filter(Boolean).join("\n");
@@ -543,11 +549,11 @@ function renderCategory(catSlug: string): string | null {
   const allSorted = [...inStock, ...outOfStock];
 
   const cards = allSorted.map(p => `
-    <div class="card">
+    <article class="card">
       <div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div>
       <div class="price">${price(p.price)}</div>
       <div class="status ${p.stock > 0 ? "in-stock" : "out-of-stock"}">${p.stock > 0 ? "в наличии" : "под заказ"}</div>
-    </div>`).join("\n");
+    </article>`).join("\n");
 
   const catSeo = getSeoOverride(`category:${catSlug}`);
   const title = catSeo.title || cat.title || `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
@@ -682,6 +688,10 @@ function renderProduct(slug: string): string | null {
       "seller": { "@id": organizationSchema["@id"] },
       "hasMerchantReturnPolicy": buildMerchantReturnPolicy(),
       "shippingDetails": buildShippingDetails(),
+      // Yandex-specific boolean flags (legacy Schema.org fields still read
+      // by Yandex to show delivery/pickup badges in search results).
+      "delivery": true,
+      "pickup": true,
     },
   };
   if (rating && rating.reviewCount >= 1) {
@@ -814,6 +824,7 @@ function renderProduct(slug: string): string | null {
 
   const ogImage = meta.image && meta.image.startsWith("http") ? meta.image : `${SITE_URL}${meta.image || "/og-image.png"}`;
 
+  const lcpImageUrl = (meta.images.length > 0 ? meta.images[0] : meta.image) || "";
   const head = baseHead({
     title,
     description: desc,
@@ -821,6 +832,9 @@ function renderProduct(slug: string): string | null {
     ogImage,
     ogType: "product",
     jsonLd: safeJsonLd([productSchema, organizationSchema, breadcrumbSchema]),
+    // Preload the first product photo so the browser starts fetching it
+    // before it parses the <img> tag — directly improves LCP score.
+    preloadImage: lcpImageUrl.startsWith("http") ? lcpImageUrl : undefined,
   });
 
   const imagesHtml = meta.images.slice(0, 6).map((imgUrl, idx) =>
@@ -990,11 +1004,11 @@ function renderSubcategory(subSlug: string): string | null {
   });
 
   const cards = allSorted.map((p: any) => `
-    <div class="card">
+    <article class="card">
       <div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div>
       <div class="price">${price(p.price)}</div>
       <div class="status ${p.stock > 0 ? "in-stock" : "out-of-stock"}">${p.stock > 0 ? "в наличии" : "под заказ"}</div>
-    </div>`).join("\n");
+    </article>`).join("\n");
 
   const body = `
 <div class="breadcrumb"><a href="/">Главная</a> / <a href="/products">Каталог</a> / <a href="/products/${esc(category.slug)}">${esc(catName)}</a> / ${esc(subcategory.name)}</div>
@@ -1079,11 +1093,11 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
   const head = baseHead({ title, description: desc, canonical: pageUrl, ogImage: `${SITE_URL}/favicon.png`, jsonLd });
 
   const cards = allSorted.map((p: any) => `
-    <div class="card">
+    <article class="card">
       <div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div>
       <div class="price">${price(p.price)}</div>
       <div class="status ${p.stock > 0 ? "in-stock" : "out-of-stock"}">${p.stock > 0 ? "в наличии" : "под заказ"}</div>
-    </div>`).join("\n");
+    </article>`).join("\n");
 
   const body = `
 <div class="breadcrumb"><a href="/">Главная</a> / <a href="/products">Каталог</a> / <a href="/products/${esc(category.slug)}">${esc(catName)}</a> / <a href="/${esc(subSlug)}">${esc(subcategory.name)}</a> / ${esc(subSubcategory.name)}</div>
