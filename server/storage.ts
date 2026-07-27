@@ -394,6 +394,24 @@ export function getCachedRawPageSettings(pageName: string): Record<string, any> 
   return pageSettingsCache.get(pageName) || null;
 }
 
+// Returns the slug of a product by its numeric ID, searching the full cache
+// (includes hidden products). Used before deletion to record the slug for 410.
+export function getCachedProductSlugById(id: number): string | null {
+  const products = productsCache.get("all");
+  if (!products) return null;
+  const product = products.find((p: any) => Number(p.id) === id);
+  return product ? ((product as any).slug || null) : null;
+}
+
+// Returns the set of slugs that were permanently deleted from the catalog.
+// Used by bot-ssr to return HTTP 410 Gone for these URLs.
+export function getCachedDeletedSlugs(): Set<string> {
+  const data = pageSettingsCache.get("deleted_slugs");
+  if (!data) return new Set();
+  const slugs: string[] = Array.isArray(data?.list?.slugs) ? data.list.slugs : [];
+  return new Set(slugs);
+}
+
 export function getCachedProductImageBySlug(slug: string): string {
   const products = productsCache.get("all");
   if (!products || products.length === 0) return "";
@@ -1857,6 +1875,21 @@ export class DatabaseStorage implements IStorage {
     this.clearCache();
     
     return result === true;
+  }
+
+  // Records a permanently deleted product slug so bots get HTTP 410 Gone.
+  // Fire-and-forget from delete endpoints — failure is non-critical.
+  async addDeletedProductSlug(slug: string): Promise<void> {
+    if (!slug) return;
+    try {
+      const current = await this.getPageSettings("deleted_slugs");
+      const existing: string[] = Array.isArray(current?.list?.slugs) ? current.list.slugs : [];
+      if (existing.includes(slug)) return; // already recorded
+      await this.setPageSectionSettings("deleted_slugs", "list", { slugs: [...existing, slug] });
+      console.log(`[SEO] Recorded deleted product slug for 410: ${slug}`);
+    } catch (err: any) {
+      console.error(`[SEO] Failed to record deleted slug ${slug}:`, err.message);
+    }
   }
 
   async deleteAllProducts(): Promise<number> {

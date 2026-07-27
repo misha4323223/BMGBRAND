@@ -6254,9 +6254,13 @@ BMGBRAND — официальный производитель и магазин
               console.log(`[BulkDelete] S3 ${ok ? "OK" : "FAIL"}: ${key}`);
             }
           }
+          // Capture slug BEFORE deletion for HTTP 410 tracking
+          const productSlug = (product as any).slug || null;
           // Delete from YDB
           await storage.deleteProduct(id);
           deleted++;
+          // Fire-and-forget: record deleted slug so bots get 410 for this URL
+          if (productSlug) storage.addDeletedProductSlug(productSlug).catch(() => {});
         } catch (err: any) {
           console.error(`[BulkDelete] Error for product ${id}:`, err.message);
           errors.push(`${id}: ${err.message}`);
@@ -11581,9 +11585,15 @@ BMGBRAND — официальный производитель и магазин
         return res.status(400).json({ message: "Invalid product ID" });
       }
       
+      // Capture slug BEFORE deletion so we can record it for HTTP 410
+      const { getCachedProductSlugById } = await import("./storage");
+      const slugToRecord = getCachedProductSlugById(id);
+
       const success = await storage.deleteProduct(id);
       if (success) {
         console.log(`[Admin] Deleted product ${id}`);
+        // Fire-and-forget: record slug so bots get 410 instead of 200 for this URL
+        if (slugToRecord) storage.addDeletedProductSlug(slugToRecord).catch(() => {});
         res.json({ success: true, message: `Product ${id} deleted` });
       } else {
         res.status(404).json({ success: false, message: "Product not found" });

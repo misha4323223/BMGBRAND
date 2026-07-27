@@ -15,6 +15,7 @@
 import { Request, Response, NextFunction } from "express";
 import {
   getCachedProductMetaBySlug,
+  getCachedDeletedSlugs,
   getCachedProductsByCategory,
   getCachedAllVisibleProducts,
   getCachedRatingByProductId,
@@ -1985,10 +1986,43 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
       // Try /:slug — product detail page, then subcategory page
       const slugMatch = reqPath.match(/^\/([a-z0-9][a-z0-9-]*[a-z0-9])\/?$/);
       if (slugMatch) {
-        html = renderProduct(slugMatch[1]);
+        const slug = slugMatch[1];
+        html = renderProduct(slug);
         // If not a product, check if it's a subcategory slug (e.g. /tolstovki, /dikaya-myata)
         if (!html) {
-          html = renderSubcategory(slugMatch[1]);
+          html = renderSubcategory(slug);
+        }
+        if (!html) {
+          // Check if this slug belongs to a hidden/unavailable product.
+          // getCachedProductMetaBySlug searches the FULL cache (including isHidden products),
+          // so a non-null result means the product exists but isn't public right now.
+          const hiddenMeta = getCachedProductMetaBySlug(slug);
+          if (hiddenMeta) {
+            // Product exists in DB but is hidden (e.g. out of stock) — tell bots it's temporarily gone
+            res.setHeader("X-Bot-SSR", "hidden-product");
+            res.setHeader("Cache-Control", "no-store");
+            res.status(404).type("text/html").send(
+              `<!doctype html><html><head><title>404 Not Found</title></head>` +
+              `<body><h1>404 Not Found</h1><p>This product is temporarily unavailable.</p>` +
+              `<p><a href="/">Back to store</a></p></body></html>`
+            );
+            return;
+          }
+          // Check if this slug was permanently deleted — return 410 Gone
+          // so search engines remove it from index immediately.
+          const deletedSlugs = getCachedDeletedSlugs();
+          if (deletedSlugs.has(slug)) {
+            res.setHeader("X-Bot-SSR", "deleted-product");
+            res.setHeader("Cache-Control", "no-store");
+            res.status(410).type("text/html").send(
+              `<!doctype html><html><head><title>410 Gone</title></head>` +
+              `<body><h1>410 Gone</h1><p>This product no longer exists.</p>` +
+              `<p><a href="/products">Browse catalog</a></p></body></html>`
+            );
+            return;
+          }
+          // Slug not found in product cache at all — could be a static page (/care, /links)
+          // or an artist page — pass through to React SPA.
         }
       }
     }
