@@ -282,7 +282,9 @@ function CartDrawer() {
                             <div className="flex items-center gap-0.5">
                               <button
                                 onClick={() => {
-                                  if (item.quantity <= 1) {
+                                  const isWholesaleSock = isWholesale && (item.product as any)?.category === 'socks';
+                                  const minQty = isWholesaleSock ? 2 : 1;
+                                  if (item.quantity <= minQty) {
                                     removeFromCart.mutate({
                                       id: item.id,
                                       sessionId: item.sessionId || "",

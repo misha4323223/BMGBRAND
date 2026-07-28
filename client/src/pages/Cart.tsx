@@ -135,7 +135,7 @@ export default function Cart() {
                           size="icon"
                           className="h-7 w-7"
                           data-testid={`button-decrease-quantity-${item.id}`}
-                          disabled={item.quantity <= 1 || updateQuantity.isPending}
+                          disabled={item.quantity <= (isWholesale && (item.product as any)?.category === 'socks' ? 2 : 1) || updateQuantity.isPending}
                           onClick={() => updateQuantity.mutate({
                             id: item.id,
                             sessionId: item.sessionId || '',

@@ -9996,6 +9996,12 @@ BMGBRAND — официальный производитель и магазин
           availableStock,
         });
       }
+
+      // Оптовики: носки минимум 2 пары
+      const updateUser = (req as any).user;
+      if (updateUser?.role === 'wholesale' && (product as any).category === 'socks' && quantity < 2) {
+        return res.status(400).json({ message: "Носки заказываются минимум по 2 пары", code: "WHOLESALE_SOCK_MIN" });
+      }
       
       const result = await storage.updateCartItemQuantity(
         Number(req.params.id),
