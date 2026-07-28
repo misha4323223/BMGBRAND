@@ -2029,17 +2029,18 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
               </button>
               {categoriesOpen && (
                 <div className="space-y-0.5">
-                  <button
-                    onClick={() => { handleCategoryChange("all"); setFiltersOpen(false); }}
+                  <a
+                    href="/products"
+                    onClick={(e) => { e.preventDefault(); handleCategoryChange("all"); setFiltersOpen(false); }}
                     data-testid="button-category-all"
-                    className={`w-full text-left text-sm px-3 py-2 rounded-md transition-colors ${
+                    className={`block w-full text-left text-sm px-3 py-2 rounded-md transition-colors ${
                       !categoryParam && !saleParam
                         ? isDarkThemed ? "bg-white/10 text-white font-medium" : isMinta ? "bg-[#ffa000]/15 text-[#ffa000] font-medium" : "bg-muted text-foreground font-medium"
                         : isDarkThemed ? "text-white/70 hover:bg-white/5 hover:text-white" : isMinta ? "text-[#2e2e2e]/70 hover:bg-[#2e2e2e]/5 hover:text-[#2e2e2e]" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                     }`}
                   >
                     Все товары
-                  </button>
+                  </a>
                   {Object.keys(categories).map(slug => {
                     const isActive = categoryParam === slug;
                     const catData = categories[slug as keyof typeof categories];
@@ -2050,17 +2051,18 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
                     return (
                       <div key={slug}>
                         <div className="flex items-center">
-                          <button
-                            onClick={() => { handleCategoryChange(slug as CategorySlug); setFiltersOpen(false); }}
+                          <a
+                            href={`/products/${slug}`}
+                            onClick={(e) => { e.preventDefault(); handleCategoryChange(slug as CategorySlug); setFiltersOpen(false); }}
                             data-testid={`button-category-${slug}`}
-                            className={`flex-1 text-left text-sm px-3 py-2 rounded-md transition-colors ${
+                            className={`block flex-1 text-left text-sm px-3 py-2 rounded-md transition-colors ${
                               isActive
                                 ? isDarkThemed ? "bg-white/10 text-white font-medium" : isMinta ? "bg-[#ffa000]/15 text-[#ffa000] font-medium" : "bg-muted text-foreground font-medium"
                                 : isDarkThemed ? "text-white/70 hover:bg-white/5 hover:text-white" : isMinta ? "text-[#2e2e2e]/70 hover:bg-[#2e2e2e]/5 hover:text-[#2e2e2e]" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                             }`}
                           >
                             {catData.name}
-                          </button>
+                          </a>
                           {hasSubcats && (
                             <button
                               type="button"
@@ -2075,57 +2077,61 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
                         </div>
                         {showSubcats && (
                           <div className="ml-3 mt-0.5 mb-1 border-l border-border pl-3 space-y-0.5">
-                            <button
-                              onClick={() => { handleCategoryChange(slug as CategorySlug); setFiltersOpen(false); }}
+                            <a
+                              href={`/products/${slug}`}
+                              onClick={(e) => { e.preventDefault(); handleCategoryChange(slug as CategorySlug); setFiltersOpen(false); }}
                               data-testid={`button-subcategory-all-${slug}`}
-                              className={`w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors ${
+                              className={`block w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors ${
                                 isActive && !subcategoryParam
                                   ? isDarkThemed ? "text-white font-medium" : isMinta ? "text-[#ffa000] font-medium" : "text-foreground font-medium"
                                   : isDarkThemed ? "text-white/60 hover:text-white" : isMinta ? "text-[#2e2e2e]/60 hover:text-[#2e2e2e]" : "text-muted-foreground hover:text-foreground"
                               }`}
                             >
                               Все {catData.name}
-                            </button>
+                            </a>
                             {catSubcats.map(sub => {
                               const isSubActive = isActive && subcategoryParam === sub.name;
                               const hasSubSubs = (sub.subSubcategories || []).length > 0;
                               return (
                                 <div key={sub.slug}>
-                                  <button
-                                    onClick={() => { navigate(`/${sub.slug}`, true); setFiltersOpen(false); }}
+                                  <a
+                                    href={`/${sub.slug}`}
+                                    onClick={(e) => { e.preventDefault(); navigate(`/${sub.slug}`, true); setFiltersOpen(false); }}
                                     data-testid={`button-subcategory-${sub.slug}`}
-                                    className={`w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors ${
+                                    className={`block w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors ${
                                       isSubActive
                                         ? isDarkThemed ? "text-white font-medium" : isMinta ? "text-[#ffa000] font-medium" : "text-foreground font-medium"
                                         : isDarkThemed ? "text-white/60 hover:text-white" : isMinta ? "text-[#2e2e2e]/60 hover:text-[#2e2e2e]" : "text-muted-foreground hover:text-foreground"
                                     }`}
                                   >
                                     {sub.name}
-                                  </button>
+                                  </a>
                                   {isSubActive && hasSubSubs && (
                                     <div className="ml-3 mt-0.5 mb-1 border-l border-border/50 pl-2 space-y-0.5">
-                                      <button
-                                        onClick={() => { navigate(`/${sub.slug}`, true); setFiltersOpen(false); }}
-                                        className={`w-full text-left text-[11px] px-2 py-1 rounded-md transition-colors ${
+                                      <a
+                                        href={`/${sub.slug}`}
+                                        onClick={(e) => { e.preventDefault(); navigate(`/${sub.slug}`, true); setFiltersOpen(false); }}
+                                        className={`block w-full text-left text-[11px] px-2 py-1 rounded-md transition-colors ${
                                           !subSubcategoryParam
                                             ? isDarkThemed ? "text-white font-medium" : "text-foreground font-medium"
                                             : isDarkThemed ? "text-white/50 hover:text-white" : "text-muted-foreground hover:text-foreground"
                                         }`}
                                       >
                                         Все {sub.name}
-                                      </button>
+                                      </a>
                                       {(sub.subSubcategories || []).map(ss => (
-                                        <button
+                                        <a
                                           key={ss.slug}
-                                          onClick={() => { navigate(`/products/${slug}/${sub.slug}/${ss.slug}`, true); setFiltersOpen(false); }}
-                                          className={`w-full text-left text-[11px] px-2 py-1 rounded-md transition-colors ${
+                                          href={`/products/${slug}/${sub.slug}/${ss.slug}`}
+                                          onClick={(e) => { e.preventDefault(); navigate(`/products/${slug}/${sub.slug}/${ss.slug}`, true); setFiltersOpen(false); }}
+                                          className={`block w-full text-left text-[11px] px-2 py-1 rounded-md transition-colors ${
                                             subSubcategoryParam === ss.name
                                               ? isDarkThemed ? "text-white font-medium" : "text-foreground font-medium"
                                               : isDarkThemed ? "text-white/50 hover:text-white" : "text-muted-foreground hover:text-foreground"
                                           }`}
                                         >
                                           {ss.name}
-                                        </button>
+                                        </a>
                                       ))}
                                     </div>
                                   )}

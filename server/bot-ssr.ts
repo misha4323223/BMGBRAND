@@ -13,6 +13,7 @@
  */
 
 import { Request, Response, NextFunction } from "express";
+import crypto from "node:crypto";
 import {
   getCachedProductMetaBySlug,
   getCachedDeletedSlugs,
@@ -1913,6 +1914,11 @@ ${content}
   return wrapPage(head, body);
 }
 
+/** Compute a strong ETag from HTML content for HTTP conditional requests. */
+function makeETag(html: string): string {
+  return '"' + crypto.createHash("md5").update(html).digest("hex") + '"';
+}
+
 export function botSsrMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Only GET requests
   if (req.method !== "GET") return next();
@@ -1937,8 +1943,14 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
     const cacheKey = reqPath;
     const cached = botCacheGet(cacheKey);
     if (cached) {
+      const etag = makeETag(cached);
+      if (req.headers["if-none-match"] === etag) {
+        res.status(304).end();
+        return;
+      }
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
+      res.setHeader("ETag", etag);
       res.setHeader("X-Bot-SSR", "cache-hit");
       res.send(cached);
       return;
@@ -2032,8 +2044,14 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
 
     botCacheSet(cacheKey, html);
 
+    const etag = makeETag(html);
+    if (req.headers["if-none-match"] === etag) {
+      res.status(304).end();
+      return;
+    }
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
+    res.setHeader("ETag", etag);
     res.setHeader("X-Bot-SSR", "rendered");
     res.send(html);
   } catch (err: any) {
