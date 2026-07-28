@@ -433,9 +433,12 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                 data-testid={`overlay-sock-wholesale-${product.id}`}
               >
                 <div className="w-full space-y-2">
-                  <div className="flex items-center justify-between text-black text-xs">
+                  <div className="flex items-center justify-between text-white text-xs">
                     <span className="font-medium">{product.sku || product.name?.slice(0, 20)}</span>
-                    <span className="opacity-80">В наличии: {sockMaxStock}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-300 font-semibold">мин. 2 шт.</span>
+                      <span className="opacity-80">В наличии: {sockMaxStock}</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 w-full">
                     <div className="flex items-center bg-white/20 backdrop-blur-sm rounded-md shrink-0">
