@@ -49,26 +49,47 @@ const BOT_UA_PATTERNS: RegExp[] = [
   /perplexitybot/i,
   // DeepSeek
   /deepseek/i,
-  // Google AI / Gemini
-  /gemini/i,
+  // Google Gemini AI (google-extended и googleother уже в секции Google выше)
   // Meta AI
-  /meta-externalagent/i,
-  // Mistral
-  /mistral/i,
+  /meta-externalagent/i, /facebookbot/i,
+  // Mistral AI
+  /mistralai/i,
   // Cohere
-  /cohere-ai/i,
-  // Amazon
+  /cohere-ai/i, /coherebot/i,
+  // Amazon / Alexa
   /amazonbot/i,
-  // Bytedance / Grok
-  /bytespider/i, /grok/i,
-  // Apple
-  /applebot/i,
+  // xAI Grok
+  /xai-grok/i,
+  // ByteDance
+  /bytespider/i,
+  // Apple (including AI training crawler)
+  /applebot/i, /applebot-extended/i,
   // You.com / DuckDuckGo
   /youbot/i, /duckassistbot/i,
-  // Brave
-  /brave/i,
-  // Common generic AI agent patterns
+  // Brave Search (not the browser — bot only)
+  /brave-search/i,
+  // Allen Institute for AI
+  /ai2bot/i,
+  // Common Crawl (used for LLM training datasets)
+  /ccbot/i,
+  // Huawei PetalBot
+  /petalbot/i,
+  // Timpi
+  /timpibot/i,
+  // Generic AI agent patterns
   /llmspider/i, /aibot/i, /ai-crawler/i, /ai_archiver/i,
+  // ── Российские ИИ ──────────────────────────────────────────────────────────
+  // Сбер GigaChat
+  /gigachat/i, /sberbot/i, /sbercrawler/i,
+  // Яндекс Нейро / YandexGPT (основные yandexbot-паттерны выше уже покрывают,
+  // но на случай отдельного краулера для нейро-продуктов)
+  /yandexgpt/i, /yandexneiro/i, /yandexai/i,
+  // VK AI (Маруся и др.)
+  /vkrobot/i, /vk_ai/i, /marusia/i,
+  // MTS AI
+  /mts-ai/i,
+  // Сбер Салют
+  /salutespeech/i, /sber-ai/i,
   // Mail.ru
   /mail\.ru_bot/i,
   // Social link-preview fetchers (server-side, not in-app browsers)
