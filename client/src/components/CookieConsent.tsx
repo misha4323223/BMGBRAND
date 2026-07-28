@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cookie, ShieldCheck, BarChart3, Target, ChevronDown, ChevronUp } from "lucide-react";
+import { Cookie, ShieldCheck, BarChart3, Target, Bell, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "wouter";
 import { Switch } from "./ui/switch";
 
@@ -8,6 +8,7 @@ interface CookieSettings {
   necessary: boolean;
   analytics: boolean;
   marketing: boolean;
+  push: boolean;
 }
 
 export function CookieConsent() {
@@ -18,6 +19,7 @@ export function CookieConsent() {
     necessary: true,
     analytics: true,
     marketing: true,
+    push: true,
   });
 
   useEffect(() => {
@@ -95,6 +97,7 @@ export function CookieConsent() {
                       { key: "necessary" as const, icon: <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />, label: "Необходимые", sub: "Для работы сайта", disabled: true },
                       { key: "analytics" as const, icon: <BarChart3 className="w-3.5 h-3.5 text-blue-500" />, label: "Аналитика", sub: "Статистика посещений", disabled: false },
                       { key: "marketing" as const, icon: <Target className="w-3.5 h-3.5 text-purple-500" />, label: "Маркетинг", sub: "Персонализация", disabled: false },
+                      { key: "push" as const, icon: <Bell className="w-3.5 h-3.5 text-orange-500" />, label: "Пуш-уведомления", sub: "Новинки и акции", disabled: false },
                     ].map(({ key, icon, label, sub, disabled }) => (
                       <div
                         key={key}
@@ -125,7 +128,7 @@ export function CookieConsent() {
             {/* Buttons */}
             <div className="flex gap-2 px-4 pb-4">
               <button
-                onClick={() => saveConsent({ necessary: true, analytics: true, marketing: true })}
+                onClick={() => saveConsent({ necessary: true, analytics: true, marketing: true, push: true })}
                 data-testid="button-cookie-accept-all"
                 className="flex-1 h-9 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 active:scale-[0.97] transition-all"
               >
