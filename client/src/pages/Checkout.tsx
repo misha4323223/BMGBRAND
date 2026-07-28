@@ -1539,7 +1539,7 @@ export default function Checkout() {
                             size="icon"
                             className="h-6 w-6"
                             data-testid={`button-checkout-decrease-${item.id}`}
-                            disabled={item.quantity <= 1 || updateQuantity.isPending}
+                            disabled={item.quantity <= (isWholesale && (item.product as any)?.category === 'socks' ? 2 : 1) || updateQuantity.isPending}
                             onClick={() => updateQuantity.mutate({
                               id: item.id,
                               sessionId: item.sessionId || '',
