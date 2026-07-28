@@ -854,6 +854,12 @@ export default function ProductDetail() {
         { "@type": "ListItem", "position": product.category ? 4 : 3, "name": product.name, "item": productUrl },
       ],
     },
+    // Custom JSON-LD from admin (added after auto-generated, not replacing it)
+    ...(() => {
+      const raw = (product as any).seoJsonLd;
+      if (!raw) return [];
+      try { return [JSON.parse(raw)]; } catch { return []; }
+    })(),
     { "@context": "https://schema.org", ...organizationSchema },
     {
       "@context": "https://schema.org",

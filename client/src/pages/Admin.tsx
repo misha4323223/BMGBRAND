@@ -1438,6 +1438,7 @@ export default function Admin() {
     seoTitle: "",
     seoDescription: "",
     seoBody: "",
+    seoJsonLd: "",
     specsHtml: "",
     imageAlts: [],
     featureBadgeIds: [],
@@ -11712,6 +11713,39 @@ export default function Admin() {
                               <p className="text-[10px] text-muted-foreground mt-1">
                                 Показывается на странице товара под описанием (для этого конкретного цвета/варианта). Если оставить пустым — блок не появится. Из вставленного HTML тег &lt;h1&gt; автоматически станет &lt;h2&gt;, а &lt;title&gt; будет удалён — незачем их вырезать вручную.
                               </p>
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-medium text-muted-foreground block mb-1">SEO микроразметка (JSON-LD)</label>
+                              <Textarea
+                                placeholder={'{\n  "@context": "https://schema.org",\n  "@type": "Product",\n  "sku": "BMG-001",\n  "description": "SEO описание для поисковиков"\n}'}
+                                value={productForm.seoJsonLd}
+                                onChange={(e) => setProductForm({...productForm, seoJsonLd: e.target.value})}
+                                rows={8}
+                                className="font-mono text-xs"
+                                data-testid="input-seo-json-ld"
+                              />
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-[10px] text-muted-foreground flex-1">
+                                  Невидимый блок &lt;script type="application/ld+json"&gt; — добавляется к автоматической разметке товара. Поисковики и ИИ-роботы читают его напрямую. Вставьте валидный JSON.
+                                </p>
+                                {productForm.seoJsonLd && (
+                                  <button
+                                    type="button"
+                                    className="text-[10px] px-2 py-0.5 rounded border border-border hover:bg-muted transition-colors flex-shrink-0"
+                                    onClick={() => {
+                                      try {
+                                        JSON.parse(productForm.seoJsonLd);
+                                        toast({ title: "✅ JSON валидный" });
+                                      } catch (e: any) {
+                                        toast({ title: "❌ Ошибка JSON", description: e.message, variant: "destructive" });
+                                      }
+                                    }}
+                                  >
+                                    Проверить JSON
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             {productForm.images.length > 0 && (
