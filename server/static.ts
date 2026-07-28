@@ -462,7 +462,7 @@ function injectMeta(html: string, opts: {
 }): string {
   const { title, description, ogImage, ogType = "website", canonical, jsonLd } = opts;
   const t = escHtml(title);
-  const d = escHtml(description.slice(0, 220));
+  const d = escHtml(description.slice(0, 160));
   const img = escHtml(ogImage);
 
   html = html.replace(/<title>[^<]*<\/title>/, `<title>${t}</title>`);
@@ -481,6 +481,12 @@ function injectMeta(html: string, opts: {
       html = html.replace(/<link rel="canonical"[^>]*>/, canonTag);
     } else {
       html = html.replace('</head>', `    ${canonTag}\n  </head>`);
+    }
+    const ogUrlTag = `<meta property="og:url" content="${escHtml(canonical)}">`;
+    if (html.includes('<meta property="og:url"')) {
+      html = html.replace(/<meta property="og:url"[^>]*>/, ogUrlTag);
+    } else {
+      html = html.replace('</head>', `    ${ogUrlTag}\n  </head>`);
     }
   }
 

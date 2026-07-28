@@ -1209,7 +1209,7 @@ export async function registerRoutes(
 
   // SEO: robots.txt
   app.get("/robots.txt", (_req, res) => {
-    const host = _req.headers.host || "";
+    const siteUrl = (process.env.SITE_URL || "https://booomerangs.ru").replace(/\/$/, "");
     res.type("text/plain").send(
 `User-agent: *
 Allow: /
@@ -1226,6 +1226,7 @@ Disallow: /order-failed/
 Disallow: /gift-cards/success
 Disallow: /gift-cards/failed
 Disallow: /links
+Disallow: /*?
 
 User-agent: GPTBot
 Allow: /
@@ -1289,10 +1290,10 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
-Sitemap: https://${host}/sitemap.xml
+Sitemap: ${siteUrl}/sitemap.xml
 
 # AI/LLM structured information available at:
-# https://${host}/llms.txt`
+# ${siteUrl}/llms.txt`
     );
   });
 
@@ -1406,8 +1407,7 @@ BMGBRAND — официальный производитель и магазин
   // yml-feed.xml is a product feed (not a sitemap) and should be submitted
   // separately via Yandex Webmaster → Товары, not as a sitemap.
   app.get("/sitemap_index.xml", (_req, res) => {
-    const host = _req.headers.host || "booomerangs.ru";
-    const baseUrl = `https://${host}`;
+    const baseUrl = (process.env.SITE_URL || "https://booomerangs.ru").replace(/\/$/, "");
     const today = new Date().toISOString().split("T")[0];
     const xml =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
@@ -1424,8 +1424,7 @@ BMGBRAND — официальный производитель и магазин
 
   // SEO: dynamic sitemap.xml
   app.get("/sitemap.xml", async (_req, res) => {
-    const host = _req.headers.host || "";
-    const baseUrl = `https://${host}`;
+    const baseUrl = (process.env.SITE_URL || "https://booomerangs.ru").replace(/\/$/, "");
     const today = new Date().toISOString().split("T")[0];
 
     const staticPages = [
@@ -1439,10 +1438,7 @@ BMGBRAND — официальный производитель и магазин
       { loc: "/wholesale/register", changefreq: "monthly", priority: "0.5" },
       { loc: "/partner/register", changefreq: "monthly", priority: "0.8" },
       { loc: "/merch-na-zakaz", changefreq: "weekly", priority: "0.9" },
-      { loc: "/terms", changefreq: "yearly", priority: "0.2" },
-      { loc: "/privacy", changefreq: "yearly", priority: "0.2" },
       { loc: "/care", changefreq: "yearly", priority: "0.4" },
-      { loc: "/links", changefreq: "monthly", priority: "0.3" },
     ];
 
     try {

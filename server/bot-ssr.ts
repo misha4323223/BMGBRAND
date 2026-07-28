@@ -308,7 +308,7 @@ function baseHead(opts: {
 }): string {
   const { title, description, canonical, ogImage, ogType = "website", jsonLd, extra, preloadImage } = opts;
   const t = esc(title);
-  const d = esc(description.slice(0, 220));
+  const d = esc(description.slice(0, 160));
   return [
     `  <meta charset="UTF-8">`,
     `  <meta name="viewport" content="width=device-width, initial-scale=1.0">`,
@@ -320,6 +320,7 @@ function baseHead(opts: {
     // before it encounters the <img> tag further down the page.
     preloadImage ? `  <link rel="preload" as="image" href="${esc(preloadImage)}" fetchpriority="high">` : "",
     `  <meta property="og:type" content="${esc(ogType)}">`,
+    `  <meta property="og:url" content="${esc(canonical)}">`,
     `  <meta property="og:title" content="${t}">`,
     `  <meta property="og:description" content="${d}">`,
     `  <meta property="og:image" content="${esc(ogImage)}">`,
@@ -407,7 +408,7 @@ function renderHome(): string | null {
       "@id": `${SITE_URL}/#website`,
       "name": "Booomerangs",
       "alternateName": SITE_NAME,
-      "url": `${SITE_URL}/`,
+      "url": SITE_URL,
       "inLanguage": "ru-RU",
       "publisher": { "@id": `${SITE_URL}/#organization` },
       "potentialAction": {
@@ -420,7 +421,7 @@ function renderHome(): string | null {
       "@context": "https://schema.org",
       "@type": "WebPage",
       "@id": `${SITE_URL}/#webpage`,
-      "url": `${SITE_URL}/`,
+      "url": SITE_URL,
       "name": homeSeoTitle,
       "description": homeSeoDesc,
       "inLanguage": "ru-RU",
@@ -428,7 +429,7 @@ function renderHome(): string | null {
       "about": { "@id": `${SITE_URL}/#organization` },
       "speakable": {
         "@type": "SpeakableSpecification",
-        "xpath": ["/html/head/title", "/html/head/meta[@name='description']/@content", "//h1"],
+        "xpath": ["//h1", "//p[@class='desc']"],
       },
     },
   ]);
@@ -436,7 +437,7 @@ function renderHome(): string | null {
   const head = baseHead({
     title: homeSeoTitle,
     description: homeSeoDesc,
-    canonical: `${SITE_URL}/`,
+    canonical: SITE_URL,
     ogImage: `${SITE_URL}/og-image.png`,
     jsonLd,
   });
@@ -690,10 +691,6 @@ function renderProduct(slug: string): string | null {
       "seller": { "@id": organizationSchema["@id"] },
       "hasMerchantReturnPolicy": buildMerchantReturnPolicy(),
       "shippingDetails": buildShippingDetails(),
-      // Yandex-specific boolean flags (legacy Schema.org fields still read
-      // by Yandex to show delivery/pickup badges in search results).
-      "delivery": true,
-      "pickup": true,
     },
   };
   if (rating && rating.reviewCount >= 1) {
@@ -1289,7 +1286,7 @@ function renderFaq(): string {
 ${faqItems.map(item => `<h2>${esc(item.question)}</h2><p>${esc(item.answer)}</p>`).join("\n")}
 `;
 
-  return `<!DOCTYPE html><html lang="ru"><head>${head}</head><body>${body}</body></html>`;
+  return wrapPage(head, body);
 }
 
 function renderMerchOrder(): string {
@@ -1342,10 +1339,10 @@ function renderMerchOrder(): string {
       "areaServed": "RU",
       "serviceType": "Производство мерча",
       "offers": [
-        { "@type": "Offer", "name": "Носки с принтом на заказ", "priceCurrency": "RUB", "price": "180", "description": "Носки с принтом от 180 ₽/пара при тираже от 50 пар. 200+ дизайнов." },
-        { "@type": "Offer", "name": "Футболки с логотипом на заказ", "priceCurrency": "RUB", "price": "900", "description": "Футболки с принтом от 900 ₽. Шелкография, термотрансфер. 100% хлопок." },
-        { "@type": "Offer", "name": "Худи и толстовки с принтом на заказ", "priceCurrency": "RUB", "price": "1800", "description": "Худи и свитшоты от 1 800 ₽. Вышивка и шелкография. Трёхнитка." },
-        { "@type": "Offer", "name": "Корпоративный мерч", "priceCurrency": "RUB", "price": "180", "description": "Мерч для компаний, мероприятий, фестивалей. Брендирование под ключ." },
+        { "@type": "Offer", "name": "Носки с принтом на заказ", "priceCurrency": "RUB", "price": 180, "description": "Носки с принтом от 180 ₽/пара при тираже от 50 пар. 200+ дизайнов." },
+        { "@type": "Offer", "name": "Футболки с логотипом на заказ", "priceCurrency": "RUB", "price": 900, "description": "Футболки с принтом от 900 ₽. Шелкография, термотрансфер. 100% хлопок." },
+        { "@type": "Offer", "name": "Худи и толстовки с принтом на заказ", "priceCurrency": "RUB", "price": 1800, "description": "Худи и свитшоты от 1 800 ₽. Вышивка и шелкография. Трёхнитка." },
+        { "@type": "Offer", "name": "Корпоративный мерч", "priceCurrency": "RUB", "price": 180, "description": "Мерч для компаний, мероприятий, фестивалей. Брендирование под ключ." },
       ],
     },
     {
