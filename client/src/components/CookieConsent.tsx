@@ -1,42 +1,13 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cookie, ShieldCheck, BarChart3, Target, Bell, ChevronDown, ChevronUp } from "lucide-react";
+import { Cookie, ShieldCheck, BarChart3, Target, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "wouter";
 import { Switch } from "./ui/switch";
-
-async function triggerPushSubscription() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-  if (localStorage.getItem("push-subscribed")) return;
-  if (Notification.permission === "denied") return;
-  try {
-    const keyRes = await fetch("/api/push/vapid-public-key");
-    if (!keyRes.ok) return;
-    const { publicKey } = await keyRes.json();
-    const reg = await Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 10_000)),
-    ]);
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") return;
-    const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
-    const base64 = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
-    const rawData = atob(base64);
-    const appKey = Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
-    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
-    await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subscription: sub.toJSON() }),
-    });
-    localStorage.setItem("push-subscribed", "true");
-  } catch {}
-}
 
 interface CookieSettings {
   necessary: boolean;
   analytics: boolean;
   marketing: boolean;
-  push: boolean;
 }
 
 export function CookieConsent() {
@@ -47,7 +18,6 @@ export function CookieConsent() {
     necessary: true,
     analytics: true,
     marketing: true,
-    push: true,
   });
 
   useEffect(() => {
@@ -60,9 +30,6 @@ export function CookieConsent() {
 
   const saveConsent = (finalSettings: CookieSettings) => {
     setIsExiting(true);
-    if (finalSettings.push) {
-      triggerPushSubscription();
-    }
     setTimeout(() => {
       localStorage.setItem("cookie-consent", JSON.stringify(finalSettings));
       setIsVisible(false);
@@ -128,7 +95,6 @@ export function CookieConsent() {
                       { key: "necessary" as const, icon: <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />, label: "Необходимые", sub: "Для работы сайта", disabled: true },
                       { key: "analytics" as const, icon: <BarChart3 className="w-3.5 h-3.5 text-blue-500" />, label: "Аналитика", sub: "Статистика посещений", disabled: false },
                       { key: "marketing" as const, icon: <Target className="w-3.5 h-3.5 text-purple-500" />, label: "Маркетинг", sub: "Персонализация", disabled: false },
-                      { key: "push" as const, icon: <Bell className="w-3.5 h-3.5 text-orange-500" />, label: "Пуш-уведомления", sub: "Новинки и акции", disabled: false },
                     ].map(({ key, icon, label, sub, disabled }) => (
                       <div
                         key={key}
@@ -159,7 +125,7 @@ export function CookieConsent() {
             {/* Buttons */}
             <div className="flex gap-2 px-4 pb-4">
               <button
-                onClick={() => saveConsent({ necessary: true, analytics: true, marketing: true, push: true })}
+                onClick={() => saveConsent({ necessary: true, analytics: true, marketing: true })}
                 data-testid="button-cookie-accept-all"
                 className="flex-1 h-9 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 active:scale-[0.97] transition-all"
               >
