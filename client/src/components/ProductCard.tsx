@@ -892,7 +892,12 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
 
                   {!isActiveProductOutOfStock && !(activeProduct as any).preorderEnabled && (
                   <div className="space-y-1 sm:space-y-2">
-                    <span className="text-[9px] font-medium text-black/40 uppercase tracking-widest">Количество</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-medium text-black/40 uppercase tracking-widest">Количество</span>
+                      {showWholesaleOverlay && (
+                        <span className="text-[9px] font-medium text-amber-600 uppercase tracking-widest">· мин. 2 шт.</span>
+                      )}
+                    </div>
                     <div className="flex items-center w-fit bg-white border border-black/10 rounded-full overflow-hidden shadow-sm">
                       <button 
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
