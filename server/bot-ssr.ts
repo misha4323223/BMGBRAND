@@ -44,6 +44,7 @@ const BOT_UA_PATTERNS: RegExp[] = [
   /gptbot/i, /chatgpt-user/i, /oai-searchbot/i,
   /claudebot/i, /anthropic-ai/i,
   /perplexitybot/i,
+  /deepseek/i,
   /applebot/i,
   /youbot/i, /duckassistbot/i,
   // Mail.ru
