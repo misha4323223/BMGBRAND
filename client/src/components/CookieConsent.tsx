@@ -4,6 +4,34 @@ import { Cookie, ShieldCheck, BarChart3, Target, Bell, ChevronDown, ChevronUp } 
 import { Link } from "wouter";
 import { Switch } from "./ui/switch";
 
+async function triggerPushSubscription() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  if (localStorage.getItem("push-subscribed")) return;
+  if (Notification.permission === "denied") return;
+  try {
+    const keyRes = await fetch("/api/push/vapid-public-key");
+    if (!keyRes.ok) return;
+    const { publicKey } = await keyRes.json();
+    const reg = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 10_000)),
+    ]);
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return;
+    const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
+    const base64 = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = atob(base64);
+    const appKey = Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription: sub.toJSON() }),
+    });
+    localStorage.setItem("push-subscribed", "true");
+  } catch {}
+}
+
 interface CookieSettings {
   necessary: boolean;
   analytics: boolean;
@@ -32,6 +60,9 @@ export function CookieConsent() {
 
   const saveConsent = (finalSettings: CookieSettings) => {
     setIsExiting(true);
+    if (finalSettings.push) {
+      triggerPushSubscription();
+    }
     setTimeout(() => {
       localStorage.setItem("cookie-consent", JSON.stringify(finalSettings));
       setIsVisible(false);
