@@ -41,12 +41,34 @@ const BOT_UA_PATTERNS: RegExp[] = [
   // Bing / Microsoft
   /bingbot/i, /msnbot/i, /bingpreview/i, /adidxbot/i,
   // AI crawlers — server-only, never user browsers
+  // OpenAI
   /gptbot/i, /chatgpt-user/i, /oai-searchbot/i,
+  // Anthropic
   /claudebot/i, /anthropic-ai/i,
+  // Perplexity
   /perplexitybot/i,
+  // DeepSeek
   /deepseek/i,
+  // Google AI / Gemini
+  /gemini/i,
+  // Meta AI
+  /meta-externalagent/i,
+  // Mistral
+  /mistral/i,
+  // Cohere
+  /cohere-ai/i,
+  // Amazon
+  /amazonbot/i,
+  // Bytedance / Grok
+  /bytespider/i, /grok/i,
+  // Apple
   /applebot/i,
+  // You.com / DuckDuckGo
   /youbot/i, /duckassistbot/i,
+  // Brave
+  /brave/i,
+  // Common generic AI agent patterns
+  /llmspider/i, /aibot/i, /ai-crawler/i, /ai_archiver/i,
   // Mail.ru
   /mail\.ru_bot/i,
   // Social link-preview fetchers (server-side, not in-app browsers)
