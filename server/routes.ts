@@ -15034,14 +15034,6 @@ ${offersXml}
         ? reqItems.filter((i: any) => i.quantity > 0)
         : [{ size: undefined, quantity: 1 }];
 
-      // Минимум 2 пары на артикул для носков
-      if ((product as any).category === "socks") {
-        const invalidItem = sizeItems.find((i: any) => i.quantity < 2);
-        if (invalidItem) {
-          return res.status(400).json({ error: "Носки заказываются минимум по 2 пары на размер" });
-        }
-      }
-
       const totalQty = sizeItems.reduce((s: number, i: any) => s + i.quantity, 0);
       let deliveryCost = 0;
       if (cdekDeliverySum && cdekCityCode) {
@@ -15576,6 +15568,14 @@ ${offersXml}
           const prod = await storage.getProduct(pid);
           if (prod) productMap.set(pid, prod);
         } catch {}
+      }
+
+      // Минимум 2 пары на размер для носков в оптовом заказе (категория берётся из БД)
+      for (const item of items) {
+        const prod = productMap.get(item.productId);
+        if (prod?.category === "socks" && item.quantity < 2) {
+          return res.status(400).json({ error: `Носки заказываются минимум по 2 пары на размер (${item.productName || prod?.name || "товар"}, размер ${item.size})` });
+        }
       }
 
       const orderItems = items.map((item: any) => {
