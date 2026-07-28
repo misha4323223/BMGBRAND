@@ -92,6 +92,13 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
   const showWholesaleOverlay = isWholesale && isSocks;
   const sockMinQty = showWholesaleOverlay ? 2 : 1;
 
+  // Когда auth загружается и оптовый оверлей появляется — подтягиваем до минимума
+  useEffect(() => {
+    if (showWholesaleOverlay) {
+      setSockQty(prev => Math.max(2, prev));
+    }
+  }, [showWholesaleOverlay]);
+
   const [activeVariantId, setActiveVariantId] = useState<number | null>(null);
   const [dolyameOpen, setDolyameOpen] = useState(false);
 
@@ -268,7 +275,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
       toast({ title: "Нет в наличии", variant: "destructive" });
       return;
     }
-    const qty = Math.min(sockQty, sockMaxStock);
+    const qty = Math.min(Math.max(sockMinQty, sockQty), sockMaxStock);
     addItem({
       productId: product.id,
       quantity: qty,

@@ -9916,6 +9916,15 @@ BMGBRAND — официальный производитель и магазин
         availableStock = 999;
       }
       
+      // Оптовики не могут добавить носки в количестве меньше 2 на позицию
+      const cartUser = (req as any).user;
+      if (cartUser?.role === 'wholesale' && (product as any).category === 'socks') {
+        const requestedQtyCheck = input.quantity || 1;
+        if (requestedQtyCheck < 2) {
+          return res.status(400).json({ message: "Носки заказываются минимум по 2 пары", code: "WHOLESALE_SOCK_MIN" });
+        }
+      }
+
       const existingCartItems = await storage.getCartItems(input.sessionId ?? '');
       const existingItem = existingCartItems.find(
         ci => ci.productId === input.productId &&
@@ -10162,6 +10171,15 @@ BMGBRAND — официальный производитель и магазин
           code: "STOCK_INSUFFICIENT",
           stockIssues,
         });
+      }
+
+      // Оптовики: носки минимум 2 пары на каждую позицию
+      if (isWholesale) {
+        const sockIssues = cartItems.filter(ci => (ci.product as any).category === 'socks' && ci.quantity < 2);
+        if (sockIssues.length > 0) {
+          const names = sockIssues.map(ci => ci.product.name).join(', ');
+          return res.status(400).json({ message: `Носки заказываются минимум по 2 пары: ${names}`, code: "WHOLESALE_SOCK_MIN" });
+        }
       }
 
       const total = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);

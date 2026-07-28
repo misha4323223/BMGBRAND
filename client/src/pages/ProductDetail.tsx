@@ -380,6 +380,12 @@ export default function ProductDetail() {
   const isSockProduct = (product as any)?.category === 'socks';
   const wholesaleSockMinQty = isWholesale && isSockProduct ? 2 : 1;
   const [quantity, setQuantity] = useState(wholesaleSockMinQty);
+  // Когда auth подгружается и оказывается wholesale+носки — принудительно ставим минимум 2
+  useEffect(() => {
+    if (wholesaleSockMinQty > 1) {
+      setQuantity(prev => Math.max(wholesaleSockMinQty, prev));
+    }
+  }, [wholesaleSockMinQty]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
