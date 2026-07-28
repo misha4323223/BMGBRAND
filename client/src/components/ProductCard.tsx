@@ -90,6 +90,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
 
   const isSocks = product.category === 'socks';
   const showWholesaleOverlay = isWholesale && isSocks;
+  const sockMinQty = showWholesaleOverlay ? 2 : 1;
 
   const [activeVariantId, setActiveVariantId] = useState<number | null>(null);
   const [dolyameOpen, setDolyameOpen] = useState(false);
@@ -274,7 +275,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
       size: singleSockSize,
     });
     toast({ title: `${product.name}`, description: `Добавлено: ${qty} шт.` });
-    setSockQty(1);
+    setSockQty(sockMinQty);
   };
 
   return (
@@ -434,7 +435,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={(e) => { e.stopPropagation(); setSockQty(Math.max(1, sockQty - 1)); }}
+                        onClick={(e) => { e.stopPropagation(); setSockQty(Math.max(sockMinQty, sockQty - 1)); }}
                         className="text-black h-7 w-7"
                         data-testid={`button-sock-minus-${product.id}`}
                       >
@@ -442,21 +443,21 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                       </Button>
                       <input
                         type="number"
-                        min={1}
+                        min={sockMinQty}
                         max={sockMaxStock}
                         value={sockQty}
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => {
                           e.stopPropagation();
                           const raw = e.target.value;
-                          if (raw === "") { setSockQty(1); return; }
+                          if (raw === "") { setSockQty(sockMinQty); return; }
                           const n = parseInt(raw, 10);
                           if (Number.isNaN(n)) return;
-                          setSockQty(Math.max(1, Math.min(sockMaxStock, n)));
+                          setSockQty(Math.max(sockMinQty, Math.min(sockMaxStock, n)));
                         }}
                         onBlur={(e) => {
                           const n = parseInt(e.target.value, 10);
-                          if (Number.isNaN(n) || n < 1) setSockQty(1);
+                          if (Number.isNaN(n) || n < sockMinQty) setSockQty(sockMinQty);
                         }}
                         className="w-10 text-center text-black text-sm font-medium bg-transparent border-0 outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         data-testid={`input-sock-qty-${product.id}`}

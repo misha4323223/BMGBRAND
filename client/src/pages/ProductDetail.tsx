@@ -377,7 +377,9 @@ export default function ProductDetail() {
       setSelectedSize("OneSize");
     }
   }, [(product as any)?.id, isEffectivelyNoSize(product)]);
-  const [quantity, setQuantity] = useState(1);
+  const isSockProduct = (product as any)?.category === 'socks';
+  const wholesaleSockMinQty = isWholesale && isSockProduct ? 2 : 1;
+  const [quantity, setQuantity] = useState(wholesaleSockMinQty);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -1993,7 +1995,7 @@ export default function ProductDetail() {
             <div className="flex items-center gap-3 pt-4 sm:pt-0 border-t border-border sm:border-0 mb-8">
               <div className="flex items-center h-11 border border-border rounded-full bg-card px-1">
                 <button 
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  onClick={() => setQuantity(Math.max(wholesaleSockMinQty, quantity - 1))}
                   data-testid="button-quantity-decrease"
                   className="w-9 h-9 flex items-center justify-center text-foreground/60 hover:text-foreground transition-colors"
                 >
