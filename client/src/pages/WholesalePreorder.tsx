@@ -45,6 +45,7 @@ interface WholesalePreorderProduct {
   imageUrl?: string;
   thumbnailUrl?: string;
   sku?: string;
+  category?: string;
   sizes?: string[];
   sizeStock?: Record<string, number>;
   preorderEnabled: boolean;
@@ -68,6 +69,7 @@ interface SelectionEntry {
   size: string;
   quantity: number;
   price: number;
+  category?: string;
 }
 
 const TC_OPTIONS = [
@@ -654,7 +656,7 @@ function PhotoLightbox({
 interface ProductCardProps {
   product: WholesalePreorderProduct;
   selections: Record<string, SelectionEntry>;
-  onQtyChange: (productId: number, productName: string, sku: string, size: string, price: number, qty: number) => void;
+  onQtyChange: (productId: number, productName: string, sku: string, size: string, price: number, qty: number, category?: string) => void;
 }
 
 function ProductCard({ product, selections, onQtyChange }: ProductCardProps) {
@@ -914,8 +916,11 @@ function ProductCard({ product, selections, onQtyChange }: ProductCardProps) {
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
+                          {product.category === "socks" && qty === 0 && (
+                            <span className="text-[9px] text-muted-foreground/60 mr-0.5">мин.&nbsp;2</span>
+                          )}
                           <button
-                            onClick={() => onQtyChange(product.id, product.name, product.sku || "", size, preorderPrice, Math.max(0, qty - 1))}
+                            onClick={() => onQtyChange(product.id, product.name, product.sku || "", size, preorderPrice, Math.max(0, qty - 1), product.category)}
                             disabled={qty === 0}
                             className="w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-25 disabled:cursor-not-allowed bg-background border border-border/60 hover:border-primary/60 hover:text-primary hover:bg-primary/5 active:scale-95"
                             data-testid={`btn-minus-${product.id}-${size}`}
@@ -926,7 +931,7 @@ function ProductCard({ product, selections, onQtyChange }: ProductCardProps) {
                             {qty}
                           </span>
                           <button
-                            onClick={() => onQtyChange(product.id, product.name, product.sku || "", size, preorderPrice, qty + 1)}
+                            onClick={() => onQtyChange(product.id, product.name, product.sku || "", size, preorderPrice, qty === 0 && product.category === "socks" ? 2 : qty + 1, product.category)}
                             className="w-7 h-7 rounded-lg flex items-center justify-center transition-all bg-background border border-border/60 hover:border-primary/60 hover:text-primary hover:bg-primary/5 active:scale-95"
                             data-testid={`btn-plus-${product.id}-${size}`}
                           >
@@ -1015,15 +1020,19 @@ export default function WholesalePreorder() {
     sku: string,
     size: string,
     price: number,
-    qty: number
+    qty: number,
+    category?: string
   ) => {
+    const minQty = category === "socks" ? 2 : 1;
+    // Если пытаются выставить значение между 0 и минимумом — обнуляем (удаляем из корзины)
+    const saveQty = qty > 0 && qty < minQty ? 0 : qty;
     const key = `${productId}_${size}`;
     setSelections(prev => {
       const next = { ...prev };
-      if (qty <= 0) {
+      if (saveQty <= 0) {
         delete next[key];
       } else {
-        next[key] = { productId, productName, sku, size, quantity: qty, price };
+        next[key] = { productId, productName, sku, size, quantity: saveQty, price, category };
       }
       return next;
     });
@@ -1344,7 +1353,7 @@ export default function WholesalePreorder() {
                             {/* Qty stepper */}
                             <div className="flex items-center gap-1 ml-auto">
                               <button
-                                onClick={() => handleQtyChange(e.productId, e.productName, e.sku, e.size, e.price, Math.max(0, e.quantity - 1))}
+                                onClick={() => handleQtyChange(e.productId, e.productName, e.sku, e.size, e.price, Math.max(0, e.quantity - 1), e.category)}
                                 className="w-6 h-6 rounded-md flex items-center justify-center bg-muted/60 hover:bg-muted border border-border/50 hover:border-border transition-all active:scale-95"
                                 data-testid={`cart-btn-minus-${productId}-${e.size}`}
                               >
@@ -1352,7 +1361,7 @@ export default function WholesalePreorder() {
                               </button>
                               <span className="w-7 text-center text-sm font-black text-primary tabular-nums">{e.quantity}</span>
                               <button
-                                onClick={() => handleQtyChange(e.productId, e.productName, e.sku, e.size, e.price, e.quantity + 1)}
+                                onClick={() => handleQtyChange(e.productId, e.productName, e.sku, e.size, e.price, e.quantity + 1, e.category)}
                                 className="w-6 h-6 rounded-md flex items-center justify-center bg-muted/60 hover:bg-muted border border-border/50 hover:border-border transition-all active:scale-95"
                                 data-testid={`cart-btn-plus-${productId}-${e.size}`}
                               >
