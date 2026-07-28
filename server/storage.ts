@@ -2286,7 +2286,7 @@ export class DatabaseStorage implements IStorage {
     console.log('[Storage] getOrders: Fetching orders from YDB...');
     const result = await this.safeQuery(async (session) => {
       const query = `
-        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, created_at, is_wholesale, transport_company, is_preorder, deposit_paid, remaining_amount, user_id, cdek_data, partner_id
+        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, created_at, is_wholesale, transport_company, is_preorder, deposit_paid, remaining_amount, user_id, cdek_data, partner_id, promo_code, payment_method
         FROM orders
         WHERE status != 'awaiting_payment'
         ORDER BY created_at DESC
@@ -2323,6 +2323,8 @@ export class DatabaseStorage implements IStorage {
         cdekData: this.extractTypedValue(row.items[16]) || undefined,
         // См. deserializeOrderPartnerId (вверху файла) — legacy Utf8 колонка.
         partnerId: deserializeOrderPartnerId(this.extractTypedValue(row.items[17])),
+        promoCode: this.extractTypedValue(row.items[18]) || undefined,
+        paymentMethod: this.extractTypedValue(row.items[19]) || undefined,
       };
     }) as any;
   }
