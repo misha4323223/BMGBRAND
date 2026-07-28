@@ -15724,6 +15724,7 @@ ${offersXml}
             preorderCurrent: (p as any).preorderCurrent || 0,
             preorderStatus: (p as any).preorderStatus || "collecting",
             preorderDeadline: (p as any).preorderDeadline || null,
+            artistSlug: (p as any).artistSlug || null,
           };
         }
       }));
@@ -15801,15 +15802,19 @@ ${offersXml}
     if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
     try {
       const XLSX = await import("xlsx");
+      const filterArtist = (req.query.artistSlug as string || "").trim();
       const [preorderOrders, allProducts] = await Promise.all([
         storage.getAllRetailPreorderOrders(),
-        storage.getProducts(),
+        storage.getAllProductsForAdmin(),
       ]);
 
       // productId → color lookup from product catalog
       const productColorMap: Record<number, string> = {};
+      // productId → artistSlug lookup
+      const productArtistMap: Record<number, string> = {};
       for (const p of allProducts as any[]) {
         if (p.id && p.color) productColorMap[Number(p.id)] = p.color;
+        if (p.id && (p as any).artistSlug) productArtistMap[Number(p.id)] = (p as any).artistSlug;
       }
 
       const agg: Record<string, { productName: string; color: string; size: string; quantity: number }> = {};
@@ -15819,6 +15824,11 @@ ${offersXml}
           ? order.items
           : (() => { try { return JSON.parse(String(order.items) || "[]"); } catch { return []; } })();
         for (const item of items) {
+          // Artist filter: skip item if filtering by artist and this product doesn't match
+          if (filterArtist) {
+            const itemArtist = productArtistMap[Number(item.productId)] || "";
+            if (itemArtist !== filterArtist) continue;
+          }
           const productName = (item.productName || item.name || "—").trim();
           // Try: item.color → product catalog color → parse from product name (last parenthesized text)
           const rawColor = item.color || productColorMap[Number(item.productId)] || "";
@@ -15850,8 +15860,9 @@ ${offersXml}
 
       const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
       const date = new Date().toISOString().slice(0, 10);
+      const fileLabel = filterArtist ? `preorders-${filterArtist}-${date}` : `preorders-${date}`;
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", `attachment; filename="preorders-${date}.xlsx"`);
+      res.setHeader("Content-Disposition", `attachment; filename="${fileLabel}.xlsx"`);
       res.send(buf);
     } catch (err: any) {
       console.error("[Admin] Preorder XLSX error:", err);

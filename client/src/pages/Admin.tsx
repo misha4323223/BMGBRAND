@@ -1158,7 +1158,7 @@ function downloadOrderExcel(order: any) {
     const total = price !== '' ? Number((price * qty).toFixed(2)) : '';
     itemRows.push([
       item.sku || item.productId || '',
-      item.name || '',
+      item.name || item.productName || '',
       item.size || '',
       item.color || '',
       qty,
@@ -14866,6 +14866,7 @@ export default function Admin() {
 function AdminPreordersTab({ apiKey }: { apiKey: string }) {
   const { toast } = useToast();
   const [subTab, setSubTab] = useState<"products" | "customers" | "wholesale" | "pickup" | "campaigns">("products");
+  const [xlsxArtistFilter, setXlsxArtistFilter] = useState("");
 
   // Campaigns state
   const [showCampaignForm, setShowCampaignForm] = useState(false);
@@ -15095,19 +15096,44 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
           Управление предзаказами
         </h2>
         <div className="flex items-center gap-2">
+          {(() => {
+            const artistSlugs = Array.from(new Set(
+              (preorderData?.orders || [])
+                .map((o: any) => o.product?.artistSlug)
+                .filter(Boolean)
+            )) as string[];
+            return artistSlugs.length > 0 ? (
+              <Select value={xlsxArtistFilter} onValueChange={setXlsxArtistFilter}>
+                <SelectTrigger className="h-8 w-[150px] text-xs">
+                  <SelectValue placeholder="Все артисты" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Все артисты</SelectItem>
+                  {artistSlugs.map((slug) => (
+                    <SelectItem key={slug} value={slug}>{slug}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null;
+          })()}
           <Button
             size="sm"
             variant="outline"
             data-testid="button-preorders-csv"
             onClick={() => {
-              fetch("/api/admin/preorder/orders/xlsx", { headers: { "x-api-key": apiKey } })
+              const url = xlsxArtistFilter
+                ? `/api/admin/preorder/orders/xlsx?artistSlug=${encodeURIComponent(xlsxArtistFilter)}`
+                : "/api/admin/preorder/orders/xlsx";
+              fetch(url, { headers: { "x-api-key": apiKey } })
                 .then(r => r.blob())
                 .then(blob => {
                   const blobUrl = URL.createObjectURL(blob);
                   const link = document.createElement("a");
                   link.href = blobUrl;
                   const date = new Date().toISOString().slice(0, 10);
-                  link.download = `preorders-${date}.xlsx`;
+                  link.download = xlsxArtistFilter
+                    ? `preorders-${xlsxArtistFilter}-${date}.xlsx`
+                    : `preorders-${date}.xlsx`;
                   link.click();
                   URL.revokeObjectURL(blobUrl);
                 });
