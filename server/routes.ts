@@ -6727,7 +6727,7 @@ BMGBRAND — официальный производитель и магазин
         isNew, badgeText, lookProducts, lookCategory, lookSubcategory,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate,
         stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl, disabledNotifySizes,
-        seoTitle, seoDescription, seoBody, specsHtml, imageAlts, featureBadgeIds
+        seoTitle, seoDescription, seoBody, seoJsonLd, specsHtml, imageAlts, featureBadgeIds
       } = req.body;
       
       const updateData: any = {};
@@ -6846,6 +6846,7 @@ BMGBRAND — официальный производитель и магазин
       if (seoTitle !== undefined) updateData.seoTitle = seoTitle || '';
       if (seoDescription !== undefined) updateData.seoDescription = seoDescription || '';
       if (seoBody !== undefined) updateData.seoBody = sanitizeHtmlBlock(seoBody || '');
+      if (seoJsonLd !== undefined) updateData.seoJsonLd = seoJsonLd || '';
       if (specsHtml !== undefined) updateData.specsHtml = sanitizeHtmlBlock(specsHtml || '');
       if (imageAlts !== undefined) updateData.imageAlts = Array.isArray(imageAlts) ? imageAlts : [];
       if (featureBadgeIds !== undefined) updateData.featureBadgeIds = Array.isArray(featureBadgeIds) ? featureBadgeIds : [];

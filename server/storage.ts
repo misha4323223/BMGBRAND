@@ -424,7 +424,7 @@ export function getCachedProductMetaBySlug(slug: string): {
   productId: number; title: string; description: string; image: string; images: string[];
   price: number; sku: string; stock: number; category: string;
   sizes: string[]; colors: string[]; preorderEnabled: boolean;
-  seoTitle: string | null; seoDescription: string | null; seoBody: string | null; specsHtml: string | null; videoUrl: string | null;
+  seoTitle: string | null; seoDescription: string | null; seoBody: string | null; seoJsonLd: string | null; specsHtml: string | null; videoUrl: string | null;
   composition: string | null; careInstructions: string | null;
   measurements: Array<{ size: string; [key: string]: string }> | null;
   featureBadgeIds: string[];
@@ -456,6 +456,7 @@ export function getCachedProductMetaBySlug(slug: string): {
     seoTitle: (product as any).seoTitle || null,
     seoDescription: (product as any).seoDescription || null,
     seoBody: (product as any).seoBody || null,
+    seoJsonLd: (product as any).seoJsonLd || null,
     specsHtml: (product as any).specsHtml || null,
     videoUrl: (product as any).videoUrl || null,
     composition: (product as any).composition || null,
@@ -993,6 +994,7 @@ export class DatabaseStorage implements IStorage {
       seoTitle: data.seo_title || null,
       seoDescription: data.seo_description || null,
       seoBody: data.seo_body || null,
+      seoJsonLd: data.seo_json_ld || null,
       imageAlts: (() => {
         if (data.image_alts) {
           if (typeof data.image_alts === 'string') {
@@ -1355,6 +1357,7 @@ export class DatabaseStorage implements IStorage {
         DECLARE $seo_title AS Utf8;
         DECLARE $seo_description AS Utf8;
         DECLARE $seo_body AS Utf8;
+        DECLARE $seo_json_ld AS Utf8;
         DECLARE $specs_html AS Utf8;
         DECLARE $image_alts AS Json;
         DECLARE $feature_badge_ids AS Json;
@@ -1369,7 +1372,7 @@ export class DatabaseStorage implements IStorage {
           is_new, in_stock, is_hidden, badge_text, slug,
           wholesale_price, stock, size_stock,
           composition, care_instructions, delivery, return_policy,
-          seo_title, seo_description, seo_body, specs_html, image_alts, feature_badge_ids, additional_categories,
+          seo_title, seo_description, seo_body, seo_json_ld, specs_html, image_alts, feature_badge_ids, additional_categories,
           artist_slug, artist_only, size_characteristic_ids
         )
         VALUES (
@@ -1378,7 +1381,7 @@ export class DatabaseStorage implements IStorage {
           $is_new, $in_stock, $is_hidden, $badge_text, $slug,
           $wholesale_price, $stock, $size_stock,
           $composition, $care_instructions, $delivery, $return_policy,
-          $seo_title, $seo_description, $seo_body, $specs_html, $image_alts, $feature_badge_ids, $additional_categories,
+          $seo_title, $seo_description, $seo_body, $seo_json_ld, $specs_html, $image_alts, $feature_badge_ids, $additional_categories,
           $artist_slug, $artist_only, $size_characteristic_ids
         );
       `;
@@ -1413,6 +1416,7 @@ export class DatabaseStorage implements IStorage {
         $seo_title: TypedValues.fromNative(Types.UTF8, (p as any).seoTitle || ''),
         $seo_description: TypedValues.fromNative(Types.UTF8, (p as any).seoDescription || ''),
         $seo_body: TypedValues.fromNative(Types.UTF8, (p as any).seoBody || ''),
+        $seo_json_ld: TypedValues.fromNative(Types.UTF8, (p as any).seoJsonLd || ''),
         $specs_html: TypedValues.fromNative(Types.UTF8, (p as any).specsHtml || ''),
         $image_alts: TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).imageAlts || [])),
         $feature_badge_ids: TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).featureBadgeIds || [])),
@@ -1698,6 +1702,12 @@ export class DatabaseStorage implements IStorage {
         declareStatements += 'DECLARE $seo_body AS Utf8;\n';
         setClauses.push('seo_body = $seo_body');
         params.$seo_body = TypedValues.fromNative(Types.UTF8, (p as any).seoBody || '');
+      }
+
+      if ((p as any).seoJsonLd !== undefined) {
+        declareStatements += 'DECLARE $seo_json_ld AS Utf8;\n';
+        setClauses.push('seo_json_ld = $seo_json_ld');
+        params.$seo_json_ld = TypedValues.fromNative(Types.UTF8, (p as any).seoJsonLd || '');
       }
       
       if (p.imageAlts !== undefined) {
@@ -3495,6 +3505,29 @@ export class DatabaseStorage implements IStorage {
       return { success: true, message: "Column on_sale added successfully" };
     } catch (err: any) {
       if (err.message?.includes("already exists") || err.message?.includes("Duplicate column")) {
+        return { success: true, message: "Column already exists" };
+      }
+      console.error("[Migration Error]:", err.message);
+      return { success: false, message: err.message || String(err) };
+    }
+  }
+
+  async addSeoJsonLdColumn(): Promise<{ success: boolean; message: string }> {
+    if (!driver) {
+      return { success: false, message: "YDB driver not initialized" };
+    }
+    try {
+      await driver.tableClient.withSession(async (session) => {
+        const ydb = await import('ydb-sdk');
+        await session.alterTable('products', {
+          addColumns: [
+            { name: 'seo_json_ld', type: ydb.Ydb.Type.create({ optionalType: { item: { typeId: ydb.Ydb.Type.PrimitiveTypeId.UTF8 } } }) }
+          ]
+        } as any);
+      });
+      return { success: true, message: "Column seo_json_ld added successfully" };
+    } catch (err: any) {
+      if (err.message?.includes("already exists") || err.message?.includes("Duplicate column") || err.message?.includes("Cannot alter type")) {
         return { success: true, message: "Column already exists" };
       }
       console.error("[Migration Error]:", err.message);

@@ -427,6 +427,10 @@ async function seedDefaultLegalDocuments() {
           if (r?.message) console.log(`[Migration] old_price: ${r.message}`);
         } catch {}
         try {
+          const rj = await (storage as any).addSeoJsonLdColumn?.();
+          if (rj?.message) console.log(`[Migration] seo_json_ld: ${rj.message}`);
+        } catch {}
+        try {
           const products = await storage.getProducts();
           log(`Cache warmup: loaded ${products.length} products`);
         } catch (err) {

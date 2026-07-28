@@ -1390,6 +1390,7 @@ export default function Admin() {
     seoTitle: string;
     seoDescription: string;
     seoBody: string;
+    seoJsonLd: string;
     specsHtml: string;
     imageAlts: string[];
     featureBadgeIds: string[];
@@ -2612,6 +2613,7 @@ export default function Admin() {
         seoTitle: p.seoTitle || "",
         seoDescription: p.seoDescription || "",
         seoBody: (p as any).seoBody || "",
+        seoJsonLd: (p as any).seoJsonLd || "",
         specsHtml: (p as any).specsHtml || "",
         imageAlts: p.imageAlts || [],
         featureBadgeIds: (p as any).featureBadgeIds || [],
@@ -2706,6 +2708,7 @@ export default function Admin() {
       seoTitle: "",
       seoDescription: "",
       seoBody: "",
+      seoJsonLd: "",
       specsHtml: "",
       imageAlts: [],
       featureBadgeIds: [],
@@ -2759,6 +2762,7 @@ export default function Admin() {
         seoTitle: product.seoTitle || "",
         seoDescription: product.seoDescription || "",
         seoBody: (product as any).seoBody || "",
+        seoJsonLd: (product as any).seoJsonLd || "",
         specsHtml: (product as any).specsHtml || "",
         imageAlts: product.imageAlts || [],
         featureBadgeIds: (product as any).featureBadgeIds || [],

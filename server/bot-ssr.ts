@@ -827,6 +827,15 @@ function renderProduct(slug: string): string | null {
   const ogImage = meta.image && meta.image.startsWith("http") ? meta.image : `${SITE_URL}${meta.image || "/og-image.png"}`;
 
   const lcpImageUrl = (meta.images.length > 0 ? meta.images[0] : meta.image) || "";
+  // Extra custom JSON-LD from admin (added after auto-generated, not replacing it)
+  let customJsonLdScript = "";
+  if ((meta as any).seoJsonLd) {
+    try {
+      const parsed = JSON.parse((meta as any).seoJsonLd);
+      customJsonLdScript = `\n  <script type="application/ld+json">${JSON.stringify(parsed)}</script>`;
+    } catch { /* invalid JSON — skip silently */ }
+  }
+
   const head = baseHead({
     title,
     description: desc,
@@ -837,7 +846,7 @@ function renderProduct(slug: string): string | null {
     // Preload the first product photo so the browser starts fetching it
     // before it parses the <img> tag — directly improves LCP score.
     preloadImage: lcpImageUrl.startsWith("http") ? lcpImageUrl : undefined,
-  });
+  }) + customJsonLdScript;
 
   const imagesHtml = meta.images.slice(0, 6).map((imgUrl, idx) =>
     `<img src="${esc(imgUrl)}" alt="${esc(idx === 0 ? meta.title + " — фото" : meta.title + " — фото " + (idx + 1))}" width="400" height="400" loading="${idx === 0 ? "eager" : "lazy"}">`
