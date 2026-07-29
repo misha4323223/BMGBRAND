@@ -1670,19 +1670,8 @@ ${artistLinks || "- (список формируется)"}
         }
       } catch { /* skip if concept settings not available */ }
 
-      // Blog post detail pages (/blog/:index)
-      try {
-        const homeSettings = await storage.getPageSettings("home");
-        const blogItems: any[] = homeSettings?.blog?.items || [];
-        for (let i = 0; i < blogItems.length; i++) {
-          xml += `  <url>\n`;
-          xml += `    <loc>${baseUrl}/blog/${i}</loc>\n`;
-          xml += `    <lastmod>${today}</lastmod>\n`;
-          xml += `    <changefreq>monthly</changefreq>\n`;
-          xml += `    <priority>0.6</priority>\n`;
-          xml += `  </url>\n`;
-        }
-      } catch { /* skip if blog settings not available */ }
+      // Блог убран из sitemap (29.07.2026) — страница не наполнена реальным контентом,
+      // индексация пустого блога — сигнал thin content для Google/Яндекса.
 
       xml += `</urlset>`;
       serveGeneratedXml(res, "sitemap.xml", xml);
