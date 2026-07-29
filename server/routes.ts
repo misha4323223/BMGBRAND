@@ -158,6 +158,41 @@ function sanitizeHtmlBlock(html: string): string {
     .trim();
 }
 
+/**
+ * Escapes raw control characters (U+0000–U+001F) that appear inside JSON
+ * string literals — the most common cause of "Bad control character" errors
+ * when users paste multi-line HTML into a JSON-LD textarea.
+ * Uses a simple state machine so only chars INSIDE strings are touched;
+ * whitespace between JSON tokens is left alone.
+ */
+function sanitizeJsonLd(raw: string): string {
+  if (!raw) return '';
+  try {
+    JSON.parse(raw);
+    return raw; // already valid — nothing to do
+  } catch {
+    // Walk char-by-char, escape control chars only inside string literals
+    let result = '';
+    let inString = false;
+    let escaped = false;
+    const ESC: Record<string, string> = {
+      '\n': '\\n', '\r': '\\r', '\t': '\\t', '\b': '\\b', '\f': '\\f',
+    };
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (escaped) { result += c; escaped = false; continue; }
+      if (c === '\\' && inString) { result += c; escaped = true; continue; }
+      if (c === '"') { inString = !inString; result += c; continue; }
+      if (inString && c.charCodeAt(0) < 0x20) {
+        result += ESC[c] ?? `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`;
+        continue;
+      }
+      result += c;
+    }
+    return result;
+  }
+}
+
 function sortSizes(sizes: string[]): string[] {
   return sizes.sort((a, b) => {
     const orderA = SIZE_ORDER[a.toUpperCase()] ?? 100;
@@ -6875,7 +6910,7 @@ BMGBRAND — официальный производитель и магазин
       if (seoTitle !== undefined) updateData.seoTitle = seoTitle || '';
       if (seoDescription !== undefined) updateData.seoDescription = seoDescription || '';
       if (seoBody !== undefined) updateData.seoBody = sanitizeHtmlBlock(seoBody || '');
-      if (seoJsonLd !== undefined) updateData.seoJsonLd = seoJsonLd || '';
+      if (seoJsonLd !== undefined) updateData.seoJsonLd = sanitizeJsonLd(seoJsonLd || '');
       if (specsHtml !== undefined) updateData.specsHtml = sanitizeHtmlBlock(specsHtml || '');
       if (imageAlts !== undefined) updateData.imageAlts = Array.isArray(imageAlts) ? imageAlts : [];
       if (featureBadgeIds !== undefined) updateData.featureBadgeIds = Array.isArray(featureBadgeIds) ? featureBadgeIds : [];

@@ -11734,9 +11734,30 @@ export default function Admin() {
                                     type="button"
                                     className="text-[10px] px-2 py-0.5 rounded border border-border hover:bg-muted transition-colors flex-shrink-0"
                                     onClick={() => {
+                                      // Auto-escape raw control chars (e.g. newlines in HTML values)
+                                      // before validating — same logic as the server sanitizeJsonLd
+                                      const sanitize = (raw: string): string => {
+                                        try { JSON.parse(raw); return raw; } catch {}
+                                        let out = ''; let inStr = false; let esc = false;
+                                        const ESC: Record<string, string> = { '\n':'\\n','\r':'\\r','\t':'\\t','\b':'\\b','\f':'\\f' };
+                                        for (const c of raw) {
+                                          if (esc) { out += c; esc = false; continue; }
+                                          if (c === '\\' && inStr) { out += c; esc = true; continue; }
+                                          if (c === '"') { inStr = !inStr; out += c; continue; }
+                                          if (inStr && c.charCodeAt(0) < 0x20) { out += ESC[c] ?? `\\u${c.charCodeAt(0).toString(16).padStart(4,'0')}`; continue; }
+                                          out += c;
+                                        }
+                                        return out;
+                                      };
+                                      const sanitized = sanitize(productForm.seoJsonLd);
                                       try {
-                                        JSON.parse(productForm.seoJsonLd);
-                                        toast({ title: "✅ JSON валидный" });
+                                        JSON.parse(sanitized);
+                                        if (sanitized !== productForm.seoJsonLd) {
+                                          setProductForm({...productForm, seoJsonLd: sanitized});
+                                          toast({ title: "✅ JSON исправлен и валидный", description: "Управляющие символы (переносы строк в HTML) автоматически экранированы" });
+                                        } else {
+                                          toast({ title: "✅ JSON валидный" });
+                                        }
                                       } catch (e: any) {
                                         toast({ title: "❌ Ошибка JSON", description: e.message, variant: "destructive" });
                                       }
