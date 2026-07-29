@@ -27,7 +27,7 @@ import {
 } from "./storage";
 import { getRecommendationsSync } from "./recommendations";
 import { findProductVariantsSync } from "./variant-matching";
-import { CATEGORIES, normalizeCategories, findCategoryBySubcategorySlug, findCategoryBySubSubcategorySlug } from "../shared/schema";
+import { CATEGORIES, normalizeCategories, findCategoryBySubcategorySlug, findCategoryBySubSubcategorySlug, GIFT_CARD_AMOUNTS } from "../shared/schema";
 
 // ─── Bot User-Agent detection ─────────────────────────────────────────────────
 // Only include server-side crawlers and link-preview fetchers.
@@ -2026,6 +2026,69 @@ ${content}
   return wrapPage(head, body);
 }
 
+function renderGiftCards(): string {
+  const amountsList = GIFT_CARD_AMOUNTS.map(a => a.label).join(", ");
+  const minAmount = GIFT_CARD_AMOUNTS[0].label;
+  const maxAmount = GIFT_CARD_AMOUNTS[GIFT_CARD_AMOUNTS.length - 1].label;
+
+  const jsonLd = safeJsonLd([
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
+        { "@type": "ListItem", "position": 2, "name": "Подарочные карты", "item": `${SITE_URL}/gift-cards` },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": "Подарочная карта BMGBRAND",
+      "description": `Электронная подарочная карта интернет-магазина BMGBRAND (Booomerangs). Номиналы: ${amountsList}. Доставляется на e-mail получателя, действует 1 год.`,
+      "brand": { "@id": `${SITE_URL}/#organization` },
+      "offers": GIFT_CARD_AMOUNTS.map(a => ({
+        "@type": "Offer",
+        "price": (a.value / 100).toFixed(2),
+        "priceCurrency": "RUB",
+        "availability": "https://schema.org/InStock",
+        "url": `${SITE_URL}/gift-cards`,
+        "seller": { "@id": `${SITE_URL}/#organization` },
+      })),
+    },
+  ]);
+
+  const head = baseHead({
+    title: `Подарочная карта BMGBRAND — от ${minAmount} до ${maxAmount} | ${SITE_NAME}`,
+    description: `Электронная подарочная карта интернет-магазина BMGBRAND. Номиналы: ${amountsList}. Мгновенная доставка на e-mail, действует 1 год. Оплата картой, ЮKassa, Т-Банк.`,
+    canonical: `${SITE_URL}/gift-cards`,
+    ogImage: `${SITE_URL}/favicon.png`,
+    jsonLd,
+  });
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / Подарочные карты</div>
+<h1>Подарочная карта BMGBRAND</h1>
+<p class="desc">Электронная подарочная карта интернет-магазина BMGBRAND (Booomerangs). Идеальный подарок, если не уверены в размере или модели — получатель сам выберет товар в каталоге.</p>
+<h2>Доступные номиналы</h2>
+<ul>${GIFT_CARD_AMOUNTS.map(a => `<li>${esc(a.label)}</li>`).join("\n")}</ul>
+<h2>Как это работает</h2>
+<ol>
+  <li>Выберите номинал и дизайн карты.</li>
+  <li>Укажите e-mail получателя и, при желании, персональное сообщение.</li>
+  <li>Оплатите картой МИР/Visa/MasterCard через ЮKassa или Т-Банк.</li>
+  <li>Получатель получает код карты на e-mail и активирует его при оформлении заказа на сайте.</li>
+</ol>
+<h2>Условия</h2>
+<ul>
+  <li>Срок действия — 1 год с момента покупки.</li>
+  <li>Можно использовать частями — остаток сохраняется на карте.</li>
+  <li>Действует на весь каталог booomerangs.ru.</li>
+</ul>
+<p style="margin-top:2rem"><a href="/">На главную</a> · <a href="/products">Смотреть каталог</a></p>`;
+
+  return wrapPage(head, body);
+}
+
 /** SSR for artist pages: /@artistSlug */
 function renderArtist(artistSlug: string): string | null {
   const artistPages = getCachedRawPageSettings("artist_pages") as Record<string, any> | null;
@@ -2148,6 +2211,8 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
       html = renderBlog();
     } else if (reqPath === "/vacancies") {
       html = renderVacancies();
+    } else if (reqPath === "/gift-cards") {
+      html = renderGiftCards();
     } else if (reqPath === "/terms") {
       html = renderTerms();
     } else if (reqPath === "/privacy") {

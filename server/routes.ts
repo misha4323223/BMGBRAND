@@ -1355,12 +1355,23 @@ Sitemap: ${siteUrl}/sitemap.xml
   app.get("/llms.txt", async (_req, res) => {
     try {
       const allProducts = await storage.getProducts();
-      const visibleProducts = allProducts.filter((p: any) => !p.isHidden && (p.inStock || p.autoHideOverride || p.preorderEnabled));
+      const visibleProducts = allProducts.filter((p: any) => !p.isHidden && (p.inStock || p.autoHideOverride || p.preorderEnabled) && p.price > 0);
       const categories = [...new Set(visibleProducts.map((p: any) => p.category).filter(Boolean))];
       const priceRange = visibleProducts.length > 0 ? {
         min: Math.min(...visibleProducts.map((p: any) => p.price)) / 100,
         max: Math.max(...visibleProducts.map((p: any) => p.price)) / 100,
       } : { min: 0, max: 0 };
+
+      let artistLinks = "";
+      try {
+        const artistPages = await storage.getPageSettings("artist_pages") as Record<string, any> | null;
+        if (artistPages) {
+          const names = Object.entries(artistPages)
+            .filter(([, v]: [string, any]) => v && v.name)
+            .map(([slug, v]: [string, any]) => `- [${v.name}](https://booomerangs.ru/@${slug})`);
+          if (names.length > 0) artistLinks = names.join("\n");
+        }
+      } catch { /* artist_pages not set yet — section stays empty */ }
 
       res.type("text/plain").send(
 `# BMGBRAND / Booomerangs — российский бренд мерча и одежды
@@ -1384,7 +1395,10 @@ BMGBRAND — официальный производитель и магазин
 - Драгни (артист)
 - МультФильмы (музыкальный проект)
 
-Купить официальный мерч этих артистов можно только в нашем магазине: [Мерч артистов](https://www.booomerangs.ru/products/merch)
+Купить официальный мерч этих артистов можно только в нашем магазине: [Мерч артистов](https://booomerangs.ru/products/merch)
+
+Персональные страницы артистов:
+${artistLinks || "- (список формируется)"}
 
 ## Мерч на заказ
 
@@ -1398,7 +1412,7 @@ BMGBRAND — официальный производитель и магазин
 - Срок производства: носки от 10 рабочих дней, одежда 2–4 недели
 - Работаем с физлицами, ИП, ООО, блогерами, музыкантами, организаторами мероприятий
 
-Подробнее: [Мерч на заказ](https://www.booomerangs.ru/merch-na-zakaz)
+Подробнее: [Мерч на заказ](https://booomerangs.ru/merch-na-zakaz)
 
 ## Носки с принтом
 
@@ -1406,7 +1420,7 @@ BMGBRAND — официальный производитель и магазин
 Размеры: 36-39, 40-45. Уход: машинная стирка 30°, без отбеливателя, не сушить в барабане.
 Авторские рисунки — животные, природа, городской арт, коллаборации с артистами.
 
-Смотреть каталог: [Носки с принтом](https://www.booomerangs.ru/products/socks)
+Смотреть каталог: [Носки с принтом](https://booomerangs.ru/products/socks)
 
 ## Каталог товаров
 
@@ -1414,7 +1428,13 @@ BMGBRAND — официальный производитель и магазин
 - Категории: ${categories.join(", ") || "Носки, Одежда, Мерч, Аксессуары"}
 - Цены: от ${priceRange.min.toLocaleString("ru-RU")} ₽ до ${priceRange.max.toLocaleString("ru-RU")} ₽
 - Валюта: RUB (российский рубль)
-- Каталог: [Все товары](https://www.booomerangs.ru/products)
+- Каталог целиком: [Все товары](https://booomerangs.ru/products)
+- По категориям: [Одежда](https://booomerangs.ru/products/clothing) · [Носки](https://booomerangs.ru/products/socks) · [Аксессуары](https://booomerangs.ru/products/accessories) · [Мерч артистов](https://booomerangs.ru/products/merch) · [Распродажа](https://booomerangs.ru/products/sale)
+
+## Подарочные карты
+
+Электронная подарочная карта — номиналы 500 / 1 000 / 2 000 / 5 000 / 10 000 ₽. Доставка на e-mail, действует 1 год, можно использовать частями на весь каталог.
+Подробнее: [Подарочные карты](https://booomerangs.ru/gift-cards)
 
 ## Доставка и оплата
 
@@ -1429,17 +1449,25 @@ BMGBRAND — официальный производитель и магазин
 - Оптовые заказы: оптовый кабинет на сайте, минимальный заказ обсуждается
 - Интеграция с 1С для управления остатками
 - Telegram-уведомления о заказах
+- Блог о бренде: [Блог](https://booomerangs.ru/blog)
+- Открытые вакансии: [Вакансии](https://booomerangs.ru/vacancies)
 
 ## Ссылки
 
-- [Главная](https://www.booomerangs.ru/)
-- [Каталог товаров](https://www.booomerangs.ru/products)
-- [Носки с принтом](https://www.booomerangs.ru/products/socks)
-- [Мерч артистов](https://www.booomerangs.ru/products/merch)
-- [Мерч на заказ](https://www.booomerangs.ru/merch-na-zakaz)
-- [О бренде](https://www.booomerangs.ru/about)
-- [FAQ](https://www.booomerangs.ru/faq)
-- [YML-фид (Яндекс Маркет)](https://www.booomerangs.ru/yml-feed.xml)
+- [Главная](https://booomerangs.ru/)
+- [Каталог товаров](https://booomerangs.ru/products)
+- [Носки с принтом](https://booomerangs.ru/products/socks)
+- [Одежда](https://booomerangs.ru/products/clothing)
+- [Аксессуары](https://booomerangs.ru/products/accessories)
+- [Мерч артистов](https://booomerangs.ru/products/merch)
+- [Распродажа](https://booomerangs.ru/products/sale)
+- [Мерч на заказ](https://booomerangs.ru/merch-na-zakaz)
+- [Подарочные карты](https://booomerangs.ru/gift-cards)
+- [О бренде](https://booomerangs.ru/about)
+- [FAQ](https://booomerangs.ru/faq)
+- [Блог](https://booomerangs.ru/blog)
+- [Вакансии](https://booomerangs.ru/vacancies)
+- [YML-фид (Яндекс Маркет)](https://booomerangs.ru/yml-feed.xml)
 
 ## О бренде
 
