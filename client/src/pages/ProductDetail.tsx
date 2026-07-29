@@ -722,7 +722,11 @@ export default function ProductDetail() {
   const productUrl = `${origin}/${product.slug || product.id}`;
   const productImage = product.imageUrl?.startsWith("http") ? product.imageUrl : `${origin}${product.imageUrl || "/favicon.png"}`;
 
-  const categoryName = product.category || "";
+  // Human-readable category name ("Одежда", "Носки" …) — used in SEO keywords and image alts.
+  // Falls back to the raw slug only when CATEGORIES doesn't have a mapping (shouldn't happen).
+  const categoryName = product.category
+    ? (CATEGORIES[product.category as keyof typeof CATEGORIES]?.name ?? product.category)
+    : "";
   const selectedColorName = hasColorVariants
     ? (colorVariants?.find(v => v.id === product.id)?.color || "")
     : (selectedColor || "");
@@ -1120,7 +1124,7 @@ export default function ProductDetail() {
             className="detail-panel flex flex-col order-1 lg:order-2 lg:bg-background/96 lg:backdrop-blur-md lg:border lg:border-border/30 lg:rounded-2xl lg:shadow-2xl lg:px-5 lg:pt-4 lg:pb-6"
           >
             <div className="flex flex-col mb-4 sm:mb-6">
-              <span className="lg:hidden font-mono text-muted-foreground text-[10px] uppercase tracking-[0.3em] block mb-2" data-testid={`text-category-${product.id}`}>{product.category}</span>
+              <span className="lg:hidden font-mono text-muted-foreground text-[10px] uppercase tracking-[0.3em] block mb-2" data-testid={`text-category-${product.id}`}>{categoryName}</span>
 
               {/* ── Мобильная раскладка: заголовок + 3 равных кнопки ── */}
               <div className="md:hidden">
