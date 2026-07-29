@@ -381,8 +381,11 @@ function baseHead(opts: {
   /** LCP image URL — emits <link rel="preload"> so the browser starts
    *  fetching the hero/product photo before it parses the <img> tag. */
   preloadImage?: string;
+  /** OG image dimensions — emit og:image:width/height only when known */
+  ogImageWidth?: string;
+  ogImageHeight?: string;
 }): string {
-  const { title, description, canonical, ogImage, ogType = "website", jsonLd, extra, preloadImage } = opts;
+  const { title, description, canonical, ogImage, ogType = "website", jsonLd, extra, preloadImage, ogImageWidth, ogImageHeight } = opts;
   const t = esc(title);
   const d = esc(trimDesc(description));
   return [
@@ -400,8 +403,14 @@ function baseHead(opts: {
     `  <meta property="og:title" content="${t}">`,
     `  <meta property="og:description" content="${d}">`,
     `  <meta property="og:image" content="${esc(ogImage)}">`,
+    ogImageWidth  ? `  <meta property="og:image:width" content="${esc(ogImageWidth)}">` : "",
+    ogImageHeight ? `  <meta property="og:image:height" content="${esc(ogImageHeight)}">` : "",
     `  <meta property="og:locale" content="ru_RU">`,
     `  <meta property="og:site_name" content="Booomerangs">`,
+    `  <meta name="twitter:card" content="summary_large_image">`,
+    `  <meta name="twitter:title" content="${t}">`,
+    `  <meta name="twitter:description" content="${d}">`,
+    `  <meta name="twitter:image" content="${esc(ogImage)}">`,
     `  <link rel="icon" type="image/png" href="/favicon.png">`,
     jsonLd ? `  <script type="application/ld+json">${jsonLd}</script>` : "",
     `  <style>${CSS}</style>`,
@@ -515,6 +524,8 @@ function renderHome(): string | null {
     description: homeSeoDesc,
     canonical: SITE_URL,
     ogImage: `${SITE_URL}/og-image.png`,
+    ogImageWidth: "1024",
+    ogImageHeight: "1024",
     jsonLd,
   });
 
