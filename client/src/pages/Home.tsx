@@ -1589,7 +1589,7 @@ export default function Home() {
                     <div className="mb-6 sm:mb-12">
                       <div>
                         {customSettings.subtitle && (
-                          <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">{customSettings.subtitle}</p>
+                          <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-foreground mb-2">{customSettings.subtitle}</p>
                         )}
                         <h2 className="text-2xl sm:text-5xl font-bold tracking-tight">{customSettings.title || "Хиты продаж"}</h2>
                       </div>
