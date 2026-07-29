@@ -129,6 +129,13 @@ function botCacheSet(key: string, html: string): void {
   botCache.set(key, { html, ts: Date.now() });
 }
 
+/** Admin helper: wipe the entire bot-SSR in-memory cache (e.g. after SEO data changes). */
+export function clearBotSsrCache(): number {
+  const size = botCache.size;
+  botCache.clear();
+  return size;
+}
+
 // ─── Static site data (mirrors server/static.ts — kept in sync manually) ─────
 const SITE_NAME = "BMGBRAND";
 const SITE_URL = (process.env.SITE_URL || "https://booomerangs.ru").replace(/\/$/, "");
@@ -868,12 +875,25 @@ function renderProduct(slug: string): string | null {
   const ogImage = meta.image && meta.image.startsWith("http") ? meta.image : `${SITE_URL}${meta.image || "/og-image.png"}`;
 
   const lcpImageUrl = (meta.images.length > 0 ? meta.images[0] : meta.image) || "";
-  // Extra custom JSON-LD from admin (added after auto-generated, not replacing it)
+  // Extra custom JSON-LD from admin (added after auto-generated, not replacing it).
+  // IMPORTANT: skip any custom schema that declares @type Product/ProductGroup — we already
+  // emit a fully-populated auto-generated Product schema above.  Emitting a second Product
+  // schema (even one with stale/placeholder data) creates a duplicate that confuses Google
+  // Structured Data and AI crawlers, causing them to distrust or skip the page entirely.
   let customJsonLdScript = "";
   if ((meta as any).seoJsonLd) {
     try {
       const parsed = JSON.parse((meta as any).seoJsonLd);
-      customJsonLdScript = `\n  <script type="application/ld+json">${JSON.stringify(parsed)}</script>`;
+      const hasProductType = (obj: any): boolean => {
+        if (!obj) return false;
+        if (Array.isArray(obj)) return obj.some(hasProductType);
+        const t = obj["@type"];
+        return t === "Product" || t === "ProductGroup";
+      };
+      if (!hasProductType(parsed)) {
+        customJsonLdScript = `\n  <script type="application/ld+json">${JSON.stringify(parsed)}</script>`;
+      }
+      // If it is a Product type — silently skip; our auto-generated schema is authoritative.
     } catch { /* invalid JSON — skip silently */ }
   }
 

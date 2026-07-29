@@ -38,6 +38,7 @@ import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notif
 import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyNewReview, vkNotifyMerchOrder, verifyActionLink, sendVkChatNotification, startVkLongPoll, vkNotifyAgentAlert } from "./vk";
 import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
 import { registerAddonOrderRoutes, processAddonOrderPaid } from "./addon-order";
+import { clearBotSsrCache } from "./bot-ssr";
 import {
   registerAiChatRoute,
   registerProductInfoRoute,
@@ -6225,6 +6226,20 @@ BMGBRAND — официальный производитель и магазин
     } catch (error) {
       console.error("[AutoHide] Error:", error);
       res.status(500).json({ error: "Failed to auto-hide products" });
+    }
+  });
+
+  // Flush all in-memory caches (product cache + bot-SSR page cache) — admin only.
+  // Call this after SEO or product data changes to force fresh renders on the next request.
+  app.post("/api/admin/cache/flush", requireAdminOrApiKey, async (_req, res) => {
+    try {
+      const botSsrCleared = clearBotSsrCache();
+      storage.clearCache();
+      console.log(`[Cache] Admin flush: cleared bot-SSR cache (${botSsrCleared} entries) + product cache`);
+      res.json({ success: true, botSsrCleared, message: "All caches flushed. Next requests will re-render from fresh data." });
+    } catch (err: any) {
+      console.error("[Cache] Flush error:", err?.message);
+      res.status(500).json({ error: "Flush failed", details: String(err?.message) });
     }
   });
 

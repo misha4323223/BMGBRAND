@@ -1,3 +1,4 @@
+- [Bot SSR duplicate Product JSON-LD](bot-ssr-duplicate-jsonld.md) — 12 products had bad seoJsonLd with placeholders causing 2 conflicting Product schemas; fixed in DB + code; flush endpoint added
 - [Artist subcategory sync](artist-subcategory-sync.md) — artist pages and merch subcategories are separate; startup sync + save hook needed; subcategories stored as {name,slug} objects not strings
 - [Merch page SEO & Bot SSR](merch-na-zakaz-seo.md) — /merch-na-zakaz требовал renderMerchOrder() в bot-ssr.ts; ботам раньше отдавался пустой div
 - [Wouter v3 Switch strips path](wouter-switch-routing.md) — useRoute внутри компонента не совпадает в Switch; мерч-сабы открываются через /{slug} → SlugResolver с forcedSubSlug prop
