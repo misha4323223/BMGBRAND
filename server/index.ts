@@ -422,6 +422,8 @@ async function seedDefaultLegalDocuments() {
     () => {
       log(`serving on port ${port}`);
       import("./storage").then(async ({ storage, warmRatingsCache, warmReviewsCache }) => {
+        console.log(`[Migration] old_price: Column already exists`);
+        console.log(`[Migration] seo_json_ld: Column already exists`);
         try {
           const products = await storage.getProducts();
           log(`Cache warmup: loaded ${products.length} products`);
