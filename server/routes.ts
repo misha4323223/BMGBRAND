@@ -13053,6 +13053,13 @@ BMGBRAND — официальный производитель и магазин
       const existing = await storage.getPageSettings(pageName);
       const merged = { ...(existing[sectionId] || {}), ...incoming };
       await storage.setPageSectionSettings(pageName, sectionId, merged);
+
+      // Auto-sync: when an artist/festival page is saved, add it as a subcategory in "merch"
+      if (pageName === "artist_pages") {
+        const displayName: string = (merged.name && String(merged.name).trim()) || sectionId;
+        autoAddSubcategory("merch", displayName, storage).catch(() => {});
+      }
+
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
