@@ -892,25 +892,50 @@ function renderProduct(slug: string): string | null {
   const ogImage = meta.image && meta.image.startsWith("http") ? meta.image : `${SITE_URL}${meta.image || "/og-image.png"}`;
 
   const lcpImageUrl = (meta.images.length > 0 ? meta.images[0] : meta.image) || "";
-  // Extra custom JSON-LD from admin (added after auto-generated, not replacing it).
-  // IMPORTANT: skip any custom schema that declares @type Product/ProductGroup — we already
-  // emit a fully-populated auto-generated Product schema above.  Emitting a second Product
-  // schema (even one with stale/placeholder data) creates a duplicate that confuses Google
-  // Structured Data and AI crawlers, causing them to distrust or skip the page entirely.
-  let customJsonLdScript = "";
+  // ─── Admin JSON-LD override ──────────────────────────────────────────────────
+  // Strategy (Variant B):
+  //   • If admin set seoJsonLd with @type Product/ProductGroup → merge its fields
+  //     ON TOP of the auto-generated productSchema (admin wins, auto fills the gaps).
+  //     Placeholder/empty URLs are silently skipped so stale admin data can't break
+  //     a valid auto-generated field.  Result: exactly ONE Product schema.
+  //   • Non-Product types (FAQPage, VideoObject, etc.) from admin are appended as a
+  //     separate <script> block alongside the main Product schema.
+  const isPlaceholderValue = (v: any): boolean =>
+    typeof v === "string" && (v.includes("/placeholder") || v.includes("example.com") || v.trim() === "");
+
+  let customNonProductScript = "";
   if ((meta as any).seoJsonLd) {
     try {
       const parsed = JSON.parse((meta as any).seoJsonLd);
-      const hasProductType = (obj: any): boolean => {
-        if (!obj) return false;
-        if (Array.isArray(obj)) return obj.some(hasProductType);
+
+      // Extract the first Product/ProductGroup object (parsed may be array or plain object)
+      const extractProduct = (obj: any): Record<string, any> | null => {
+        if (!obj) return null;
+        if (Array.isArray(obj)) {
+          for (const x of obj) { const f = extractProduct(x); if (f) return f; }
+          return null;
+        }
         const t = obj["@type"];
-        return t === "Product" || t === "ProductGroup";
+        return (t === "Product" || t === "ProductGroup") ? obj : null;
       };
-      if (!hasProductType(parsed)) {
-        customJsonLdScript = `\n  <script type="application/ld+json">${JSON.stringify(parsed)}</script>`;
+
+      const adminProduct = extractProduct(parsed);
+      if (adminProduct) {
+        // Merge admin fields on top of auto-generated productSchema (admin overrides)
+        for (const [key, val] of Object.entries(adminProduct)) {
+          if (key === "@context" || key === "@type") continue;  // keep auto-generated type
+          if (isPlaceholderValue(val)) continue;                // skip stale placeholders
+          (productSchema as any)[key] = val;
+        }
       }
-      // If it is a Product type — silently skip; our auto-generated schema is authoritative.
+
+      // Collect any non-Product schemas from admin (e.g. FAQPage) to append separately
+      const nonProductItems = Array.isArray(parsed)
+        ? parsed.filter((x: any) => x && x["@type"] !== "Product" && x["@type"] !== "ProductGroup")
+        : (parsed && parsed["@type"] !== "Product" && parsed["@type"] !== "ProductGroup" ? [parsed] : []);
+      if (nonProductItems.length > 0) {
+        customNonProductScript = `\n  <script type="application/ld+json">${JSON.stringify(nonProductItems)}</script>`;
+      }
     } catch { /* invalid JSON — skip silently */ }
   }
 
@@ -924,7 +949,7 @@ function renderProduct(slug: string): string | null {
     // Preload the first product photo so the browser starts fetching it
     // before it parses the <img> tag — directly improves LCP score.
     preloadImage: lcpImageUrl.startsWith("http") ? lcpImageUrl : undefined,
-  }) + customJsonLdScript;
+  }) + customNonProductScript;
 
   const imagesHtml = meta.images.slice(0, 6).map((imgUrl, idx) =>
     `<img src="${esc(imgUrl)}" alt="${esc(idx === 0 ? meta.title + " — фото" : meta.title + " — фото " + (idx + 1))}" width="400" height="400" loading="${idx === 0 ? "eager" : "lazy"}">`

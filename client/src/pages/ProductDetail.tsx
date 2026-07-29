@@ -807,67 +807,108 @@ export default function ProductDetail() {
     "returnFees": "https://schema.org/ReturnFeesCustomerResponsibility",
   };
 
-  const productJsonLd = [
-    {
-      "@context": "https://schema.org",
-      "@type": "Product",
-      "name": product.name,
-      "description": product.description || `${product.name} — купить в BMGBRAND`,
-      "image": allProductImages.length > 0 ? allProductImages : [productImage],
+  // ─── Admin JSON-LD override (Variant B) ─────────────────────────────────────
+  // If admin set seoJsonLd with @type Product → its fields merge ON TOP of the
+  // auto-generated schema below (admin wins; placeholder/empty URLs are skipped).
+  // Non-Product types (FAQPage, VideoObject, etc.) are collected as extra schemas.
+  // Result: always exactly ONE Product schema per page.
+  const isPlaceholderJsonLdValue = (v: any): boolean =>
+    typeof v === "string" && (v.includes("/placeholder") || v.includes("example.com") || v.trim() === "");
+
+  const adminSeoJsonLd = (() => {
+    const raw = (product as any).seoJsonLd;
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  })();
+
+  const extractAdminProduct = (obj: any): Record<string, any> | null => {
+    if (!obj) return null;
+    if (Array.isArray(obj)) { for (const x of obj) { const f = extractAdminProduct(x); if (f) return f; } return null; }
+    const t = obj["@type"];
+    return (t === "Product" || t === "ProductGroup") ? obj : null;
+  };
+  const adminProductOverride = extractAdminProduct(adminSeoJsonLd);
+
+  const adminExtraSchemas: any[] = adminSeoJsonLd
+    ? (Array.isArray(adminSeoJsonLd)
+        ? adminSeoJsonLd.filter((x: any) => x && x["@type"] !== "Product" && x["@type"] !== "ProductGroup")
+        : (adminSeoJsonLd["@type"] !== "Product" && adminSeoJsonLd["@type"] !== "ProductGroup"
+            ? [adminSeoJsonLd] : []))
+    : [];
+
+  // Auto-generated Product schema — complete, built from live product data
+  const baseProduct: Record<string, any> = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": product.name,
+    "description": product.description || `${product.name} — купить в BMGBRAND`,
+    "image": allProductImages.length > 0 ? allProductImages : [productImage],
+    "url": productUrl,
+    "sku": (product as any).article || product.sku || product.id,
+    "brand": { "@id": organizationSchema["@id"] },
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "RUB",
+      "price": (product.price / 100).toFixed(2),
+      "priceValidUntil": new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split("T")[0],
+      "availability": (product as any).preorderEnabled
+        ? "https://schema.org/PreOrder"
+        : (product.stock ?? 0) > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+      "itemCondition": "https://schema.org/NewCondition",
       "url": productUrl,
-      "sku": (product as any).article || product.sku || product.id,
-      "brand": { "@id": organizationSchema["@id"] },
-      "offers": {
-        "@type": "Offer",
-        "priceCurrency": "RUB",
-        "price": (product.price / 100).toFixed(2),
-        "priceValidUntil": new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split("T")[0],
-        "availability": (product as any).preorderEnabled
-          ? "https://schema.org/PreOrder"
-          : (product.stock ?? 0) > 0
-            ? "https://schema.org/InStock"
-            : "https://schema.org/OutOfStock",
-        "itemCondition": "https://schema.org/NewCondition",
-        "url": productUrl,
-        "seller": { "@id": organizationSchema["@id"] },
-        "hasMerchantReturnPolicy": merchantReturnPolicy,
-      },
-      ...(product.category ? { "category": product.category } : {}),
-      ...((product.colors?.length > 0 || selectedColorName) ? { "color": product.colors?.length > 0 ? product.colors.join(", ") : selectedColorName } : {}),
-      ...((product.sizes?.length > 0 || currentSizeRange) ? { "size": product.sizes?.length > 0 ? product.sizes.join(", ") : currentSizeRange } : {}),
-      ...(reviewCount > 0 ? {
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": avgRating,
-          "reviewCount": reviewCount,
-          "bestRating": 5,
-          "worstRating": 1,
-        },
-        "review": productReviews.slice(0, 5).map(r => ({
-          "@type": "Review",
-          "author": { "@type": "Person", "name": r.authorName },
-          "reviewRating": { "@type": "Rating", "ratingValue": r.rating, "bestRating": 5 },
-          ...(r.comment ? { "reviewBody": r.comment } : {}),
-          ...(r.createdAt ? { "datePublished": r.createdAt.split("T")[0] } : {}),
-        })),
-      } : {}),
+      "seller": { "@id": organizationSchema["@id"] },
+      "hasMerchantReturnPolicy": merchantReturnPolicy,
     },
+    ...(product.category ? { "category": product.category } : {}),
+    ...((product.colors?.length > 0 || selectedColorName) ? { "color": product.colors?.length > 0 ? product.colors.join(", ") : selectedColorName } : {}),
+    ...((product.sizes?.length > 0 || currentSizeRange) ? { "size": product.sizes?.length > 0 ? product.sizes.join(", ") : currentSizeRange } : {}),
+    ...(reviewCount > 0 ? {
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": avgRating,
+        "reviewCount": reviewCount,
+        "bestRating": 5,
+        "worstRating": 1,
+      },
+      "review": productReviews.slice(0, 5).map(r => ({
+        "@type": "Review",
+        "author": { "@type": "Person", "name": r.authorName },
+        "reviewRating": { "@type": "Rating", "ratingValue": r.rating, "bestRating": 5 },
+        ...(r.comment ? { "reviewBody": r.comment } : {}),
+        ...(r.createdAt ? { "datePublished": r.createdAt.split("T")[0] } : {}),
+      })),
+    } : {}),
+  };
+
+  // If admin has a Product override → merge its fields on top (admin wins, skip placeholders)
+  if (adminProductOverride) {
+    for (const [key, val] of Object.entries(adminProductOverride)) {
+      if (key === "@context" || key === "@type") continue;
+      if (isPlaceholderJsonLdValue(val)) continue;
+      baseProduct[key] = val;
+    }
+  }
+
+  // BreadcrumbList — use the proper Russian category name, not the raw slug
+  const breadcrumbCategoryName = product.category
+    ? (CATEGORIES[product.category as keyof typeof CATEGORIES]?.name ?? product.category)
+    : null;
+
+  const productJsonLd = [
+    baseProduct,
     {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "Главная", "item": origin },
         { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${origin}/products` },
-        ...(product.category ? [{ "@type": "ListItem", "position": 3, "name": product.category, "item": `${origin}/products/${encodeURIComponent(product.category)}` }] : []),
-        { "@type": "ListItem", "position": product.category ? 4 : 3, "name": product.name, "item": productUrl },
+        ...(breadcrumbCategoryName ? [{ "@type": "ListItem", "position": 3, "name": breadcrumbCategoryName, "item": `${origin}/products/${encodeURIComponent(product.category!)}` }] : []),
+        { "@type": "ListItem", "position": breadcrumbCategoryName ? 4 : 3, "name": product.name, "item": productUrl },
       ],
     },
-    // Custom JSON-LD from admin (added after auto-generated, not replacing it)
-    ...(() => {
-      const raw = (product as any).seoJsonLd;
-      if (!raw) return [];
-      try { return [JSON.parse(raw)]; } catch { return []; }
-    })(),
+    ...adminExtraSchemas,
     { "@context": "https://schema.org", ...organizationSchema },
     {
       "@context": "https://schema.org",
