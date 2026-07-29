@@ -428,6 +428,7 @@ export function getCachedProductMetaBySlug(slug: string): {
   composition: string | null; careInstructions: string | null;
   measurements: Array<{ size: string; [key: string]: string }> | null;
   featureBadgeIds: string[];
+  createdAt: Date | null; updatedAt: Date | null;
 } | null {
   const products = productsCache.get("all");
   if (!products || products.length === 0) return null;
@@ -465,6 +466,8 @@ export function getCachedProductMetaBySlug(slug: string): {
       ? (product as any).measurements
       : null,
     featureBadgeIds: Array.isArray((product as any).featureBadgeIds) ? (product as any).featureBadgeIds : [],
+    createdAt: (product as any).createdAt instanceof Date ? (product as any).createdAt : null,
+    updatedAt: (product as any).updatedAt instanceof Date ? (product as any).updatedAt : null,
   };
 }
 
@@ -1048,6 +1051,7 @@ export class DatabaseStorage implements IStorage {
       })(),
       slug: data.slug || null,
       createdAt: data.created_at ? new Date(Number(data.created_at) / 1000) : new Date(),
+      updatedAt: data.updated_at ? new Date(Number(data.updated_at) / 1000) : null,
       composition: data.composition || null,
       careInstructions: data.care_instructions || null,
       specsHtml: data.specs_html || null,
@@ -1804,7 +1808,13 @@ export class DatabaseStorage implements IStorage {
       }
 
       if (setClauses.length === 0) return null;
-      
+
+      // Всегда обновляем updated_at при реальном изменении товара — используется
+      // как dateModified в Product JSON-LD (сигнал свежести для Google/Яндекса).
+      declareStatements += 'DECLARE $updated_at AS Timestamp;\n';
+      setClauses.push('updated_at = $updated_at');
+      params.$updated_at = TypedValues.timestamp(new Date());
+
       const query = `
         ${declareStatements}
         UPDATE products SET ${setClauses.join(', ')} WHERE id = $id;

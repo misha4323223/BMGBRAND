@@ -767,6 +767,12 @@ function renderProduct(slug: string): string | null {
     "url": `${SITE_URL}/${slug}`,
     "sku": meta.sku,
     "brand": { "@id": organizationSchema["@id"] },
+    ...(meta.createdAt ? { "datePublished": meta.createdAt.toISOString().split("T")[0] } : {}),
+    // dateModified — сигнал свежести карточки для Google/Яндекса. Берём updatedAt,
+    // если товар когда-либо редактировался в админке; иначе падаем на createdAt.
+    ...((meta.updatedAt || meta.createdAt)
+      ? { "dateModified": (meta.updatedAt || meta.createdAt)!.toISOString().split("T")[0] }
+      : {}),
     "offers": {
       "@type": "Offer",
       "priceCurrency": "RUB",
