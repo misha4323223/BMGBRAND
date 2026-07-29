@@ -739,7 +739,7 @@ export default function ProductDetail() {
     selectedColorName ? `цвет: ${selectedColorName}` : "",
     sizesText ? `Размеры: ${sizesText}.` : "",
     "Доставка по России СДЭК.",
-    product.description ? product.description.slice(0, 80) : "",
+    product.description ? product.description.slice(0, 160) : "",
   ].filter(Boolean);
   const autoSeoDescription = seoDescParts.join(" ").slice(0, 220);
   const seoDescription = product.seoDescription || autoSeoDescription;

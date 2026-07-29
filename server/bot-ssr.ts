@@ -694,7 +694,7 @@ function renderProduct(slug: string): string | null {
     isMerch ? `Купить мерч ${meta.title} BOOOMERANGS` : `Купить ${meta.title} BOOOMERANGS`,
     meta.sizes.length > 0 ? `Размеры: ${meta.sizes.join(", ")}.` : "",
     "Доставка по России СДЭК.",
-    meta.description ? meta.description.slice(0, 80) : "",
+    meta.description ? meta.description.slice(0, 160) : "",
   ].filter(Boolean).join(" ").slice(0, 220);
 
   const statusCls = meta.preorderEnabled ? "preorder" : meta.stock > 0 ? "in-stock" : "out-of-stock";
@@ -1964,6 +1964,69 @@ ${content}
   return wrapPage(head, body);
 }
 
+/** SSR for artist pages: /@artistSlug */
+function renderArtist(artistSlug: string): string | null {
+  const artistPages = getCachedRawPageSettings("artist_pages") as Record<string, any> | null;
+  if (!artistPages) return null;
+  const data = artistPages[artistSlug];
+  if (!data || !data.name) return null;
+
+  const name = esc(data.name as string);
+  const role = data.role ? esc(data.role as string) : "";
+  const aboutTitle = data.aboutTitle ? esc(data.aboutTitle as string) : "";
+  const aboutText = ((data.aboutText || data.shortDescription || "") as string).trim();
+  const heroImage = (data.heroImage as string) || "";
+  const canonical = `${SITE_URL}/@${artistSlug}`;
+
+  const rawDesc = aboutText
+    ? aboutText.slice(0, 160)
+    : `${data.name}${role ? ` — ${data.role}` : ""}. Официальный мерч ${data.name} в интернет-магазине BOOOMERANGS. Доставка по всей России.`;
+
+  const breadcrumbSchema = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
+      { "@type": "ListItem", "position": 2, "name": "Мерч", "item": `${SITE_URL}/products/merch` },
+      { "@type": "ListItem", "position": 3, "name": data.name, "item": canonical },
+    ]
+  });
+
+  const personSchema = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": data.name,
+    "description": rawDesc,
+    ...(data.role ? { "jobTitle": data.role } : {}),
+    ...(heroImage ? { "image": heroImage } : {}),
+    "url": canonical,
+    "sameAs": [`${SITE_URL}/@${artistSlug}`],
+  });
+
+  const head = baseHead({
+    title: `${data.name} × BMGBRAND | BOOOMERANGS`,
+    description: rawDesc,
+    canonical,
+    ogImage: heroImage,
+    ogType: "profile",
+    jsonLd: breadcrumbSchema,
+    extra: [
+      `  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">`,
+      `  <script type="application/ld+json">${personSchema}</script>`,
+    ].join("\n"),
+  });
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / <a href="/products/merch">Мерч</a> / ${name}</div>
+<h1>${name}</h1>
+${role ? `<p class="desc">${role}</p>` : ""}
+${aboutTitle ? `<h2>${aboutTitle}</h2>` : ""}
+${aboutText ? `<p class="desc">${esc(aboutText)}</p>` : ""}
+<p style="margin-top:1.5rem"><a href="/products/merch">← Смотреть весь мерч</a></p>`;
+
+  return wrapPage(head, body);
+}
+
 /** Compute a strong ETag from HTML content for HTTP conditional requests. */
 function makeETag(html: string): string {
   return '"' + crypto.createHash("md5").update(html).digest("hex") + '"';
@@ -2032,6 +2095,12 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
       if (campaignSlug && /^[a-z0-9][a-z0-9-]*$/.test(campaignSlug)) {
         html = renderConceptCampaign(campaignSlug);
       }
+    } else if (reqPath.startsWith("/@")) {
+      // Artist pages: /@artistSlug
+      const artistSlug = reqPath.slice(2).replace(/\/$/, "");
+      if (artistSlug && /^[a-z0-9][a-z0-9-]*$/.test(artistSlug)) {
+        html = renderArtist(artistSlug);
+      }
     } else if (reqPath === "/products") {
       html = renderCatalog();
     } else if (reqPath.startsWith("/products/")) {
@@ -2053,6 +2122,12 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
         // If not a product, check if it's a subcategory slug (e.g. /tolstovki, /dikaya-myata)
         if (!html) {
           html = renderSubcategory(slug);
+        }
+        // If not a product or subcategory, check if it's a top-level category slug
+        // (e.g. /socks → /products/socks). Redirect bots to the canonical URL.
+        if (!html && CATEGORIES[slug]) {
+          res.redirect(301, `/products/${slug}`);
+          return;
         }
         if (!html) {
           // Check if this slug belongs to a hidden/unavailable product.

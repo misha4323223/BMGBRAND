@@ -1,4 +1,4 @@
-import { useRoute } from "wouter";
+import { useRoute, Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, lazy, Suspense } from "react";
 import { CATEGORIES, normalizeCategories } from "@shared/schema";
@@ -97,11 +97,8 @@ export default function SlugResolver() {
   }
 
   if (resolved.type === "category") {
-    return (
-      <Suspense fallback={<LoadingFallback />}>
-        <ProductList forcedCatSlug={resolved.catSlug} />
-      </Suspense>
-    );
+    // 301-equivalent client redirect: canonical URL is /products/:catSlug
+    return <Redirect to={`/products/${resolved.catSlug}`} />;
   }
 
   return (
