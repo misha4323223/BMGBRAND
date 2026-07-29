@@ -361,6 +361,14 @@ footer a{color:#999}footer p+p{margin-top:.5rem}
 .out-of-stock{color:#888}
 `.trim();
 
+/** Trim description to ≤155 chars, breaking at the last word boundary so the
+ *  text never ends mid-word in SERPs. Appends "…" only when actually cut. */
+function trimDesc(s: string, max = 155): string {
+  if (s.length <= max) return s;
+  const cut = s.lastIndexOf(" ", max);
+  return (cut > 60 ? s.slice(0, cut) : s.slice(0, max)) + "…";
+}
+
 function baseHead(opts: {
   title: string;
   description: string;
@@ -376,7 +384,7 @@ function baseHead(opts: {
 }): string {
   const { title, description, canonical, ogImage, ogType = "website", jsonLd, extra, preloadImage } = opts;
   const t = esc(title);
-  const d = esc(description.slice(0, 160));
+  const d = esc(trimDesc(description));
   return [
     `  <meta charset="UTF-8">`,
     `  <meta name="viewport" content="width=device-width, initial-scale=1.0">`,
@@ -718,7 +726,7 @@ function renderProduct(slug: string): string | null {
     isMerch ? `Купить мерч ${meta.title} BOOOMERANGS` : `Купить ${meta.title} BOOOMERANGS`,
     meta.sizes.length > 0 ? `Размеры: ${meta.sizes.join(", ")}.` : "",
     "Доставка по России СДЭК.",
-    meta.description ? meta.description.slice(0, 160) : "",
+    meta.description ? trimDesc(meta.description, 120) : "",
   ].filter(Boolean).join(" ").slice(0, 220);
 
   const statusCls = meta.preorderEnabled ? "preorder" : meta.stock > 0 ? "in-stock" : "out-of-stock";
@@ -2104,7 +2112,7 @@ function renderArtist(artistSlug: string): string | null {
   const canonical = `${SITE_URL}/@${artistSlug}`;
 
   const rawDesc = aboutText
-    ? aboutText.slice(0, 160)
+    ? trimDesc(aboutText)
     : `${data.name}${role ? ` — ${data.role}` : ""}. Официальный мерч ${data.name} в интернет-магазине BOOOMERANGS. Доставка по всей России.`;
 
   const breadcrumbSchema = JSON.stringify({

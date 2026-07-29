@@ -1514,7 +1514,7 @@ ${artistLinks || "- (список формируется)"}
       { loc: "/products", changefreq: "daily", priority: "0.9" },
       { loc: "/about", changefreq: "monthly", priority: "0.7" },
       { loc: "/faq", changefreq: "monthly", priority: "0.5" },
-      { loc: "/blog", changefreq: "weekly", priority: "0.7" },
+      { loc: "/preorder", changefreq: "weekly", priority: "0.8" },
       { loc: "/vacancies", changefreq: "monthly", priority: "0.4" },
       { loc: "/gift-cards", changefreq: "monthly", priority: "0.6" },
       { loc: "/wholesale/register", changefreq: "monthly", priority: "0.5" },

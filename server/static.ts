@@ -462,7 +462,12 @@ function injectMeta(html: string, opts: {
 }): string {
   const { title, description, ogImage, ogType = "website", canonical, jsonLd } = opts;
   const t = escHtml(title);
-  const d = escHtml(description.slice(0, 160));
+  function trimDescStatic(s: string, max = 155): string {
+    if (s.length <= max) return s;
+    const cut = s.lastIndexOf(" ", max);
+    return (cut > 60 ? s.slice(0, cut) : s.slice(0, max)) + "…";
+  }
+  const d = escHtml(trimDescStatic(description));
   const img = escHtml(ogImage);
 
   html = html.replace(/<title>[^<]*<\/title>/, `<title>${t}</title>`);
