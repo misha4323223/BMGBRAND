@@ -1586,18 +1586,13 @@ export default function Home() {
               <div key={sectionId}>
                 <section className={`py-10 sm:py-20 ${customBg}`}>
                   <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-end justify-between mb-6 sm:mb-12">
+                    <div className="mb-6 sm:mb-12">
                       <div>
                         {customSettings.subtitle && (
                           <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">{customSettings.subtitle}</p>
                         )}
                         <h2 className="text-2xl sm:text-5xl font-bold tracking-tight">{customSettings.title || "Хиты продаж"}</h2>
                       </div>
-                      {customSettings.linkUrl && (
-                        <Link href={customSettings.linkUrl} className="group hidden sm:flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
-                          {customSettings.linkText || "Смотреть всё"} <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                        </Link>
-                      )}
                     </div>
                     {isLoading ? null : (
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
@@ -1607,12 +1602,12 @@ export default function Home() {
                       </div>
                     )}
                     {customSettings.linkUrl && (
-                      <div className="mt-8 text-center sm:hidden">
-                        <Link href={customSettings.linkUrl}>
-                          <Button variant="outline" size="sm" className="rounded-full">
-                            {customSettings.linkText || "Смотреть всё"} <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                          </Button>
-                        </Link>
+                      <div className="flex justify-center mt-10 sm:mt-14">
+                        <Button asChild variant="outline" size="lg" className="uppercase tracking-wide gap-2.5">
+                          <Link href={customSettings.linkUrl}>
+                            {customSettings.linkText || "Смотреть всё"} <ArrowRight className="w-4 h-4" />
+                          </Link>
+                        </Button>
                       </div>
                     )}
                   </div>
