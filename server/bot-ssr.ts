@@ -107,6 +107,23 @@ export function isBot(ua: string): boolean {
   return BOT_UA_PATTERNS.some(p => p.test(ua));
 }
 
+/**
+ * Returns true ONLY for real user browsers: Chrome, Firefox, Safari, Edge, Opera.
+ * Anything that doesn't positively match a browser gets SSR HTML instead of the
+ * empty React shell — so SEO tools, new AI crawlers, and unknown scrapers all see
+ * full content without needing to be whitelisted.
+ */
+export function isBrowser(ua: string): boolean {
+  if (!ua.includes("Mozilla/5.0")) return false;
+  return (
+    /Chrome\/\d/.test(ua)  ||   // Chrome, Chromium, Brave
+    /Firefox\/\d/.test(ua) ||   // Firefox
+    /Edg\/\d/.test(ua)     ||   // Edge (modern)
+    /OPR\/\d/.test(ua)     ||   // Opera
+    (/Safari\/\d/.test(ua) && /Version\/\d/.test(ua)) // Safari (not Chrome)
+  );
+}
+
 // ─── Tiny in-memory cache for rendered bot pages ──────────────────────────────
 interface BotCacheEntry { html: string; ts: number }
 const botCache = new Map<string, BotCacheEntry>();
@@ -2056,9 +2073,12 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
   // Only GET requests
   if (req.method !== "GET") return next();
 
-  // Must be a known bot
+  // Serve SSR to known bots AND to anything that isn't clearly a real browser.
+  // This way new AI crawlers, SEO tools, and unknown scrapers all get full HTML
+  // without needing to be whitelisted — only real Chrome/Firefox/Safari/Edge
+  // users bypass SSR and get the React app.
   const ua = req.headers["user-agent"] || "";
-  if (!isBot(ua)) return next();
+  if (!isBot(ua) && isBrowser(ua)) return next();
 
   // Skip API calls, static assets, and paths with file extensions
   const reqPath = req.path;
