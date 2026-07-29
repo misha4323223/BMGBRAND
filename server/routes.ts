@@ -10984,7 +10984,7 @@ ${artistLinks || "- (список формируется)"}
 
       // Verify the requester owns this order
       const requestUserId = (req as any).user?.id;
-      const ownsViaSession = order.sessionId === req.sessionID;
+      const ownsViaSession = order.sessionId === (req as any).sessionID;
       const ownsViaUser = requestUserId && order.userId === requestUserId;
       if (!ownsViaSession && !ownsViaUser) {
         return res.status(404).json({ error: "Заказ не найден" });
