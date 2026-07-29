@@ -13,7 +13,7 @@ import cookieParser from "cookie-parser";
 import compression from "compression";
 import helmet from "helmet";
 import cors from "cors";
-import { registerRoutes } from "./routes";
+import { registerRoutes, syncArtistPagesToMerchSubcategories } from "./routes";
 import { migrateAiKnowledgeDefaults } from "./ai-chat";
 import { serveStatic } from "./static";
 import { botSsrMiddleware } from "./bot-ssr";
@@ -461,6 +461,12 @@ async function seedDefaultLegalDocuments() {
           } catch (err) {
             console.error(`[Warmup] Failed to preload pageSettings(${page}):`, err);
           }
+        }
+        // Sync all existing artist/festival pages as merch subcategories
+        try {
+          await syncArtistPagesToMerchSubcategories(storage);
+        } catch (err) {
+          console.error("[Warmup] Failed to sync artist pages to merch subcategories:", err);
         }
       });
       startAbandonedCartJob();

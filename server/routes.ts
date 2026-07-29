@@ -933,6 +933,21 @@ setTimeout(() => {
 
 const autoAddedSubcategoriesCache = new Set<string>();
 
+export async function syncArtistPagesToMerchSubcategories(storageRef: any): Promise<void> {
+  try {
+    const artistPages = await storageRef.getPageSettings("artist_pages");
+    const slugs = Object.keys(artistPages || {});
+    if (slugs.length === 0) return;
+    for (const slug of slugs) {
+      const name: string = (artistPages[slug]?.name && String(artistPages[slug].name).trim()) || slug;
+      await autoAddSubcategory("merch", name, storageRef);
+    }
+    console.log(`[AutoSubcat] Startup sync: checked ${slugs.length} artist pages against merch subcategories`);
+  } catch (e) {
+    console.error("[AutoSubcat] Startup sync error:", e);
+  }
+}
+
 async function autoAddSubcategory(categorySlug: string, subcategoryName: string, storageRef: any): Promise<void> {
   const cacheKey = `${categorySlug}:${subcategoryName}`;
   if (autoAddedSubcategoriesCache.has(cacheKey)) return;
@@ -957,15 +972,18 @@ async function autoAddSubcategory(categorySlug: string, subcategoryName: string,
       return;
     }
 
-    const existing: string[] = categories[categorySlug].subcategories || [];
-    const alreadyExists = existing.some((s: string) => s.toLowerCase().trim() === subcategoryName.toLowerCase().trim());
+    const existing: any[] = categories[categorySlug].subcategories || [];
+    const nameOf = (s: any): string => (typeof s === 'string' ? s : (s?.name ?? ''));
+    const alreadyExists = existing.some((s: any) => nameOf(s).toLowerCase().trim() === subcategoryName.toLowerCase().trim());
     
     if (alreadyExists) {
       autoAddedSubcategoriesCache.add(cacheKey);
       return;
     }
 
-    existing.push(subcategoryName);
+    // Determine format from existing entries: objects {name,slug} or plain strings
+    const useObjects = existing.length > 0 && typeof existing[0] === 'object';
+    existing.push(useObjects ? { name: subcategoryName, slug: subcategoryName } : subcategoryName);
     categories[categorySlug].subcategories = existing;
 
     await storageRef.setPageSectionSettings("site_config", "categories_data", categories);
