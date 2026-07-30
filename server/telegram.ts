@@ -249,7 +249,8 @@ export function notifyNewOrder(order: OrderNotification): void {
   }
 
   if (!isWh && order.deliveryService) {
-    header += `\n\u{1F7E2} СДЭК`;
+    const svcLabel = order.deliveryService === "pickup" ? "Самовывоз" : order.deliveryService === "ozon" ? "Ozon" : "СДЭК";
+    header += `\n\u{1F7E2} ${svcLabel}`;
   }
 
   if (order.address) {

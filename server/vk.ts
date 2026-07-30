@@ -154,7 +154,8 @@ export function vkNotifyNewOrder(order: OrderNotification): void {
   }
 
   if (!isWh && order.deliveryService) {
-    header += `\n🟢 СДЭК`;
+    const svcLabel = order.deliveryService === "pickup" ? "Самовывоз" : order.deliveryService === "ozon" ? "Ozon" : "СДЭК";
+    header += `\n🟢 ${svcLabel}`;
   }
 
   if (order.address) header += `\n📍 ${order.address}`;

@@ -3539,6 +3539,7 @@ ${artistLinks || "- (список формируется)"}
                   paymentMethod: 'yookassa',
                   isWholesale: order.isWholesale || false,
                   promoCode: order.promoCode || undefined,
+                  deliveryService: order.deliveryService || undefined,
                 });
                 vkNotifyNewOrder({
                   orderId: order.id,
@@ -3551,6 +3552,7 @@ ${artistLinks || "- (список формируется)"}
                   paymentMethod: 'yookassa',
                   isWholesale: order.isWholesale || false,
                   promoCode: order.promoCode || undefined,
+                  deliveryService: order.deliveryService || undefined,
                 });
               }
             } catch (err: any) {
@@ -4006,6 +4008,7 @@ ${artistLinks || "- (список формируется)"}
                     paymentMethod: 'tbank',
                     isWholesale: order.isWholesale || false,
                     promoCode: order.promoCode || undefined,
+                    deliveryService: order.deliveryService || undefined,
                   });
                   vkNotifyNewOrder({
                     orderId: order.id,
@@ -4018,6 +4021,7 @@ ${artistLinks || "- (список формируется)"}
                     paymentMethod: 'tbank',
                     isWholesale: order.isWholesale || false,
                     promoCode: order.promoCode || undefined,
+                    deliveryService: order.deliveryService || undefined,
                   });
                 }
               } catch (err: any) {
@@ -4308,6 +4312,7 @@ ${artistLinks || "- (список формируется)"}
             paymentMethod: "ozon-pay",
             isWholesale: false,
             promoCode: order.promoCode || undefined,
+            deliveryService: order.deliveryService || undefined,
           });
           vkNotifyNewOrder({
             orderId: order.id,
@@ -4320,6 +4325,7 @@ ${artistLinks || "- (список формируется)"}
             paymentMethod: "ozon-pay",
             isWholesale: false,
             promoCode: order.promoCode || undefined,
+            deliveryService: order.deliveryService || undefined,
           });
         }
       } catch (err: any) {
@@ -10220,7 +10226,7 @@ ${artistLinks || "- (список формируется)"}
       const cdekDeliveryType = req.body.cdekDeliveryType || "pickup";
       const cdekDoorAddress = req.body.cdekDoorAddress || undefined;
       
-      const deliveryService = req.body.deliveryService === "ozon" ? "ozon" : "cdek";
+      const deliveryService: "cdek" | "ozon" | "pickup" = req.body.deliveryService === "ozon" ? "ozon" : req.body.deliveryService === "pickup" ? "pickup" : "cdek";
       
       const isWholesale = req.body.isWholesale === true;
       const clientDeliveryCost = Number(req.body.deliveryCost) || 0;
