@@ -237,11 +237,11 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
   const isModalPreorderCollecting = (activeProduct as any).preorderEnabled && (activeProduct as any).preorderStatus === "collecting";
   const showModalPreorderLabels = isModalPreorderCollecting && !!activeHasDiscount;
 
-  // Предзаказ закрыт для новых заявок (производство / отправка / отправлено / отменён)
+  // Карточка заблокирована только в статусе "production" (товар в производстве).
+  // В статусе "shipping" и далее — карточка кликабельна и ведёт на страницу товара.
   const isPreorderLocked = !!(
     (product as any).preorderEnabled &&
-    (product as any).preorderStatus &&
-    (product as any).preorderStatus !== "collecting"
+    (product as any).preorderStatus === "production"
   );
 
   const handleAddToCart = () => {
@@ -425,6 +425,17 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                 </span>
               )}
             </div>
+
+            {(product as any).preorderEnabled && (product as any).preorderStatus === "production" && (
+              <div className="absolute bottom-0 left-0 right-0 z-10 bg-black/75 px-3 py-2.5 text-white text-center pointer-events-none">
+                <p className="text-[9px] sm:text-[10px] uppercase tracking-widest font-medium opacity-80">В производстве</p>
+                {(product as any).preorderShippingDate && (
+                  <p className="text-[11px] sm:text-xs font-semibold mt-0.5">
+                    Доступен с {new Date((product as any).preorderShippingDate).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                )}
+              </div>
+            )}
 
             {showWholesaleOverlay && (
               <div
