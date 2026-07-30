@@ -4165,17 +4165,6 @@ export class DatabaseStorage implements IStorage {
           : `products.feature_badge_ids: ${err.message}`);
       }
 
-      try {
-        await driver.tableClient.withSession(async (session: ydb.Session) => {
-          await session.executeQuery(`ALTER TABLE products ADD COLUMN wholesale_discount_percent Double`);
-        });
-        results.push("products.wholesale_discount_percent: added");
-      } catch (err: any) {
-        results.push(err.message?.includes("already exists") || err.message?.includes("Member not found")
-          ? "products.wholesale_discount_percent: exists"
-          : `products.wholesale_discount_percent: ${err.message}`);
-      }
-
       return { success: true, message: results.join("; ") };
     } catch (err: any) {
       console.error("[Migration Error]:", err.message);
