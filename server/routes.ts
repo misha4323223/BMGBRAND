@@ -8975,6 +8975,8 @@ ${artistLinks || "- (список формируется)"}
             discountPercent: (p as any).discountPercent || null,
             fixedPrice: (p as any).fixedPrice || null,
             preorderEnabled: (p as any).preorderEnabled || false,
+            preorderStatus: (p as any).preorderStatus || null,
+            preorderShippingDate: (p as any).preorderShippingDate || null,
           });
         }
       }
