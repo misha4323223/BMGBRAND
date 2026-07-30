@@ -61,11 +61,15 @@ export function useWholesalePrice() {
   const isWholesale = user?.role === 'wholesale' && user?.wholesaleApproved === true;
   
   // Get wholesale price - only use real price from 1C (no fallback calculation)
-  const getWholesalePrice = (retailPrice: number, productWholesalePrice?: number | null) => {
+  const getWholesalePrice = (retailPrice: number, productWholesalePrice?: number | null, wholesaleDiscountPercent?: number | null) => {
     if (!isWholesale) return null;
     
     // Only return real wholesale price from 1C
     if (productWholesalePrice != null && productWholesalePrice > 0) {
+      // Apply wholesale discount percentage if set
+      if (wholesaleDiscountPercent != null && wholesaleDiscountPercent > 0) {
+        return Math.round(productWholesalePrice * (1 - wholesaleDiscountPercent / 100));
+      }
       return productWholesalePrice;
     }
     

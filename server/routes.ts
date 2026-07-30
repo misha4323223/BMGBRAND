@@ -6501,7 +6501,7 @@ ${artistLinks || "- (список формируется)"}
         name, description, price, category, subcategory,
         sizes, colors, composition, careInstructions, delivery, returnPolicy,
         measurements, images, imageUrl, sku, color, stock, sizeStock,
-        wholesalePrice, discountPercent, sizeDiscounts, seoTitle, seoDescription, seoBody, specsHtml, imageAlts, featureBadgeIds,
+        wholesalePrice, wholesaleDiscountPercent, discountPercent, sizeDiscounts, seoTitle, seoDescription, seoBody, specsHtml, imageAlts, featureBadgeIds,
         additionalCategories,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate, preorderNote,
         preorderGroup,
@@ -6554,6 +6554,7 @@ ${artistLinks || "- (список формируется)"}
         sizeStock: sizeStock || {},
         slug: autoSlug,
         wholesalePrice: wholesalePrice ? parseInt(wholesalePrice) : null,
+        wholesaleDiscountPercent: wholesaleDiscountPercent ? parseInt(wholesaleDiscountPercent) : 0,
         discountPercent: discountPercent ? parseInt(discountPercent) : 0,
         sizeDiscounts: (sizeDiscounts && typeof sizeDiscounts === 'object') ? sizeDiscounts : {},
         seoTitle: seoTitle || '',
@@ -6810,7 +6811,7 @@ ${artistLinks || "- (список формируется)"}
       const { 
         name, description, price, category, subcategory, subSubcategory, additionalCategories,
         sizes, colors, composition, careInstructions, note, delivery, returnPolicy,
-        measurements, measurementSections, images, imageUrl, sku, color, wholesalePrice,
+        measurements, measurementSections, images, imageUrl, sku, color, wholesalePrice, wholesaleDiscountPercent,
         isNew, badgeText, lookProducts, lookCategory, lookSubcategory,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate,
         stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl, disabledNotifySizes,
@@ -6851,6 +6852,10 @@ ${artistLinks || "- (список формируется)"}
       if (sku !== undefined) updateData.sku = sku;
       if (color !== undefined) updateData.color = color;
       if (wholesalePrice !== undefined) updateData.wholesalePrice = parseInt(wholesalePrice);
+      if (wholesaleDiscountPercent !== undefined) {
+        const wdp = parseInt(wholesaleDiscountPercent);
+        updateData.wholesaleDiscountPercent = isNaN(wdp) || wdp <= 0 ? 0 : Math.min(wdp, 99);
+      }
       if (discountPercent !== undefined) {
         const dp = parseInt(discountPercent);
         updateData.discountPercent = isNaN(dp) || dp <= 0 ? 0 : Math.min(dp, 99);
@@ -8977,6 +8982,7 @@ ${artistLinks || "- (список формируется)"}
             preorderEnabled: (p as any).preorderEnabled || false,
             preorderStatus: (p as any).preorderStatus || null,
             preorderShippingDate: (p as any).preorderShippingDate || null,
+            wholesaleDiscountPercent: (p as any).wholesaleDiscountPercent || null,
           });
         }
       }

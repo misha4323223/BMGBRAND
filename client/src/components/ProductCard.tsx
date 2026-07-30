@@ -160,7 +160,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
     return null;
   }, [(product as any).hoverThumbnailUrl, product.images, fallbackIndex]);
   const retailPrice = useMemo(() => formatPrice(product.price), [product.price]);
-  const wholesalePrice = useMemo(() => getWholesalePrice(product.price, (product as any).wholesalePrice), [product.price, (product as any).wholesalePrice, getWholesalePrice]);
+  const wholesalePrice = useMemo(() => getWholesalePrice(product.price, (product as any).wholesalePrice, (product as any).wholesaleDiscountPercent), [product.price, (product as any).wholesalePrice, (product as any).wholesaleDiscountPercent, getWholesalePrice]);
   const displayPrice = useMemo(() => wholesalePrice ? formatPrice(wholesalePrice) : retailPrice, [wholesalePrice, retailPrice]);
   const discountPct = (product as any).discountPercent;
   const productSalePrice = (product as any).salePrice;
@@ -223,7 +223,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
     : (activeProduct.stock !== undefined && activeProduct.stock !== null && activeProduct.stock <= 0);
   const activeDiscountPct = (activeProduct as any).discountPercent;
   const activeProductFixedPrice: number = (activeProduct as any).salePrice || 0;
-  const activeWholesalePrice = getWholesalePrice(activeProduct.price, (activeProduct as any).wholesalePrice);
+  const activeWholesalePrice = getWholesalePrice(activeProduct.price, (activeProduct as any).wholesalePrice, (activeProduct as any).wholesaleDiscountPercent);
   const activeSizeDiscountsMap = (activeProduct as any).sizeDiscounts as Record<string, number> | null | undefined;
   const activeSizeDiscount = (!isWholesale && activeSizeDiscountsMap && selectedSize && activeSizeDiscountsMap[selectedSize]) ? activeSizeDiscountsMap[selectedSize] : null;
   const effectiveActiveDiscountPct = activeSizeDiscount ?? activeDiscountPct;

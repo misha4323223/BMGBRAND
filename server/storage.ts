@@ -943,6 +943,7 @@ export class DatabaseStorage implements IStorage {
       description: data.description || '',
       price: parsedPrice,
       wholesalePrice: parsedWholesalePrice,
+      wholesaleDiscountPercent: data.wholesale_discount_percent ? Number(data.wholesale_discount_percent) : null,
       discountPercent: data.old_price ? Number(data.old_price) : null,
       salePrice: data.sale_price ? Number(data.sale_price) : null,
       imageUrl: toCdnUrl(images.length > 0 ? images[0] : (data.image_url || '')),
@@ -1493,6 +1494,11 @@ export class DatabaseStorage implements IStorage {
         declareStatements += 'DECLARE $sale_price AS Int64;\n';
         setClauses.push('sale_price = $sale_price');
         params.$sale_price = TypedValues.fromNative(Types.INT64, (p as any).salePrice || 0);
+      }
+      if ((p as any).wholesaleDiscountPercent !== undefined) {
+        declareStatements += 'DECLARE $wholesale_discount_percent AS Double;\n';
+        setClauses.push('wholesale_discount_percent = $wholesale_discount_percent');
+        params.$wholesale_discount_percent = TypedValues.fromNative(Types.DOUBLE, (p as any).wholesaleDiscountPercent || 0);
       }
       // Handle images array - prefer explicit images over imageUrl
       if ((p as any).images !== undefined && Array.isArray((p as any).images)) {
@@ -4157,6 +4163,17 @@ export class DatabaseStorage implements IStorage {
         results.push(err.message?.includes("already exists") || err.message?.includes("Member not found")
           ? "products.feature_badge_ids: exists"
           : `products.feature_badge_ids: ${err.message}`);
+      }
+
+      try {
+        await driver.tableClient.withSession(async (session: ydb.Session) => {
+          await session.executeQuery(`ALTER TABLE products ADD COLUMN wholesale_discount_percent Double`);
+        });
+        results.push("products.wholesale_discount_percent: added");
+      } catch (err: any) {
+        results.push(err.message?.includes("already exists") || err.message?.includes("Member not found")
+          ? "products.wholesale_discount_percent: exists"
+          : `products.wholesale_discount_percent: ${err.message}`);
       }
 
       return { success: true, message: results.join("; ") };

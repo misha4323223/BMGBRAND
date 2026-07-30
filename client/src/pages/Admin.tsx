@@ -1370,6 +1370,7 @@ export default function Admin() {
     description: string;
     price: string;
     wholesalePrice: string;
+    wholesaleDiscountPercent: string;
     category: string;
     subcategory: string;
     sku: string;
@@ -1416,6 +1417,7 @@ export default function Admin() {
     description: "",
     price: "",
     wholesalePrice: "",
+    wholesaleDiscountPercent: "",
     discountPercent: "",
     category: "clothing",
     subcategory: "",
@@ -2604,6 +2606,7 @@ export default function Admin() {
         description: p.description || "",
         price: p.price ? String(p.price) : "",
         wholesalePrice: p.wholesalePrice ? String(p.wholesalePrice) : "",
+        wholesaleDiscountPercent: (p as any).wholesaleDiscountPercent ? String((p as any).wholesaleDiscountPercent) : "",
         discountPercent: p.discountPercent ? String(p.discountPercent) : "",
         salePrice: (p as any).salePrice ? String((p as any).salePrice) : "",
         category: p.category || "clothing",
@@ -2698,6 +2701,7 @@ export default function Admin() {
       description: "",
       price: "",
       wholesalePrice: "",
+      wholesaleDiscountPercent: "",
       discountPercent: "",
       category: "clothing",
       subcategory: "",
@@ -2752,6 +2756,7 @@ export default function Admin() {
         description: product.description || "",
         price: product.price ? String(product.price) : "",
         wholesalePrice: product.wholesalePrice ? String(product.wholesalePrice) : "",
+        wholesaleDiscountPercent: (product as any).wholesaleDiscountPercent ? String((product as any).wholesaleDiscountPercent) : "",
         discountPercent: product.discountPercent ? String(product.discountPercent) : "",
         category: product.category || "clothing",
         subcategory: product.subcategory || "",
@@ -10401,7 +10406,25 @@ export default function Admin() {
                           />
                         </div>
                         <div>
-                          <Label className="text-sm">Скидка (%)</Label>
+                          <Label className="text-sm">Скидка для опта (%)</Label>
+                          <Input
+                            type="number"
+                            value={productForm.wholesaleDiscountPercent}
+                            onChange={(e) => setProductForm({...productForm, wholesaleDiscountPercent: e.target.value})}
+                            placeholder="0"
+                            min="0"
+                            max="99"
+                            data-testid="input-product-wholesale-discount"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {productForm.wholesaleDiscountPercent && parseInt(productForm.wholesaleDiscountPercent) > 0 && productForm.wholesalePrice
+                              ? `Оптовая со скидкой: ${Math.round(parseInt(productForm.wholesalePrice) / 100 * (1 - parseInt(productForm.wholesaleDiscountPercent) / 100))} ₽`
+                              : "Скидка на оптовую цену в % (например 10)."
+                            }
+                          </p>
+                        </div>
+                        <div>
+                          <Label className="text-sm">Скидка для розницы (%)</Label>
                           <Input
                             type="number"
                             value={productForm.discountPercent}
@@ -11827,6 +11850,7 @@ export default function Admin() {
                               ...productForm,
                               price: parseInt(productForm.price) || 0,
                               wholesalePrice: parseInt(productForm.wholesalePrice) || undefined,
+                              wholesaleDiscountPercent: productForm.wholesaleDiscountPercent ? parseInt(productForm.wholesaleDiscountPercent) : 0,
                               discountPercent: productForm.discountPercent ? parseInt(productForm.discountPercent) : 0,
                               salePrice: productForm.salePrice ? parseInt(productForm.salePrice) : null,
                               measurements: productForm.measurementSections.length > 0 ? [] : (productForm.measurements.length > 0 ? productForm.measurements : undefined),

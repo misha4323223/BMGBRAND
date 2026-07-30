@@ -704,7 +704,7 @@ export default function ProductDetail() {
   }).format(cents / 100);
   
   const retailPrice = formatPrice(product.price);
-  const wholesalePriceValue = getWholesalePrice(product.price, (product as any).wholesalePrice);
+  const wholesalePriceValue = getWholesalePrice(product.price, (product as any).wholesalePrice, (product as any).wholesaleDiscountPercent);
   const displayPrice = wholesalePriceValue ? formatPrice(wholesalePriceValue) : retailPrice;
   const discountPct = (product as any).discountPercent;
   const productSalePrice = (product as any).salePrice;
