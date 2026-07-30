@@ -430,13 +430,22 @@ export default function ConceptCampaignPage() {
                       </h3>
                       <div className="space-y-1 text-center mt-2">
                         {wholesalePriceVal ? (
-                          <>
-                            <span className="text-[10px] line-through text-zinc-400">{formatPrice(product.price)}</span>
+                          <div className="flex gap-3 justify-center items-end">
+                            <div className="flex flex-col items-center">
+                              <span className="text-[8px] text-zinc-400 font-medium uppercase tracking-wide leading-none mb-0.5">РРЦ</span>
+                              <span className="text-[10px] line-through text-zinc-400">{formatPrice(product.price)}</span>
+                            </div>
                             {wholesaleBasePriceVal && (
-                              <span className="text-[10px] line-through text-zinc-300 ml-1">{formatPrice(wholesaleBasePriceVal)}</span>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[8px] text-zinc-400 font-medium uppercase tracking-wide leading-none mb-0.5">ОПТ</span>
+                                <span className="text-[10px] line-through text-zinc-300">{formatPrice(wholesaleBasePriceVal)}</span>
+                              </div>
                             )}
-                            <p className="text-base font-bold text-zinc-900">{formatPrice(wholesalePriceVal)}</p>
-                          </>
+                            <div className="flex flex-col items-center">
+                              <span className="text-[8px] text-amber-500 font-medium uppercase tracking-wide leading-none mb-0.5">Предзаказ</span>
+                              <span className="text-base font-bold text-zinc-900">{formatPrice(wholesalePriceVal)}</span>
+                            </div>
+                          </div>
                         ) : hasDiscount ? (
                           <>
                             <p className="text-[10px] font-medium text-zinc-900 uppercase tracking-wide">Предпродажная цена</p>
