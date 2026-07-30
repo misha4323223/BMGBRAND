@@ -3539,7 +3539,7 @@ ${artistLinks || "- (список формируется)"}
                   paymentMethod: 'yookassa',
                   isWholesale: order.isWholesale || false,
                   promoCode: order.promoCode || undefined,
-                  deliveryService: order.deliveryService || undefined,
+                  deliveryService: (order as any).deliveryService || undefined,
                 });
                 vkNotifyNewOrder({
                   orderId: order.id,
@@ -3552,7 +3552,7 @@ ${artistLinks || "- (список формируется)"}
                   paymentMethod: 'yookassa',
                   isWholesale: order.isWholesale || false,
                   promoCode: order.promoCode || undefined,
-                  deliveryService: order.deliveryService || undefined,
+                  deliveryService: (order as any).deliveryService || undefined,
                 });
               }
             } catch (err: any) {
