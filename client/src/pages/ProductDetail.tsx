@@ -1193,17 +1193,17 @@ export default function ProductDetail() {
                   </div>
                   {!showPreorderPriceLabels && (
                     <div className="shrink-0 flex items-baseline gap-1.5 pt-px">
-                      <span className={`text-xl font-bold leading-none ${isWholesale ? 'text-primary' : 'text-foreground'}`}>
-                        {displayPrice}
-                      </span>
-                      {isWholesale && wholesalePriceValue && (
+                      {isWholesale && wholesalePriceValue ? (
                         <>
+                          <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
                           {wholesaleBasePriceFormatted && (
                             <span className="text-xs text-foreground/30 line-through">{wholesaleBasePriceFormatted}</span>
                           )}
-                          <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
+                          <span className="text-xl font-bold leading-none text-primary">{displayPrice}</span>
                           <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">ОПТ</Badge>
                         </>
+                      ) : (
+                        <span className="text-xl font-bold leading-none text-foreground">{displayPrice}</span>
                       )}
                     </div>
                   )}
@@ -1268,20 +1268,22 @@ export default function ProductDetail() {
                   <p className="text-xs font-medium text-foreground uppercase tracking-wide">Предпродажная цена</p>
                 )}
                 <div className="flex items-center gap-3 flex-wrap">
-                  <p className={`text-2xl font-bold ${hasDiscount ? 'text-red-600' : isWholesale ? 'text-primary' : 'text-foreground'}`}>
-                    {hasDiscount ? formatPrice(salePrice) : displayPrice}
-                  </p>
-                  {hasDiscount && (
-                    <span className="text-lg font-semibold text-red-400 line-through">{retailPrice}</span>
-                  )}
-                  {isWholesale && wholesalePriceValue && (
+                  {hasDiscount ? (
                     <>
+                      <span className="text-lg font-semibold text-red-400 line-through">{retailPrice}</span>
+                      <p className="text-2xl font-bold text-red-600">{formatPrice(salePrice)}</p>
+                    </>
+                  ) : isWholesale && wholesalePriceValue ? (
+                    <>
+                      <span className="text-lg text-foreground/45 line-through">{retailPrice}</span>
                       {wholesaleBasePriceFormatted && (
                         <span className="text-base text-foreground/35 line-through">{wholesaleBasePriceFormatted}</span>
                       )}
-                      <span className="text-lg text-foreground/45 line-through">{retailPrice}</span>
+                      <p className="text-2xl font-bold text-primary">{displayPrice}</p>
                       <Badge variant="secondary">ОПТ</Badge>
                     </>
+                  ) : (
+                    <p className="text-2xl font-bold text-foreground">{displayPrice}</p>
                   )}
                 </div>
                 {showPreorderPriceLabels && (

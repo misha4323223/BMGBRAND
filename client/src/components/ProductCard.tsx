@@ -631,18 +631,22 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                         <p className="text-[9px] font-medium text-black/40 uppercase tracking-wide mb-0.5">Предпродажная цена</p>
                       )}
                       <div className="flex items-baseline gap-1.5 justify-end flex-wrap">
-                        <span className={`text-xl sm:text-3xl font-black tracking-tight leading-none ${activeHasDiscount ? 'text-red-500' : 'text-black'}`}>{activeHasDiscount ? formatPrice(activeSalePrice) : activeDisplayPrice}</span>
-                        {activeHasDiscount && (
-                          <span className="text-sm font-semibold text-red-400 line-through">{activeRetailPrice}</span>
-                        )}
-                        {isWholesale && activeWholesalePrice && (
+                        {activeHasDiscount ? (
                           <>
+                            <span className="text-sm font-semibold text-red-400 line-through">{activeRetailPrice}</span>
+                            <span className="text-xl sm:text-3xl font-black tracking-tight leading-none text-red-500">{formatPrice(activeSalePrice)}</span>
+                          </>
+                        ) : isWholesale && activeWholesalePrice ? (
+                          <>
+                            <span className="text-sm text-black/35 line-through font-medium">{activeRetailPrice}</span>
                             {activeWholesaleBasePrice && (
                               <span className="text-xs text-black/25 line-through font-medium">{activeWholesaleBasePrice}</span>
                             )}
-                            <span className="text-sm text-black/35 line-through font-medium">{activeRetailPrice}</span>
+                            <span className="text-xl sm:text-3xl font-black tracking-tight leading-none text-black">{activeDisplayPrice}</span>
                             <span className="text-[10px] font-bold tracking-widest text-white bg-black px-1.5 py-0.5 uppercase">ОПТ</span>
                           </>
+                        ) : (
+                          <span className="text-xl sm:text-3xl font-black tracking-tight leading-none text-black">{activeDisplayPrice}</span>
                         )}
                       </div>
                       {showModalPreorderLabels && (
