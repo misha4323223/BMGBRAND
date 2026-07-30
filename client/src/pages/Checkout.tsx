@@ -16,7 +16,7 @@ import { useLocation } from "wouter";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { type CheckoutSettings, DEFAULT_CHECKOUT_SETTINGS } from "@/components/checkout-settings";
-import { Loader2, CheckCircle2, MapPin, Truck, Search, Package, Tag, Percent, CreditCard, Landmark, Building2, Info, Gift, Plus, Minus, Trash2, Clock, ShieldCheck, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, MapPin, Truck, Search, Package, Tag, Percent, CreditCard, Landmark, Building2, Info, Gift, Plus, Minus, Trash2, Clock, ShieldCheck, AlertCircle, Store } from "lucide-react";
 import { BrandLoader } from "@/components/BrandLoader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -78,7 +78,16 @@ interface CdekTariff {
 
 const CDEK_DOOR_TARIFFS = [137, 139, 184, 480, 482, 486];
 
-type DeliveryService = "cdek" | "ozon";
+type DeliveryService = "cdek" | "ozon" | "pickup";
+
+interface PickupPoint {
+  id: string;
+  name: string;
+  city: string;
+  address: string;
+  date?: string;
+  isActive: boolean;
+}
 
 interface GiftCardValidationResponse {
   valid: boolean;
@@ -190,6 +199,13 @@ export default function Checkout() {
 
   // Wholesale transport company
   const [selectedTransport, setSelectedTransport] = useState<string>("cdek");
+
+  // Self-pickup points state
+  const [selectedPickupPointId, setSelectedPickupPointId] = useState<string>("");
+  const { data: pickupPoints = [] } = useQuery<PickupPoint[]>({
+    queryKey: ["/api/preorder/pickup-points"],
+  });
+  const activePickupPoints = pickupPoints.filter(p => p.isActive);
 
   // Promo state
   const [promoCodeInput, setPromoCodeInput] = useState("");
@@ -567,7 +583,7 @@ export default function Checkout() {
         : (cheapestTariff ? cheapestTariff.delivery_sum * 100 : 0)))
     : 0;
   
-  const rawDeliveryCost = isWholesale ? 0 : deliveryService === "ozon" ? 0 : cdekDeliveryCost;
+  const rawDeliveryCost = isWholesale ? 0 : (deliveryService === "ozon" || deliveryService === "pickup") ? 0 : cdekDeliveryCost;
   const deliveryCost = isFreeShipping ? 0 : rawDeliveryCost;
   // Calculate promo discount: percent-based or fixed amount
   // If promo has category restrictions, eligibleAmount is the sum of matching items
@@ -603,8 +619,11 @@ export default function Checkout() {
       setValue("address", `СДЭК Курьер: ${selectedCity.city}, ${parts.join(', ')}`);
     } else if (deliveryService === "cdek" && deliveryType === "pickup" && selectedPoint && selectedCity) {
       setValue("address", `СДЭК ПВЗ: ${selectedCity.city}, ${selectedPoint.location.address_full || selectedPoint.location.address}`);
+    } else if (deliveryService === "pickup" && selectedPickupPointId) {
+      const point = activePickupPoints.find(p => p.id === selectedPickupPointId);
+      if (point) setValue("address", `Самовывоз: ${point.name}, ${point.address}`);
     }
-  }, [deliveryService, deliveryType, selectedPoint, selectedCity, cdekDoorStreet, cdekDoorHouse, cdekDoorApartment, cdekDoorEntrance, cdekDoorFloor, setValue]);
+  }, [deliveryService, deliveryType, selectedPoint, selectedCity, cdekDoorStreet, cdekDoorHouse, cdekDoorApartment, cdekDoorEntrance, cdekDoorFloor, selectedPickupPointId, activePickupPoints, setValue]);
 
   const onSubmit = (data: CheckoutForm) => {
     const customerName = [data.customerLastName, data.customerFirstName, data.customerPatronymic].filter(Boolean).join(' ');
@@ -623,6 +642,7 @@ export default function Checkout() {
       isWholesale: isWholesale,
       transportCompany: isWholesale ? selectedTransport : undefined,
       deliveryService: deliveryService,
+      pickupPointId: deliveryService === "pickup" ? (selectedPickupPointId || undefined) : undefined,
       cdekPointCode: deliveryService === "cdek" && deliveryType === "pickup" ? (selectedPoint?.code || undefined) : undefined,
       cdekCityCode: deliveryService === "cdek" ? (selectedCity?.code || undefined) : undefined,
       cdekTariffCode: deliveryService === "cdek" 
@@ -899,6 +919,30 @@ export default function Checkout() {
                 }}
                 className="space-y-3"
               >
+                {activePickupPoints.length > 0 && (
+                <div
+                  className={`flex items-center space-x-3 p-3 border rounded-lg hover-elevate cursor-pointer ${deliveryService === "pickup" ? "border-primary bg-primary/5" : ""}`}
+                  onClick={() => {
+                    setDeliveryService("pickup");
+                    setSelectedPoint(null);
+                    setWidgetDelivery(null);
+                    if (activePickupPoints.length > 0 && !selectedPickupPointId) {
+                      setSelectedPickupPointId(activePickupPoints[0].id);
+                    }
+                  }}
+                >
+                  <RadioGroupItem value="pickup" id="delivery-pickup" data-testid="radio-pickup" />
+                  <Label htmlFor="delivery-pickup" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <Store className="w-5 h-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Самовывоз</p>
+                        <p className="text-xs text-muted-foreground">Бесплатно</p>
+                      </div>
+                    </div>
+                  </Label>
+                </div>
+                )}
                 {ozonPayEnabled && (
                 <div
                   className={`flex items-center space-x-3 p-3 border rounded-lg hover-elevate cursor-pointer ${deliveryService === "ozon" ? "border-primary bg-primary/5" : ""}`}
@@ -924,6 +968,42 @@ export default function Checkout() {
                   </Label>
                 </div>
               </RadioGroup>
+              )}
+
+              {/* Pickup points list */}
+              {!isWholesale && deliveryService === "pickup" && activePickupPoints.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs text-muted-foreground mb-3">Выберите точку самовывоза</p>
+                  {activePickupPoints.map(point => (
+                    <button
+                      key={point.id}
+                      type="button"
+                      onClick={() => setSelectedPickupPointId(point.id)}
+                      className={`w-full flex items-start gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
+                        selectedPickupPointId === point.id
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/40"
+                      }`}
+                      data-testid={`button-pickup-point-${point.id}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full border-2 shrink-0 mt-0.5 flex items-center justify-center ${
+                        selectedPickupPointId === point.id ? "border-primary" : "border-muted-foreground"
+                      }`}>
+                        {selectedPickupPointId === point.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">{point.name}</p>
+                        <p className="text-xs text-muted-foreground">{point.city}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3" />{point.address}
+                        </p>
+                        {point.date && (
+                          <p className="text-xs text-foreground font-medium mt-0.5">{point.date}</p>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               )}
 
               {/* Ozon Pay: info block */}
