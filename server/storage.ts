@@ -581,6 +581,9 @@ export interface IStorage {
   // Preorder pickup points
   getPickupPoints(): Promise<PickupPoint[]>;
   savePickupPoints(points: PickupPoint[]): Promise<void>;
+  // Retail pickup points (regular checkout)
+  getRetailPickupPoints(): Promise<PickupPoint[]>;
+  saveRetailPickupPoints(points: PickupPoint[]): Promise<void>;
   // User loyalty
   updateUserTotalSpent(userId: number, amount: number): Promise<void>;
   recalculateUserLoyaltyDiscount(userId: number): Promise<number>;
@@ -4679,6 +4682,20 @@ export class DatabaseStorage implements IStorage {
 
   async savePickupPoints(points: PickupPoint[]): Promise<void> {
     await this.setBonusSetting("preorder_pickup_points", JSON.stringify(points));
+  }
+
+  async getRetailPickupPoints(): Promise<PickupPoint[]> {
+    const raw = await this.getBonusSetting("retail_pickup_points");
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw) as PickupPoint[];
+    } catch {
+      return [];
+    }
+  }
+
+  async saveRetailPickupPoints(points: PickupPoint[]): Promise<void> {
+    await this.setBonusSetting("retail_pickup_points", JSON.stringify(points));
   }
 
   // User loyalty

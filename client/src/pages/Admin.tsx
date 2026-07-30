@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, RefreshCw, Lock, Search, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Image, MoveRight, MoreVertical, Settings, CheckSquare, Building2, Check, X, Users, Package, EyeOff, Eye, Gift, ShoppingCart, Clock, Truck, CreditCard, Ban, Star, Mail, TrendingUp, TrendingDown, Tag, Save, Plus, Pencil, Loader2, Layout, Type, ImageIcon, DollarSign, Upload, MessageSquare, Send, CheckCircle2, LogOut, Heart, Copy, Target, GripVertical, Bell, Phone, User, ChevronDown, ChevronRight, PlusCircle, MinusCircle, FileText, Ruler, Download, Music, Headphones, Play, Sparkles } from "lucide-react";
+import { Trash2, RefreshCw, Lock, Search, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Image, MoveRight, MoreVertical, Settings, CheckSquare, Building2, Check, X, Users, Package, EyeOff, Eye, Gift, ShoppingCart, Clock, Truck, CreditCard, Ban, Star, Mail, TrendingUp, TrendingDown, Tag, Save, Plus, Pencil, Loader2, Layout, Type, ImageIcon, DollarSign, Upload, MessageSquare, Send, CheckCircle2, LogOut, Heart, Copy, Target, GripVertical, Bell, Phone, User, ChevronDown, ChevronRight, PlusCircle, MinusCircle, FileText, Ruler, Download, Music, Headphones, Play, Sparkles, Store } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -1247,7 +1247,7 @@ export default function Admin() {
   const [filterSubcategory, setFilterSubcategory] = useState<string | null>(null);
   const [filterSubSubcategory, setFilterSubSubcategory] = useState<string | null>(null);
   const [productsVisible, setProductsVisible] = useState(false);
-  const [ordersSubTab, setOrdersSubTab] = useState<"retail" | "wholesale" | "drafts">("retail");
+  const [ordersSubTab, setOrdersSubTab] = useState<"retail" | "wholesale" | "drafts" | "pickup">("retail");
   const [expandedOrderItems, setExpandedOrderItems] = useState<Set<string | number>>(new Set());
 
   // --- Edit order items modal ---
@@ -1605,6 +1605,16 @@ export default function Admin() {
       toast({ title: "Ошибка", description: err.message, variant: "destructive" });
     },
   });
+
+  // Retail pickup points
+  const { data: retailPickupPoints = [], refetch: refetchRetailPickupPoints } = useQuery<any[]>({
+    queryKey: ["/api/admin/retail/pickup-points"],
+    queryFn: () => adminFetch("/api/admin/retail/pickup-points", apiKey),
+    enabled: isAuthenticated && activeTab === "orders" && ordersSubTab === "pickup",
+  });
+  const [retailPickupForm, setRetailPickupForm] = useState({ name: "", date: "", city: "", address: "", isActive: true });
+  const [savingRetailPickup, setSavingRetailPickup] = useState(false);
+  const [editingRetailPickupId, setEditingRetailPickupId] = useState<string | null>(null);
 
   // Partners (для отображения бейджа "Партнёр" в строке заказа)
   const { data: ordersPartnersData } = useQuery<{ partners: any[] }>({
@@ -14653,6 +14663,14 @@ export default function Admin() {
                 <Clock className="w-4 h-4 mr-1" />
                 Неоплаченные {draftOrdersData ? `(${draftOrdersData.length})` : ""}
               </Button>
+              <Button
+                variant={ordersSubTab === "pickup" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setOrdersSubTab("pickup")}
+              >
+                <Store className="w-4 h-4 mr-1" />
+                Самовывоз ({retailPickupPoints.length})
+              </Button>
             </div>
 
             {ordersSubTab === "drafts" ? (
@@ -14707,6 +14725,120 @@ export default function Admin() {
                   ))}
                 </div>
               )
+            ) : ordersSubTab === "pickup" ? (
+              <div className="space-y-4">
+                <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                  <h3 className="font-semibold text-sm">{editingRetailPickupId ? "Редактировать точку" : "Добавить точку выдачи"}</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Название (напр. Шоурум BOOOMERANGS)"
+                      value={retailPickupForm.name}
+                      onChange={(e) => setRetailPickupForm(f => ({ ...f, name: e.target.value }))}
+                    />
+                    <Input
+                      placeholder="Город"
+                      value={retailPickupForm.city}
+                      onChange={(e) => setRetailPickupForm(f => ({ ...f, city: e.target.value }))}
+                    />
+                    <Input
+                      placeholder="Адрес / локация"
+                      value={retailPickupForm.address}
+                      onChange={(e) => setRetailPickupForm(f => ({ ...f, address: e.target.value }))}
+                    />
+                    <Input
+                      placeholder="Режим работы (напр. Пн–Пт 10:00–20:00)"
+                      value={retailPickupForm.date}
+                      onChange={(e) => setRetailPickupForm(f => ({ ...f, date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="retail-pickup-active"
+                      checked={retailPickupForm.isActive}
+                      onChange={(e) => setRetailPickupForm(f => ({ ...f, isActive: e.target.checked }))}
+                      className="rounded"
+                    />
+                    <label htmlFor="retail-pickup-active" className="text-sm">Активна (показывается покупателям)</label>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      disabled={savingRetailPickup || !retailPickupForm.name || !retailPickupForm.city || !retailPickupForm.address}
+                      onClick={async () => {
+                        setSavingRetailPickup(true);
+                        try {
+                          if (editingRetailPickupId) {
+                            await adminFetch(`/api/admin/retail/pickup-points/${editingRetailPickupId}`, apiKey, {
+                              method: "PUT",
+                              body: JSON.stringify(retailPickupForm),
+                            });
+                          } else {
+                            await adminFetch("/api/admin/retail/pickup-points", apiKey, {
+                              method: "POST",
+                              body: JSON.stringify(retailPickupForm),
+                            });
+                          }
+                          setRetailPickupForm({ name: "", date: "", city: "", address: "", isActive: true });
+                          setEditingRetailPickupId(null);
+                          refetchRetailPickupPoints();
+                          toast({ title: editingRetailPickupId ? "Точка обновлена" : "Точка добавлена" });
+                        } catch (e: any) {
+                          toast({ title: "Ошибка", description: e.message, variant: "destructive" });
+                        } finally {
+                          setSavingRetailPickup(false);
+                        }
+                      }}
+                    >
+                      {savingRetailPickup ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingRetailPickupId ? "Сохранить" : "Добавить")}
+                    </Button>
+                    {editingRetailPickupId && (
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingRetailPickupId(null); setRetailPickupForm({ name: "", date: "", city: "", address: "", isActive: true }); }}>
+                        Отмена
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {retailPickupPoints.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Store className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p>Нет точек выдачи</p>
+                    <p className="text-xs mt-1">Добавьте точки для самовывоза в розничном заказе</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {retailPickupPoints.map((point: any) => (
+                      <Card key={point.id} className={point.isActive ? "" : "opacity-60"}>
+                        <CardContent className="pt-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-0.5 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">{point.name}</span>
+                                {point.isActive ? (
+                                  <Badge variant="secondary" className="text-green-700 bg-green-50">Активна</Badge>
+                                ) : (
+                                  <Badge variant="outline">Неактивна</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">{point.city} — {point.address}</p>
+                              {point.date && <p className="text-xs text-muted-foreground">{point.date}</p>}
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              <Button size="sm" variant="ghost" onClick={() => { setEditingRetailPickupId(point.id); setRetailPickupForm({ name: point.name, date: point.date || "", city: point.city, address: point.address, isActive: point.isActive }); }}>
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={async () => { if (!confirm(`Удалить точку «${point.name}»?`)) return; await adminFetch(`/api/admin/retail/pickup-points/${point.id}`, apiKey, { method: "DELETE" }); refetchRetailPickupPoints(); toast({ title: "Точка удалена" }); }}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
             ) : ordersLoading ? (
               <div className="text-center py-8 text-muted-foreground">Загрузка...</div>
             ) : (

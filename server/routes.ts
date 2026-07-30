@@ -15384,6 +15384,74 @@ ${offersXml}
     }
   });
 
+  // ==================== Retail Pickup Points (regular checkout) ====================
+
+  app.get("/api/retail/pickup-points", async (_req, res) => {
+    try {
+      const points = await storage.getRetailPickupPoints();
+      res.json(points);
+    } catch (err: any) {
+      console.error("[RetailPickupPoints] Get error:", err.message);
+      res.status(500).json({ error: "Failed to get retail pickup points" });
+    }
+  });
+
+  app.get("/api/admin/retail/pickup-points", authMiddleware, requireAdminRole, async (_req, res) => {
+    try {
+      const points = await storage.getRetailPickupPoints();
+      res.json(points);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to get retail pickup points" });
+    }
+  });
+
+  app.post("/api/admin/retail/pickup-points", authMiddleware, requireAdminRole, async (req, res) => {
+    try {
+      const { id, name, date, city, address, isActive } = req.body;
+      if (!name || !city || !address) return res.status(400).json({ error: "name, city, address required" });
+      const points = await storage.getRetailPickupPoints();
+      const newPoint = {
+        id: id || `retail-pickup-${Date.now()}`,
+        name: String(name),
+        date: date ? String(date) : "",
+        city: String(city),
+        address: String(address),
+        isActive: isActive !== false,
+      };
+      points.push(newPoint);
+      await storage.saveRetailPickupPoints(points);
+      res.status(201).json(newPoint);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to create retail pickup point" });
+    }
+  });
+
+  app.put("/api/admin/retail/pickup-points/:id", authMiddleware, requireAdminRole, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const points = await storage.getRetailPickupPoints();
+      const idx = points.findIndex((p: any) => p.id === id);
+      if (idx === -1) return res.status(404).json({ error: "Not found" });
+      points[idx] = { ...points[idx], ...req.body, id };
+      await storage.saveRetailPickupPoints(points);
+      res.json(points[idx]);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to update retail pickup point" });
+    }
+  });
+
+  app.delete("/api/admin/retail/pickup-points/:id", authMiddleware, requireAdminRole, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const points = await storage.getRetailPickupPoints();
+      const filtered = points.filter((p: any) => p.id !== id);
+      await storage.saveRetailPickupPoints(filtered);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to delete retail pickup point" });
+    }
+  });
+
   // ==================== Preorder Pickup Points ====================
 
   app.get("/api/preorder/pickup-points", async (_req, res) => {

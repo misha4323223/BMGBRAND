@@ -203,7 +203,7 @@ export default function Checkout() {
   // Self-pickup points state
   const [selectedPickupPointId, setSelectedPickupPointId] = useState<string>("");
   const { data: pickupPoints = [] } = useQuery<PickupPoint[]>({
-    queryKey: ["/api/preorder/pickup-points"],
+    queryKey: ["/api/retail/pickup-points"],
   });
   const activePickupPoints = pickupPoints.filter(p => p.isActive);
 
