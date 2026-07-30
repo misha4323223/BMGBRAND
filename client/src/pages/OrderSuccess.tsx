@@ -1,7 +1,7 @@
 import { useParams, Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { RecommendationBlock } from "@/components/RecommendationBlock";
-import { CheckCircle, XCircle, Loader2, MessageSquare, ShoppingBag, Clock } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, MessageSquare, ShoppingBag, Clock, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
@@ -24,7 +24,18 @@ export default function OrderSuccess() {
   const [error, setError] = useState<string | null>(null);
   const [addonOpen, setAddonOpen] = useState(false);
 
+  // Detect invoice (wholesale preorder) mode from query param
+  const isInvoiceOrder = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("invoice") === "1"
+    : false;
+
   useEffect(() => {
+    // Invoice (wholesale preorder) orders are never paid online — skip polling
+    if (isInvoiceOrder) {
+      setLoading(false);
+      return;
+    }
+
     let intervalId: NodeJS.Timeout | null = null;
     
     const checkStatus = async () => {
@@ -64,7 +75,7 @@ export default function OrderSuccess() {
         clearInterval(intervalId);
       }
     };
-  }, [orderId, setLocation]);
+  }, [orderId, setLocation, isInvoiceOrder]);
 
   if (loading) {
     return (
@@ -85,6 +96,50 @@ export default function OrderSuccess() {
 
   const isPaid = orderStatus?.paid || orderStatus?.status === "paid";
   const numericOrderId = Number(orderId);
+
+  // ── Оптовый предзаказ по счёту — специальный UI ───────────────────────────
+  if (isInvoiceOrder) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <SEO title="Предзаказ оформлен | BMGBRAND" noindex={true} />
+        <Navbar />
+        <main className="flex-1 container mx-auto px-4 py-16 flex flex-col items-center gap-6">
+          <Card className="max-w-md w-full text-center">
+            <CardHeader>
+              <div className="flex justify-center mb-4">
+                <FileText className="w-16 h-16 text-blue-500" />
+              </div>
+              <CardTitle className="text-2xl">Предзаказ оформлен!</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">
+                Ваш оптовый предзаказ #{orderId} принят.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Счёт на предоплату 50% отправлен на вашу электронную почту. Оставшиеся 50% выставим перед отгрузкой.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Наш менеджер свяжется с вами для подтверждения заказа.
+              </p>
+              <div className="flex flex-col gap-2 pt-4">
+                <Link href="/wholesale-profile">
+                  <Button className="w-full">
+                    Мои заказы
+                  </Button>
+                </Link>
+                <Link href="/">
+                  <Button variant="outline" className="w-full">
+                    На главную
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

@@ -15631,10 +15631,20 @@ ${offersXml}
         if (!(product as any).preorderEnabled) {
           return res.status(400).json({ error: `Товар "${product.name}" недоступен для предзаказа` });
         }
-        // Для оптового предзаказа — использовать оптовую цену
-        item.price = isWholesalePreorder && (product as any).wholesalePrice
-          ? (product as any).wholesalePrice
-          : product.price;
+        // Для оптового предзаказа — использовать оптовую цену со скидкой (как на фронте)
+        if (isWholesalePreorder) {
+          const wp = (product as any).wholesalePrice;
+          const wpd = (product as any).wholesaleDiscountPercent;
+          if (wp && wp > 0) {
+            item.price = (wpd && wpd > 0)
+              ? Math.round(wp * (1 - wpd / 100))
+              : wp;
+          } else {
+            item.price = product.price;
+          }
+        } else {
+          item.price = product.price;
+        }
         item.productName = product.name;
       }
 
@@ -15720,25 +15730,47 @@ ${offersXml}
           customerName: fullName,
           customerPhone: customerPhone || "",
           customerEmail: customerEmail.trim(),
+          customerInn: req.user?.inn || undefined,
           transportCompany: transportCompany,
           vatRate,
           vatMode,
+          depositPercent: 50,
+          subjectOverride: `Счет на предоплату 50% — Оптовый предзаказ #${order.id} — BMGBRAND`,
+          noteText: `Спасибо за ваш предзаказ! 🎉<br>Это счёт на <strong>предоплату 50%</strong> от суммы заказа. Оставшиеся 50% выставим перед отгрузкой.${address ? `<br><br><strong>Адрес доставки:</strong> ${address}` : ""}`,
           items: orderItems.map((i: any) => ({
-            name: i.productName,
+            name: `[Предзаказ] ${i.productName}${i.size && i.size !== "ONE SIZE" ? ` (${i.size})` : ""}`,
             sku: i.sku || '',
             quantity: i.quantity,
             price: i.price,
           })),
         }).catch(err => console.error('[Preorder Multi] Failed to send invoice:', err));
 
-        // Telegram-уведомление менеджерам
+        // Telegram и VK — уведомления менеджерам с меткой [ОПТОВЫЙ ПРЕДЗАКАЗ]
         const user = req.user;
+        const notifyAddress = [
+          `[ОПТОВЫЙ ПРЕДЗАКАЗ]`,
+          address || "",
+        ].filter(Boolean).join("\n");
         notifyNewOrder({
           orderId: order.id,
           customerName: fullName,
           customerEmail: customerEmail.trim(),
           customerPhone: customerPhone || "",
-          address: address || "",
+          address: notifyAddress,
+          total: totalPrice,
+          items: orderItems,
+          paymentMethod: "invoice",
+          isWholesale: true,
+          transportCompany,
+          companyName: user?.companyName,
+          inn: user?.inn,
+        });
+        vkNotifyNewOrder({
+          orderId: order.id,
+          customerName: fullName,
+          customerEmail: customerEmail.trim(),
+          customerPhone: customerPhone || "",
+          address: notifyAddress,
           total: totalPrice,
           items: orderItems,
           paymentMethod: "invoice",

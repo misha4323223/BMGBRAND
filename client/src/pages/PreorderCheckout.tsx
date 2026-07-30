@@ -279,7 +279,7 @@ export default function PreorderCheckout() {
     onSuccess: (data: any) => {
       if (data.invoiceSent) {
         clearCart();
-        setLocation(`/order-success/${data.orderId}`);
+        setLocation(`/order-success/${data.orderId}?invoice=1`);
       } else if (data.confirmationToken) {
         setWidgetToken(data.confirmationToken);
         setWidgetOrderId(data.orderId || null);
