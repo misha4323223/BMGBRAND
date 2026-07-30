@@ -1152,21 +1152,21 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
               {!hasDiscount && isWholesale && wholesalePrice ? (
                 <>
                   <div className="flex justify-between items-end w-full">
-                    <div className="flex flex-col items-start">
-                      <span className={`text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 ${isJDM || isMerch ? "text-white/45" : isMinta ? "" : "text-muted-foreground/55"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.4 } : undefined}>РРЦ</span>
-                      <span className={`text-[10px] line-through ${isJDM || isMerch ? "text-white/40" : isMinta ? "" : "text-muted-foreground/50"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.4 } : undefined}>{retailPrice}</span>
+                    <div className="flex flex-col items-start shrink-0">
+                      <span className={`text-[7px] font-medium uppercase leading-none mb-0.5 ${isJDM || isMerch ? "text-white/45" : isMinta ? "" : "text-muted-foreground/55"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.4 } : undefined}>РРЦ</span>
+                      <span className={`text-[9px] line-through ${isJDM || isMerch ? "text-white/40" : isMinta ? "" : "text-muted-foreground/50"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.4 } : undefined}>{retailPrice}</span>
                     </div>
                     {wholesaleBasePrice && (
-                      <div className="flex flex-col items-center">
-                        <span className={`text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 ${isJDM || isMerch ? "text-white/35" : isMinta ? "" : "text-muted-foreground/45"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.3 } : undefined}>ОПТ</span>
-                        <span className={`text-[10px] line-through ${isJDM || isMerch ? "text-white/30" : isMinta ? "" : "text-muted-foreground/35"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.3 } : undefined}>{wholesaleBasePrice}</span>
+                      <div className="flex flex-col items-center min-w-0">
+                        <span className={`text-[7px] font-medium uppercase leading-none mb-0.5 ${isJDM || isMerch ? "text-white/35" : isMinta ? "" : "text-muted-foreground/45"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.3 } : undefined}>ОПТ</span>
+                        <span className={`text-[9px] line-through ${isJDM || isMerch ? "text-white/30" : isMinta ? "" : "text-muted-foreground/35"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.3 } : undefined}>{wholesaleBasePrice}</span>
                       </div>
                     )}
-                    <div className="flex flex-col items-end">
+                    <div className="flex flex-col items-end shrink-0">
                       {(product as any).preorderEnabled && (product as any).preorderStatus === "collecting" ? (
-                        <span className={`text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 ${isJDM || isMerch ? "text-amber-400" : isMinta ? "" : "text-amber-600"}`} style={isMinta ? { color: '#b45309' } : undefined}>Предзаказ</span>
+                        <span className={`text-[7px] font-medium uppercase leading-none mb-0.5 ${isJDM || isMerch ? "text-amber-400" : isMinta ? "" : "text-amber-600"}`} style={isMinta ? { color: '#b45309' } : undefined}>Предзаказ</span>
                       ) : (
-                        <span className={`text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 ${isJDM || isMerch ? "text-white/50" : isMinta ? "" : "text-muted-foreground/60"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.45 } : undefined}>ОПТ</span>
+                        <span className={`text-[7px] font-medium uppercase leading-none mb-0.5 ${isJDM || isMerch ? "text-white/50" : isMinta ? "" : "text-muted-foreground/60"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.45 } : undefined}>ОПТ</span>
                       )}
                       <span className={`text-sm sm:text-base font-bold ${isJDM ? "text-red-500" : isMinta ? "" : "text-white"}`} style={isMinta ? { color: '#2e2e2e' } : undefined}>{displayPrice}</span>
                     </div>
@@ -1221,21 +1221,21 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                 {!hasDiscount && isWholesale && wholesalePrice ? (
                   <>
                     <div className="flex justify-between items-end w-full">
-                      <div className="flex flex-col items-start">
-                        <span className="text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 text-muted-foreground/55">РРЦ</span>
-                        <span className="text-[10px] line-through text-muted-foreground/50">{retailPrice}</span>
+                      <div className="flex flex-col items-start shrink-0">
+                        <span className="text-[7px] font-medium uppercase leading-none mb-0.5 text-muted-foreground/55">РРЦ</span>
+                        <span className="text-[9px] line-through text-muted-foreground/50">{retailPrice}</span>
                       </div>
                       {wholesaleBasePrice && (
-                        <div className="flex flex-col items-center">
-                          <span className="text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 text-muted-foreground/45">ОПТ</span>
-                          <span className="text-[10px] line-through text-muted-foreground/35">{wholesaleBasePrice}</span>
+                        <div className="flex flex-col items-center min-w-0">
+                          <span className="text-[7px] font-medium uppercase leading-none mb-0.5 text-muted-foreground/45">ОПТ</span>
+                          <span className="text-[9px] line-through text-muted-foreground/35">{wholesaleBasePrice}</span>
                         </div>
                       )}
-                      <div className="flex flex-col items-end">
+                      <div className="flex flex-col items-end shrink-0">
                         {(product as any).preorderEnabled && (product as any).preorderStatus === "collecting" ? (
-                          <span className="text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 text-amber-600">Предзаказ</span>
+                          <span className="text-[7px] font-medium uppercase leading-none mb-0.5 text-amber-600">Предзаказ</span>
                         ) : (
-                          <span className="text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 text-muted-foreground/60">ОПТ</span>
+                          <span className="text-[7px] font-medium uppercase leading-none mb-0.5 text-muted-foreground/60">ОПТ</span>
                         )}
                         <span className="text-sm sm:text-[15px] font-black tracking-tight text-primary">{displayPrice}</span>
                       </div>
