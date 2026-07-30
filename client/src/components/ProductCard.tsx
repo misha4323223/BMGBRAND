@@ -1175,20 +1175,20 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                     <div className={`flex justify-between w-full pt-1 border-t mt-1 ${isJDM || isMerch ? "border-white/10" : isMinta ? "border-[#2e2e2e]/10" : "border-border/30"}`}>
                       {(product as any).preorderDeadline && (
                         <div className="flex flex-col items-start">
-                          <span className="text-[7px] uppercase leading-none mb-0.5 text-green-500">Сбор до</span>
-                          <span className="text-[9px] font-medium text-green-600">{new Date((product as any).preorderDeadline).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}</span>
+                          <span className="text-[7px] uppercase leading-none mb-0.5 text-black/50 font-semibold">Сбор до</span>
+                          <span className="text-[9px] font-bold text-black/80">{new Date((product as any).preorderDeadline).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}</span>
                         </div>
                       )}
                       {(product as any).preorderProductionDate && (
                         <div className="flex flex-col items-center">
-                          <span className="text-[7px] uppercase leading-none mb-0.5 text-yellow-500">Произв.</span>
-                          <span className="text-[9px] font-medium text-yellow-600">{new Date((product as any).preorderProductionDate).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}</span>
+                          <span className="text-[7px] uppercase leading-none mb-0.5 text-black/50 font-semibold">Произв.</span>
+                          <span className="text-[9px] font-bold text-black/80">{new Date((product as any).preorderProductionDate).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}</span>
                         </div>
                       )}
                       {(product as any).preorderShippingDate && (
                         <div className="flex flex-col items-end">
-                          <span className="text-[7px] uppercase leading-none mb-0.5 text-blue-500">Отправка</span>
-                          <span className="text-[9px] font-medium text-blue-600">{new Date((product as any).preorderShippingDate).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}</span>
+                          <span className="text-[7px] uppercase leading-none mb-0.5 text-black/50 font-semibold">Отправка</span>
+                          <span className="text-[9px] font-bold text-black/80">{new Date((product as any).preorderShippingDate).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}</span>
                         </div>
                       )}
                     </div>
@@ -1244,20 +1244,20 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                       <div className="flex justify-between w-full pt-1 border-t border-border/30 mt-1">
                         {(product as any).preorderDeadline && (
                           <div className="flex flex-col items-start">
-                            <span className="text-[7px] uppercase leading-none mb-0.5 text-green-500">Сбор до</span>
-                            <span className="text-[9px] font-medium text-green-600">{new Date((product as any).preorderDeadline).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}</span>
+                            <span className="text-[7px] uppercase leading-none mb-0.5 text-black/50 font-semibold">Сбор до</span>
+                            <span className="text-[9px] font-bold text-black/80">{new Date((product as any).preorderDeadline).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}</span>
                           </div>
                         )}
                         {(product as any).preorderProductionDate && (
                           <div className="flex flex-col items-center">
-                            <span className="text-[7px] uppercase leading-none mb-0.5 text-yellow-500">Произв.</span>
-                            <span className="text-[9px] font-medium text-yellow-600">{new Date((product as any).preorderProductionDate).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}</span>
+                            <span className="text-[7px] uppercase leading-none mb-0.5 text-black/50 font-semibold">Произв.</span>
+                            <span className="text-[9px] font-bold text-black/80">{new Date((product as any).preorderProductionDate).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}</span>
                           </div>
                         )}
                         {(product as any).preorderShippingDate && (
                           <div className="flex flex-col items-end">
-                            <span className="text-[7px] uppercase leading-none mb-0.5 text-blue-500">Отправка</span>
-                            <span className="text-[9px] font-medium text-blue-600">{new Date((product as any).preorderShippingDate).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}</span>
+                            <span className="text-[7px] uppercase leading-none mb-0.5 text-black/50 font-semibold">Отправка</span>
+                            <span className="text-[9px] font-bold text-black/80">{new Date((product as any).preorderShippingDate).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}</span>
                           </div>
                         )}
                       </div>

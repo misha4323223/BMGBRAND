@@ -477,20 +477,20 @@ export default function ConceptCampaignPage() {
                           <div className="flex justify-between w-full pt-1 border-t border-zinc-100 mt-1">
                             {product.preorderDeadline && (
                               <div className="flex flex-col items-start">
-                                <span className="text-[7px] uppercase leading-none mb-0.5 text-green-500">Сбор до</span>
-                                <span className="text-[10px] font-medium text-green-600">{formatShortDate(product.preorderDeadline)}</span>
+                                <span className="text-[7px] uppercase leading-none mb-0.5 text-zinc-500 font-semibold">Сбор до</span>
+                                <span className="text-[10px] font-bold text-zinc-800">{formatShortDate(product.preorderDeadline)}</span>
                               </div>
                             )}
                             {product.preorderProductionDate && (
                               <div className="flex flex-col items-center">
-                                <span className="text-[7px] uppercase leading-none mb-0.5 text-yellow-500">Произв.</span>
-                                <span className="text-[10px] font-medium text-yellow-600">{formatShortDate(product.preorderProductionDate)}</span>
+                                <span className="text-[7px] uppercase leading-none mb-0.5 text-zinc-500 font-semibold">Произв.</span>
+                                <span className="text-[10px] font-bold text-zinc-800">{formatShortDate(product.preorderProductionDate)}</span>
                               </div>
                             )}
                             {product.preorderShippingDate && (
                               <div className="flex flex-col items-end">
-                                <span className="text-[7px] uppercase leading-none mb-0.5 text-blue-500">Отправка</span>
-                                <span className="text-[10px] font-medium text-blue-600">{formatShortDate(product.preorderShippingDate)}</span>
+                                <span className="text-[7px] uppercase leading-none mb-0.5 text-zinc-500 font-semibold">Отправка</span>
+                                <span className="text-[10px] font-bold text-zinc-800">{formatShortDate(product.preorderShippingDate)}</span>
                               </div>
                             )}
                           </div>
