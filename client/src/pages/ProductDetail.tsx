@@ -1203,12 +1203,18 @@ export default function ProductDetail() {
                     <div className="shrink-0 flex items-baseline gap-1.5 pt-px">
                       {isWholesale && wholesalePriceValue ? (
                         <>
+                          <span className="text-[8px] font-medium text-foreground/30 self-end mb-[2px]">РРЦ</span>
                           <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
                           {wholesaleBasePriceFormatted && (
-                            <span className="text-xs text-foreground/30 line-through">{wholesaleBasePriceFormatted}</span>
+                            <>
+                              <span className="text-[8px] font-medium text-foreground/25 self-end mb-[2px]">ОПТ</span>
+                              <span className="text-xs text-foreground/30 line-through">{wholesaleBasePriceFormatted}</span>
+                            </>
                           )}
+                          <span className={`text-[8px] font-medium self-end mb-[2px] ${isPreorderCollecting ? "text-amber-600" : "text-foreground/35"}`}>
+                            {isPreorderCollecting ? "Предзаказ" : "ОПТ"}
+                          </span>
                           <span className="text-xl font-bold leading-none text-primary">{displayPrice}</span>
-                          <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">ОПТ</Badge>
                         </>
                       ) : (
                         <span className="text-xl font-bold leading-none text-foreground">{displayPrice}</span>
@@ -1283,12 +1289,18 @@ export default function ProductDetail() {
                     </>
                   ) : isWholesale && wholesalePriceValue ? (
                     <>
+                      <span className="text-[9px] font-medium text-foreground/30 self-end mb-[3px]">РРЦ</span>
                       <span className="text-lg text-foreground/45 line-through">{retailPrice}</span>
                       {wholesaleBasePriceFormatted && (
-                        <span className="text-base text-foreground/35 line-through">{wholesaleBasePriceFormatted}</span>
+                        <>
+                          <span className="text-[9px] font-medium text-foreground/25 self-end mb-[3px]">ОПТ</span>
+                          <span className="text-base text-foreground/35 line-through">{wholesaleBasePriceFormatted}</span>
+                        </>
                       )}
+                      <span className={`text-[9px] font-medium self-end mb-[3px] ${isPreorderCollecting ? "text-amber-600" : "text-foreground/35"}`}>
+                        {isPreorderCollecting ? "Предзаказ" : "ОПТ"}
+                      </span>
                       <p className="text-2xl font-bold text-primary">{displayPrice}</p>
-                      <Badge variant="secondary">ОПТ</Badge>
                     </>
                   ) : (
                     <p className="text-2xl font-bold text-foreground">{displayPrice}</p>
