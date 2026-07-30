@@ -162,6 +162,13 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
   const retailPrice = useMemo(() => formatPrice(product.price), [product.price]);
   const wholesalePrice = useMemo(() => getWholesalePrice(product.price, (product as any).wholesalePrice, (product as any).wholesaleDiscountPercent), [product.price, (product as any).wholesalePrice, (product as any).wholesaleDiscountPercent, getWholesalePrice]);
   const displayPrice = useMemo(() => wholesalePrice ? formatPrice(wholesalePrice) : retailPrice, [wholesalePrice, retailPrice]);
+  // Промежуточная оптовая цена БЕЗ скидки — для показа трёх уровней цен оптовикам
+  const wholesaleBasePrice = useMemo(() =>
+    (wholesalePrice && (product as any).wholesaleDiscountPercent > 0 && (product as any).wholesalePrice > 0)
+      ? formatPrice((product as any).wholesalePrice)
+      : null,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [wholesalePrice, (product as any).wholesaleDiscountPercent, (product as any).wholesalePrice]);
   const discountPct = (product as any).discountPercent;
   const productSalePrice = (product as any).salePrice;
   const hasDiscount = ((productSalePrice && productSalePrice > 0 && productSalePrice < product.price) || (discountPct && discountPct > 0)) && !wholesalePrice;
@@ -234,6 +241,10 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
     : (activeHasDiscount ? Math.round(activeProduct.price * (1 - (effectiveActiveDiscountPct || 0) / 100)) : activeProduct.price);
   const activeRetailPrice = formatPrice(activeProduct.price);
   const activeDisplayPrice = activeWholesalePrice ? formatPrice(activeWholesalePrice) : activeRetailPrice;
+  // Промежуточная оптовая цена без скидки для модалки
+  const activeWholesaleBasePrice = (activeWholesalePrice && (activeProduct as any).wholesaleDiscountPercent > 0 && (activeProduct as any).wholesalePrice > 0)
+    ? formatPrice((activeProduct as any).wholesalePrice)
+    : null;
   const isModalPreorderCollecting = (activeProduct as any).preorderEnabled && (activeProduct as any).preorderStatus === "collecting";
   const showModalPreorderLabels = isModalPreorderCollecting && !!activeHasDiscount;
 
@@ -626,6 +637,9 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                         )}
                         {isWholesale && activeWholesalePrice && (
                           <>
+                            {activeWholesaleBasePrice && (
+                              <span className="text-xs text-black/25 line-through font-medium">{activeWholesaleBasePrice}</span>
+                            )}
                             <span className="text-sm text-black/35 line-through font-medium">{activeRetailPrice}</span>
                             <span className="text-[10px] font-bold tracking-widest text-white bg-black px-1.5 py-0.5 uppercase">ОПТ</span>
                           </>
@@ -1116,10 +1130,13 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
             <h3 className={`text-[13px] sm:text-sm font-medium leading-snug line-clamp-2 mb-1.5 transition-colors ${isJDM ? "text-white group-hover:text-red-400" : isMinta ? "group-hover:text-[#2e2e2e]/60" : "text-white group-hover:text-white/70"}`} style={isMinta ? { color: '#2e2e2e' } : undefined}>
               {displayName(product.name)}
             </h3>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-1.5 flex-wrap">
               <span className={`text-sm sm:text-base font-bold ${hasDiscount ? "text-red-600" : isJDM ? "text-red-500" : isMinta ? "" : "text-white"}`} style={isMinta && !hasDiscount ? { color: '#2e2e2e' } : undefined}>
                 {hasDiscount ? formatPrice(salePrice) : displayPrice}
               </span>
+              {wholesaleBasePrice && (
+                <span className={`text-[10px] line-through ${isJDM || isMerch ? "text-white/30" : isMinta ? "" : "text-muted-foreground/35"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.3 } : undefined}>{wholesaleBasePrice}</span>
+              )}
               {(hasDiscount || (isWholesale && wholesalePrice && !hasDiscount)) && (
                 <span className={`text-[11px] line-through ${isJDM || isMerch ? "text-white/40" : isMinta ? "" : "text-muted-foreground/50"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.4 } : undefined}>{retailPrice}</span>
               )}
@@ -1136,10 +1153,13 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
               <h3 className="text-[13px] sm:text-sm font-semibold leading-snug line-clamp-2 text-foreground group-hover:text-primary transition-colors" style={{ minHeight: '2.6em' }}>
                 {displayName(product.name)}
               </h3>
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                 <span className={`text-sm sm:text-[15px] font-black tracking-tight ${hasDiscount ? "text-red-600" : isWholesale ? "text-primary" : "text-foreground"}`}>
                   {hasDiscount ? formatPrice(salePrice) : displayPrice}
                 </span>
+                {wholesaleBasePrice && (
+                  <span className="text-[10px] line-through text-muted-foreground/35">{wholesaleBasePrice}</span>
+                )}
                 {(hasDiscount || (isWholesale && wholesalePrice && !hasDiscount)) && (
                   <span className="text-[11px] line-through text-muted-foreground/50">{retailPrice}</span>
                 )}

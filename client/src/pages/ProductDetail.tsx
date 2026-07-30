@@ -706,6 +706,10 @@ export default function ProductDetail() {
   const retailPrice = formatPrice(product.price);
   const wholesalePriceValue = getWholesalePrice(product.price, (product as any).wholesalePrice, (product as any).wholesaleDiscountPercent);
   const displayPrice = wholesalePriceValue ? formatPrice(wholesalePriceValue) : retailPrice;
+  // Промежуточная оптовая цена БЕЗ скидки — для трёх уровней цен
+  const wholesaleBasePriceFormatted = (wholesalePriceValue && (product as any).wholesaleDiscountPercent > 0 && (product as any).wholesalePrice > 0)
+    ? formatPrice((product as any).wholesalePrice)
+    : null;
   const discountPct = (product as any).discountPercent;
   const productSalePrice = (product as any).salePrice;
   const sizeDiscountsMap = (product as any).sizeDiscounts as Record<string, number> | null | undefined;
@@ -1194,6 +1198,9 @@ export default function ProductDetail() {
                       </span>
                       {isWholesale && wholesalePriceValue && (
                         <>
+                          {wholesaleBasePriceFormatted && (
+                            <span className="text-xs text-foreground/30 line-through">{wholesaleBasePriceFormatted}</span>
+                          )}
                           <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
                           <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">ОПТ</Badge>
                         </>
@@ -1269,6 +1276,9 @@ export default function ProductDetail() {
                   )}
                   {isWholesale && wholesalePriceValue && (
                     <>
+                      {wholesaleBasePriceFormatted && (
+                        <span className="text-base text-foreground/35 line-through">{wholesaleBasePriceFormatted}</span>
+                      )}
                       <span className="text-lg text-foreground/45 line-through">{retailPrice}</span>
                       <Badge variant="secondary">ОПТ</Badge>
                     </>
