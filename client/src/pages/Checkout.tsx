@@ -431,7 +431,12 @@ export default function Checkout() {
 
   // Helper to get correct price based on wholesale status (with discount support)
   const getItemPrice = (product: any, size?: string | null) => {
-    if (isWholesale && product.wholesalePrice) return product.wholesalePrice;
+    if (isWholesale && product.wholesalePrice) {
+      if (product.wholesaleDiscountPercent && product.wholesaleDiscountPercent > 0) {
+        return Math.round(product.wholesalePrice * (1 - product.wholesaleDiscountPercent / 100));
+      }
+      return product.wholesalePrice;
+    }
     if (!isWholesale && product.salePrice && product.salePrice > 0 && product.salePrice < product.price) {
       return product.salePrice;
     }
