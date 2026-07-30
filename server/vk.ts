@@ -165,9 +165,18 @@ export function vkNotifyNewOrder(order: OrderNotification): void {
   let footer = "";
 
   if (discountDetails && Number.isFinite(discountDetails.subtotal)) {
-    footer += `🛍 Товары: ${price(discountDetails.subtotal)}\n`;
+    const wItemDiscount = Number(discountDetails.wholesaleItemDiscountAmount) || 0;
+    // When there is a per-item wholesale discount, show the original wholesale price
+    // so the manager sees: "Товары: 1000 ₽ → Скидка опт: -100 ₽ → Итого: 900 ₽"
+    const displaySubtotal = wItemDiscount > 0
+      ? discountDetails.subtotal + wItemDiscount
+      : discountDetails.subtotal;
+    footer += `🛍 Товары: ${price(displaySubtotal)}\n`;
 
     const discParts: string[] = [];
+    if (wItemDiscount > 0) {
+      discParts.push(`🏷 Скидка опт (-${price(wItemDiscount)})`);
+    }
     if (Number.isFinite(discountDetails.promoDiscountAmount) && discountDetails.promoDiscountAmount > 0) {
       let part = `🏷 ${discountDetails.promoCode || order.promoCode || ""}`;
       if (Number.isFinite(discountDetails.promoDiscountPercent) && discountDetails.promoDiscountPercent > 0) {

@@ -262,9 +262,18 @@ export function notifyNewOrder(order: OrderNotification): void {
   let footer = "";
 
   if (discountDetails && Number.isFinite(discountDetails.subtotal)) {
-    footer += `\n\u{1F6CD} Товары: ${price(discountDetails.subtotal)}`;
+    const wItemDiscount = Number(discountDetails.wholesaleItemDiscountAmount) || 0;
+    // When there is a per-item wholesale discount, show the original wholesale price
+    // so the manager sees: "Товары: 1000 ₽ → Скидка опт: -100 ₽ → Итого: 900 ₽"
+    const displaySubtotal = wItemDiscount > 0
+      ? discountDetails.subtotal + wItemDiscount
+      : discountDetails.subtotal;
+    footer += `\n\u{1F6CD} Товары: ${price(displaySubtotal)}`;
 
     const discParts: string[] = [];
+    if (wItemDiscount > 0) {
+      discParts.push(`\u{1F3F7} Скидка опт (-${price(wItemDiscount)})`);
+    }
     if (Number.isFinite(discountDetails.promoDiscountAmount) && discountDetails.promoDiscountAmount > 0) {
       let part = `\u{1F3F7} ${esc(discountDetails.promoCode || order.promoCode || "")}`;
       if (Number.isFinite(discountDetails.promoDiscountPercent) && discountDetails.promoDiscountPercent > 0) {

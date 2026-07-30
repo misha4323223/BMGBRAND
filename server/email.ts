@@ -339,8 +339,9 @@ export function getOrderPaidEmailHtml(order: {
   const loyaltyDiscount = dd?.loyaltyDiscountAmount || 0;
   const giftCardCode = dd?.giftCardCode || null;
   const giftCardAmount = dd?.giftCardAmount || 0;
+  const wholesaleItemDiscount = Number(dd?.wholesaleItemDiscountAmount) || 0;
 
-  const hasDiscounts = promoDiscount > 0 || loyaltyDiscount > 0 || giftCardAmount > 0;
+  const hasDiscounts = wholesaleItemDiscount > 0 || promoDiscount > 0 || loyaltyDiscount > 0 || giftCardAmount > 0;
 
   const itemsHtml = productItems.map((item: any) => `
     <tr>
@@ -355,12 +356,23 @@ export function getOrderPaidEmailHtml(order: {
   `).join('');
 
   let breakdownHtml = '';
-  
+
+  // When there is a per-item wholesale discount, show the original wholesale price
+  // so the customer sees: "Товары: 1000 ₽ → Скидка опт: -100 ₽ → Итого: 900 ₽"
+  const displaySubtotal = wholesaleItemDiscount > 0 ? subtotal + wholesaleItemDiscount : subtotal;
   breakdownHtml += `
     <tr>
       <td style="padding: 6px 0; color: #666;">Товары</td>
-      <td style="padding: 6px 0; text-align: right;">${fmt(subtotal)}</td>
+      <td style="padding: 6px 0; text-align: right;">${fmt(displaySubtotal)}</td>
     </tr>`;
+
+  if (wholesaleItemDiscount > 0) {
+    breakdownHtml += `
+    <tr>
+      <td style="padding: 6px 0; color: #2e7d32;">Скидка для оптового клиента</td>
+      <td style="padding: 6px 0; text-align: right; color: #2e7d32;">-${fmt(wholesaleItemDiscount)}</td>
+    </tr>`;
+  }
 
   if (deliveryCost > 0) {
     breakdownHtml += `

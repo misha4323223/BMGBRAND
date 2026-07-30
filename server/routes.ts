@@ -10290,10 +10290,19 @@ ${artistLinks || "- (список формируется)"}
       const total = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
       
       // Use wholesale prices for wholesale orders
+      // Track wholesale per-item discount amount separately for notifications/invoice display
+      let wholesaleItemDiscountTotal = 0;
       const orderItems = cartItems.map(item => {
           let price = item.product.price;
           if (isWholesale && item.product.wholesalePrice) {
-            price = item.product.wholesalePrice;
+            const wdp = (item.product as any).wholesaleDiscountPercent as number | null | undefined;
+            if (wdp && wdp > 0) {
+              const discountedPrice = Math.round(item.product.wholesalePrice * (1 - wdp / 100));
+              wholesaleItemDiscountTotal += (item.product.wholesalePrice - discountedPrice) * item.quantity;
+              price = discountedPrice;
+            } else {
+              price = item.product.wholesalePrice;
+            }
           } else if (!isWholesale) {
             const itemSalePrice = (item.product as any).salePrice;
             if (itemSalePrice && itemSalePrice > 0 && itemSalePrice < item.product.price) {
@@ -10486,6 +10495,10 @@ ${artistLinks || "- (список формируется)"}
         giftCardCode: (giftCardApplied > 0 && giftCardCode) ? giftCardCode : null,
         giftCardAmount: giftCardApplied,
         isWholesale: isWholesale || false,
+        // Per-item wholesale discount (from wholesaleDiscountPercent on product).
+        // subtotal already reflects discounted prices; this field stores the raw saving
+        // so notifications/email can show e.g. "Скидка опт: -500 ₽"
+        wholesaleItemDiscountAmount: wholesaleItemDiscountTotal,
       };
 
       const itemsWithDiscounts = [...orderItems, { _discountDetails: discountDetails }];
