@@ -464,9 +464,12 @@ export function registerAiChatRoute(app: Express): void {
         const targetProduct = await storage.getProduct(Number(sizeProductId)) as any;
         if (targetProduct) {
           const productName = targetProduct.name || "товар";
+          const isSock = /носк/i.test(productName) || (targetProduct.category || "").toLowerCase() === "socks" || /носк/i.test(targetProduct.subcategory || "");
           const measurements = (targetProduct.measurements || []) as any[];
           const measurementSections = (targetProduct.measurementSections || []) as any[];
-          if (measurementSections.length > 0) {
+          if (isSock) {
+            // Socks: размер указан на упаковке, не спрашиваем рост и обхват груди
+          } else if (measurementSections.length > 0) {
             const tableStr = measurementSections.map((sec: any) =>
               `### ${sec.title}:\n${(sec.rows || []).map(buildMRowStr).join("\n")}`
             ).join("\n\n");
@@ -569,8 +572,9 @@ export function registerAiChatRoute(app: Express): void {
         // Skip if sizeAdvisorContext already contains the size table — avoid duplicate tables in prompt
         const pageMeasurements = (p.measurements || []) as any[];
         const pageMeasurementSections = (p.measurementSections || []) as any[];
+        const isPageSock = /носк/i.test(p.name || "") || (p.category || "").toLowerCase() === "socks" || /носк/i.test(p.subcategory || "");
         let pageSizeTableStr = "";
-        if (!sizeAdvisorContext) {
+        if (!sizeAdvisorContext && !isPageSock) {
           if (pageMeasurementSections.length > 0) {
             const tableStr = pageMeasurementSections.map((sec: any) =>
               `#### ${sec.title}:\n${(sec.rows || []).map(buildMRowStr).join("\n")}`
@@ -855,9 +859,12 @@ export function registerAiChatRoute(app: Express): void {
               const withMeasurements = matched.find((p: any) => Array.isArray(p.measurements) && p.measurements.length > 0);
               const sizeTarget = withSections || withMeasurements || matched[0];
               const productName = sizeTarget.name || "товар";
+              const isSockTarget = /носк/i.test(productName) || (sizeTarget.category || "").toLowerCase() === "socks" || /носк/i.test(sizeTarget.subcategory || "");
               const measurements = (sizeTarget.measurements || []) as any[];
               const measurementSections = (sizeTarget.measurementSections || []) as any[];
-              if (measurementSections.length > 0) {
+              if (isSockTarget) {
+                // Socks: размер указан на упаковке, не спрашиваем рост и обхват груди
+              } else if (measurementSections.length > 0) {
                 const tableStr = measurementSections.map((sec: any) =>
                   `### ${sec.title}:\n${(sec.rows || []).map(buildMRowStr).join("\n")}`
                 ).join("\n\n");
