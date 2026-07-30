@@ -1384,11 +1384,17 @@ export function registerProductInfoRoute(app: Express): void {
       const bodyRefChest: Record<string, number> = { XS: 84, S: 88, M: 92, L: 96, XL: 100, XXL: 104, XXXL: 108 };
       const bodyRefWaist: Record<string, number> = { XS: 62, S: 66, M: 70, L: 74, XL: 78, XXL: 82, XXXL: 86 };
 
+      const isSockProduct = /носк/i.test(product.name || "") || (product.category || "").toLowerCase() === "socks" || /носк/i.test(product.subcategory || "");
+
       let sizingRule = `- Чтобы найти размер: найди строку таблицы, где грудь изделия ближайшая к обхвату груди покупателя (без прибавок — замеры изделия уже включают свободу кроя)\n`;
       // Что спросить у покупателя, если параметры не указаны
       let askParamsLine = `- Если параметры не названы и вопрос про размер — попроси рост и обхват груди\n`;
 
-      if (isOneSize) {
+      if (isSockProduct) {
+        sizingRule = `- НОСКИ: размер носков — это диапазон размера ОБУВИ (34-39 = обувь 34-39, 40-45 = обувь 40-45). Просто скажи какой диапазон подходит под размер обуви покупателя.\n` +
+          `⚠️ ЗАПРЕЩЕНО спрашивать рост, обхват груди или любые параметры тела — они не нужны для выбора носков.\n`;
+        askParamsLine = ``;
+      } else if (isOneSize) {
         sizingRule = `- Товар одного универсального размера (OneSize) — подбор размера не нужен, не спрашивай про рост и обхват груди.\n`;
         askParamsLine = ``;
       } else if (hasMeasurementSections) {
