@@ -150,14 +150,25 @@ export function useFavorites() {
     let mounted = true;
     const sync = async () => {
       try {
+        const syncedIds: number[] = [];
         for (const id of pending) {
           if (!serverFavorites.includes(id)) {
             await apiRequest("POST", `/api/auth/favorites/${id}`);
           }
+          syncedIds.push(id);
+        }
+        // Очищаем именно те ID, которые синхронизировали — даже если компонент
+        // уже размонтировался. Без этого localStorage остаётся заполненным,
+        // и при следующем монтировании товары заново заливаются на сервер,
+        // отменяя удаление пользователя.
+        const remaining = getLocalFavorites().filter(id => !syncedIds.includes(id));
+        if (remaining.length === 0) {
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
+        } else {
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remaining));
         }
         if (mounted) {
-          localStorage.removeItem(LOCAL_STORAGE_KEY);
-          queryClient.setQueryData<number[]>(LOCAL_QUERY_KEY, []);
+          queryClient.setQueryData<number[]>(LOCAL_QUERY_KEY, remaining);
           queryClient.invalidateQueries({ queryKey: ["/api/auth/favorites"] });
         }
       } catch (err) {
