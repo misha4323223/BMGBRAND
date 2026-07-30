@@ -56,7 +56,7 @@ export default function Cart() {
     return acc + (price * item.quantity);
   }, 0) || 0;
   const wholesaleSubtotal = cartItems?.reduce((acc, item) => {
-    const price = isWholesale ? (getWholesalePrice(item.product.price, (item.product as any).wholesalePrice) || item.product.price) : item.product.price;
+    const price = isWholesale ? (getWholesalePrice(item.product.price, (item.product as any).wholesalePrice, (item.product as any).wholesaleDiscountPercent) || item.product.price) : item.product.price;
     return acc + (price * item.quantity);
   }, 0) || 0;
   const subtotal = isWholesale ? wholesaleSubtotal : retailSubtotal;
@@ -99,7 +99,7 @@ export default function Cart() {
                   : (effectiveDiscount && effectiveDiscount > 0 && !isWholesale
                     ? Math.round(item.product.price * (1 - effectiveDiscount / 100))
                     : item.product.price);
-                const wholesaleItemPrice = getWholesalePrice(item.product.price, (item.product as any).wholesalePrice) || item.product.price;
+                const wholesaleItemPrice = getWholesalePrice(item.product.price, (item.product as any).wholesalePrice, (item.product as any).wholesaleDiscountPercent) || item.product.price;
                 const itemPrice = isWholesale ? wholesaleItemPrice : retailItemPrice;
                 const itemTotal = itemPrice * item.quantity;
                 const retailTotal = retailItemPrice * item.quantity;

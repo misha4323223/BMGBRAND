@@ -118,7 +118,7 @@ function CartDrawer() {
         ? Math.round(item.product.price * (1 - effectiveDiscount / 100))
         : item.product.price;
       const price = isWholesale
-        ? getWholesalePrice(item.product.price, (item.product as any).wholesalePrice) || item.product.price
+        ? getWholesalePrice(item.product.price, (item.product as any).wholesalePrice, (item.product as any).wholesaleDiscountPercent) || item.product.price
         : retailPrice;
       return acc + price * item.quantity;
     }, 0) || 0;
@@ -222,7 +222,7 @@ function CartDrawer() {
                       ? Math.round(item.product.price * (1 - effectiveDiscount / 100))
                       : item.product.price;
                     const itemPrice = isWholesale
-                      ? getWholesalePrice(item.product.price, (item.product as any).wholesalePrice) || item.product.price
+                      ? getWholesalePrice(item.product.price, (item.product as any).wholesalePrice, (item.product as any).wholesaleDiscountPercent) || item.product.price
                       : retailPrice;
                     const itemTotal = itemPrice * item.quantity;
 

@@ -1130,15 +1130,20 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
             <h3 className={`text-[13px] sm:text-sm font-medium leading-snug line-clamp-2 mb-1.5 transition-colors ${isJDM ? "text-white group-hover:text-red-400" : isMinta ? "group-hover:text-[#2e2e2e]/60" : "text-white group-hover:text-white/70"}`} style={isMinta ? { color: '#2e2e2e' } : undefined}>
               {displayName(product.name)}
             </h3>
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className={`text-sm sm:text-base font-bold ${hasDiscount ? "text-red-600" : isJDM ? "text-red-500" : isMinta ? "" : "text-white"}`} style={isMinta && !hasDiscount ? { color: '#2e2e2e' } : undefined}>
+            <div>
+              <span className={`block text-sm sm:text-base font-bold ${hasDiscount ? "text-red-600" : isJDM ? "text-red-500" : isMinta ? "" : "text-white"}`} style={isMinta && !hasDiscount ? { color: '#2e2e2e' } : undefined}>
                 {hasDiscount ? formatPrice(salePrice) : displayPrice}
               </span>
-              {wholesaleBasePrice && (
-                <span className={`text-[10px] line-through ${isJDM || isMerch ? "text-white/30" : isMinta ? "" : "text-muted-foreground/35"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.3 } : undefined}>{wholesaleBasePrice}</span>
-              )}
-              {(hasDiscount || (isWholesale && wholesalePrice && !hasDiscount)) && (
+              {hasDiscount && (
                 <span className={`text-[11px] line-through ${isJDM || isMerch ? "text-white/40" : isMinta ? "" : "text-muted-foreground/50"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.4 } : undefined}>{retailPrice}</span>
+              )}
+              {!hasDiscount && isWholesale && wholesalePrice && (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {wholesaleBasePrice && (
+                    <span className={`text-[10px] line-through ${isJDM || isMerch ? "text-white/30" : isMinta ? "" : "text-muted-foreground/35"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.3 } : undefined}>{wholesaleBasePrice}</span>
+                  )}
+                  <span className={`text-[11px] line-through ${isJDM || isMerch ? "text-white/40" : isMinta ? "" : "text-muted-foreground/50"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.4 } : undefined}>{retailPrice}</span>
+                </div>
               )}
             </div>
             <div className="min-h-[22px]">
@@ -1153,15 +1158,20 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
               <h3 className="text-[13px] sm:text-sm font-semibold leading-snug line-clamp-2 text-foreground group-hover:text-primary transition-colors" style={{ minHeight: '2.6em' }}>
                 {displayName(product.name)}
               </h3>
-              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                <span className={`text-sm sm:text-[15px] font-black tracking-tight ${hasDiscount ? "text-red-600" : isWholesale ? "text-primary" : "text-foreground"}`}>
+              <div className="mt-2">
+                <span className={`block text-sm sm:text-[15px] font-black tracking-tight leading-tight ${hasDiscount ? "text-red-600" : isWholesale ? "text-primary" : "text-foreground"}`}>
                   {hasDiscount ? formatPrice(salePrice) : displayPrice}
                 </span>
-                {wholesaleBasePrice && (
-                  <span className="text-[10px] line-through text-muted-foreground/35">{wholesaleBasePrice}</span>
-                )}
-                {(hasDiscount || (isWholesale && wholesalePrice && !hasDiscount)) && (
+                {hasDiscount && (
                   <span className="text-[11px] line-through text-muted-foreground/50">{retailPrice}</span>
+                )}
+                {!hasDiscount && isWholesale && wholesalePrice && (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {wholesaleBasePrice && (
+                      <span className="text-[10px] line-through text-muted-foreground/35">{wholesaleBasePrice}</span>
+                    )}
+                    <span className="text-[11px] line-through text-muted-foreground/50">{retailPrice}</span>
+                  </div>
                 )}
               </div>
               <div className="min-h-[22px] mt-1">
