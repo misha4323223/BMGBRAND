@@ -1764,13 +1764,17 @@ export default function Checkout() {
                   <span>
                     {isWholesale 
                       ? `${cs.summaryDeliveryLabelWholesale} ${TRANSPORT_COMPANIES.find(tc => tc.id === selectedTransport)?.name || 'ТК'}` 
-                      : cs.summaryDeliveryLabel
+                      : deliveryService === "pickup"
+                        ? "Самовывоз"
+                        : deliveryService === "ozon"
+                          ? "Доставка Ozon"
+                          : cs.summaryDeliveryLabel
                     }
                   </span>
-                  <span className={isFreeShipping ? "text-green-600 font-medium" : ""}>
+                  <span className={(isFreeShipping || deliveryService === "pickup") ? "text-green-600 font-medium" : ""}>
                     {isWholesale 
                       ? cs.summaryDeliveryWholesaleValue 
-                      : isFreeShipping
+                      : (isFreeShipping || deliveryService === "pickup")
                         ? "Бесплатно"
                         : (deliveryCost > 0 ? formatPrice(deliveryCost) : "—")
                     }
