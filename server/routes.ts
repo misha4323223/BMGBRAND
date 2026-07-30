@@ -15550,7 +15550,7 @@ ${offersXml}
 
   // ==================== Multi-Product Preorder Order ====================
 
-  app.post("/api/preorder/order-multi", async (req: any, res) => {
+  app.post("/api/preorder/order-multi", authMiddleware, async (req: any, res) => {
     try {
       const {
         customerLastName, customerFirstName, customerMiddleName,
