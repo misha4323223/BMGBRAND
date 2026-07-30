@@ -285,7 +285,7 @@ export default function BlogDetail() {
     <div className="min-h-screen bg-background">
       <SEO 
         title={post.seoTitle || post.title || "Статья"}
-        description={post.seoDescription || post.excerpt || post.content?.slice(0, 160) || "Блог BMGBRAND — статьи о российской моде и авторских дизайнах."}
+        description={post.seoDescription || post.excerpt || (post.content ? (() => { const s = post.content; if (s.length <= 160) return s; const cut = s.slice(0, 160); const sp = cut.lastIndexOf(" "); return sp > 0 ? cut.slice(0, sp) : cut; })() : "") || "Блог BMGBRAND — статьи о российской моде и авторских дизайнах."}
         ogType="article"
         ogImage={post.image || "/og-image.png"}
         jsonLd={[

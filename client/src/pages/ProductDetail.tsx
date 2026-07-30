@@ -740,6 +740,14 @@ export default function ProductDetail() {
   const autoSeoTitle = `${product.name}${selectedColorName ? ` ${selectedColorName}` : ""} — купить${isMerchProduct ? " мерч" : ""}`;
   const seoTitle = product.seoTitle || autoSeoTitle;
 
+  // Truncate at word boundary so meta description never breaks mid-word
+  const truncateAtWord = (str: string, maxLen: number): string => {
+    if (str.length <= maxLen) return str;
+    const cut = str.slice(0, maxLen);
+    const lastSpace = cut.lastIndexOf(" ");
+    return lastSpace > 0 ? cut.slice(0, lastSpace) : cut;
+  };
+
   const seoDescParts = [
     isMerchProduct
       ? `Купить мерч ${product.name} BOOOMERANGS`
@@ -747,9 +755,9 @@ export default function ProductDetail() {
     selectedColorName ? `цвет: ${selectedColorName}` : "",
     sizesText ? `Размеры: ${sizesText}.` : "",
     "Доставка по России СДЭК.",
-    product.description ? product.description.slice(0, 160) : "",
+    product.description ? truncateAtWord(product.description, 160) : "",
   ].filter(Boolean);
-  const autoSeoDescription = seoDescParts.join(" ").slice(0, 220);
+  const autoSeoDescription = truncateAtWord(seoDescParts.join(" "), 220);
   const seoDescription = product.seoDescription || autoSeoDescription;
 
   const seoKeywords = [

@@ -810,7 +810,7 @@ export default function ArtistPage() {
         slug,
         name: artistName,
         role: settings.role || "",
-        description: (settings.shortDescription || settings.aboutText || "").slice(0, 300),
+        description: (() => { const s = settings.shortDescription || settings.aboutText || ""; if (s.length <= 300) return s; const cut = s.slice(0, 300); const sp = cut.lastIndexOf(" "); return sp > 0 ? cut.slice(0, sp) : cut; })(),
         products: products.slice(0, 8).map((p: any) => ({
           name: p.name,
           price: p.price ? Math.round(p.price / 100) : 0,
@@ -869,7 +869,7 @@ export default function ArtistPage() {
     <>
       <SEO 
         title={settings?.seoTitle || `Мерч ${artistName} — купить официальный мерч`}
-        description={settings?.seoDescription || `Купить мерч ${artistName} — официальный магазин Booomerangs. ${settings?.aboutText?.slice(0, 100) || "Футболки, худи, аксессуары с доставкой по всей России."}`}
+        description={settings?.seoDescription || `Купить мерч ${artistName} — официальный магазин Booomerangs. ${settings?.aboutText ? (() => { const s = settings.aboutText; if (s.length <= 100) return s; const cut = s.slice(0, 100); const sp = cut.lastIndexOf(" "); return sp > 0 ? cut.slice(0, sp) : cut; })() : "Футболки, худи, аксессуары с доставкой по всей России."}`}
         keywords={`мерч ${artistName}, купить мерч ${artistName}, ${artistName}, Booomerangs, BMGBRAND`}
         ogImage={heroImage || undefined}
         jsonLd={[
@@ -900,7 +900,7 @@ export default function ArtistPage() {
             "name": artistName,
             ...(artistRole ? { "jobTitle": artistRole } : {}),
             ...(heroImage ? { "image": heroImage } : {}),
-            ...(settings?.aboutText ? { "description": settings.aboutText.slice(0, 300) } : {}),
+            ...(settings?.aboutText ? { "description": (() => { const s = settings.aboutText; if (s.length <= 300) return s; const cut = s.slice(0, 300); const sp = cut.lastIndexOf(" "); return sp > 0 ? cut.slice(0, sp) : cut; })() } : {}),
             "url": `${window.location.origin}/@${slug}`,
           },
         ]}
