@@ -282,6 +282,8 @@ export const orders = pgTable("orders", {
   // deserializeOrderPartnerId из server/storage.ts. Подробности — в replit.md.
   partnerId: bigint("partner_id", { mode: "number" }),
   addonData: text("addon_data"), // JSON: {status, paymentId, paymentMethod, items, addedTotal, initiatedAt, paidAt}
+  // Служба доставки: cdek | ozon | pickup. Хранится в cdekData.deliveryService (не отдельная колонка YDB).
+  deliveryService: text("delivery_service"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

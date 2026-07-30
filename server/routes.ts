@@ -3539,7 +3539,7 @@ ${artistLinks || "- (список формируется)"}
                   paymentMethod: 'yookassa',
                   isWholesale: order.isWholesale || false,
                   promoCode: order.promoCode || undefined,
-                  deliveryService: (order as any).deliveryService || undefined,
+                  deliveryService: order.deliveryService || undefined,
                 });
                 vkNotifyNewOrder({
                   orderId: order.id,
@@ -3552,7 +3552,7 @@ ${artistLinks || "- (список формируется)"}
                   paymentMethod: 'yookassa',
                   isWholesale: order.isWholesale || false,
                   promoCode: order.promoCode || undefined,
-                  deliveryService: (order as any).deliveryService || undefined,
+                  deliveryService: order.deliveryService || undefined,
                 });
               }
             } catch (err: any) {
@@ -4008,7 +4008,7 @@ ${artistLinks || "- (список формируется)"}
                     paymentMethod: 'tbank',
                     isWholesale: order.isWholesale || false,
                     promoCode: order.promoCode || undefined,
-                    deliveryService: (order as any).deliveryService || undefined,
+                    deliveryService: order.deliveryService || undefined,
                   });
                   vkNotifyNewOrder({
                     orderId: order.id,
@@ -4021,7 +4021,7 @@ ${artistLinks || "- (список формируется)"}
                     paymentMethod: 'tbank',
                     isWholesale: order.isWholesale || false,
                     promoCode: order.promoCode || undefined,
-                    deliveryService: (order as any).deliveryService || undefined,
+                    deliveryService: order.deliveryService || undefined,
                   });
                 }
               } catch (err: any) {
@@ -4312,7 +4312,7 @@ ${artistLinks || "- (список формируется)"}
             paymentMethod: "ozon-pay",
             isWholesale: false,
             promoCode: order.promoCode || undefined,
-            deliveryService: (order as any).deliveryService || undefined,
+            deliveryService: order.deliveryService || undefined,
           });
           vkNotifyNewOrder({
             orderId: order.id,
@@ -4325,7 +4325,7 @@ ${artistLinks || "- (список формируется)"}
             paymentMethod: "ozon-pay",
             isWholesale: false,
             promoCode: order.promoCode || undefined,
-            deliveryService: (order as any).deliveryService || undefined,
+            deliveryService: order.deliveryService || undefined,
           });
         }
       } catch (err: any) {

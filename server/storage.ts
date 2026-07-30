@@ -2350,6 +2350,7 @@ export class DatabaseStorage implements IStorage {
         remainingAmount: Number(this.extractTypedValue(row.items[14])) || 0,
         userId: Number(this.extractTypedValue(row.items[15])) || undefined,
         cdekData: this.extractTypedValue(row.items[16]) || undefined,
+        deliveryService: (() => { try { return JSON.parse(this.extractTypedValue(row.items[16]) || '{}').deliveryService || undefined; } catch { return undefined; } })(),
         // См. deserializeOrderPartnerId (вверху файла) — legacy Utf8 колонка.
         partnerId: deserializeOrderPartnerId(this.extractTypedValue(row.items[17])),
         promoCode: this.extractTypedValue(row.items[18]) || undefined,
@@ -2745,6 +2746,7 @@ export class DatabaseStorage implements IStorage {
         isWholesale: this.extractTypedValue(row.items[10]) === true,
         transportCompany: this.extractTypedValue(row.items[11]) || undefined,
         cdekData: this.extractTypedValue(row.items[12]) || undefined,
+        deliveryService: (() => { try { return JSON.parse(this.extractTypedValue(row.items[12]) || '{}').deliveryService || undefined; } catch { return undefined; } })(),
         paymentId: this.extractTypedValue(row.items[13]) || undefined,
         invoiceNumber: this.extractTypedValue(row.items[14]) ? Number(this.extractTypedValue(row.items[14])) : undefined,
         // См. deserializeOrderPartnerId (вверху файла) — legacy Utf8 колонка.
@@ -2789,6 +2791,7 @@ export class DatabaseStorage implements IStorage {
       transportCompany: this.extractTypedValue(row.items[11]) || undefined,
       paymentId: this.extractTypedValue(row.items[12]) || undefined,
       cdekData: this.extractTypedValue(row.items[13]) || undefined,
+      deliveryService: (() => { try { return JSON.parse(this.extractTypedValue(row.items[13]) || '{}').deliveryService || undefined; } catch { return undefined; } })(),
       isPreorder: this.extractTypedValue(row.items[14]) === true,
       depositPaid: this.extractTypedValue(row.items[15]) === true,
       remainingAmount: Number(this.extractTypedValue(row.items[16])) || 0,
@@ -2855,6 +2858,7 @@ export class DatabaseStorage implements IStorage {
       createdAt: this.extractTypedValue(row.items[10]),
       isWholesale: this.extractTypedValue(row.items[11]) === true,
       cdekData: hasCdekData ? (this.extractTypedValue(row.items[12]) || undefined) : undefined,
+      deliveryService: (() => { try { return JSON.parse(this.extractTypedValue(row.items[12]) || '{}').deliveryService || undefined; } catch { return undefined; } })(),
       userId,
       isPreorder: hasPreorderFields ? this.extractTypedValue(row.items[14]) === true : false,
       depositPaid: hasPreorderFields ? this.extractTypedValue(row.items[15]) === true : false,
@@ -3337,7 +3341,7 @@ export class DatabaseStorage implements IStorage {
         `;
         
         const cdekData = JSON.stringify({
-          deliveryService: "cdek",
+          deliveryService: (order as any).deliveryService || "cdek",
           pointCode: order.cdekPointCode || null,
           cityCode: order.cdekCityCode || null,
           tariffCode: order.cdekTariffCode || null,
