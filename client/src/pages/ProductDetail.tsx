@@ -721,6 +721,7 @@ export default function ProductDetail() {
     : (effectiveDiscountPct && effectiveDiscountPct > 0 ? Math.round(product.price * (1 - effectiveDiscountPct / 100)) : product.price);
   const isPreorderCollecting = (product as any).preorderEnabled && (product as any).preorderStatus === "collecting";
   const showPreorderPriceLabels = isPreorderCollecting && !!hasDiscount;
+  const showWholesaleBelow = isWholesale && !!wholesalePriceValue;
 
   const origin = window.location.origin;
   const productUrl = `${origin}/${product.slug || product.id}`;
@@ -1188,8 +1189,8 @@ export default function ProductDetail() {
               </div>
 
               {/* ── Десктопная раскладка: Вариант В — монолит ── */}
-              <div className={`hidden md:flex min-w-0 ${showPreorderPriceLabels ? 'flex-col gap-2' : 'items-start gap-3'}`}>
-                <div className={`flex items-start gap-3 min-w-0 ${showPreorderPriceLabels ? 'w-full' : ''}`}>
+              <div className={`hidden md:flex min-w-0 ${showPreorderPriceLabels || showWholesaleBelow ? 'flex-col gap-2' : 'items-start gap-3'}`}>
+                <div className={`flex items-start gap-3 min-w-0 ${showPreorderPriceLabels || showWholesaleBelow ? 'w-full' : ''}`}>
                   {/* Название — занимает всё свободное место. Не <h1>: настоящий заголовок уже отрисован выше для мобильной раскладки (skip-дубликат для SEO/AI-краулеров) */}
                   <div
                     role="heading"
@@ -1199,26 +1200,9 @@ export default function ProductDetail() {
                   >
                     {displayName(product.name)}
                   </div>
-                  {!showPreorderPriceLabels && (
+                  {!showPreorderPriceLabels && !showWholesaleBelow && (
                     <div className="shrink-0 flex items-baseline gap-1.5 pt-px">
-                      {isWholesale && wholesalePriceValue ? (
-                        <>
-                          <span className="text-[8px] font-medium text-foreground/30 self-end mb-[2px]">РРЦ</span>
-                          <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
-                          {wholesaleBasePriceFormatted && (
-                            <>
-                              <span className="text-[8px] font-medium text-foreground/25 self-end mb-[2px]">ОПТ</span>
-                              <span className="text-xs text-foreground/30 line-through">{wholesaleBasePriceFormatted}</span>
-                            </>
-                          )}
-                          <span className={`text-[8px] font-medium self-end mb-[2px] ${isPreorderCollecting ? "text-amber-600" : "text-foreground/35"}`}>
-                            {isPreorderCollecting ? "Предзаказ" : "ОПТ"}
-                          </span>
-                          <span className="text-xl font-bold leading-none text-primary">{displayPrice}</span>
-                        </>
-                      ) : (
-                        <span className="text-xl font-bold leading-none text-foreground">{displayPrice}</span>
-                      )}
+                      <span className="text-xl font-bold leading-none text-foreground">{displayPrice}</span>
                     </div>
                   )}
                   {/* Кнопки действий — только иконки */}
@@ -1274,6 +1258,26 @@ export default function ProductDetail() {
                     <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
                   </div>
                 )}
+                {showWholesaleBelow && (
+                  <div className="flex items-end gap-5 flex-wrap">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] text-foreground/30 font-medium uppercase tracking-wide leading-none mb-1">РРЦ</span>
+                      <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
+                    </div>
+                    {wholesaleBasePriceFormatted && (
+                      <div className="flex flex-col">
+                        <span className="text-[9px] text-foreground/25 font-medium uppercase tracking-wide leading-none mb-1">ОПТ</span>
+                        <span className="text-xs text-foreground/30 line-through">{wholesaleBasePriceFormatted}</span>
+                      </div>
+                    )}
+                    <div className="flex flex-col">
+                      <span className={`text-[9px] font-medium uppercase tracking-wide leading-none mb-1 ${isPreorderCollecting ? "text-amber-600" : "text-foreground/35"}`}>
+                        {isPreorderCollecting ? "Предзаказ" : "ОПТ"}
+                      </span>
+                      <span className="text-xl font-bold leading-none text-primary">{displayPrice}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="border-t border-border my-3 sm:my-2"></div>
               {/* Цена — скрыта на десктопе (переехала в шапку) */}
@@ -1281,7 +1285,7 @@ export default function ProductDetail() {
                 {showPreorderPriceLabels && (
                   <p className="text-xs font-medium text-foreground uppercase tracking-wide">Предпродажная цена</p>
                 )}
-                <div className="flex items-center gap-3 flex-wrap">
+                <div className={`flex flex-wrap ${isWholesale && wholesalePriceValue ? 'items-end gap-4' : 'items-center gap-3'}`}>
                   {hasDiscount ? (
                     <>
                       <span className="text-lg font-semibold text-red-400 line-through">{retailPrice}</span>
@@ -1289,18 +1293,22 @@ export default function ProductDetail() {
                     </>
                   ) : isWholesale && wholesalePriceValue ? (
                     <>
-                      <span className="text-[9px] font-medium text-foreground/30 self-end mb-[3px]">РРЦ</span>
-                      <span className="text-lg text-foreground/45 line-through">{retailPrice}</span>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] text-foreground/30 font-medium uppercase tracking-wide leading-none mb-1">РРЦ</span>
+                        <span className="text-lg text-foreground/45 line-through">{retailPrice}</span>
+                      </div>
                       {wholesaleBasePriceFormatted && (
-                        <>
-                          <span className="text-[9px] font-medium text-foreground/25 self-end mb-[3px]">ОПТ</span>
+                        <div className="flex flex-col">
+                          <span className="text-[9px] text-foreground/25 font-medium uppercase tracking-wide leading-none mb-1">ОПТ</span>
                           <span className="text-base text-foreground/35 line-through">{wholesaleBasePriceFormatted}</span>
-                        </>
+                        </div>
                       )}
-                      <span className={`text-[9px] font-medium self-end mb-[3px] ${isPreorderCollecting ? "text-amber-600" : "text-foreground/35"}`}>
-                        {isPreorderCollecting ? "Предзаказ" : "ОПТ"}
-                      </span>
-                      <p className="text-2xl font-bold text-primary">{displayPrice}</p>
+                      <div className="flex flex-col">
+                        <span className={`text-[9px] font-medium uppercase tracking-wide leading-none mb-1 ${isPreorderCollecting ? "text-amber-600" : "text-foreground/35"}`}>
+                          {isPreorderCollecting ? "Предзаказ" : "ОПТ"}
+                        </span>
+                        <p className="text-2xl font-bold text-primary">{displayPrice}</p>
+                      </div>
                     </>
                   ) : (
                     <p className="text-2xl font-bold text-foreground">{displayPrice}</p>

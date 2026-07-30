@@ -1010,13 +1010,22 @@ export default function ConceptPage() {
                       {/* Цена */}
                       <div className="space-y-1 text-center mt-2">
                         {wholesalePriceVal ? (
-                          <>
-                            <span className="text-[10px] line-through text-white/40">{formatPrice(product.price)}</span>
+                          <div className="flex items-end gap-3 flex-wrap justify-center">
+                            <div className="flex flex-col items-center">
+                              <span className="text-[8px] text-white/40 font-medium uppercase tracking-wide leading-none mb-0.5">РРЦ</span>
+                              <span className="text-[10px] line-through text-white/40">{formatPrice(product.price)}</span>
+                            </div>
                             {wholesaleBasePriceVal && (
-                              <span className="text-[10px] line-through text-white/30 ml-1">{formatPrice(wholesaleBasePriceVal)}</span>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[8px] text-white/30 font-medium uppercase tracking-wide leading-none mb-0.5">ОПТ</span>
+                                <span className="text-[10px] line-through text-white/30">{formatPrice(wholesaleBasePriceVal)}</span>
+                              </div>
                             )}
-                            <p className="text-base font-bold text-white">{formatPrice(wholesalePriceVal)}</p>
-                          </>
+                            <div className="flex flex-col items-center">
+                              <span className="text-[8px] text-amber-400 font-medium uppercase tracking-wide leading-none mb-0.5">Предзаказ</span>
+                              <span className="text-base font-bold text-white">{formatPrice(wholesalePriceVal)}</span>
+                            </div>
+                          </div>
                         ) : hasDiscount ? (
                           <>
                             <p className="text-[10px] font-medium text-white/60 uppercase tracking-wide">Предпродажная цена</p>

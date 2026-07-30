@@ -623,45 +623,53 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
             <div className="w-full md:w-1/2 p-3 sm:p-6 lg:p-8 flex flex-col md:overflow-y-auto md:max-h-[95vh]">
               <div className="flex-1 flex flex-col">
                 <div className="mb-3 sm:mb-5">
-                  {/* Name + price row — on mobile: name left, price right on same line */}
+                  {/* Name + price row */}
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <h3 className="text-base sm:text-2xl font-black leading-snug text-black tracking-tight flex-1 min-w-0">{displayName(activeProduct.name)}</h3>
-                    <div className="shrink-0 text-right">
-                      {showModalPreorderLabels && (
-                        <p className="text-[9px] font-medium text-black/40 uppercase tracking-wide mb-0.5">Предпродажная цена</p>
-                      )}
-                      <div className="flex items-baseline gap-1.5 justify-end flex-wrap">
-                        {activeHasDiscount ? (
-                          <>
-                            <span className="text-sm font-semibold text-red-400 line-through">{activeRetailPrice}</span>
-                            <span className="text-xl sm:text-3xl font-black tracking-tight leading-none text-red-500">{formatPrice(activeSalePrice)}</span>
-                          </>
-                        ) : isWholesale && activeWholesalePrice ? (
-                          <>
-                            <span className="text-[8px] text-black/30 font-medium self-end mb-[3px]">РРЦ</span>
-                            <span className="text-sm text-black/35 line-through font-medium">{activeRetailPrice}</span>
-                            {activeWholesaleBasePrice && (
-                              <>
-                                <span className="text-[8px] text-black/25 font-medium self-end mb-[3px]">ОПТ</span>
-                                <span className="text-xs text-black/25 line-through font-medium">{activeWholesaleBasePrice}</span>
-                              </>
-                            )}
-                            <span className={`text-[8px] font-medium self-end mb-[3px] ${isModalPreorderCollecting ? "text-amber-700" : "text-black/40"}`}>
-                              {isModalPreorderCollecting ? "Предзаказ" : "ОПТ"}
-                            </span>
+                    {!(isWholesale && activeWholesalePrice) && (
+                      <div className="shrink-0 text-right">
+                        {showModalPreorderLabels && (
+                          <p className="text-[9px] font-medium text-black/40 uppercase tracking-wide mb-0.5">Предпродажная цена</p>
+                        )}
+                        <div className="flex items-baseline gap-1.5 justify-end flex-wrap">
+                          {activeHasDiscount ? (
+                            <>
+                              <span className="text-sm font-semibold text-red-400 line-through">{activeRetailPrice}</span>
+                              <span className="text-xl sm:text-3xl font-black tracking-tight leading-none text-red-500">{formatPrice(activeSalePrice)}</span>
+                            </>
+                          ) : (
                             <span className="text-xl sm:text-3xl font-black tracking-tight leading-none text-black">{activeDisplayPrice}</span>
-                          </>
-                        ) : (
-                          <span className="text-xl sm:text-3xl font-black tracking-tight leading-none text-black">{activeDisplayPrice}</span>
+                          )}
+                        </div>
+                        {showModalPreorderLabels && (
+                          <p className="text-[10px] text-black/60 mt-0.5">
+                            После релиза — {activeRetailPrice}
+                          </p>
                         )}
                       </div>
-                      {showModalPreorderLabels && (
-                        <p className="text-[10px] text-black/60 mt-0.5">
-                          После релиза — {activeRetailPrice}
-                        </p>
-                      )}
-                    </div>
+                    )}
                   </div>
+                  {/* Оптовые цены — отдельным блоком под названием */}
+                  {isWholesale && activeWholesalePrice && (
+                    <div className="flex items-end gap-5 flex-wrap mb-2">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] text-black/30 font-medium uppercase tracking-wide leading-none mb-1">РРЦ</span>
+                        <span className="text-sm text-black/35 line-through font-medium">{activeRetailPrice}</span>
+                      </div>
+                      {activeWholesaleBasePrice && (
+                        <div className="flex flex-col">
+                          <span className="text-[9px] text-black/25 font-medium uppercase tracking-wide leading-none mb-1">ОПТ</span>
+                          <span className="text-sm text-black/30 line-through font-medium">{activeWholesaleBasePrice}</span>
+                        </div>
+                      )}
+                      <div className="flex flex-col">
+                        <span className={`text-[9px] font-medium uppercase tracking-wide leading-none mb-1 ${isModalPreorderCollecting ? "text-amber-700" : "text-black/40"}`}>
+                          {isModalPreorderCollecting ? "Предзаказ" : "ОПТ"}
+                        </span>
+                        <span className="text-2xl sm:text-3xl font-black tracking-tight leading-none text-black">{activeDisplayPrice}</span>
+                      </div>
+                    </div>
+                  )}
                   {(product as any).artistSlug && (
                     <Link
                       href={`/@${(product as any).artistSlug}`}
@@ -1142,21 +1150,25 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
             </h3>
             <div>
               {!hasDiscount && isWholesale && wholesalePrice ? (
-                <div className="flex items-baseline gap-1 flex-wrap">
-                  <span className={`text-[7px] font-medium ${isJDM || isMerch ? "text-white/30" : isMinta ? "" : "text-muted-foreground/40"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.3 } : undefined}>РРЦ</span>
-                  <span className={`text-[10px] line-through ${isJDM || isMerch ? "text-white/40" : isMinta ? "" : "text-muted-foreground/50"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.4 } : undefined}>{retailPrice}</span>
+                <div className="flex items-end gap-2.5 flex-wrap">
+                  <div className="flex flex-col">
+                    <span className={`text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 ${isJDM || isMerch ? "text-white/45" : isMinta ? "" : "text-muted-foreground/55"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.4 } : undefined}>РРЦ</span>
+                    <span className={`text-[10px] line-through ${isJDM || isMerch ? "text-white/40" : isMinta ? "" : "text-muted-foreground/50"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.4 } : undefined}>{retailPrice}</span>
+                  </div>
                   {wholesaleBasePrice && (
-                    <>
-                      <span className={`text-[7px] font-medium ${isJDM || isMerch ? "text-white/25" : isMinta ? "" : "text-muted-foreground/35"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.25 } : undefined}>ОПТ</span>
+                    <div className="flex flex-col">
+                      <span className={`text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 ${isJDM || isMerch ? "text-white/35" : isMinta ? "" : "text-muted-foreground/45"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.3 } : undefined}>ОПТ</span>
                       <span className={`text-[10px] line-through ${isJDM || isMerch ? "text-white/30" : isMinta ? "" : "text-muted-foreground/35"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.3 } : undefined}>{wholesaleBasePrice}</span>
-                    </>
+                    </div>
                   )}
-                  {(product as any).preorderEnabled && (product as any).preorderStatus === "collecting" ? (
-                    <span className={`text-[7px] font-medium ${isJDM || isMerch ? "text-amber-400" : isMinta ? "" : "text-amber-600"}`} style={isMinta ? { color: '#b45309' } : undefined}>Предзаказ</span>
-                  ) : (
-                    <span className={`text-[7px] font-medium ${isJDM || isMerch ? "text-white/40" : isMinta ? "" : "text-muted-foreground/50"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.4 } : undefined}>ОПТ</span>
-                  )}
-                  <span className={`text-sm sm:text-base font-bold ${isJDM ? "text-red-500" : isMinta ? "" : "text-white"}`} style={isMinta ? { color: '#2e2e2e' } : undefined}>{displayPrice}</span>
+                  <div className="flex flex-col">
+                    {(product as any).preorderEnabled && (product as any).preorderStatus === "collecting" ? (
+                      <span className={`text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 ${isJDM || isMerch ? "text-amber-400" : isMinta ? "" : "text-amber-600"}`} style={isMinta ? { color: '#b45309' } : undefined}>Предзаказ</span>
+                    ) : (
+                      <span className={`text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 ${isJDM || isMerch ? "text-white/50" : isMinta ? "" : "text-muted-foreground/60"}`} style={isMinta ? { color: '#2e2e2e', opacity: 0.45 } : undefined}>ОПТ</span>
+                    )}
+                    <span className={`text-sm sm:text-base font-bold ${isJDM ? "text-red-500" : isMinta ? "" : "text-white"}`} style={isMinta ? { color: '#2e2e2e' } : undefined}>{displayPrice}</span>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -1183,21 +1195,25 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
               </h3>
               <div className="mt-2">
                 {!hasDiscount && isWholesale && wholesalePrice ? (
-                  <div className="flex items-baseline gap-1 flex-wrap">
-                    <span className="text-[7px] font-medium text-muted-foreground/40">РРЦ</span>
-                    <span className="text-[10px] line-through text-muted-foreground/50">{retailPrice}</span>
+                  <div className="flex items-end gap-2.5 flex-wrap">
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 text-muted-foreground/55">РРЦ</span>
+                      <span className="text-[10px] line-through text-muted-foreground/50">{retailPrice}</span>
+                    </div>
                     {wholesaleBasePrice && (
-                      <>
-                        <span className="text-[7px] font-medium text-muted-foreground/35">ОПТ</span>
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 text-muted-foreground/45">ОПТ</span>
                         <span className="text-[10px] line-through text-muted-foreground/35">{wholesaleBasePrice}</span>
-                      </>
+                      </div>
                     )}
-                    {(product as any).preorderEnabled && (product as any).preorderStatus === "collecting" ? (
-                      <span className="text-[7px] font-medium text-amber-600">Предзаказ</span>
-                    ) : (
-                      <span className="text-[7px] font-medium text-muted-foreground/50">ОПТ</span>
-                    )}
-                    <span className="text-sm sm:text-[15px] font-black tracking-tight text-primary">{displayPrice}</span>
+                    <div className="flex flex-col">
+                      {(product as any).preorderEnabled && (product as any).preorderStatus === "collecting" ? (
+                        <span className="text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 text-amber-600">Предзаказ</span>
+                      ) : (
+                        <span className="text-[8px] font-medium uppercase tracking-wide leading-none mb-0.5 text-muted-foreground/60">ОПТ</span>
+                      )}
+                      <span className="text-sm sm:text-[15px] font-black tracking-tight text-primary">{displayPrice}</span>
+                    </div>
                   </div>
                 ) : (
                   <>
