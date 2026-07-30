@@ -10,6 +10,7 @@ import { DolyameWidget } from "@/components/DolyameWidget";
 import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { useToast } from "@/hooks/use-toast";
+import { useWholesalePrice } from "@/hooks/use-auth";
 
 interface PreorderProduct {
   id: number;
@@ -17,6 +18,8 @@ interface PreorderProduct {
   name: string;
   price: number;
   discountPercent?: number;
+  wholesalePrice?: number | null;
+  wholesaleDiscountPercent?: number | null;
   images?: string[];
   imageUrl?: string;
   thumbnailUrl?: string;
@@ -181,6 +184,7 @@ export default function ConceptCampaignPage() {
   const { addOrUpdateItem, items: cartPreorderItems } = usePreorderCart();
   const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
   const { toast } = useToast();
+  const { isWholesale, getWholesalePrice } = useWholesalePrice();
   const [sizePopupId, setSizePopupId] = useState<number | null>(null);
   const [popupSizes, setPopupSizes] = useState<string[]>([]);
   const [popupSizeStock, setPopupSizeStock] = useState<Record<string, number>>({});
@@ -190,6 +194,8 @@ export default function ConceptCampaignPage() {
   const SIZE_ORDER = ["XXS","XS","S","M","L","XL","XXL","XXXL","ONE SIZE","OS"];
 
   function getEffectivePrice(p: PreorderProduct): number {
+    const wp = isWholesale ? getWholesalePrice(p.price, p.wholesalePrice ?? null, p.wholesaleDiscountPercent ?? null) : null;
+    if (wp) return wp;
     const sp = (p as any).salePrice;
     if (sp && sp > 0 && sp < p.price) return sp;
     const d = p.discountPercent;
@@ -385,7 +391,11 @@ export default function ConceptCampaignPage() {
                 const inCart = !!cartPreorderItems.find(i => i.productId === product.id);
                 const productFixedPrice: number = (product as any).salePrice || 0;
                 const discountPct = product.discountPercent;
-                const hasDiscount = (productFixedPrice > 0 && productFixedPrice < product.price) || (!!discountPct && discountPct > 0);
+                const wholesalePriceVal = isWholesale ? getWholesalePrice(product.price, product.wholesalePrice ?? null, product.wholesaleDiscountPercent ?? null) : null;
+                const wholesaleBasePriceVal = (wholesalePriceVal && (product.wholesaleDiscountPercent ?? 0) > 0 && (product.wholesalePrice ?? 0) > 0)
+                  ? product.wholesalePrice!
+                  : null;
+                const hasDiscount = !wholesalePriceVal && ((productFixedPrice > 0 && productFixedPrice < product.price) || (!!discountPct && discountPct > 0));
                 const salePrice = productFixedPrice > 0 && productFixedPrice < product.price
                   ? productFixedPrice
                   : (discountPct && discountPct > 0 ? Math.round(product.price * (1 - discountPct / 100)) : product.price);
@@ -419,7 +429,15 @@ export default function ConceptCampaignPage() {
                         {product.name}
                       </h3>
                       <div className="space-y-1 text-center mt-2">
-                        {hasDiscount ? (
+                        {wholesalePriceVal ? (
+                          <>
+                            <span className="text-[10px] line-through text-zinc-400">{formatPrice(product.price)}</span>
+                            {wholesaleBasePriceVal && (
+                              <span className="text-[10px] line-through text-zinc-300 ml-1">{formatPrice(wholesaleBasePriceVal)}</span>
+                            )}
+                            <p className="text-base font-bold text-zinc-900">{formatPrice(wholesalePriceVal)}</p>
+                          </>
+                        ) : hasDiscount ? (
                           <>
                             <p className="text-[10px] font-medium text-zinc-900 uppercase tracking-wide">Предпродажная цена</p>
                             <p className="text-base font-bold text-zinc-900">{formatPrice(salePrice)}</p>
@@ -428,7 +446,7 @@ export default function ConceptCampaignPage() {
                         ) : (
                           <span className="text-base font-bold text-zinc-900">{formatPrice(product.price)}</span>
                         )}
-                        {salePrice >= 300000 && salePrice <= 3000000 && (
+                        {!wholesalePriceVal && salePrice >= 300000 && salePrice <= 3000000 && (
                           <div className="flex justify-center" onClick={(e) => e.preventDefault()}>
                             <DolyameWidget price={salePrice} productId={product.id} isDark={false} />
                           </div>

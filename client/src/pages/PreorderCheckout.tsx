@@ -7,8 +7,9 @@ import SEO from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePreorderCart } from "@/context/PreorderCartContext";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useWholesalePrice } from "@/hooks/use-auth";
 import YooKassaWidget from "@/components/YooKassaWidget";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -38,6 +39,7 @@ export default function PreorderCheckout() {
   const { items, removeItem, updateSizes, updateItemPrice, clearCart, totalPrice, totalQuantity } = usePreorderCart();
   const { data: authData } = useAuth();
   const user = authData?.user;
+  const { isWholesale, getWholesalePrice } = useWholesalePrice();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -47,6 +49,12 @@ export default function PreorderCheckout() {
         .then(r => r.ok ? r.json() : null)
         .then(p => {
           if (!p) return;
+          // Для оптовика — оптовая цена, для розницы — salePrice/discountPercent
+          const wp = isWholesale ? getWholesalePrice(p.price, p.wholesalePrice ?? null, p.wholesaleDiscountPercent ?? null) : null;
+          if (wp) {
+            if (wp !== item.price) updateItemPrice(item.productId, wp);
+            return;
+          }
           const fixed: number = (p as any).salePrice || 0;
           const pct: number = (p as any).discountPercent || 0;
           const correct = fixed > 0 && fixed < p.price
@@ -56,7 +64,7 @@ export default function PreorderCheckout() {
         })
         .catch(() => {});
     });
-  }, []);
+  }, [isWholesale]);
 
   const [lastName, setLastName] = useState(user?.name?.split(" ")[0] || "");
   const [firstName, setFirstName] = useState(user?.name?.split(" ")[1] || "");
@@ -66,6 +74,10 @@ export default function PreorderCheckout() {
 
   const [deliveryType, setDeliveryType] = useState<"pickup" | "cdek">("pickup");
   const [selectedPickupId, setSelectedPickupId] = useState<string>("");
+
+  // Оптовая доставка: выбор ТК + адрес
+  const [transportCompany, setTransportCompany] = useState("cdek");
+  const [wholesaleAddress, setWholesaleAddress] = useState(user?.legalAddress || user?.storeAddress || "");
 
   const [cdekCityQuery, setCdekCityQuery] = useState("");
   const [cdekCities, setCdekCities] = useState<any[]>([]);
@@ -189,6 +201,37 @@ export default function PreorderCheckout() {
       if (!agreeTerms || !agreePolicy) throw new Error("Необходимо принять условия");
       if (items.length === 0) throw new Error("Корзина пуста");
 
+      // Оптовый предзаказ — отдельная логика доставки и оплаты
+      if (isWholesale) {
+        if (!wholesaleAddress.trim()) throw new Error("Укажите адрес доставки");
+        const orderItems = items.flatMap(item =>
+          Object.entries(item.selectedSizes)
+            .filter(([, qty]) => qty > 0)
+            .map(([size, quantity]) => ({
+              productId: item.productId,
+              productName: item.productName,
+              quantity,
+              price: item.price,
+              size: size === "ONE SIZE" ? undefined : size,
+              color: item.selectedColor,
+              imageUrl: item.imageUrl,
+            }))
+        );
+        const res = await apiRequest("POST", "/api/preorder/order-multi", {
+          customerLastName: lastName.trim(),
+          customerFirstName: firstName.trim(),
+          customerMiddleName: middleName.trim(),
+          customerEmail: email.trim(),
+          customerPhone: phone.trim(),
+          address: wholesaleAddress.trim(),
+          paymentMethod: "invoice",
+          isWholesalePreorder: true,
+          transportCompany,
+          items: orderItems,
+        });
+        return await res.json();
+      }
+
       if (deliveryType === "pickup" && !selectedPickupId) throw new Error("Выберите точку самовывоза");
       if (deliveryType === "cdek" && !selectedCdekPoint) throw new Error("Выберите пункт выдачи СДЭК");
 
@@ -234,7 +277,10 @@ export default function PreorderCheckout() {
       return await res.json();
     },
     onSuccess: (data: any) => {
-      if (data.confirmationToken) {
+      if (data.invoiceSent) {
+        clearCart();
+        setLocation(`/order-success/${data.orderId}`);
+      } else if (data.confirmationToken) {
         setWidgetToken(data.confirmationToken);
         setWidgetOrderId(data.orderId || null);
       } else if (data.paymentUrl) {
@@ -432,7 +478,35 @@ export default function PreorderCheckout() {
                 Доставка
               </h2>
 
-              {(activePickupPoints.length > 0 || true) && (
+              {/* Оптовая доставка — выбор ТК + адрес */}
+              {isWholesale ? (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Транспортная компания</p>
+                    <Select value={transportCompany} onValueChange={setTransportCompany}>
+                      <SelectTrigger className="h-10" data-testid="select-preorder-transport">
+                        <SelectValue placeholder="Выберите ТК" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cdek">СДЭК</SelectItem>
+                        <SelectItem value="dellin">Деловые Линии</SelectItem>
+                        <SelectItem value="pek">ПЭК</SelectItem>
+                        <SelectItem value="pochta">Почта России</SelectItem>
+                        <SelectItem value="baikal">ТК Байкал</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Адрес доставки <span className="text-muted-foreground/50">(до ТК или юридический)</span></p>
+                    <Input
+                      placeholder="Город, улица, дом..."
+                      value={wholesaleAddress}
+                      onChange={e => setWholesaleAddress(e.target.value)}
+                      data-testid="input-preorder-wholesale-address"
+                    />
+                  </div>
+                </div>
+              ) : (activePickupPoints.length > 0 || true) && (
                 <div className="flex flex-col sm:flex-row gap-2 mb-5">
                   {activePickupPoints.length > 0 && (
                     <button
@@ -469,7 +543,7 @@ export default function PreorderCheckout() {
                 </div>
               )}
 
-              {deliveryType === "pickup" && activePickupPoints.length > 0 && (
+              {!isWholesale && deliveryType === "pickup" && activePickupPoints.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground mb-3">Выбери точку самовывоза</p>
                   {activePickupPoints.map(point => (
@@ -503,7 +577,7 @@ export default function PreorderCheckout() {
                 </div>
               )}
 
-              {deliveryType === "cdek" && (
+              {!isWholesale && deliveryType === "cdek" && (
                 <div className="space-y-4">
                   <div className="relative">
                     <Input
@@ -581,7 +655,7 @@ export default function PreorderCheckout() {
             </section>
 
             {/* Payment */}
-            {paymentMethods.length > 0 && (
+            {!isWholesale && paymentMethods.length > 0 && (
               <section>
                 <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
                   <CreditCard className="w-4 h-4" />
@@ -667,21 +741,27 @@ export default function PreorderCheckout() {
               </div>
 
               <div className="border-t border-border mt-4 pt-4 space-y-2">
-                {deliveryType === "cdek" && cdekDeliverySum > 0 && (
+                {!isWholesale && deliveryType === "cdek" && cdekDeliverySum > 0 && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Доставка СДЭК</span>
                     <span>{formatPrice(cdekDeliverySum)}</span>
                   </div>
                 )}
-                {deliveryType === "pickup" && (
+                {!isWholesale && deliveryType === "pickup" && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Самовывоз</span>
                     <span className="text-green-600 font-medium">Бесплатно</span>
                   </div>
                 )}
+                {isWholesale && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Оплата</span>
+                    <span className="font-medium">По счёту</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between font-bold">
                   <span>Итого</span>
-                  <span className="text-lg">{formatPrice(totalPrice + (deliveryType === "cdek" ? cdekDeliverySum : 0))}</span>
+                  <span className="text-lg">{formatPrice(totalPrice + (!isWholesale && deliveryType === "cdek" ? cdekDeliverySum : 0))}</span>
                 </div>
               </div>
 
@@ -700,13 +780,17 @@ export default function PreorderCheckout() {
               >
                 {orderMutation.isPending ? (
                   <><Loader2 className="w-4 h-4 animate-spin mr-2" />Создаём предзаказ...</>
+                ) : isWholesale ? (
+                  <>Оформить счёт <ChevronRight className="w-4 h-4 ml-1" /></>
                 ) : (
                   <>Оплатить <ChevronRight className="w-4 h-4 ml-1" /></>
                 )}
               </Button>
 
               <p className="text-[11px] text-muted-foreground text-center mt-3 leading-relaxed">
-                Нажимая «Оплатить», вы оформляете предзаказ. Деньги будут списаны сейчас.
+                {isWholesale
+                  ? "Счёт будет отправлен на ваш email. Деньги списываются после его оплаты."
+                  : "Нажимая «Оплатить», вы оформляете предзаказ. Деньги будут списаны сейчас."}
               </p>
             </div>
           </div>

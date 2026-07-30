@@ -15618,6 +15618,10 @@ ${offersXml}
         });
       }
 
+      // Detect wholesale invoice preorder
+      const isWholesalePreorder = !!(req.user?.role === "wholesale" && (req.user?.wholesaleApproved === true || (req.user as any)?.approved === true) && paymentMethod === "invoice");
+      const transportCompany: string | undefined = isWholesalePreorder ? (req.body.transportCompany || "cdek") : undefined;
+
       // Verify prices against database — do not trust client-provided prices
       for (const item of orderItems) {
         const product = await storage.getProduct(item.productId);
@@ -15627,7 +15631,10 @@ ${offersXml}
         if (!(product as any).preorderEnabled) {
           return res.status(400).json({ error: `Товар "${product.name}" недоступен для предзаказа` });
         }
-        item.price = product.price;
+        // Для оптового предзаказа — использовать оптовую цену
+        item.price = isWholesalePreorder && (product as any).wholesalePrice
+          ? (product as any).wholesalePrice
+          : product.price;
         item.productName = product.name;
       }
 
@@ -15691,6 +15698,61 @@ ${offersXml}
         }));
       }
 
+      // ── Оптовый предзаказ по счёту ──────────────────────────────────────
+      if (isWholesalePreorder) {
+        await storage.updateOrderStatus(order.id, 'pending');
+
+        // Генерируем и отправляем счёт
+        let vatRate = 5;
+        let vatMode: 'included' | 'on_top' = 'included';
+        try {
+          const vatSetting = await storage.getBonusSetting("invoice_vat_rate");
+          if (vatSetting) { const p = parseFloat(vatSetting); if (!isNaN(p) && p >= 0 && p <= 100) vatRate = p; }
+          const modeSetting = await storage.getBonusSetting("invoice_vat_mode");
+          if (modeSetting === 'on_top' || modeSetting === 'included') vatMode = modeSetting;
+        } catch {}
+
+        const invoiceNum = getNextInvoiceNumber();
+        storage.saveOrderInvoiceNumber(order.id, invoiceNum).catch(err => console.error('[Preorder Multi] Failed to save invoice number:', err));
+        sendInvoiceEmail({
+          invoiceNumber: invoiceNum,
+          date: new Date(),
+          customerName: fullName,
+          customerPhone: customerPhone || "",
+          customerEmail: customerEmail.trim(),
+          transportCompany: transportCompany,
+          vatRate,
+          vatMode,
+          items: orderItems.map((i: any) => ({
+            name: i.productName,
+            sku: i.sku || '',
+            quantity: i.quantity,
+            price: i.price,
+          })),
+        }).catch(err => console.error('[Preorder Multi] Failed to send invoice:', err));
+
+        // Telegram-уведомление менеджерам
+        const user = req.user;
+        notifyNewOrder({
+          orderId: order.id,
+          customerName: fullName,
+          customerEmail: customerEmail.trim(),
+          customerPhone: customerPhone || "",
+          address: address || "",
+          total: totalPrice,
+          items: orderItems,
+          paymentMethod: "invoice",
+          isWholesale: true,
+          transportCompany,
+          companyName: user?.companyName,
+          inn: user?.inn,
+        });
+
+        console.log(`[Preorder Multi] Wholesale invoice order ${order.id} created, ${orderItems.length} items, total ${totalPrice}`);
+        return res.status(201).json({ orderId: order.id, invoiceSent: true, isPreorder: true });
+      }
+
+      // ── Розничный предзаказ — онлайн-оплата ─────────────────────────────
       const baseUrl = process.env.APP_DOMAIN || `https://${req.get('host')}`;
       const chosenMethod = paymentMethod || (paymentService.isTBankEnabled() ? "tbank" : "yookassa");
       const useMethod = chosenMethod === "yookassa" && paymentService.isYooKassaEnabled() ? "yookassa"
