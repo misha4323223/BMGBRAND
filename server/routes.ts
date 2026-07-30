@@ -10574,6 +10574,7 @@ ${artistLinks || "- (список формируется)"}
         cdekTariffCode: cdekTariffCode,
         cdekDeliveryType: cdekDeliveryType,
         cdekDoorAddress: cdekDoorAddress,
+        deliveryService: deliveryService,
       });
 
       // Create pending commission for partner-attributed orders.

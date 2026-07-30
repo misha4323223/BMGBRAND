@@ -3341,7 +3341,7 @@ export class DatabaseStorage implements IStorage {
         `;
         
         const cdekData = JSON.stringify({
-          deliveryService: (order as any).deliveryService || "cdek",
+          deliveryService: order.deliveryService || "cdek",
           pointCode: order.cdekPointCode || null,
           cityCode: order.cdekCityCode || null,
           tariffCode: order.cdekTariffCode || null,
