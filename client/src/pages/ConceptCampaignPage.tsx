@@ -47,6 +47,13 @@ function formatPrice(cents: number): string {
   }).format(cents / 100);
 }
 
+function formatShortDate(dateStr: string | null | undefined): string | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
+}
+
 function SwipeableCardImages({
   images,
   alt,
@@ -428,21 +435,21 @@ export default function ConceptCampaignPage() {
                       <h3 className={`text-sm font-medium text-zinc-900 leading-tight line-clamp-2 ${isLocked ? "" : "group-hover:text-primary transition-colors"}`}>
                         {product.name}
                       </h3>
-                      <div className="space-y-1 text-center mt-2">
+                      <div className="space-y-1 mt-2">
                         {wholesalePriceVal ? (
-                          <div className="flex gap-3 justify-center items-end">
-                            <div className="flex flex-col items-center">
-                              <span className="text-[8px] text-zinc-400 font-medium uppercase tracking-wide leading-none mb-0.5">РРЦ</span>
-                              <span className="text-[10px] line-through text-zinc-400">{formatPrice(product.price)}</span>
+                          <div className="flex justify-between items-end w-full">
+                            <div className="flex flex-col items-start">
+                              <span className="text-[8px] text-red-500 font-medium uppercase tracking-wide leading-none mb-0.5">РРЦ</span>
+                              <span className="text-[10px] line-through text-red-400">{formatPrice(product.price)}</span>
                             </div>
                             {wholesaleBasePriceVal && (
                               <div className="flex flex-col items-center">
-                                <span className="text-[8px] text-zinc-400 font-medium uppercase tracking-wide leading-none mb-0.5">ОПТ</span>
-                                <span className="text-[10px] line-through text-zinc-300">{formatPrice(wholesaleBasePriceVal)}</span>
+                                <span className="text-[8px] text-yellow-500 font-medium uppercase tracking-wide leading-none mb-0.5">ОПТ</span>
+                                <span className="text-[10px] line-through text-yellow-400">{formatPrice(wholesaleBasePriceVal)}</span>
                               </div>
                             )}
-                            <div className="flex flex-col items-center">
-                              <span className="text-[8px] text-amber-500 font-medium uppercase tracking-wide leading-none mb-0.5">Предзаказ</span>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[8px] text-green-500 font-medium uppercase tracking-wide leading-none mb-0.5">Предзаказ</span>
                               <span className="text-base font-bold text-zinc-900">{formatPrice(wholesalePriceVal)}</span>
                             </div>
                           </div>
@@ -465,6 +472,28 @@ export default function ConceptCampaignPage() {
                             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status === "collecting" ? "bg-green-500" : "bg-zinc-400"}`} />
                             {cfg.label}
                           </span>
+                        )}
+                        {!isCancelled && (product.preorderDeadline || product.preorderProductionDate || product.preorderShippingDate) && (
+                          <div className="flex justify-between w-full pt-1 border-t border-zinc-100 mt-1">
+                            {product.preorderDeadline && (
+                              <div className="flex flex-col items-start">
+                                <span className="text-[7px] text-zinc-400 uppercase tracking-wide leading-none mb-0.5">Сбор до</span>
+                                <span className="text-[10px] font-medium text-zinc-600">{formatShortDate(product.preorderDeadline)}</span>
+                              </div>
+                            )}
+                            {product.preorderProductionDate && (
+                              <div className="flex flex-col items-center">
+                                <span className="text-[7px] text-zinc-400 uppercase tracking-wide leading-none mb-0.5">Произв.</span>
+                                <span className="text-[10px] font-medium text-zinc-600">{formatShortDate(product.preorderProductionDate)}</span>
+                              </div>
+                            )}
+                            {product.preorderShippingDate && (
+                              <div className="flex flex-col items-end">
+                                <span className="text-[7px] text-zinc-400 uppercase tracking-wide leading-none mb-0.5">Отправка</span>
+                                <span className="text-[10px] font-medium text-zinc-600">{formatShortDate(product.preorderShippingDate)}</span>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
 
