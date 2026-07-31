@@ -2454,12 +2454,22 @@ export class DatabaseStorage implements IStorage {
       { label: "Драгни", slug: "dragni", keywords: ["драгни", "dragni"] },
     ];
 
-    // Slug-based lookup: product name (lower) → artistSlug, from in-memory products cache (non-blocking)
+    // Canonical slug aliases: non-standard values → canonical slug.
+    // Covers duplicate partner records and historical data with wrong slugs.
+    const SLUG_ALIASES: Record<string, string> = {
+      "goodtimes":      "gudtajms",        // дублирующая партнёр-запись в БД
+      "гудтаймс":       "gudtajms",        // кириллица как slug
+      "ГУДТАЙМС":       "gudtajms",        // имя подкатегории использовалось как slug
+      "molodostvnutri": "molodost-vnutri", // партнёр-запись без дефиса
+    };
+    const normalizeSlug = (s: string): string => SLUG_ALIASES[s] ?? s;
+
+    // Slug-based lookup: product name (lower) → canonical artistSlug, from in-memory products cache
     const cachedProducts = productsCache.get("all") || [];
     const productNameToSlug = new Map<string, string>();
     for (const p of cachedProducts) {
       if (p.artistSlug) {
-        productNameToSlug.set((p.name || '').toLowerCase(), p.artistSlug);
+        productNameToSlug.set((p.name || '').toLowerCase(), normalizeSlug(p.artistSlug));
       }
     }
 
@@ -2468,6 +2478,13 @@ export class DatabaseStorage implements IStorage {
     const slugToLabel = new Map<string, string>();
     for (const p of artistPartners) {
       slugToLabel.set(p.partnerSlug, p.storeName || p.contactName || p.partnerSlug);
+    }
+    // Propagate labels from alias slugs to their canonical counterparts
+    // so canonical keys always resolve to a proper display name
+    for (const [alias, canonical] of Object.entries(SLUG_ALIASES)) {
+      if (!slugToLabel.has(canonical) && slugToLabel.has(alias)) {
+        slugToLabel.set(canonical, slugToLabel.get(alias)!);
+      }
     }
     // Seed static labels as fallback if partner not yet in DB
     for (const a of ARTISTS) {

@@ -6943,8 +6943,10 @@ ${artistLinks || "- (список формируется)"}
       if (imageAlts !== undefined) updateData.imageAlts = Array.isArray(imageAlts) ? imageAlts : [];
       if (featureBadgeIds !== undefined) updateData.featureBadgeIds = Array.isArray(featureBadgeIds) ? featureBadgeIds : [];
       if (req.body.artistSlug !== undefined) {
-        updateData.artistSlug = req.body.artistSlug || null;
-        console.log(`[Admin] product ${id} artistSlug from request: "${req.body.artistSlug}" → stored as: "${updateData.artistSlug}"`);
+        // Normalize: trim whitespace and lowercase to prevent casing/spacing variants
+        const rawSlug = req.body.artistSlug;
+        updateData.artistSlug = rawSlug ? rawSlug.trim().toLowerCase() : null;
+        console.log(`[Admin] product ${id} artistSlug from request: "${rawSlug}" → stored as: "${updateData.artistSlug}"`);
       }
 
       // Handle images
