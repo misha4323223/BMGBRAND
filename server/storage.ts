@@ -2523,27 +2523,28 @@ export class DatabaseStorage implements IStorage {
         const itemRevenue = (item.price || 0) * qty;
 
         // 1. Slug-based lookup (takes priority — uses tagged artist_slug from products)
+        // Key by slug to avoid duplicates when slugToLabel returns different strings for same artist
         const artistSlug = productNameToSlug.get(nameLower);
         if (artistSlug) {
-          const label = slugToLabel.get(artistSlug) || artistSlug;
-          initArtist(label);
-          artistMap.get(label)!.items += qty;
-          artistMap.get(label)!.revenue += itemRevenue;
-          if (!artistOrderItems.has(label)) artistOrderItems.set(label, []);
-          artistOrderItems.get(label)!.push({ name: displayName, qty, price: item.price || 0 });
+          initArtist(artistSlug);
+          artistMap.get(artistSlug)!.items += qty;
+          artistMap.get(artistSlug)!.revenue += itemRevenue;
+          if (!artistOrderItems.has(artistSlug)) artistOrderItems.set(artistSlug, []);
+          artistOrderItems.get(artistSlug)!.push({ name: displayName, qty, price: item.price || 0 });
           continue;
         }
 
         // 2. Keyword fallback (products not yet tagged with artist_slug)
+        // Key by slug so slug-lookup and keyword-lookup always merge into the same bucket
         let matched = false;
         for (const artist of ARTISTS) {
           if (artist.keywords.some(k => nameLower.includes(k))) {
-            initArtist(artist.label);
-            const entry = artistMap.get(artist.label)!;
+            initArtist(artist.slug);
+            const entry = artistMap.get(artist.slug)!;
             entry.items += qty;
             entry.revenue += itemRevenue;
-            if (!artistOrderItems.has(artist.label)) artistOrderItems.set(artist.label, []);
-            artistOrderItems.get(artist.label)!.push({ name: displayName, qty, price: item.price || 0 });
+            if (!artistOrderItems.has(artist.slug)) artistOrderItems.set(artist.slug, []);
+            artistOrderItems.get(artist.slug)!.push({ name: displayName, qty, price: item.price || 0 });
             matched = true;
             break;
           }
@@ -2558,16 +2559,20 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      for (const [artistLabel, artistItems] of artistOrderItems.entries()) {
-        const entry = artistMap.get(artistLabel)!;
+      for (const [artistKey, artistItems] of artistOrderItems.entries()) {
+        const entry = artistMap.get(artistKey)!;
         const total = artistItems.reduce((s, i) => s + i.price * i.qty, 0);
         entry.orders += 1;
         entry.ordersList.push({ orderId, date, customerName, items: artistItems, total });
       }
     }
 
+    // Convert slug keys → display labels at the very end (single point of label resolution)
     return Array.from(artistMap.entries())
-      .map(([artist, data]) => ({ artist, ...data }))
+      .map(([key, data]) => ({
+        artist: key === "BOOOMERANGS" ? "BOOOMERANGS" : (slugToLabel.get(key) || key),
+        ...data,
+      }))
       .sort((a, b) => b.revenue - a.revenue);
   }
 
