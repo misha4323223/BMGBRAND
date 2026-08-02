@@ -34,11 +34,8 @@ const FIRST_RUN_DELAY_MS = 6 * 60 * 60 * 1000;     // первая провер�
 const MIN_CART_AGE_MS = 24 * 60 * 60 * 1000;        // корзина должна быть брошена минимум 24 ч
 
 export function startAbandonedCartJob(): void {
-  setTimeout(() => {
-    runAbandonedCartCheck();
-    setInterval(runAbandonedCartCheck, CHECK_INTERVAL_MS);
-  }, FIRST_RUN_DELAY_MS);
-  console.log('[AbandonedCart] Job scheduled: first run in 1 min, then every 7 days');
+  // Авторассылка отключена — только ручной запуск через кнопку "Запустить проверку сейчас" в админке
+  console.log('[AbandonedCart] Auto-send DISABLED: manual trigger only (admin panel → Бонусы → Настройки → Брошенные корзины)');
 }
 
 export async function runAbandonedCartCheck(): Promise<void> {

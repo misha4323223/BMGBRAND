@@ -193,9 +193,6 @@ export async function getPreorderQueueStatus(): Promise<{ count: number; firstAd
 }
 
 export function startPreorderNotifierJob(): void {
-  setTimeout(() => {
-    runPreorderNotifierCheck();
-    setInterval(runPreorderNotifierCheck, CHECK_INTERVAL_MS);
-  }, FIRST_RUN_DELAY_MS);
-  console.log('[PreorderNotifier] Job scheduled: first run in 2 min, then every 1 hour');
+  // Авторассылка отключена — только ручной запуск через кнопку "Отправить сейчас" в админке
+  console.log('[PreorderNotifier] Auto-send DISABLED: manual send only (admin panel → Рассылки → Предзаказы)');
 }

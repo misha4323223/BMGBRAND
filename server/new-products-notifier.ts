@@ -1,6 +1,5 @@
 import { storage } from './storage';
 import { sendEmail, getNewProductsNewsletterHtml } from './email';
-import { sendPushToAll } from './push-service';
 
 const QUEUE_KEY = 'newsletter_new_product_queue';
 const DEBOUNCE_MS = 5 * 60 * 60 * 1000;        // 5 часов тишины → отправка
@@ -123,18 +122,7 @@ export async function runNewProductsNotifierCheck(): Promise<void> {
     }
 
     console.log(`[NewProductsNotifier] Done. Sent: ${sent}, failed: ${failed}, products in digest: ${products.length} (of ${productIds.length} total)`);
-
-    if (sent > 0) {
-      const firstName = products[0]?.name || 'новинка';
-      const more = products.length > 1 ? ` и ещё ${products.length - 1}` : '';
-      sendPushToAll({
-        title: '🆕 Новинки в магазине',
-        body: `«${firstName}»${more} — смотри первым!`,
-        url: 'https://booomerangs.ru/products',
-        image: '/push-banner.png',
-        tag: 'booom-new-products',
-      }).catch(() => {});
-    }
+    // Push уведомления о новинках — только вручную через панель Push в админке
   } catch (err: any) {
     console.error('[NewProductsNotifier] Job crashed:', err?.message);
   }
@@ -180,17 +168,7 @@ export async function triggerNewProductsNotifierNow(): Promise<{ sent: number; f
     await new Promise(r => setTimeout(r, EMAIL_SEND_DELAY_MS));
   }
 
-  if (sent > 0) {
-    const firstName = products[0]?.name || 'новинка';
-    const more = products.length > 1 ? ` и ещё ${products.length - 1}` : '';
-    sendPushToAll({
-      title: '🆕 Новинки в магазине',
-      body: `«${firstName}»${more} — смотри первым!`,
-      url: 'https://booomerangs.ru/products',
-      image: '/push-banner.png',
-      tag: 'booom-new-products',
-    }).catch(() => {});
-  }
+  // Push уведомления о новинках — только вручную через панель Push в админке
 
   return { sent, failed, products: products.length, total: productIds.length };
 }
@@ -213,9 +191,6 @@ export async function getNewProductsQueueStatus(): Promise<{ count: number; firs
 }
 
 export function startNewProductsNotifierJob(): void {
-  setTimeout(() => {
-    runNewProductsNotifierCheck();
-    setInterval(runNewProductsNotifierCheck, CHECK_INTERVAL_MS);
-  }, FIRST_RUN_DELAY_MS);
-  console.log('[NewProductsNotifier] Job scheduled: first run in 2 min, then every 10 min');
+  // Авторассылка отключена — только ручной запуск через кнопку "Отправить сейчас" в админке
+  console.log('[NewProductsNotifier] Auto-send DISABLED: manual send only (admin panel → Рассылки → Новинки)');
 }
