@@ -16184,7 +16184,7 @@ ${offersXml}
   });
 
   // ─── Monthly sales report (XLSX) ────────────────────────────────────────
-  // GET /api/admin/reports/monthly-sales?from=YYYY-MM&to=YYYY-MM
+  // GET /api/admin/reports/monthly-sales?from=YYYY-MM&to=YYYY-MM&type=retail|wholesale|all
   app.get("/api/admin/reports/monthly-sales", async (req: any, res) => {
     const apiKey = req.headers["x-api-key"];
     if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
@@ -16192,8 +16192,11 @@ ${offersXml}
       const XLSX = await import("xlsx");
       const from = (req.query.from as string || "").trim() || undefined;
       const to   = (req.query.to   as string || "").trim() || undefined;
+      const rawType = (req.query.type as string || "all").trim();
+      const type: 'retail' | 'wholesale' | 'all' =
+        rawType === 'retail' ? 'retail' : rawType === 'wholesale' ? 'wholesale' : 'all';
 
-      const rows = await storage.getMonthlySalesReport(from, to);
+      const rows = await storage.getMonthlySalesReport(from, to, type);
       if (rows.length === 0) {
         return res.status(404).json({ error: "Нет данных за указанный период" });
       }
@@ -16333,7 +16336,9 @@ ${offersXml}
 
       const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
       const dateStr = new Date().toISOString().slice(0, 10);
-      const suffix = from && to ? `${from}_${to}` : from ? `from_${from}` : to ? `to_${to}` : dateStr;
+      const periodSuffix = from && to ? `${from}_${to}` : from ? `from_${from}` : to ? `to_${to}` : dateStr;
+      const typeSuffix = type === 'retail' ? '-roznica' : type === 'wholesale' ? '-opt' : '';
+      const suffix = `${periodSuffix}${typeSuffix}`;
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", `attachment; filename="sales-report-${suffix}.xlsx"`);
       res.send(buf);

@@ -509,7 +509,7 @@ export interface IStorage {
   getOrders(): Promise<Order[]>;
   getOrderAnalytics(): Promise<{ month: string; retailCount: number; wholesaleCount: number; retailRevenue: number; wholesaleRevenue: number }[]>;
   getArtistAnalytics(): Promise<{ artist: string; revenue: number; orders: number; items: number; ordersList: { orderId: number; date: string; customerName: string; items: { name: string; qty: number; price: number }[]; total: number }[] }[]>;
-  getMonthlySalesReport(from?: string, to?: string): Promise<{ month: string; ownerKey: string; ownerLabel: string; revenue: number; qty: number; items: { productName: string; size: string; color: string; qty: number; price: number }[] }[]>;
+  getMonthlySalesReport(from?: string, to?: string, type?: 'retail' | 'wholesale' | 'all'): Promise<{ month: string; ownerKey: string; ownerLabel: string; revenue: number; qty: number; items: { productName: string; size: string; color: string; qty: number; price: number }[] }[]>;
   getUnsyncedOrdersFor1C(): Promise<Order[]>;
   markOrdersSyncedTo1C(orderIds: number[]): Promise<void>;
   getOrder(id: number): Promise<Order | undefined>;
@@ -2598,7 +2598,7 @@ export class DatabaseStorage implements IStorage {
   // Returns one row per (month, owner) with aggregated revenue, qty, and item list.
   // Both retail and wholesale paid orders are included.
   // from/to: optional YYYY-MM strings for inclusive date filtering.
-  async getMonthlySalesReport(from?: string, to?: string): Promise<{
+  async getMonthlySalesReport(from?: string, to?: string, type: 'retail' | 'wholesale' | 'all' = 'all'): Promise<{
     month: string;
     ownerKey: string;
     ownerLabel: string;
@@ -2650,16 +2650,19 @@ export class DatabaseStorage implements IStorage {
       if (!slugToLabel.has(a.slug)) slugToLabel.set(a.slug, a.label);
     }
 
-    // ── Fetch all paid orders (retail + wholesale) ─────────────────────────
+    // ── Fetch paid orders (filtered by type) ──────────────────────────────
+    const whereClause = type === 'retail'
+      ? `is_wholesale = false AND status IN ('paid', 'processing', 'shipped', 'delivered')`
+      : type === 'wholesale'
+      ? `is_wholesale = true  AND status NOT IN ('cancelled', 'awaiting_payment')`
+      : `(is_wholesale = false AND status IN ('paid', 'processing', 'shipped', 'delivered'))
+          OR (is_wholesale = true AND status NOT IN ('cancelled', 'awaiting_payment'))`;
+
     const result = await this.safeQuery(async (session) => {
       const query = `
         SELECT id, created_at, items, is_wholesale
         FROM orders
-        WHERE (
-          (is_wholesale = false AND status IN ('paid', 'processing', 'shipped', 'delivered'))
-          OR
-          (is_wholesale = true  AND status NOT IN ('cancelled', 'awaiting_payment'))
-        )
+        WHERE (${whereClause})
         ORDER BY created_at ASC
         LIMIT 5000;
       `;
