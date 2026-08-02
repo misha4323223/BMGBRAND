@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, RefreshCw, Loader2, TrendingUp, ShoppingBag, Package, Banknote, Music2, ChevronDown, ChevronRight } from "lucide-react";
+import { BarChart3, RefreshCw, Loader2, TrendingUp, ShoppingBag, Package, Banknote, Music2, ChevronDown, ChevronRight, FileSpreadsheet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 import { Button } from "@/components/ui/button";
 
@@ -40,6 +40,41 @@ const ARTIST_COLORS = ["#3b82f6", "#a855f7", "#f59e0b", "#10b981", "#ef4444", "#
 
 export function AnalyticsTab({ apiKey }: { apiKey: string }) {
   const [expandedArtist, setExpandedArtist] = useState<string | null>(null);
+  const [reportFrom, setReportFrom] = useState("");
+  const [reportTo, setReportTo] = useState("");
+  const [reportDownloading, setReportDownloading] = useState(false);
+
+  const downloadReport = async () => {
+    setReportDownloading(true);
+    try {
+      const params = new URLSearchParams();
+      if (reportFrom) params.set("from", reportFrom);
+      if (reportTo)   params.set("to",   reportTo);
+      const qs = params.toString();
+      const url = `/api/admin/reports/monthly-sales${qs ? `?${qs}` : ""}`;
+      const res = await fetch(url, { headers: { "x-api-key": apiKey }, credentials: "include" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      const today = new Date().toISOString().slice(0, 10);
+      const suffix = reportFrom && reportTo
+        ? `${reportFrom}_${reportTo}`
+        : reportFrom ? `from_${reportFrom}` : reportTo ? `to_${reportTo}` : today;
+      link.download = `sales-report-${suffix}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (e: any) {
+      alert(`Ошибка при формировании отчёта: ${e?.message ?? e}`);
+    } finally {
+      setReportDownloading(false);
+    }
+  };
 
   const { data, isLoading, isError, refetch } = useQuery<MonthStat[]>({
     queryKey: ["admin-analytics-orders"],
@@ -106,6 +141,49 @@ export function AnalyticsTab({ apiKey }: { apiKey: string }) {
           <RefreshCw className="w-4 h-4 mr-1.5" />
           Обновить
         </Button>
+      </div>
+
+      {/* ── Экспорт отчёта в XLS ─────────────────────────────────────── */}
+      <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 10, padding: "14px 16px" }}>
+        <p className="text-sm font-medium text-zinc-300 flex items-center gap-2 mb-3">
+          <FileSpreadsheet className="w-4 h-4 text-green-400" />
+          Выгрузка подробного отчёта по продажам (XLS)
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-zinc-500 whitespace-nowrap">С месяца</label>
+            <input
+              type="month"
+              value={reportFrom}
+              onChange={e => setReportFrom(e.target.value)}
+              className="text-sm bg-zinc-900 border border-zinc-700 rounded-md px-2 py-1 text-zinc-200 focus:outline-none focus:border-zinc-500"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-zinc-500 whitespace-nowrap">По месяц</label>
+            <input
+              type="month"
+              value={reportTo}
+              onChange={e => setReportTo(e.target.value)}
+              className="text-sm bg-zinc-900 border border-zinc-700 rounded-md px-2 py-1 text-zinc-200 focus:outline-none focus:border-zinc-500"
+            />
+          </div>
+          <Button
+            size="sm"
+            onClick={downloadReport}
+            disabled={reportDownloading}
+            className="bg-green-700 hover:bg-green-600 text-white border-0"
+            data-testid="button-report-download"
+          >
+            {reportDownloading
+              ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" />Формируется…</>
+              : <><FileSpreadsheet className="w-4 h-4 mr-1.5" />Скачать отчёт XLS</>
+            }
+          </Button>
+          <span className="text-xs text-zinc-600">
+            Без фильтра — все месяцы. Данные: розница + опт.
+          </span>
+        </div>
       </div>
 
       {isLoading && (

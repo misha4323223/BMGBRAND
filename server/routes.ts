@@ -16183,6 +16183,166 @@ ${offersXml}
     }
   });
 
+  // ─── Monthly sales report (XLSX) ────────────────────────────────────────
+  // GET /api/admin/reports/monthly-sales?from=YYYY-MM&to=YYYY-MM
+  app.get("/api/admin/reports/monthly-sales", async (req: any, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const XLSX = await import("xlsx");
+      const from = (req.query.from as string || "").trim() || undefined;
+      const to   = (req.query.to   as string || "").trim() || undefined;
+
+      const rows = await storage.getMonthlySalesReport(from, to);
+      if (rows.length === 0) {
+        return res.status(404).json({ error: "Нет данных за указанный период" });
+      }
+
+      const MONTHS_SHORT: Record<string, string> = {
+        "01": "Янв", "02": "Фев", "03": "Мар", "04": "Апр",
+        "05": "Май", "06": "Июн", "07": "Июл", "08": "Авг",
+        "09": "Сен", "10": "Окт", "11": "Ноя", "12": "Дек",
+      };
+      const sheetLabel = (m: string) =>
+        `${MONTHS_SHORT[m.slice(5, 7)] ?? m.slice(5, 7)} ${m.slice(0, 4)}`;
+
+      // ── Collect unique sorted months & owners ────────────────────────────
+      const monthSet = new Set<string>();
+      const ownerRevMap = new Map<string, { label: string; totalRev: number }>();
+      for (const r of rows) {
+        monthSet.add(r.month);
+        const ex = ownerRevMap.get(r.ownerKey);
+        if (!ex) ownerRevMap.set(r.ownerKey, { label: r.ownerLabel, totalRev: r.revenue });
+        else ex.totalRev += r.revenue;
+      }
+      const months = [...monthSet].sort();
+      // BOOOMERANGS always last; rest sorted by total revenue descending
+      const owners = [...ownerRevMap.entries()]
+        .sort(([ka, a], [kb, b]) => {
+          if (ka === "BOOOMERANGS") return 1;
+          if (kb === "BOOOMERANGS") return -1;
+          return b.totalRev - a.totalRev;
+        })
+        .map(([key, { label }]) => ({ key, label }));
+
+      // Fast index: "month|||ownerKey" → row
+      const idx = new Map<string, typeof rows[0]>();
+      for (const r of rows) idx.set(`${r.month}|||${r.ownerKey}`, r);
+
+      const wb = XLSX.utils.book_new();
+
+      // ── Sheet "Сводка" ───────────────────────────────────────────────────
+      const hdr: (string | number)[] = ["Месяц"];
+      for (const o of owners) hdr.push(`${o.label} — выручка, ₽`, `${o.label} — шт.`);
+      hdr.push("Итого, ₽", "Итого, шт.");
+
+      const summaryRows: (string | number)[][] = [hdr];
+      const ownerTotals = new Map<string, { rev: number; qty: number }>();
+      let grandRev = 0, grandQty = 0;
+
+      for (const month of months) {
+        const dataRow: (string | number)[] = [sheetLabel(month)];
+        let mRev = 0, mQty = 0;
+        for (const o of owners) {
+          const e = idx.get(`${month}|||${o.key}`);
+          const rev = e ? Math.round(e.revenue / 100) : 0;
+          const qty = e ? e.qty : 0;
+          dataRow.push(rev, qty);
+          mRev += rev; mQty += qty;
+          const ot = ownerTotals.get(o.key) || { rev: 0, qty: 0 };
+          ot.rev += rev; ot.qty += qty;
+          ownerTotals.set(o.key, ot);
+        }
+        dataRow.push(mRev, mQty);
+        grandRev += mRev; grandQty += mQty;
+        summaryRows.push(dataRow);
+      }
+      const totRow: (string | number)[] = ["ИТОГО"];
+      for (const o of owners) {
+        const t = ownerTotals.get(o.key) || { rev: 0, qty: 0 };
+        totRow.push(t.rev, t.qty);
+      }
+      totRow.push(grandRev, grandQty);
+      summaryRows.push(totRow);
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      const sumCols: { wch: number }[] = [{ wch: 12 }];
+      for (let i = 0; i < owners.length; i++) sumCols.push({ wch: 24 }, { wch: 10 });
+      sumCols.push({ wch: 14 }, { wch: 12 });
+      wsSummary["!cols"] = sumCols;
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Сводка");
+
+      // ── One sheet per month ──────────────────────────────────────────────
+      for (const month of months) {
+        const monthRows = rows.filter(r => r.month === month);
+        if (monthRows.length === 0) continue;
+
+        const sheetData: (string | number)[][] = [
+          ["Артист / Бренд", "Товар", "Цвет", "Размер", "Кол-во", "Цена, ₽", "Сумма, ₽"],
+        ];
+        let mGrandRev = 0, mGrandQty = 0;
+
+        // Within the month, sort owners: BOOOMERANGS last, rest by revenue desc
+        const sorted = [...monthRows].sort((a, b) => {
+          if (a.ownerKey === "BOOOMERANGS") return 1;
+          if (b.ownerKey === "BOOOMERANGS") return -1;
+          return b.revenue - a.revenue;
+        });
+
+        for (const ownerRow of sorted) {
+          // Aggregate same product+color+size within this owner/month
+          const agg = new Map<string, { productName: string; color: string; size: string; qty: number; price: number }>();
+          for (const it of ownerRow.items) {
+            const k = `${it.productName}|||${it.color}|||${it.size}`;
+            const ex = agg.get(k);
+            if (!ex) agg.set(k, { ...it });
+            else ex.qty += it.qty;
+          }
+          const aggItems = [...agg.values()].sort((a, b) =>
+            a.productName.localeCompare(b.productName, "ru") ||
+            a.color.localeCompare(b.color, "ru") ||
+            a.size.localeCompare(b.size, "ru")
+          );
+
+          for (const it of aggItems) {
+            sheetData.push([
+              ownerRow.ownerLabel,
+              it.productName,
+              it.color,
+              it.size,
+              it.qty,
+              Math.round(it.price / 100),
+              Math.round(it.price * it.qty / 100),
+            ]);
+          }
+          const ownerRevRub = Math.round(ownerRow.revenue / 100);
+          sheetData.push([`Итого ${ownerRow.ownerLabel}`, "", "", "", ownerRow.qty, "", ownerRevRub]);
+          sheetData.push(["", "", "", "", "", "", ""]); // blank separator
+          mGrandRev += ownerRevRub;
+          mGrandQty += ownerRow.qty;
+        }
+        sheetData.push(["ИТОГО ЗА МЕСЯЦ", "", "", "", mGrandQty, "", mGrandRev]);
+
+        const wsMonth = XLSX.utils.aoa_to_sheet(sheetData);
+        wsMonth["!cols"] = [
+          { wch: 22 }, { wch: 42 }, { wch: 18 }, { wch: 12 },
+          { wch: 8  }, { wch: 12 }, { wch: 14 },
+        ];
+        XLSX.utils.book_append_sheet(wb, wsMonth, sheetLabel(month));
+      }
+
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const suffix = from && to ? `${from}_${to}` : from ? `from_${from}` : to ? `to_${to}` : dateStr;
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="sales-report-${suffix}.xlsx"`);
+      res.send(buf);
+    } catch (err: any) {
+      console.error("[Admin] Monthly sales report error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/admin/preorder/order/:orderId/status", async (req: any, res) => {
     const apiKey = req.headers["x-api-key"];
     if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });

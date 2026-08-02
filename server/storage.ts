@@ -509,6 +509,7 @@ export interface IStorage {
   getOrders(): Promise<Order[]>;
   getOrderAnalytics(): Promise<{ month: string; retailCount: number; wholesaleCount: number; retailRevenue: number; wholesaleRevenue: number }[]>;
   getArtistAnalytics(): Promise<{ artist: string; revenue: number; orders: number; items: number; ordersList: { orderId: number; date: string; customerName: string; items: { name: string; qty: number; price: number }[]; total: number }[] }[]>;
+  getMonthlySalesReport(from?: string, to?: string): Promise<{ month: string; ownerKey: string; ownerLabel: string; revenue: number; qty: number; items: { productName: string; size: string; color: string; qty: number; price: number }[] }[]>;
   getUnsyncedOrdersFor1C(): Promise<Order[]>;
   markOrdersSyncedTo1C(orderIds: number[]): Promise<void>;
   getOrder(id: number): Promise<Order | undefined>;
@@ -2591,6 +2592,154 @@ export class DatabaseStorage implements IStorage {
         ...data,
       }))
       .sort((a, b) => b.revenue - a.revenue);
+  }
+
+  // ─── Monthly sales report ────────────────────────────────────────────────
+  // Returns one row per (month, owner) with aggregated revenue, qty, and item list.
+  // Both retail and wholesale paid orders are included.
+  // from/to: optional YYYY-MM strings for inclusive date filtering.
+  async getMonthlySalesReport(from?: string, to?: string): Promise<{
+    month: string;
+    ownerKey: string;
+    ownerLabel: string;
+    revenue: number;
+    qty: number;
+    items: { productName: string; size: string; color: string; qty: number; price: number }[];
+  }[]> {
+    if (!driver) return [];
+
+    // ── Artist/slug reference tables (same as getArtistAnalytics) ──────────
+    const ARTISTS = [
+      { label: "Молодость Внутри", slug: "molodost-vnutri", keywords: ["молодость внутри"] },
+      { label: "Гуд Таймс",        slug: "gudtajms",        keywords: ["гудтаймс", "гуд таймс", "goodtimes", "good times", "зож", "принц"] },
+      { label: "Дикая Мята",       slug: "dikaya-myata",    keywords: ["дикая мята", "wild mint", "vashana", "стикерпак"] },
+      { label: "Мультфильмы",      slug: "multfilmy",       keywords: ["мультфильм", "мультfильм"] },
+      { label: "Драгни",           slug: "dragni",          keywords: ["драгни", "dragni"] },
+    ];
+    const SLUG_ALIASES: Record<string, string> = {
+      "goodtimes":      "gudtajms",
+      "гудтаймс":       "gudtajms",
+      "ГУДТАЙМС":       "gudtajms",
+      "molodostvnutri": "molodost-vnutri",
+    };
+    const normalizeSlug = (s: string): string => SLUG_ALIASES[s] ?? s;
+
+    // Build product lookups from in-memory cache
+    const cachedProducts = productsCache.get("all") || [];
+    const productIdToSlug   = new Map<number, string>();
+    const productNameToSlug = new Map<string, string>();
+    for (const p of cachedProducts) {
+      if (p.artistSlug) {
+        if (p.id) productIdToSlug.set(Number(p.id), normalizeSlug(p.artistSlug));
+        productNameToSlug.set((p.name || '').toLowerCase(), normalizeSlug(p.artistSlug));
+      }
+    }
+
+    // Slug → display label from partner DB + static fallback
+    const artistPartners = await this.getArtistPartners();
+    const slugToLabel = new Map<string, string>();
+    for (const p of artistPartners) {
+      slugToLabel.set(p.partnerSlug, p.storeName || p.contactName || p.partnerSlug);
+    }
+    for (const [alias, canonical] of Object.entries(SLUG_ALIASES)) {
+      if (!slugToLabel.has(canonical) && slugToLabel.has(alias)) {
+        slugToLabel.set(canonical, slugToLabel.get(alias)!);
+      }
+    }
+    for (const a of ARTISTS) {
+      if (!slugToLabel.has(a.slug)) slugToLabel.set(a.slug, a.label);
+    }
+
+    // ── Fetch all paid orders (retail + wholesale) ─────────────────────────
+    const result = await this.safeQuery(async (session) => {
+      const query = `
+        SELECT id, created_at, items, is_wholesale
+        FROM orders
+        WHERE (
+          (is_wholesale = false AND status IN ('paid', 'processing', 'shipped', 'delivered'))
+          OR
+          (is_wholesale = true  AND status NOT IN ('cancelled', 'awaiting_payment'))
+        )
+        ORDER BY created_at ASC
+        LIMIT 5000;
+      `;
+      const queryResult = await session.executeQuery(query);
+      return queryResult.resultSets[0]?.rows || [];
+    });
+    if (!result) return [];
+
+    // ── Accumulate into month+owner buckets ───────────────────────────────
+    type RowData = {
+      month: string;
+      ownerKey: string;
+      ownerLabel: string;
+      revenue: number;
+      qty: number;
+      items: { productName: string; size: string; color: string; qty: number; price: number }[];
+    };
+    const rowMap = new Map<string, RowData>();
+
+    const getOrCreate = (month: string, ownerKey: string): RowData => {
+      const key = `${month}|||${ownerKey}`;
+      if (!rowMap.has(key)) {
+        const ownerLabel = ownerKey === "BOOOMERANGS"
+          ? "BOOOMERANGS"
+          : (slugToLabel.get(ownerKey) || ownerKey);
+        rowMap.set(key, { month, ownerKey, ownerLabel, revenue: 0, qty: 0, items: [] });
+      }
+      return rowMap.get(key)!;
+    };
+
+    for (const row of result) {
+      const cols = row.items || [];
+      // cols: 0=id, 1=created_at, 2=items, 3=is_wholesale
+      const createdAt = this.extractTypedValue(cols[1]);
+      const rawItems  = this.extractTypedValue(cols[2]);
+
+      if (!createdAt) continue;
+      const date = new Date(createdAt);
+      if (isNaN(date.getTime())) continue;
+      const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      if (from && month < from) continue;
+      if (to   && month > to)   continue;
+
+      let orderItems: any[] = [];
+      try { orderItems = JSON.parse(rawItems || '[]'); } catch { continue; }
+
+      for (const item of orderItems) {
+        if (item._discountDetails) continue;
+
+        const pid         = Number(item.productId) || 0;
+        const nameLower   = (item.productName || item.name || '').toLowerCase();
+        const displayName = (item.productName || item.name || '—').trim();
+        const qty         = Number(item.quantity) || 1;
+        const price       = Number(item.price) || 0;
+        const size        = ((item.size  || '').trim()) || '—';
+        const color       = ((item.color || '').trim()) || '—';
+
+        // Owner resolution: productId lookup → name lookup → keyword → BOOOMERANGS
+        let ownerKey: string;
+        const slugById   = pid ? productIdToSlug.get(pid) : undefined;
+        const slugByName = productNameToSlug.get(nameLower);
+        if (slugById) {
+          ownerKey = slugById;
+        } else if (slugByName) {
+          ownerKey = slugByName;
+        } else {
+          const matched = ARTISTS.find(a => a.keywords.some(k => nameLower.includes(k)));
+          ownerKey = matched ? matched.slug : "BOOOMERANGS";
+        }
+
+        const entry = getOrCreate(month, ownerKey);
+        entry.revenue += price * qty;
+        entry.qty     += qty;
+        entry.items.push({ productName: displayName, size, color, qty, price });
+      }
+    }
+
+    return Array.from(rowMap.values())
+      .sort((a, b) => a.month.localeCompare(b.month) || a.ownerLabel.localeCompare(b.ownerLabel, 'ru'));
   }
 
   async getAllWholesaleOrdersIncludingDrafts(): Promise<Order[]> {
