@@ -16235,8 +16235,19 @@ ${offersXml}
       const wb = XLSX.utils.book_new();
 
       // ── Sheet "Сводка" ───────────────────────────────────────────────────
+      // Pre-calculate month revenue totals for % computation
+      const monthRevTotal = new Map<string, number>();
+      for (const month of months) {
+        let mTotal = 0;
+        for (const o of owners) {
+          const e = idx.get(`${month}|||${o.key}`);
+          if (e) mTotal += Math.round(e.revenue / 100);
+        }
+        monthRevTotal.set(month, mTotal);
+      }
+
       const hdr: (string | number)[] = ["Месяц"];
-      for (const o of owners) hdr.push(`${o.label} — выручка, ₽`, `${o.label} — шт.`);
+      for (const o of owners) hdr.push(`${o.label} — выручка, ₽`, `${o.label} — шт.`, `${o.label} — %`);
       hdr.push("Итого, ₽", "Итого, шт.");
 
       const summaryRows: (string | number)[][] = [hdr];
@@ -16245,12 +16256,14 @@ ${offersXml}
 
       for (const month of months) {
         const dataRow: (string | number)[] = [sheetLabel(month)];
+        const mTotal = monthRevTotal.get(month) || 0;
         let mRev = 0, mQty = 0;
         for (const o of owners) {
           const e = idx.get(`${month}|||${o.key}`);
           const rev = e ? Math.round(e.revenue / 100) : 0;
           const qty = e ? e.qty : 0;
-          dataRow.push(rev, qty);
+          const pct = mTotal > 0 ? Math.round(rev / mTotal * 100) : 0;
+          dataRow.push(rev, qty, pct === 0 ? "" : `${pct}%`);
           mRev += rev; mQty += qty;
           const ot = ownerTotals.get(o.key) || { rev: 0, qty: 0 };
           ot.rev += rev; ot.qty += qty;
@@ -16260,17 +16273,19 @@ ${offersXml}
         grandRev += mRev; grandQty += mQty;
         summaryRows.push(dataRow);
       }
+      // ИТОГО row: % = share of grand total
       const totRow: (string | number)[] = ["ИТОГО"];
       for (const o of owners) {
         const t = ownerTotals.get(o.key) || { rev: 0, qty: 0 };
-        totRow.push(t.rev, t.qty);
+        const pct = grandRev > 0 ? Math.round(t.rev / grandRev * 100) : 0;
+        totRow.push(t.rev, t.qty, pct === 0 ? "" : `${pct}%`);
       }
       totRow.push(grandRev, grandQty);
       summaryRows.push(totRow);
 
       const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
       const sumCols: { wch: number }[] = [{ wch: 12 }];
-      for (let i = 0; i < owners.length; i++) sumCols.push({ wch: 24 }, { wch: 10 });
+      for (let i = 0; i < owners.length; i++) sumCols.push({ wch: 24 }, { wch: 10 }, { wch: 7 });
       sumCols.push({ wch: 14 }, { wch: 12 });
       wsSummary["!cols"] = sumCols;
       XLSX.utils.book_append_sheet(wb, wsSummary, "Сводка");
