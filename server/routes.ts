@@ -14813,6 +14813,39 @@ ${offersXml}
     }
   });
 
+  // Подсказка городов для выбора ПВЗ Ozon (возвращает упрощённый список)
+  app.post("/api/dadata/city-suggest", async (req, res) => {
+    try {
+      const apiKey = process.env.DADATA_API_KEY;
+      if (!apiKey) return res.json({ suggestions: [] });
+      const { query } = req.body;
+      if (!query || String(query).trim().length < 2) return res.json({ suggestions: [] });
+      const response = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Token ${apiKey}`,
+        },
+        body: JSON.stringify({
+          query: String(query).trim(),
+          count: 7,
+          from_bound: { value: "city" },
+          to_bound: { value: "city" },
+        }),
+      });
+      const data: any = await response.json();
+      const suggestions = (data.suggestions ?? []).map((s: any) => ({
+        value: s.value,
+        city: s.data?.city ?? s.data?.settlement ?? s.data?.region_with_type ?? s.value,
+        region: s.data?.region_with_type ?? "",
+      }));
+      res.json({ suggestions });
+    } catch (err: any) {
+      res.json({ suggestions: [] });
+    }
+  });
+
   app.post("/api/dadata/party", async (req, res) => {
     try {
       const apiKey = process.env.DADATA_API_KEY;
