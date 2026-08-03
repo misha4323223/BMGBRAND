@@ -174,6 +174,7 @@ export default function ConceptCampaignPage() {
   const pageTitle: string = hero.title || slug;
   const pageSubtitle: string = hero.subtitle || "";
   const campaignLogoUrl: string = hero.logoUrl || "";
+  const showBoomLogo: boolean = hero.showBoomLogo !== false;
   const seoTitle: string = hero.seoTitle || `${pageTitle} | Pre-drop BOOOMERANGS`;
   const seoDescription: string = hero.seoDescription || `Предзаказ ${pageTitle} — BOOOMERANGS`;
 
@@ -342,10 +343,10 @@ export default function ConceptCampaignPage() {
 
         <div className="px-4 sm:px-6 lg:px-12 relative z-10">
           {/* Заголовок кампании */}
-          {(pageTitle || pageSubtitle || campaignLogoUrl) && (
+          {(pageTitle || pageSubtitle || campaignLogoUrl || showBoomLogo) && (
             <div className="mb-10 sm:mb-14 text-center">
               {pageSubtitle && <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">{pageSubtitle}</p>}
-              {campaignLogoUrl ? (
+              {showBoomLogo ? (
                 <div className="flex items-center justify-center gap-4 sm:gap-14">
                   <img
                     src="/images/boomerangs-logo.webp"
@@ -356,7 +357,23 @@ export default function ConceptCampaignPage() {
                     className="h-[72px] sm:h-[160px] w-auto object-contain"
                     style={{ maxWidth: "clamp(120px, 38vw, 360px)" }}
                   />
-                  <span className="select-none leading-none" style={{ fontSize: "clamp(32px, 6vw, 64px)", fontWeight: 100, color: "#E53935", letterSpacing: "-0.05em", lineHeight: 1 }}>×</span>
+                  {campaignLogoUrl && (
+                    <>
+                      <span className="select-none leading-none" style={{ fontSize: "clamp(32px, 6vw, 64px)", fontWeight: 100, color: "#E53935", letterSpacing: "-0.05em", lineHeight: 1 }}>×</span>
+                      <img
+                        src={campaignLogoUrl}
+                        alt={pageTitle}
+                        loading="eager"
+                        // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
+                        fetchpriority="high"
+                        className="h-[72px] sm:h-[160px] w-auto object-contain"
+                        style={{ maxWidth: "clamp(120px, 38vw, 360px)" }}
+                      />
+                    </>
+                  )}
+                </div>
+              ) : campaignLogoUrl ? (
+                <div className="flex items-center justify-center">
                   <img
                     src={campaignLogoUrl}
                     alt={pageTitle}
