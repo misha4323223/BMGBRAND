@@ -21,8 +21,8 @@ import partnerRoutes, { partnerRefQueryMiddleware, partnerRefRedirectHandler, ge
 import adminPartnerRoutes from "./admin-partner-routes";
 import { authStorage } from "./auth-storage";
 import { paymentService } from "./payments";
-import { ozonPayService } from "./ozon-pay";
 import { ozonDeliveryOAuth, OZON_OAUTH_KEYS, OZON_OAUTH_REDIRECT_URI } from "./ozon-delivery-oauth";
+import { ozonDeliveryService } from "./ozon-delivery";
 import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PVZ_CODE, CDEK_DEFAULT_PACKAGE, CDEK_TARIFFS, isTariffToDoor, isTariffFromPvz } from "./cdek";
 
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
@@ -1055,15 +1055,6 @@ export async function registerRoutes(
     } : undefined,
   });
 
-  // Initialize Ozon Pay service
-  if (process.env.OZON_PAY_ACCESS_KEY && process.env.OZON_PAY_SECRET_KEY && process.env.OZON_PAY_NOTIFICATION_SECRET) {
-    ozonPayService.initialize({
-      accessKey: process.env.OZON_PAY_ACCESS_KEY,
-      secretKey: process.env.OZON_PAY_SECRET_KEY,
-      notificationSecret: process.env.OZON_PAY_NOTIFICATION_SECRET,
-    });
-  }
-
   // Initialize Ozon Delivery OAuth service
   if (process.env.OZON_CLIENT_ID && process.env.OZON_CLIENT_SECRET) {
     ozonDeliveryOAuth.initialize(process.env.OZON_CLIENT_ID, process.env.OZON_CLIENT_SECRET);
@@ -1084,6 +1075,13 @@ export async function registerRoutes(
         console.error("[OzonDelivery OAuth] Ошибка загрузки токенов из БД:", e.message);
       }
     });
+
+    // Включить Ozon Delivery если флаг установлен
+    const ozonDeliveryFlag = await storage.getBonusSetting("ozon_delivery_enabled").catch(() => null);
+    if (ozonDeliveryFlag === "true") {
+      ozonDeliveryService.setEnabled(true);
+      console.log("[OzonDelivery] Доставка включена (флаг ozon_delivery_enabled=true)");
+    }
   }
 
   // ==================== Legacy URL Redirects (booomerangs.ru compatibility) ====================
@@ -3526,6 +3524,30 @@ ${artistLinks || "- (список формируется)"}
                   console.error(`[YooKassa Webhook] CDEK waybill error for order ${numericId}:`, err.message)
                 );
 
+                // Если доставка Ozon — создаём заказ в Ozon Logistics (fire-and-forget)
+                if (order.deliveryService === "ozon" && ozonDeliveryService.isEnabled()) {
+                  const _ozDeliveryItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                  ozonDeliveryService.createOrder({
+                    externalOrderId: String(order.id),
+                    customerPhone: order.customerPhone || "",
+                    customerName: order.customerName || "",
+                    amount: order.total,
+                    items: (Array.isArray(_ozDeliveryItems) ? _ozDeliveryItems : []).map((item: any) => ({
+                      offerId: item.article || item.sku || String(item.productId),
+                      quantity: item.quantity || 1,
+                      price: item.price || 0,
+                      name: item.productName || item.name || "",
+                    })),
+                  }).then(result => {
+                    if (result.success && result.ozonOrderId) {
+                      console.log(`[YooKassa Webhook] Ozon Delivery order created: ${result.ozonOrderId} for order ${numericId}`);
+                    } else {
+                      console.error(`[YooKassa Webhook] Ozon Delivery order creation failed for order ${numericId}:`, result.error);
+                      notifyError('Ozon Доставка', `Заказ #${numericId} — не удалось создать доставку Ozon`, result.error || "");
+                    }
+                  }).catch(err => console.error(`[YooKassa Webhook] Ozon Delivery error for order ${numericId}:`, err.message));
+                }
+
                 const orderItemsParsed = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
                 const itemsForNotify = await enrichItemsWithProductColor(Array.isArray(orderItemsParsed) ? orderItemsParsed : []);
                 notifyNewOrder({
@@ -3994,6 +4016,30 @@ ${artistLinks || "- (список формируется)"}
                   console.error(`[T-Bank Webhook] CDEK waybill error for order ${numericId}:`, err.message)
                 );
 
+                // Если доставка Ozon — создаём заказ в Ozon Logistics (fire-and-forget)
+                if (order && order.deliveryService === "ozon" && ozonDeliveryService.isEnabled()) {
+                  const _tbOzItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                  ozonDeliveryService.createOrder({
+                    externalOrderId: String(order.id),
+                    customerPhone: order.customerPhone || "",
+                    customerName: order.customerName || "",
+                    amount: order.total,
+                    items: (Array.isArray(_tbOzItems) ? _tbOzItems : []).map((item: any) => ({
+                      offerId: item.article || item.sku || String(item.productId),
+                      quantity: item.quantity || 1,
+                      price: item.price || 0,
+                      name: item.productName || item.name || "",
+                    })),
+                  }).then(result => {
+                    if (result.success && result.ozonOrderId) {
+                      console.log(`[T-Bank Webhook] Ozon Delivery order created: ${result.ozonOrderId} for order ${numericId}`);
+                    } else {
+                      console.error(`[T-Bank Webhook] Ozon Delivery order creation failed for order ${numericId}:`, result.error);
+                      notifyError('Ozon Доставка', `Заказ #${numericId} — не удалось создать доставку Ozon`, result.error || "");
+                    }
+                  }).catch(err => console.error(`[T-Bank Webhook] Ozon Delivery error for order ${numericId}:`, err.message));
+                }
+
                 if (order) {
                   const orderItemsParsed = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
                   const itemsForNotify = await enrichItemsWithProductColor(Array.isArray(orderItemsParsed) ? orderItemsParsed : []);
@@ -4102,7 +4148,7 @@ ${artistLinks || "- (список формируется)"}
       methods,
       enabled: methods.length > 0,
       tbankTerminalKey: process.env.TBANK_TERMINAL_KEY || null,
-      ozonPayEnabled: ozonPayService.isEnabled(),
+      ozonDeliveryEnabled: ozonDeliveryService.isEnabled(),
     });
   });
 
@@ -4129,7 +4175,7 @@ ${artistLinks || "- (список формируется)"}
     }
   });
 
-  // GET /api/admin/ozon-oauth/revoke — сброс токенов (только для админа)
+  // POST /api/admin/ozon-oauth/revoke — сброс токенов (только для админа)
   app.post("/api/admin/ozon-oauth/revoke", authMiddleware, requireAdminRole, async (_req, res) => {
     ozonDeliveryOAuth.clearTokens();
     try {
@@ -4140,6 +4186,34 @@ ${artistLinks || "- (список формируется)"}
       ]);
     } catch {}
     res.json({ success: true, message: "Токены сброшены" });
+  });
+
+  // GET /api/admin/ozon-delivery/settings — статус + флаг включения доставки
+  app.get("/api/admin/ozon-delivery/settings", authMiddleware, requireAdminRole, async (_req, res) => {
+    const enabledFlag = await storage.getBonusSetting("ozon_delivery_enabled").catch(() => null);
+    res.json({
+      enabled: enabledFlag === "true",
+      oauthStatus: ozonDeliveryOAuth.getStatus(),
+      serviceReady: ozonDeliveryService.isEnabled(),
+    });
+  });
+
+  // POST /api/admin/ozon-delivery/settings — включить/выключить доставку
+  app.post("/api/admin/ozon-delivery/settings", authMiddleware, requireAdminRole, async (req, res) => {
+    const { enabled } = req.body as { enabled: boolean };
+    const value = enabled ? "true" : "false";
+    await storage.setBonusSetting("ozon_delivery_enabled", value).catch(() => {});
+    ozonDeliveryService.setEnabled(enabled);
+    console.log(`[OzonDelivery] Доставка ${enabled ? "включена" : "отключена"} администратором`);
+    res.json({ success: true, enabled });
+  });
+
+  // POST /api/admin/ozon-delivery/check-order — проверить статус заказа Ozon
+  app.post("/api/admin/ozon-delivery/check-order", authMiddleware, requireAdminRole, async (req, res) => {
+    const { ozonOrderId } = req.body as { ozonOrderId: string };
+    if (!ozonOrderId) return res.status(400).json({ error: "ozonOrderId required" });
+    const result = await ozonDeliveryService.getOrder(ozonOrderId);
+    res.json(result);
   });
 
   // POST /api/admin/trigger-abandoned-cart — ручной запуск проверки брошенных корзин
@@ -4208,132 +4282,23 @@ ${artistLinks || "- (список формируется)"}
     return res.redirect("/admin?ozon_oauth=success");
   });
 
-  // Ozon Pay webhook
-  app.post("/api/webhooks/ozon-pay", async (req, res) => {
-    console.log("[OzonPay Webhook] Received:", JSON.stringify(req.body?.status), "order:", req.body?.orderID, "ext:", req.body?.extOrderID);
-
-    if (!ozonPayService.verifyWebhookSignature(req.body)) {
-      console.warn("[OzonPay Webhook] Signature verification failed");
-      return res.status(400).send("Verification failed");
+  // ==================== Ozon Delivery: проверка доступности и стоимости ====================
+  // POST /api/ozon-delivery/check — публичный, вызывается из чекаута
+  app.post("/api/ozon-delivery/check", async (req, res) => {
+    const { phone, items } = req.body as { phone?: string; items?: Array<{ offerId: string; quantity: number }> };
+    if (!phone) {
+      return res.status(400).json({ error: "Требуется номер телефона" });
     }
-
-    const { status, orderID, extOrderID, amount } = req.body;
-
-    if (status === "Completed") {
-      const orderId = extOrderID ? Number(extOrderID) : null;
-      if (!orderId || isNaN(orderId)) {
-        console.warn("[OzonPay Webhook] Cannot find order by extOrderID:", extOrderID);
-        return res.status(200).send("OK");
-      }
-
-      try {
-        const order = await storage.getOrder(orderId);
-        if (!order) {
-          console.warn("[OzonPay Webhook] Order not found:", orderId);
-          return res.status(200).send("OK");
-        }
-
-        if (order.status !== "paid") {
-          await storage.updateOrderStatus(orderId, "paid");
-          if (orderID) await storage.updateOrderPaymentId(orderId, orderID);
-          console.log(`[OzonPay Webhook] Order ${orderId} marked as paid`);
-          if (order.sessionId) {
-            storage.clearCart(order.sessionId).catch(err =>
-              console.error(`[OzonPay Webhook] clearCart failed for order ${orderId}:`, err?.message)
-            );
-          }
-          updateCoPurchaseIndex(order.items);
-
-          try {
-            const itemsForStock = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
-            await decrementStockForOrderItems(Array.isArray(itemsForStock) ? itemsForStock : []);
-          } catch (stockErr: any) {
-            console.error(`[OzonPay Webhook] Stock decrement error for order ${orderId}:`, stockErr.message);
-          }
-
-          storage.getCommissionsByOrderId(orderId).then(async (commissions) => {
-            const holdDays = await getGlobalPartnerHoldDaysCached();
-            const holdUntil = new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000);
-            for (const commission of commissions) {
-              if (commission.status === "pending" && !commission.holdUntil) {
-                await storage.setCommissionHoldUntil(commission.id, holdUntil);
-                console.log(`[OzonPay Webhook] Partner commission hold started: order=${orderId} commission=${commission.id} holdDays=${holdDays} holdUntil=${holdUntil.toISOString()}`);
-              }
-            }
-          }).catch(() => {});
-
-          storage.getOrderBitrixDealId(orderId).then((dealId) => {
-            if (!dealId) return;
-            syncOrderStatusToBitrix(orderId, "paid", dealId).catch(() => {});
-          }).catch(() => {});
-
-          if (order.userId && !order.isWholesale) {
-            try {
-              await storage.updateUserTotalSpent(order.userId, order.total);
-              await storage.recalculateUserLoyaltyDiscount(order.userId);
-            } catch {}
-          }
-
-          if (order.customerEmail) {
-            try {
-              const orderItems = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
-              const emailHtml = getOrderPaidEmailHtml({
-                id: order.id,
-                customerName: order.customerName,
-                total: order.total,
-                items: Array.isArray(orderItems) ? orderItems : [],
-                address: order.address,
-              });
-              await sendEmail({
-                to: order.customerEmail,
-                subject: `Заказ #${order.id} оплачен — BMGBRAND`,
-                html: emailHtml,
-              });
-            } catch (emailErr: any) {
-              console.error("[OzonPay Webhook] Failed to send email:", emailErr.message);
-              notifyError('Email (Ozon Pay)', `Заказ #${orderId} — не удалось отправить письмо покупателю`, `${order.customerEmail} | ${emailErr.message}`);
-            }
-
-            const _ozItems = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
-            schedulePostPurchaseEmail(orderId, order.customerEmail, order.customerName || '', Array.isArray(_ozItems) ? _ozItems : [])
-              .catch(err => console.error(`[OzonPay Webhook] PPEmail schedule failed for order ${orderId}:`, err?.message));
-          }
-
-          const orderItemsParsed = typeof order.items === "string" ? JSON.parse(order.items) : order.items;
-          const itemsForNotify = await enrichItemsWithProductColor(Array.isArray(orderItemsParsed) ? orderItemsParsed : []);
-          notifyNewOrder({
-            orderId: order.id,
-            customerName: order.customerName,
-            customerEmail: order.customerEmail,
-            customerPhone: order.customerPhone,
-            address: order.address || "",
-            total: order.total,
-            items: itemsForNotify,
-            paymentMethod: "ozon-pay",
-            isWholesale: false,
-            promoCode: order.promoCode || undefined,
-            deliveryService: order.deliveryService || undefined,
-          });
-          vkNotifyNewOrder({
-            orderId: order.id,
-            customerName: order.customerName,
-            customerEmail: order.customerEmail,
-            customerPhone: order.customerPhone,
-            address: order.address || "",
-            total: order.total,
-            items: itemsForNotify,
-            paymentMethod: "ozon-pay",
-            isWholesale: false,
-            promoCode: order.promoCode || undefined,
-            deliveryService: order.deliveryService || undefined,
-          });
-        }
-      } catch (err: any) {
-        console.error("[OzonPay Webhook] Error processing:", err.message);
-      }
+    if (!ozonDeliveryService.isEnabled()) {
+      return res.json({ available: false, cost: 0, error: "Ozon Доставка не подключена" });
     }
-
-    res.status(200).send("OK");
+    try {
+      const result = await ozonDeliveryService.checkDelivery(phone, items);
+      res.json(result);
+    } catch (err: any) {
+      console.error("[OzonDelivery] check error:", err.message);
+      res.json({ available: false, cost: 0, error: err.message });
+    }
   });
 
   // Apply auth middleware to all routes below
@@ -10898,45 +10863,9 @@ ${artistLinks || "- (список формируется)"}
           console.error(`[Payment] YooKassa payment failed:`, paymentResult.error);
           notifyError('Оплата YooKassa', `Заказ #${order.id} — не удалось создать платёж`, `Клиент: ${input.customerEmail} | Сумма: ${(amountToPay/100).toFixed(0)} ₽ | Ошибка: ${paymentResult.error}`);
         }
-      } else if (paymentMethod === "ozon-pay" && ozonPayService.isEnabled()) {
-        const baseUrl = process.env.APP_DOMAIN || `https://${req.get("host")}`;
-        const notificationUrl = `${baseUrl}/api/webhooks/ozon-pay`;
-        const ozonItems = orderItems.map((item) => {
-          const numericId = Number(item.productId);
-          return {
-            extId: String(item.productId),
-            name: item.productName,
-            quantity: item.quantity,
-            price: item.price,
-            color: (item.color && item.color !== "Default") ? item.color : undefined,
-            size: item.size || undefined,
-            sku: Number.isSafeInteger(numericId) && numericId > 0 ? numericId : undefined,
-          };
-        });
-        const ozonResult = await ozonPayService.createOrder({
-          extId: String(order.id),
-          amount: amountToPay,
-          items: ozonItems,
-          successUrl: `${baseUrl}/order-success/${order.id}`,
-          failUrl: `${baseUrl}/checkout`,
-          receiptEmail: input.customerEmail,
-          notificationUrl,
-          withDelivery: true,
-        });
-
-        if (ozonResult.success && ozonResult.payLink) {
-          paymentUrl = ozonResult.payLink;
-          if (ozonResult.ozonOrderId) {
-            await storage.updateOrderPaymentId(order.id, ozonResult.ozonOrderId);
-          }
-          console.log(`[OzonPay] Payment link created for order ${order.id}: ${paymentUrl}`);
-        } else {
-          console.error("[OzonPay] Payment creation failed:", ozonResult.error);
-          notifyError('Оплата Ozon Pay', `Заказ #${order.id} — не удалось создать платёж`, `Клиент: ${input.customerEmail} | Сумма: ${(amountToPay/100).toFixed(0)} ₽ | Ошибка: ${ozonResult.error}`);
-        }
       }
 
-      if (amountToPay > 0 && !paymentUrl && !confirmationToken && (paymentMethod === "yookassa" || paymentMethod === "tbank" || paymentMethod === "ozon-pay")) {
+      if (amountToPay > 0 && !paymentUrl && !confirmationToken && (paymentMethod === "yookassa" || paymentMethod === "tbank")) {
         console.error(`[Payment] No payment info generated for order ${order.id}, method: ${paymentMethod}`);
         notifyError('Платёж не создан', `Заказ #${order.id} удалён — платёжный URL не получен`, `Метод: ${paymentMethod} | Клиент: ${input.customerEmail} | Сумма: ${(amountToPay/100).toFixed(0)} ₽`);
         // Delete the created order to avoid orphaned unpaid orders
@@ -10945,9 +10874,9 @@ ${artistLinks || "- (список формируется)"}
       }
 
       // Clear cart — only for non-online-payment orders.
-      // For tbank/yookassa/ozon-pay: cart is cleared in the payment webhook after confirmed payment.
+      // For tbank/yookassa: cart is cleared in the payment webhook after confirmed payment.
       // This prevents the cart from being wiped when user navigates back from the payment page.
-      const isOnlinePayment = (['tbank', 'yookassa', 'ozon-pay'] as string[]).includes(paymentMethod) && amountToPay > 0;
+      const isOnlinePayment = (['tbank', 'yookassa'] as string[]).includes(paymentMethod) && amountToPay > 0;
       if (!isOnlinePayment) {
         await storage.clearCart(input.sessionId);
       }

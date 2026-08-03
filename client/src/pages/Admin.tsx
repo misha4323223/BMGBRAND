@@ -95,6 +95,223 @@ async function adminFetch(url: string, apiKey: string, options: RequestInit = {}
   }
 }
 
+// ─── Ozon Delivery Integration Panel ─────────────────────────────────────────
+function OzonDeliveryIntegration({ apiKey }: { apiKey: string }) {
+  const { toast } = useToast();
+  const [connecting, setConnecting] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const [toggling, setToggling] = useState(false);
+
+  const settingsQuery = useQuery<{ enabled: boolean; oauthStatus: any; serviceReady: boolean }>({
+    queryKey: ["/api/admin/ozon-delivery/settings"],
+    enabled: !!apiKey,
+    refetchInterval: 30000,
+  });
+
+  const settings = settingsQuery.data;
+  const oauth = settings?.oauthStatus;
+  const isConnected = oauth?.configured && oauth?.authenticated && !oauth?.isExpired;
+
+  async function handleConnect() {
+    setConnecting(true);
+    try {
+      const data = await adminFetch("/api/admin/ozon-oauth/authorize", apiKey);
+      if (data?.authUrl) {
+        window.open(data.authUrl, "_blank");
+        toast({ title: "Открыта страница авторизации Ozon", description: "После авторизации вернитесь сюда и обновите статус" });
+        setTimeout(() => settingsQuery.refetch(), 5000);
+      } else {
+        toast({ title: "Ошибка", description: data?.error || "Не удалось получить URL авторизации", variant: "destructive" });
+      }
+    } catch (e: any) {
+      toast({ title: "Ошибка", description: e.message, variant: "destructive" });
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  async function handleRevoke() {
+    if (!confirm("Отключить Ozon Delivery? Токены будут удалены.")) return;
+    setRevoking(true);
+    try {
+      await adminFetch("/api/admin/ozon-oauth/revoke", apiKey, { method: "POST" });
+      toast({ title: "Ozon отключён", description: "Токены удалены" });
+      settingsQuery.refetch();
+    } catch (e: any) {
+      toast({ title: "Ошибка", description: e.message, variant: "destructive" });
+    } finally {
+      setRevoking(false);
+    }
+  }
+
+  async function handleToggle(enabled: boolean) {
+    setToggling(true);
+    try {
+      await adminFetch("/api/admin/ozon-delivery/settings", apiKey, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      toast({ title: enabled ? "Ozon Доставка включена" : "Ozon Доставка отключена" });
+      settingsQuery.refetch();
+    } catch (e: any) {
+      toast({ title: "Ошибка", description: e.message, variant: "destructive" });
+    } finally {
+      setToggling(false);
+    }
+  }
+
+  return (
+    <div className="p-4 space-y-6 max-w-2xl">
+      <h2 className="text-xl font-bold flex items-center gap-2">
+        <Store className="w-5 h-5" />
+        Интеграции
+      </h2>
+
+      {/* Ozon Delivery Card */}
+      <div className="border rounded-xl overflow-hidden">
+        <div className="bg-[#005BFF]/10 border-b border-[#005BFF]/20 px-5 py-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-lg bg-[#005BFF] flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-black text-sm">O</span>
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-base">Ozon Delivery (Логистика Ozon)</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Доставка через логистическую службу Ozon (FBS/FBO). Seller API — OAuth 2.0.
+            </p>
+          </div>
+          {/* Status badge */}
+          <div className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+            settings?.serviceReady
+              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+              : isConnected
+                ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                : "bg-muted text-muted-foreground"
+          }`}>
+            {settings?.serviceReady ? "Активна" : isConnected ? "Подключена (выкл.)" : "Не подключена"}
+          </div>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {settingsQuery.isLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Загрузка...
+            </div>
+          )}
+
+          {/* OAuth status row */}
+          {oauth && (
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="space-y-1">
+                <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Подключение</div>
+                <div className={`flex items-center gap-1.5 ${oauth.configured ? "text-foreground" : "text-muted-foreground"}`}>
+                  {oauth.configured
+                    ? <><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Credentials настроены</>
+                    : <><X className="w-3.5 h-3.5 text-red-400" /> Нет OZON_CLIENT_ID / SECRET</>
+                  }
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Токен</div>
+                <div className={`flex items-center gap-1.5 ${oauth.authenticated && !oauth.isExpired ? "text-foreground" : "text-muted-foreground"}`}>
+                  {oauth.authenticated && !oauth.isExpired
+                    ? <><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Авторизован</>
+                    : oauth.authenticated && oauth.isExpired
+                      ? <><Clock className="w-3.5 h-3.5 text-yellow-500" /> Токен истёк</>
+                      : <><X className="w-3.5 h-3.5 text-red-400" /> Не авторизован</>
+                  }
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Expiry info */}
+          {oauth?.expiresAt && oauth.authenticated && !oauth.isExpired && (
+            <p className="text-xs text-muted-foreground">
+              Токен действует до: {new Date(oauth.expiresAt).toLocaleString("ru-RU")}
+            </p>
+          )}
+
+          {/* Enable toggle — only when connected */}
+          {isConnected && (
+            <div className="flex items-center justify-between py-2 border-t">
+              <div>
+                <div className="text-sm font-medium">Показывать Ozon в чекауте</div>
+                <div className="text-xs text-muted-foreground">Опция доставки появится для покупателей</div>
+              </div>
+              <button
+                onClick={() => handleToggle(!settings?.enabled)}
+                disabled={toggling}
+                className={`relative w-11 h-6 rounded-full transition-colors ${settings?.enabled ? "bg-[#005BFF]" : "bg-muted-foreground/30"} focus:outline-none focus:ring-2 focus:ring-[#005BFF]/50`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${settings?.enabled ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex gap-2 flex-wrap">
+            {!oauth?.configured && (
+              <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 w-full">
+                Добавьте <code className="font-mono">OZON_CLIENT_ID</code> и <code className="font-mono">OZON_CLIENT_SECRET</code> в секреты Replit, затем перезапустите сервер.
+              </div>
+            )}
+            {oauth?.configured && !isConnected && (
+              <button
+                onClick={handleConnect}
+                disabled={connecting}
+                className="flex items-center gap-2 px-4 py-2 bg-[#005BFF] text-white text-sm font-medium rounded-lg hover:bg-[#0050E0] transition-colors disabled:opacity-60"
+              >
+                {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                Авторизовать в Ozon
+              </button>
+            )}
+            {isConnected && (
+              <>
+                <button
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="flex items-center gap-2 px-3 py-1.5 border text-sm rounded-lg hover:bg-muted transition-colors disabled:opacity-60"
+                >
+                  {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  Переавторизовать
+                </button>
+                <button
+                  onClick={handleRevoke}
+                  disabled={revoking}
+                  className="flex items-center gap-2 px-3 py-1.5 border border-red-200 text-red-600 text-sm rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-60"
+                >
+                  {revoking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                  Отключить
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => settingsQuery.refetch()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Обновить
+            </button>
+          </div>
+
+          {/* Info block */}
+          <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2.5 space-y-1">
+            <div className="font-medium text-foreground">Как настроить:</div>
+            <ol className="list-decimal list-inside space-y-0.5">
+              <li>Создайте приложение на <a href="https://dev.ozon.ru/" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">dev.ozon.ru</a> с OAuth</li>
+              <li>Добавьте <code className="font-mono bg-muted rounded px-1">OZON_CLIENT_ID</code> и <code className="font-mono bg-muted rounded px-1">OZON_CLIENT_SECRET</code> в секреты</li>
+              <li>Перезапустите сервер и нажмите «Авторизовать в Ozon»</li>
+              <li>Включите переключатель — опция Ozon появится в чекауте</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function InvoiceVatSettings({ apiKey }: { apiKey: string }) {
   const { toast } = useToast();
   const [vatRate, setVatRate] = useState<string>("5");
@@ -1088,7 +1305,7 @@ function downloadOrderExcel(order: any) {
   const paymentMap: Record<string, string> = {
     yookassa: 'ЮKassa',
     tbank: 'Т-Банк',
-    ozon: 'Ozon Pay',
+    ozon: 'Ozon Доставка',
     cash: 'Наличные',
     transfer: 'Перевод',
     invoice: 'Счёт',
@@ -1226,7 +1443,7 @@ export default function Admin() {
   const [targetSubSubcategory, setTargetSubSubcategory] = useState<string>("");
   const [addlCategory, setAddlCategory] = useState<string>("");
   const [addlSubcategory, setAddlSubcategory] = useState<string>("");
-  const VALID_TABS = ["products","orders","wholesale","problems","bonuses","pages","reviews","favorites","preorders","security","clients","analytics","partners","ai","seo"] as const;
+  const VALID_TABS = ["products","orders","wholesale","problems","bonuses","pages","reviews","favorites","preorders","security","clients","analytics","partners","ai","seo","integrations"] as const;
   type AdminTab = typeof VALID_TABS[number];
   const [activeTab, setActiveTabRaw] = useState<AdminTab>(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem("admin_active_tab") : null;
@@ -3834,6 +4051,16 @@ export default function Admin() {
               >
                 <Search className="w-4 h-4 mr-1" />
                 <span className="hidden sm:inline">SEO</span>
+              </Button>
+              <Button
+                variant={activeTab === "integrations" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setActiveTab("integrations")}
+                className="h-8"
+                data-testid="button-tab-integrations"
+              >
+                <Store className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">Интеграции</span>
               </Button>
             </div>
           </div>
@@ -13898,6 +14125,10 @@ export default function Admin() {
 
         {activeTab === "seo" && (
           <SeoTab apiKey={apiKey} adminFetch={adminFetch} />
+        )}
+
+        {activeTab === "integrations" && (
+          <OzonDeliveryIntegration apiKey={apiKey} />
         )}
 
         {activeTab === "clients" && (

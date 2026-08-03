@@ -339,12 +339,11 @@ export default function Checkout() {
     return getIframeUrl(selectedCity);
   }, [deliveryType, selectedCity?.code, getIframeUrl]);
 
-  const { data: paymentMethodsData } = useQuery<{ methods: { id: string, name: string, description?: string }[], enabled: boolean, ozonPayEnabled?: boolean }>({
+  const { data: paymentMethodsData } = useQuery<{ methods: { id: string, name: string, description?: string }[], enabled: boolean, ozonDeliveryEnabled?: boolean }>({
     queryKey: ["/api/payment-methods"],
   });
   const paymentMethods = paymentMethodsData?.methods || [];
-  // Временно скрыт до готовности: const ozonPayEnabled = paymentMethodsData?.ozonPayEnabled === true;
-  const ozonPayEnabled = false;
+  const ozonDeliveryEnabled = paymentMethodsData?.ozonDeliveryEnabled === true;
 
   const { register, handleSubmit, setValue, watch, getValues, formState: { errors } } = useForm<CheckoutForm>({
     resolver: zodResolver(checkoutSchema),
@@ -359,11 +358,10 @@ export default function Checkout() {
     },
   });
 
-  // Auto-set payment method and address when Ozon delivery is selected
+  // Авто-заполнение адреса при выборе доставки Ozon
   useEffect(() => {
     if (deliveryService === "ozon") {
-      setSelectedPaymentMethod("ozon-pay");
-      setValue("address", "Ozon Pay (адрес и ПВЗ выбирается в виджете Ozon)");
+      setValue("address", "Доставка Ozon (ПВЗ назначается логистикой Ozon)");
     }
   }, [deliveryService, setValue]);
 
@@ -588,7 +586,7 @@ export default function Checkout() {
         : (cheapestTariff ? cheapestTariff.delivery_sum * 100 : 0)))
     : 0;
   
-  const rawDeliveryCost = isWholesale ? 0 : (deliveryService === "ozon" || deliveryService === "pickup") ? 0 : cdekDeliveryCost;
+  const rawDeliveryCost = isWholesale ? 0 : deliveryService === "pickup" ? 0 : deliveryService === "ozon" ? 0 : cdekDeliveryCost;
   const deliveryCost = isFreeShipping ? 0 : rawDeliveryCost;
   // Calculate promo discount: percent-based or fixed amount
   // If promo has category restrictions, eligibleAmount is the sum of matching items
@@ -703,7 +701,7 @@ export default function Checkout() {
         }
         const friendly = raw.includes("Unauthorized") || raw.includes("авторизуйтесь")
           ? "Необходимо войти в аккаунт"
-          : raw.includes("Ozon Pay") || raw.includes("ozon")
+          : raw.includes("ozon")
           ? raw
           : raw.includes("payment") || raw.includes("оплат")
           ? "Не удалось инициировать оплату. Попробуйте другой способ или повторите позже."
@@ -948,7 +946,7 @@ export default function Checkout() {
                   </Label>
                 </div>
                 )}
-                {ozonPayEnabled && (
+                {ozonDeliveryEnabled && (
                 <div
                   className={`flex items-center space-x-3 p-3 border rounded-lg hover-elevate cursor-pointer ${deliveryService === "ozon" ? "border-primary bg-primary/5" : ""}`}
                   onClick={() => { setDeliveryService("ozon"); setSelectedPoint(null); setWidgetDelivery(null); }}
@@ -956,9 +954,9 @@ export default function Checkout() {
                   <RadioGroupItem value="ozon" id="delivery-ozon" data-testid="radio-ozon" />
                   <Label htmlFor="delivery-ozon" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-3 flex-wrap">
-                      <img src="/images/ozon-pay-logo.svg" alt="Ozon Pay" className="h-6 w-auto" loading="eager" />
+                      <img src="/images/ozon-pay-logo.svg" alt="Ozon" className="h-6 w-auto" loading="eager" />
                       <span className="text-sm font-medium tracking-tight text-foreground/80">
-                        Оплата <span className="text-[#005BFF] font-semibold">+</span> доставка до ПВЗ
+                        Доставка <span className="text-[#005BFF] font-semibold">Ozon</span> до ПВЗ
                       </span>
                     </div>
                   </Label>
@@ -1011,7 +1009,7 @@ export default function Checkout() {
                 </div>
               )}
 
-              {/* Ozon Pay: info block */}
+              {/* Ozon Delivery: info block */}
               {!isWholesale && deliveryService === "ozon" && (
                 <div className="mt-4 p-4 rounded-lg bg-[#EBF1FF] dark:bg-[#005BFF]/10 border border-[#005BFF]/30 space-y-3">
                   <div className="flex items-start gap-3">
@@ -1019,24 +1017,24 @@ export default function Checkout() {
                       <span className="text-white text-xs font-black">O</span>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Оплата и доставка через Ozon Pay</p>
+                      <p className="text-sm font-semibold text-foreground">Доставка через Ozon</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        После нажатия кнопки «{cs.submitButtonText}» вы будете перенаправлены на страницу Ozon Pay, где сможете выбрать удобный пункт выдачи и оплатить заказ картой, через СБП или Ozon Картой.
+                        После оплаты заказ будет передан в логистику Ozon. Вы получите уведомление с информацией о доставке и сможете отследить посылку.
                       </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-muted-foreground">
                     <div className="p-2 rounded bg-white dark:bg-background/40 border border-[#005BFF]/20">
                       <div className="font-medium text-foreground mb-0.5">1. Оформите</div>
-                      <div>заполните данные и нажмите кнопку</div>
+                      <div>заполните данные и оплатите</div>
                     </div>
                     <div className="p-2 rounded bg-white dark:bg-background/40 border border-[#005BFF]/20">
-                      <div className="font-medium text-foreground mb-0.5">2. Выберите ПВЗ</div>
-                      <div>на странице Ozon Pay</div>
+                      <div className="font-medium text-foreground mb-0.5">2. Упакуем</div>
+                      <div>передадим посылку в Ozon</div>
                     </div>
                     <div className="p-2 rounded bg-white dark:bg-background/40 border border-[#005BFF]/20">
-                      <div className="font-medium text-foreground mb-0.5">3. Оплатите</div>
-                      <div>картой, СБП или Ozon Картой</div>
+                      <div className="font-medium text-foreground mb-0.5">3. Доставим</div>
+                      <div>в ближайший ПВЗ Ozon</div>
                     </div>
                   </div>
                 </div>
@@ -1295,7 +1293,6 @@ export default function Checkout() {
               )}
             </Card>
 
-            {deliveryService !== "ozon" && (
             <Card className="p-6 mb-6">
               <h2 className="text-lg font-semibold mb-4 text-foreground">{cs.paymentSectionTitle}</h2>
               <RadioGroup 
@@ -1361,7 +1358,6 @@ export default function Checkout() {
                 ))}
               </RadioGroup>
             </Card>
-            )}
 
             <Card className="p-6">
               <h2 className="text-lg font-semibold mb-4 text-foreground">{cs.contactsSectionTitle}</h2>
