@@ -22,6 +22,7 @@ import adminPartnerRoutes from "./admin-partner-routes";
 import { authStorage } from "./auth-storage";
 import { paymentService } from "./payments";
 import { ozonDeliveryService } from "./ozon-delivery";
+import { ozonDeliveryOAuth, OZON_OAUTH_KEYS, OZON_OAUTH_REDIRECT_URI } from "./ozon-delivery-oauth";
 import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PVZ_CODE, CDEK_DEFAULT_PACKAGE, CDEK_TARIFFS, isTariffToDoor, isTariffFromPvz } from "./cdek";
 
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
@@ -1054,10 +1055,27 @@ export async function registerRoutes(
     } : undefined,
   });
 
-  // Initialize Ozon Delivery — автоматически из переменных окружения (как СДЭК)
+  // Initialize Ozon Delivery OAuth — credentials из переменных окружения
   if (process.env.OZON_CLIENT_ID && process.env.OZON_CLIENT_SECRET) {
-    ozonDeliveryService.initialize(process.env.OZON_CLIENT_ID, process.env.OZON_CLIENT_SECRET);
-    // Включить если флаг установлен администратором
+    ozonDeliveryOAuth.initialize(process.env.OZON_CLIENT_ID, process.env.OZON_CLIENT_SECRET);
+    ozonDeliveryService.initialize(process.env.OZON_CLIENT_ID);
+    // Загружаем сохранённые OAuth-токены из БД
+    try {
+      const [accessToken, refreshToken, expiresAtStr] = await Promise.all([
+        storage.getBonusSetting(OZON_OAUTH_KEYS.accessToken).catch(() => null),
+        storage.getBonusSetting(OZON_OAUTH_KEYS.refreshToken).catch(() => null),
+        storage.getBonusSetting(OZON_OAUTH_KEYS.expiresAt).catch(() => null),
+      ]);
+      if (accessToken && refreshToken && expiresAtStr) {
+        ozonDeliveryOAuth.loadTokensFromStorage(accessToken, refreshToken, Number(expiresAtStr));
+        console.log("[OzonDelivery] OAuth-токены загружены из хранилища");
+      } else {
+        console.log("[OzonDelivery] OAuth-токенов нет — авторизуйте приложение в Admin → Интеграции");
+      }
+    } catch (e: any) {
+      console.warn("[OzonDelivery] Не удалось загрузить OAuth-токены:", e.message);
+    }
+    // Флаг включения в чекауте
     const ozonDeliveryFlag = await storage.getBonusSetting("ozon_delivery_enabled").catch(() => null);
     if (ozonDeliveryFlag === "true") {
       ozonDeliveryService.setEnabled(true);
@@ -3512,11 +3530,14 @@ ${artistLinks || "- (список формируется)"}
                 // Если доставка Ozon — создаём заказ в Ozon Logistics (fire-and-forget)
                 if (order.deliveryService === "ozon" && ozonDeliveryService.isEnabled()) {
                   const _ozDeliveryItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                  let _ozPvzId: string | undefined;
+                  try { _ozPvzId = order.cdekData ? JSON.parse(order.cdekData as string)?.ozonPvzId || undefined : undefined; } catch {}
                   ozonDeliveryService.createOrder({
                     externalOrderId: String(order.id),
                     customerPhone: order.customerPhone || "",
                     customerName: order.customerName || "",
                     amount: order.total,
+                    pvzId: _ozPvzId,
                     items: (Array.isArray(_ozDeliveryItems) ? _ozDeliveryItems : []).map((item: any) => ({
                       offerId: item.article || item.sku || String(item.productId),
                       quantity: item.quantity || 1,
@@ -4004,11 +4025,14 @@ ${artistLinks || "- (список формируется)"}
                 // Если доставка Ozon — создаём заказ в Ozon Logistics (fire-and-forget)
                 if (order && order.deliveryService === "ozon" && ozonDeliveryService.isEnabled()) {
                   const _tbOzItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                  let _tbOzPvzId: string | undefined;
+                  try { _tbOzPvzId = order.cdekData ? JSON.parse(order.cdekData as string)?.ozonPvzId || undefined : undefined; } catch {}
                   ozonDeliveryService.createOrder({
                     externalOrderId: String(order.id),
                     customerPhone: order.customerPhone || "",
                     customerName: order.customerName || "",
                     amount: order.total,
+                    pvzId: _tbOzPvzId,
                     items: (Array.isArray(_tbOzItems) ? _tbOzItems : []).map((item: any) => ({
                       offerId: item.article || item.sku || String(item.productId),
                       quantity: item.quantity || 1,
@@ -4165,6 +4189,64 @@ ${artistLinks || "- (список формируется)"}
     res.json(result);
   });
 
+  // ==================== Ozon Delivery OAuth ====================
+
+  // GET /api/admin/ozon-oauth/authorize — URL для авторизации в Ozon
+  app.get("/api/admin/ozon-oauth/authorize", authMiddleware, requireAdminRole, (_req, res) => {
+    if (!ozonDeliveryOAuth.isConfigured()) {
+      return res.status(503).json({ error: "OZON_CLIENT_ID / OZON_CLIENT_SECRET не заданы" });
+    }
+    try {
+      const authUrl = ozonDeliveryOAuth.generateAuthUrl();
+      res.json({ authUrl });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/ozon/oauth/callback — OAuth callback от Ozon (redirect_uri)
+  app.get("/api/ozon/oauth/callback", async (req, res) => {
+    const { code, state, error } = req.query as Record<string, string>;
+    if (error) {
+      console.error("[OzonOAuth] Callback error:", error);
+      return res.redirect(`/admin?tab=integrations&ozon_error=${encodeURIComponent(error)}`);
+    }
+    if (!code || !state) {
+      return res.redirect("/admin?tab=integrations&ozon_error=missing_params");
+    }
+    if (!ozonDeliveryOAuth.validateState(state)) {
+      return res.redirect("/admin?tab=integrations&ozon_error=invalid_state");
+    }
+    const result = await ozonDeliveryOAuth.exchangeCode(code);
+    if (!result.success || !result.tokenData) {
+      console.error("[OzonOAuth] Exchange failed:", result.error);
+      return res.redirect(`/admin?tab=integrations&ozon_error=${encodeURIComponent(result.error || "exchange_failed")}`);
+    }
+    // Сохраняем токены в БД
+    const { tokenData } = result;
+    await Promise.all([
+      storage.setBonusSetting(OZON_OAUTH_KEYS.accessToken, tokenData.accessToken).catch(() => {}),
+      storage.setBonusSetting(OZON_OAUTH_KEYS.refreshToken, tokenData.refreshToken).catch(() => {}),
+      storage.setBonusSetting(OZON_OAUTH_KEYS.expiresAt, String(tokenData.expiresAt)).catch(() => {}),
+    ]);
+    console.log("[OzonOAuth] Токены сохранены, авторизация успешна");
+    res.redirect("/admin?tab=integrations&ozon_success=1");
+  });
+
+  // POST /api/admin/ozon-oauth/revoke — отключить Ozon (очистить токены)
+  app.post("/api/admin/ozon-oauth/revoke", authMiddleware, requireAdminRole, async (_req, res) => {
+    ozonDeliveryOAuth.clearTokens();
+    ozonDeliveryService.setEnabled(false);
+    await Promise.all([
+      storage.setBonusSetting(OZON_OAUTH_KEYS.accessToken, "").catch(() => {}),
+      storage.setBonusSetting(OZON_OAUTH_KEYS.refreshToken, "").catch(() => {}),
+      storage.setBonusSetting(OZON_OAUTH_KEYS.expiresAt, "").catch(() => {}),
+      storage.setBonusSetting("ozon_delivery_enabled", "false").catch(() => {}),
+    ]);
+    console.log("[OzonOAuth] Токены удалены");
+    res.json({ success: true });
+  });
+
   // POST /api/admin/trigger-abandoned-cart — ручной запуск проверки брошенных корзин
   app.post("/api/admin/trigger-abandoned-cart", authMiddleware, requireAdminRole, async (_req, res) => {
     res.json({ success: true, message: "Запущено — результат появится в логах" });
@@ -4190,6 +4272,21 @@ ${artistLinks || "- (список формируется)"}
   });
 
   // ==================== Ozon Delivery: проверка доступности и стоимости ====================
+  // POST /api/ozon-delivery/points — публичный, список ПВЗ по городу
+  app.post("/api/ozon-delivery/points", async (req, res) => {
+    const { city, limit } = req.body as { city?: string; limit?: number };
+    if (!ozonDeliveryService.isEnabled()) {
+      return res.json({ success: false, points: [], error: "Ozon Доставка не подключена" });
+    }
+    try {
+      const result = await ozonDeliveryService.getPvzList(city, limit || 100);
+      res.json(result);
+    } catch (err: any) {
+      console.error("[OzonDelivery] points error:", err.message);
+      res.json({ success: false, points: [], error: err.message });
+    }
+  });
+
   // POST /api/ozon-delivery/check — публичный, вызывается из чекаута
   app.post("/api/ozon-delivery/check", async (req, res) => {
     const { phone, items } = req.body as { phone?: string; items?: Array<{ offerId: string; quantity: number }> };
@@ -10107,6 +10204,8 @@ ${artistLinks || "- (список формируется)"}
       const cdekTariffCode = req.body.cdekTariffCode ? Number(req.body.cdekTariffCode) : undefined;
       const cdekDeliveryType = req.body.cdekDeliveryType || "pickup";
       const cdekDoorAddress = req.body.cdekDoorAddress || undefined;
+      const ozonPvzId = req.body.ozonPvzId || undefined;
+      const ozonPvzAddress = req.body.ozonPvzAddress || undefined;
       
       const deliveryService: "cdek" | "ozon" | "pickup" = req.body.deliveryService === "ozon" ? "ozon" : req.body.deliveryService === "pickup" ? "pickup" : "cdek";
       
@@ -10449,6 +10548,8 @@ ${artistLinks || "- (список формируется)"}
         cdekDeliveryType: cdekDeliveryType,
         cdekDoorAddress: cdekDoorAddress,
         deliveryService: deliveryService,
+        ozonPvzId: deliveryService === "ozon" ? ozonPvzId : undefined,
+        ozonPvzAddress: deliveryService === "ozon" ? ozonPvzAddress : undefined,
       });
 
       // Create pending commission for partner-attributed orders.

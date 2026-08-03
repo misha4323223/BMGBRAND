@@ -3480,7 +3480,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async createOrder(order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string } }): Promise<Order> {
+  async createOrder(order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string }, ozonPvzId?: string, ozonPvzAddress?: string }): Promise<Order> {
     if (!driver) {
       console.error('[Storage] YDB driver not initialized for createOrder');
       throw new Error('Database not available');
@@ -3522,6 +3522,8 @@ export class DatabaseStorage implements IStorage {
           deliveryType: order.cdekDeliveryType || "pickup",
           doorAddress: order.cdekDoorAddress || null,
           orderUuid: null,
+          ozonPvzId: order.ozonPvzId || null,
+          ozonPvzAddress: order.ozonPvzAddress || null,
         });
         
         const params: Record<string, any> = {

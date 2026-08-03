@@ -197,6 +197,13 @@ export default function Checkout() {
   const [cdekDoorEntrance, setCdekDoorEntrance] = useState("");
   const [cdekDoorFloor, setCdekDoorFloor] = useState("");
 
+  // Ozon PVZ picker state
+  const [ozonPvz, setOzonPvz] = useState<{ id: string; name: string; address: string; city: string; workingHours?: string } | null>(null);
+  const [ozonCitySearch, setOzonCitySearch] = useState("");
+  const [ozonPvzList, setOzonPvzList] = useState<any[]>([]);
+  const [ozonPvzLoading, setOzonPvzLoading] = useState(false);
+  const [ozonPvzError, setOzonPvzError] = useState<string | null>(null);
+
   // Wholesale transport company
   const [selectedTransport, setSelectedTransport] = useState<string>("cdek");
 
@@ -358,12 +365,55 @@ export default function Checkout() {
     },
   });
 
-  // Авто-заполнение адреса при выборе доставки Ozon
+  // Сброс выбранного ПВЗ при смене способа доставки
   useEffect(() => {
-    if (deliveryService === "ozon") {
-      setValue("address", "Доставка Ozon (ПВЗ назначается логистикой Ozon)");
+    if (deliveryService !== "ozon") {
+      setOzonPvz(null);
+      setOzonPvzList([]);
     }
-  }, [deliveryService, setValue]);
+  }, [deliveryService]);
+
+  // Загрузка ПВЗ Ozon при изменении города (debounced)
+  useEffect(() => {
+    if (deliveryService !== "ozon") return;
+    if (!ozonCitySearch.trim() || ozonCitySearch.trim().length < 2) {
+      setOzonPvzList([]);
+      setOzonPvzError(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setOzonPvzLoading(true);
+      setOzonPvzError(null);
+      try {
+        const res = await fetch("/api/ozon-delivery/points", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ city: ozonCitySearch.trim(), limit: 50 }),
+        });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.points)) {
+          setOzonPvzList(data.points);
+          if (data.points.length === 0) setOzonPvzError("ПВЗ в этом городе не найдены");
+        } else {
+          setOzonPvzError(data.error || "Не удалось загрузить ПВЗ");
+          setOzonPvzList([]);
+        }
+      } catch {
+        setOzonPvzError("Ошибка при загрузке ПВЗ");
+        setOzonPvzList([]);
+      } finally {
+        setOzonPvzLoading(false);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [ozonCitySearch, deliveryService]);
+
+  // Авто-заполнение адреса при выборе ПВЗ Ozon
+  useEffect(() => {
+    if (deliveryService === "ozon" && ozonPvz) {
+      setValue("address", `Ozon ПВЗ: ${ozonPvz.city}, ${ozonPvz.address}`);
+    }
+  }, [deliveryService, ozonPvz, setValue]);
 
   const { data: savedShippingData } = useQuery<{ shippingData: { customerName?: string; customerEmail?: string; customerPhone?: string; address?: string; transportCompany?: string } | null }>({
     queryKey: ["/api/auth/shipping-data"],
@@ -661,7 +711,15 @@ export default function Checkout() {
         entrance: cdekDoorEntrance || undefined,
         floor: cdekDoorFloor || undefined,
       } : undefined,
+      ozonPvzId: deliveryService === "ozon" ? (ozonPvz?.id || undefined) : undefined,
+      ozonPvzAddress: deliveryService === "ozon" ? (ozonPvz?.address || undefined) : undefined,
     };
+
+    // Валидация: ПВЗ Ozon обязателен
+    if (deliveryService === "ozon" && !ozonPvz) {
+      toast({ variant: "destructive", title: "Выберите ПВЗ Ozon", description: "Введите город и выберите удобный пункт выдачи из списка" });
+      return;
+    }
 
     if (isWholesale) {
       apiRequest("POST", "/api/auth/shipping-data", {
@@ -1009,34 +1067,80 @@ export default function Checkout() {
                 </div>
               )}
 
-              {/* Ozon Delivery: info block */}
+              {/* Ozon Delivery: PVZ picker */}
               {!isWholesale && deliveryService === "ozon" && (
-                <div className="mt-4 p-4 rounded-lg bg-[#EBF1FF] dark:bg-[#005BFF]/10 border border-[#005BFF]/30 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 shrink-0 w-8 h-8 rounded-full bg-[#005BFF] flex items-center justify-center">
-                      <span className="text-white text-xs font-black">O</span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Доставка через Ozon</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        После оплаты заказ будет передан в логистику Ozon. Вы получите уведомление с информацией о доставке и сможете отследить посылку.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-muted-foreground">
-                    <div className="p-2 rounded bg-white dark:bg-background/40 border border-[#005BFF]/20">
-                      <div className="font-medium text-foreground mb-0.5">1. Оформите</div>
-                      <div>заполните данные и оплатите</div>
-                    </div>
-                    <div className="p-2 rounded bg-white dark:bg-background/40 border border-[#005BFF]/20">
-                      <div className="font-medium text-foreground mb-0.5">2. Упакуем</div>
-                      <div>передадим посылку в Ozon</div>
-                    </div>
-                    <div className="p-2 rounded bg-white dark:bg-background/40 border border-[#005BFF]/20">
-                      <div className="font-medium text-foreground mb-0.5">3. Доставим</div>
-                      <div>в ближайший ПВЗ Ozon</div>
+                <div className="mt-4 space-y-3">
+                  {/* City search */}
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1.5 block">
+                      Город доставки
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={ozonCitySearch}
+                        onChange={e => { setOzonCitySearch(e.target.value); setOzonPvz(null); }}
+                        placeholder="Введите город..."
+                        className="w-full px-3 py-2 pr-8 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-[#005BFF]/40"
+                      />
+                      {ozonPvzLoading && (
+                        <Loader2 className="absolute right-2.5 top-2.5 w-4 h-4 animate-spin text-muted-foreground" />
+                      )}
                     </div>
                   </div>
+
+                  {/* Error */}
+                  {ozonPvzError && (
+                    <p className="text-xs text-destructive">{ozonPvzError}</p>
+                  )}
+
+                  {/* PVZ list */}
+                  {ozonPvzList.length > 0 && !ozonPvz && (
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                      <p className="text-xs text-muted-foreground">Найдено {ozonPvzList.length} ПВЗ — выберите удобный:</p>
+                      {ozonPvzList.map((p: any) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => { setOzonPvz(p); setOzonPvzList([]); }}
+                          className="w-full flex items-start gap-3 px-3 py-2.5 rounded-xl border hover:border-[#005BFF]/60 hover:bg-[#005BFF]/5 transition-colors text-left"
+                        >
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-[#005BFF] text-white text-[10px] font-black shrink-0 mt-0.5">O</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{p.name || "ПВЗ Ozon"}</p>
+                            <p className="text-xs text-muted-foreground truncate">{p.address}</p>
+                            {p.workingHours && <p className="text-xs text-muted-foreground">{p.workingHours}</p>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Selected PVZ */}
+                  {ozonPvz && (
+                    <div className="flex items-start gap-3 p-3 rounded-xl border border-[#005BFF]/40 bg-[#005BFF]/5">
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded bg-[#005BFF] text-white text-[11px] font-black shrink-0 mt-0.5">O</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">{ozonPvz.name || "ПВЗ Ozon"}</p>
+                        <p className="text-xs text-muted-foreground">{ozonPvz.address}</p>
+                        {ozonPvz.workingHours && <p className="text-xs text-muted-foreground">{ozonPvz.workingHours}</p>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setOzonPvz(null); setValue("address", ""); }}
+                        className="text-xs text-muted-foreground hover:text-foreground underline shrink-0 mt-1"
+                      >
+                        Изменить
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Hint when nothing typed */}
+                  {!ozonCitySearch && !ozonPvz && (
+                    <p className="text-xs text-muted-foreground">
+                      Введите город, чтобы увидеть доступные ПВЗ Ozon рядом с вами.
+                    </p>
+                  )}
                 </div>
               )}
 

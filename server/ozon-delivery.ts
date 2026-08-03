@@ -1,21 +1,32 @@
 /**
  * Ozon Delivery (Ozon Logistics) Service
  *
- * Интеграция с логистикой Ozon через Seller API.
- * Авторизация: Client-Id + Api-Key заголовки (как у СДЭК).
- * Credentials берутся из переменных окружения автоматически при старте.
+ * Интеграция с логистикой Ozon через Seller API с OAuth 2.0.
+ * Bearer token получается через ozonDeliveryOAuth (dev.ozon.ru → private app).
  *
  * Base URL: https://api-seller.ozon.ru
  * Docs: https://docs.ozon.ru/api/seller/
  *
  * Переменные окружения:
- *   OZON_CLIENT_ID  — Client-Id (числовой ID продавца из кабинета Ozon)
- *   OZON_CLIENT_SECRET — Api-Key (ключ из кабинета Ozon → Настройки → API-ключи)
+ *   OZON_CLIENT_ID     — Client-Id продавца из ЛК Ozon
+ *   OZON_CLIENT_SECRET — OAuth client_secret из dev.ozon.ru
  */
+
+import { ozonDeliveryOAuth } from "./ozon-delivery-oauth";
 
 const OZON_SELLER_API = "https://api-seller.ozon.ru";
 
 // ─── Типы ────────────────────────────────────────────────────────────────────
+
+export interface OzonPvzPoint {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  lat?: number;
+  lng?: number;
+  workingHours?: string;
+}
 
 export interface OzonDeliveryCheckResult {
   available: boolean;
@@ -36,14 +47,13 @@ export interface OzonOrderItem {
 }
 
 export interface OzonCreateOrderParams {
-  /** Наш внутренний ID заказа */
   externalOrderId: string;
-  /** Телефон покупателя */
   customerPhone: string;
   customerName: string;
   items: OzonOrderItem[];
-  /** Общая сумма в копейках */
   amount: number;
+  /** ID выбранного покупателем ПВЗ (из /v1/delivery/point/list) */
+  pvzId?: string;
 }
 
 export interface OzonCreateOrderResult {
@@ -56,31 +66,31 @@ export interface OzonCreateOrderResult {
 
 class OzonDeliveryService {
   private clientId: string | null = null;
-  private apiKey: string | null = null;
-  /** Показывать в чекауте (управляется флагом ozon_delivery_enabled в bonus_settings) */
+  /** Показывать в чекауте (управляется флагом ozon_delivery_enabled) */
   private _enabled = false;
 
   /**
    * Инициализация из переменных окружения.
-   * Вызывается при старте сервера — аналогично СДЭК.
+   * clientId используется как заголовок Client-Id при запросах.
+   * OAuth credentials (clientId + clientSecret) переданы в ozonDeliveryOAuth.
    */
-  initialize(clientId: string, apiKey: string): void {
+  initialize(clientId: string): void {
     this.clientId = clientId;
-    this.apiKey = apiKey;
-    console.log("[OzonDelivery] Credentials загружены, Client-Id:", clientId.slice(0, 6) + "...");
+    console.log("[OzonDelivery] Инициализирован, Client-Id:", clientId.slice(0, 6) + "...");
   }
 
-  /** Credentials настроены (из env) */
+  /** Credentials настроены (OAuth) */
   isConfigured(): boolean {
-    return !!this.clientId && !!this.apiKey;
+    return ozonDeliveryOAuth.isConfigured();
   }
 
   /**
-   * Доставка активна = credentials есть И флаг включён.
-   * Флаг включается/выключается из Admin → Интеграции.
+   * Доставка активна = OAuth авторизован + credentials есть + флаг включён.
    */
   isEnabled(): boolean {
-    return this._enabled && this.isConfigured();
+    if (!this._enabled || !this.isConfigured()) return false;
+    const status = ozonDeliveryOAuth.getStatus();
+    return status.authenticated && !status.isExpired;
   }
 
   setEnabled(value: boolean): void {
@@ -88,10 +98,12 @@ class OzonDeliveryService {
   }
 
   getStatus() {
+    const oauthStatus = ozonDeliveryOAuth.getStatus();
     return {
-      configured: this.isConfigured(),
+      configured: oauthStatus.configured,
       enabled: this._enabled,
-      serviceReady: this.isEnabled(),
+      serviceReady: this._enabled && oauthStatus.authenticated && !oauthStatus.isExpired,
+      oauthStatus,
     };
   }
 
@@ -101,41 +113,38 @@ class OzonDeliveryService {
     path: string,
     body: object,
   ): Promise<{ success: boolean; data?: T; error?: string }> {
-    if (!this.clientId || !this.apiKey) {
-      return { success: false, error: "Ozon Delivery не настроен: нет OZON_CLIENT_ID / OZON_CLIENT_SECRET" };
+    const token = await ozonDeliveryOAuth.getAccessToken();
+    if (!token) {
+      return { success: false, error: "Ozon Delivery: нет OAuth-токена. Авторизуйте приложение в Admin → Интеграции." };
+    }
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    };
+    if (this.clientId) {
+      headers["Client-Id"] = this.clientId;
     }
 
     try {
       const resp = await fetch(`${OZON_SELLER_API}${path}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Client-Id": this.clientId,
-          "Api-Key": this.apiKey,
-        },
+        headers,
         body: JSON.stringify(body),
       });
 
       let data: any;
-      try {
-        data = await resp.json();
-      } catch {
-        data = {};
-      }
+      try { data = await resp.json(); } catch { data = {}; }
 
       if (!resp.ok) {
-        const errMsg =
-          data?.message ||
-          data?.error?.message ||
-          data?.error ||
-          `HTTP ${resp.status}`;
+        const errMsg = data?.message || data?.error?.message || data?.error || `HTTP ${resp.status}`;
         console.error(`[OzonDelivery] ${path} error ${resp.status}:`, JSON.stringify(data));
         return { success: false, error: String(errMsg) };
       }
 
       return { success: true, data: data as T };
     } catch (err: any) {
-      console.error(`[OzonDelivery] ${path} сетевая ошибка:`, err.message);
+      console.error(`[OzonDelivery] ${path} network error:`, err.message);
       return { success: false, error: err.message };
     }
   }
@@ -143,7 +152,43 @@ class OzonDeliveryService {
   // ─── Публичные методы ─────────────────────────────────────────────────────
 
   /**
-   * Проверяет доступность и стоимость доставки Ozon для покупателя.
+   * Возвращает список доступных ПВЗ Ozon, опционально фильтруя по городу.
+   * Endpoint: POST /v1/delivery/point/list
+   */
+  async getPvzList(city?: string, limit = 100): Promise<{
+    success: boolean;
+    points?: OzonPvzPoint[];
+    error?: string;
+  }> {
+    const body: Record<string, unknown> = { limit };
+    if (city && city.trim()) body.city = city.trim();
+
+    const result = await this.request<any>("/v1/delivery/point/list", body);
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+
+    const raw: any[] =
+      result.data?.result ??
+      result.data?.points ??
+      result.data?.items ??
+      (Array.isArray(result.data) ? result.data : []);
+
+    const points: OzonPvzPoint[] = raw.map((p: any) => ({
+      id: String(p.id ?? p.pvz_id ?? p.point_id ?? ""),
+      name: p.name ?? p.title ?? "",
+      address: p.address ?? p.location?.address ?? p.full_address ?? "",
+      city: p.city ?? p.location?.city ?? city ?? "",
+      lat: p.lat ?? p.location?.lat,
+      lng: p.lng ?? p.location?.lng,
+      workingHours: p.work_time ?? p.working_hours ?? p.schedule,
+    })).filter((p: OzonPvzPoint) => p.id && p.address);
+
+    return { success: true, points };
+  }
+
+  /**
+   * Проверяет доступность и стоимость доставки для покупателя по телефону.
    * Endpoint: POST /v1/delivery/check
    */
   async checkDelivery(
@@ -152,7 +197,7 @@ class OzonDeliveryService {
   ): Promise<OzonDeliveryCheckResult> {
     const body: Record<string, unknown> = { customer_phone: customerPhone };
     if (items && items.length > 0) {
-      body.items = items.map((i) => ({ offer_id: i.offerId, quantity: i.quantity }));
+      body.items = items.map(i => ({ offer_id: i.offerId, quantity: i.quantity }));
     }
 
     const result = await this.request<any>("/v1/delivery/check", body);
@@ -162,7 +207,6 @@ class OzonDeliveryService {
 
     const r = result.data?.result ?? result.data ?? {};
     const rawCost = r.delivery_price ?? r.cost ?? r.amount ?? 0;
-    // Если значение маленькое (< 1000) — скорее рубли, конвертируем в копейки
     const costInKopeks = rawCost > 0 && rawCost < 1000
       ? Math.round(rawCost * 100)
       : Math.round(rawCost);
@@ -176,31 +220,35 @@ class OzonDeliveryService {
   }
 
   /**
-   * Создаёт заказ Ozon Delivery после успешной оплаты покупателем.
-   * Вызывается из вебхука оплаты (ЮКасса / Т-Банк) — fire-and-forget.
-   * Endpoint: POST /v1/delivery/order/create
+   * Создаёт заказ в Ozon Logistics после успешной оплаты.
+   * Передаёт выбранный покупателем ПВЗ (pvz_id).
+   * Endpoint: POST /v2/delivery/checkout
    */
   async createOrder(params: OzonCreateOrderParams): Promise<OzonCreateOrderResult> {
-    const body = {
+    const body: Record<string, unknown> = {
       external_order_id: params.externalOrderId,
       customer_phone: params.customerPhone,
       customer_name: params.customerName,
-      items: params.items.map((item) => ({
+      items: params.items.map(item => ({
         offer_id: item.offerId,
         quantity: item.quantity,
         price: item.price,
         name: item.name,
       })),
     };
+    if (params.pvzId) {
+      body.pvz_id = params.pvzId;
+    }
 
     console.log(
       `[OzonDelivery] createOrder: external_id=${params.externalOrderId}`,
       `phone=${params.customerPhone}`,
+      `pvz_id=${params.pvzId ?? "не указан"}`,
       `items=${params.items.length}`,
       `amount=${(params.amount / 100).toFixed(0)}₽`,
     );
 
-    const result = await this.request<any>("/v1/delivery/order/create", body);
+    const result = await this.request<any>("/v2/delivery/checkout", body);
     if (!result.success) {
       return { success: false, error: result.error };
     }
@@ -231,7 +279,7 @@ class OzonDeliveryService {
   }
 
   /**
-   * Получает текущий статус заказа и ссылку для трекинга.
+   * Получает статус заказа и трекинг-ссылку.
    * Endpoint: POST /v1/delivery/order/get
    */
   async getOrder(ozonOrderId: string): Promise<{
