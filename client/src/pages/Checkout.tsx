@@ -458,53 +458,65 @@ export default function Checkout() {
         // Кэш деталей ПВЗ, полученных по клику (id → OzonPvzPoint)
         (window as any).__ozonPvzCache = {};
 
-        ozonPvzList.forEach((pvz: any) => {
-          if (!pvz.lat || !pvz.lng) return;
-          const placemark = new (window as any).ymaps.Placemark(
-            [pvz.lat, pvz.lng],
-            {
-              balloonContent: '<div style="padding:8px;min-width:180px;font-family:sans-serif;font-size:13px">Загрузка...</div>',
-              hintContent: "ПВЗ Ozon",
-            },
-            { preset: "islands#blueCircleDotIcon" }
-          );
+        // Кластерер — группирует близкие метки, снимает нагрузку с браузера
+        const clusterer = new (window as any).ymaps.Clusterer({
+          preset: "islands#blueClusterIcons",
+          groupByCoordinates: false,
+          clusterDisableClickZoom: false,
+          clusterHideIconOnBalloonOpen: false,
+          geoObjectHideIconOnBalloonOpen: false,
+        });
 
-          // При открытии балуна — подгружаем детали одного ПВЗ
-          placemark.events.add("balloonopen", async () => {
-            // Уже загружено
-            if ((window as any).__ozonPvzCache?.[pvz.id]) return;
-            try {
-              const res = await fetch("/api/ozon-delivery/point-detail", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: pvz.id }),
-              });
-              const data = await res.json();
-              if (data.success && data.point) {
-                (window as any).__ozonPvzCache[pvz.id] = data.point;
-                const p = data.point;
-                placemark.properties.set(
-                  "balloonContent",
-                  `<div style="padding:4px;min-width:200px;font-family:sans-serif">
-                    <b style="font-size:14px">${p.name || "ПВЗ Ozon"}</b>
-                    <p style="margin:6px 0;font-size:13px;color:#333">${p.address}</p>
-                    ${p.workingHours ? `<p style="margin:4px 0;font-size:12px;color:#666">🕐 ${p.workingHours}</p>` : ""}
-                    <button onclick="window.__ozonSelectPvz('${pvz.id}')"
-                      style="margin-top:8px;background:#005BFF;color:#fff;border:none;padding:7px 0;border-radius:6px;cursor:pointer;font-size:13px;width:100%">
-                      Выбрать этот ПВЗ
-                    </button>
-                  </div>`
-                );
-              } else {
-                placemark.properties.set("balloonContent", '<div style="padding:8px;font-family:sans-serif">Не удалось загрузить</div>');
+        const placemarks = ozonPvzList
+          .filter((pvz: any) => pvz.lat && pvz.lng)
+          .map((pvz: any) => {
+            const pm = new (window as any).ymaps.Placemark(
+              [pvz.lat, pvz.lng],
+              {
+                balloonContent: '<div style="padding:8px;min-width:180px;font-family:sans-serif;font-size:13px">Загрузка...</div>',
+                hintContent: "ПВЗ Ozon",
+              },
+              { preset: "islands#blueCircleDotIcon" }
+            );
+
+            // При открытии балуна — подгружаем детали одного ПВЗ
+            pm.events.add("balloonopen", async () => {
+              if ((window as any).__ozonPvzCache?.[pvz.id]) return; // уже загружено
+              try {
+                const res = await fetch("/api/ozon-delivery/point-detail", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id: pvz.id }),
+                });
+                const data = await res.json();
+                if (data.success && data.point) {
+                  (window as any).__ozonPvzCache[pvz.id] = data.point;
+                  const p = data.point;
+                  pm.properties.set(
+                    "balloonContent",
+                    `<div style="padding:4px;min-width:200px;font-family:sans-serif">
+                      <b style="font-size:14px">${p.name || "ПВЗ Ozon"}</b>
+                      <p style="margin:6px 0;font-size:13px;color:#333">${p.address}</p>
+                      ${p.workingHours ? `<p style="margin:4px 0;font-size:12px;color:#666">🕐 ${p.workingHours}</p>` : ""}
+                      <button onclick="window.__ozonSelectPvz('${pvz.id}')"
+                        style="margin-top:8px;background:#005BFF;color:#fff;border:none;padding:7px 0;border-radius:6px;cursor:pointer;font-size:13px;width:100%">
+                        Выбрать этот ПВЗ
+                      </button>
+                    </div>`
+                  );
+                } else {
+                  pm.properties.set("balloonContent", '<div style="padding:8px;font-family:sans-serif">Не удалось загрузить</div>');
+                }
+              } catch {
+                pm.properties.set("balloonContent", '<div style="padding:8px;font-family:sans-serif">Ошибка загрузки</div>');
               }
-            } catch {
-              placemark.properties.set("balloonContent", '<div style="padding:8px;font-family:sans-serif">Ошибка загрузки</div>');
-            }
+            });
+
+            return pm;
           });
 
-          map.geoObjects.add(placemark);
-        });
+        clusterer.add(placemarks);
+        map.geoObjects.add(clusterer);
       });
     };
 

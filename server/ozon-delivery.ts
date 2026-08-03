@@ -382,12 +382,14 @@ class OzonDeliveryService {
       return { success: false, points: [], error: "Кэш ПВЗ пуст" };
     }
 
-    let MAX_KM = 100;
+    // Ограничиваем 500 ближайшими — этого достаточно для города, кластер на фронте справится
+    const MAX_POINTS = 500;
+    let MAX_KM = 50;
     const withDist = allPvz.map(p => ({ ...p, distKm: haversineKm(coords.lat, coords.lng, p.lat, p.lng) }));
-    let nearby = withDist.filter(p => p.distKm <= MAX_KM).sort((a, b) => a.distKm - b.distKm);
+    let nearby = withDist.filter(p => p.distKm <= MAX_KM).sort((a, b) => a.distKm - b.distKm).slice(0, MAX_POINTS);
     if (nearby.length < 3) {
-      MAX_KM = 300;
-      nearby = withDist.filter(p => p.distKm <= MAX_KM).sort((a, b) => a.distKm - b.distKm);
+      MAX_KM = 200;
+      nearby = withDist.filter(p => p.distKm <= MAX_KM).sort((a, b) => a.distKm - b.distKm).slice(0, MAX_POINTS);
     }
 
     console.log(`[OzonDelivery] getPvzMapPoints: ${nearby.length} точек в радиусе ${MAX_KM}км`);
