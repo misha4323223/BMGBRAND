@@ -954,9 +954,9 @@ export default function Checkout() {
                   <RadioGroupItem value="ozon" id="delivery-ozon" data-testid="radio-ozon" />
                   <Label htmlFor="delivery-ozon" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-3 flex-wrap">
-                      <img src="/images/ozon-pay-logo.svg" alt="Ozon" className="h-6 w-auto" loading="eager" />
+                      <span className="inline-flex items-center px-2 py-0.5 rounded font-black text-white text-sm tracking-tight bg-[#005BFF]">OZON</span>
                       <span className="text-sm font-medium tracking-tight text-foreground/80">
-                        Доставка <span className="text-[#005BFF] font-semibold">Ozon</span> до ПВЗ
+                        Доставка до ПВЗ Ozon
                       </span>
                     </div>
                   </Label>
