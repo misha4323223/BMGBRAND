@@ -1109,7 +1109,7 @@ export default function Checkout() {
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{p.name || "ПВЗ Ozon"}</p>
                             <p className="text-xs text-muted-foreground truncate">{p.address}</p>
-                            {p.workingHours && <p className="text-xs text-muted-foreground">{p.workingHours}</p>}
+                            {typeof p.workingHours === "string" && p.workingHours && <p className="text-xs text-muted-foreground">{p.workingHours}</p>}
                           </div>
                         </button>
                       ))}
@@ -1123,7 +1123,7 @@ export default function Checkout() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold">{ozonPvz.name || "ПВЗ Ozon"}</p>
                         <p className="text-xs text-muted-foreground">{ozonPvz.address}</p>
-                        {ozonPvz.workingHours && <p className="text-xs text-muted-foreground">{ozonPvz.workingHours}</p>}
+                        {typeof ozonPvz.workingHours === "string" && ozonPvz.workingHours && <p className="text-xs text-muted-foreground">{ozonPvz.workingHours}</p>}
                       </div>
                       <button
                         type="button"

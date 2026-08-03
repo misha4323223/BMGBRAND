@@ -64,6 +64,51 @@ export interface OzonCreateOrderResult {
 
 // ─── Сервис ──────────────────────────────────────────────────────────────────
 
+// ─── Haversine ────────────────────────────────────────────────────────────────
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ─── DaData geocoding ─────────────────────────────────────────────────────────
+async function geocodeCity(city: string): Promise<{ lat: number; lng: number } | null> {
+  const apiKey = process.env.DADATA_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const resp = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Token ${apiKey}`,
+      },
+      body: JSON.stringify({
+        query: city,
+        count: 1,
+        from_bound: { value: "city" },
+        to_bound: { value: "city" },
+      }),
+    });
+    if (!resp.ok) return null;
+    const data: any = await resp.json();
+    const s = data?.suggestions?.[0]?.data;
+    if (s?.geo_lat && s?.geo_lon) {
+      return { lat: parseFloat(s.geo_lat), lng: parseFloat(s.geo_lon) };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── PVZ coordinate cache ─────────────────────────────────────────────────────
+interface PvzCacheEntry { map_point_id: number; lat: number; lng: number }
+let pvzCache: { points: PvzCacheEntry[]; loadedAt: number } | null = null;
+const PVZ_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 часов
+
 class OzonDeliveryService {
   private clientId: string | null = null;
   /** Показывать в чекауте (управляется флагом ozon_delivery_enabled) */
@@ -180,38 +225,137 @@ class OzonDeliveryService {
   // ─── Публичные методы ─────────────────────────────────────────────────────
 
   /**
-   * Возвращает список доступных ПВЗ Ozon, опционально фильтруя по городу.
-   * Endpoint: POST /v1/delivery/point/list
+   * Загружает и кеширует все ПВЗ (map_point_id + координаты) с 6-часовым TTL.
+   * /v1/delivery/point/list возвращает ~92k точек без адресов и без фильтра по городу.
    */
-  async getPvzList(city?: string, limit = 100): Promise<{
+  private async loadAllPvz(): Promise<PvzCacheEntry[]> {
+    if (pvzCache && Date.now() - pvzCache.loadedAt < PVZ_CACHE_TTL_MS) {
+      return pvzCache.points;
+    }
+    console.log("[OzonDelivery] Загружаем все ПВЗ (может занять несколько секунд)...");
+    const result = await this.request<any>("/v1/delivery/point/list", { limit: 999999 });
+    if (!result.success) {
+      console.error("[OzonDelivery] Не удалось загрузить список ПВЗ:", result.error);
+      return pvzCache?.points ?? [];
+    }
+    const raw: any[] = result.data?.points ?? result.data?.result ?? (Array.isArray(result.data) ? result.data : []);
+    const points: PvzCacheEntry[] = raw
+      .filter((p: any) => p.coordinate?.lat && p.coordinate?.long)
+      .map((p: any) => ({
+        map_point_id: p.map_point_id,
+        lat: p.coordinate.lat,
+        lng: p.coordinate.long,
+      }));
+    pvzCache = { points, loadedAt: Date.now() };
+    console.log(`[OzonDelivery] Кеш ПВЗ загружен: ${points.length} точек`);
+    return points;
+  }
+
+  /**
+   * Получает полные данные нескольких ПВЗ за один запрос.
+   * Endpoint: POST /v1/delivery/point/info — принимает map_point_ids (массив, до 100)
+   */
+  private async getPvzInfoBatch(mapPointIds: number[]): Promise<OzonPvzPoint[]> {
+    if (mapPointIds.length === 0) return [];
+    const result = await this.request<any>("/v1/delivery/point/info", { map_point_ids: mapPointIds });
+    if (!result.success) return [];
+
+    const rawData = result.data;
+    // Ответ: { points: [{ delivery_method: { address, address_details, coordinates, description }, enabled }] }
+    // Индекс ответа соответствует индексу в запросе (map_point_ids[i] → points[i])
+    const raw: any[] =
+      rawData?.points ?? rawData?.result ?? rawData?.items ??
+      (Array.isArray(rawData) ? rawData : []);
+
+    return raw
+      .map((item: any, idx: number) => {
+        const dm = item?.delivery_method ?? item;
+        const id = String(
+          dm.map_point_id ?? dm.id ?? dm.point_id ??
+          item.map_point_id ?? item.id ??
+          mapPointIds[idx] ?? ""
+        );
+        if (!id) return null;
+
+        // Адрес — вложен в delivery_method
+        const address =
+          dm.address ??
+          dm.address_comment ?? dm.full_address ??
+          [dm.address_details?.city, dm.address_details?.street, dm.address_details?.house]
+            .filter(Boolean).join(", ");
+        if (!address) return null;
+
+        const city = dm.address_details?.city ?? dm.city ?? dm.location?.city ?? "";
+        // Часы работы: schedule — массив [{date, periods:[{min,max}]}]
+        // Берём первый entry чтобы показать формат "10:00–22:00"
+        const sched = dm.work_schedule ?? dm.schedule ?? dm.work_time ?? dm.working_hours;
+        let workingHours: string | undefined;
+        if (Array.isArray(sched) && sched[0]?.periods?.[0]) {
+          const p = sched[0].periods[0];
+          const fmt = (h: number, m: number) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+          workingHours = `${fmt(p.min.hours, p.min.minutes)}–${fmt(p.max.hours, p.max.minutes)}`;
+        } else if (typeof sched === "string" && sched) {
+          workingHours = sched;
+        }
+
+        return {
+          id,
+          name: dm.name ?? dm.title ?? dm.delivery_type?.name ?? `Ozon ПВЗ ${id}`,
+          address,
+          city,
+          lat: dm.coordinates?.lat ?? dm.coordinate?.lat ?? dm.lat,
+          lng: dm.coordinates?.long ?? dm.coordinate?.long ?? dm.lng,
+          workingHours: workingHours || undefined,
+        } as OzonPvzPoint;
+      })
+      .filter((p): p is OzonPvzPoint => p !== null);
+  }
+
+  /**
+   * Возвращает список ПВЗ Ozon рядом с указанным городом.
+   * Алгоритм: геокодинг (DaData) → Haversine фильтр ≤25 км →
+   * топ-N ближайших → /v1/delivery/point/info (батч до 100 ID).
+   */
+  async getPvzList(city?: string, limit = 20): Promise<{
     success: boolean;
     points?: OzonPvzPoint[];
     error?: string;
   }> {
-    const body: Record<string, unknown> = { limit };
-    if (city && city.trim()) body.city = city.trim();
+    if (!city?.trim()) return { success: true, points: [] };
 
-    const result = await this.request<any>("/v1/delivery/point/list", body);
-    if (!result.success) {
-      return { success: false, error: result.error };
+    // 1. Геокодируем город через DaData
+    const coords = await geocodeCity(city.trim());
+    if (!coords) {
+      return { success: false, error: `Не удалось определить координаты города «${city}»` };
+    }
+    console.log(`[OzonDelivery] Город «${city}» → lat=${coords.lat}, lng=${coords.lng}`);
+
+    // 2. Загружаем (или берём из кеша) все ПВЗ (координаты)
+    const allPvz = await this.loadAllPvz();
+    if (allPvz.length === 0) {
+      return { success: false, error: "Не удалось загрузить список ПВЗ Ozon" };
     }
 
-    const raw: any[] =
-      result.data?.result ??
-      result.data?.points ??
-      result.data?.items ??
-      (Array.isArray(result.data) ? result.data : []);
+    // 3. Фильтруем по расстоянию — 100 км, расширяем до 300 км если < 3 результатов
+    let MAX_KM = 100;
+    const withDist = allPvz.map(p => ({
+      ...p, distKm: haversineKm(coords.lat, coords.lng, p.lat, p.lng),
+    }));
+    let nearby = withDist.filter(p => p.distKm <= MAX_KM).sort((a, b) => a.distKm - b.distKm).slice(0, limit);
 
-    const points: OzonPvzPoint[] = raw.map((p: any) => ({
-      id: String(p.id ?? p.pvz_id ?? p.point_id ?? ""),
-      name: p.name ?? p.title ?? "",
-      address: p.address ?? p.location?.address ?? p.full_address ?? "",
-      city: p.city ?? p.location?.city ?? city ?? "",
-      lat: p.lat ?? p.location?.lat,
-      lng: p.lng ?? p.location?.lng,
-      workingHours: p.work_time ?? p.working_hours ?? p.schedule,
-    })).filter((p: OzonPvzPoint) => p.id && p.address);
+    if (nearby.length < 3) {
+      MAX_KM = 300;
+      nearby = withDist.filter(p => p.distKm <= MAX_KM).sort((a, b) => a.distKm - b.distKm).slice(0, limit);
+    }
 
+    console.log(`[OzonDelivery] В радиусе ${MAX_KM}км от «${city}»: ${nearby.length} ПВЗ (из ${allPvz.length})`);
+    if (nearby.length === 0) return { success: true, points: [] };
+
+    // 4. Один батч-запрос на все ID (API принимает до 100)
+    const ids = nearby.map(p => p.map_point_id);
+    const points = await this.getPvzInfoBatch(ids);
+
+    console.log(`[OzonDelivery] getPvzList: вернули ${points.length} ПВЗ для «${city}»`);
     return { success: true, points };
   }
 

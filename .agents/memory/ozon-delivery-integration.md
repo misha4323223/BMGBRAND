@@ -1,56 +1,43 @@
 ---
 name: Ozon Delivery integration
-description: Замена Ozon Pay на Ozon Delivery (логистика Ozon) через Seller API OAuth 2.0 с выбором ПВЗ до оплаты
+description: Архитектура, форматы API и баги, найденные при интеграции Ozon Delivery (Seller API OAuth)
 ---
 
-## Архитектура
+## Архитектура поиска ПВЗ
 
-- **server/ozon-delivery.ts** — сервис: `getPvzList`, `checkDelivery`, `createOrder` (→ `/v2/delivery/checkout`), `cancelOrder`, `getOrder`. Авторизация через Bearer token от `ozonDeliveryOAuth.getAccessToken()`.
-- **server/ozon-delivery-oauth.ts** — OAuth 2.0 Authorization Code flow. Токены в bonus_settings. Auth URL: `seller.ozon.ru/app/appstore/oauth/authorize`. Token URL: `xapi.ozon.ru/oauth/token`.
-- Base URL API: `https://api-seller.ozon.ru`
+`/v1/delivery/point/list` НЕ поддерживает фильтрацию по городу. Возвращает ВСЕ ~92k точек в виде `{ points: [{map_point_id, coordinate: {lat, long}}] }` — только координаты, без адресов.
 
-## Ключевые Ozon API endpoints
+Правильный алгоритм:
+1. Геокодировать название города через DaData → (lat, lng)
+2. Загрузить/кешировать (6ч) все 92k точек с координатами
+3. Haversine-фильтр, радиус 100 км (авто-расширение до 300 км если < 3 результатов)
+4. Взять топ-N ближайших → один батч-запрос `/v1/delivery/point/info` с массивом map_point_ids
 
-- `POST /v1/delivery/point/list` — список ПВЗ по городу. Params: `{ city, limit }`.
-- `POST /v1/delivery/check` — проверка доступности по телефону.
-- `POST /v2/delivery/checkout` — создание заказа с `pvz_id`. Заменяет `/v1/delivery/order/create`.
+## /v1/delivery/point/list
 
-**Why:** Ответы API не подтверждены — код с fallback по нескольким ключам ответа.
+- Параметры игнорируются (`city`, `limit` применяется у нас): возвращает все точки
+- Поля каждой точки: `{ map_point_id: number, coordinate: { lat, long } }`
+- `coordinate.long` (не `lng`)!
+- Начальный TTL кеша: 6 часов
 
-## PVZ-picker flow (чекаут)
+## /v1/delivery/point/info
 
-1. Покупатель выбирает "Доставка до ПВЗ Ozon"
-2. Вводит город → debounced fetch `POST /api/ozon-delivery/points` → список ПВЗ
-3. Выбирает ПВЗ → адрес поля формы заполняется автоматически
-4. Платит через ЮКассу или Т-Банк
-5. После оплаты вебхук вызывает `createOrder` с `pvzId` — fire-and-forget
+- Запрос: `{ map_point_ids: number[] }` (массив! не `map_point_id: number`)
+- API принимает до 100 ID за раз
+- Ответ: `{ points: [{ delivery_method: { address, address_details: {city, street, house, region}, coordinates: {lat, long}, delivery_type: {id, name}, description, work_schedule }, enabled }] }`
+- Порядок элементов в ответе соответствует порядку в запросе → map_point_ids[i] = points[i]
+- `work_schedule` — массив `[{ date: ISO, periods: [{min: {hours, minutes}, max: {hours, minutes}}] }]` → не строка! Конвертировать в "10:00–22:00" из `periods[0]` первого элемента
+- `description` — навигационные инструкции ("из метро Охотный ряд..."), НЕ часы работы
 
-`ozonPvzId` и `ozonPvzAddress` хранятся в `cdekData` JSON (поле orders.cdek_data в YDB).
+**Why:** эти форматы не задокументированы публично (за Cloudflare), получены эмпирически через debug-логирование.
 
-## Управление включением
+## OAuth / авторизация
 
-- Флаг `ozon_delivery_enabled` в bonus_settings.
-- `isEnabled()` = флаг AND OAuth authenticated AND not expired.
-- OAuth токены: ключи `OZON_OAUTH_KEYS.accessToken/refreshToken/expiresAt` в bonus_settings.
-- При старте сервера: init OAuth → загрузить токены из YDB → установить флаг.
+- Токен хранится в YDB (bonus_settings), HMAC-state верифицируется без shared-memory
+- Кнопка "Подхватить токены" перезагружает токены из YDB без рестарта сервера
+- При 401 — авто-refresh + retry; при неудаче refresh — очищаем токены в YDB
 
-## Сервер endpoints
+## Хранение выбранного ПВЗ в заказе
 
-- `POST /api/ozon-delivery/points` — публичный, список ПВЗ по городу
-- `POST /api/ozon-delivery/check` — публичный, проверка доступности
-- `GET /api/admin/ozon-delivery/settings` — статус (configured, enabled, serviceReady, oauthStatus)
-- `POST /api/admin/ozon-delivery/settings` — включить/выключить
-- `GET /api/admin/ozon-oauth/authorize` — authUrl для открытия в браузере
-- `GET /api/ozon/oauth/callback` — OAuth callback (redirect_uri = https://booomerangs.ru/api/ozon/oauth/callback)
-- `POST /api/admin/ozon-oauth/revoke` — сбросить токены + отключить
-
-## Admin UI (Интеграции таб)
-
-Компонент `OzonDeliveryIntegration`: OAuth status grid (configured + token), connect/revoke кнопки, enable toggle (только если isConnected), инструкция с redirect URI.
-
-## Checkout state
-
-- `ozonPvz: { id, name, address, city, workingHours } | null`
-- `ozonCitySearch: string` — ввод города
-- `ozonPvzList: any[]` — результаты
-- Submit guard: если ozon и !ozonPvz → toast и return
+- `ozonPvzId` и `ozonPvzAddress` хранятся внутри JSON-поля `cdekData` (отдельная колонка не нужна)
+- `offer_id` для Ozon: `item.article || item.sku || String(item.productId)`
