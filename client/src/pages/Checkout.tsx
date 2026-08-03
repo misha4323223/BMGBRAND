@@ -445,6 +445,7 @@ export default function Checkout() {
       setOzonDeliveryCost(null);
       return;
     }
+    // Ozon принимает только цифры (^\d{10,15}$)
     const digits = (customerPhone || "").replace(/\D/g, "");
     if (digits.length < 10) {
       setOzonDeliveryCost(null);
@@ -456,12 +457,18 @@ export default function Checkout() {
         const res = await fetch("/api/ozon-delivery/check", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: customerPhone }),
+          // Передаём только цифры — Ozon требует ^\d{10,15}$
+          body: JSON.stringify({ phone: digits }),
         });
         const data = await res.json();
-        setOzonDeliveryCost(typeof data.cost === "number" ? data.cost : 0);
+        // Показываем стоимость только если доставка доступна; при ошибке — null
+        if (data.available && typeof data.cost === "number") {
+          setOzonDeliveryCost(data.cost);
+        } else {
+          setOzonDeliveryCost(null);
+        }
       } catch {
-        setOzonDeliveryCost(0);
+        setOzonDeliveryCost(null);
       } finally {
         setOzonDeliveryChecking(false);
       }
@@ -1244,30 +1251,36 @@ export default function Checkout() {
                   )}
 
                   {/* Стоимость доставки Ozon */}
-                  {ozonPvz && (
-                    <div className="mt-3 p-3 bg-accent/30 rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <p className="text-sm font-medium text-foreground">{cs.deliveryCostLabel || "Стоимость доставки"}</p>
-                        {ozonDeliveryChecking ? (
-                          <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Считаем...</span>
-                          </div>
-                        ) : ozonDeliveryCost === null ? (
-                          <span className="text-sm text-muted-foreground">Укажите телефон ниже ↓</span>
-                        ) : isFreeShipping ? (
-                          <div className="text-right">
-                            <p className="text-sm line-through text-muted-foreground">{formatPrice(ozonDeliveryCost)}</p>
+                  {ozonPvz && (() => {
+                    const phoneDigits = (customerPhone || "").replace(/\D/g, "");
+                    const hasPhone = phoneDigits.length >= 10;
+                    return (
+                      <div className="mt-3 p-3 bg-accent/30 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <p className="text-sm font-medium text-foreground">{cs.deliveryCostLabel || "Стоимость доставки"}</p>
+                          {ozonDeliveryChecking ? (
+                            <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Считаем...</span>
+                            </div>
+                          ) : !hasPhone ? (
+                            <span className="text-sm text-muted-foreground">Укажите телефон ниже ↓</span>
+                          ) : ozonDeliveryCost === null ? (
+                            <span className="text-sm text-muted-foreground">Уточняется</span>
+                          ) : isFreeShipping ? (
+                            <div className="text-right">
+                              <p className="text-sm line-through text-muted-foreground">{formatPrice(ozonDeliveryCost)}</p>
+                              <p className="text-lg font-semibold text-green-600">Бесплатно</p>
+                            </div>
+                          ) : ozonDeliveryCost === 0 ? (
                             <p className="text-lg font-semibold text-green-600">Бесплатно</p>
-                          </div>
-                        ) : ozonDeliveryCost === 0 ? (
-                          <p className="text-lg font-semibold text-green-600">Бесплатно</p>
-                        ) : (
-                          <p className="text-lg font-semibold text-foreground">{formatPrice(ozonDeliveryCost)}</p>
-                        )}
+                          ) : (
+                            <p className="text-lg font-semibold text-foreground">{formatPrice(ozonDeliveryCost)}</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               )}
 

@@ -367,7 +367,9 @@ class OzonDeliveryService {
     customerPhone: string,
     items?: Array<{ offerId: string; quantity: number }>,
   ): Promise<OzonDeliveryCheckResult> {
-    const body: Record<string, unknown> = { customer_phone: customerPhone };
+    // Ozon требует только цифры (10–15), паттерн: ^\d{10,15}$
+    const cleanPhone = customerPhone.replace(/\D/g, "");
+    const body: Record<string, unknown> = { customer_phone: cleanPhone };
     if (items && items.length > 0) {
       body.items = items.map(i => ({ offer_id: i.offerId, quantity: i.quantity }));
     }
