@@ -381,22 +381,18 @@ class OzonDeliveryService {
     }
 
     // Ozon /v1/delivery/check возвращает только признак возможности доставки.
-    // Стоимость доставки до ПВЗ Ozon для покупателя — бесплатная.
+    // Отдельного API для расчёта тарифа нет — используем фиксированную цену.
+    const OZON_FIXED_DELIVERY_COST_KOPEKS = 35_000; // 350 ₽
+
     const r = result.data?.result ?? result.data ?? {};
     const isAvailable =
       r.is_possible === true ||
       r.is_available === true ||
       r.available === true;
 
-    // Если цена есть — берём, иначе 0 (бесплатно)
-    const rawCost = r.delivery_price ?? r.cost ?? r.amount ?? 0;
-    const costInKopeks = rawCost > 0 && rawCost < 1000
-      ? Math.round(rawCost * 100)
-      : Math.round(rawCost);
-
     return {
       available: isAvailable,
-      cost: costInKopeks,
+      cost: isAvailable ? OZON_FIXED_DELIVERY_COST_KOPEKS : 0,
       deliveryDateFrom: r.delivery_date_from ?? r.date_from,
       deliveryDateTo: r.delivery_date_to ?? r.date_to,
     };
