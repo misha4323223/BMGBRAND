@@ -109,36 +109,64 @@ class OzonDeliveryService {
 
   // ─── Внутренний метод запроса ─────────────────────────────────────────────
 
-  private async request<T>(
+  private async doRequest<T>(
     path: string,
     body: object,
-  ): Promise<{ success: boolean; data?: T; error?: string }> {
-    const token = await ozonDeliveryOAuth.getAccessToken();
-    if (!token) {
-      return { success: false, error: "Ozon Delivery: нет OAuth-токена. Авторизуйте приложение в Admin → Интеграции." };
-    }
-
+    token: string,
+  ): Promise<{ status: number; ok: boolean; data: any }> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
     };
-    if (this.clientId) {
-      headers["Client-Id"] = this.clientId;
+    if (this.clientId) headers["Client-Id"] = this.clientId;
+
+    const resp = await fetch(`${OZON_SELLER_API}${path}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+    let data: any;
+    try { data = await resp.json(); } catch { data = {}; }
+    return { status: resp.status, ok: resp.ok, data };
+  }
+
+  private async request<T>(
+    path: string,
+    body: object,
+  ): Promise<{ success: boolean; data?: T; error?: string }> {
+    let token = await ozonDeliveryOAuth.getAccessToken();
+    if (!token) {
+      return { success: false, error: "Ozon Delivery: нет OAuth-токена. Авторизуйте приложение в Admin → Интеграции." };
     }
 
     try {
-      const resp = await fetch(`${OZON_SELLER_API}${path}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-      });
+      let { status, ok, data } = await this.doRequest(path, body, token);
 
-      let data: any;
-      try { data = await resp.json(); } catch { data = {}; }
+      // Если 401 — токен мог быть отозван или истечь раньше сохранённого expiresAt.
+      // Пробуем принудительный рефреш и один повтор.
+      if (status === 401) {
+        console.warn(`[OzonDelivery] ${path} → 401, принудительный refresh токена...`);
+        const refreshResult = await ozonDeliveryOAuth.refreshAccessToken();
+        const newToken = refreshResult.success ? await ozonDeliveryOAuth.getAccessToken() : null;
+        if (newToken) {
+          // Retry с новым токеном
+          const retryResp = await this.doRequest(path, body, newToken);
+          if (!retryResp.ok) {
+            const errMsg = retryResp.data?.message || retryResp.data?.error || `HTTP ${retryResp.status}`;
+            console.error(`[OzonDelivery] ${path} error after refresh ${retryResp.status}:`, JSON.stringify(retryResp.data));
+            return { success: false, error: String(errMsg) };
+          }
+          return { success: true, data: retryResp.data as T };
+        } else {
+          const reason = refreshResult.error || "refresh_token истёк — переавторизуйтесь в Admin → Интеграции";
+          console.error(`[OzonDelivery] ${path} refresh failed:`, reason);
+          return { success: false, error: reason };
+        }
+      }
 
-      if (!resp.ok) {
-        const errMsg = data?.message || data?.error?.message || data?.error || `HTTP ${resp.status}`;
-        console.error(`[OzonDelivery] ${path} error ${resp.status}:`, JSON.stringify(data));
+      if (!ok) {
+        const errMsg = data?.message || data?.error?.message || data?.error || `HTTP ${status}`;
+        console.error(`[OzonDelivery] ${path} error ${status}:`, JSON.stringify(data));
         return { success: false, error: String(errMsg) };
       }
 

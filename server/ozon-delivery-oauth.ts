@@ -45,11 +45,21 @@ class OzonDeliveryOAuthService {
   private clientId: string | null = null;
   private clientSecret: string | null = null;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Callback для сохранения токенов в БД после авто-рефреша */
+  private persistCallback: ((accessToken: string, refreshToken: string, expiresAt: number) => Promise<void>) | null = null;
 
   initialize(clientId: string, clientSecret: string): void {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     console.log("[OzonDelivery OAuth] Сервис инициализирован, client_id:", clientId.slice(0, 8) + "...");
+  }
+
+  /**
+   * Регистрирует callback для сохранения токенов после авто-рефреша.
+   * Вызывается в routes.ts при инициализации.
+   */
+  setPersistCallback(fn: (accessToken: string, refreshToken: string, expiresAt: number) => Promise<void>): void {
+    this.persistCallback = fn;
   }
 
   isConfigured(): boolean {
@@ -201,6 +211,13 @@ class OzonDeliveryOAuthService {
       this.scheduleRefresh();
 
       console.log("[OzonDelivery OAuth] Токен обновлён успешно");
+
+      // Персистим новые токены в БД (если callback зарегистрирован)
+      if (this.persistCallback) {
+        this.persistCallback(tokenData.accessToken, tokenData.refreshToken, tokenData.expiresAt)
+          .catch(e => console.error("[OzonDelivery OAuth] Ошибка сохранения токенов:", e.message));
+      }
+
       return { success: true, tokenData };
     } catch (err: any) {
       console.error("[OzonDelivery OAuth] Сетевая ошибка при refresh:", err.message);
