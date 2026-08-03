@@ -254,7 +254,7 @@ function OzonDeliveryIntegration({ apiKey }: { apiKey: string }) {
           <div className="flex gap-2 flex-wrap">
             {!oauth?.configured && (
               <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 w-full">
-                Добавьте <code className="font-mono">OZON_CLIENT_ID</code> и <code className="font-mono">OZON_CLIENT_SECRET</code> в секреты Replit, затем перезапустите сервер.
+                Добавьте <code className="font-mono">OZON_CLIENT_ID</code> и <code className="font-mono">OZON_CLIENT_SECRET</code> в переменные окружения контейнера, затем перезапустите сервер.
               </div>
             )}
             {oauth?.configured && !isConnected && (
@@ -301,7 +301,7 @@ function OzonDeliveryIntegration({ apiKey }: { apiKey: string }) {
             <div className="font-medium text-foreground">Как настроить:</div>
             <ol className="list-decimal list-inside space-y-0.5">
               <li>Создайте приложение на <a href="https://dev.ozon.ru/" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">dev.ozon.ru</a> с OAuth</li>
-              <li>Добавьте <code className="font-mono bg-muted rounded px-1">OZON_CLIENT_ID</code> и <code className="font-mono bg-muted rounded px-1">OZON_CLIENT_SECRET</code> в секреты</li>
+              <li>Добавьте <code className="font-mono bg-muted rounded px-1">OZON_CLIENT_ID</code> и <code className="font-mono bg-muted rounded px-1">OZON_CLIENT_SECRET</code> в переменные окружения контейнера</li>
               <li>Перезапустите сервер и нажмите «Авторизовать в Ozon»</li>
               <li>Включите переключатель — опция Ozon появится в чекауте</li>
             </ol>
