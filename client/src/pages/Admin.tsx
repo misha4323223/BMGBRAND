@@ -101,6 +101,7 @@ function OzonDeliveryIntegration({ apiKey }: { apiKey: string }) {
   const [toggling, setToggling] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  const [reloading, setReloading] = useState(false);
 
   const settingsQuery = useQuery<{
     configured: boolean;
@@ -148,6 +149,23 @@ function OzonDeliveryIntegration({ apiKey }: { apiKey: string }) {
       toast({ title: "Ошибка", description: e.message, variant: "destructive" });
     } finally {
       setConnecting(false);
+    }
+  }
+
+  async function handleReload() {
+    setReloading(true);
+    try {
+      const data = await adminFetch("/api/admin/ozon-oauth/reload", apiKey, { method: "POST" });
+      if (data?.success) {
+        toast({ title: "Токены перечитаны из БД" });
+        settingsQuery.refetch();
+      } else {
+        toast({ title: "Токены не найдены", description: data?.error || "Авторизуйтесь заново", variant: "destructive" });
+      }
+    } catch (e: any) {
+      toast({ title: "Ошибка", description: e.message, variant: "destructive" });
+    } finally {
+      setReloading(false);
     }
   }
 
@@ -274,14 +292,25 @@ function OzonDeliveryIntegration({ apiKey }: { apiKey: string }) {
           {/* Action buttons */}
           <div className="flex gap-2 flex-wrap items-center">
             {oauth?.configured && !isConnected && (
-              <button
-                onClick={handleConnect}
-                disabled={connecting}
-                className="flex items-center gap-2 px-4 py-2 bg-[#005BFF] text-white text-sm font-medium rounded-lg hover:bg-[#0050E0] transition-colors disabled:opacity-60"
-              >
-                {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                Авторизовать в Ozon
-              </button>
+              <>
+                <button
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#005BFF] text-white text-sm font-medium rounded-lg hover:bg-[#0050E0] transition-colors disabled:opacity-60"
+                >
+                  {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  Авторизовать в Ozon
+                </button>
+                <button
+                  onClick={handleReload}
+                  disabled={reloading}
+                  className="flex items-center gap-2 px-3 py-2 border text-sm rounded-lg hover:bg-muted transition-colors disabled:opacity-60"
+                  title="Подхватить токены из БД (если авторизация прошла через другой сервер)"
+                >
+                  {reloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  Подхватить токены
+                </button>
+              </>
             )}
             {isConnected && (
               <>

@@ -4252,6 +4252,26 @@ ${artistLinks || "- (список формируется)"}
     res.redirect("/admin?tab=integrations&ozon_success=1");
   });
 
+  // POST /api/admin/ozon-oauth/reload — перечитать токены из YDB без рестарта сервера
+  app.post("/api/admin/ozon-oauth/reload", authMiddleware, requireAdminRole, async (_req, res) => {
+    try {
+      const [accessToken, refreshToken, expiresAtStr] = await Promise.all([
+        storage.getBonusSetting(OZON_OAUTH_KEYS.accessToken).catch(() => null),
+        storage.getBonusSetting(OZON_OAUTH_KEYS.refreshToken).catch(() => null),
+        storage.getBonusSetting(OZON_OAUTH_KEYS.expiresAt).catch(() => null),
+      ]);
+      if (accessToken && refreshToken && expiresAtStr) {
+        ozonDeliveryOAuth.loadTokensFromStorage(accessToken, refreshToken, Number(expiresAtStr));
+        console.log("[OzonOAuth] Токены перечитаны из YDB по запросу");
+        res.json({ success: true, status: ozonDeliveryOAuth.getStatus() });
+      } else {
+        res.json({ success: false, error: "Токены в YDB не найдены — авторизуйтесь заново" });
+      }
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // POST /api/admin/ozon-oauth/revoke — отключить Ozon (очистить токены)
   app.post("/api/admin/ozon-oauth/revoke", authMiddleware, requireAdminRole, async (_req, res) => {
     ozonDeliveryOAuth.clearTokens();

@@ -30,8 +30,25 @@ export const OZON_OAUTH_KEYS = {
   expiresAt: "ozon_oauth_expires_at",
 } as const;
 
-// CSRF-защита: pending state-строки с временем создания
-const pendingStates = new Map<string, number>();
+// CSRF-защита через HMAC (не in-memory, работает на любом инстансе сервера)
+function makeState(): string {
+  const ts = Date.now().toString(36);
+  const nonce = crypto.randomBytes(8).toString("hex");
+  const secret = process.env.JWT_SECRET || "ozon-state-fallback";
+  const sig = crypto.createHmac("sha256", secret).update(`${ts}.${nonce}`).digest("hex").slice(0, 16);
+  return `${ts}.${nonce}.${sig}`;
+}
+
+function verifyState(state: string): boolean {
+  const parts = state.split(".");
+  if (parts.length !== 3) return false;
+  const [ts, nonce, sig] = parts;
+  const secret = process.env.JWT_SECRET || "ozon-state-fallback";
+  const expected = crypto.createHmac("sha256", secret).update(`${ts}.${nonce}`).digest("hex").slice(0, 16);
+  if (sig !== expected) return false;
+  const created = parseInt(ts, 36);
+  return Date.now() - created < 15 * 60 * 1000; // 15 минут
+}
 
 interface TokenData {
   accessToken: string;
@@ -84,13 +101,7 @@ class OzonDeliveryOAuthService {
   generateAuthUrl(): string {
     if (!this.clientId) throw new Error("OAuth не настроен: отсутствует OZON_CLIENT_ID");
 
-    const state = crypto.randomBytes(20).toString("hex");
-    pendingStates.set(state, Date.now());
-
-    // Чистим просроченные state-ы (> 15 минут)
-    for (const [s, ts] of pendingStates.entries()) {
-      if (Date.now() - ts > 15 * 60 * 1000) pendingStates.delete(s);
-    }
+    const state = makeState();
 
     const params = new URLSearchParams({
       response_type: "code",
@@ -115,10 +126,7 @@ class OzonDeliveryOAuthService {
    * Проверяет CSRF state и удаляет его из списка ожидающих.
    */
   validateState(state: string): boolean {
-    const ts = pendingStates.get(state);
-    if (!ts) return false;
-    pendingStates.delete(state);
-    return Date.now() - ts < 15 * 60 * 1000;
+    return verifyState(state);
   }
 
   /**
