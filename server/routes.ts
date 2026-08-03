@@ -1059,14 +1059,24 @@ export async function registerRoutes(
   if (process.env.OZON_CLIENT_ID && process.env.OZON_CLIENT_SECRET) {
     ozonDeliveryOAuth.initialize(process.env.OZON_CLIENT_ID, process.env.OZON_CLIENT_SECRET);
     ozonDeliveryService.initialize(process.env.OZON_CLIENT_ID);
-    // Callback: сохраняем рефрешнутые токены в YDB автоматически
+    // Callback: сохраняем/очищаем токены в YDB после авто-рефреша или при ошибке
     ozonDeliveryOAuth.setPersistCallback(async (accessToken, refreshToken, expiresAt) => {
-      await Promise.all([
-        storage.setBonusSetting(OZON_OAUTH_KEYS.accessToken, accessToken).catch(() => {}),
-        storage.setBonusSetting(OZON_OAUTH_KEYS.refreshToken, refreshToken).catch(() => {}),
-        storage.setBonusSetting(OZON_OAUTH_KEYS.expiresAt, String(expiresAt)).catch(() => {}),
-      ]);
-      console.log("[OzonDelivery OAuth] Токены сохранены в YDB после авто-рефреша");
+      if (!accessToken) {
+        // Пустые значения = очистка (рефреш не удался)
+        await Promise.all([
+          storage.setBonusSetting(OZON_OAUTH_KEYS.accessToken, "").catch(() => {}),
+          storage.setBonusSetting(OZON_OAUTH_KEYS.refreshToken, "").catch(() => {}),
+          storage.setBonusSetting(OZON_OAUTH_KEYS.expiresAt, "").catch(() => {}),
+        ]);
+        console.log("[OzonDelivery OAuth] Недействительные токены очищены из YDB");
+      } else {
+        await Promise.all([
+          storage.setBonusSetting(OZON_OAUTH_KEYS.accessToken, accessToken).catch(() => {}),
+          storage.setBonusSetting(OZON_OAUTH_KEYS.refreshToken, refreshToken).catch(() => {}),
+          storage.setBonusSetting(OZON_OAUTH_KEYS.expiresAt, String(expiresAt)).catch(() => {}),
+        ]);
+        console.log("[OzonDelivery OAuth] Токены сохранены в YDB после авто-рефреша");
+      }
     });
     // Загружаем сохранённые OAuth-токены из БД
     try {

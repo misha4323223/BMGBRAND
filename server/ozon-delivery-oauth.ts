@@ -197,7 +197,11 @@ class OzonDeliveryOAuthService {
       if (!resp.ok) {
         console.error("[OzonDelivery OAuth] Ошибка refresh:", data);
         cachedToken = null;
-        return { success: false, error: data?.message || `HTTP ${resp.status}` };
+        // Очищаем протухшие токены из YDB, чтобы после рестарта они не подгрузились
+        if (this.persistCallback) {
+          this.persistCallback("", "", 0).catch(() => {});
+        }
+        return { success: false, error: data?.error || data?.message || `HTTP ${resp.status}` };
       }
 
       const expiresIn = Number(data.expires_in) || 3600;
