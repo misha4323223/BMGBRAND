@@ -405,7 +405,12 @@ class OzonDeliveryService {
   /**
    * Создаёт заказ в Ozon Logistics после успешной оплаты.
    * Передаёт выбранный покупателем ПВЗ (pvz_id).
-   * Endpoint: POST /v2/delivery/checkout
+   *
+   * Правильный порядок:
+   *   1. v2/delivery/checkout — проверка товаров + расчёт сроков (не создаёт заказ)
+   *   2. v2/order/create     — фактическое создание заказа (этот метод)
+   *
+   * Endpoint: POST /v2/order/create
    */
   async createOrder(params: OzonCreateOrderParams): Promise<OzonCreateOrderResult> {
     const body: Record<string, unknown> = {
@@ -431,16 +436,17 @@ class OzonDeliveryService {
       `amount=${(params.amount / 100).toFixed(0)}₽`,
     );
 
-    const result = await this.request<any>("/v2/delivery/checkout", body);
+    const result = await this.request<any>("/v2/order/create", body);
     if (!result.success) {
       return { success: false, error: result.error };
     }
 
+    // v2/order/create возвращает order_number + postings
     const ozonOrderId =
+      result.data?.result?.order_number ??
       result.data?.result?.order_id ??
-      result.data?.result?.ozon_order_id ??
+      result.data?.order_number ??
       result.data?.order_id ??
-      result.data?.ozon_order_id ??
       "";
 
     console.log(`[OzonDelivery] Order created: ozon_order_id=${ozonOrderId}`);

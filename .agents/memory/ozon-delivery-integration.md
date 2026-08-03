@@ -41,3 +41,14 @@ description: Архитектура, форматы API и баги, найде�
 
 - `ozonPvzId` и `ozonPvzAddress` хранятся внутри JSON-поля `cdekData` (отдельная колонка не нужна)
 - `offer_id` для Ozon: `item.article || item.sku || String(item.productId)`
+
+## Правильный порядок создания заказа (из официальной документации)
+1. `POST v1/delivery/check` — проверка доступности для покупателя (is_possible)
+2. `POST v2/delivery/checkout` — проверка товаров + расчёт СРОКОВ (НЕ создаёт заказ)
+3. `POST v2/order/create` — фактическое создание заказа
+
+Ошибка: изначально createOrder() вызывал /v2/delivery/checkout вместо /v2/order/create — исправлено.
+
+## Стоимость доставки Ozon
+В API нет эндпоинта для расчёта стоимости доставки — только is_possible и сроки.
+Стоимость нужно устанавливать фиксированно (admin-настройки) или по порогу суммы.
