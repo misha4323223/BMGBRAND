@@ -14829,9 +14829,10 @@ ${offersXml}
         },
         body: JSON.stringify({
           query: String(query).trim(),
-          count: 7,
+          count: 12,
           from_bound: { value: "city" },
           to_bound: { value: "city" },
+          locations: [{ country: "*" }],
         }),
       });
       const data: any = await response.json();

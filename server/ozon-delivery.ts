@@ -316,7 +316,7 @@ class OzonDeliveryService {
    * Алгоритм: геокодинг (DaData) → Haversine фильтр ≤25 км →
    * топ-N ближайших → /v1/delivery/point/info (батч до 100 ID).
    */
-  async getPvzList(city?: string, limit = 20): Promise<{
+  async getPvzList(city?: string, limit = 50): Promise<{
     success: boolean;
     points?: OzonPvzPoint[];
     error?: string;

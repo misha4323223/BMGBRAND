@@ -412,7 +412,7 @@ export default function Checkout() {
     fetch("/api/ozon-delivery/points", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ city: ozonCitySearch.trim(), limit: 20 }),
+      body: JSON.stringify({ city: ozonCitySearch.trim(), limit: 50 }),
     })
       .then(r => r.json())
       .then(data => {
