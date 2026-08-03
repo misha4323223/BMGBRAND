@@ -21,7 +21,6 @@ import partnerRoutes, { partnerRefQueryMiddleware, partnerRefRedirectHandler, ge
 import adminPartnerRoutes from "./admin-partner-routes";
 import { authStorage } from "./auth-storage";
 import { paymentService } from "./payments";
-import { ozonDeliveryOAuth, OZON_OAUTH_KEYS, OZON_OAUTH_REDIRECT_URI } from "./ozon-delivery-oauth";
 import { ozonDeliveryService } from "./ozon-delivery";
 import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PVZ_CODE, CDEK_DEFAULT_PACKAGE, CDEK_TARIFFS, isTariffToDoor, isTariffFromPvz } from "./cdek";
 
@@ -1055,33 +1054,19 @@ export async function registerRoutes(
     } : undefined,
   });
 
-  // Initialize Ozon Delivery OAuth service
+  // Initialize Ozon Delivery — автоматически из переменных окружения (как СДЭК)
   if (process.env.OZON_CLIENT_ID && process.env.OZON_CLIENT_SECRET) {
-    ozonDeliveryOAuth.initialize(process.env.OZON_CLIENT_ID, process.env.OZON_CLIENT_SECRET);
-    // Загружаем ранее сохранённые токены из БД
-    Promise.resolve().then(async () => {
-      try {
-        const [accessToken, refreshToken, expiresAtStr] = await Promise.all([
-          storage.getBonusSetting(OZON_OAUTH_KEYS.accessToken),
-          storage.getBonusSetting(OZON_OAUTH_KEYS.refreshToken),
-          storage.getBonusSetting(OZON_OAUTH_KEYS.expiresAt),
-        ]);
-        if (accessToken && refreshToken && expiresAtStr) {
-          ozonDeliveryOAuth.loadTokensFromStorage(accessToken, refreshToken, Number(expiresAtStr));
-        } else {
-          console.log("[OzonDelivery OAuth] Токены в БД не найдены — требуется авторизация через /api/admin/ozon-oauth/authorize");
-        }
-      } catch (e: any) {
-        console.error("[OzonDelivery OAuth] Ошибка загрузки токенов из БД:", e.message);
-      }
-    });
-
-    // Включить Ozon Delivery если флаг установлен
+    ozonDeliveryService.initialize(process.env.OZON_CLIENT_ID, process.env.OZON_CLIENT_SECRET);
+    // Включить если флаг установлен администратором
     const ozonDeliveryFlag = await storage.getBonusSetting("ozon_delivery_enabled").catch(() => null);
     if (ozonDeliveryFlag === "true") {
       ozonDeliveryService.setEnabled(true);
-      console.log("[OzonDelivery] Доставка включена (флаг ozon_delivery_enabled=true)");
+      console.log("[OzonDelivery] Доставка включена (ozon_delivery_enabled=true)");
+    } else {
+      console.log("[OzonDelivery] Credentials загружены, доставка выключена (включить в Admin → Интеграции)");
     }
+  } else {
+    console.log("[OzonDelivery] OZON_CLIENT_ID или OZON_CLIENT_SECRET не заданы — доставка недоступна");
   }
 
   // ==================== Legacy URL Redirects (booomerangs.ru compatibility) ====================
@@ -4152,55 +4137,19 @@ ${artistLinks || "- (список формируется)"}
     });
   });
 
-  // ==================== Ozon Delivery OAuth 2.0 ====================
+  // ==================== Ozon Delivery Admin ====================
 
-  // GET /api/admin/ozon-oauth/status — статус авторизации (только для админа)
-  app.get("/api/admin/ozon-oauth/status", authMiddleware, requireAdminRole, (_req, res) => {
-    res.json(ozonDeliveryOAuth.getStatus());
-  });
-
-  // GET /api/admin/ozon-oauth/authorize — получить URL для авторизации (только для админа)
-  // Администратор переходит по возвращённому authUrl в браузере,
-  // авторизуется в Ozon и разрешает доступ. Ozon редиректит на callback.
-  app.get("/api/admin/ozon-oauth/authorize", authMiddleware, requireAdminRole, (_req, res) => {
-    if (!ozonDeliveryOAuth.isConfigured()) {
-      return res.status(503).json({ error: "Ozon OAuth не настроен: добавьте OZON_CLIENT_ID и OZON_CLIENT_SECRET в переменные окружения" });
-    }
-    try {
-      const authUrl = ozonDeliveryOAuth.generateAuthUrl();
-      console.log("[OzonDelivery OAuth] Сгенерирован URL авторизации");
-      res.json({ authUrl });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  // POST /api/admin/ozon-oauth/revoke — сброс токенов (только для админа)
-  app.post("/api/admin/ozon-oauth/revoke", authMiddleware, requireAdminRole, async (_req, res) => {
-    ozonDeliveryOAuth.clearTokens();
-    try {
-      await Promise.all([
-        storage.setBonusSetting(OZON_OAUTH_KEYS.accessToken, ""),
-        storage.setBonusSetting(OZON_OAUTH_KEYS.refreshToken, ""),
-        storage.setBonusSetting(OZON_OAUTH_KEYS.expiresAt, "0"),
-      ]);
-    } catch {}
-    res.json({ success: true, message: "Токены сброшены" });
-  });
-
-  // GET /api/admin/ozon-delivery/settings — статус + флаг включения доставки
+  // GET /api/admin/ozon-delivery/settings — статус + флаг включения
   app.get("/api/admin/ozon-delivery/settings", authMiddleware, requireAdminRole, async (_req, res) => {
-    const enabledFlag = await storage.getBonusSetting("ozon_delivery_enabled").catch(() => null);
-    res.json({
-      enabled: enabledFlag === "true",
-      oauthStatus: ozonDeliveryOAuth.getStatus(),
-      serviceReady: ozonDeliveryService.isEnabled(),
-    });
+    res.json(ozonDeliveryService.getStatus());
   });
 
-  // POST /api/admin/ozon-delivery/settings — включить/выключить доставку
+  // POST /api/admin/ozon-delivery/settings — включить/выключить доставку в чекауте
   app.post("/api/admin/ozon-delivery/settings", authMiddleware, requireAdminRole, async (req, res) => {
     const { enabled } = req.body as { enabled: boolean };
+    if (!ozonDeliveryService.isConfigured()) {
+      return res.status(503).json({ error: "Добавьте OZON_CLIENT_ID и OZON_CLIENT_SECRET в переменные окружения контейнера и перезапустите сервер" });
+    }
     const value = enabled ? "true" : "false";
     await storage.setBonusSetting("ozon_delivery_enabled", value).catch(() => {});
     ozonDeliveryService.setEnabled(enabled);
@@ -4208,7 +4157,7 @@ ${artistLinks || "- (список формируется)"}
     res.json({ success: true, enabled });
   });
 
-  // POST /api/admin/ozon-delivery/check-order — проверить статус заказа Ozon
+  // POST /api/admin/ozon-delivery/check-order — статус заказа по ozonOrderId
   app.post("/api/admin/ozon-delivery/check-order", authMiddleware, requireAdminRole, async (req, res) => {
     const { ozonOrderId } = req.body as { ozonOrderId: string };
     if (!ozonOrderId) return res.status(400).json({ error: "ozonOrderId required" });
@@ -4238,48 +4187,6 @@ ${artistLinks || "- (список формируется)"}
       console.error('[AbandonedCart] Clear reminders error:', err.message);
       res.status(500).json({ success: false, message: err.message });
     }
-  });
-
-  // GET /api/ozon/oauth/callback — публичный callback, вызывается Ozon после авторизации
-  // redirect_uri должен совпадать с указанным в настройках приложения dev.ozon.ru
-  app.get("/api/ozon/oauth/callback", async (req, res) => {
-    const { code, state, error: ozonError } = req.query as Record<string, string>;
-
-    if (ozonError) {
-      console.error("[OzonDelivery OAuth] Ozon вернул ошибку:", ozonError);
-      return res.redirect(`/admin?ozon_oauth=error&reason=${encodeURIComponent(ozonError)}`);
-    }
-
-    if (!code || !state) {
-      console.warn("[OzonDelivery OAuth] Callback без code/state");
-      return res.redirect("/admin?ozon_oauth=error&reason=missing_params");
-    }
-
-    if (!ozonDeliveryOAuth.validateState(state)) {
-      console.warn("[OzonDelivery OAuth] Невалидный state — возможная CSRF-атака");
-      return res.redirect("/admin?ozon_oauth=error&reason=invalid_state");
-    }
-
-    const result = await ozonDeliveryOAuth.exchangeCode(code);
-
-    if (!result.success || !result.tokenData) {
-      console.error("[OzonDelivery OAuth] Ошибка обмена кода:", result.error);
-      return res.redirect(`/admin?ozon_oauth=error&reason=${encodeURIComponent(result.error || "exchange_failed")}`);
-    }
-
-    // Сохраняем токены в БД для персистентности
-    try {
-      await Promise.all([
-        storage.setBonusSetting(OZON_OAUTH_KEYS.accessToken, result.tokenData.accessToken),
-        storage.setBonusSetting(OZON_OAUTH_KEYS.refreshToken, result.tokenData.refreshToken),
-        storage.setBonusSetting(OZON_OAUTH_KEYS.expiresAt, String(result.tokenData.expiresAt)),
-      ]);
-      console.log("[OzonDelivery OAuth] Токены сохранены в БД");
-    } catch (e: any) {
-      console.error("[OzonDelivery OAuth] Ошибка сохранения токенов в БД:", e.message);
-    }
-
-    return res.redirect("/admin?ozon_oauth=success");
   });
 
   // ==================== Ozon Delivery: проверка доступности и стоимости ====================
