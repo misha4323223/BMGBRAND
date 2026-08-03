@@ -16,7 +16,7 @@ import { useLocation } from "wouter";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { type CheckoutSettings, DEFAULT_CHECKOUT_SETTINGS } from "@/components/checkout-settings";
-import { Loader2, CheckCircle2, MapPin, Truck, Search, Package, Tag, Percent, CreditCard, Landmark, Building2, Info, Gift, Plus, Minus, Trash2, Clock, ShieldCheck, AlertCircle, Store } from "lucide-react";
+import { Loader2, CheckCircle2, MapPin, Truck, Search, Package, Tag, Percent, CreditCard, Landmark, Building2, Info, Gift, Plus, Minus, Trash2, Clock, ShieldCheck, AlertCircle, Store, List } from "lucide-react";
 import { BrandLoader } from "@/components/BrandLoader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -209,6 +209,10 @@ export default function Checkout() {
   // Ozon delivery cost (from /v1/delivery/check by phone)
   const [ozonDeliveryCost, setOzonDeliveryCost] = useState<number | null>(null);
   const [ozonDeliveryChecking, setOzonDeliveryChecking] = useState(false);
+  // Ozon PVZ map view
+  const [ozonViewMode, setOzonViewMode] = useState<"list" | "map">("list");
+  const ozonMapRef = useRef<HTMLDivElement | null>(null);
+  const ozonMapInstance = useRef<any>(null);
 
   // Wholesale transport company
   const [selectedTransport, setSelectedTransport] = useState<string>("cdek");
@@ -378,6 +382,7 @@ export default function Checkout() {
       setOzonPvzList([]);
       setOzonCitySuggestions([]);
       setOzonCityConfirmed(false);
+      setOzonViewMode("list");
     }
   }, [deliveryService]);
 
@@ -430,6 +435,80 @@ export default function Checkout() {
       .catch(() => { setOzonPvzError("Ошибка при загрузке ПВЗ"); setOzonPvzList([]); })
       .finally(() => setOzonPvzLoading(false));
   }, [ozonCityConfirmed, ozonCitySearch, deliveryService]);
+
+  // Ozon PVZ карта — инициализация Яндекс Карты при переключении на режим «Карта»
+  useEffect(() => {
+    if (ozonViewMode !== "map" || ozonPvzList.length === 0) return;
+
+    const initMap = () => {
+      if (!(window as any).ymaps || !ozonMapRef.current) return;
+      (window as any).ymaps.ready(() => {
+        // Уничтожаем предыдущий инстанс если есть
+        if (ozonMapInstance.current) {
+          ozonMapInstance.current.destroy();
+          ozonMapInstance.current = null;
+        }
+        const firstPvz = ozonPvzList.find((p: any) => p.lat && p.lng);
+        if (!firstPvz || !ozonMapRef.current) return;
+
+        const map = new (window as any).ymaps.Map(ozonMapRef.current, {
+          center: [firstPvz.lat, firstPvz.lng],
+          zoom: 13,
+          controls: ["zoomControl", "geolocationControl"],
+        });
+        ozonMapInstance.current = map;
+
+        // Добавляем метки для каждого ПВЗ
+        ozonPvzList.forEach((pvz: any) => {
+          if (!pvz.lat || !pvz.lng) return;
+          const placemark = new (window as any).ymaps.Placemark(
+            [pvz.lat, pvz.lng],
+            {
+              balloonContentHeader: `<b>${pvz.name || "ПВЗ Ozon"}</b>`,
+              balloonContentBody: `<p style="margin:4px 0;font-size:13px">${pvz.address}</p>${pvz.workingHours ? `<p style="margin:4px 0;font-size:12px;color:#666">🕐 ${pvz.workingHours}</p>` : ""}`,
+              balloonContentFooter: `<button onclick="window.__ozonSelectPvz('${pvz.id}')" style="margin-top:6px;background:#005BFF;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;width:100%">Выбрать этот ПВЗ</button>`,
+              hintContent: pvz.address,
+            },
+            { preset: "islands#blueCircleDotIcon" }
+          );
+          map.geoObjects.add(placemark);
+        });
+      });
+    };
+
+    // Глобальный обработчик клика по кнопке «Выбрать» в балуне
+    (window as any).__ozonSelectPvz = (id: string) => {
+      const pvz = ozonPvzList.find((p: any) => p.id === id);
+      if (pvz) {
+        setOzonPvz(pvz);
+        setOzonPvzList([]);
+        setOzonViewMode("list");
+        if (ozonMapInstance.current) {
+          ozonMapInstance.current.destroy();
+          ozonMapInstance.current = null;
+        }
+      }
+    };
+
+    // Загружаем скрипт Яндекс Карт если ещё не загружен
+    if ((window as any).ymaps) {
+      initMap();
+    } else if (!document.getElementById("ozon-ymaps-script")) {
+      const script = document.createElement("script");
+      script.id = "ozon-ymaps-script";
+      script.src = `https://api-maps.yandex.ru/2.1/?apikey=${mapsApiKey}&lang=ru_RU`;
+      script.onload = initMap;
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      if (ozonMapInstance.current) {
+        ozonMapInstance.current.destroy();
+        ozonMapInstance.current = null;
+      }
+      delete (window as any).__ozonSelectPvz;
+    };
+  }, [ozonViewMode, ozonPvzList, mapsApiKey]);
 
   // Авто-заполнение адреса при выборе ПВЗ Ozon
   useEffect(() => {
@@ -1196,11 +1275,36 @@ export default function Checkout() {
                     <p className="text-xs text-destructive">{ozonPvzError}</p>
                   )}
 
-                  {/* PVZ list */}
+                  {/* Переключатель Список / Карта */}
                   {ozonPvzList.length > 0 && !ozonPvz && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setOzonViewMode("list")}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${ozonViewMode === "list" ? "bg-[#005BFF] text-white border-[#005BFF]" : "bg-background text-muted-foreground border-border hover:border-[#005BFF]/50"}`}
+                      >
+                        <List className="w-3.5 h-3.5" />
+                        Список
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOzonViewMode("map")}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${ozonViewMode === "map" ? "bg-[#005BFF] text-white border-[#005BFF]" : "bg-background text-muted-foreground border-border hover:border-[#005BFF]/50"}`}
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                        Карта
+                      </button>
+                      <span className="text-xs text-muted-foreground ml-1">
+                        {ozonPvzList.length} ПВЗ
+                      </span>
+                    </div>
+                  )}
+
+                  {/* PVZ list */}
+                  {ozonPvzList.length > 0 && !ozonPvz && ozonViewMode === "list" && (
                     <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                       <p className="text-xs text-muted-foreground">
-                        Найдено {ozonPvzList.length} ПВЗ в городе <span className="font-medium">{ozonCitySearch}</span> — выберите удобный:
+                        Ближайшие к <span className="font-medium">{ozonCitySearch}</span> — выберите удобный:
                       </p>
                       {ozonPvzList.map((p: any) => (
                         <button
@@ -1222,6 +1326,15 @@ export default function Checkout() {
                     </div>
                   )}
 
+                  {/* PVZ map */}
+                  {ozonPvzList.length > 0 && !ozonPvz && ozonViewMode === "map" && (
+                    <div
+                      ref={ozonMapRef}
+                      className="w-full rounded-xl border overflow-hidden"
+                      style={{ height: 420 }}
+                    />
+                  )}
+
                   {/* Selected PVZ */}
                   {ozonPvz && (
                     <div className="flex items-start gap-3 p-3 rounded-xl border border-[#005BFF]/40 bg-[#005BFF]/5">
@@ -1241,6 +1354,7 @@ export default function Checkout() {
                           setOzonCitySearch("");
                           setOzonPvzList([]);
                           setOzonDeliveryCost(null);
+                          setOzonViewMode("list");
                           setValue("address", "");
                         }}
                         className="text-xs text-muted-foreground hover:text-foreground underline shrink-0 mt-1"
