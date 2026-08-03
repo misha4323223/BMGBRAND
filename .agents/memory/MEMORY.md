@@ -19,3 +19,4 @@
 - [seoBody product field](seo-body-field.md) — per-product SEO HTML block; server strips <title>/downgrades <h1>→<h2>; renders on product page as visible accordion
 - [Yandex Delivery removed](yandex-delivery-removed.md) — ЯД полностью удалена; 9 файлов; секреты YANDEX_DELIVERY_TOKEN/PLATFORM_STATION_ID можно удалить
 - [Ozon Delivery integration](ozon-delivery-integration.md) — Ozon Pay удалён, Ozon Delivery через Seller API OAuth; флаг ozon_delivery_enabled в bonus_settings; Admin UI таб "Интеграции"
+- [Ozon delivery check field name](ozon-delivery-check-field.md) — /v1/delivery/check uses `client_phone` not `customer_phone`; protobuf error message reveals camelCase field name
