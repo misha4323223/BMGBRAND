@@ -502,6 +502,70 @@ class OzonDeliveryService {
   }
 
   /**
+   * Проверяет доступность товаров для доставки в выбранный ПВЗ ПЕРЕД созданием платежа.
+   * Endpoint: POST /v2/delivery/checkout
+   *
+   * Вызывается в POST /api/orders до инициализации платежа — если товар недоступен,
+   * покупатель получает ошибку ещё на чекауте, а не после списания денег.
+   *
+   * Не блокирует заказ при сетевых/API ошибках (не связанных с доступностью товара).
+   */
+  async checkoutDelivery(params: {
+    items: Array<{ offerId: string; quantity: number; price: number; name: string }>;
+    pvzId?: string;
+    customerPhone: string;
+  }): Promise<{ success: boolean; checkoutId?: string; error?: string; unavailableItems?: string[] }> {
+    const cleanPhone = params.customerPhone.replace(/\D/g, "");
+    const body: Record<string, unknown> = {
+      customer_phone: cleanPhone,
+      items: params.items.map(i => ({
+        offer_id: i.offerId,
+        quantity: i.quantity,
+        price: i.price,
+        name: i.name,
+      })),
+    };
+    if (params.pvzId) body.pvz_id = params.pvzId;
+
+    console.log(
+      `[OzonDelivery] checkoutDelivery: ${params.items.length} items`,
+      `pvz_id=${params.pvzId ?? "не указан"}`,
+      `phone=${cleanPhone}`,
+    );
+
+    const result = await this.request<any>("/v2/delivery/checkout", body);
+    if (!result.success) {
+      // Отличаем "товар недоступен" от прочих ошибок API
+      const errMsg = String(result.error ?? "");
+      const isUnavailable =
+        errMsg.toLowerCase().includes("not available") ||
+        errMsg.toLowerCase().includes("unavailable") ||
+        errMsg.toLowerCase().includes("недоступ") ||
+        errMsg.toLowerCase().includes("not found");
+      return { success: false, error: result.error, unavailableItems: isUnavailable ? params.items.map(i => i.offerId) : [] };
+    }
+
+    // Некоторые реализации Ozon возвращают per-item флаги доступности
+    const rawItems: any[] = result.data?.items ?? result.data?.result?.items ?? [];
+    const unavailable = rawItems
+      .filter((i: any) => i.available === false || i.is_available === false || i.is_possible === false)
+      .map((i: any) => String(i.offer_id ?? i.id ?? ""));
+    if (unavailable.length > 0) {
+      console.warn(`[OzonDelivery] checkoutDelivery: недоступны offer_ids=${unavailable.join(",")}`);
+      return { success: false, error: "Некоторые товары недоступны для доставки Ozon", unavailableItems: unavailable };
+    }
+
+    // Если API вернул checkout_id — сохраняем (может пригодиться для createOrder)
+    const checkoutId =
+      result.data?.checkout_id ??
+      result.data?.result?.checkout_id ??
+      undefined;
+
+    console.log(`[OzonDelivery] checkoutDelivery OK${checkoutId ? `, checkout_id=${checkoutId}` : ""}`);
+    return { success: true, checkoutId: checkoutId ? String(checkoutId) : undefined };
+  }
+
+  /**
    * Отменяет заказ Ozon Delivery.
    * Endpoint: POST /v1/delivery/order/cancel
    */
