@@ -14,7 +14,7 @@ interface PPEmailQueueItem {
 
 const QUEUE_KEY = 'ppemail_queue';
 const CHECK_INTERVAL_MS = 3 * 60 * 1000;
-const DELAY_MS = 60 * 60 * 1000;
+const DELAY_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 const PROMO_DISCOUNT = 10;
 const PROMO_VALIDITY_HOURS = 24;
 
