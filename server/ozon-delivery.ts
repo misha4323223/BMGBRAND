@@ -360,6 +360,56 @@ class OzonDeliveryService {
   }
 
   /**
+   * Возвращает только координаты всех ПВЗ рядом с городом — без вызовов Ozon API.
+   * Используется для быстрого отображения всех маркеров на карте.
+   * Детали (адрес, часы) подгружаются отдельно по клику через getPvzPointDetail.
+   */
+  async getPvzMapPoints(city?: string): Promise<{
+    success: boolean;
+    points: Array<{ id: string; lat: number; lng: number }>;
+    error?: string;
+  }> {
+    if (!city?.trim()) return { success: true, points: [] };
+
+    const coords = await geocodeCity(city.trim());
+    if (!coords) {
+      return { success: false, points: [], error: `Не удалось определить координаты города «${city}»` };
+    }
+    console.log(`[OzonDelivery] getPvzMapPoints: «${city}» → lat=${coords.lat}, lng=${coords.lng}`);
+
+    const allPvz = await this.loadAllPvz();
+    if (allPvz.length === 0) {
+      return { success: false, points: [], error: "Кэш ПВЗ пуст" };
+    }
+
+    let MAX_KM = 100;
+    const withDist = allPvz.map(p => ({ ...p, distKm: haversineKm(coords.lat, coords.lng, p.lat, p.lng) }));
+    let nearby = withDist.filter(p => p.distKm <= MAX_KM).sort((a, b) => a.distKm - b.distKm);
+    if (nearby.length < 3) {
+      MAX_KM = 300;
+      nearby = withDist.filter(p => p.distKm <= MAX_KM).sort((a, b) => a.distKm - b.distKm);
+    }
+
+    console.log(`[OzonDelivery] getPvzMapPoints: ${nearby.length} точек в радиусе ${MAX_KM}км`);
+    return {
+      success: true,
+      points: nearby.map(p => ({ id: String(p.map_point_id), lat: p.lat, lng: p.lng })),
+    };
+  }
+
+  /**
+   * Возвращает полные данные одного ПВЗ по его map_point_id.
+   * Вызывается по клику на маркер карты для отображения адреса и часов работы.
+   */
+  async getPvzPointDetail(id: string): Promise<{ success: boolean; point?: OzonPvzPoint; error?: string }> {
+    const numId = parseInt(id, 10);
+    if (isNaN(numId)) return { success: false, error: "Неверный ID" };
+    const points = await this.getPvzInfoBatch([numId]);
+    if (!points.length) return { success: false, error: "ПВЗ не найден" };
+    return { success: true, point: points[0] };
+  }
+
+  /**
    * Проверяет доступность и стоимость доставки для покупателя по телефону.
    * Endpoint: POST /v1/delivery/check
    */

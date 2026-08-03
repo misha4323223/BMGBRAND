@@ -16,7 +16,7 @@ import { useLocation } from "wouter";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { type CheckoutSettings, DEFAULT_CHECKOUT_SETTINGS } from "@/components/checkout-settings";
-import { Loader2, CheckCircle2, MapPin, Truck, Search, Package, Tag, Percent, CreditCard, Landmark, Building2, Info, Gift, Plus, Minus, Trash2, Clock, ShieldCheck, AlertCircle, Store, List } from "lucide-react";
+import { Loader2, CheckCircle2, MapPin, Truck, Search, Package, Tag, Percent, CreditCard, Landmark, Building2, Info, Gift, Plus, Minus, Trash2, Clock, ShieldCheck, AlertCircle, Store } from "lucide-react";
 import { BrandLoader } from "@/components/BrandLoader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -209,8 +209,7 @@ export default function Checkout() {
   // Ozon delivery cost (from /v1/delivery/check by phone)
   const [ozonDeliveryCost, setOzonDeliveryCost] = useState<number | null>(null);
   const [ozonDeliveryChecking, setOzonDeliveryChecking] = useState(false);
-  // Ozon PVZ map view
-  const [ozonViewMode, setOzonViewMode] = useState<"list" | "map">("list");
+  // Ozon PVZ map
   const ozonMapRef = useRef<HTMLDivElement | null>(null);
   const ozonMapInstance = useRef<any>(null);
 
@@ -382,7 +381,6 @@ export default function Checkout() {
       setOzonPvzList([]);
       setOzonCitySuggestions([]);
       setOzonCityConfirmed(false);
-      setOzonViewMode("list");
     }
   }, [deliveryService]);
 
@@ -411,16 +409,16 @@ export default function Checkout() {
     return () => clearTimeout(timer);
   }, [ozonCitySearch, ozonCityConfirmed, deliveryService]);
 
-  // Загрузка ПВЗ — только когда город подтверждён выбором из подсказки
+  // Загрузка координат ПВЗ — только когда город подтверждён (без деталей, мгновенно из кэша)
   useEffect(() => {
     if (deliveryService !== "ozon") return;
     if (!ozonCityConfirmed || !ozonCitySearch.trim()) return;
     setOzonPvzLoading(true);
     setOzonPvzError(null);
-    fetch("/api/ozon-delivery/points", {
+    fetch("/api/ozon-delivery/map-points", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ city: ozonCitySearch.trim(), limit: 50 }),
+      body: JSON.stringify({ city: ozonCitySearch.trim() }),
     })
       .then(r => r.json())
       .then(data => {
@@ -436,14 +434,13 @@ export default function Checkout() {
       .finally(() => setOzonPvzLoading(false));
   }, [ozonCityConfirmed, ozonCitySearch, deliveryService]);
 
-  // Ozon PVZ карта — инициализация Яндекс Карты при переключении на режим «Карта»
+  // Ozon PVZ карта — инициализация Яндекс Карты при появлении координат ПВЗ
   useEffect(() => {
-    if (ozonViewMode !== "map" || ozonPvzList.length === 0) return;
+    if (ozonPvzList.length === 0) return;
 
     const initMap = () => {
       if (!(window as any).ymaps || !ozonMapRef.current) return;
       (window as any).ymaps.ready(() => {
-        // Уничтожаем предыдущий инстанс если есть
         if (ozonMapInstance.current) {
           ozonMapInstance.current.destroy();
           ozonMapInstance.current = null;
@@ -453,36 +450,70 @@ export default function Checkout() {
 
         const map = new (window as any).ymaps.Map(ozonMapRef.current, {
           center: [firstPvz.lat, firstPvz.lng],
-          zoom: 13,
+          zoom: 12,
           controls: ["zoomControl", "geolocationControl"],
         });
         ozonMapInstance.current = map;
 
-        // Добавляем метки для каждого ПВЗ
+        // Кэш деталей ПВЗ, полученных по клику (id → OzonPvzPoint)
+        (window as any).__ozonPvzCache = {};
+
         ozonPvzList.forEach((pvz: any) => {
           if (!pvz.lat || !pvz.lng) return;
           const placemark = new (window as any).ymaps.Placemark(
             [pvz.lat, pvz.lng],
             {
-              balloonContentHeader: `<b>${pvz.name || "ПВЗ Ozon"}</b>`,
-              balloonContentBody: `<p style="margin:4px 0;font-size:13px">${pvz.address}</p>${pvz.workingHours ? `<p style="margin:4px 0;font-size:12px;color:#666">🕐 ${pvz.workingHours}</p>` : ""}`,
-              balloonContentFooter: `<button onclick="window.__ozonSelectPvz('${pvz.id}')" style="margin-top:6px;background:#005BFF;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;width:100%">Выбрать этот ПВЗ</button>`,
-              hintContent: pvz.address,
+              balloonContent: '<div style="padding:8px;min-width:180px;font-family:sans-serif;font-size:13px">Загрузка...</div>',
+              hintContent: "ПВЗ Ozon",
             },
             { preset: "islands#blueCircleDotIcon" }
           );
+
+          // При открытии балуна — подгружаем детали одного ПВЗ
+          placemark.events.add("balloonopen", async () => {
+            // Уже загружено
+            if ((window as any).__ozonPvzCache?.[pvz.id]) return;
+            try {
+              const res = await fetch("/api/ozon-delivery/point-detail", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: pvz.id }),
+              });
+              const data = await res.json();
+              if (data.success && data.point) {
+                (window as any).__ozonPvzCache[pvz.id] = data.point;
+                const p = data.point;
+                placemark.properties.set(
+                  "balloonContent",
+                  `<div style="padding:4px;min-width:200px;font-family:sans-serif">
+                    <b style="font-size:14px">${p.name || "ПВЗ Ozon"}</b>
+                    <p style="margin:6px 0;font-size:13px;color:#333">${p.address}</p>
+                    ${p.workingHours ? `<p style="margin:4px 0;font-size:12px;color:#666">🕐 ${p.workingHours}</p>` : ""}
+                    <button onclick="window.__ozonSelectPvz('${pvz.id}')"
+                      style="margin-top:8px;background:#005BFF;color:#fff;border:none;padding:7px 0;border-radius:6px;cursor:pointer;font-size:13px;width:100%">
+                      Выбрать этот ПВЗ
+                    </button>
+                  </div>`
+                );
+              } else {
+                placemark.properties.set("balloonContent", '<div style="padding:8px;font-family:sans-serif">Не удалось загрузить</div>');
+              }
+            } catch {
+              placemark.properties.set("balloonContent", '<div style="padding:8px;font-family:sans-serif">Ошибка загрузки</div>');
+            }
+          });
+
           map.geoObjects.add(placemark);
         });
       });
     };
 
-    // Глобальный обработчик клика по кнопке «Выбрать» в балуне
+    // Кнопка «Выбрать» в балуне вызывает эту глобальную функцию
     (window as any).__ozonSelectPvz = (id: string) => {
-      const pvz = ozonPvzList.find((p: any) => p.id === id);
-      if (pvz) {
-        setOzonPvz(pvz);
+      const pvzData = (window as any).__ozonPvzCache?.[id];
+      if (pvzData) {
+        setOzonPvz(pvzData);
         setOzonPvzList([]);
-        setOzonViewMode("list");
         if (ozonMapInstance.current) {
           ozonMapInstance.current.destroy();
           ozonMapInstance.current = null;
@@ -490,7 +521,6 @@ export default function Checkout() {
       }
     };
 
-    // Загружаем скрипт Яндекс Карт если ещё не загружен
     if ((window as any).ymaps) {
       initMap();
     } else if (!document.getElementById("ozon-ymaps-script")) {
@@ -507,8 +537,9 @@ export default function Checkout() {
         ozonMapInstance.current = null;
       }
       delete (window as any).__ozonSelectPvz;
+      delete (window as any).__ozonPvzCache;
     };
-  }, [ozonViewMode, ozonPvzList, mapsApiKey]);
+  }, [ozonPvzList, mapsApiKey]);
 
   // Авто-заполнение адреса при выборе ПВЗ Ozon
   useEffect(() => {
@@ -1275,64 +1306,18 @@ export default function Checkout() {
                     <p className="text-xs text-destructive">{ozonPvzError}</p>
                   )}
 
-                  {/* Переключатель Список / Карта */}
+                  {/* PVZ map — отображается сразу после загрузки координат */}
                   {ozonPvzList.length > 0 && !ozonPvz && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setOzonViewMode("list")}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${ozonViewMode === "list" ? "bg-[#005BFF] text-white border-[#005BFF]" : "bg-background text-muted-foreground border-border hover:border-[#005BFF]/50"}`}
-                      >
-                        <List className="w-3.5 h-3.5" />
-                        Список
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setOzonViewMode("map")}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${ozonViewMode === "map" ? "bg-[#005BFF] text-white border-[#005BFF]" : "bg-background text-muted-foreground border-border hover:border-[#005BFF]/50"}`}
-                      >
-                        <MapPin className="w-3.5 h-3.5" />
-                        Карта
-                      </button>
-                      <span className="text-xs text-muted-foreground ml-1">
-                        {ozonPvzList.length} ПВЗ
-                      </span>
-                    </div>
-                  )}
-
-                  {/* PVZ list */}
-                  {ozonPvzList.length > 0 && !ozonPvz && ozonViewMode === "list" && (
-                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    <>
                       <p className="text-xs text-muted-foreground">
-                        Ближайшие к <span className="font-medium">{ozonCitySearch}</span> — выберите удобный:
+                        Найдено <span className="font-medium">{ozonPvzList.length} ПВЗ</span> рядом с <span className="font-medium">{ozonCitySearch}</span> — нажмите на метку, чтобы выбрать.
                       </p>
-                      {ozonPvzList.map((p: any) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => { setOzonPvz(p); setOzonPvzList([]); }}
-                          className="w-full flex items-start gap-3 px-3 py-2.5 rounded-xl border hover:border-[#005BFF]/60 hover:bg-[#005BFF]/5 transition-colors text-left"
-                        >
-                          <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-[#005BFF] text-white text-[10px] font-black shrink-0 mt-0.5">O</span>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{p.name || "ПВЗ Ozon"}</p>
-                            <p className="text-xs text-muted-foreground truncate">{p.address}</p>
-                            {typeof p.workingHours === "string" && p.workingHours && (
-                              <p className="text-xs text-muted-foreground">🕐 {p.workingHours}</p>
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* PVZ map */}
-                  {ozonPvzList.length > 0 && !ozonPvz && ozonViewMode === "map" && (
-                    <div
-                      ref={ozonMapRef}
-                      className="w-full rounded-xl border overflow-hidden"
-                      style={{ height: 420 }}
-                    />
+                      <div
+                        ref={ozonMapRef}
+                        className="w-full rounded-xl border overflow-hidden"
+                        style={{ height: 420 }}
+                      />
+                    </>
                   )}
 
                   {/* Selected PVZ */}
@@ -1354,7 +1339,6 @@ export default function Checkout() {
                           setOzonCitySearch("");
                           setOzonPvzList([]);
                           setOzonDeliveryCost(null);
-                          setOzonViewMode("list");
                           setValue("address", "");
                         }}
                         className="text-xs text-muted-foreground hover:text-foreground underline shrink-0 mt-1"

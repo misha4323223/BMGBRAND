@@ -4326,6 +4326,37 @@ ${artistLinks || "- (список формируется)"}
     }
   });
 
+  // POST /api/ozon-delivery/map-points — только координаты всех ПВЗ из кэша (без Ozon API вызовов)
+  app.post("/api/ozon-delivery/map-points", async (req, res) => {
+    const { city } = req.body as { city?: string };
+    if (!ozonDeliveryService.isEnabled()) {
+      return res.json({ success: false, points: [], error: "Ozon Доставка не подключена" });
+    }
+    try {
+      const result = await ozonDeliveryService.getPvzMapPoints(city);
+      res.json(result);
+    } catch (err: any) {
+      console.error("[OzonDelivery] map-points error:", err.message);
+      res.json({ success: false, points: [], error: err.message });
+    }
+  });
+
+  // POST /api/ozon-delivery/point-detail — детали одного ПВЗ по id (для балуна на карте)
+  app.post("/api/ozon-delivery/point-detail", async (req, res) => {
+    const { id } = req.body as { id?: string };
+    if (!id) return res.json({ success: false, error: "id required" });
+    if (!ozonDeliveryService.isEnabled()) {
+      return res.json({ success: false, error: "Ozon Доставка не подключена" });
+    }
+    try {
+      const result = await ozonDeliveryService.getPvzPointDetail(id);
+      res.json(result);
+    } catch (err: any) {
+      console.error("[OzonDelivery] point-detail error:", err.message);
+      res.json({ success: false, error: err.message });
+    }
+  });
+
   // POST /api/ozon-delivery/check — публичный, вызывается из чекаута
   app.post("/api/ozon-delivery/check", async (req, res) => {
     const { phone, items } = req.body as { phone?: string; items?: Array<{ offerId: string; quantity: number }> };
