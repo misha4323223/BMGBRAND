@@ -206,6 +206,9 @@ export default function Checkout() {
   const [ozonPvzList, setOzonPvzList] = useState<any[]>([]);
   const [ozonPvzLoading, setOzonPvzLoading] = useState(false);
   const [ozonPvzError, setOzonPvzError] = useState<string | null>(null);
+  // Ozon delivery cost (from /v1/delivery/check by phone)
+  const [ozonDeliveryCost, setOzonDeliveryCost] = useState<number | null>(null);
+  const [ozonDeliveryChecking, setOzonDeliveryChecking] = useState(false);
 
   // Wholesale transport company
   const [selectedTransport, setSelectedTransport] = useState<string>("cdek");
@@ -435,6 +438,37 @@ export default function Checkout() {
     }
   }, [deliveryService, ozonPvz, setValue]);
 
+  // Стоимость доставки Ozon — запрашиваем по номеру телефона после выбора ПВЗ
+  const customerPhone = watch("customerPhone");
+  useEffect(() => {
+    if (deliveryService !== "ozon" || !ozonPvz) {
+      setOzonDeliveryCost(null);
+      return;
+    }
+    const digits = (customerPhone || "").replace(/\D/g, "");
+    if (digits.length < 10) {
+      setOzonDeliveryCost(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setOzonDeliveryChecking(true);
+      try {
+        const res = await fetch("/api/ozon-delivery/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: customerPhone }),
+        });
+        const data = await res.json();
+        setOzonDeliveryCost(typeof data.cost === "number" ? data.cost : 0);
+      } catch {
+        setOzonDeliveryCost(0);
+      } finally {
+        setOzonDeliveryChecking(false);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [deliveryService, ozonPvz, customerPhone]);
+
   const { data: savedShippingData } = useQuery<{ shippingData: { customerName?: string; customerEmail?: string; customerPhone?: string; address?: string; transportCompany?: string } | null }>({
     queryKey: ["/api/auth/shipping-data"],
     enabled: !!isWholesale,
@@ -656,7 +690,7 @@ export default function Checkout() {
         : (cheapestTariff ? cheapestTariff.delivery_sum * 100 : 0)))
     : 0;
   
-  const rawDeliveryCost = isWholesale ? 0 : deliveryService === "pickup" ? 0 : deliveryService === "ozon" ? 0 : cdekDeliveryCost;
+  const rawDeliveryCost = isWholesale ? 0 : deliveryService === "pickup" ? 0 : deliveryService === "ozon" ? (ozonDeliveryCost ?? 0) : cdekDeliveryCost;
   const deliveryCost = isFreeShipping ? 0 : rawDeliveryCost;
   // Calculate promo discount: percent-based or fixed amount
   // If promo has category restrictions, eligibleAmount is the sum of matching items
@@ -1199,12 +1233,39 @@ export default function Checkout() {
                           setOzonCityConfirmed(false);
                           setOzonCitySearch("");
                           setOzonPvzList([]);
+                          setOzonDeliveryCost(null);
                           setValue("address", "");
                         }}
                         className="text-xs text-muted-foreground hover:text-foreground underline shrink-0 mt-1"
                       >
                         Изменить
                       </button>
+                    </div>
+                  )}
+
+                  {/* Стоимость доставки Ozon */}
+                  {ozonPvz && (
+                    <div className="mt-3 p-3 bg-accent/30 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm font-medium text-foreground">{cs.deliveryCostLabel || "Стоимость доставки"}</p>
+                        {ozonDeliveryChecking ? (
+                          <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Считаем...</span>
+                          </div>
+                        ) : ozonDeliveryCost === null ? (
+                          <span className="text-sm text-muted-foreground">Введите телефон</span>
+                        ) : isFreeShipping ? (
+                          <div className="text-right">
+                            <p className="text-sm line-through text-muted-foreground">{formatPrice(ozonDeliveryCost)}</p>
+                            <p className="text-lg font-semibold text-green-600">Бесплатно</p>
+                          </div>
+                        ) : ozonDeliveryCost === 0 ? (
+                          <p className="text-lg font-semibold text-green-600">Бесплатно</p>
+                        ) : (
+                          <p className="text-lg font-semibold text-foreground">{formatPrice(ozonDeliveryCost)}</p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
