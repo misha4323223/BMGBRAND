@@ -1254,7 +1254,7 @@ export default function Checkout() {
                             <span>Считаем...</span>
                           </div>
                         ) : ozonDeliveryCost === null ? (
-                          <span className="text-sm text-muted-foreground">Введите телефон</span>
+                          <span className="text-sm text-muted-foreground">Укажите телефон ниже ↓</span>
                         ) : isFreeShipping ? (
                           <div className="text-right">
                             <p className="text-sm line-through text-muted-foreground">{formatPrice(ozonDeliveryCost)}</p>
