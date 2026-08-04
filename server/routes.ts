@@ -10448,8 +10448,12 @@ ${artistLinks || "- (список формируется)"}
           }
           console.log(`[Order] Ozon pre-payment checkoutDelivery OK${ozonCheckResult.checkoutId ? `, checkout_id=${ozonCheckResult.checkoutId}` : ""}`);
         } catch (ozonCheckErr: any) {
-          // Network/API error during availability check — log and proceed to avoid blocking orders on transient Ozon API failures
-          console.error(`[Order] Ozon checkoutDelivery check threw error, proceeding anyway: ${ozonCheckErr?.message}`);
+          // Network/API error during availability check — block order to avoid charging customer when delivery cannot be confirmed
+          console.error(`[Order] Ozon checkoutDelivery check threw error: ${ozonCheckErr?.message}`);
+          return res.status(400).json({
+            message: "Сервис доставки Ozon временно недоступен. Попробуйте позже или выберите другой способ доставки.",
+            code: "OZON_DELIVERY_UNAVAILABLE",
+          });
         }
       }
 
