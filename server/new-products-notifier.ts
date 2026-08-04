@@ -173,20 +173,62 @@ export async function triggerNewProductsNotifierNow(): Promise<{ sent: number; f
   return { sent, failed, products: products.length, total: productIds.length };
 }
 
-export async function getNewProductsQueueStatus(): Promise<{ count: number; firstAddedAt: string | null; lastAddedAt: string | null; minutesUntilSend: number | null; productIds: number[] }> {
+export async function removeFromNewProductsQueue(productId: number): Promise<void> {
+  try {
+    const existing = await readQueue();
+    if (!existing || existing.productIds.length === 0) return;
+    existing.productIds = existing.productIds.filter(id => id !== productId);
+    await writeQueue(existing);
+    console.log(`[NewProductsNotifier] Removed product ${productId}, queue size: ${existing.productIds.length}`);
+  } catch (err: any) {
+    console.error('[NewProductsNotifier] removeFromNewProductsQueue error:', err?.message);
+  }
+}
+
+export async function addToNewProductsQueueManual(productId: number): Promise<void> {
+  return enqueueNewProduct(productId);
+}
+
+interface ProductPreview {
+  id: number;
+  name: string;
+  price: number;
+  imageUrl: string;
+  slug: string;
+}
+
+export async function getNewProductsQueueStatus(): Promise<{ count: number; firstAddedAt: string | null; lastAddedAt: string | null; minutesUntilSend: number | null; productIds: number[]; products: ProductPreview[] }> {
   const queue = await readQueue();
   if (!queue || queue.productIds.length === 0) {
-    return { count: 0, firstAddedAt: null, lastAddedAt: null, minutesUntilSend: null, productIds: [] };
+    return { count: 0, firstAddedAt: null, lastAddedAt: null, minutesUntilSend: null, productIds: [], products: [] };
   }
   const now = Date.now();
   const lastAdded = new Date(queue.lastAddedAt).getTime();
   const remaining = Math.max(0, DEBOUNCE_MS - (now - lastAdded));
+
+  const products: ProductPreview[] = [];
+  for (const id of queue.productIds) {
+    try {
+      const p = await storage.getProduct(id);
+      if (p) {
+        products.push({
+          id: p.id,
+          name: p.name,
+          price: p.price ?? 0,
+          imageUrl: (p as any).thumbnailUrl || p.imageUrl || '',
+          slug: p.slug ?? '',
+        });
+      }
+    } catch {}
+  }
+
   return {
     count: queue.productIds.length,
     firstAddedAt: queue.firstAddedAt,
     lastAddedAt: queue.lastAddedAt,
     minutesUntilSend: Math.ceil(remaining / 60000),
     productIds: queue.productIds,
+    products,
   };
 }
 

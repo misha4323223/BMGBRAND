@@ -27,8 +27,8 @@ import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PV
 
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
 import { runAbandonedCartCheck, addAbandonedCartUnsub } from "./abandoned-cart";
-import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow } from "./new-products-notifier";
-import { enqueuePreorderProduct, getPreorderQueueStatus, triggerPreorderNotifierNow } from "./preorder-notifier";
+import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow, removeFromNewProductsQueue, addToNewProductsQueueManual } from "./new-products-notifier";
+import { enqueuePreorderProduct, getPreorderQueueStatus, triggerPreorderNotifierNow, removeFromPreorderQueue, addToPreorderQueueManual } from "./preorder-notifier";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
 import { CATEGORIES as SEO_CATEGORY_DEFAULTS, ARTISTS as SEO_ARTIST_DEFAULTS, HOME_SEO_DEFAULT, CONCEPT_SEO_DEFAULT, MERCH_ORDER_SEO_DEFAULT, PARTNER_REGISTER_SEO_DEFAULT } from "./static";
 import { schedulePostPurchaseEmail } from "./post-purchase-email";
@@ -13048,6 +13048,62 @@ ${artistLinks || "- (список формируется)"}
     try {
       const result = await triggerPreorderNotifierNow();
       res.json({ success: true, ...result });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Remove a product from new-products queue
+  app.delete("/api/admin/newsletter-queue-item", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const { productId } = req.body;
+      if (!productId || typeof productId !== "number") return res.status(400).json({ error: "productId required" });
+      await removeFromNewProductsQueue(productId);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Add a product to new-products queue manually
+  app.post("/api/admin/newsletter-queue-item", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const { productId } = req.body;
+      if (!productId || typeof productId !== "number") return res.status(400).json({ error: "productId required" });
+      await addToNewProductsQueueManual(productId);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Remove a product from preorder queue
+  app.delete("/api/admin/preorder-queue-item", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const { productId } = req.body;
+      if (!productId || typeof productId !== "number") return res.status(400).json({ error: "productId required" });
+      await removeFromPreorderQueue(productId);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Add a product to preorder queue manually
+  app.post("/api/admin/preorder-queue-item", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const { productId } = req.body;
+      if (!productId || typeof productId !== "number") return res.status(400).json({ error: "productId required" });
+      await addToPreorderQueueManual(productId);
+      res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
