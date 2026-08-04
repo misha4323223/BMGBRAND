@@ -461,10 +461,14 @@ class OzonDeliveryService {
    * Endpoint: POST /v2/order/create
    */
   async createOrder(params: OzonCreateOrderParams): Promise<OzonCreateOrderResult> {
+    // Ozon API v2 требует вложенный объект buyer (protobuf OrderCreateRequestV2.Buyer).
+    // Плоские customer_name/customer_phone на верхнем уровне не принимаются — поле buyer обязательно.
     const body: Record<string, unknown> = {
       external_order_id: params.externalOrderId,
-      customer_phone: params.customerPhone,
-      customer_name: params.customerName,
+      buyer: {
+        name: params.customerName,
+        phone: params.customerPhone,
+      },
       items: params.items.map(item => ({
         offer_id: item.offerId,
         quantity: item.quantity,
