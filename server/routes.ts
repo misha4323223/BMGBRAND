@@ -10423,6 +10423,36 @@ ${artistLinks || "- (список формируется)"}
         console.log(`[Order] Non-CDEK delivery (${deliveryService}), using client delivery cost: ${clientDeliveryCost/100} RUB`);
       }
 
+      // Pre-payment Ozon availability check: verify items are deliverable before charging the customer
+      if (deliveryService === "ozon" && ozonDeliveryService.isConfigured() && ozonDeliveryService.isEnabled()) {
+        try {
+          const ozonCheckItems = orderItems.map((item, idx) => {
+            const product = cartItems[idx]?.product as any;
+            const offerId: string = product?.article || item.sku || String(item.productId);
+            return { offerId, quantity: item.quantity, price: item.price, name: item.productName };
+          });
+          const ozonCheckResult = await ozonDeliveryService.checkoutDelivery({
+            items: ozonCheckItems,
+            pvzId: ozonPvzId,
+            customerPhone: input.customerPhone,
+          });
+          if (!ozonCheckResult.success) {
+            console.warn(`[Order] Ozon pre-payment checkoutDelivery failed: ${ozonCheckResult.error}`);
+            return res.status(400).json({
+              message: ozonCheckResult.unavailableItems?.length
+                ? "Некоторые товары недоступны для доставки Ozon. Выберите другой ПВЗ или способ доставки."
+                : `Не удалось подтвердить доставку Ozon: ${ozonCheckResult.error || "Попробуйте позже"}`,
+              code: "OZON_DELIVERY_UNAVAILABLE",
+              unavailableItems: ozonCheckResult.unavailableItems,
+            });
+          }
+          console.log(`[Order] Ozon pre-payment checkoutDelivery OK${ozonCheckResult.checkoutId ? `, checkout_id=${ozonCheckResult.checkoutId}` : ""}`);
+        } catch (ozonCheckErr: any) {
+          // Network/API error during availability check — log and proceed to avoid blocking orders on transient Ozon API failures
+          console.error(`[Order] Ozon checkoutDelivery check threw error, proceeding anyway: ${ozonCheckErr?.message}`);
+        }
+      }
+
       // Free shipping for retail orders >= 5000 RUB
       const FREE_SHIPPING_THRESHOLD = 500000;
       if (!isWholesale && orderSubtotal >= FREE_SHIPPING_THRESHOLD && verifiedDeliveryCost > 0) {
