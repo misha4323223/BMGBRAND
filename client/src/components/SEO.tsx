@@ -37,7 +37,10 @@ export default function SEO({
   ogImageWidth = "1200",
   ogImageHeight = "630",
 }: SEOPropsExtended) {
-  const fullTitle = title ? `${title} | ${SITE_NAME}` : `Booomerangs — Российский бренд одежды Booomerangs/BMGBRAND`;
+  // Prevent double brand suffix when admin SEO overrides already include SITE_NAME
+  const fullTitle = title
+    ? (title.endsWith(`| ${SITE_NAME}`) || title.endsWith(SITE_NAME) ? title : `${title} | ${SITE_NAME}`)
+    : `Booomerangs — Российский бренд одежды Booomerangs/BMGBRAND`;
   const absoluteOgImage = getAbsoluteUrl(ogImage);
   const canonicalUrl = canonical || `${CANONICAL_ORIGIN}${window.location.pathname}`;
 

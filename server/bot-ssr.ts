@@ -1053,7 +1053,26 @@ ${recsHtml}`;
   return wrapPage(head, body);
 }
 
-function renderSubcategory(subSlug: string): string | null {
+/**
+ * Legacy URL slugs → { category, subcategoryName }.
+ * Mirrors SlugResolver.tsx LEGACY_SLUG_MAP so bots hitting /sweaters, /hoodies etc.
+ * get a fully-rendered SSR page with the correct self-canonical.
+ */
+const BOT_LEGACY_SLUG_MAP: Record<string, { category: string; subcategory: string }> = {
+  hoodies:               { category: "clothing",    subcategory: "Толстовки" },
+  sweatshirts:           { category: "clothing",    subcategory: "Свитшоты" },
+  sweaters:              { category: "clothing",    subcategory: "Свитера" },
+  "t-shirts":            { category: "clothing",    subcategory: "Футболки" },
+  shorts:                { category: "clothing",    subcategory: "Шорты" },
+  hats:                  { category: "accessories", subcategory: "Шапки" },
+  bags:                  { category: "accessories", subcategory: "Сумки" },
+  remni:                 { category: "accessories", subcategory: "Ремни" },
+  "sportivnye-40-45":    { category: "socks",       subcategory: "Спортивные (40-45)" },
+  "sportivnye-34-39-2":  { category: "socks",       subcategory: "Спортивные (34-39)" },
+  "tula-designers":      { category: "merch",       subcategory: "Тульские Дизайнеры" },
+};
+
+function renderSubcategory(subSlug: string, canonicalSlug?: string): string | null {
   // Build the live category map the same way /api/categories does:
   // read from the in-memory page-settings cache (site_config.categories_data),
   // fall back to the static schema CATEGORIES if the cache is cold.
@@ -1098,6 +1117,10 @@ function renderSubcategory(subSlug: string): string | null {
     ? `Официальный мерч ${subcategory.name} в интернет-магазине BMGBRAND: одежда и аксессуары с авторскими принтами. Доставка по всей России СДЭК.`
     : `${subcategory.name} от BMGBRAND — ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России.`);
 
+  // canonicalSlug is the URL the bot actually arrived at (e.g. "sweaters").
+  // subSlug is the internal YDB slug (e.g. "svitera"). Use canonicalSlug when set.
+  const pageSlug = canonicalSlug ?? subSlug;
+
   const jsonLd = safeJsonLd([
     {
       "@context": "https://schema.org",
@@ -1106,7 +1129,7 @@ function renderSubcategory(subSlug: string): string | null {
         { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
         { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${SITE_URL}/products` },
         { "@type": "ListItem", "position": 3, "name": catName, "item": `${SITE_URL}/products/${category.slug}` },
-        { "@type": "ListItem", "position": 4, "name": subcategory.name, "item": `${SITE_URL}/${subSlug}` },
+        { "@type": "ListItem", "position": 4, "name": subcategory.name, "item": `${SITE_URL}/${pageSlug}` },
       ],
     },
     {
@@ -1114,7 +1137,7 @@ function renderSubcategory(subSlug: string): string | null {
       "@type": "ItemList",
       "name": subcategory.name,
       "description": desc,
-      "url": `${SITE_URL}/${subSlug}`,
+      "url": `${SITE_URL}/${pageSlug}`,
       "numberOfItems": allSorted.length,
       "itemListElement": allSorted.slice(0, 30).map((p: any, i: number) => ({
         "@type": "ListItem",
@@ -1137,7 +1160,7 @@ function renderSubcategory(subSlug: string): string | null {
   const head = baseHead({
     title,
     description: desc,
-    canonical: `${SITE_URL}/${subSlug}`,
+    canonical: `${SITE_URL}/${pageSlug}`,
     ogImage: `${SITE_URL}/favicon.png`,
     jsonLd,
   });
@@ -2277,6 +2300,31 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
         // If not a product, check if it's a subcategory slug (e.g. /tolstovki, /dikaya-myata)
         if (!html) {
           html = renderSubcategory(slug);
+        }
+        // If still no match, try legacy English slugs (e.g. /sweaters → YDB slug "svitera").
+        // Canonical is set to the legacy slug so Яндекс indexes /sweaters, not /svitera.
+        if (!html) {
+          const legacy = BOT_LEGACY_SLUG_MAP[slug];
+          if (legacy?.subcategory) {
+            let cats: Record<string, any> = CATEGORIES;
+            try {
+              const siteConfig = getCachedRawPageSettings('site_config');
+              if (siteConfig?.categories_data) {
+                const raw = typeof siteConfig.categories_data === 'string'
+                  ? JSON.parse(siteConfig.categories_data) : siteConfig.categories_data;
+                const normalized = normalizeCategories(raw);
+                if (Object.keys(normalized).length > 0) cats = normalized;
+              }
+            } catch { /* keep static fallback */ }
+            const cat = cats[legacy.category];
+            if (cat) {
+              const sub = (cat.subcategories as any[]).find((s: any) => s.name === legacy.subcategory);
+              if (sub) {
+                // Render with the YDB slug but override canonical to the legacy URL slug
+                html = renderSubcategory(sub.slug, slug);
+              }
+            }
+          }
         }
         // If not a product or subcategory, check if it's a top-level category slug
         // (e.g. /socks → /products/socks). Redirect bots to the canonical URL.

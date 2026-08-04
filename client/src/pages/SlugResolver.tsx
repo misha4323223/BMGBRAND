@@ -107,6 +107,7 @@ export default function SlugResolver() {
         forcedCatSlug={resolved.catSlug}
         forcedSubName={resolved.subName}
         forcedSubSlug={resolved.subSlug}
+        forcedUrlSlug={slug}
       />
     </Suspense>
   );

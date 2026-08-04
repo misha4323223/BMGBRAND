@@ -1419,9 +1419,12 @@ interface ProductListProps {
   forcedCatSlug?: string;
   forcedSubName?: string;
   forcedSubSlug?: string;
+  /** The actual URL slug the user navigated to (e.g. "sweaters"), used as canonical
+   *  instead of the internal YDB slug (e.g. "svitera") when they differ. */
+  forcedUrlSlug?: string;
 }
 
-export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlug }: ProductListProps = {}) {
+export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlug, forcedUrlSlug }: ProductListProps = {}) {
   const { isWholesale } = useWholesalePrice();
   const [, catSubSubParams] = useRoute("/products/:catSlug/:subSlug/:subSubSlug");
   const [, catSubParams] = useRoute("/products/:catSlug/:subSlug");
@@ -1823,7 +1826,9 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
       if (subSlugFound && subSubSlugFound) return `${base}/products/${categoryParam}/${subSlugFound}/${subSubSlugFound}`;
     }
     if (categoryParam && subcategoryParam) {
-      // Canonical for subcategory is the flat slug URL (/:subSlug), not ?subcategory=
+      // When opened via legacy URL (e.g. /sweaters), use that URL as canonical — not the YDB slug (e.g. /svitera).
+      // forcedUrlSlug is the actual path segment the user/bot arrived at.
+      if (forcedUrlSlug) return `${base}/${forcedUrlSlug}`;
       const subSlugFound = categories[categoryParam]?.subcategories.find(s => s.name === subcategoryParam)?.slug
         ?? pathSubSlug;
       if (subSlugFound) return `${base}/${subSlugFound}`;
@@ -1842,6 +1847,8 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   if (subcategoryParam) {
     const subCanonical = (() => {
       const base = window.location.origin;
+      // Use the actual URL slug (e.g. /sweaters) rather than the YDB slug (e.g. /svitera)
+      if (forcedUrlSlug) return `${base}/${forcedUrlSlug}`;
       const subSlugFound = categoryParam ? categories[categoryParam]?.subcategories.find(s => s.name === subcategoryParam)?.slug ?? pathSubSlug : null;
       return subSlugFound ? `${base}/${subSlugFound}` : catalogCanonical;
     })();
