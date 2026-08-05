@@ -333,6 +333,7 @@ export default function Home() {
   const [heroPaused, setHeroPaused] = useState(false);
   const [heroAnimKey, setHeroAnimKey] = useState(0);
   const [heroCrtClass, setHeroCrtClass] = useState('');
+  const [heroCrtTransitioning, setHeroCrtTransitioning] = useState(false);
 
   // Load page settings from database FIRST
   const { data: pageSettings, isLoading: settingsLoading } = useQuery<Record<string, any>>({
@@ -469,12 +470,27 @@ export default function Home() {
     if (heroPaused) return;
     const currentDuration = Math.max(1, Number(slides[heroSlideIndex]?.duration) || 7) * 1000;
     const timer = setTimeout(() => {
-      setHeroSlideIndex(prev => {
-        const next = (prev + 1) % slides.length;
-        setHeroPrev(prev);
+      const next = (heroSlideIndex + 1) % slides.length;
+      const curr = slides[heroSlideIndex];
+      const nextSlide = slides[next];
+      const currIsVideo = curr?.bgType === 'video' && !!curr?.heroVideo;
+      const nextIsVideo = nextSlide?.bgType === 'video' && !!nextSlide?.heroVideo;
+      if (currIsVideo && !nextIsVideo) {
+        // video→image: CRT TV turn-off/on effect
+        setHeroCrtTransitioning(true);
+        setHeroCrtClass('crt-collapse');
+        setTimeout(() => {
+          setHeroPrev(heroSlideIndex);
+          setHeroAnimKey(k => k + 1);
+          setHeroSlideIndex(next);
+          setHeroCrtClass('crt-expand');
+          setTimeout(() => { setHeroCrtClass(''); setHeroCrtTransitioning(false); }, 350);
+        }, 220);
+      } else {
+        setHeroPrev(heroSlideIndex);
         setHeroAnimKey(k => k + 1);
-        return next;
-      });
+        setHeroSlideIndex(next);
+      }
     }, currentDuration);
     return () => clearTimeout(timer);
   }, [pageSettings, heroPaused, heroSlideIndex]);
@@ -664,18 +680,19 @@ export default function Home() {
           const isVideoSlide = (slide as any).bgType === 'video' && !!(slide as any).heroVideo;
           const showHero = settingsLoading ? !!window.__HERO__?.img : isSectionVisible("hero");
 
-          // CRT transition for video↔image type changes (mobile only)
+          // CRT transition for video→image type change (mobile only)
           const handleHeroNav = (nextIndex: number) => {
             const curr = heroSlides[activeIndex];
             const next = heroSlides[nextIndex];
             const currIsVideo = curr?.bgType === 'video' && !!curr?.heroVideo;
             const nextIsVideo = next?.bgType === 'video' && !!next?.heroVideo;
-            if (currIsVideo !== nextIsVideo) {
+            if (currIsVideo && !nextIsVideo) {
+              setHeroCrtTransitioning(true);
               setHeroCrtClass('crt-collapse');
               setTimeout(() => {
                 setHeroPrev(activeIndex); setHeroAnimKey(k => k + 1); setHeroSlideIndex(nextIndex);
                 setHeroCrtClass('crt-expand');
-                setTimeout(() => setHeroCrtClass(''), 320);
+                setTimeout(() => { setHeroCrtClass(''); setHeroCrtTransitioning(false); }, 350);
               }, 220);
             } else {
               setHeroPrev(activeIndex); setHeroAnimKey(k => k + 1); setHeroSlideIndex(nextIndex);
@@ -712,7 +729,7 @@ export default function Home() {
                   {heroSlides.map((s: any, i: number) => (
                     <div
                       key={i === activeIndex ? `tv-active-${heroAnimKey}` : `tv-${i}`}
-                      className={`absolute inset-0${i === activeIndex ? ' hero-slide-enter' : ''}`}
+                      className={`absolute inset-0${(i === activeIndex && !heroCrtTransitioning) ? ' hero-slide-enter' : ''}`}
                       style={{
                         opacity: i === activeIndex ? 1 : (i === heroPrev ? 1 : 0),
                         zIndex: i === activeIndex ? 2 : (i === heroPrev ? 1 : 0),
@@ -777,7 +794,7 @@ export default function Home() {
             {heroSlides.map((s: any, i: number) => (
               <div
                 key={i === activeIndex ? `active-${heroAnimKey}` : i}
-                className={`absolute inset-0${i === activeIndex ? ' hero-slide-enter' : ''}`}
+                className={`absolute inset-0${(i === activeIndex && !heroCrtTransitioning) ? ' hero-slide-enter' : ''}`}
                 style={{
                   opacity: i === activeIndex
                     ? (parseFloat(s.heroOpacity) || 0.6)
