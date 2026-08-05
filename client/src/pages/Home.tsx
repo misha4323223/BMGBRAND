@@ -660,11 +660,14 @@ export default function Home() {
           const activeIndex = heroSlides.length > 0 ? heroSlideIndex % heroSlides.length : 0;
           const slide = heroSlides[activeIndex] || pageSettings?.hero || {};
           const multiSlide = heroSlides.length > 1;
+          const isVideoSlide = (slide as any).bgType === 'video' && !!(slide as any).heroVideo;
           const showHero = settingsLoading ? !!window.__HERO__?.img : isSectionVisible("hero");
           return showHero ? (
             <div key="section-hero">
+        {/* Mobile-only black spacer behind floating navbar for video slides */}
+        {isVideoSlide && <div className="sm:hidden bg-black" style={{ height: '100px' }} />}
         <section
-          className={`relative ${(slide as any).bgType === 'video' && (slide as any).heroVideo ? 'aspect-video mt-14' : 'h-svh'} sm:h-auto sm:aspect-[2560/1740] w-full flex flex-col items-center justify-center overflow-hidden bg-black sm:-mt-40 ${pageSettings?.hero?.showOnMobile === false ? 'hidden sm:flex' : ''} ${pageSettings?.hero?.showOnDesktop === false ? 'flex sm:hidden' : ''}`}
+          className={`relative ${isVideoSlide ? 'aspect-video' : 'h-svh'} sm:h-auto sm:aspect-[2560/1740] w-full flex flex-col items-center justify-center overflow-hidden bg-black sm:-mt-40 ${pageSettings?.hero?.showOnMobile === false ? 'hidden sm:flex' : ''} ${pageSettings?.hero?.showOnDesktop === false ? 'flex sm:hidden' : ''}`}
           onTouchStart={() => setHeroPaused(true)}
           onTouchEnd={() => setHeroPaused(false)}
           onTouchCancel={() => setHeroPaused(false)}
@@ -757,7 +760,7 @@ export default function Home() {
               </div>
             )}
           </div>
-          <div className="relative z-10 text-center px-4 max-w-4xl mx-auto flex flex-col items-center mt-auto pb-28 sm:pb-8">
+          <div className={`relative z-10 text-center px-4 max-w-4xl mx-auto flex flex-col items-center mt-auto pb-28 sm:pb-8 ${isVideoSlide ? 'hidden sm:flex' : 'flex'}`}>
             <div className="flex flex-col items-center">
               <p className="font-mono text-[9px] sm:text-xs text-white uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-6 sm:mb-8 text-center leading-relaxed drop-shadow-lg">
                 {slide.tagline1 || pageSettings?.hero?.tagline1 || window.__HERO__?.tagline1 || "МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ."}<br/>{slide.tagline2 || pageSettings?.hero?.tagline2 || window.__HERO__?.tagline2 || "РОССИЙСКИЙ БРЕНД ОДЕЖДЫ И АКСЕССУАРОВ."}
@@ -800,6 +803,25 @@ export default function Home() {
             </>
           )}
         </section>
+        {/* Mobile-only CTA button below video hero */}
+        {isVideoSlide && (
+          <div className="sm:hidden bg-black px-6 py-5 flex flex-col items-center gap-2">
+            <Link href={slide.buttonLink || pageSettings?.hero?.buttonLink || "/products"} className="w-full max-w-xs">
+              <Button
+                size="lg"
+                className="w-full bg-primary hover:bg-primary/90 text-white font-display uppercase tracking-[0.2em] text-sm rounded-full py-4 h-auto min-h-0 shadow-[0_0_24px_hsl(0_72%_51%/0.45)] transition-all duration-300 active:scale-95"
+                data-testid="button-hero-catalog-mobile-video"
+              >
+                {slide.buttonText || pageSettings?.hero?.buttonText || "Перейти в коллекцию"}
+              </Button>
+            </Link>
+            {(slide.tagline1 || pageSettings?.hero?.tagline1) && (
+              <p className="font-mono text-[9px] text-zinc-500 uppercase tracking-[0.2em] text-center">
+                {slide.tagline1 || pageSettings?.hero?.tagline1}
+              </p>
+            )}
+          </div>
+        )}
         {renderPromoBanner("after_hero")}
         {(() => {
           const stripItems: any[] = artistStripItems || pageSettings?.artists?.items || artists;
