@@ -275,6 +275,30 @@ body.lb-open nav {
   will-change: clip-path;
 }
 
+/* ── CRT collapse / expand — mobile video↔image transition ── */
+@media (max-width: 639px) {
+  @keyframes crt-collapse {
+    0%   { transform: scaleY(1)    brightness(1); }
+    60%  { transform: scaleY(0.04) brightness(2); }
+    100% { transform: scaleY(0)    brightness(0); }
+  }
+  @keyframes crt-expand {
+    0%   { transform: scaleY(0)    brightness(2); }
+    40%  { transform: scaleY(0.04) brightness(2); }
+    100% { transform: scaleY(1)    brightness(1); }
+  }
+  .crt-collapse {
+    animation: crt-collapse 220ms ease-in forwards;
+    transform-origin: center center;
+    will-change: transform;
+  }
+  .crt-expand {
+    animation: crt-expand 300ms ease-out forwards;
+    transform-origin: center center;
+    will-change: transform;
+  }
+}
+
 /* ── Holo AI Chat Button ─────────────────────────────────────────────────── */
 @keyframes holo-sweep {
   0%   { transform: translateX(-120%) skewX(-20deg); opacity: 0; }

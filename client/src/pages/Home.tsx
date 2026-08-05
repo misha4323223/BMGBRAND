@@ -332,6 +332,7 @@ export default function Home() {
   }, [activeReel]);
   const [heroPaused, setHeroPaused] = useState(false);
   const [heroAnimKey, setHeroAnimKey] = useState(0);
+  const [heroCrtClass, setHeroCrtClass] = useState('');
 
   // Load page settings from database FIRST
   const { data: pageSettings, isLoading: settingsLoading } = useQuery<Record<string, any>>({
@@ -662,6 +663,24 @@ export default function Home() {
           const multiSlide = heroSlides.length > 1;
           const isVideoSlide = (slide as any).bgType === 'video' && !!(slide as any).heroVideo;
           const showHero = settingsLoading ? !!window.__HERO__?.img : isSectionVisible("hero");
+
+          // CRT transition for video↔image type changes (mobile only)
+          const handleHeroNav = (nextIndex: number) => {
+            const curr = heroSlides[activeIndex];
+            const next = heroSlides[nextIndex];
+            const currIsVideo = curr?.bgType === 'video' && !!curr?.heroVideo;
+            const nextIsVideo = next?.bgType === 'video' && !!next?.heroVideo;
+            if (currIsVideo !== nextIsVideo) {
+              setHeroCrtClass('crt-collapse');
+              setTimeout(() => {
+                setHeroPrev(activeIndex); setHeroAnimKey(k => k + 1); setHeroSlideIndex(nextIndex);
+                setHeroCrtClass('crt-expand');
+                setTimeout(() => setHeroCrtClass(''), 320);
+              }, 220);
+            } else {
+              setHeroPrev(activeIndex); setHeroAnimKey(k => k + 1); setHeroSlideIndex(nextIndex);
+            }
+          };
           return showHero ? (
             <div key="section-hero">
         {/* ── Mobile TV (video slides only, hidden on desktop) ── */}
@@ -684,7 +703,7 @@ export default function Home() {
                 </div>
                 {/* screen */}
                 <div
-                  className="relative aspect-video overflow-hidden rounded-md bg-black"
+                  className={`relative aspect-video overflow-hidden rounded-md bg-black ${heroCrtClass}`}
                   style={{ boxShadow: 'inset 0 0 16px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,0,0,0.6)' }}
                   onTouchStart={() => setHeroPaused(true)}
                   onTouchEnd={() => setHeroPaused(false)}
@@ -710,10 +729,10 @@ export default function Home() {
                   {/* arrows */}
                   {multiSlide && (
                     <>
-                      <button type="button" aria-label="Предыдущий слайд" onClick={() => { setHeroPrev(activeIndex); setHeroAnimKey(k => k+1); setHeroSlideIndex((activeIndex - 1 + heroSlides.length) % heroSlides.length); }} className="absolute left-1 top-1/2 -translate-y-1/2 z-20 p-1.5 text-white/60 hover:text-white">
+                      <button type="button" aria-label="Предыдущий слайд" onClick={() => handleHeroNav((activeIndex - 1 + heroSlides.length) % heroSlides.length)} className="absolute left-1 top-1/2 -translate-y-1/2 z-20 p-1.5 text-white/60 hover:text-white">
                         <ChevronLeft className="w-4 h-4" />
                       </button>
-                      <button type="button" aria-label="Следующий слайд" onClick={() => { setHeroPrev(activeIndex); setHeroAnimKey(k => k+1); setHeroSlideIndex((activeIndex + 1) % heroSlides.length); }} className="absolute right-1 top-1/2 -translate-y-1/2 z-20 p-1.5 text-white/60 hover:text-white">
+                      <button type="button" aria-label="Следующий слайд" onClick={() => handleHeroNav((activeIndex + 1) % heroSlides.length)} className="absolute right-1 top-1/2 -translate-y-1/2 z-20 p-1.5 text-white/60 hover:text-white">
                         <ChevronRight className="w-4 h-4" />
                       </button>
                     </>
@@ -754,7 +773,7 @@ export default function Home() {
           <div className="absolute inset-y-0 left-0 w-20 sm:w-28 z-10 pointer-events-none" style={{ background: "linear-gradient(to right, rgba(0,0,0,0.32) 0%, transparent 100%)" }} />
           <div className="absolute inset-y-0 right-0 w-20 sm:w-28 z-10 pointer-events-none" style={{ background: "linear-gradient(to left, rgba(0,0,0,0.32) 0%, transparent 100%)" }} />
 
-          <div className="absolute inset-0 z-0 overflow-hidden">
+          <div className={`absolute inset-0 z-0 overflow-hidden ${heroCrtClass}`}>
             {heroSlides.map((s: any, i: number) => (
               <div
                 key={i === activeIndex ? `active-${heroAnimKey}` : i}
@@ -855,11 +874,7 @@ export default function Home() {
               <button
                 type="button"
                 aria-label="Предыдущий слайд"
-                onClick={() => {
-                  setHeroPrev(activeIndex);
-                  setHeroAnimKey(k => k + 1);
-                  setHeroSlideIndex((activeIndex - 1 + heroSlides.length) % heroSlides.length);
-                }}
+                onClick={() => handleHeroNav((activeIndex - 1 + heroSlides.length) % heroSlides.length)}
                 className="group absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-20 p-3 text-white/70 hover:text-white transition-all duration-300"
                 data-testid="button-hero-prev"
               >
@@ -868,11 +883,7 @@ export default function Home() {
               <button
                 type="button"
                 aria-label="Следующий слайд"
-                onClick={() => {
-                  setHeroPrev(activeIndex);
-                  setHeroAnimKey(k => k + 1);
-                  setHeroSlideIndex((activeIndex + 1) % heroSlides.length);
-                }}
+                onClick={() => handleHeroNav((activeIndex + 1) % heroSlides.length)}
                 className="group absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-20 p-3 text-white/70 hover:text-white transition-all duration-300"
                 data-testid="button-hero-next"
               >
