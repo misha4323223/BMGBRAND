@@ -1250,12 +1250,14 @@ export default function ProductDetail() {
                   </div>
                 </div>
                 {showPreorderPriceLabels && (
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-foreground uppercase tracking-wide self-center">Предпродажная</span>
-                    <span className="text-xl font-semibold text-foreground line-through leading-none">{retailPrice}</span>
-                    <span className="text-2xl font-bold leading-none text-red-600">
-                      {formatPrice(salePrice)}
-                    </span>
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-foreground uppercase tracking-wide self-center">Предпродажная</span>
+                      <span className="text-2xl font-bold leading-none text-red-600">
+                        {formatPrice(salePrice)}
+                      </span>
+                    </div>
+                    <span className="text-sm text-foreground/60">Цена после релиза {retailPrice}</span>
                   </div>
                 )}
                 {showWholesaleBelow && (
@@ -1286,7 +1288,6 @@ export default function ProductDetail() {
                   {showPreorderPriceLabels ? (
                     <>
                       <span className="text-sm font-semibold text-foreground uppercase tracking-wide self-center">Предпродажная</span>
-                      <span className="text-xl font-semibold text-foreground line-through leading-none">{retailPrice}</span>
                       <p className="text-2xl font-bold text-red-600">{formatPrice(salePrice)}</p>
                     </>
                   ) : hasDiscount ? (
