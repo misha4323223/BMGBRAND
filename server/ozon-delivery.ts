@@ -468,10 +468,22 @@ class OzonDeliveryService {
     // Телефон хранится в БД как "+79001234567" — плюс и скобки не проходят валидацию.
     const cleanPhone = params.customerPhone.replace(/\D/g, "");
 
+    // Ozon protobuf OrderCreateRequestV2.Buyer не имеет поля name — только first_name/last_name/middle_name.
+    // customerName хранится как "Фамилия Имя Отчество" (порядок из Checkout.tsx).
+    // Каждое поле валидируется Ozon: ^[\p{L}\p{Zs}\p{Pd}.]{1,50}$ — убираем лишние символы.
+    const sanitizeNamePart = (s: string): string =>
+      s.replace(/[^\p{L}\p{Zs}\p{Pd}.]/gu, "").trim().slice(0, 50) || "X";
+    const nameParts = params.customerName.trim().split(/\s+/);
+    const ozonLastName   = sanitizeNamePart(nameParts[0] ?? "");
+    const ozonFirstName  = sanitizeNamePart(nameParts[1] ?? nameParts[0] ?? "");
+    const ozonMiddleName = nameParts.length >= 3 ? sanitizeNamePart(nameParts[2]) : undefined;
+
     const body: Record<string, unknown> = {
       external_order_id: params.externalOrderId,
       buyer: {
-        name: params.customerName,
+        last_name: ozonLastName,
+        first_name: ozonFirstName,
+        ...(ozonMiddleName ? { middle_name: ozonMiddleName } : {}),
         phone: cleanPhone,
       },
       items: params.items.map(item => ({

@@ -750,6 +750,13 @@ function renderProduct(slug: string): string | null {
   const priceValidUntil = new Date(new Date().setFullYear(new Date().getFullYear() + 1))
     .toISOString().split("T")[0];
 
+  // Защита от "Invalid time value": некоторые товары имеют сломанное поле дат.
+  const safeISODate = (d: Date | null | undefined): string | undefined => {
+    if (!d) return undefined;
+    const ms = d instanceof Date ? d.getTime() : new Date(d as any).getTime();
+    return isNaN(ms) ? undefined : new Date(ms).toISOString().split("T")[0];
+  };
+
   const organizationSchema = buildOrganizationSchema();
   const rawImages: string[] = meta.images.length > 0 ? meta.images.slice(0, 6) : (meta.image ? [meta.image] : []);
   const productSchema: Record<string, any> = {
@@ -767,11 +774,11 @@ function renderProduct(slug: string): string | null {
     "url": `${SITE_URL}/${slug}`,
     "sku": meta.sku,
     "brand": { "@id": organizationSchema["@id"] },
-    ...(meta.createdAt ? { "datePublished": meta.createdAt.toISOString().split("T")[0] } : {}),
+    ...(safeISODate(meta.createdAt) ? { "datePublished": safeISODate(meta.createdAt) } : {}),
     // dateModified — сигнал свежести карточки для Google/Яндекса. Берём updatedAt,
     // если товар когда-либо редактировался в админке; иначе падаем на createdAt.
-    ...((meta.updatedAt || meta.createdAt)
-      ? { "dateModified": (meta.updatedAt || meta.createdAt)!.toISOString().split("T")[0] }
+    ...((safeISODate(meta.updatedAt) || safeISODate(meta.createdAt))
+      ? { "dateModified": safeISODate(meta.updatedAt) ?? safeISODate(meta.createdAt) }
       : {}),
     "offers": {
       "@type": "Offer",

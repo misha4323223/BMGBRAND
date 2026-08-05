@@ -11066,15 +11066,11 @@ ${artistLinks || "- (список формируется)"}
         return res.status(404).json({ error: "Заказ не найден" });
       }
 
-      // Verify the requester owns this order
-      const requestUserId = (req as any).user?.id;
-      const ownsViaSession = order.sessionId === (req as any).sessionID;
-      const ownsViaUser = requestUserId && order.userId === requestUserId;
-      if (!ownsViaSession && !ownsViaUser) {
-        return res.status(404).json({ error: "Заказ не найден" });
-      }
-
-      // If order already has a final status, return it
+      // If order already reached a final status, return it immediately — no ownership
+      // check needed. T-Bank redirects via securepay.tinkoff.ru cross-domain, which
+      // resets SameSite=Lax cookies so the session ID no longer matches. Order IDs are
+      // 13-digit timestamp-based values (not guessable); we only expose {status, paid,
+      // productIds} — no customer PII.
       if (order.status === "paid" || order.status === "cancelled") {
         let productIds: number[] = [];
         if (order.status === "paid") {
@@ -11089,6 +11085,19 @@ ${artistLinks || "- (список формируется)"}
           paid: order.status === "paid",
           productIds,
         });
+      }
+
+      // For pending orders verify ownership. Three accepted proofs:
+      //   1) session cookie matches (normal same-domain flow),
+      //   2) authenticated user ID matches,
+      //   3) order already has a paymentId in YDB — the client submitted payment and
+      //      may have lost its session on the T-Bank cross-domain redirect.
+      const requestUserId = (req as any).user?.id;
+      const ownsViaSession = order.sessionId === (req as any).sessionID;
+      const ownsViaUser = !!(requestUserId && order.userId === requestUserId);
+      const ownsViaPayment = !!(order.paymentId || orderPaymentIds.get(orderId));
+      if (!ownsViaSession && !ownsViaUser && !ownsViaPayment) {
+        return res.status(404).json({ error: "Заказ не найден" });
       }
 
       // Get paymentId from order (YDB) or fallback to in-memory
