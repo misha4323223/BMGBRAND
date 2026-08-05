@@ -1257,7 +1257,7 @@ export default function ProductDetail() {
                         {formatPrice(salePrice)}
                       </span>
                     </div>
-                    <span className="text-sm text-foreground/60">Цена после релиза {retailPrice}</span>
+                    <span className="text-base font-medium text-foreground">Цена после релиза {retailPrice}</span>
                   </div>
                 )}
                 {showWholesaleBelow && (
