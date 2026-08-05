@@ -9,7 +9,7 @@ Ozon Seller API uses protobuf under the hood. Validation errors like `invalid So
 **Known field mappings:**
 - `/v1/delivery/check` → `client_phone` (not `customer_phone`)
 - `/v2/order/create` → `buyer: { name, phone }` (NOT flat `customer_name`/`customer_phone` — `OrderCreateRequestV2.Buyer` is a required nested message)
-- `/v2/delivery/checkout` → поле `delivery_type` **не нужно** — ни строка `"TO_PVZ"`, ни число `2` не принимаются (proto syntax error). Тип доставки Ozon определяет сам по наличию `pvz_id`.
+- `/v2/delivery/checkout` → поле `delivery_type` **обязательно** (DeliveryCheckoutRequestV2.DeliveryType). Целое `2` и строка `"TO_PVZ"` → proto syntax error. Correct string must match full Go proto prefix, testing `"DELIVERY_TYPE_PVZ"` / `"DELIVERY_TYPE_DOOR"`.
 
 **Why:** Ozon HTTP gateway reflects protobuf message structure. Nested protobuf messages become nested JSON objects. If a required nested message is missing entirely, you get `value is required` not a field-level error.
 

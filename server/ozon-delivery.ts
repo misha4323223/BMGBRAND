@@ -521,8 +521,10 @@ class OzonDeliveryService {
     customerPhone: string;
   }): Promise<{ success: boolean; checkoutId?: string; error?: string; unavailableItems?: string[] }> {
     const cleanPhone = params.customerPhone.replace(/\D/g, "");
+    // delivery_type — обязательный enum DeliveryType (proto3 string, с префиксом DELIVERY_TYPE_)
     const body: Record<string, unknown> = {
       customer_phone: cleanPhone,
+      delivery_type: params.pvzId ? "DELIVERY_TYPE_PVZ" : "DELIVERY_TYPE_DOOR",
       items: params.items.map(i => ({
         offer_id: i.offerId,
         quantity: i.quantity,
