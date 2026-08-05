@@ -668,7 +668,7 @@ export default function Home() {
         {isVideoSlide && pageSettings?.hero?.showOnMobile !== false && (
           <div className="sm:hidden bg-black">
             {/* navbar spacer */}
-            <div style={{ height: '80px' }} />
+            <div style={{ height: '96px' }} />
             <div className="px-3">
               {/* TV body */}
               <div className="bg-[#1e1e1e] rounded-2xl border border-zinc-700/60 p-[7px]" style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.95), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
