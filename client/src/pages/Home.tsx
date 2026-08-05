@@ -688,10 +688,13 @@ export default function Home() {
               >
                 {s.bgType === "video" && s.heroVideo ? (
                   <>
-                    {/* Desktop: centred framed video */}
+                    {/* Desktop: full-height framed video */}
                     <div className="hidden sm:flex absolute inset-0 items-center justify-center">
-                      <div className="w-[58%] max-w-[900px] rounded-2xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.65)] ring-1 ring-white/20 border border-white/10">
-                        <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="w-full aspect-video object-cover block" />
+                      <div
+                        className="rounded-2xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.65)] ring-1 ring-white/20 border border-white/10"
+                        style={{ height: 'calc(100% - 1rem)', aspectRatio: '16/9', maxWidth: 'calc(100% - 1rem)' }}
+                      >
+                        <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="w-full h-full object-cover block" />
                       </div>
                     </div>
                     {/* Mobile: contained, no side overflow */}
@@ -731,10 +734,13 @@ export default function Home() {
               <div className="absolute inset-0" style={{ opacity: parseFloat(pageSettings?.hero?.heroOpacity) || 0.6 }}>
                 {pageSettings?.hero?.bgType === "video" && pageSettings?.hero?.heroVideo ? (
                   <>
-                    {/* Desktop: centred framed video */}
+                    {/* Desktop: full-height framed video */}
                     <div className="hidden sm:flex absolute inset-0 items-center justify-center">
-                      <div className="w-[58%] max-w-[900px] rounded-2xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.65)] ring-1 ring-white/20 border border-white/10">
-                        <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="w-full aspect-video object-cover block" />
+                      <div
+                        className="rounded-2xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.65)] ring-1 ring-white/20 border border-white/10"
+                        style={{ height: 'calc(100% - 1rem)', aspectRatio: '16/9', maxWidth: 'calc(100% - 1rem)' }}
+                      >
+                        <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="w-full h-full object-cover block" />
                       </div>
                     </div>
                     {/* Mobile: contained, no side overflow */}
