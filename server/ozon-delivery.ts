@@ -523,6 +523,7 @@ class OzonDeliveryService {
     const cleanPhone = params.customerPhone.replace(/\D/g, "");
     const body: Record<string, unknown> = {
       customer_phone: cleanPhone,
+      delivery_type: params.pvzId ? "TO_PVZ" : "TO_DOOR",
       items: params.items.map(i => ({
         offer_id: i.offerId,
         quantity: i.quantity,
