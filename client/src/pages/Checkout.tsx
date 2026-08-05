@@ -690,6 +690,10 @@ export default function Checkout() {
         subcategory: (item.product as any).subcategory || '',
         price: item.product.price,
         quantity: item.quantity,
+        size: item.size || null,
+        salePrice: (item.product as any).salePrice ?? null,
+        discountPercent: (item.product as any).discountPercent ?? 0,
+        sizeDiscounts: (item.product as any).sizeDiscounts ?? null,
       })) || [];
       const res = await apiRequest("POST", "/api/promo-codes/validate", { 
         code, 

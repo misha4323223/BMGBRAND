@@ -10572,8 +10572,7 @@ ${artistLinks || "- (список формируется)"}
             console.warn(`[Order] Promo ${promoCode} blocked — already used by ${input.customerEmail}`);
             appliedPromo = null;
           } else if (appliedPromo) {
-            // Determine eligible subtotal (may be restricted to specific categories)
-            let eligibleSubtotal = orderSubtotal;
+            // Determine eligible subtotal: items matching category (if restricted) AND without a product-level discount
             let promoApplicableCategories: string[] | null = null;
             if (appliedPromo.applicableCategories) {
               try {
@@ -10582,24 +10581,33 @@ ${artistLinks || "- (список формируется)"}
                   : appliedPromo.applicableCategories;
               } catch { promoApplicableCategories = null; }
             }
-            if (promoApplicableCategories && promoApplicableCategories.length > 0) {
-              const cats = promoApplicableCategories.map((c: string) => c.toLowerCase().trim());
-              eligibleSubtotal = orderItems.reduce((sum, item, idx) => {
-                const product = cartItems[idx]?.product;
+            const promoCats = promoApplicableCategories ? promoApplicableCategories.map((c: string) => c.toLowerCase().trim()) : null;
+            let eligibleSubtotal = orderItems.reduce((sum, item, idx) => {
+              const product = cartItems[idx]?.product;
+              // Category filter (only if promo is restricted to specific categories)
+              if (promoCats && promoCats.length > 0) {
                 const cat = (product?.category || '').toLowerCase().trim();
                 const sub = (product?.subcategory || '').toLowerCase().trim();
                 const addlCats = (product?.additionalCategories || []) as Array<{category: string, subcategory: string}>;
                 const addlMatch = addlCats.some((ac: any) =>
-                  cats.includes((ac.category || '').toLowerCase().trim()) ||
-                  cats.includes((ac.subcategory || '').toLowerCase().trim())
+                  promoCats.includes((ac.category || '').toLowerCase().trim()) ||
+                  promoCats.includes((ac.subcategory || '').toLowerCase().trim())
                 );
-                if (cats.includes(cat) || cats.includes(sub) || addlMatch) {
-                  return sum + (item.price * item.quantity);
-                }
-                return sum;
-              }, 0);
+                if (!promoCats.includes(cat) && !promoCats.includes(sub) && !addlMatch) return sum;
+              }
+              // Exclude items that already have a product-level discount (promo does not stack with sale prices)
+              const itemSalePrice = (product as any)?.salePrice;
+              const hasProductDiscount =
+                (itemSalePrice && itemSalePrice > 0 && itemSalePrice < (product?.price || 0)) ||
+                ((product as any)?.discountPercent > 0) ||
+                ((product as any)?.sizeDiscounts?.[item.size] > 0);
+              if (hasProductDiscount) return sum;
+              return sum + (item.price * item.quantity);
+            }, 0);
+            if (promoApplicableCategories && promoApplicableCategories.length > 0) {
               console.log(`[Order] Promo ${promoCode} restricted to categories [${promoApplicableCategories.join(', ')}]: eligibleSubtotal=${eligibleSubtotal/100} RUB`);
             }
+            console.log(`[Order] Promo ${promoCode}: eligibleSubtotal after excluding sale items=${eligibleSubtotal/100} RUB`);
             if (appliedPromo.discountPercent) {
               promoDiscount = Math.round(eligibleSubtotal * (appliedPromo.discountPercent / 100));
             } else if (appliedPromo.discountAmount) {
@@ -12364,26 +12372,36 @@ ${artistLinks || "- (список формируется)"}
         } catch { applicableCategories = null; }
       }
 
-      // Compute eligible amount (sum of cart items matching categories)
+      // Compute eligible amount: items matching category (if restricted) AND without a product-level discount
+      const promoCatsValidation = applicableCategories ? applicableCategories.map((c: string) => c.toLowerCase().trim()) : null;
       let eligibleAmount: number | null = null;
-      if (applicableCategories && applicableCategories.length > 0 && Array.isArray(cartItems)) {
-        const cats = applicableCategories.map((c: string) => c.toLowerCase().trim());
+      if (Array.isArray(cartItems) && cartItems.length > 0) {
         eligibleAmount = cartItems.reduce((sum: number, item: any) => {
-          const cat = (item.category || '').toLowerCase().trim();
-          const sub = (item.subcategory || '').toLowerCase().trim();
-          const addlCats = (item.additionalCategories || []) as Array<{category: string, subcategory: string}>;
-          const addlMatch = addlCats.some((ac: any) =>
-            cats.includes((ac.category || '').toLowerCase().trim()) ||
-            cats.includes((ac.subcategory || '').toLowerCase().trim())
-          );
-          if (cats.includes(cat) || cats.includes(sub) || addlMatch) {
-            return sum + (item.price * item.quantity);
+          // Category filter (only if promo is restricted to specific categories)
+          if (promoCatsValidation && promoCatsValidation.length > 0) {
+            const cat = (item.category || '').toLowerCase().trim();
+            const sub = (item.subcategory || '').toLowerCase().trim();
+            const addlCats = (item.additionalCategories || []) as Array<{category: string, subcategory: string}>;
+            const addlMatch = addlCats.some((ac: any) =>
+              promoCatsValidation.includes((ac.category || '').toLowerCase().trim()) ||
+              promoCatsValidation.includes((ac.subcategory || '').toLowerCase().trim())
+            );
+            if (!promoCatsValidation.includes(cat) && !promoCatsValidation.includes(sub) && !addlMatch) return sum;
           }
-          return sum;
+          // Exclude items with a product-level discount (promo does not stack with sale prices)
+          const hasProductDiscount =
+            (item.salePrice && item.salePrice > 0 && item.salePrice < item.price) ||
+            (item.discountPercent > 0) ||
+            (item.sizeDiscounts && item.size && item.sizeDiscounts[item.size] > 0);
+          if (hasProductDiscount) return sum;
+          return sum + (item.price * item.quantity);
         }, 0);
         if (eligibleAmount === 0) {
-          const catNames = applicableCategories.join(', ');
-          return res.json({ valid: false, message: `Промокод действует только на: ${catNames}` });
+          if (promoCatsValidation && promoCatsValidation.length > 0) {
+            const catNames = applicableCategories!.join(', ');
+            return res.json({ valid: false, message: `Промокод действует только на: ${catNames}` });
+          }
+          return res.json({ valid: false, message: 'Промокод не применяется к товарам со скидкой' });
         }
       }
       
