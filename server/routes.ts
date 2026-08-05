@@ -1119,17 +1119,22 @@ export async function registerRoutes(
   app.get('/products/:catSlug/:subSlug/:subSubSlug/', (_req, res, next) => next());
 
   // /products/:catSlug/:subSlug → 301 redirect to /:subSlug (flat subcategory URL)
+  // Also translates Cyrillic slugs to English canonical in one hop (tolstovki → hoodies, etc.)
+  const SUBCATEGORY_CYRILLIC_MAP: Record<string, string> = {
+    tolstovki: "hoodies", svitshoty: "sweatshirts", svitera: "sweaters",
+    futbolki: "t-shirts", shorty: "shorts", shapki: "hats", sumki: "bags",
+  };
   app.get('/products/:catSlug/:subSlug', (req, res, next) => {
     const { subSlug } = req.params;
     if (subSlug && /^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subSlug)) {
-      return res.redirect(301, `/${subSlug}`);
+      return res.redirect(301, `/${SUBCATEGORY_CYRILLIC_MAP[subSlug] || subSlug}`);
     }
     next();
   });
   app.get('/products/:catSlug/:subSlug/', (req, res, next) => {
     const { subSlug } = req.params;
     if (subSlug && /^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subSlug)) {
-      return res.redirect(301, `/${subSlug}`);
+      return res.redirect(301, `/${SUBCATEGORY_CYRILLIC_MAP[subSlug] || subSlug}`);
     }
     next();
   });

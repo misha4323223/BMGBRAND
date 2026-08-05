@@ -2322,14 +2322,16 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
       if (slugMatch) {
         const slug = slugMatch[1];
         html = renderProduct(slug);
-        // If not a product, check if it's a subcategory slug (e.g. /tolstovki, /dikaya-myata)
+        // Transliterated Cyrillic slug → immediate 301 to English canonical.
+        // Do this BEFORE renderSubcategory: YDB uses English slugs ("hoodies"),
+        // so renderSubcategory("tolstovki") would return null and the redirect would never fire.
+        if (!html && CYRILLIC_TO_CANONICAL[slug]) {
+          res.redirect(301, `/${CYRILLIC_TO_CANONICAL[slug]}`);
+          return;
+        }
+        // If not a product, check if it's a subcategory slug (e.g. /dikaya-myata, /hoodies)
         if (!html) {
           html = renderSubcategory(slug);
-          // Transliterated Cyrillic slug has an English canonical → 301 so only English URL is indexed
-          if (html && CYRILLIC_TO_CANONICAL[slug]) {
-            res.redirect(301, `/${CYRILLIC_TO_CANONICAL[slug]}`);
-            return;
-          }
         }
         // If still no match, try legacy English slugs (e.g. /sweaters → YDB slug "svitera").
         // Canonical is set to the legacy slug so Яндекс indexes /sweaters, not /svitera.
