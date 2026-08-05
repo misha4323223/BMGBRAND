@@ -664,7 +664,7 @@ export default function Home() {
           return showHero ? (
             <div key="section-hero">
         <section
-          className={`relative ${(slide as any).bgType === 'video' && (slide as any).heroVideo ? 'aspect-video' : 'h-svh'} sm:h-auto sm:aspect-[2560/1740] w-full flex flex-col items-center justify-center overflow-hidden bg-black sm:-mt-40 ${pageSettings?.hero?.showOnMobile === false ? 'hidden sm:flex' : ''} ${pageSettings?.hero?.showOnDesktop === false ? 'flex sm:hidden' : ''}`}
+          className={`relative ${(slide as any).bgType === 'video' && (slide as any).heroVideo ? 'aspect-video mt-14' : 'h-svh'} sm:h-auto sm:aspect-[2560/1740] w-full flex flex-col items-center justify-center overflow-hidden bg-black sm:-mt-40 ${pageSettings?.hero?.showOnMobile === false ? 'hidden sm:flex' : ''} ${pageSettings?.hero?.showOnDesktop === false ? 'flex sm:hidden' : ''}`}
           onTouchStart={() => setHeroPaused(true)}
           onTouchEnd={() => setHeroPaused(false)}
           onTouchCancel={() => setHeroPaused(false)}
