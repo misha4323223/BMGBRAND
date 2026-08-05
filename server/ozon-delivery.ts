@@ -523,7 +523,8 @@ class OzonDeliveryService {
     const cleanPhone = params.customerPhone.replace(/\D/g, "");
     const body: Record<string, unknown> = {
       customer_phone: cleanPhone,
-      delivery_type: params.pvzId ? "TO_PVZ" : "TO_DOOR",
+      // Ozon Logistics protobuf enum DeliveryType: 1=TO_DOOR, 2=TO_PVZ
+      delivery_type: params.pvzId ? 2 : 1,
       items: params.items.map(i => ({
         offer_id: i.offerId,
         quantity: i.quantity,
