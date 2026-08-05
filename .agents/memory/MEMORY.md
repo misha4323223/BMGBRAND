@@ -1,3 +1,4 @@
+- [T-Bank TLS fix](tbank-tls.md) — T-Bank использует российский УЦ Минцифры, которому Node.js не доверяет; fix: undici Agent rejectUnauthorized:false только для securepay.tinkoff.ru
 - [SEO redirects status](seo-redirects-status.md) — Cyrillic/legacy redirects: bot-ssr ✅, static.ts ✅ (prod only); нерешено: /products/:cat/tolstovki → 2-хопа вместо 1 (routes.ts фикс написан но не работает)
 - [Bot SSR duplicate Product JSON-LD](bot-ssr-duplicate-jsonld.md) — 12 products had bad seoJsonLd with placeholders causing 2 conflicting Product schemas; fixed in DB + code; flush endpoint added
 - [Artist subcategory sync](artist-subcategory-sync.md) — artist pages and merch subcategories are separate; startup sync + save hook needed; subcategories stored as {name,slug} objects not strings

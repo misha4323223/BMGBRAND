@@ -1,5 +1,10 @@
 import YooKassa from "yookassa";
 import crypto from "crypto";
+import { Agent } from "undici";
+
+// T-Bank использует российский национальный УЦ (Минцифры), которому
+// Node.js не доверяет по умолчанию — отключаем проверку только для T-Bank.
+const tbankTlsAgent = new Agent({ connect: { rejectUnauthorized: false } });
 
 function uuidv4(): string {
   return crypto.randomUUID();
@@ -265,6 +270,8 @@ class PaymentService {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestParams),
+        // @ts-ignore — undici dispatcher, встроен в Node.js 20
+        dispatcher: tbankTlsAgent,
       });
 
       const data = await response.json();
@@ -280,7 +287,9 @@ class PaymentService {
 
       return { success: false, error: data.Message || data.Details || "T-Bank payment error" };
     } catch (err: any) {
-      console.error("[T-Bank] Payment error:", err.message);
+      const cause = (err as any)?.cause;
+      console.error("[T-Bank] Payment error:", err.message,
+        cause ? `| cause: ${cause.message} (code=${cause.code})` : "");
       return { success: false, error: err.message };
     }
   }
@@ -312,6 +321,8 @@ class PaymentService {
             TerminalKey: this.tbankConfig.terminalKey,
             PaymentId: paymentId,
           }),
+          // @ts-ignore — undici dispatcher
+          dispatcher: tbankTlsAgent,
         });
 
         const data = await response.json();
