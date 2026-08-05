@@ -3578,6 +3578,15 @@ ${artistLinks || "- (список формируется)"}
                     } else {
                       console.error(`[YooKassa Webhook] Ozon Delivery order creation failed for order ${numericId}:`, result.error);
                       notifyError('Ozon Доставка', `Заказ #${numericId} — не удалось создать доставку Ozon`, result.error || "");
+                      // Сохраняем факт ошибки в YDB — иначе при сбое Ozon API заказ теряется навсегда.
+                      // Менеджер может потом повторить через Admin → /api/admin/ozon-delivery/retry-order.
+                      const _ykFailExisting = (() => { try { return JSON.parse(order.addonData || '{}'); } catch { return {}; } })();
+                      storage.updateOrderAddonData(numericId, JSON.stringify({
+                        ..._ykFailExisting,
+                        ozonCreateFailed: true,
+                        ozonCreateError: result.error || "unknown",
+                        ozonCreateFailedAt: new Date().toISOString(),
+                      })).catch(e => console.error(`[YooKassa Webhook] Failed to save ozonCreateFailed for order ${numericId}:`, e?.message));
                     }
                   }).catch(err => console.error(`[YooKassa Webhook] Ozon Delivery error for order ${numericId}:`, err.message));
                 }
@@ -4077,6 +4086,15 @@ ${artistLinks || "- (список формируется)"}
                     } else {
                       console.error(`[T-Bank Webhook] Ozon Delivery order creation failed for order ${numericId}:`, result.error);
                       notifyError('Ozon Доставка', `Заказ #${numericId} — не удалось создать доставку Ozon`, result.error || "");
+                      // Сохраняем факт ошибки в YDB — иначе при сбое Ozon API заказ теряется навсегда.
+                      // Менеджер может потом повторить через Admin → /api/admin/ozon-delivery/retry-order.
+                      const _tbFailExisting = (() => { try { return JSON.parse(order.addonData || '{}'); } catch { return {}; } })();
+                      storage.updateOrderAddonData(numericId, JSON.stringify({
+                        ..._tbFailExisting,
+                        ozonCreateFailed: true,
+                        ozonCreateError: result.error || "unknown",
+                        ozonCreateFailedAt: new Date().toISOString(),
+                      })).catch(e => console.error(`[T-Bank Webhook] Failed to save ozonCreateFailed for order ${numericId}:`, e?.message));
                     }
                   }).catch(err => console.error(`[T-Bank Webhook] Ozon Delivery error for order ${numericId}:`, err.message));
                 }
@@ -4219,6 +4237,65 @@ ${artistLinks || "- (список формируется)"}
     if (!ozonOrderId) return res.status(400).json({ error: "ozonOrderId required" });
     const result = await ozonDeliveryService.getOrder(ozonOrderId);
     res.json(result);
+  });
+
+  // POST /api/admin/ozon-delivery/retry-order — повторная отправка заказа в Ozon после сбоя API.
+  // Читает данные заказа из YDB и вызывает createOrder заново.
+  // Используется менеджером когда в addonData.ozonCreateFailed === true.
+  app.post("/api/admin/ozon-delivery/retry-order", authMiddleware, requireAdminRole, async (req, res) => {
+    const { orderId } = req.body as { orderId: number | string };
+    if (!orderId) return res.status(400).json({ error: "orderId required" });
+    const numId = Number(orderId);
+    if (isNaN(numId)) return res.status(400).json({ error: "orderId must be a number" });
+
+    const order = await storage.getOrder(numId);
+    if (!order) return res.status(404).json({ error: "Заказ не найден" });
+    if (order.deliveryService !== "ozon") return res.status(400).json({ error: "Заказ не использует Ozon доставку" });
+    if (!ozonDeliveryService.isEnabled()) return res.status(503).json({ error: "Ozon Delivery не включён или не авторизован" });
+
+    const existingAddon = (() => { try { return JSON.parse(order.addonData || '{}'); } catch { return {}; } })();
+    if (existingAddon.ozonOrderId) {
+      return res.status(400).json({ error: "У заказа уже есть ozonOrderId — повтор не нужен", ozonOrderId: existingAddon.ozonOrderId });
+    }
+
+    const items = (() => { try { return JSON.parse(order.items as string || '[]'); } catch { return []; } })();
+    let pvzId: string | undefined;
+    try { pvzId = order.cdekData ? JSON.parse(order.cdekData as string)?.ozonPvzId || undefined : undefined; } catch {}
+
+    const result = await ozonDeliveryService.createOrder({
+      externalOrderId: String(order.id),
+      customerPhone: order.customerPhone || "",
+      customerName: order.customerName || "",
+      amount: order.total,
+      pvzId,
+      items: (Array.isArray(items) ? items : []).map((item: any) => ({
+        offerId: item.article || item.sku || String(item.productId),
+        quantity: item.quantity || 1,
+        price: item.price || 0,
+        name: item.productName || item.name || "",
+      })),
+    });
+
+    if (result.success && result.ozonOrderId) {
+      await storage.updateOrderAddonData(numId, JSON.stringify({
+        ...existingAddon,
+        ozonOrderId: result.ozonOrderId,
+        ozonCreateFailed: false,
+        ozonRetrySuccessAt: new Date().toISOString(),
+      })).catch(e => console.error(`[OzonRetry] Failed to save ozonOrderId for order ${numId}:`, e?.message));
+      console.log(`[OzonRetry] Admin retry succeeded: ozonOrderId=${result.ozonOrderId} for order ${numId}`);
+      return res.json({ success: true, ozonOrderId: result.ozonOrderId });
+    } else {
+      await storage.updateOrderAddonData(numId, JSON.stringify({
+        ...existingAddon,
+        ozonCreateFailed: true,
+        ozonCreateError: result.error || "unknown",
+        ozonCreateFailedAt: new Date().toISOString(),
+        ozonRetryAttemptAt: new Date().toISOString(),
+      })).catch(e => console.error(`[OzonRetry] Failed to save retry error for order ${numId}:`, e?.message));
+      console.error(`[OzonRetry] Admin retry failed for order ${numId}:`, result.error);
+      return res.status(502).json({ success: false, error: result.error });
+    }
   });
 
   // ==================== Ozon Delivery OAuth ====================

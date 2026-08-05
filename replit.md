@@ -983,3 +983,37 @@ server: {
 - **Bug 2** — `lastTriggerRef.current = null` после `fetch`: проактивный триггер (`exit_intent` и др.) больше не наследуется последующими сообщениями
 - **Bug 3** — `cartRemovedProductRef.current = null` после `fetch`: `cart_remove` контекст не «залипает» при переходе на карточку товара
 - **Bug 4** — `.filter(m => !m.id.startsWith('ctx-'))` перед `.map()` в `messages`: UI-маркеры смены товара не уходят на сервер как `role: "assistant"`
+
+---
+
+### Три продакшн-фикса (5 августа 2026, ~15:40 МСК)
+
+#### Баг #1 — `/api/orders/:orderId/status` возвращал 404 после редиректа T-Bank (`server/routes.ts`)
+
+**Симптом:** покупатель оплачивал заказ через T-Bank, возвращался на `/order-success/...` и видел «Заказ не найден». Платёж реально прошёл (webhook подтверждал оплату, письмо и Telegram-уведомление отправлялись).
+
+**Причина:** редирект `securepay.tinkoff.ru → booomerangs.ru` кросс-доменный. Браузер сбрасывает `SameSite=Lax` cookie-сессию, поэтому `order.sessionId !== req.sessionID`. Эндпоинт маскировал провал проверки владения как 404.
+
+**Исправление (два уровня):**
+1. Если заказ уже `paid`/`cancelled` — возвращаем статус немедленно, без проверки сессии. Webhook обрабатывает платёж за секунды, так что к моменту первого полинга с `/order-success` статус уже стоит. Order ID — 13-значный timestamp, не перебираемый.
+2. Для заказов в статусе `awaiting_payment` добавлена третья форма подтверждения (`ownsViaPayment`): если в YDB есть `order.paymentId` — платёж был инициирован, сессия не обязательна. Безопасно: только `{status, paid, productIds}`, никакого PII.
+
+---
+
+#### Баг #2 — Ozon `/v2/order/create` отклонял покупателя (`server/ozon-delivery.ts`)
+
+**Симптом:** создание заказа в Ozon Delivery падало с ошибкой валидации protobuf-поля `first_name`.
+
+**Причина:** код передавал `buyer: { name: "Соболев Дмитрий Анатольевич", phone: "..." }`. Protobuf-схема `OrderCreateRequestV2.Buyer` не имеет поля `name` — только `first_name`, `last_name`, `middle_name`. Ozon игнорировал неизвестное поле; `first_name` получался пустой строкой, не проходя regex `^[\p{L}\p{Zs}\p{Pd}.]{1,50}$`.
+
+**Исправление:** `customerName` (формат «Фамилия Имя Отчество» из Checkout.tsx) теперь разбивается по пробелам. Каждая часть санируется хелпером `sanitizeNamePart()` — убирает символы вне разрешённого regex, обрезает до 50 символов, fallback `"X"` при пустой строке. `middle_name` добавляется только если есть третья часть имени.
+
+---
+
+#### Баг #3 — Bot SSR крашился с `Invalid time value` (`server/bot-ssr.ts`)
+
+**Симптом:** `[BotSSR] Error rendering for bot: /noski-...-34-39 Invalid time value` — бот-SSR бросал исключение при рендере JSON-LD Product-схемы для ряда товаров.
+
+**Причина:** `.toISOString()` вызывался на `meta.createdAt`/`meta.updatedAt` напрямую без проверки валидности. Некоторые товары имеют сломанное поле даты в YDB (значение не парсится в корректную дату).
+
+**Исправление:** добавлен хелпер `safeISODate(d)` с проверкой `isNaN(getTime())`. `datePublished` и `dateModified` в JSON-LD теперь пропускаются, если дата невалидна, вместо исключения.
