@@ -687,7 +687,18 @@ export default function Home() {
                 }}
               >
                 {s.bgType === "video" && s.heroVideo ? (
-                  <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="absolute inset-0 w-full h-full object-cover" />
+                  <>
+                    {/* Desktop: centred framed video */}
+                    <div className="hidden sm:flex absolute inset-0 items-center justify-center">
+                      <div className="w-[58%] max-w-[900px] rounded-2xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.65)] ring-1 ring-white/20 border border-white/10">
+                        <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="w-full aspect-video object-cover block" />
+                      </div>
+                    </div>
+                    {/* Mobile: contained, no side overflow */}
+                    <div className="sm:hidden absolute inset-0 flex items-center justify-center overflow-hidden">
+                      <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="w-full h-full object-contain block" />
+                    </div>
+                  </>
                 ) : (
                   <picture className="absolute inset-0 block">
                     {s.heroImageMobile && <source media="(max-width: 639px)" srcSet={s.heroImageMobile} />}
@@ -719,7 +730,18 @@ export default function Home() {
             {heroSlides.length === 0 && pageSettings && (
               <div className="absolute inset-0" style={{ opacity: parseFloat(pageSettings?.hero?.heroOpacity) || 0.6 }}>
                 {pageSettings?.hero?.bgType === "video" && pageSettings?.hero?.heroVideo ? (
-                  <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+                  <>
+                    {/* Desktop: centred framed video */}
+                    <div className="hidden sm:flex absolute inset-0 items-center justify-center">
+                      <div className="w-[58%] max-w-[900px] rounded-2xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.65)] ring-1 ring-white/20 border border-white/10">
+                        <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="w-full aspect-video object-cover block" />
+                      </div>
+                    </div>
+                    {/* Mobile: contained, no side overflow */}
+                    <div className="sm:hidden absolute inset-0 flex items-center justify-center overflow-hidden">
+                      <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="w-full h-full object-contain block" />
+                    </div>
+                  </>
                 ) : (
                   <picture className="absolute inset-0 block">
                     {pageSettings?.hero?.heroImageMobile && <source media="(max-width: 639px)" srcSet={pageSettings.hero.heroImageMobile} />}
