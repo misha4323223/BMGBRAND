@@ -463,11 +463,16 @@ class OzonDeliveryService {
   async createOrder(params: OzonCreateOrderParams): Promise<OzonCreateOrderResult> {
     // Ozon API v2 требует вложенный объект buyer (protobuf OrderCreateRequestV2.Buyer).
     // Плоские customer_name/customer_phone на верхнем уровне не принимаются — поле buyer обязательно.
+
+    // Ozon требует телефон ТОЛЬКО из цифр, паттерн: ^\d{10,15}$
+    // Телефон хранится в БД как "+79001234567" — плюс и скобки не проходят валидацию.
+    const cleanPhone = params.customerPhone.replace(/\D/g, "");
+
     const body: Record<string, unknown> = {
       external_order_id: params.externalOrderId,
       buyer: {
         name: params.customerName,
-        phone: params.customerPhone,
+        phone: cleanPhone,
       },
       items: params.items.map(item => ({
         offer_id: item.offerId,
@@ -477,12 +482,14 @@ class OzonDeliveryService {
       })),
     };
     if (params.pvzId) {
-      body.pvz_id = params.pvzId;
+      // map_point_id в Ozon — целочисленный (int64); передаём число, не строку.
+      const pvzIdNum = parseInt(params.pvzId, 10);
+      body.pvz_id = isNaN(pvzIdNum) ? params.pvzId : pvzIdNum;
     }
 
     console.log(
       `[OzonDelivery] createOrder: external_id=${params.externalOrderId}`,
-      `phone=${params.customerPhone}`,
+      `phone_raw=${params.customerPhone} → phone_clean=${cleanPhone}`,
       `pvz_id=${params.pvzId ?? "не указан"}`,
       `items=${params.items.length}`,
       `amount=${(params.amount / 100).toFixed(0)}₽`,
@@ -540,10 +547,11 @@ class OzonDeliveryService {
 
   /**
    * Отменяет заказ Ozon Delivery.
-   * Endpoint: POST /v1/delivery/order/cancel
+   * Endpoint: POST /v1/order/cancel
+   * Docs: https://docs.ozon.ru/api/seller/ → v1/order/cancel
    */
   async cancelOrder(ozonOrderId: string): Promise<{ success: boolean; error?: string }> {
-    const result = await this.request<any>("/v1/delivery/order/cancel", { order_id: ozonOrderId });
+    const result = await this.request<any>("/v1/order/cancel", { order_id: ozonOrderId });
     if (!result.success) {
       console.error(`[OzonDelivery] cancelOrder ${ozonOrderId} failed:`, result.error);
       return { success: false, error: result.error };
@@ -554,7 +562,8 @@ class OzonDeliveryService {
 
   /**
    * Получает статус заказа и трекинг-ссылку.
-   * Endpoint: POST /v1/delivery/order/get
+   * Endpoint: POST /v1/order/get
+   * Docs: https://docs.ozon.ru/api/seller/ → v1/order/get
    */
   async getOrder(ozonOrderId: string): Promise<{
     success: boolean;
@@ -562,7 +571,7 @@ class OzonDeliveryService {
     trackingUrl?: string;
     error?: string;
   }> {
-    const result = await this.request<any>("/v1/delivery/order/get", { order_id: ozonOrderId });
+    const result = await this.request<any>("/v1/order/get", { order_id: ozonOrderId });
     if (!result.success) {
       return { success: false, error: result.error };
     }
