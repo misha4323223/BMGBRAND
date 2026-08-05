@@ -1179,7 +1179,7 @@ export async function sendPriceDropEmail(
 
 export function getPreorderNotificationEmailHtml(productName: string, productImage?: string, productUrl?: string): string {
   const siteUrl = 'https://www.booomerangs.ru';
-  const preorderUrl = productUrl ? `${siteUrl}${productUrl}` : `${siteUrl}/predrop`;
+  const preorderUrl = productUrl ? `${siteUrl}${productUrl}` : `${siteUrl}/concept`;
   return `<!DOCTYPE html>
 <html>
 <head>
