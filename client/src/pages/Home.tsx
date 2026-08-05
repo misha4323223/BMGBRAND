@@ -670,11 +670,6 @@ export default function Home() {
             {/* navbar spacer */}
             <div style={{ height: '80px' }} />
             <div className="px-3">
-              {/* antennas */}
-              <div className="flex justify-center gap-8 mb-[1px]">
-                <div className="w-[3px] h-6 bg-zinc-600 rounded-full" style={{ transform: 'rotate(-14deg)', transformOrigin: 'bottom center' }} />
-                <div className="w-[3px] h-6 bg-zinc-600 rounded-full" style={{ transform: 'rotate(14deg)', transformOrigin: 'bottom center' }} />
-              </div>
               {/* TV body */}
               <div className="bg-[#1e1e1e] rounded-2xl border border-zinc-700/60 p-[7px]" style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.95), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
                 {/* top bar */}
