@@ -9,6 +9,7 @@ Ozon Seller API uses protobuf under the hood. Validation errors like `invalid So
 **Known field mappings:**
 - `/v1/delivery/check` → `client_phone` (not `customer_phone`)
 - `/v2/order/create` → `buyer: { name, phone }` (NOT flat `customer_name`/`customer_phone` — `OrderCreateRequestV2.Buyer` is a required nested message)
+- `/v2/delivery/checkout` → `delivery_type` must be a **string** enum name (`"TO_PVZ"` or `"TO_DOOR"`), NOT an integer (1 or 2) — sending a number causes `proto: syntax error … unexpected token 2`
 
 **Why:** Ozon HTTP gateway reflects protobuf message structure. Nested protobuf messages become nested JSON objects. If a required nested message is missing entirely, you get `value is required` not a field-level error.
 
