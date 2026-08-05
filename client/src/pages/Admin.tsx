@@ -689,7 +689,7 @@ function ConceptPageEditor({ apiKey }: { apiKey: string }) {
   const [initialized, setInitialized] = useState(false);
 
   // ── Hero slides ──────────────────────────────────────────────────────────
-  const EMPTY_SLIDE = { heroImage: "", heroImageMobile: "", heroImageAlt: "", bgType: "image", heroVideo: "", tagline1: "", tagline2: "", buttonText: "", buttonLink: "" };
+  const EMPTY_SLIDE = { heroImage: "", heroImageMobile: "", heroImageAlt: "", bgType: "image", heroVideo: "", tagline1: "", tagline2: "", buttonText: "", buttonLink: "", duration: 7 };
   const [heroSlideIndex, setHeroSlideIndex] = useState(0);
   const [heroSlides, setHeroSlides] = useState<any[]>([{ ...EMPTY_SLIDE }, { ...EMPTY_SLIDE }, { ...EMPTY_SLIDE }]);
 
@@ -852,6 +852,11 @@ function ConceptPageEditor({ apiKey }: { apiKey: string }) {
                 <div>
                   <Label className="text-sm">Ссылка кнопки</Label>
                   <Input value={currentSlide.buttonLink || ""} onChange={e => updateSlide({ buttonLink: e.target.value })} placeholder="/concept или /products" />
+                </div>
+                <div>
+                  <Label className="text-sm">Задержка (сек)</Label>
+                  <Input type="number" min="1" max="60" step="1" value={currentSlide.duration ?? 7} onChange={e => updateSlide({ duration: Number(e.target.value) || 7 })} placeholder="7" />
+                  <p className="text-xs text-muted-foreground mt-1">Сколько секунд показывается этот слайд. Для видео — длина ролика.</p>
                 </div>
               </div>
 
@@ -6565,7 +6570,7 @@ export default function Admin() {
                       <CardContent className="space-y-4">
                         {/* Hero section settings */}
                         {selectedSection === "hero" && (() => {
-                          const emptySlide = { heroImage: "", heroImageMobile: "", heroImageAlt: "", heroVideo: "", bgType: "image", tagline1: "", tagline2: "", buttonText: "", buttonLink: "", heroOpacity: "0.6" };
+                          const emptySlide = { heroImage: "", heroImageMobile: "", heroImageAlt: "", heroVideo: "", bgType: "image", tagline1: "", tagline2: "", buttonText: "", buttonLink: "", heroOpacity: "0.6", duration: 7 };
                           const rawSlides: any[] = sectionSettings.slides || [
                             { heroImage: sectionSettings.heroImage || "", heroImageMobile: sectionSettings.heroImageMobile || "", heroImageAlt: sectionSettings.heroImageAlt || "", heroVideo: sectionSettings.heroVideo || "", bgType: sectionSettings.bgType || "image", tagline1: sectionSettings.tagline1 || "", tagline2: sectionSettings.tagline2 || "", buttonText: sectionSettings.buttonText || "", buttonLink: sectionSettings.buttonLink || "", heroOpacity: sectionSettings.heroOpacity || "0.6" },
                           ];
@@ -6678,6 +6683,11 @@ export default function Admin() {
                             <div>
                               <Label className="text-sm">Прозрачность фона (0-1)</Label>
                               <Input type="number" min="0" max="1" step="0.1" value={currentSlide.heroOpacity ?? "0.6"} onChange={(e) => updateSlide({ heroOpacity: e.target.value })} />
+                            </div>
+                            <div>
+                              <Label className="text-sm">Задержка (сек)</Label>
+                              <Input type="number" min="1" max="60" step="1" value={currentSlide.duration ?? 7} onChange={(e) => updateSlide({ duration: Number(e.target.value) || 7 })} placeholder="7" />
+                              <p className="text-xs text-muted-foreground mt-1">Сколько секунд показывается этот слайд. Для видео — длина ролика.</p>
                             </div>
                             <div>
                               <Label className="text-sm">Текст слогана (строка 1)</Label>

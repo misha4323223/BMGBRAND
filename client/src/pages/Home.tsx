@@ -465,17 +465,18 @@ export default function Home() {
   useEffect(() => {
     const slides = getHeroSlides();
     if (slides.length <= 1) return;
-    const timer = setInterval(() => {
-      if (heroPaused) return;
+    if (heroPaused) return;
+    const currentDuration = Math.max(1, Number(slides[heroSlideIndex]?.duration) || 7) * 1000;
+    const timer = setTimeout(() => {
       setHeroSlideIndex(prev => {
         const next = (prev + 1) % slides.length;
         setHeroPrev(prev);
         setHeroAnimKey(k => k + 1);
         return next;
       });
-    }, 7000);
-    return () => clearInterval(timer);
-  }, [pageSettings, heroPaused]);
+    }, currentDuration);
+    return () => clearTimeout(timer);
+  }, [pageSettings, heroPaused, heroSlideIndex]);
 
   // Предзагрузка всех слайдов кроме первого — чтобы не было "квадратиков" при переходе
   useEffect(() => {
