@@ -23,6 +23,44 @@ const SITE_NAME = "BMGBRAND";
 const DEFAULT_TITLE = `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
 const DEFAULT_DESC = "Российский бренд одежды с авторскими принтами — худи, футболки, носки и аксессуары. Доставка по всей России. Делаем вещи, которые носим сами.";
 
+/**
+ * Transliterated Cyrillic subcategory slugs → English canonical.
+ * Regular (non-bot) users hitting /tolstovki get 301 → /hoodies.
+ * Mirrors bot-ssr.ts CYRILLIC_TO_CANONICAL.
+ */
+const STATIC_CYRILLIC_TO_CANONICAL: Record<string, string> = {
+  tolstovki:  "hoodies",
+  svitshoty:  "sweatshirts",
+  svitera:    "sweaters",
+  futbolki:   "t-shirts",
+  shorty:     "shorts",
+  shapki:     "hats",
+  sumki:      "bags",
+};
+
+/** Category-level legacy slugs → /products/:category */
+const STATIC_LEGACY_CATEGORY_MAP: Record<string, string> = {
+  clothes:              "clothing",
+  rasprodazha:          "sale",
+  "rasprodazha-2":      "sale",
+  "podarochnye-nabory": "merch",
+};
+
+/** English subcategory alias slugs for canonical/meta injection */
+const SUBCATEGORY_ALIASES: Record<string, { catSlug: string; name: string }> = {
+  hoodies:              { catSlug: "clothing",    name: "Толстовки" },
+  sweatshirts:          { catSlug: "clothing",    name: "Свитшоты" },
+  sweaters:             { catSlug: "clothing",    name: "Свитера" },
+  "t-shirts":           { catSlug: "clothing",    name: "Футболки" },
+  shorts:               { catSlug: "clothing",    name: "Шорты" },
+  hats:                 { catSlug: "accessories", name: "Шапки" },
+  bags:                 { catSlug: "accessories", name: "Сумки" },
+  remni:                { catSlug: "accessories", name: "Ремни" },
+  "sportivnye-40-45":   { catSlug: "socks",       name: "Спортивные носки (40-45)" },
+  "sportivnye-34-39-2": { catSlug: "socks",       name: "Спортивные носки (34-39)" },
+  "tula-designers":     { catSlug: "merch",        name: "Тульские Дизайнеры" },
+};
+
 // Реальные хардкод-дефолты для главной страницы (используются в injectMeta ниже).
 // Экспортируются, чтобы админка SEO могла показать их как "текущее значение по умолчанию".
 export const HOME_SEO_DEFAULT = {
@@ -635,6 +673,15 @@ export function serveStatic(app: Express) {
       } catch {}
     }
 
+    // 301: transliterated Cyrillic subcategory slugs → English canonical
+    if (detectedProductSlug && STATIC_CYRILLIC_TO_CANONICAL[detectedProductSlug]) {
+      return res.redirect(301, `/${STATIC_CYRILLIC_TO_CANONICAL[detectedProductSlug]}`);
+    }
+    // 301: legacy category slugs (e.g. /rasprodazha → /products/sale)
+    if (detectedProductSlug && STATIC_LEGACY_CATEGORY_MAP[detectedProductSlug]) {
+      return res.redirect(301, `/products/${STATIC_LEGACY_CATEGORY_MAP[detectedProductSlug]}`);
+    }
+
     if (!routeLcpImage) {
       const lcpImages = getCachedLcpImageUrls();
       if (lcpImages.length > 0) routeLcpImage = lcpImages[0];
@@ -732,6 +779,20 @@ export function serveStatic(app: Express) {
           });
           html = injectSeoBody(html, buildProductNoscript(meta, siteUrl, detectedProductSlug));
         }
+      }
+
+      // --- Subcategory alias slugs (English, e.g. /hoodies, /sweaters) ---
+      if (detectedProductSlug && SUBCATEGORY_ALIASES[detectedProductSlug]) {
+        const alias = SUBCATEGORY_ALIASES[detectedProductSlug];
+        const aliasTitle = `${alias.name} | Booomerangs`;
+        const aliasDesc = `Купить ${alias.name.toLowerCase()} в интернет-магазине Booomerangs. Широкий выбор, доставка по России.`;
+        const catMeta = getSeoOverride(alias.catSlug) as any;
+        html = injectMeta(html, {
+          title: catMeta?.subcategories?.[detectedProductSlug]?.title || aliasTitle,
+          description: catMeta?.subcategories?.[detectedProductSlug]?.description || aliasDesc,
+          ogImage: `${siteUrl}/og-image.png`,
+          canonical: `${siteUrl}/${detectedProductSlug}`,
+        });
       }
 
       // --- Home page ---
