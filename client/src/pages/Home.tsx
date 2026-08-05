@@ -697,9 +697,11 @@ export default function Home() {
                         <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="w-full h-full object-cover block" />
                       </div>
                     </div>
-                    {/* Mobile: contained, no side overflow */}
+                    {/* Mobile: centred with gradient fades top/bottom */}
                     <div className="sm:hidden absolute inset-0 flex items-center justify-center overflow-hidden">
-                      <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="w-full h-full object-contain block" />
+                      <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="w-full aspect-video object-cover block flex-none" />
+                      <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black to-transparent pointer-events-none" />
+                      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black to-transparent pointer-events-none" />
                     </div>
                   </>
                 ) : (
@@ -743,9 +745,11 @@ export default function Home() {
                         <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="w-full h-full object-cover block" />
                       </div>
                     </div>
-                    {/* Mobile: contained, no side overflow */}
+                    {/* Mobile: centred with gradient fades top/bottom */}
                     <div className="sm:hidden absolute inset-0 flex items-center justify-center overflow-hidden">
-                      <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="w-full h-full object-contain block" />
+                      <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="w-full aspect-video object-cover block flex-none" />
+                      <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black to-transparent pointer-events-none" />
+                      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black to-transparent pointer-events-none" />
                     </div>
                   </>
                 ) : (
