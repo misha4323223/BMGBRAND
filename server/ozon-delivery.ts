@@ -506,70 +506,36 @@ class OzonDeliveryService {
   }
 
   /**
-   * Проверяет доступность товаров для доставки в выбранный ПВЗ ПЕРЕД созданием платежа.
-   * Endpoint: POST /v2/delivery/checkout
+   * Проверяет доступность доставки для покупателя ПЕРЕД созданием платежа.
    *
-   * Вызывается в POST /api/orders до инициализации платежа — если товар недоступен,
-   * покупатель получает ошибку ещё на чекауте, а не после списания денег.
+   * Использует /v1/delivery/check (работающий endpoint) вместо /v2/delivery/checkout,
+   * который не принимает delivery_type ни как число ни как строку (proto syntax error).
    *
-   * Блокирует заказ при любых ошибках (недоступность товара И сетевые/API ошибки) —
-   * намеренно, чтобы не допустить оплату при неподтверждённой доставке.
+   * Вызывается в POST /api/orders до инициализации платежа.
    */
   async checkoutDelivery(params: {
     items: Array<{ offerId: string; quantity: number; price: number; name: string }>;
     pvzId?: string;
     customerPhone: string;
   }): Promise<{ success: boolean; checkoutId?: string; error?: string; unavailableItems?: string[] }> {
-    const cleanPhone = params.customerPhone.replace(/\D/g, "");
-    // delivery_type — обязательный enum DeliveryType (proto3 string, с префиксом DELIVERY_TYPE_)
-    const body: Record<string, unknown> = {
-      customer_phone: cleanPhone,
-      delivery_type: params.pvzId ? "DELIVERY_TYPE_PVZ" : "DELIVERY_TYPE_DOOR",
-      items: params.items.map(i => ({
-        offer_id: i.offerId,
-        quantity: i.quantity,
-        price: i.price,
-        name: i.name,
-      })),
-    };
-    if (params.pvzId) body.pvz_id = params.pvzId;
-
     console.log(
-      `[OzonDelivery] checkoutDelivery: ${params.items.length} items`,
+      `[OzonDelivery] checkoutDelivery (via /v1/delivery/check): ${params.items.length} items`,
       `pvz_id=${params.pvzId ?? "не указан"}`,
-      `phone=${cleanPhone}`,
+      `phone=${params.customerPhone}`,
     );
 
-    const result = await this.request<any>("/v2/delivery/checkout", body);
-    if (!result.success) {
-      // Отличаем "товар недоступен" от прочих ошибок API
-      const errMsg = String(result.error ?? "");
-      const isUnavailable =
-        errMsg.toLowerCase().includes("not available") ||
-        errMsg.toLowerCase().includes("unavailable") ||
-        errMsg.toLowerCase().includes("недоступ") ||
-        errMsg.toLowerCase().includes("not found");
-      return { success: false, error: result.error, unavailableItems: isUnavailable ? params.items.map(i => i.offerId) : [] };
+    // /v1/delivery/check принимает client_phone и опционально items
+    const checkItems = params.items.map(i => ({ offerId: i.offerId, quantity: i.quantity }));
+    const result = await this.checkDelivery(params.customerPhone, checkItems);
+
+    if (!result.available) {
+      const err = result.error ?? "Доставка Ozon недоступна для этого номера телефона";
+      console.warn(`[OzonDelivery] checkoutDelivery: недоступно — ${err}`);
+      return { success: false, error: err, unavailableItems: [] };
     }
 
-    // Некоторые реализации Ozon возвращают per-item флаги доступности
-    const rawItems: any[] = result.data?.items ?? result.data?.result?.items ?? [];
-    const unavailable = rawItems
-      .filter((i: any) => i.available === false || i.is_available === false || i.is_possible === false)
-      .map((i: any) => String(i.offer_id ?? i.id ?? ""));
-    if (unavailable.length > 0) {
-      console.warn(`[OzonDelivery] checkoutDelivery: недоступны offer_ids=${unavailable.join(",")}`);
-      return { success: false, error: "Некоторые товары недоступны для доставки Ozon", unavailableItems: unavailable };
-    }
-
-    // Если API вернул checkout_id — сохраняем (может пригодиться для createOrder)
-    const checkoutId =
-      result.data?.checkout_id ??
-      result.data?.result?.checkout_id ??
-      undefined;
-
-    console.log(`[OzonDelivery] checkoutDelivery OK${checkoutId ? `, checkout_id=${checkoutId}` : ""}`);
-    return { success: true, checkoutId: checkoutId ? String(checkoutId) : undefined };
+    console.log(`[OzonDelivery] checkoutDelivery OK (available=true)`);
+    return { success: true };
   }
 
   /**
