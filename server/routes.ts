@@ -1126,6 +1126,7 @@ export async function registerRoutes(
   };
   app.get('/products/:catSlug/:subSlug', (req, res, next) => {
     const { subSlug } = req.params;
+    console.log(`[DBG-SUB] catSlug=${req.params.catSlug} subSlug=${JSON.stringify(subSlug)} mapped=${JSON.stringify(SUBCATEGORY_CYRILLIC_MAP[subSlug])}`);
     if (subSlug && /^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subSlug)) {
       return res.redirect(301, `/${SUBCATEGORY_CYRILLIC_MAP[subSlug] || subSlug}`);
     }
