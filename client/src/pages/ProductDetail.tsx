@@ -1250,12 +1250,12 @@ export default function ProductDetail() {
                   </div>
                 </div>
                 {showPreorderPriceLabels && (
-                  <div className="flex items-baseline gap-1.5 flex-wrap">
-                    <span className="text-[10px] text-foreground/50 uppercase tracking-wide self-center">Предпродажная</span>
-                    <span className="text-xl font-bold leading-none text-red-600">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-foreground uppercase tracking-wide self-center">Предпродажная</span>
+                    <span className="text-xl font-semibold text-foreground line-through leading-none">{retailPrice}</span>
+                    <span className="text-2xl font-bold leading-none text-red-600">
                       {formatPrice(salePrice)}
                     </span>
-                    <span className="text-sm text-foreground/40 line-through">{retailPrice}</span>
                   </div>
                 )}
                 {showWholesaleBelow && (
@@ -1282,11 +1282,14 @@ export default function ProductDetail() {
               <div className="border-t border-border my-3 sm:my-2"></div>
               {/* Цена — скрыта на десктопе (переехала в шапку) */}
               <div className="md:hidden space-y-1" data-testid={`text-product-price-${product.id}`}>
-                {showPreorderPriceLabels && (
-                  <p className="text-xs font-medium text-foreground uppercase tracking-wide">Предпродажная цена</p>
-                )}
                 <div className={`flex flex-wrap ${isWholesale && wholesalePriceValue ? 'items-end gap-4' : 'items-center gap-3'}`}>
-                  {hasDiscount ? (
+                  {showPreorderPriceLabels ? (
+                    <>
+                      <span className="text-sm font-semibold text-foreground uppercase tracking-wide self-center">Предпродажная</span>
+                      <span className="text-xl font-semibold text-foreground line-through leading-none">{retailPrice}</span>
+                      <p className="text-2xl font-bold text-red-600">{formatPrice(salePrice)}</p>
+                    </>
+                  ) : hasDiscount ? (
                     <>
                       <span className="text-lg font-semibold text-red-400 line-through">{retailPrice}</span>
                       <p className="text-2xl font-bold text-red-600">{formatPrice(salePrice)}</p>
