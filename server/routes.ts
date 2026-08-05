@@ -4258,7 +4258,7 @@ ${artistLinks || "- (список формируется)"}
       return res.status(400).json({ error: "У заказа уже есть ozonOrderId — повтор не нужен", ozonOrderId: existingAddon.ozonOrderId });
     }
 
-    const items = (() => { try { return JSON.parse(order.items as string || '[]'); } catch { return []; } })();
+    const items = (() => { try { return JSON.parse((order.items as unknown as string) || '[]'); } catch { return []; } })();
     let pvzId: string | undefined;
     try { pvzId = order.cdekData ? JSON.parse(order.cdekData as string)?.ozonPvzId || undefined : undefined; } catch {}
 
