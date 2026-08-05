@@ -664,10 +664,93 @@ export default function Home() {
           const showHero = settingsLoading ? !!window.__HERO__?.img : isSectionVisible("hero");
           return showHero ? (
             <div key="section-hero">
-        {/* Mobile-only black spacer behind floating navbar for video slides */}
-        {isVideoSlide && <div className="sm:hidden bg-black" style={{ height: '100px' }} />}
+        {/* ── Mobile TV (video slides only, hidden on desktop) ── */}
+        {isVideoSlide && pageSettings?.hero?.showOnMobile !== false && (
+          <div className="sm:hidden bg-black">
+            {/* navbar spacer */}
+            <div style={{ height: '80px' }} />
+            <div className="px-3">
+              {/* antennas */}
+              <div className="flex justify-center gap-8 mb-[1px]">
+                <div className="w-[3px] h-6 bg-zinc-600 rounded-full" style={{ transform: 'rotate(-14deg)', transformOrigin: 'bottom center' }} />
+                <div className="w-[3px] h-6 bg-zinc-600 rounded-full" style={{ transform: 'rotate(14deg)', transformOrigin: 'bottom center' }} />
+              </div>
+              {/* TV body */}
+              <div className="bg-[#1e1e1e] rounded-2xl border border-zinc-700/60 p-[7px]" style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.95), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+                {/* top bar */}
+                <div className="flex items-center justify-between px-1 mb-[5px]">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-[5px] h-[5px] rounded-full bg-red-500" style={{ boxShadow: '0 0 5px rgba(239,68,68,0.85)' }} />
+                    <span className="text-[6px] font-mono text-zinc-500 uppercase tracking-[0.18em]">BMGTV</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {[0,1,2].map(i => <div key={i} className="w-[6px] h-[6px] rounded-full bg-zinc-700 border border-zinc-600" />)}
+                  </div>
+                </div>
+                {/* screen */}
+                <div
+                  className="relative aspect-video overflow-hidden rounded-md bg-black"
+                  style={{ boxShadow: 'inset 0 0 16px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,0,0,0.6)' }}
+                  onTouchStart={() => setHeroPaused(true)}
+                  onTouchEnd={() => setHeroPaused(false)}
+                  onTouchCancel={() => setHeroPaused(false)}
+                >
+                  {heroSlides.map((s: any, i: number) => (
+                    <div
+                      key={i === activeIndex ? `tv-active-${heroAnimKey}` : `tv-${i}`}
+                      className={`absolute inset-0${i === activeIndex ? ' hero-slide-enter' : ''}`}
+                      style={{
+                        opacity: i === activeIndex ? 1 : (i === heroPrev ? 1 : 0),
+                        zIndex: i === activeIndex ? 2 : (i === heroPrev ? 1 : 0),
+                        transition: i !== activeIndex ? 'opacity 0.3s ease-out 1s' : undefined,
+                      }}
+                    >
+                      {s.bgType === 'video' && s.heroVideo && (
+                        <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? 'metadata' : 'none'} className="w-full h-full object-cover block" />
+                      )}
+                    </div>
+                  ))}
+                  {/* screen glare */}
+                  <div className="absolute inset-0 pointer-events-none z-10" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 45%)' }} />
+                  {/* arrows */}
+                  {multiSlide && (
+                    <>
+                      <button type="button" aria-label="Предыдущий слайд" onClick={() => { setHeroPrev(activeIndex); setHeroAnimKey(k => k+1); setHeroSlideIndex((activeIndex - 1 + heroSlides.length) % heroSlides.length); }} className="absolute left-1 top-1/2 -translate-y-1/2 z-20 p-1.5 text-white/60 hover:text-white">
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button type="button" aria-label="Следующий слайд" onClick={() => { setHeroPrev(activeIndex); setHeroAnimKey(k => k+1); setHeroSlideIndex((activeIndex + 1) % heroSlides.length); }} className="absolute right-1 top-1/2 -translate-y-1/2 z-20 p-1.5 text-white/60 hover:text-white">
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+                {/* bottom bar: speaker grille + knobs */}
+                <div className="flex items-center justify-between px-1 mt-[5px]">
+                  <div className="flex gap-[2px]">
+                    {[0,1,2,3,4].map(i => <div key={i} className="w-[2px] h-2.5 bg-zinc-700 rounded-full" />)}
+                  </div>
+                  <div className="w-5 h-[5px] rounded-full bg-zinc-700" />
+                  <div className="flex gap-[2px]">
+                    {[0,1,2].map(i => <div key={i} className="w-[2px] h-2.5 bg-zinc-700 rounded-full" />)}
+                  </div>
+                </div>
+              </div>
+              {/* stand */}
+              <div className="flex flex-col items-center">
+                <div className="w-10 h-[7px] bg-[#1e1e1e] border-x border-b border-zinc-700/60 rounded-b-md" />
+                <div className="w-20 h-[4px] bg-zinc-800 rounded-full border border-zinc-700/40" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Main section (desktop always; mobile only for non-video) ── */}
         <section
-          className={`relative ${isVideoSlide ? 'aspect-video' : 'h-svh'} sm:h-auto sm:aspect-[2560/1740] w-full flex flex-col items-center justify-center overflow-hidden bg-black sm:-mt-40 ${pageSettings?.hero?.showOnMobile === false ? 'hidden sm:flex' : ''} ${pageSettings?.hero?.showOnDesktop === false ? 'flex sm:hidden' : ''}`}
+          className={`relative w-full flex-col items-center justify-center overflow-hidden bg-black sm:-mt-40
+            ${isVideoSlide
+              ? `hidden sm:flex sm:h-auto sm:aspect-[2560/1740] ${pageSettings?.hero?.showOnDesktop === false ? 'sm:hidden' : ''}`
+              : `h-svh sm:h-auto sm:aspect-[2560/1740] ${pageSettings?.hero?.showOnMobile === false ? 'hidden sm:flex' : 'flex'} ${pageSettings?.hero?.showOnDesktop === false ? 'sm:hidden' : ''}`
+            }`}
           onTouchStart={() => setHeroPaused(true)}
           onTouchEnd={() => setHeroPaused(false)}
           onTouchCancel={() => setHeroPaused(false)}
