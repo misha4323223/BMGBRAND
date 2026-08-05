@@ -664,7 +664,7 @@ export default function Home() {
           return showHero ? (
             <div key="section-hero">
         <section
-          className={`relative h-svh sm:h-auto sm:aspect-[2560/1740] w-full flex flex-col items-center justify-center overflow-hidden bg-black sm:-mt-40 ${pageSettings?.hero?.showOnMobile === false ? 'hidden sm:flex' : ''} ${pageSettings?.hero?.showOnDesktop === false ? 'flex sm:hidden' : ''}`}
+          className={`relative ${(slide as any).bgType === 'video' && (slide as any).heroVideo ? 'aspect-video' : 'h-svh'} sm:h-auto sm:aspect-[2560/1740] w-full flex flex-col items-center justify-center overflow-hidden bg-black sm:-mt-40 ${pageSettings?.hero?.showOnMobile === false ? 'hidden sm:flex' : ''} ${pageSettings?.hero?.showOnDesktop === false ? 'flex sm:hidden' : ''}`}
           onTouchStart={() => setHeroPaused(true)}
           onTouchEnd={() => setHeroPaused(false)}
           onTouchCancel={() => setHeroPaused(false)}
@@ -697,11 +697,9 @@ export default function Home() {
                         <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="w-full h-full object-cover block" />
                       </div>
                     </div>
-                    {/* Mobile: contained + gradient fades top/bottom */}
-                    <div className="sm:hidden absolute inset-0 overflow-hidden">
-                      <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="absolute inset-0 w-full h-full object-contain" />
-                      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black to-transparent pointer-events-none" />
-                      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none" />
+                    {/* Mobile: hero shrinks to aspect-video, fill it */}
+                    <div className="sm:hidden absolute inset-0">
+                      <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="w-full h-full object-cover block" />
                     </div>
                   </>
                 ) : (
@@ -745,11 +743,9 @@ export default function Home() {
                         <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="w-full h-full object-cover block" />
                       </div>
                     </div>
-                    {/* Mobile: contained + gradient fades top/bottom */}
-                    <div className="sm:hidden absolute inset-0 overflow-hidden">
-                      <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-contain" />
-                      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black to-transparent pointer-events-none" />
-                      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none" />
+                    {/* Mobile: hero shrinks to aspect-video, fill it */}
+                    <div className="sm:hidden absolute inset-0">
+                      <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="w-full h-full object-cover block" />
                     </div>
                   </>
                 ) : (
