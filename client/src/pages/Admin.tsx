@@ -1376,7 +1376,7 @@ function downloadOrderExcel(order: any) {
   if (order.cdekData) {
     try {
       const d = typeof order.cdekData === 'string' ? JSON.parse(order.cdekData) : order.cdekData;
-      deliveryService = d.deliveryService === 'yandex' ? 'Яндекс Доставка' : d.deliveryService === 'cdek' ? 'СДЭК' : d.deliveryService || '';
+      deliveryService = d.deliveryService === 'yandex' ? 'Яндекс Доставка' : d.deliveryService === 'cdek' ? 'СДЭК' : d.deliveryService === 'ozon' ? 'Ozon Доставка' : d.deliveryService || '';
       deliveryType = d.deliveryType === 'door' ? 'Курьер до двери' : d.deliveryType === 'pickup' ? 'ПВЗ' : d.deliveryType || '';
       deliveryPoint = d.ydPointName || d.pointCode || '';
       if (d.doorAddress) {
@@ -15487,18 +15487,22 @@ export default function Admin() {
                               if (!order.cdekData) return null;
                               let d: any = {};
                               try { d = typeof order.cdekData === 'string' ? JSON.parse(order.cdekData) : order.cdekData; } catch { return null; }
-                              const svc = d.deliveryService === 'yandex' ? '🟡 Яндекс Доставка' : d.deliveryService === 'cdek' ? '🟢 СДЭК' : null;
+                              const svc = d.deliveryService === 'yandex' ? '🟡 Яндекс Доставка' : d.deliveryService === 'cdek' ? '🟢 СДЭК' : d.deliveryService === 'ozon' ? '🔵 Ozon Доставка' : null;
                               const type = d.deliveryType === 'door' ? 'Курьер до двери' : d.deliveryType === 'pickup' ? 'ПВЗ' : null;
-                              const point = d.ydPointName || d.pointCode || null;
+                              const point = d.ydPointName || d.pointCode || d.ozonPvzAddress || null;
                               const door = d.doorAddress ? [d.doorAddress.street, d.doorAddress.house, d.doorAddress.flat && `кв. ${d.doorAddress.flat}`, d.doorAddress.entrance && `подъезд ${d.doorAddress.entrance}`, d.doorAddress.floor && `эт. ${d.doorAddress.floor}`].filter(Boolean).join(', ') : null;
                               const tracking = d.cdekTrackingNumber || d.trackingNumber || null;
-                              if (!svc && !type && !point && !door) return null;
+                              // ozonOrderId из addon_data
+                              let ozonOrderId: string | null = null;
+                              try { ozonOrderId = (order as any).addonData ? JSON.parse((order as any).addonData)?.ozonOrderId || null : null; } catch {}
+                              if (!svc && !type && !point && !door && !ozonOrderId) return null;
                               return (
                                 <div className="mt-1 p-2 bg-muted/40 rounded text-xs space-y-0.5">
                                   {svc && <p><strong>Доставка:</strong> {svc}{type ? ` — ${type}` : ''}</p>}
                                   {point && <p><strong>ПВЗ:</strong> {point}</p>}
                                   {door && <p><strong>Адрес курьера:</strong> {door}</p>}
                                   {tracking && <p><strong>Трек-номер:</strong> {tracking}</p>}
+                                  {ozonOrderId && <p><strong>Ozon заказ №:</strong> {ozonOrderId}</p>}
                                 </div>
                               );
                             })()}

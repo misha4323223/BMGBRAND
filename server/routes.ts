@@ -3571,6 +3571,10 @@ ${artistLinks || "- (список формируется)"}
                   }).then(result => {
                     if (result.success && result.ozonOrderId) {
                       console.log(`[YooKassa Webhook] Ozon Delivery order created: ${result.ozonOrderId} for order ${numericId}`);
+                      // Сохраняем ozonOrderId в addon_data заказа
+                      const _ykExisting = (() => { try { return JSON.parse(order.addonData || '{}'); } catch { return {}; } })();
+                      storage.updateOrderAddonData(numericId, JSON.stringify({ ..._ykExisting, ozonOrderId: result.ozonOrderId }))
+                        .catch(e => console.error(`[YooKassa Webhook] Failed to save ozonOrderId for order ${numericId}:`, e?.message));
                     } else {
                       console.error(`[YooKassa Webhook] Ozon Delivery order creation failed for order ${numericId}:`, result.error);
                       notifyError('Ozon Доставка', `Заказ #${numericId} — не удалось создать доставку Ozon`, result.error || "");
@@ -4066,6 +4070,10 @@ ${artistLinks || "- (список формируется)"}
                   }).then(result => {
                     if (result.success && result.ozonOrderId) {
                       console.log(`[T-Bank Webhook] Ozon Delivery order created: ${result.ozonOrderId} for order ${numericId}`);
+                      // Сохраняем ozonOrderId в addon_data заказа
+                      const _tbExisting = (() => { try { return JSON.parse(order.addonData || '{}'); } catch { return {}; } })();
+                      storage.updateOrderAddonData(numericId, JSON.stringify({ ..._tbExisting, ozonOrderId: result.ozonOrderId }))
+                        .catch(e => console.error(`[T-Bank Webhook] Failed to save ozonOrderId for order ${numericId}:`, e?.message));
                     } else {
                       console.error(`[T-Bank Webhook] Ozon Delivery order creation failed for order ${numericId}:`, result.error);
                       notifyError('Ozon Доставка', `Заказ #${numericId} — не удалось создать доставку Ozon`, result.error || "");
