@@ -48,7 +48,6 @@ jobs:
           revision-execution-timeout: 120s
           revision-env: |
             NODE_ENV=production
-            PORT=8080
             YDB_ENDPOINT=${{ secrets.YDB_ENDPOINT }}
             YDB_DATABASE=${{ secrets.YDB_DATABASE }}
             YDB_SA_KEY=${{ secrets.YDB_SA_KEY }}
