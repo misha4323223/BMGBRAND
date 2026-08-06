@@ -10614,7 +10614,7 @@ ${artistLinks || "- (список формируется)"}
               const hasProductDiscount =
                 (itemSalePrice && itemSalePrice > 0 && itemSalePrice < (product?.price || 0)) ||
                 ((product as any)?.discountPercent > 0) ||
-                ((product as any)?.sizeDiscounts?.[item.size] > 0);
+                (item.size != null && (product as any)?.sizeDiscounts?.[item.size] > 0);
               if (hasProductDiscount) return sum;
               return sum + (item.price * item.quantity);
             }, 0);
