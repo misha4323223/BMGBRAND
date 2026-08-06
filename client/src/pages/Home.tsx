@@ -678,6 +678,16 @@ export default function Home() {
           const slide = heroSlides[activeIndex] || pageSettings?.hero || {};
           const multiSlide = heroSlides.length > 1;
           const isVideoSlide = (slide as any).bgType === 'video' && !!(slide as any).heroVideo;
+          // Desktop: when mobile shows a video slide, find the next non-video slide to display instead
+          const desktopActiveIndex = (() => {
+            if (!isVideoSlide) return activeIndex;
+            for (let k = 1; k < heroSlides.length; k++) {
+              const idx = (activeIndex + k) % heroSlides.length;
+              if (heroSlides[idx]?.bgType !== 'video' || !heroSlides[idx]?.heroVideo) return idx;
+            }
+            return activeIndex; // fallback: all slides are video — keep video on desktop too
+          })();
+          const desktopSlide = heroSlides[desktopActiveIndex] || slide;
           const showHero = settingsLoading ? !!window.__HERO__?.img : isSectionVisible("hero");
 
           // CRT transition for video→image type change (mobile only)
@@ -833,6 +843,20 @@ export default function Home() {
                 )}
               </div>
             ))}
+            {/* Desktop override: while mobile shows a video slide, render the target image slide above everything */}
+            {desktopActiveIndex !== activeIndex && (
+              <div className="hidden sm:block absolute inset-0 z-[3]" style={{ opacity: parseFloat(desktopSlide.heroOpacity) || 0.6 }}>
+                <picture className="absolute inset-0 block">
+                  <img
+                    src={desktopSlide.heroImage || ""}
+                    alt={desktopSlide.heroImageAlt || "Booomerangs — российский бренд одежды и мерча"}
+                    loading="eager"
+                    fetchpriority="high"
+                    className="w-full h-full object-cover object-center"
+                  />
+                </picture>
+              </div>
+            )}
             {heroSlides.length === 0 && !pageSettings && window.__HERO__?.img && (
               <div className="absolute inset-0" style={{ opacity: window.__HERO__.opacity }}>
                 <picture className="absolute inset-0 block">
@@ -877,11 +901,11 @@ export default function Home() {
           <div className={`relative z-10 text-center px-4 max-w-4xl mx-auto flex flex-col items-center mt-auto pb-28 sm:pb-8 ${isVideoSlide ? 'hidden sm:flex' : 'flex'}`}>
             <div className="flex flex-col items-center">
               <p className="font-mono text-[9px] sm:text-xs text-white uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-6 sm:mb-8 text-center leading-relaxed drop-shadow-lg">
-                {slide.tagline1 || pageSettings?.hero?.tagline1 || window.__HERO__?.tagline1 || "МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ."}<br/>{slide.tagline2 || pageSettings?.hero?.tagline2 || window.__HERO__?.tagline2 || "РОССИЙСКИЙ БРЕНД ОДЕЖДЫ И АКСЕССУАРОВ."}
+                {desktopSlide.tagline1 || pageSettings?.hero?.tagline1 || window.__HERO__?.tagline1 || "МЫ ДЕЛАЕМ ТО, ЧТО НОСИМ САМИ."}<br/>{desktopSlide.tagline2 || pageSettings?.hero?.tagline2 || window.__HERO__?.tagline2 || "РОССИЙСКИЙ БРЕНД ОДЕЖДЫ И АКСЕССУАРОВ."}
               </p>
-              <Link href={slide.buttonLink || pageSettings?.hero?.buttonLink || window.__HERO__?.buttonLink || "/products"}>
+              <Link href={desktopSlide.buttonLink || pageSettings?.hero?.buttonLink || window.__HERO__?.buttonLink || "/products"}>
                 <Button size="lg" className="bg-card/75 backdrop-blur-md border border-border/50 outline outline-1 outline-white/40 outline-offset-[5px] text-foreground hover:outline-0 hover:border-2 hover:border-border/80 transition-all duration-200 px-5 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-display uppercase tracking-[0.2em] sm:tracking-[0.3em] rounded-full h-auto min-h-0" data-testid="button-hero-catalog">
-                  {slide.buttonText || pageSettings?.hero?.buttonText || window.__HERO__?.buttonText || "Смотреть каталог"}
+                  {desktopSlide.buttonText || pageSettings?.hero?.buttonText || window.__HERO__?.buttonText || "Смотреть каталог"}
                 </Button>
               </Link>
             </div>
