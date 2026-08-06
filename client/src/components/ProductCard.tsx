@@ -1004,6 +1004,11 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                         </>
                       )}
                     </div>
+                    {/* AI Mini Chat — над кнопкой предзаказа, как в обычном модальном окне */}
+                    <ProductMiniChat
+                      product={{ ...(activeProduct as any), artistSlug: (product as any).artistSlug ?? (activeProduct as any).artistSlug }}
+                      resetKey={isModalOpen ? String(activeProduct.id) : "closed"}
+                    />
                     {/* Кнопка: "Перейти к предзаказу" только при сборе, иначе нейтральная */}
                     {((activeProduct as any).preorderStatus === "collecting" || !(activeProduct as any).preorderStatus) ? (
                       <Link
