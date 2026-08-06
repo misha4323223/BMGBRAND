@@ -93,3 +93,4 @@ jobs:
             SYNC_API_KEY=${{ secrets.SYNC_API_KEY }}
             SITE_URL=${{ secrets.SITE_URL }}
             APP_DOMAIN=${{ secrets.APP_DOMAIN }}
+            HF_TOKEN=${{ secrets.HF_TOKEN }}
