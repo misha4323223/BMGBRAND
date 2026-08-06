@@ -1,6 +1,12 @@
 export const config = {
   jwt: {
-    secret: process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production',
+    secret: (() => {
+      const s = process.env.JWT_SECRET;
+      if (!s && process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: JWT_SECRET env var must be set in production');
+      }
+      return s || 'dev-only-local-secret-not-for-production';
+    })(),
     expiresIn: '7d',
   },
   app: {

@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { config } from "./config";
 import { getPushSubs, savePushSubs, sendPushToAll as _sendPushToAllSvc, getAdminPushSubs, saveAdminPushSubs, sendPushToAdmins as _sendPushToAdminsSvc, acquirePushLock, releasePushLock, getPushHistory, sendPushToUser, orderStatusPushPayload } from './push-service';
 import type { Server } from "http";
 import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsForSeoAudit } from "./storage";
@@ -11640,8 +11641,7 @@ ${artistLinks || "- (список формируется)"}
         return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна</h2></body></html>');
       }
       const crypto = await import('crypto');
-      const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
-      const expected = crypto.createHmac('sha256', jwtSecret).update(email).digest('hex').slice(0, 32);
+      const expected = crypto.createHmac('sha256', config.jwt.secret).update(email).digest('hex').slice(0, 32);
       if (token !== expected) {
         return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна или устарела</h2></body></html>');
       }
@@ -11681,8 +11681,7 @@ ${artistLinks || "- (список формируется)"}
         return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна</h2></body></html>');
       }
       const crypto = await import('crypto');
-      const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
-      const expected = crypto.createHmac('sha256', jwtSecret).update(email).digest('hex').slice(0, 32);
+      const expected = crypto.createHmac('sha256', config.jwt.secret).update(email).digest('hex').slice(0, 32);
       if (token !== expected) {
         return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна или устарела</h2></body></html>');
       }
@@ -11718,8 +11717,7 @@ ${artistLinks || "- (список формируется)"}
         return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна</h2></body></html>');
       }
       const crypto = await import('crypto');
-      const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
-      const expected = crypto.createHmac('sha256', jwtSecret).update(email).digest('hex').slice(0, 32);
+      const expected = crypto.createHmac('sha256', config.jwt.secret).update(email).digest('hex').slice(0, 32);
       if (token !== expected) {
         return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна или устарела</h2></body></html>');
       }

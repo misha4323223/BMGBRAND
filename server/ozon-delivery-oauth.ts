@@ -18,6 +18,7 @@
  */
 
 import crypto from "crypto";
+import { config } from "./config";
 
 const OZON_TOKEN_URL = "https://xapi.ozon.ru/oauth/token";
 const OZON_AUTH_BASE = "https://seller.ozon.ru/app/appstore/oauth/authorize";
@@ -34,8 +35,7 @@ export const OZON_OAUTH_KEYS = {
 function makeState(): string {
   const ts = Date.now().toString(36);
   const nonce = crypto.randomBytes(8).toString("hex");
-  const secret = process.env.JWT_SECRET || "ozon-state-fallback";
-  const sig = crypto.createHmac("sha256", secret).update(`${ts}.${nonce}`).digest("hex").slice(0, 16);
+  const sig = crypto.createHmac("sha256", config.jwt.secret).update(`${ts}.${nonce}`).digest("hex").slice(0, 16);
   return `${ts}.${nonce}.${sig}`;
 }
 
@@ -43,8 +43,7 @@ function verifyState(state: string): boolean {
   const parts = state.split(".");
   if (parts.length !== 3) return false;
   const [ts, nonce, sig] = parts;
-  const secret = process.env.JWT_SECRET || "ozon-state-fallback";
-  const expected = crypto.createHmac("sha256", secret).update(`${ts}.${nonce}`).digest("hex").slice(0, 16);
+  const expected = crypto.createHmac("sha256", config.jwt.secret).update(`${ts}.${nonce}`).digest("hex").slice(0, 16);
   if (sig !== expected) return false;
   const created = parseInt(ts, 36);
   return Date.now() - created < 15 * 60 * 1000; // 15 минут

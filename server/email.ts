@@ -1601,8 +1601,7 @@ export function getAbandonedCartEmailHtml(
 ): string {
   const siteUrl = 'https://www.booomerangs.ru';
   const cartUrl = `${siteUrl}/cart`;
-  const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
-  const cartUnsubToken = email ? createHmac('sha256', jwtSecret).update(email.toLowerCase()).digest('hex').slice(0, 32) : '';
+  const cartUnsubToken = email ? createHmac('sha256', config.jwt.secret).update(email.toLowerCase()).digest('hex').slice(0, 32) : '';
   const cartUnsubUrl = email ? `${siteUrl}/api/abandoned-cart/unsubscribe?email=${encodeURIComponent(email)}&token=${cartUnsubToken}` : `${siteUrl}/profile`;
   const totalRub = Math.round(totalKopecks / 100).toLocaleString('ru-RU');
 
@@ -1826,8 +1825,7 @@ export function getNewProductsNewsletterHtml(
     : `В магазине ${appeared} ${count} ${countWord}.`;
 
   return (email: string): string => {
-    const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
-    const token = createHmac('sha256', jwtSecret).update(email.toLowerCase()).digest('hex').slice(0, 32);
+    const token = createHmac('sha256', config.jwt.secret).update(email.toLowerCase()).digest('hex').slice(0, 32);
     const unsubUrl = `${siteUrl}/api/newsletter/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`;
 
     return `<!DOCTYPE html>
@@ -1932,8 +1930,7 @@ export function getPreorderNewsletterHtml(
     : `В магазине ${opened} ${count} новых ${countWord}. Количество мест ограничено — успей забронировать раньше всех.`;
 
   return (email: string): string => {
-    const jwtSecret = process.env.JWT_SECRET || 'bmgbrand-jwt-secret-change-in-production';
-    const token = createHmac('sha256', jwtSecret).update(email.toLowerCase()).digest('hex').slice(0, 32);
+    const token = createHmac('sha256', config.jwt.secret).update(email.toLowerCase()).digest('hex').slice(0, 32);
     const unsubUrl = `${siteUrl}/api/preorder/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`;
 
     return `<!DOCTYPE html>
