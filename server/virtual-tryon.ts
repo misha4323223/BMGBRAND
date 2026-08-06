@@ -134,11 +134,17 @@ async function runTryOn(vtonPath: string, garmPath: string): Promise<string> {
         let parsed: unknown;
         try { parsed = JSON.parse(dataRaw); } catch { continue; }
 
+        console.log('[VirtualTryOn] complete raw:', JSON.stringify(parsed).slice(0, 500));
+
+        // Gradio может вернуть: [item, ...] или [[item, ...], ...] 
         const arr = Array.isArray(parsed) ? parsed : [parsed];
-        const img = arr[0] as { url?: string; path?: string } | null;
+        // Первый элемент может быть массивом (вложенный) — разворачиваем
+        const first = Array.isArray(arr[0]) ? arr[0][0] : arr[0];
+        const img = first as { url?: string; path?: string } | null;
         if (!img) throw new Error('Пустой результат от модели');
 
-        // Возвращаем URL из Space (публично доступен пока Space запущен)
+        console.log('[VirtualTryOn] img объект:', JSON.stringify(img).slice(0, 200));
+
         const url = img.url ?? (img.path ? `${SPACE_URL}/gradio_api/file=${img.path}` : null);
         if (!url) throw new Error('URL результата не найден в ответе');
         return url;
