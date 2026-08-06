@@ -805,13 +805,48 @@ export default function Home() {
               >
                 {s.bgType === "video" && s.heroVideo ? (
                   <>
-                    {/* Desktop: full-height framed video */}
-                    <div className="hidden sm:flex absolute inset-0 items-center justify-center">
-                      <div
-                        className="rounded-2xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.65)] ring-1 ring-white/20 border border-white/10"
-                        style={{ height: 'calc(100% - 1rem)', aspectRatio: '16/9', maxWidth: 'calc(100% - 1rem)' }}
-                      >
-                        <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="w-full h-full object-cover block" />
+                    {/* Desktop: TV shell */}
+                    <div className="hidden sm:flex absolute inset-0 items-center justify-center pb-16">
+                      <div className="flex flex-col items-center" style={{ width: 'min(72%, 1080px)', maxWidth: 'calc(100% - 3rem)' }}>
+                        {/* TV body */}
+                        <div
+                          className="bg-[#1e1e1e] rounded-3xl border border-zinc-700/60 p-3 w-full"
+                          style={{ boxShadow: '0 8px 80px rgba(0,0,0,0.95), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+                        >
+                          {/* top bar */}
+                          <div className="flex items-center justify-between px-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-red-500" style={{ boxShadow: '0 0 8px rgba(239,68,68,0.85)' }} />
+                              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.18em]">BMGTV</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {[0,1,2].map(j => <div key={j} className="w-3 h-3 rounded-full bg-zinc-700 border border-zinc-600" />)}
+                            </div>
+                          </div>
+                          {/* screen */}
+                          <div
+                            className="relative aspect-video overflow-hidden rounded-xl bg-black"
+                            style={{ boxShadow: 'inset 0 0 30px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,0,0,0.6)' }}
+                          >
+                            <video src={s.heroVideo} autoPlay loop muted playsInline preload={i === activeIndex ? "metadata" : "none"} className="w-full h-full object-cover block" />
+                            {/* glare */}
+                            <div className="absolute inset-0 pointer-events-none z-10" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 45%)' }} />
+                          </div>
+                          {/* bottom bar: speaker grille + knob */}
+                          <div className="flex items-center justify-between px-3 mt-2">
+                            <div className="flex gap-[3px]">
+                              {[0,1,2,3,4,5,6].map(j => <div key={j} className="w-[3px] h-5 bg-zinc-700 rounded-full" />)}
+                            </div>
+                            <div className="w-12 h-[6px] rounded-full bg-zinc-700" />
+                            <div className="flex gap-[3px]">
+                              {[0,1,2,3].map(j => <div key={j} className="w-[3px] h-5 bg-zinc-700 rounded-full" />)}
+                            </div>
+                          </div>
+                        </div>
+                        {/* stand neck */}
+                        <div className="w-24 h-4 bg-[#1e1e1e] border-x border-b border-zinc-700/60 rounded-b-xl" />
+                        {/* stand base */}
+                        <div className="w-48 h-[6px] bg-zinc-800 rounded-full border border-zinc-700/40" />
                       </div>
                     </div>
                     {/* Mobile: hero shrinks to aspect-video, fill it */}
@@ -851,13 +886,48 @@ export default function Home() {
               <div className="absolute inset-0" style={{ opacity: parseFloat(pageSettings?.hero?.heroOpacity) || 0.6 }}>
                 {pageSettings?.hero?.bgType === "video" && pageSettings?.hero?.heroVideo ? (
                   <>
-                    {/* Desktop: full-height framed video */}
-                    <div className="hidden sm:flex absolute inset-0 items-center justify-center">
-                      <div
-                        className="rounded-2xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.65)] ring-1 ring-white/20 border border-white/10"
-                        style={{ height: 'calc(100% - 1rem)', aspectRatio: '16/9', maxWidth: 'calc(100% - 1rem)' }}
-                      >
-                        <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="w-full h-full object-cover block" />
+                    {/* Desktop: TV shell */}
+                    <div className="hidden sm:flex absolute inset-0 items-center justify-center pb-16">
+                      <div className="flex flex-col items-center" style={{ width: 'min(72%, 1080px)', maxWidth: 'calc(100% - 3rem)' }}>
+                        {/* TV body */}
+                        <div
+                          className="bg-[#1e1e1e] rounded-3xl border border-zinc-700/60 p-3 w-full"
+                          style={{ boxShadow: '0 8px 80px rgba(0,0,0,0.95), inset 0 1px 0 rgba(255,255,255,0.05)' }}
+                        >
+                          {/* top bar */}
+                          <div className="flex items-center justify-between px-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-red-500" style={{ boxShadow: '0 0 8px rgba(239,68,68,0.85)' }} />
+                              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.18em]">BMGTV</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {[0,1,2].map(j => <div key={j} className="w-3 h-3 rounded-full bg-zinc-700 border border-zinc-600" />)}
+                            </div>
+                          </div>
+                          {/* screen */}
+                          <div
+                            className="relative aspect-video overflow-hidden rounded-xl bg-black"
+                            style={{ boxShadow: 'inset 0 0 30px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,0,0,0.6)' }}
+                          >
+                            <video src={pageSettings.hero.heroVideo} autoPlay loop muted playsInline preload="metadata" className="w-full h-full object-cover block" />
+                            {/* glare */}
+                            <div className="absolute inset-0 pointer-events-none z-10" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 45%)' }} />
+                          </div>
+                          {/* bottom bar: speaker grille + knob */}
+                          <div className="flex items-center justify-between px-3 mt-2">
+                            <div className="flex gap-[3px]">
+                              {[0,1,2,3,4,5,6].map(j => <div key={j} className="w-[3px] h-5 bg-zinc-700 rounded-full" />)}
+                            </div>
+                            <div className="w-12 h-[6px] rounded-full bg-zinc-700" />
+                            <div className="flex gap-[3px]">
+                              {[0,1,2,3].map(j => <div key={j} className="w-[3px] h-5 bg-zinc-700 rounded-full" />)}
+                            </div>
+                          </div>
+                        </div>
+                        {/* stand neck */}
+                        <div className="w-24 h-4 bg-[#1e1e1e] border-x border-b border-zinc-700/60 rounded-b-xl" />
+                        {/* stand base */}
+                        <div className="w-48 h-[6px] bg-zinc-800 rounded-full border border-zinc-700/40" />
                       </div>
                     </div>
                     {/* Mobile: hero shrinks to aspect-video, fill it */}
