@@ -140,8 +140,11 @@ async function runTryOn(vtonPath: string, garmPath: string): Promise<string> {
         const arr = Array.isArray(parsed) ? parsed : [parsed];
         // Первый элемент может быть массивом (вложенный) — разворачиваем
         const first = Array.isArray(arr[0]) ? arr[0][0] : arr[0];
-        const img = first as { url?: string; path?: string } | null;
-        if (!img) throw new Error('Пустой результат от модели');
+        const raw = first as { url?: string; path?: string; image?: { url?: string; path?: string } } | null;
+        if (!raw) throw new Error('Пустой результат от модели');
+
+        // Gradio может обернуть данные в поле image: {url, path}
+        const img = raw.image ?? raw;
 
         console.log('[VirtualTryOn] img объект:', JSON.stringify(img).slice(0, 200));
 
