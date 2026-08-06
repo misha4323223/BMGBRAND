@@ -20,15 +20,15 @@ import {
 } from "@/components/ui/dialog";
 
 interface VirtualTryOnProps {
-  /** Публичный URL фото товара (используется как одежда) */
-  garmentUrl: string;
+  /** Все фото товара — пользователь выберет нужное */
+  garmentImages: string[];
   /** Название товара для подписей */
   productName?: string;
 }
 
 type Stage = "idle" | "uploading" | "processing" | "done" | "error";
 
-export function VirtualTryOn({ garmentUrl, productName }: VirtualTryOnProps) {
+export function VirtualTryOn({ garmentImages, productName }: VirtualTryOnProps) {
   const [open, setOpen] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
   const [personPreview, setPersonPreview] = useState<string | null>(null);
@@ -36,8 +36,11 @@ export function VirtualTryOn({ garmentUrl, productName }: VirtualTryOnProps) {
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [elapsed, setElapsed] = useState(0);
+  const [selectedGarmentIdx, setSelectedGarmentIdx] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const garmentUrl = garmentImages[selectedGarmentIdx] ?? garmentImages[0];
 
   const reset = useCallback(() => {
     setStage("idle");
@@ -214,16 +217,53 @@ export function VirtualTryOn({ garmentUrl, productName }: VirtualTryOnProps) {
               </div>
             )}
 
-            {/* ── Шаг 2: Товар ── */}
+            {/* ── Шаг 2: Выбор фото товара ── */}
             {stage !== "done" && (
               <div>
-                <p className="text-sm font-medium mb-2">2. Товар (определяется автоматически)</p>
-                <img
-                  src={garmentUrl}
-                  alt="Товар"
-                  className="h-32 w-auto rounded-lg object-contain border border-border bg-muted/20"
-                  onError={(e) => { e.currentTarget.style.display = "none"; }}
-                />
+                <p className="text-sm font-medium mb-2">2. Фото товара для примерки</p>
+                {garmentImages.length > 1 ? (
+                  <div className="space-y-2">
+                    <div className="flex gap-2 flex-wrap">
+                      {garmentImages.map((url, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setSelectedGarmentIdx(idx)}
+                          className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                            selectedGarmentIdx === idx
+                              ? "border-primary ring-2 ring-primary/30"
+                              : "border-border hover:border-foreground/30"
+                          }`}
+                        >
+                          <img
+                            src={url}
+                            alt={`Фото ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          />
+                          {selectedGarmentIdx === idx && (
+                            <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                              <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      💡 Выберите фото без модели (предметная съёмка) — результат будет точнее
+                    </p>
+                  </div>
+                ) : (
+                  <img
+                    src={garmentUrl}
+                    alt="Товар"
+                    className="h-32 w-auto rounded-lg object-contain border border-border bg-muted/20"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+                )}
               </div>
             )}
 

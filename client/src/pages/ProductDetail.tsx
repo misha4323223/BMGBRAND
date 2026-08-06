@@ -2146,10 +2146,10 @@ export default function ProductDetail() {
             )}
 
             {/* AI-примерка */}
-            {allImages[0] && (
+            {allImages.length > 0 && (
               <div className="mb-4">
                 <VirtualTryOn
-                  garmentUrl={allImages[0]}
+                  garmentImages={allImages}
                   productName={product.name}
                 />
               </div>
