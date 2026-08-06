@@ -55,20 +55,35 @@ async function uploadToSpace(buffer: Buffer, filename: string, mimeType: string)
   }
 }
 
+/** Скачивает URL и загружает файл на HF Space */
+async function fetchAndUploadToSpace(url: string, filename: string): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`Не удалось скачать ${url}: HTTP ${res.status}`);
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const mimeType = res.headers.get('content-type') || 'image/jpeg';
+    return await uploadToSpace(buffer, filename, mimeType);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Вызывает /process_hd и ждёт SSE-события complete */
-async function runTryOn(vtonPath: string, garmUrl: string): Promise<string> {
+async function runTryOn(vtonPath: string, garmPath: string): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    // 1. Запустить задачу
+    // 1. Запустить задачу — оба изображения передаём как path (уже на Space)
     const joinRes = await fetch(`${SPACE_URL}/gradio_api/call/process_hd`, {
       method: 'POST',
       headers: hfHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         data: [
-          { path: vtonPath, meta: { _type: 'gradio.FileData' } },       // vton_img — фото человека
-          { url: garmUrl, orig_name: 'garment.jpg', meta: { _type: 'gradio.FileData' } }, // garm_img — одежда
+          { path: vtonPath, meta: { _type: 'gradio.FileData' } }, // vton_img — фото человека
+          { path: garmPath, meta: { _type: 'gradio.FileData' } }, // garm_img — одежда
           1,    // n_samples
           20,   // n_steps
           2.0,  // image_scale (guidance scale)
@@ -106,7 +121,13 @@ async function runTryOn(vtonPath: string, garmUrl: string): Promise<string> {
       const dataRaw  = lines.find(l => l.startsWith('data:'))?.slice(5).trim();
 
       if (eventType === 'error') {
-        throw new Error(`Space вернул ошибку: ${dataRaw ?? 'unknown'}`);
+        // {"error": null} — задача отклонена Space без сообщения (перегруз / cold start)
+        let errMsg = 'Space отклонил задачу';
+        try {
+          const parsed = JSON.parse(dataRaw ?? '{}');
+          if (parsed?.error) errMsg = String(parsed.error);
+        } catch { /* ignore */ }
+        throw new Error(errMsg);
       }
 
       if (eventType === 'complete' && dataRaw) {
@@ -156,10 +177,14 @@ export function registerVirtualTryOnRoutes(app: Express): void {
 
         console.log('[VirtualTryOn] Запрос:', file.originalname, file.size, 'bytes, garment:', garmentUrl.slice(0, 60));
 
-        const vtonPath = await uploadToSpace(file.buffer, file.originalname || 'photo.jpg', file.mimetype);
-        console.log('[VirtualTryOn] Фото загружено на Space:', vtonPath);
+        // Загружаем оба фото на HF Space — так модель точно их видит
+        const [vtonPath, garmPath] = await Promise.all([
+          uploadToSpace(file.buffer, file.originalname || 'photo.jpg', file.mimetype),
+          fetchAndUploadToSpace(garmentUrl, 'garment.jpg'),
+        ]);
+        console.log('[VirtualTryOn] Оба фото загружены. person:', vtonPath.slice(-20), 'garment:', garmPath.slice(-20));
 
-        const resultUrl = await runTryOn(vtonPath, garmentUrl);
+        const resultUrl = await runTryOn(vtonPath, garmPath);
         console.log('[VirtualTryOn] Готово:', resultUrl.slice(0, 80));
 
         res.json({ resultUrl });
