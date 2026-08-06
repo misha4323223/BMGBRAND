@@ -98,7 +98,7 @@ function checkAdminKey(key: string | undefined): boolean {
 }
 
 function adminAuthMiddleware(req: AuthRequest, res: any, next: any) {
-  const apiKey = req.headers["x-api-key"] || req.query.key;
+  const apiKey = req.headers["x-api-key"];
   if (!checkAdminKey(apiKey as string)) {
     return res.status(403).json({ error: "Forbidden: Invalid API key" });
   }
@@ -2117,7 +2117,7 @@ ${artistLinks || "- (список формируется)"}
 
   app.get("/api/admin/price-drop-notify", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
     try {
       const subscriptions = await storage.getAllPriceDropSubscriptions();
@@ -2149,7 +2149,7 @@ ${artistLinks || "- (список формируется)"}
   // Test post-purchase email — creates a real promo code and sends the real template
   app.post("/api/admin/test-ppemail", async (req, res) => {
     const reqUser = (req as any).user;
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     const isAdmin = (reqUser && reqUser.role === 'admin') || apiKey === getAdminKey();
     if (!isAdmin) return res.status(403).json({ error: "Forbidden" });
     const { to, name } = req.body;
@@ -2199,7 +2199,7 @@ ${artistLinks || "- (список формируется)"}
 
   // Temporary: create a test order in "paid" status for artist stats testing
   app.post("/api/admin/test-order", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
     try {
       const { items, customerName = "Тест Покупатель", customerEmail = "test-buyer@bmgtest.ru", refSlug } = req.body;
@@ -2347,7 +2347,7 @@ ${artistLinks || "- (список формируется)"}
 
   // Temporary: delete a test commission by id
   app.delete("/api/admin/test-commission/:id", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
     try {
       const ydbMod = await import("ydb-sdk");
@@ -2368,7 +2368,7 @@ ${artistLinks || "- (список формируется)"}
   // Migrate commission_type for legacy NULL records
   // Checks each commission's order items against partner's artist products
   app.post("/api/admin/migrate-commission-types", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
     try {
       const ydbMod = await import("ydb-sdk");
@@ -2464,7 +2464,7 @@ ${artistLinks || "- (список формируется)"}
 
   // Temporary: delete a test order by id
   app.delete("/api/admin/test-order/:id", async (req, res) => {
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
     try {
       const ydbMod = await import("ydb-sdk");
@@ -4820,7 +4820,7 @@ ${artistLinks || "- (список формируется)"}
         return res.send("success");
       }
       if (type === "catalog" && mode === "import") {
-        const filenameStr = filename as string;
+        const filenameStr = path.basename(filename as string);
         const uploadPath = path.resolve(process.cwd(), "1c_uploads", filenameStr);
         console.log(`[1C] GET Import command received. Filename: ${filenameStr}. Reading from: ${uploadPath}`);
         
@@ -5451,7 +5451,7 @@ ${artistLinks || "- (список формируется)"}
   // Get list of files in Object Storage for diagnostics (protected)
   app.get("/api/storage-files", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -5482,7 +5482,7 @@ ${artistLinks || "- (список формируется)"}
       console.error("[WebP] SYNC_API_KEY not configured");
       return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
     }
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -5606,7 +5606,7 @@ ${artistLinks || "- (список формируется)"}
       console.error("[WebP URLs] SYNC_API_KEY not configured");
       return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
     }
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -5713,7 +5713,7 @@ ${artistLinks || "- (список формируется)"}
     if (!expectedKey) {
       return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
     }
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -5791,7 +5791,7 @@ ${artistLinks || "- (список формируется)"}
     if (!expectedKey) {
       return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
     }
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -5912,7 +5912,7 @@ ${artistLinks || "- (список формируется)"}
       console.error("[Thumbnails] SYNC_API_KEY not configured");
       return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
     }
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6022,7 +6022,7 @@ ${artistLinks || "- (список формируется)"}
   // Add thumbnail_url column to YDB products table (migration)
   app.post("/api/migrate-thumbnail-column", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6043,7 +6043,7 @@ ${artistLinks || "- (список формируется)"}
   // Add wholesale columns to users table (migration)
   app.post("/api/migrate-wholesale-columns", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6065,7 +6065,7 @@ ${artistLinks || "- (список формируется)"}
   // Add wholesale_price column to products table (migration)
   app.post("/api/migrate-wholesale-price-column", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6086,7 +6086,7 @@ ${artistLinks || "- (список формируется)"}
   // Add on_sale column to products table (migration)
   app.post("/api/migrate-on-sale-column", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6107,7 +6107,7 @@ ${artistLinks || "- (список формируется)"}
   // Add old_price column to products table (migration)
   app.post("/api/migrate-old-price-column", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6128,7 +6128,7 @@ ${artistLinks || "- (список формируется)"}
   // Add is_hidden column to products table (migration)
   app.post("/api/migrate-is-hidden-column", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6149,7 +6149,7 @@ ${artistLinks || "- (список формируется)"}
   // Add auto_hide_override column to products table (migration)
   app.post("/api/migrate-auto-hide-override-column", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6170,7 +6170,7 @@ ${artistLinks || "- (список формируется)"}
   // Add product details columns (migration for admin product editor)
   app.post("/api/migrate-product-details-columns", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6230,7 +6230,7 @@ ${artistLinks || "- (список формируется)"}
   // Add feature_badge_ids column to products table (migration)
   app.post("/api/migrate-feature-badge-ids-column", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
     try {
       const ydb = await import("ydb-sdk");
@@ -6258,7 +6258,7 @@ ${artistLinks || "- (список формируется)"}
   // Add stock column to products table (migration)
   app.post("/api/migrate-stock-column", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6279,7 +6279,7 @@ ${artistLinks || "- (список формируется)"}
   // Add slug column to products table (migration)
   app.post("/api/migrate-slug-column", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6298,7 +6298,7 @@ ${artistLinks || "- (список формируется)"}
   // Add video_url column to products table (migration)
   app.post("/api/migrate-video-url-column", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6322,7 +6322,7 @@ ${artistLinks || "- (список формируется)"}
   // Backfill slugs for all products that don't have one
   app.post("/api/backfill-slugs", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6383,7 +6383,7 @@ ${artistLinks || "- (список формируется)"}
   // Optional filter: "noimage" or "zeroprice" to only hide specific type
   app.post("/api/products/auto-hide-problematic", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6524,7 +6524,7 @@ ${artistLinks || "- (список формируется)"}
   // Hide/show product (admin only)
   app.post("/api/products/:id/hide", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6580,7 +6580,7 @@ ${artistLinks || "- (список формируется)"}
   // Get hidden products (admin only)
   app.get("/api/products/hidden", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6599,7 +6599,7 @@ ${artistLinks || "- (список формируется)"}
   // Get products without images (admin only)
   app.get("/api/products/no-image", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6627,7 +6627,7 @@ ${artistLinks || "- (список формируется)"}
   // Get products with zero or negative price (admin only)
   app.get("/api/products/zero-price", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6651,7 +6651,7 @@ ${artistLinks || "- (список формируется)"}
   // Create new product (admin only)
   app.post("/api/admin/products", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -6956,7 +6956,7 @@ ${artistLinks || "- (список формируется)"}
   // Update product (admin only)
   app.patch("/api/admin/products/:id", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -7232,7 +7232,7 @@ ${artistLinks || "- (список формируется)"}
   // Upload product image (admin only)
   app.post("/api/admin/products/:id/images", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -7298,7 +7298,7 @@ ${artistLinks || "- (список формируется)"}
   // Get single product for editing (admin only)
   app.get("/api/admin/products/:id", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -7326,7 +7326,7 @@ ${artistLinks || "- (список формируется)"}
       console.error("[Thumbnails] SYNC_API_KEY not configured");
       return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
     }
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -7460,7 +7460,7 @@ ${artistLinks || "- (список формируется)"}
   // Fix thumbnailUrl: replace .jpg with .webp for all products
   app.post("/api/fix-thumbnail-urls", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -7513,7 +7513,7 @@ ${artistLinks || "- (список формируется)"}
   app.post("/api/backfill-categories", async (req, res) => {
     const expectedKey = getAdminKey();
     
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       console.log(`[Categories] Auth failed`);
 
@@ -7588,7 +7588,7 @@ ${artistLinks || "- (список формируется)"}
   // Backfill images - initialize images array from imageUrl for existing products
   app.post("/api/backfill-images", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -7632,7 +7632,7 @@ ${artistLinks || "- (список формируется)"}
   // Move specific products to SALE category (one-time migration)
   app.post("/api/move-to-sale", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -7725,7 +7725,7 @@ ${artistLinks || "- (список формируется)"}
   // Backfill colors from product names
   app.post("/api/backfill-colors", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -7769,7 +7769,7 @@ ${artistLinks || "- (список формируется)"}
   // Backfill sizes from product names
   app.post("/api/backfill-sizes", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -7816,7 +7816,7 @@ ${artistLinks || "- (список формируется)"}
   // Sync in_stock field with isHidden for existing products
   app.post("/api/backfill-stock", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -7860,7 +7860,7 @@ ${artistLinks || "- (список формируется)"}
   // One-time cleanup: remove garbage 1C artifact sizes (0-stock non-standard sizes like sock sizes)
   app.post("/api/admin/cleanup-product-sizes", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -7904,7 +7904,7 @@ ${artistLinks || "- (список формируется)"}
   // Update sizes from offers.xml (for clothing items with S, M, L, XL sizes)
   app.post("/api/update-sizes-from-offers", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -8004,7 +8004,7 @@ ${artistLinks || "- (список формируется)"}
   // Update stock from offers.xml (manual sync)
   app.post("/api/update-stock-from-offers", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -8065,7 +8065,7 @@ ${artistLinks || "- (список формируется)"}
   // Delete all products from database (admin only)
   app.delete("/api/products/all", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -8253,7 +8253,7 @@ ${artistLinks || "- (список формируется)"}
 
     // Handle file uploads for both catalog and sale types
     if ((type === "catalog" || type === "sale") && mode === "file") {
-      const filenameStr = filename as string;
+      const filenameStr = path.basename(filename as string);
       const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(filenameStr);
       console.log(`[1C FILE] Processing file: ${filenameStr}, isImage: ${isImage}, hasBody: ${!!req.body}, bodyLength: ${req.body?.length || 0}`);
       
@@ -15293,7 +15293,7 @@ ${offersXml}
   // Все кампании для админки (включая скрытые)
   app.get("/api/admin/preorder/campaigns", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
 
     try {
@@ -15345,7 +15345,7 @@ ${offersXml}
   // Создать или обновить кампанию (сохраняет настройки + добавляет в список)
   app.post("/api/admin/preorder/campaigns", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
 
     try {
@@ -15395,7 +15395,7 @@ ${offersXml}
   // Удалить кампанию из списка
   app.delete("/api/admin/preorder/campaigns/:slug", async (req, res) => {
     const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"] || req.query.key;
+    const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
 
     try {
