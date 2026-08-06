@@ -16,6 +16,13 @@ interface ProductForChat {
   sizes?: string[];
   sizeStock?: Record<string, number> | null;
   artistSlug?: string | null;
+  // Preorder fields
+  preorderEnabled?: boolean | null;
+  preorderStatus?: string | null;
+  preorderDeadline?: string | null;
+  preorderShippingDate?: string | null;
+  preorderGoal?: number | null;
+  preorderCurrent?: number | null;
 }
 
 interface ChatMsg {
@@ -259,6 +266,12 @@ export const ProductMiniChat = memo(function ProductMiniChat({ product, resetKey
               sizes: fullProduct.sizes,
               sizeStock: fullProduct.sizeStock,
               artistSlug: fullProduct.artistSlug,
+              preorderEnabled: fullProduct.preorderEnabled,
+              preorderStatus: fullProduct.preorderStatus,
+              preorderDeadline: fullProduct.preorderDeadline,
+              preorderShippingDate: fullProduct.preorderShippingDate,
+              preorderGoal: fullProduct.preorderGoal,
+              preorderCurrent: fullProduct.preorderCurrent,
             },
             messages: withUser,
           }),

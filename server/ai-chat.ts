@@ -1545,6 +1545,36 @@ export function registerProductInfoRoute(app: Express): void {
         }
       }
 
+      // ── Preorder context ──────────────────────────────────────────────────
+      if (product.preorderEnabled) {
+        const statusMap: Record<string, string> = {
+          collecting: "сбор заявок",
+          production: "в производстве",
+          shipping: "отправка",
+          shipped: "отправлено",
+        };
+        const statusLabel = statusMap[product.preorderStatus as string] ?? "предзаказ";
+        const fmt = (d: string) =>
+          new Date(d).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+        const deadlinePart = product.preorderDeadline
+          ? `, приём заявок до: ${fmt(product.preorderDeadline)}`
+          : "";
+        const shippingPart = product.preorderShippingDate
+          ? `, ориентировочная отправка: ${fmt(product.preorderShippingDate)}`
+          : "";
+        const progressPart =
+          product.preorderGoal && product.preorderGoal > 0
+            ? `, собрано заявок: ${product.preorderCurrent ?? 0} из ${product.preorderGoal}`
+            : "";
+        sys +=
+          `\n\nВАЖНО — ПРЕДЗАКАЗ:\n` +
+          `- Статус: ${statusLabel}${deadlinePart}${shippingPart}${progressPart}\n` +
+          `- Покупатель оформляет заявку заранее и ждёт производства или отправки\n` +
+          `- Если спрашивают когда придёт или как это работает — объясни схему честно, опираясь на статус и даты выше\n` +
+          `- Не говори что карточка пустая — при предзаказе это нормально\n` +
+          `- Кнопка заказа ведёт на страницу товара — предложи перейти туда для оформления заявки`;
+      }
+
       // No "missing fields" block — just silently skip unavailable sections
 
       // ── Open SSE stream ────────────────────────────────────────────────────
