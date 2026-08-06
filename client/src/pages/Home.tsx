@@ -678,9 +678,11 @@ export default function Home() {
           const slide = heroSlides[activeIndex] || pageSettings?.hero || {};
           const multiSlide = heroSlides.length > 1;
           const isVideoSlide = (slide as any).bgType === 'video' && !!(slide as any).heroVideo;
-          // Desktop: when mobile shows a video slide, find the next non-video slide to display instead
+          // Desktop: when "Видео на десктопе" is OFF and mobile shows a video slide,
+          // find the next non-video slide to display on desktop instead
+          const videoOnDesktop = pageSettings?.hero?.showVideoOnDesktop !== false;
           const desktopActiveIndex = (() => {
-            if (!isVideoSlide) return activeIndex;
+            if (videoOnDesktop || !isVideoSlide) return activeIndex;
             for (let k = 1; k < heroSlides.length; k++) {
               const idx = (activeIndex + k) % heroSlides.length;
               if (heroSlides[idx]?.bgType !== 'video' || !heroSlides[idx]?.heroVideo) return idx;

@@ -6601,6 +6601,10 @@ export default function Admin() {
                                 <input type="checkbox" id="hero-show-desktop" checked={sectionSettings.showOnDesktop !== false} onChange={(e) => setSectionSettings({...sectionSettings, showOnDesktop: e.target.checked})} className="w-4 h-4 accent-primary" />
                                 <Label htmlFor="hero-show-desktop" className="text-sm font-normal cursor-pointer">На десктопе</Label>
                               </div>
+                              <div className="flex items-center gap-2">
+                                <input type="checkbox" id="hero-video-desktop" checked={sectionSettings.showVideoOnDesktop !== false} onChange={(e) => setSectionSettings({...sectionSettings, showVideoOnDesktop: e.target.checked})} className="w-4 h-4 accent-primary" />
+                                <Label htmlFor="hero-video-desktop" className="text-sm font-normal cursor-pointer">Видео на десктопе</Label>
+                              </div>
                               <div className="flex items-center gap-2 mt-1">
                                 <Switch checked={sectionSettings.visible !== false} onCheckedChange={(checked) => setSectionSettings({...sectionSettings, visible: checked})} />
                                 <Label className="text-sm">Секция активна</Label>
