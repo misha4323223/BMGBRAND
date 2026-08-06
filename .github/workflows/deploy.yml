@@ -43,7 +43,7 @@ jobs:
           revision-memory: 2Gb
           revision-core-fraction: 100
           revision-concurrency: 13
-          revision-min-instances: 1
+          revision-provisioned: 1
           revision-image-url: cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ github.sha }}
           revision-execution-timeout: 120s
           revision-env: |
