@@ -15,6 +15,7 @@ import helmet from "helmet";
 import cors from "cors";
 import { registerRoutes, syncArtistPagesToMerchSubcategories } from "./routes";
 import { migrateAiKnowledgeDefaults } from "./ai-chat";
+import { registerVirtualTryOnRoutes } from "./virtual-tryon";
 import { serveStatic } from "./static";
 import { botSsrMiddleware } from "./bot-ssr";
 import { createServer } from "http";
@@ -380,6 +381,7 @@ async function seedDefaultLegalDocuments() {
   // Засеиваем дефолтные тексты юридических документов (только если активной версии нет)
   await seedDefaultLegalDocuments().catch((e) => console.error('[Legal Seed] failed:', e?.message));
   await registerRoutes(httpServer, app);
+  registerVirtualTryOnRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

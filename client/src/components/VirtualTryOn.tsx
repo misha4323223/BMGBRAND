@@ -1,0 +1,318 @@
+/**
+ * VirtualTryOn — кнопка + диалог AR-примерки (OOTDiffusion / HF Spaces)
+ *
+ * Чтобы удалить фичу целиком:
+ *   - Удалить этот файл
+ *   - Удалить server/virtual-tryon.ts
+ *   - Убрать <VirtualTryOn> из ProductDetail.tsx
+ *   - Убрать registerVirtualTryOnRoutes из server/index.ts
+ */
+
+import { useState, useRef, useCallback } from "react";
+import { Camera, Upload, X, Loader2, Download, RefreshCw, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+
+interface VirtualTryOnProps {
+  /** Публичный URL фото товара (используется как одежда) */
+  garmentUrl: string;
+  /** Название товара для подписей */
+  productName?: string;
+}
+
+type Stage = "idle" | "uploading" | "processing" | "done" | "error";
+
+export function VirtualTryOn({ garmentUrl, productName }: VirtualTryOnProps) {
+  const [open, setOpen] = useState(false);
+  const [stage, setStage] = useState<Stage>("idle");
+  const [personPreview, setPersonPreview] = useState<string | null>(null);
+  const [personFile, setPersonFile] = useState<File | null>(null);
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string>("");
+  const [elapsed, setElapsed] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const reset = useCallback(() => {
+    setStage("idle");
+    setPersonPreview(null);
+    setPersonFile(null);
+    setResultUrl(null);
+    setErrorMsg("");
+    setElapsed(0);
+    if (timerRef.current) clearInterval(timerRef.current);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setOpen(false);
+    // Сбрасываем через небольшую задержку (после анимации закрытия)
+    setTimeout(reset, 300);
+  }, [reset]);
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPersonFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setPersonPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+    setStage("idle");
+    setResultUrl(null);
+    setErrorMsg("");
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    setPersonFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setPersonPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+    setStage("idle");
+    setResultUrl(null);
+    setErrorMsg("");
+  }, []);
+
+  const handleTryOn = useCallback(async () => {
+    if (!personFile || !garmentUrl) return;
+
+    setStage("uploading");
+    setElapsed(0);
+    setErrorMsg("");
+    setResultUrl(null);
+
+    // Запускаем таймер
+    timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
+
+    try {
+      const fd = new FormData();
+      fd.append("personPhoto", personFile);
+      fd.append("garmentUrl", garmentUrl);
+
+      setStage("processing");
+
+      const res = await fetch("/api/virtual-tryon", {
+        method: "POST",
+        body: fd,
+      });
+
+      const data = await res.json() as { resultUrl?: string; error?: string };
+
+      if (!res.ok || data.error) {
+        throw new Error(data.error || `Ошибка сервера (${res.status})`);
+      }
+      if (!data.resultUrl) throw new Error("Сервер не вернул результат");
+
+      setResultUrl(data.resultUrl);
+      setStage("done");
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : String(err));
+      setStage("error");
+    } finally {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  }, [personFile, garmentUrl]);
+
+  const handleDownload = useCallback(async () => {
+    if (!resultUrl) return;
+    try {
+      const res = await fetch(resultUrl);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "примерка.png";
+      a.click();
+    } catch {
+      window.open(resultUrl, "_blank");
+    }
+  }, [resultUrl]);
+
+  const isLoading = stage === "uploading" || stage === "processing";
+
+  const formatElapsed = (s: number) =>
+    s < 60 ? `${s} сек` : `${Math.floor(s / 60)} мин ${s % 60} сек`;
+
+  return (
+    <>
+      {/* Кнопка-триггер */}
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full h-11 flex items-center justify-center gap-2 text-sm font-medium rounded-full border border-foreground/20 text-foreground/80 hover:border-foreground/40 hover:text-foreground transition-all active:scale-[0.98]"
+      >
+        <Sparkles className="w-4 h-4" />
+        Примерить на себе (AI)
+      </button>
+
+      <Dialog open={open} onOpenChange={(v) => { if (!v && !isLoading) handleClose(); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              AI-примерка
+            </DialogTitle>
+            <DialogDescription>
+              Загрузите своё фото — нейросеть покажет, как будет смотреться товар на вас.
+              {productName && <span className="block mt-0.5 text-foreground/60 text-xs">Товар: {productName}</span>}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-5">
+
+            {/* ── Шаг 1: Загрузка фото ── */}
+            {stage !== "done" && (
+              <div>
+                <p className="text-sm font-medium mb-2">1. Ваше фото</p>
+                {personPreview ? (
+                  <div className="relative inline-block">
+                    <img
+                      src={personPreview}
+                      alt="Ваше фото"
+                      className="h-48 w-auto rounded-lg object-cover border border-border"
+                    />
+                    <button
+                      onClick={() => { setPersonPreview(null); setPersonFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-xs hover:bg-destructive/90"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onDrop={handleDrop}
+                    onDragOver={(e) => e.preventDefault()}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                  >
+                    <Upload className="w-8 h-8 text-muted-foreground" />
+                    <div className="text-center">
+                      <p className="text-sm font-medium">Перетащите или нажмите для выбора</p>
+                      <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WEBP · до 10 МБ</p>
+                    </div>
+                    <Button variant="outline" size="sm" type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
+                      <Camera className="w-4 h-4 mr-2" />
+                      Выбрать фото
+                    </Button>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  💡 Лучший результат — фото в полный рост на нейтральном фоне, одежда плотно прилегает
+                </p>
+              </div>
+            )}
+
+            {/* ── Шаг 2: Товар ── */}
+            {stage !== "done" && (
+              <div>
+                <p className="text-sm font-medium mb-2">2. Товар (определяется автоматически)</p>
+                <img
+                  src={garmentUrl}
+                  alt="Товар"
+                  className="h-32 w-auto rounded-lg object-contain border border-border bg-muted/20"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+              </div>
+            )}
+
+            {/* ── Загрузка ── */}
+            {isLoading && (
+              <div className="rounded-xl bg-muted/40 p-6 flex flex-col items-center gap-3 text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <div>
+                  <p className="text-sm font-medium">
+                    {stage === "uploading" ? "Загружаем фото..." : "Нейросеть примеряет одежду..."}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {stage === "processing"
+                      ? `Это занимает 30–90 секунд · прошло ${formatElapsed(elapsed)}`
+                      : "Подождите секунду"}
+                  </p>
+                </div>
+                {stage === "processing" && (
+                  <div className="w-full max-w-xs bg-border rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-1000"
+                      style={{ width: `${Math.min(95, (elapsed / 90) * 100)}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Ошибка ── */}
+            {stage === "error" && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                <p className="text-sm font-medium text-destructive mb-1">Не удалось выполнить примерку</p>
+                <p className="text-xs text-muted-foreground">{errorMsg}</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => { setStage("idle"); setErrorMsg(""); }}>
+                  <RefreshCw className="w-3 h-3 mr-1.5" />
+                  Попробовать снова
+                </Button>
+              </div>
+            )}
+
+            {/* ── Результат ── */}
+            {stage === "done" && resultUrl && (
+              <div className="space-y-4">
+                <p className="text-sm font-medium">Результат примерки</p>
+                <div className="flex gap-4 flex-wrap">
+                  <div className="flex-1 min-w-[140px]">
+                    <p className="text-xs text-muted-foreground mb-1.5">Вы</p>
+                    {personPreview && (
+                      <img src={personPreview} alt="Вы" className="w-full max-h-80 object-contain rounded-lg border border-border" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-[140px]">
+                    <p className="text-xs text-muted-foreground mb-1.5">В образе</p>
+                    <img src={resultUrl} alt="Результат примерки" className="w-full max-h-80 object-contain rounded-lg border border-border" />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  AI-примерка — приблизительная. Цвет, посадка и пропорции могут отличаться от реального товара.
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  <Button onClick={handleDownload} variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" />
+                    Скачать фото
+                  </Button>
+                  <Button onClick={reset} variant="ghost" size="sm">
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Попробовать другое фото
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Кнопка запуска ── */}
+            {(stage === "idle") && personFile && (
+              <Button onClick={handleTryOn} className="w-full" size="lg">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Начать примерку
+              </Button>
+            )}
+
+            {stage === "idle" && !personFile && (
+              <p className="text-center text-sm text-muted-foreground">
+                Загрузите своё фото, чтобы начать
+              </p>
+            )}
+
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

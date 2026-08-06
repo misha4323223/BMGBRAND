@@ -48,6 +48,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFavoriteStatus, useFavoriteActions } from "@/hooks/use-favorites";
 import { ZoomableLightboxImage } from "@/components/ZoomableLightboxImage";
+import { VirtualTryOn } from "@/components/VirtualTryOn";
 import {
   Accordion,
   AccordionContent,
@@ -2142,6 +2143,16 @@ export default function ProductDetail() {
               <p className="mb-4 text-center text-primary text-sm">
                 Выберите {product.sizes?.length > 0 && !selectedSize && !hasMultipleSizeRanges && !isEffectivelyNoSize(product) ? "размер" : ""}{product.sizes?.length > 0 && !selectedSize && !hasMultipleSizeRanges && !isEffectivelyNoSize(product) && !hasColorVariants && product.colors?.length > 0 && !selectedColor ? " и " : ""}{!hasColorVariants && product.colors?.length > 0 && !selectedColor ? "цвет" : ""}
               </p>
+            )}
+
+            {/* AI-примерка */}
+            {allImages[0] && (
+              <div className="mb-4">
+                <VirtualTryOn
+                  garmentUrl={allImages[0]}
+                  productName={product.name}
+                />
+              </div>
             )}
 
             {/* Price Drop Subscription — hidden for active preorders */}
