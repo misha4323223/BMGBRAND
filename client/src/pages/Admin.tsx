@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import * as XLSX from 'xlsx';
 import PushNotificationsPanel from "@/components/admin/PushNotificationsPanel";
+import VirtualTryOnToggle from "@/components/admin/VirtualTryOnToggle";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -14474,7 +14475,10 @@ export default function Admin() {
         )}
 
         {activeTab === "integrations" && (
-          <OzonDeliveryIntegration apiKey={apiKey} />
+          <div className="space-y-4 p-4">
+            <VirtualTryOnToggle apiKey={apiKey} />
+            <OzonDeliveryIntegration apiKey={apiKey} />
+          </div>
         )}
 
         {activeTab === "clients" && (

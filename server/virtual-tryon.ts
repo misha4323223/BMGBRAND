@@ -10,6 +10,7 @@
 
 import { Express, Request, Response } from 'express';
 import multer from 'multer';
+import { storage } from './storage';
 
 const SPACE_URL = 'https://levihsu-ootdiffusion.hf.space';
 const HF_TOKEN = process.env.HF_TOKEN;
@@ -160,7 +161,39 @@ async function runTryOn(vtonPath: string, garmPath: string): Promise<string> {
   }
 }
 
+async function isTryOnEnabled(): Promise<boolean> {
+  const val = await storage.getBonusSetting('virtual_tryon_enabled');
+  return val !== 'false'; // включено по умолчанию
+}
+
 export function registerVirtualTryOnRoutes(app: Express): void {
+  /** GET /api/admin/virtual-tryon/settings — статус */
+  app.get('/api/admin/virtual-tryon/settings', async (req: Request, res: Response): Promise<void> => {
+    const apiKey = req.headers['x-api-key'];
+    if (!apiKey || apiKey !== process.env.ADMIN_API_KEY) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const enabled = await isTryOnEnabled();
+    res.json({ enabled });
+  });
+
+  /** POST /api/admin/virtual-tryon/settings — включить/выключить */
+  app.post('/api/admin/virtual-tryon/settings', async (req: Request, res: Response): Promise<void> => {
+    const apiKey = req.headers['x-api-key'];
+    if (!apiKey || apiKey !== process.env.ADMIN_API_KEY) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const { enabled } = req.body as { enabled?: boolean };
+    if (typeof enabled !== 'boolean') {
+      res.status(400).json({ error: 'enabled должен быть boolean' });
+      return;
+    }
+    await storage.setBonusSetting('virtual_tryon_enabled', String(enabled));
+    res.json({ ok: true, enabled });
+  });
+
   /**
    * POST /api/virtual-tryon
    * multipart/form-data:
@@ -174,6 +207,11 @@ export function registerVirtualTryOnRoutes(app: Express): void {
       try {
         const file = req.file;
         const garmentUrl = typeof req.body.garmentUrl === 'string' ? req.body.garmentUrl.trim() : '';
+
+        if (!(await isTryOnEnabled())) {
+          res.status(503).json({ error: 'АР-примерка отключена' });
+          return;
+        }
 
         if (!file) {
           res.status(400).json({ error: 'Прикрепите фото (поле personPhoto)' });
