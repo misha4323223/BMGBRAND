@@ -3272,6 +3272,20 @@ ${artistLinks || "- (список формируется)"}
       const metadataGiftCardId = object.metadata?.giftCardId;
       const metadataGiftCardIds = object.metadata?.giftCardIds;
       console.log(`[YooKassa Webhook] Payment succeeded: ${paymentId}, Order: ${orderId}, type: ${metadataType}, giftCardId: ${metadataGiftCardId}, giftCardIds: ${metadataGiftCardIds}`);
+
+      // Подтверждение через API ЮKassa: не верим телу webhook на слово —
+      // реальный запрос к ЮKassa должен подтвердить, что платёж действительно succeeded.
+      try {
+        const confirmedStatus = await paymentService.getPaymentStatus(paymentId, "yookassa");
+        if (!confirmedStatus || confirmedStatus.status !== "succeeded" || !confirmedStatus.paid) {
+          console.warn(`[YooKassa Webhook] API confirmation failed for payment ${paymentId}:`, confirmedStatus);
+          return res.status(400).send("Payment not confirmed");
+        }
+        console.log(`[YooKassa Webhook] API confirmed: payment ${paymentId} is succeeded+paid`);
+      } catch (confirmErr: any) {
+        console.error(`[YooKassa Webhook] API confirmation error for payment ${paymentId}:`, confirmErr?.message);
+        return res.status(400).send("Payment confirmation error");
+      }
       
       if (orderId) {
         const isGiftCard = orderId.startsWith("GIFT-") || orderId.startsWith("BATCH-") || metadataType === "gift_card" || !!metadataGiftCardId || !!metadataGiftCardIds;

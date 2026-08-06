@@ -10,6 +10,19 @@ function uuidv4(): string {
   return crypto.randomUUID();
 }
 
+/** Конвертирует IPv4-строку в 32-битное целое. Возвращает null при невалидном IP. */
+function ipToInt(ip: string): number | null {
+  const parts = ip.split(".");
+  if (parts.length !== 4) return null;
+  let result = 0;
+  for (const part of parts) {
+    const n = parseInt(part, 10);
+    if (isNaN(n) || n < 0 || n > 255) return null;
+    result = (result * 256 + n) >>> 0;
+  }
+  return result;
+}
+
 interface PaymentConfig {
   yookassa?: {
     shopId: string;
@@ -355,7 +368,41 @@ class PaymentService {
 
   verifyYooKassaWebhook(body: any, ip: string): boolean {
     if (!body || !body.event || !body.object) return false;
-    return true;
+
+    // В dev-режиме whitelist отключён — иначе локальное тестирование невозможно
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[YooKassa Webhook] Dev mode: IP whitelist skipped, ip=" + ip);
+      return true;
+    }
+
+    // Официальные IP-диапазоны ЮKassa (https://yookassa.ru/developers/using-api/webhooks)
+    const YOOKASSA_CIDRS: { base: number; bits: number }[] = [
+      { base: ipToInt("185.71.76.0")!,  bits: 27 },
+      { base: ipToInt("185.71.77.0")!,  bits: 27 },
+      { base: ipToInt("77.75.153.0")!,  bits: 25 },
+    ];
+    const YOOKASSA_EXACT: number[] = [
+      ipToInt("77.75.156.11")!,
+      ipToInt("77.75.156.35")!,
+    ];
+
+    // Убираем IPv4-mapped IPv6 префикс (::ffff:1.2.3.4 → 1.2.3.4)
+    const cleanIp = ip.replace(/^::ffff:/, "");
+    const ipInt = ipToInt(cleanIp);
+
+    if (ipInt === null) {
+      console.warn("[YooKassa Webhook] Cannot parse IP:", ip);
+      return false;
+    }
+
+    if (YOOKASSA_EXACT.includes(ipInt)) return true;
+
+    for (const { base, bits } of YOOKASSA_CIDRS) {
+      const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
+      if ((ipInt & mask) === (base & mask)) return true;
+    }
+
+    return false;
   }
 
   verifyTBankWebhook(body: any): boolean {
