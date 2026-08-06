@@ -9983,9 +9983,12 @@ ${artistLinks || "- (список формируется)"}
 
   // 1C Sync API
   app.post("/api/sync/products", async (req, res) => {
+    const expectedKey = process.env.SYNC_API_KEY;
+    if (!expectedKey) {
+      console.error("[Sync] SYNC_API_KEY not configured");
+      return res.status(503).json({ message: "Service misconfigured: SYNC_API_KEY required" });
+    }
     const apiKey = req.headers["x-api-key"];
-    const expectedKey = process.env.SYNC_API_KEY || "bmg-secret-key-123";
-
     if (apiKey !== expectedKey) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -10024,9 +10027,12 @@ ${artistLinks || "- (список формируется)"}
   });
 
   app.get("/api/sync/orders", async (req, res) => {
+    const expectedKey = process.env.SYNC_API_KEY;
+    if (!expectedKey) {
+      console.error("[Sync] SYNC_API_KEY not configured");
+      return res.status(503).json({ message: "Service misconfigured: SYNC_API_KEY required" });
+    }
     const apiKey = req.headers["x-api-key"];
-    const expectedKey = process.env.SYNC_API_KEY || "bmg-secret-key-123";
-
     if (apiKey !== expectedKey) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -10036,9 +10042,12 @@ ${artistLinks || "- (список формируется)"}
   });
 
   app.patch("/api/sync/orders/:id", async (req, res) => {
+    const expectedKey = process.env.SYNC_API_KEY;
+    if (!expectedKey) {
+      console.error("[Sync] SYNC_API_KEY not configured");
+      return res.status(503).json({ message: "Service misconfigured: SYNC_API_KEY required" });
+    }
     const apiKey = req.headers["x-api-key"];
-    const expectedKey = process.env.SYNC_API_KEY || "bmg-secret-key-123";
-
     if (apiKey !== expectedKey) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -10103,9 +10112,12 @@ ${artistLinks || "- (список формируется)"}
 
   // 1C Inventory Sync API (Update stock only)
   app.post("/api/sync/inventory", async (req, res) => {
+    const expectedKey = process.env.SYNC_API_KEY;
+    if (!expectedKey) {
+      console.error("[Sync] SYNC_API_KEY not configured");
+      return res.status(503).json({ message: "Service misconfigured: SYNC_API_KEY required" });
+    }
     const apiKey = req.headers["x-api-key"];
-    const expectedKey = process.env.SYNC_API_KEY || "bmg-secret-key-123";
-
     if (apiKey !== expectedKey) {
       return res.status(401).json({ message: "Unauthorized" });
     }

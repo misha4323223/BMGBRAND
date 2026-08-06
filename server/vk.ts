@@ -8,7 +8,7 @@ function getConfig() {
   return {
     token: process.env.VK_USER_TOKEN || "",
     peerId: process.env.VK_CHAT_PEER_ID || "",
-    secret: process.env.VK_ACTION_SECRET || "vk-action-secret-fallback",
+    secret: process.env.VK_ACTION_SECRET || "",
   };
 }
 
@@ -37,6 +37,10 @@ export function generateActionLink(act: string, id: number): string {
 
 export function verifyActionLink(act: string, id: string, exp: string, sig: string): boolean {
   const { secret } = getConfig();
+  if (!secret) {
+    console.error("[VK] VK_ACTION_SECRET not configured — rejecting action link");
+    return false;
+  }
   const now = Math.floor(Date.now() / 1000);
   if (parseInt(exp) < now) return false;
   const payload = `${act}:${id}:${exp}`;
