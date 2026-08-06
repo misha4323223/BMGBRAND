@@ -1584,8 +1584,8 @@ export function registerProductInfoRoute(app: Express): void {
       res.flushHeaders();
 
       // ── Helper: one Groq streaming attempt, returns chars written ────────────
-      // llama-3.1-8b-instant: no extended thinking, separate rate-limit quota
-      // from qwen3 used in main chat, responds in 300-700ms vs 2.5s for qwen3
+      // llama-3.1-8b-instant: быстрая модель для карточки товара (300-700ms)
+      // Основной чат использует llama-3.3-70b-versatile (тяжелее, умнее)
       const groqBody = (apiKey: string) => JSON.stringify({
         model: "llama-3.1-8b-instant",
         messages: [{ role: "system", content: sys }, ...messages.slice(-6)],
