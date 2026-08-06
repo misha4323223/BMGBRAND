@@ -3730,6 +3730,22 @@ ${artistLinks || "- (список формируется)"}
     const { Status, PaymentId, OrderId, Success } = req.body;
     if (Success && Status === "CONFIRMED") {
       console.log(`[T-Bank Webhook] Payment CONFIRMED: ${PaymentId}, Order: ${OrderId}`);
+
+      // Подтверждение через API T-Bank: не верим телу webhook на слово —
+      // реальный запрос к T-Bank GetState должен подтвердить статус CONFIRMED.
+      // tbankTlsAgent внутри getPaymentStatus уже использует rejectUnauthorized:false
+      // для российского УЦ (Минцифры), которому Node.js не доверяет по умолчанию.
+      try {
+        const confirmedStatus = await paymentService.getPaymentStatus(String(PaymentId), "tbank");
+        if (!confirmedStatus || confirmedStatus.status !== "succeeded" || !confirmedStatus.paid) {
+          console.warn(`[T-Bank Webhook] API confirmation failed for payment ${PaymentId}:`, confirmedStatus);
+          return res.status(400).send("Payment not confirmed");
+        }
+        console.log(`[T-Bank Webhook] API confirmed: payment ${PaymentId} is CONFIRMED+paid`);
+      } catch (confirmErr: any) {
+        console.error(`[T-Bank Webhook] API confirmation error for payment ${PaymentId}:`, confirmErr?.message);
+        return res.status(400).send("Payment confirmation error");
+      }
       
       if (OrderId) {
         if (OrderId.startsWith("GIFT-")) {
