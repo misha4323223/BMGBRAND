@@ -333,7 +333,7 @@ export default function Home() {
   const [heroPaused, setHeroPaused] = useState(false);
   const [heroAnimKey, setHeroAnimKey] = useState(0);
   const [heroCrtClass, setHeroCrtClass] = useState('');
-  const [heroCrtTransitioning, setHeroCrtTransitioning] = useState(false);
+  const heroCrtTransitioningRef = useRef(false);
 
   // Load page settings from database FIRST
   const { data: pageSettings, isLoading: settingsLoading } = useQuery<Record<string, any>>({
@@ -477,14 +477,14 @@ export default function Home() {
       const nextIsVideo = nextSlide?.bgType === 'video' && !!nextSlide?.heroVideo;
       if (currIsVideo && !nextIsVideo) {
         // video→image: CRT TV turn-off/on effect
-        setHeroCrtTransitioning(true);
+        heroCrtTransitioningRef.current = true;
         setHeroCrtClass('crt-collapse');
         setTimeout(() => {
           setHeroPrev(heroSlideIndex);
           setHeroAnimKey(k => k + 1);
           setHeroSlideIndex(next);
           setHeroCrtClass('crt-expand');
-          setTimeout(() => { setHeroCrtClass(''); setHeroCrtTransitioning(false); }, 350);
+          setTimeout(() => { setHeroCrtClass(''); heroCrtTransitioningRef.current = false; }, 350);
         }, 220);
       } else {
         setHeroPrev(heroSlideIndex);
@@ -687,12 +687,12 @@ export default function Home() {
             const currIsVideo = curr?.bgType === 'video' && !!curr?.heroVideo;
             const nextIsVideo = next?.bgType === 'video' && !!next?.heroVideo;
             if (currIsVideo && !nextIsVideo) {
-              setHeroCrtTransitioning(true);
+              heroCrtTransitioningRef.current = true;
               setHeroCrtClass('crt-collapse');
               setTimeout(() => {
                 setHeroPrev(activeIndex); setHeroAnimKey(k => k + 1); setHeroSlideIndex(nextIndex);
                 setHeroCrtClass('crt-expand');
-                setTimeout(() => { setHeroCrtClass(''); setHeroCrtTransitioning(false); }, 350);
+                setTimeout(() => { setHeroCrtClass(''); heroCrtTransitioningRef.current = false; }, 350);
               }, 220);
             } else {
               setHeroPrev(activeIndex); setHeroAnimKey(k => k + 1); setHeroSlideIndex(nextIndex);
@@ -729,7 +729,7 @@ export default function Home() {
                   {heroSlides.map((s: any, i: number) => (
                     <div
                       key={i === activeIndex ? `tv-active-${heroAnimKey}` : `tv-${i}`}
-                      className={`absolute inset-0${(i === activeIndex && !heroCrtTransitioning) ? ' hero-slide-enter' : ''}`}
+                      className={`absolute inset-0${(i === activeIndex && !heroCrtTransitioningRef.current) ? ' hero-slide-enter' : ''}`}
                       style={{
                         opacity: i === activeIndex ? 1 : (i === heroPrev ? 1 : 0),
                         zIndex: i === activeIndex ? 2 : (i === heroPrev ? 1 : 0),
@@ -794,7 +794,7 @@ export default function Home() {
             {heroSlides.map((s: any, i: number) => (
               <div
                 key={i === activeIndex ? `active-${heroAnimKey}` : i}
-                className={`absolute inset-0${(i === activeIndex && !heroCrtTransitioning) ? ' hero-slide-enter' : ''}`}
+                className={`absolute inset-0${(i === activeIndex && !heroCrtTransitioningRef.current) ? ' hero-slide-enter' : ''}`}
                 style={{
                   opacity: i === activeIndex
                     ? (parseFloat(s.heroOpacity) || 0.6)
