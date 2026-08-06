@@ -85,8 +85,8 @@ async function runTryOn(vtonPath: string, garmPath: string): Promise<string> {
           { path: vtonPath, meta: { _type: 'gradio.FileData' } }, // vton_img — фото человека
           { path: garmPath, meta: { _type: 'gradio.FileData' } }, // garm_img — одежда
           1,    // n_samples
-          20,   // n_steps
-          2.0,  // image_scale (guidance scale)
+          30,   // n_steps (30 = industry standard, лучше чем дефолтные 20)
+          2.5,  // image_scale / guidance scale (2.5 = стандарт для продакшена)
           -1,   // seed (-1 = random)
         ],
       }),
