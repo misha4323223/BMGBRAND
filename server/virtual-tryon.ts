@@ -12,7 +12,11 @@ import { Express, Request, Response } from 'express';
 import multer from 'multer';
 import { storage } from './storage';
 
-const SPACE_URL = 'https://levihsu-ootdiffusion.hf.space';
+// Если задан HF_PROXY_URL — все запросы к HF Space идут через него.
+// Прокси должен перенаправлять на levihsu-ootdiffusion.hf.space
+// (аналогично GROQ_PROXY_URL, но для Hugging Face).
+const HF_PROXY_URL = process.env.HF_PROXY_URL?.replace(/\/$/, '');
+const SPACE_URL = HF_PROXY_URL ?? 'https://levihsu-ootdiffusion.hf.space';
 const HF_TOKEN = process.env.HF_TOKEN;
 const TIMEOUT_MS = 4 * 60 * 1000; // 4 минуты — HF бесплатный tier может быть медленным
 
