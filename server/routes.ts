@@ -12,6 +12,7 @@ import { XMLParser, XMLBuilder } from "fast-xml-parser";
 import { uploadToYandexStorage, downloadFromYandexStorage, listObjectsFromYandexStorage, downloadBinaryFromYandexStorage, deleteFromYandexStorage, checkFileExistsInYandexStorage } from "./lib/storage-s3";
 import { createCdekWaybillForOrder, recreateCdekWaybillForOrder } from "./lib/cdek-waybill";
 import { queuePreorderStatusEmail } from "./lib/preorder-email-buffer";
+import { resolveItemPrice } from "./lib/pricing";
 import sharp from "sharp";
 import { mapProductCategory, isOnSale, extractColorFromName, extractSizesFromName, mapGroupHierarchyToCategory, isIgnoredRootGroup, isAllowedRootGroup, getRootGroupCategorySlug, getArtistSlugFromName, type GroupHierarchy } from "./categoryMapper";
 import { CATEGORIES, normalizeCategories, transliterateToSlug, insertPromoCodeSchema, insertLoyaltyTierSchema, insertNewsletterSubscriptionSchema, insertBonusSettingSchema, PARTNER_COOKIE_NAME, PARTNER_DEFAULT_COMMISSION_PERCENT, getProgressiveCommissionRate } from "@shared/schema";
@@ -132,6 +133,10 @@ function invalidateSubscriptionPromosCache() {
 }
 
 const CDEK_ITEM_WEIGHT_GRAMS = 300;
+
+function isApprovedWholesaleUser(user: any): boolean {
+  return !!user && user.role === "wholesale" && (user.wholesaleApproved === true || user.approved === true);
+}
 
 
 // Throttle helper to prevent YDB RESOURCE_EXHAUSTED errors during bulk imports
@@ -10469,30 +10474,11 @@ ${artistLinks || "- (список формируется)"}
       // Track wholesale per-item discount amount separately for notifications/invoice display
       let wholesaleItemDiscountTotal = 0;
       const orderItems = cartItems.map(item => {
-          let price = item.product.price;
-          if (isWholesale && item.product.wholesalePrice) {
-            const wdp = (item.product as any).wholesaleDiscountPercent as number | null | undefined;
-            if (wdp && wdp > 0) {
-              const discountedPrice = Math.round(item.product.wholesalePrice * (1 - wdp / 100));
-              wholesaleItemDiscountTotal += (item.product.wholesalePrice - discountedPrice) * item.quantity;
-              price = discountedPrice;
-            } else {
-              price = item.product.wholesalePrice;
-            }
-          } else if (!isWholesale) {
-            const itemSalePrice = (item.product as any).salePrice;
-            if (itemSalePrice && itemSalePrice > 0 && itemSalePrice < item.product.price) {
-              price = itemSalePrice;
-            } else {
-              const discountPct = (item.product as any).discountPercent;
-              const sizeDiscounts = (item.product as any).sizeDiscounts as Record<string, number> | null;
-              const sizeDiscount = (sizeDiscounts && item.size && sizeDiscounts[item.size]) ? sizeDiscounts[item.size] : null;
-              const effectiveDiscount = sizeDiscount ?? (discountPct || 0);
-              if (effectiveDiscount > 0) {
-                price = Math.round(item.product.price * (1 - effectiveDiscount / 100));
-              }
-            }
-          }
+          const { price, wholesaleDiscountPerUnit } = resolveItemPrice(item.product as any, {
+            isWholesale,
+            size: item.size,
+          });
+          wholesaleItemDiscountTotal += wholesaleDiscountPerUnit * item.quantity;
           const sizeCharIds = (item.product as any).sizeCharacteristicIds as Record<string, string> | null | undefined;
           const sizeCharGuid = (item.size && sizeCharIds) ? (sizeCharIds[item.size] || null) : null;
           return {
@@ -15491,7 +15477,7 @@ ${offersXml}
           deliveryCost = 0;
         }
       }
-      const totalPrice = product.price * totalQty + deliveryCost;
+      const isWholesaleUser = isApprovedWholesaleUser(user);
 
       const orderItems = sizeItems.map((item: any) => {
         const sizeCharIds = (product as any).sizeCharacteristicIds as Record<string, string> | null | undefined;
@@ -15500,13 +15486,15 @@ ${offersXml}
           productId: product.id,
           productName: product.name,
           quantity: item.quantity,
-          price: product.price,
+          price: resolveItemPrice(product as any, { isWholesale: isWholesaleUser, size: item.size }).price,
           size: item.size || undefined,
           color: color || undefined,
           sizeCharacteristicId: sizeCharGuid || undefined,
           imageUrl: (product as any).images?.[0] || product.imageUrl || '',
         };
       });
+
+      const totalPrice = orderItems.reduce((s: number, i: any) => s + i.price * i.quantity, 0) + deliveryCost;
 
       const order = await storage.createOrder({
         sessionId: req.sessionID || `preorder-${Date.now()}`,
@@ -15909,7 +15897,8 @@ ${offersXml}
       }
 
       // Detect wholesale invoice preorder
-      const isWholesalePreorder = !!(req.user?.role === "wholesale" && (req.user?.wholesaleApproved === true || (req.user as any)?.approved === true) && paymentMethod === "invoice");
+      const isWholesaleUser = isApprovedWholesaleUser(req.user);
+      const isWholesalePreorder = !!(isWholesaleUser && paymentMethod === "invoice");
       const transportCompany: string | undefined = isWholesalePreorder ? (req.body.transportCompany || "cdek") : undefined;
 
       // Verify prices against database — do not trust client-provided prices
@@ -15921,20 +15910,9 @@ ${offersXml}
         if (!(product as any).preorderEnabled) {
           return res.status(400).json({ error: `Товар "${product.name}" недоступен для предзаказа` });
         }
-        // Для оптового предзаказа — использовать оптовую цену со скидкой (как на фронте)
-        if (isWholesalePreorder) {
-          const wp = (product as any).wholesalePrice;
-          const wpd = (product as any).wholesaleDiscountPercent;
-          if (wp && wp > 0) {
-            item.price = (wpd && wpd > 0)
-              ? Math.round(wp * (1 - wpd / 100))
-              : wp;
-          } else {
-            item.price = product.price;
-          }
-        } else {
-          item.price = product.price;
-        }
+        // Цена считается так же, как её видит покупатель: оптовая цена со скидкой
+        // для опта, salePrice/discountPercent для розницы.
+        item.price = resolveItemPrice(product as any, { isWholesale: isWholesaleUser }).price;
         item.productName = product.name;
       }
 
