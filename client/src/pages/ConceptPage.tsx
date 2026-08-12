@@ -1157,7 +1157,7 @@ export default function ConceptPage() {
                               })()}
                               <button
                                 className="mt-1 w-full text-[10px] text-white/40 hover:text-white transition-colors"
-                                onClick={() => { setSizePopupId(null); setPopupSizeQty({}); }}
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSizePopupId(null); setPopupSizeQty({}); }}
                               >
                                 Отмена
                               </button>

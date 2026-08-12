@@ -557,7 +557,9 @@ export default function ConceptCampaignPage() {
                                   <button
                                     className={`mt-2.5 w-full py-2 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all ${totalQty>0 ? "bg-zinc-900 text-white hover:bg-zinc-700" : "bg-zinc-100 text-zinc-900 cursor-not-allowed"}`}
                                     disabled={totalQty===0}
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       if (totalQty===0) return;
                                       addOrUpdateItem({ productId: product.id, productName: product.name, price: getEffectivePrice(product), imageUrl: cardImages[0]||"", selectedSizes: {...popupSizeQty} });
                                       setSizePopupId(null);
@@ -569,7 +571,7 @@ export default function ConceptCampaignPage() {
                                   </button>
                                 );
                               })()}
-                              <button className="mt-1.5 w-full text-[10px] text-zinc-900 hover:text-zinc-600 transition-colors" onClick={() => { setSizePopupId(null); setPopupSizeQty({}); }}>Отмена</button>
+                              <button className="mt-1.5 w-full text-[10px] text-zinc-900 hover:text-zinc-600 transition-colors" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSizePopupId(null); setPopupSizeQty({}); }}>Отмена</button>
                             </div>
                           )}
                         </div>
