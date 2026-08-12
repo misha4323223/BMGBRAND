@@ -515,6 +515,7 @@ export interface IStorage {
   getOrder(id: number): Promise<Order | undefined>;
   getOrdersByStatus(status: string): Promise<Order[]>;
   updateOrderStatus(id: number, status: string, paymentId?: string): Promise<Order>;
+  markOrderPaid(id: number, paymentId: string): Promise<Order>;
   updateOrderPaymentId(id: number, paymentId: string): Promise<void>;
   createOrder(order: InsertOrder & { items: any[], total: number, partnerId?: number }): Promise<Order>;
   updateOrderCdekData(id: number, cdekData: string): Promise<void>;
@@ -3060,6 +3061,55 @@ export class DatabaseStorage implements IStorage {
       });
     });
     return { id, status } as any;
+  }
+
+  async markOrderPaid(id: number, paymentId: string): Promise<Order> {
+    if (!driver) {
+      throw new Error(`[Storage] Cannot mark order ${id} as paid: YDB driver is not initialized`);
+    }
+
+    const current = await this.getOrder(id);
+    if (!current) {
+      throw new Error(`[Storage] Cannot mark order ${id} as paid: order not found`);
+    }
+
+    // Webhooks can be delivered more than once. Do not rewrite an already
+    // completed order; the caller uses this state to skip duplicate side effects.
+    if (current.status === "paid") {
+      if (!current.paymentId) {
+        await this.updateOrderPaymentId(id, paymentId);
+      }
+      return (await this.getOrder(id)) || current;
+    }
+
+    const result = await this.safeQuery(async (session) => {
+      const { TypedValues } = await import("ydb-sdk");
+      const query = `
+        DECLARE $id AS Uint64;
+        DECLARE $status AS Utf8;
+        DECLARE $paymentId AS Utf8;
+        UPDATE orders
+        SET status = $status, payment_id = $paymentId
+        WHERE id = $id;
+      `;
+      return await session.executeQuery(query, {
+        $id: TypedValues.uint64(id),
+        $status: TypedValues.utf8("paid"),
+        $paymentId: TypedValues.utf8(paymentId),
+      });
+    });
+
+    if (!result) {
+      throw new Error(`[Storage] YDB did not confirm marking order ${id} as paid`);
+    }
+
+    // safeQuery intentionally returns null on exhausted retries. Read-after-write
+    // makes a lost write visible to the webhook instead of acknowledging it as paid.
+    const updated = await this.getOrder(id);
+    if (!updated || updated.status !== "paid" || String(updated.paymentId || "") !== String(paymentId)) {
+      throw new Error(`[Storage] Read-after-write verification failed for paid order ${id}`);
+    }
+    return updated;
   }
   
   async updateOrderPaymentId(id: number, paymentId: string): Promise<void> {

@@ -325,42 +325,53 @@ class PaymentService {
     }
 
     if (method === "tbank" && this.tbankConfig) {
-      try {
-        const baseUrl = this.tbankConfig.testMode ? this.TBANK_TEST_URL : this.TBANK_PROD_URL;
-        const response = await fetch(`${baseUrl}/GetState`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            TerminalKey: this.tbankConfig.terminalKey,
-            PaymentId: paymentId,
-          }),
-          // @ts-ignore — undici dispatcher
-          dispatcher: tbankTlsAgent,
-        });
+      const baseUrl = this.tbankConfig.testMode ? this.TBANK_TEST_URL : this.TBANK_PROD_URL;
+      const statusMap: Record<string, PaymentStatus["status"]> = {
+        NEW: "pending",
+        AUTHORIZED: "waiting_for_capture",
+        CONFIRMED: "succeeded",
+        CANCELED: "canceled",
+        REJECTED: "canceled",
+        REFUNDED: "canceled",
+      };
 
-        const data = await response.json();
-        if (data.Success) {
-          const statusMap: Record<string, PaymentStatus["status"]> = {
-            NEW: "pending",
-            AUTHORIZED: "waiting_for_capture",
-            CONFIRMED: "succeeded",
-            CANCELED: "canceled",
-            REJECTED: "canceled",
-            REFUNDED: "canceled",
-          };
+      // T-Bank can temporarily reject an outbound GetState request while the
+      // signed webhook itself has already arrived. Retry polling, but never use
+      // this best-effort check as the only path for settling a signed webhook.
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const response = await fetch(`${baseUrl}/GetState`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              TerminalKey: this.tbankConfig.terminalKey,
+              PaymentId: paymentId,
+            }),
+            // @ts-ignore — undici dispatcher
+            dispatcher: tbankTlsAgent,
+          });
 
-          return {
-            id: data.PaymentId,
-            status: statusMap[data.Status] || "pending",
-            paid: data.Status === "CONFIRMED",
-            amount: data.Amount,
-          };
+          const data = await response.json();
+          if (data.Success) {
+            return {
+              id: String(data.PaymentId),
+              status: statusMap[data.Status] || "pending",
+              paid: data.Status === "CONFIRMED",
+              amount: data.Amount,
+            };
+          }
+
+          console.warn(`[T-Bank] GetState returned Success=false for ${paymentId}: ${data.Message || data.Details || "unknown error"}`);
+        } catch (err: any) {
+          console.error(`[T-Bank] Get status error (attempt ${attempt}/3):`, err.message);
         }
-        return null;
-      } catch (err: any) {
-        console.error("[T-Bank] Get status error:", err.message);
-        return null;
+
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, 250 * attempt));
+        }
       }
+
+      return null;
     }
 
     return null;

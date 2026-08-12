@@ -119,6 +119,9 @@ const CACHE_TTL = 60000; // 1 minute cache TTL
 
 // In-memory storage for order paymentIds (orderId -> paymentId)
 const orderPaymentIds: Map<string, string> = new Map();
+// Prevent duplicate T-Bank callbacks from running stock/email/notification
+// side effects concurrently in the same process.
+const tbankProcessingOrders: Set<number> = new Set();
 
 // Cache for /api/subscription-promos.
 // The endpoint hits YDB ~12 times (11x getBonusSetting + 1x getPromoCodes) on
@@ -3736,21 +3739,11 @@ ${artistLinks || "- (список формируется)"}
     if (Success && Status === "CONFIRMED") {
       console.log(`[T-Bank Webhook] Payment CONFIRMED: ${PaymentId}, Order: ${OrderId}`);
 
-      // Подтверждение через API T-Bank: не верим телу webhook на слово —
-      // реальный запрос к T-Bank GetState должен подтвердить статус CONFIRMED.
-      // tbankTlsAgent внутри getPaymentStatus уже использует rejectUnauthorized:false
-      // для российского УЦ (Минцифры), которому Node.js не доверяет по умолчанию.
-      try {
-        const confirmedStatus = await paymentService.getPaymentStatus(String(PaymentId), "tbank");
-        if (!confirmedStatus || confirmedStatus.status !== "succeeded" || !confirmedStatus.paid) {
-          console.warn(`[T-Bank Webhook] API confirmation failed for payment ${PaymentId}:`, confirmedStatus);
-          return res.status(400).send("Payment not confirmed");
-        }
-        console.log(`[T-Bank Webhook] API confirmed: payment ${PaymentId} is CONFIRMED+paid`);
-      } catch (confirmErr: any) {
-        console.error(`[T-Bank Webhook] API confirmation error for payment ${PaymentId}:`, confirmErr?.message);
-        return res.status(400).send("Payment confirmation error");
-      }
+      // The webhook is already authenticated by T-Bank's signed Token.
+      // Do not make order settlement depend on a second outbound GetState call:
+      // a transient network/TLS failure there previously turned a real CONFIRMED
+      // payment into HTTP 400 and left the order in awaiting_payment.
+      console.log(`[T-Bank Webhook] Signed CONFIRMED accepted; settling order without blocking on GetState`);
       
       if (OrderId) {
         if (OrderId.startsWith("GIFT-")) {
@@ -4006,9 +3999,36 @@ ${artistLinks || "- (список формируется)"}
                 }
               }
             } else {
+              const incomingPaymentId = String(PaymentId);
+              const orderBeforePayment = await storage.getOrder(numericId);
+              if (!orderBeforePayment) {
+                console.error(`[T-Bank Webhook] Paid callback references missing order ${numericId}`);
+                notifyError("T-Bank: заказ не найден", `Оплата ${incomingPaymentId} получена, но заказ ${numericId} не найден в YDB`, "");
+                return res.status(500).send("Order not found");
+              }
+              if (orderBeforePayment.status === "paid") {
+                console.log(`[T-Bank Webhook] Order ${numericId} is already paid; skipping duplicate callback side effects`);
+                return res.status(200).send("OK");
+              }
+              if (orderBeforePayment.paymentId && String(orderBeforePayment.paymentId) !== incomingPaymentId) {
+                console.error(`[T-Bank Webhook] Payment ID mismatch for order ${numericId}: stored=${orderBeforePayment.paymentId}, incoming=${incomingPaymentId}`);
+                notifyError("T-Bank: mismatch платежа", `Заказ ${numericId} получил другой PaymentId`, `stored=${orderBeforePayment.paymentId}, incoming=${incomingPaymentId}`);
+                return res.status(400).send("Payment mismatch");
+              }
+              const webhookAmount = Number(req.body.Amount);
+              if (Number.isFinite(webhookAmount) && webhookAmount > 0 && webhookAmount !== orderBeforePayment.total) {
+                console.error(`[T-Bank Webhook] Amount mismatch for order ${numericId}: order=${orderBeforePayment.total}, webhook=${webhookAmount}`);
+                notifyError("T-Bank: mismatch суммы", `Заказ ${numericId} получил другую сумму`, `order=${orderBeforePayment.total}, webhook=${webhookAmount}`);
+                return res.status(400).send("Amount mismatch");
+              }
+              if (tbankProcessingOrders.has(numericId)) {
+                console.log(`[T-Bank Webhook] Order ${numericId} is already being processed; acknowledging duplicate callback`);
+                return res.status(200).send("OK");
+              }
+              tbankProcessingOrders.add(numericId);
+
               try {
-                await storage.updateOrderStatus(numericId, "paid");
-                await storage.updateOrderPaymentId(numericId, String(PaymentId));
+                await storage.markOrderPaid(numericId, incomingPaymentId);
                 console.log(`[T-Bank Webhook] Order ${numericId} marked as paid`);
                 storage.getOrder(numericId).then((o: any) => {
                   if (o) updateCoPurchaseIndex(o.items);
@@ -4167,6 +4187,9 @@ ${artistLinks || "- (список формируется)"}
                 }
               } catch (err: any) {
                 console.error(`[T-Bank Webhook] Error updating order ${numericId}:`, err.message);
+                return res.status(500).send("Order processing failed");
+              } finally {
+                tbankProcessingOrders.delete(numericId);
               }
             }
           }
