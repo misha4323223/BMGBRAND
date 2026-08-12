@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { ArrowRight, Package, ShoppingCart } from "lucide-react";
 import { usePreorderCart } from "@/context/PreorderCartContext";
-import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 import { useToast } from "@/hooks/use-toast";
 import { DolyameWidget } from "@/components/DolyameWidget";
 
@@ -78,7 +77,6 @@ function getOptimizedImageUrl(url: string): string {
 
 export function FeaturedDropSection({ product, title, subtitle, ctaText, terminalLabel }: FeaturedDropSectionProps) {
   const { addOrUpdateItem, items: cartPreorderItems } = usePreorderCart();
-  const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
   const { toast } = useToast();
 
   const [now, setNow] = useState(() => Date.now());
@@ -150,7 +148,7 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
           imageUrl,
           selectedSizes: { [onlySize]: 1 },
         });
-        openPreorderCartDrawer();
+        toast({ title: "Добавлено в предзаказ", description: product.name });
       } else {
         setPopupSizes(sorted);
         setPopupSizeQty({});
@@ -164,7 +162,7 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
         imageUrl,
         selectedSizes: { "ONE SIZE": 1 },
       });
-      openPreorderCartDrawer();
+      toast({ title: "Добавлено в предзаказ", description: product.name });
     } finally {
       setLoading(false);
     }
@@ -450,7 +448,9 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
                         totalPopupQty > 0 ? "bg-black text-white hover:bg-black/85" : "bg-black/10 text-black/40 cursor-not-allowed"
                       }`}
                       disabled={totalPopupQty === 0}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         if (totalPopupQty === 0) return;
                         addOrUpdateItem({
                           productId: product.id,
@@ -461,7 +461,7 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
                         });
                         setSizesOpen(false);
                         setPopupSizeQty({});
-                        openPreorderCartDrawer();
+                        toast({ title: "Добавлено в предзаказ", description: `${product.name} · ${totalPopupQty} шт.` });
                       }}
                       data-testid="button-featured-drop-confirm"
                     >
@@ -469,7 +469,7 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
                     </button>
                     <button
                       className="mt-2 w-full text-[10px] text-black/40 hover:text-black transition-colors"
-                      onClick={() => { setSizesOpen(false); setPopupSizeQty({}); }}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSizesOpen(false); setPopupSizeQty({}); }}
                     >
                       Отмена
                     </button>
