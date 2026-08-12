@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { ArrowRight, Package, ShoppingCart } from "lucide-react";
 import { usePreorderCart } from "@/context/PreorderCartContext";
-import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 import { useToast } from "@/hooks/use-toast";
 import { DolyameWidget } from "@/components/DolyameWidget";
 
@@ -78,7 +77,6 @@ function getOptimizedImageUrl(url: string): string {
 
 export function FeaturedDropSection({ product, title, subtitle, ctaText, terminalLabel }: FeaturedDropSectionProps) {
   const { addOrUpdateItem, items: cartPreorderItems } = usePreorderCart();
-  const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
   const { toast } = useToast();
 
   const [now, setNow] = useState(() => Date.now());
@@ -150,7 +148,7 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
           imageUrl,
           selectedSizes: { [onlySize]: 1 },
         });
-        openPreorderCartDrawer();
+        toast({ title: "Добавлено в предзаказ", description: product.name });
       } else {
         setPopupSizes(sorted);
         setPopupSizeQty({});
@@ -164,7 +162,7 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
         imageUrl,
         selectedSizes: { "ONE SIZE": 1 },
       });
-      openPreorderCartDrawer();
+      toast({ title: "Добавлено в предзаказ", description: product.name });
     } finally {
       setLoading(false);
     }
@@ -461,7 +459,7 @@ export function FeaturedDropSection({ product, title, subtitle, ctaText, termina
                         });
                         setSizesOpen(false);
                         setPopupSizeQty({});
-                        openPreorderCartDrawer();
+                        toast({ title: "Добавлено в предзаказ", description: `${product.name} · ${totalPopupQty} шт.` });
                       }}
                       data-testid="button-featured-drop-confirm"
                     >

@@ -7,7 +7,6 @@ import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { PreorderSubscribeWidget } from "@/components/PreorderSubscribeWidget";
 import { DolyameWidget } from "@/components/DolyameWidget";
-import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { useToast } from "@/hooks/use-toast";
 import { useWholesalePrice } from "@/hooks/use-auth";
@@ -190,7 +189,6 @@ export default function ConceptCampaignPage() {
   const bannerButtonUrl: string = promoBanner.buttonUrl || "";
 
   const { addOrUpdateItem, items: cartPreorderItems } = usePreorderCart();
-  const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
   const { toast } = useToast();
   const { isWholesale, getWholesalePrice } = useWholesalePrice();
   const [sizePopupId, setSizePopupId] = useState<number | null>(null);
@@ -238,7 +236,7 @@ export default function ConceptCampaignPage() {
           return;
         }
         addOrUpdateItem({ productId: product.id, productName: product.name, price: effectivePrice, imageUrl: product.images?.[0] || product.thumbnailUrl || product.imageUrl || "", selectedSizes: { [onlySize]: 1 } });
-        openPreorderCartDrawer();
+        toast({ title: "Добавлено в предзаказ", description: product.name });
       } else {
         setPopupSizes(sorted);
         setPopupSizeQty({});
@@ -246,7 +244,7 @@ export default function ConceptCampaignPage() {
       }
     } catch {
       addOrUpdateItem({ productId: product.id, productName: product.name, price: effectivePrice, imageUrl: product.images?.[0] || product.thumbnailUrl || product.imageUrl || "", selectedSizes: { "ONE SIZE": 1 } });
-      openPreorderCartDrawer();
+      toast({ title: "Добавлено в предзаказ", description: product.name });
     } finally {
       setPopupLoadingId(null);
     }
@@ -564,7 +562,7 @@ export default function ConceptCampaignPage() {
                                       addOrUpdateItem({ productId: product.id, productName: product.name, price: getEffectivePrice(product), imageUrl: cardImages[0]||"", selectedSizes: {...popupSizeQty} });
                                       setSizePopupId(null);
                                       setPopupSizeQty({});
-                                      openPreorderCartDrawer();
+                                      toast({ title: "Добавлено в предзаказ", description: `${product.name} · ${totalQty} шт.` });
                                     }}
                                   >
                                     {totalQty>0 ? `В предзаказ · ${totalQty} шт.` : "Выберите количество"}

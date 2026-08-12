@@ -7,7 +7,6 @@ import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { PreorderSubscribeWidget } from "@/components/PreorderSubscribeWidget";
 import { DolyameWidget } from "@/components/DolyameWidget";
-import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { useToast } from "@/hooks/use-toast";
 import { useWholesalePrice } from "@/hooks/use-auth";
@@ -231,7 +230,6 @@ export default function ConceptPage() {
   const bannerButtonUrl: string = promoBanner.buttonUrl || "";
 
   const { addOrUpdateItem, items: cartPreorderItems } = usePreorderCart();
-  const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
   const [, setLocation] = useLocation();
 
   // Если кампания одна — сразу переходим на её страницу
@@ -324,7 +322,7 @@ export default function ConceptPage() {
           imageUrl: product.images?.[0] || product.thumbnailUrl || product.imageUrl || "",
           selectedSizes: { [onlySize]: 1 },
         });
-        openPreorderCartDrawer();
+        toast({ title: "Добавлено в предзаказ", description: product.name });
       } else {
         setPopupSizes(sorted);
         setPopupSizeQty({});
@@ -338,7 +336,7 @@ export default function ConceptPage() {
         imageUrl: product.images?.[0] || product.thumbnailUrl || product.imageUrl || "",
         selectedSizes: { "ONE SIZE": 1 },
       });
-      openPreorderCartDrawer();
+      toast({ title: "Добавлено в предзаказ", description: product.name });
     } finally {
       setPopupLoadingId(null);
     }
@@ -1149,7 +1147,7 @@ export default function ConceptPage() {
                                       });
                                       setSizePopupId(null);
                                       setPopupSizeQty({});
-                                      openPreorderCartDrawer();
+                                      toast({ title: "Добавлено в предзаказ", description: `${product.name} · ${totalQty} шт.` });
                                     }}
                                     data-testid={`button-popup-confirm-${product.id}`}
                                   >
