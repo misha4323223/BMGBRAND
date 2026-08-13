@@ -1319,6 +1319,9 @@ export async function registerRoutes(
     generatedXmlCache[cacheKey] = { xml: normalizedXml, generatedAt: Date.now() };
     const type = res.type("application/xml");
     if (contentLanguage) type.set("Content-Language", contentLanguage);
+    // Sitemaps/feeds rarely need to be regenerated more than hourly; caching the
+    // response publicly stops each crawler hit from rebuilding (and re-reading YDB).
+    type.set("Cache-Control", "public, max-age=3600");
     type.send(normalizedXml);
   }
   function serveStaleXmlOrError(res: express.Response, cacheKey: string, label: string, err: unknown) {
@@ -1428,6 +1431,10 @@ Sitemap: ${siteUrl}/sitemap.xml
 
   // SEO: llms.txt — structured info for AI crawlers
   app.get("/llms.txt", async (_req, res) => {
+    // All links in llms.txt use SITE_URL (prod default booomerangs.ru) — the same
+    // approach as /robots.txt and /sitemap.xml — so the file never points to a
+    // hardcoded/stale domain when SITE_URL is set differently (e.g. in preview).
+    const llmsBaseUrl = (process.env.SITE_URL || "https://booomerangs.ru").replace(/\/$/, "");
     try {
       const allProducts = await storage.getProducts();
       const visibleProducts = allProducts.filter((p: any) =>
@@ -1470,7 +1477,7 @@ Sitemap: ${siteUrl}/sitemap.xml
             sizes ? "размеры " + sizes : "",
             price + " ₽, " + status,
           ].filter(Boolean).join(", ");
-          return "- [" + p.name + "](https://booomerangs.ru/" + p.slug + ") — " + meta + (shortDesc ? ". " + shortDesc : "");
+          return "- [" + p.name + "](" + llmsBaseUrl + "/" + p.slug + ") — " + meta + (shortDesc ? ". " + shortDesc : "");
         })
         .join("\n");
 
@@ -1480,7 +1487,7 @@ Sitemap: ${siteUrl}/sitemap.xml
         if (artistPages) {
           const names = Object.entries(artistPages)
             .filter(([, v]: [string, any]) => v && v.name)
-            .map(([slug, v]: [string, any]) => `- [${v.name}](https://booomerangs.ru/@${slug})`);
+            .map(([slug, v]: [string, any]) => `- [${v.name}](${llmsBaseUrl}/@${slug})`);
           if (names.length > 0) artistLinks = names.join("\n");
         }
       } catch { /* artist_pages not set yet — section stays empty */ }
@@ -1506,7 +1513,7 @@ BMGBRAND — официальный производитель и магазин
 - Драгни (артист)
 - МультФильмы (музыкальный проект)
 
-Купить официальный мерч этих артистов можно только в нашем магазине: [Мерч артистов](https://booomerangs.ru/products/merch)
+Купить официальный мерч этих артистов можно только в нашем магазине: [Мерч артистов](${llmsBaseUrl}/products/merch)
 
 Персональные страницы артистов:
 ${artistLinks || "- (список формируется)"}
@@ -1523,7 +1530,7 @@ ${artistLinks || "- (список формируется)"}
 - Срок производства: носки от 10 рабочих дней, одежда 2–4 недели
 - Работаем с физлицами, ИП, ООО, блогерами, музыкантами, организаторами мероприятий
 
-Подробнее: [Мерч на заказ](https://booomerangs.ru/merch-na-zakaz)
+Подробнее: [Мерч на заказ](${llmsBaseUrl}/merch-na-zakaz)
 
 ## Носки с принтом
 
@@ -1531,7 +1538,7 @@ ${artistLinks || "- (список формируется)"}
 Размеры: 36-39, 40-45. Уход: машинная стирка 30°, без отбеливателя, не сушить в барабане.
 Авторские рисунки — животные, природа, городской арт, коллаборации с артистами.
 
-Смотреть каталог: [Носки с принтом](https://booomerangs.ru/products/socks)
+Смотреть каталог: [Носки с принтом](${llmsBaseUrl}/products/socks)
 
 ## Каталог товаров
 
@@ -1539,8 +1546,8 @@ ${artistLinks || "- (список формируется)"}
 - Категории: ${categories.join(", ") || "Носки, Одежда, Мерч, Аксессуары"}
 - Цены: от ${priceRange.min.toLocaleString("ru-RU")} ₽ до ${priceRange.max.toLocaleString("ru-RU")} ₽
 - Валюта: RUB (российский рубль)
-- Каталог целиком: [Все товары](https://booomerangs.ru/products)
-- По категориям: [Одежда](https://booomerangs.ru/products/clothing) · [Носки](https://booomerangs.ru/products/socks) · [Аксессуары](https://booomerangs.ru/products/accessories) · [Мерч артистов](https://booomerangs.ru/products/merch) · [Распродажа](https://booomerangs.ru/products/sale)
+- Каталог целиком: [Все товары](${llmsBaseUrl}/products)
+- По категориям: [Одежда](${llmsBaseUrl}/products/clothing) · [Носки](${llmsBaseUrl}/products/socks) · [Аксессуары](${llmsBaseUrl}/products/accessories) · [Мерч артистов](${llmsBaseUrl}/products/merch) · [Распродажа](${llmsBaseUrl}/products/sale)
 
 ## Товарные дизайны
 
@@ -1549,7 +1556,7 @@ ${productLines || "- (список формируется)"}
 ## Подарочные карты
 
 Электронная подарочная карта — номиналы 500 / 1 000 / 2 000 / 5 000 / 10 000 ₽. Доставка на e-mail, действует 1 год, можно использовать частями на весь каталог.
-Подробнее: [Подарочные карты](https://booomerangs.ru/gift-cards)
+Подробнее: [Подарочные карты](${llmsBaseUrl}/gift-cards)
 
 ## Доставка и оплата
 
@@ -1564,25 +1571,25 @@ ${productLines || "- (список формируется)"}
 - Оптовые заказы: оптовый кабинет на сайте, минимальный заказ обсуждается
 - Интеграция с 1С для управления остатками
 - Telegram-уведомления о заказах
-- Блог о бренде: [Блог](https://booomerangs.ru/blog)
-- Открытые вакансии: [Вакансии](https://booomerangs.ru/vacancies)
+- Блог о бренде: [Блог](${llmsBaseUrl}/blog)
+- Открытые вакансии: [Вакансии](${llmsBaseUrl}/vacancies)
 
 ## Ссылки
 
-- [Главная](https://booomerangs.ru/)
-- [Каталог товаров](https://booomerangs.ru/products)
-- [Носки с принтом](https://booomerangs.ru/products/socks)
-- [Одежда](https://booomerangs.ru/products/clothing)
-- [Аксессуары](https://booomerangs.ru/products/accessories)
-- [Мерч артистов](https://booomerangs.ru/products/merch)
-- [Распродажа](https://booomerangs.ru/products/sale)
-- [Мерч на заказ](https://booomerangs.ru/merch-na-zakaz)
-- [Подарочные карты](https://booomerangs.ru/gift-cards)
-- [О бренде](https://booomerangs.ru/about)
-- [FAQ](https://booomerangs.ru/faq)
-- [Блог](https://booomerangs.ru/blog)
-- [Вакансии](https://booomerangs.ru/vacancies)
-- [YML-фид (Яндекс Маркет)](https://booomerangs.ru/yml-feed.xml)
+- [Главная](${llmsBaseUrl}/)
+- [Каталог товаров](${llmsBaseUrl}/products)
+- [Носки с принтом](${llmsBaseUrl}/products/socks)
+- [Одежда](${llmsBaseUrl}/products/clothing)
+- [Аксессуары](${llmsBaseUrl}/products/accessories)
+- [Мерч артистов](${llmsBaseUrl}/products/merch)
+- [Распродажа](${llmsBaseUrl}/products/sale)
+- [Мерч на заказ](${llmsBaseUrl}/merch-na-zakaz)
+- [Подарочные карты](${llmsBaseUrl}/gift-cards)
+- [О бренде](${llmsBaseUrl}/about)
+- [FAQ](${llmsBaseUrl}/faq)
+- [Блог](${llmsBaseUrl}/blog)
+- [Вакансии](${llmsBaseUrl}/vacancies)
+- [YML-фид (Яндекс Маркет)](${llmsBaseUrl}/yml-feed.xml)
 
 ## О бренде
 
@@ -1635,7 +1642,6 @@ ${productLines || "- (список формируется)"}
       { loc: "/products", changefreq: "daily", priority: "0.9" },
       { loc: "/about", changefreq: "monthly", priority: "0.7" },
       { loc: "/faq", changefreq: "monthly", priority: "0.5" },
-      { loc: "/preorder", changefreq: "weekly", priority: "0.8" },
       { loc: "/vacancies", changefreq: "monthly", priority: "0.4" },
       { loc: "/gift-cards", changefreq: "monthly", priority: "0.6" },
       { loc: "/wholesale/register", changefreq: "monthly", priority: "0.3" },
@@ -1649,7 +1655,12 @@ ${productLines || "- (список формируется)"}
       // Same visibility rule as bot-ssr's isPublicProduct(): a product must be
       // unhidden, not artist-only (those only appear on their artist page), and priced.
       // Otherwise the sitemap would submit URLs that bots can't actually render/index.
-      const visibleProducts = allProducts.filter((p: any) => !p.isHidden && !p.artistOnly && p.price > 0);
+      const visibleProducts = allProducts.filter((p: any) =>
+        !p.isHidden && !p.artistOnly && p.price > 0 &&
+        // Only products with a real non-numeric slug: the old `slug || id`
+        // fallback put numeric-ID links (/123) and /undefined into the sitemap.
+        typeof p.slug === "string" && p.slug.trim().length > 0 && !/^\d+$/.test(p.slug.trim())
+      );
 
       let artistPages: Record<string, any> = {};
       try { artistPages = await storage.getPageSettings("artist_pages"); } catch {}
@@ -1658,9 +1669,11 @@ ${productLines || "- (список формируется)"}
       xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
 
       for (const page of staticPages) {
+        // No lastmod for static pages: they don't change daily, and stamping
+        // "today" on every request makes search engines distrust ALL lastmod
+        // values (including the real per-product ones).
         xml += `  <url>\n`;
         xml += `    <loc>${baseUrl}${page.loc}</loc>\n`;
-        xml += `    <lastmod>${today}</lastmod>\n`;
         xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
         xml += `    <priority>${page.priority}</priority>\n`;
         xml += `  </url>\n`;
@@ -1670,7 +1683,6 @@ ${productLines || "- (список формируется)"}
       for (const catSlug of KNOWN_CATEGORIES) {
         xml += `  <url>\n`;
         xml += `    <loc>${baseUrl}/products/${catSlug}</loc>\n`;
-        xml += `    <lastmod>${today}</lastmod>\n`;
         xml += `    <changefreq>weekly</changefreq>\n`;
         xml += `    <priority>0.8</priority>\n`;
         xml += `  </url>\n`;
@@ -1689,7 +1701,6 @@ ${productLines || "- (список формируется)"}
               seenSubUrls.add(subUrl);
               xml += `  <url>\n`;
               xml += `    <loc>${subUrl}</loc>\n`;
-              xml += `    <lastmod>${today}</lastmod>\n`;
               xml += `    <changefreq>weekly</changefreq>\n`;
               xml += `    <priority>0.7</priority>\n`;
               xml += `  </url>\n`;
@@ -1703,7 +1714,6 @@ ${productLines || "- (список формируется)"}
                   seenSubUrls.add(ssUrl);
                   xml += `  <url>\n`;
                   xml += `    <loc>${ssUrl}</loc>\n`;
-                  xml += `    <lastmod>${today}</lastmod>\n`;
                   xml += `    <changefreq>weekly</changefreq>\n`;
                   xml += `    <priority>0.75</priority>\n`;
                   xml += `  </url>\n`;
@@ -1722,7 +1732,6 @@ ${productLines || "- (список формируется)"}
         if (artistSlug && typeof artistSlug === "string" && hasRealName && !isTestSlug) {
           xml += `  <url>\n`;
           xml += `    <loc>${baseUrl}/@${artistSlug}</loc>\n`;
-          xml += `    <lastmod>${today}</lastmod>\n`;
           xml += `    <changefreq>monthly</changefreq>\n`;
           xml += `    <priority>0.7</priority>\n`;
           xml += `  </url>\n`;
@@ -1730,7 +1739,7 @@ ${productLines || "- (список формируется)"}
       }
 
       for (const product of visibleProducts) {
-        const productPath = product.slug || product.id;
+        const productPath = product.slug;
         // Per-product lastmod: prefer real update date over today's date
         const productLastmod = (product as any).updatedAt
           ? String((product as any).updatedAt).split("T")[0]
@@ -1776,7 +1785,6 @@ ${productLines || "- (список формируется)"}
         if (conceptSlugs.length > 0) {
           xml += `  <url>\n`;
           xml += `    <loc>${baseUrl}/concept</loc>\n`;
-          xml += `    <lastmod>${today}</lastmod>\n`;
           xml += `    <changefreq>weekly</changefreq>\n`;
           xml += `    <priority>0.7</priority>\n`;
           xml += `  </url>\n`;
@@ -1784,7 +1792,6 @@ ${productLines || "- (список формируется)"}
         for (const slug of conceptSlugs) {
           xml += `  <url>\n`;
           xml += `    <loc>${baseUrl}/concept/${slug}</loc>\n`;
-          xml += `    <lastmod>${today}</lastmod>\n`;
           xml += `    <changefreq>weekly</changefreq>\n`;
           xml += `    <priority>0.75</priority>\n`;
           xml += `  </url>\n`;
@@ -1820,7 +1827,10 @@ ${productLines || "- (список формируется)"}
       const visibleProducts = allProducts.filter((p: any) =>
         !p.isHidden &&
         p.imageUrl && p.imageUrl.startsWith("https://") &&
-        p.price && p.price > 0
+        p.price && p.price > 0 &&
+        // Real non-numeric slug only — `p.slug || p.id` would emit numeric-ID
+        // URLs (/123) that don't resolve to product pages.
+        typeof p.slug === "string" && p.slug.trim().length > 0 && !/^\d+$/.test(p.slug.trim())
       );
 
       const escXml = (s: string) => String(s)
@@ -1983,7 +1993,10 @@ ${productLines || "- (список формируется)"}
       const visibleProducts = allProducts.filter((p: any) =>
         !p.isHidden &&
         p.imageUrl && p.imageUrl.startsWith("https://") &&
-        p.price && p.price > 0
+        p.price && p.price > 0 &&
+        // Real non-numeric slug only — `p.slug || String(p.id)` would emit
+        // numeric-ID URLs (/123) that don't resolve to product pages.
+        typeof p.slug === "string" && p.slug.trim().length > 0 && !/^\d+$/.test(p.slug.trim())
       );
 
       // Собираем используемые категории

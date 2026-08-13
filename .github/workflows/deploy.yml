@@ -45,7 +45,7 @@ jobs:
           revision-concurrency: 13
           revision-provisioned: 1
           revision-image-url: cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ github.sha }}
-          revision-execution-timeout: 120s
+          revision-execution-timeout: 600s
           revision-env: |
             NODE_ENV=production
             YDB_ENDPOINT=${{ secrets.YDB_ENDPOINT }}

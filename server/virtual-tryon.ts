@@ -22,12 +22,26 @@ const TIMEOUT_MS = 4 * 60 * 1000; // 4 минуты — HF бесплатный 
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 МБ
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 МБ — запас; клиент сжимает фото заранее
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
     else cb(new Error('Только изображения'));
   },
 });
+
+// Обёртка над multer: ошибки загрузки (в т.ч. превышение размера) отдаём как JSON,
+// а не как HTML/500 от дефолтного обработчика Express.
+function uploadPersonPhoto(req: Request, res: Response, next: () => void): void {
+  upload.single('personPhoto')(req, res, (err: unknown) => {
+    if (!err) { next(); return; }
+    const code = (err as { code?: string })?.code;
+    if (code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({ error: 'Фото слишком большое (максимум 10 МБ)' });
+    } else {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Ошибка загрузки файла' });
+    }
+  });
+}
 
 function hfHeaders(extra: Record<string, string> = {}): Record<string, string> {
   const headers: Record<string, string> = { ...extra };
@@ -230,7 +244,7 @@ export function registerVirtualTryOnRoutes(app: Express): void {
    */
   app.post(
     '/api/virtual-tryon',
-    upload.single('personPhoto'),
+    uploadPersonPhoto,
     async (req: Request, res: Response): Promise<void> => {
       try {
         const file = req.file;

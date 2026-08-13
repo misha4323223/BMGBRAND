@@ -29,6 +29,61 @@ interface VirtualTryOnProps {
 
 type Stage = "idle" | "uploading" | "processing" | "done" | "error";
 
+/**
+ * Сжимает фото в браузере до JPEG (canvas). Нужно, чтобы запрос гарантированно
+ * влезал в лимит 3.5 МБ на размер тела запроса Yandex Serverless Container —
+ * иначе инфраструктура отбивает запрос кодом 413 ещё до сервера.
+ * Модели для примерки большие фото не нужны: 1280px по большей стороне — с запасом.
+ */
+async function compressImage(file: File, maxEdge: number, quality: number): Promise<File> {
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Не удалось прочитать изображение")); };
+    image.src = url;
+  });
+
+  const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth * scale));
+  const h = Math.max(1, Math.round(img.naturalHeight * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas недоступен");
+
+  // Белый фон — JPEG не поддерживает прозрачность (для фото человека это неважно)
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+  if (!blob) throw new Error("Не удалось сжать изображение");
+
+  const name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+  return new File([blob], name, { type: "image/jpeg" });
+}
+
+/** Пытаемся ужать фото до безопасного размера; если не выходит — отдаём оригинал. */
+async function preparePhoto(file: File): Promise<File> {
+  // Уже небольшое фото — отправляем как есть (быстрее и без потери качества)
+  if (file.size <= 2_500_000) return file;
+
+  const steps: Array<{ maxEdge: number; quality: number }> = [
+    { maxEdge: 1280, quality: 0.85 },
+    { maxEdge: 800, quality: 0.75 },
+  ];
+
+  let last: File = file;
+  for (const step of steps) {
+    last = await compressImage(file, step.maxEdge, step.quality);
+    if (last.size <= 2_000_000) return last;
+  }
+  return last;
+}
+
 export function VirtualTryOn({ garmentImages, productName }: VirtualTryOnProps) {
   const [open, setOpen] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
@@ -73,26 +128,38 @@ export function VirtualTryOn({ garmentImages, productName }: VirtualTryOnProps) 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPersonFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setPersonPreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
-    setStage("idle");
-    setResultUrl(null);
-    setErrorMsg("");
+    void (async () => {
+      try {
+        const ready = await preparePhoto(file);
+        setPersonFile(ready);
+        setPersonPreview(URL.createObjectURL(ready));
+        setStage("idle");
+        setResultUrl(null);
+        setErrorMsg("");
+      } catch (err: unknown) {
+        setErrorMsg(err instanceof Error ? err.message : String(err));
+        setStage("error");
+      }
+    })();
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (!file || !file.type.startsWith("image/")) return;
-    setPersonFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setPersonPreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
-    setStage("idle");
-    setResultUrl(null);
-    setErrorMsg("");
+    void (async () => {
+      try {
+        const ready = await preparePhoto(file);
+        setPersonFile(ready);
+        setPersonPreview(URL.createObjectURL(ready));
+        setStage("idle");
+        setResultUrl(null);
+        setErrorMsg("");
+      } catch (err: unknown) {
+        setErrorMsg(err instanceof Error ? err.message : String(err));
+        setStage("error");
+      }
+    })();
   }, []);
 
   const handleTryOn = useCallback(async () => {
@@ -212,7 +279,7 @@ export function VirtualTryOn({ garmentImages, productName }: VirtualTryOnProps) 
                     <Upload className="w-8 h-8 text-muted-foreground" />
                     <div className="text-center">
                       <p className="text-sm font-medium">Перетащите или нажмите для выбора</p>
-                      <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WEBP · до 10 МБ</p>
+                      <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WEBP · фото сожмётся автоматически</p>
                     </div>
                     <Button variant="outline" size="sm" type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
                       <Camera className="w-4 h-4 mr-2" />

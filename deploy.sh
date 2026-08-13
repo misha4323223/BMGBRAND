@@ -73,9 +73,10 @@ yc serverless container revision deploy \
   --cores 1 \
   --core-fraction 100 \
   --concurrency 16 \
-  --execution-timeout 60s \
+  --execution-timeout 600s \
   --environment "NODE_ENV=production" \
   --environment "PORT=8080" \
+  --environment "HF_PROXY_URL=${HF_PROXY_URL}" \
   --environment "YDB_ENDPOINT=${YDB_ENDPOINT}" \
   --environment "YDB_DATABASE=${YDB_DATABASE}" \
   --environment "YDB_SA_KEY=${YDB_SA_KEY}" \

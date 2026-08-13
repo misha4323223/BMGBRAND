@@ -2122,6 +2122,53 @@ ${content}
   return wrapPage(head, body);
 }
 
+/** SSR для /care — «Уход за одеждой». Контент из static_pages.care_data
+ *  (если админ сохранил) или дефолтные рекомендации (как на клиенте). */
+function renderCare(): string {
+  const staticPages = getCachedRawPageSettings("static_pages") as Record<string, any> | null;
+  const raw = staticPages?.care_data;
+  const parsed = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : null;
+
+  const CARE_SECTIONS: Array<{ title: string; rules: string[]; tip: string }> = [
+    { title: "Носки",     rules: ["Стирка при 30–40°C", "Деликатный или ручной режим", "Без отбеливателей", "Сушить в расправленном виде", "Не выкручивать", "Гладить при низкой температуре"], tip: "Стирайте тёмные и светлые носки отдельно, чтобы сохранить яркость цвета." },
+    { title: "Футболки",  rules: ["Стирка при 30–40°C", "Бережный режим стирки", "Без отбеливателей", "Сушить горизонтально", "Гладить при 110–150°C", "Стирать наизнанку"], tip: "Стирайте наизнанку — это сохраняет насыщенность принта и продлевает жизнь рисунку." },
+    { title: "Худи",      rules: ["Стирка при 30°C", "Деликатный режим", "Без отбеливателей и сушки в машине", "Сушить в расправленном виде", "Гладить через ткань при 110°C", "Стирать наизнанку"], tip: "Не вешайте худи на крючок за капюшон — это деформирует капюшон и швы." },
+    { title: "Свитшоты",  rules: ["Стирка при 30°C", "Деликатный режим", "Без отбеливателей", "Сушить горизонтально", "Гладить при 110°C через ткань", "Не выкручивать"], tip: "Чтобы ткань не скаталась, используйте мешок для стирки или стирайте наизнанку на деликатном режиме." },
+    { title: "Куртки",    rules: ["Стирка при 30°C или по ярлыку", "Деликатный режим", "Без отбеливателей", "Сушить на плечиках", "Гладить через ткань или не гладить", "Застёгивать молнии перед стиркой"], tip: "Всегда проверяйте ярлык на куртке — разные материалы требуют разного ухода." },
+    { title: "Брюки",     rules: ["Стирка при 30–40°C", "Стандартный или деликатный режим", "Без агрессивных отбеливателей", "Сушить в расправленном виде", "Гладить при 150°C", "Стирать наизнанку"], tip: "Для сохранения формы сушите брюки на вешалке за пояс, а не за штанины." },
+    { title: "Шорты",     rules: ["Стирка при 30–40°C", "Деликатный режим", "Без отбеливателей", "Сушить горизонтально или на вешалке", "Гладить при 110–150°C", "Стирать наизнанку"], tip: "Стирайте тёмные шорты с вывернутой стороны и при минимальной температуре — так цвет дольше остаётся насыщенным." },
+  ];
+
+  const defaultBody =
+    '<h1>Уход за одеждой</h1>\n' +
+    '<p class="desc">Правильный уход продлевает жизнь вашей одежде и сохраняет её первоначальный вид. Следуйте нашим рекомендациям, чтобы ваши вещи служили дольше.</p>\n' +
+    CARE_SECTIONS.map(s =>
+      '<h2>' + esc(s.title) + '</h2>\n' +
+      '<ul>' + s.rules.map(r => '<li>' + esc(r) + '</li>').join('\n') + '</ul>\n' +
+      '<p>💡 ' + esc(s.tip) + '</p>'
+    ).join('\n') +
+    '\n<h2>Общие советы по хранению</h2>\n<ul>\n' +
+    '<li><strong>Храните правильно</strong> — складывайте трикотаж горизонтально, вешайте куртки и брюки на плечики.</li>\n' +
+    '<li><strong>Избегайте солнца</strong> — прямые солнечные лучи выгорают ткань, храните одежду в тёмном месте.</li>\n' +
+    '<li><strong>Проветривайте</strong> — после носки давайте одежде проветриться, это снижает частоту стирки.</li>\n' +
+    '</ul>\n<p style="margin-top:2rem"><a href="/products">Смотреть все товары →</a></p>';
+
+  const content = parsed?.content ? stripTailwindClasses(parsed.content) : defaultBody;
+
+  const head = baseHead({
+    title: "Уход за одеждой — BOOOMERANGS | " + SITE_NAME,
+    description: "Рекомендации по уходу за одеждой BOOOMERANGS: носки, футболки, худи, свитшоты, куртки, брюки и шорты. Правильная стирка, сушка и хранение.",
+    canonical: SITE_URL + "/care",
+    ogImage: SITE_URL + "/favicon.png",
+  });
+
+  const body =
+    '<div class="breadcrumb"><a href="/">Главная</a> / Уход за одеждой</div>\n' +
+    content;
+
+  return wrapPage(head, body);
+}
+
 function renderGiftCards(): string {
   const amountsList = GIFT_CARD_AMOUNTS.map(a => a.label).join(", ");
   const minAmount = GIFT_CARD_AMOUNTS[0].label;
@@ -2253,6 +2300,14 @@ function makeETag(html: string): string {
   return '"' + crypto.createHash("md5").update(html).digest("hex") + '"';
 }
 
+// Односегментные клиентские страницы, которые рендерит React, а не bot-ssr
+// (корзина, ЛК, партнёрка и т.п.). Для ботов пропускаем их к SPA и НЕ отдаём
+// 404 — в отличие от мёртвых товарных слагов, которых нет ни в каталоге, ни в YDB.
+const KNOWN_CLIENT_SLUGS = new Set<string>([
+  "cart", "checkout", "admin", "verify-email", "reset-password",
+  "profile", "favorites", "links", "partner",
+]);
+
 export async function botSsrMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   // Only GET requests
   if (req.method !== "GET") return next();
@@ -2313,6 +2368,8 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
       html = renderTerms();
     } else if (reqPath === "/privacy") {
       html = renderPrivacy();
+    } else if (reqPath === "/care") {
+      html = renderCare();
     } else if (reqPath === "/concept") {
       html = renderConceptIndex();
     } else if (reqPath.startsWith("/concept/")) {
@@ -2430,9 +2487,15 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
           // Ask YDB directly so bots get the real product card instead of the empty
           // SPA shell with the home page title/canonical.
           let dbHidden = false;
+          // Слаг подтверждённо отсутствует в каталоге и в YDB — только тогда
+          // отдаём ботам честный 404. Раньше бот получал оболочку главной с
+          // canonical на корень (soft-404), из-за чего поисковики путались.
+          let confirmedMissing = false;
           const dbCheck = dbSlugCheckCache.get(slug);
           if (dbCheck && Date.now() - dbCheck.ts < DB_SLUG_CHECK_TTL_MS) {
             dbHidden = dbCheck.hidden;
+            // negative cache (hidden:false) = слаг подтверждённо отсутствует
+            confirmedMissing = !dbCheck.hidden;
           } else {
             try {
               const dbProduct = await getProductMetaBySlugFromDb(slug);
@@ -2446,6 +2509,7 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
                 }
               } else {
                 // Slug confirmed absent in YDB — negative cache to avoid hammering the DB.
+                confirmedMissing = true;
                 dbSlugCheckCache.set(slug, { ts: Date.now(), hidden: false });
               }
             } catch (err: any) {
@@ -2463,8 +2527,25 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
             );
             return;
           }
-          // Slug not found in product cache at all — could be a static page (/care, /links)
-          // or an artist page — pass through to React SPA.
+          if (KNOWN_CLIENT_SLUGS.has(slug)) {
+            // Реальная клиентская страница (корзина, ЛК, партнёрка и т.п.) —
+            // пропускаем к React SPA.
+          } else if (confirmedMissing) {
+            // Мёртвая ссылка: слага нет ни в каталоге, ни в YDB. Честный 404
+            // с noindex — поисковик быстро выбросит URL из индекса.
+            res.setHeader("X-Bot-SSR", "not-found");
+            res.setHeader("Cache-Control", "no-store");
+            res.status(404).type("text/html").send(
+              '<!doctype html><html lang="ru"><head><meta charset="UTF-8">' +
+              '<meta name="robots" content="noindex"><title>404 — Страница не найдена | ' + SITE_NAME + '</title></head>' +
+              '<body><h1>404 — Страница не найдена</h1>' +
+              '<p>Такой страницы не существует. Возможно, товар снят с продажи или ссылка устарела.</p>' +
+              '<p><a href="/">На главную</a> · <a href="/products">Каталог</a></p></body></html>'
+            );
+            return;
+          }
+          // Всё остальное (ошибка БД, холодный кэш, неизвестный статический
+          // путь) — как раньше, пропускаем к React SPA.
         }
       }
     }
