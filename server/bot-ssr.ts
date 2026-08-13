@@ -24,6 +24,8 @@ import {
   getCachedReviewsByProductId,
   getCachedProductsForVariantMatching,
   getCachedRawPageSettings,
+  getProductMetaBySlugFromDb,
+  type ProductMetaForSsr,
 } from "./storage";
 import { getRecommendationsSync } from "./recommendations";
 import { findProductVariantsSync } from "./variant-matching";
@@ -127,6 +129,16 @@ export function isBrowser(ua: string): boolean {
 // ─── Tiny in-memory cache for rendered bot pages ──────────────────────────────
 interface BotCacheEntry { html: string; ts: number }
 const botCache = new Map<string, BotCacheEntry>();
+
+/**
+ * YDB slug-lookup fallback: remembers slugs already checked against YDB so a bot
+ * re-crawling an unknown/old URL doesn't hammer the database. TTL 60s.
+ * - entry.hidden === true  → product exists in YDB but isn't public → 404
+ * - entry.hidden === false → slug confirmed absent in YDB → pass through
+ * Rendered (public) products are NOT stored here — the bot HTML cache handles them.
+ */
+const dbSlugCheckCache = new Map<string, { ts: number; hidden: boolean }>();
+const DB_SLUG_CHECK_TTL_MS = 60_000;
 const BOT_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const BOT_CACHE_MAX = 2000;             // max cached paths
 
@@ -731,6 +743,15 @@ function renderProduct(slug: string): string | null {
   const meta = getCachedProductMetaBySlug(slug);
   if (!meta || !meta.title) return null;
 
+  return renderProductHtml(slug, meta);
+}
+
+/**
+ * Builds the full SSR product HTML from product meta. `slug` is the URL slug used
+ * for canonical/self links (may differ from the slug stored on the product).
+ * Shared by the cache path (renderProduct) and the YDB fallback path.
+ */
+function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
   const isMerch = ["merch", "мерч"].includes((meta.category || "").toLowerCase());
   const title = meta.seoTitle || `${meta.title}${isMerch ? " — купить мерч" : " — купить"} | ${SITE_NAME}`;
   const desc = meta.seoDescription || [
@@ -2232,7 +2253,7 @@ function makeETag(html: string): string {
   return '"' + crypto.createHash("md5").update(html).digest("hex") + '"';
 }
 
-export function botSsrMiddleware(req: Request, res: Response, next: NextFunction): void {
+export async function botSsrMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   // Only GET requests
   if (req.method !== "GET") return next();
 
@@ -2401,6 +2422,44 @@ export function botSsrMiddleware(req: Request, res: Response, next: NextFunction
               `<!doctype html><html><head><title>410 Gone</title></head>` +
               `<body><h1>410 Gone</h1><p>This product no longer exists.</p>` +
               `<p><a href="/products">Browse catalog</a></p></body></html>`
+            );
+            return;
+          }
+          // YDB fallback: the slug wasn't found in the in-memory cache (e.g. right
+          // after a server restart, or the product was created outside this process).
+          // Ask YDB directly so bots get the real product card instead of the empty
+          // SPA shell with the home page title/canonical.
+          let dbHidden = false;
+          const dbCheck = dbSlugCheckCache.get(slug);
+          if (dbCheck && Date.now() - dbCheck.ts < DB_SLUG_CHECK_TTL_MS) {
+            dbHidden = dbCheck.hidden;
+          } else {
+            try {
+              const dbProduct = await getProductMetaBySlugFromDb(slug);
+              if (dbProduct) {
+                if (dbProduct.isPublic && dbProduct.meta.title) {
+                  html = renderProductHtml(slug, dbProduct.meta);
+                } else {
+                  // Product exists in YDB but isn't public right now — same 404 as above.
+                  dbHidden = true;
+                  dbSlugCheckCache.set(slug, { ts: Date.now(), hidden: true });
+                }
+              } else {
+                // Slug confirmed absent in YDB — negative cache to avoid hammering the DB.
+                dbSlugCheckCache.set(slug, { ts: Date.now(), hidden: false });
+              }
+            } catch (err: any) {
+              // Never break the site — on DB errors fall through to the SPA as before.
+              console.error("[BotSSR] YDB slug lookup failed:", slug, err?.message);
+            }
+          }
+          if (dbHidden) {
+            res.setHeader("X-Bot-SSR", "hidden-product");
+            res.setHeader("Cache-Control", "no-store");
+            res.status(404).type("text/html").send(
+              `<!doctype html><html><head><title>404 Not Found</title></head>` +
+              `<body><h1>404 Not Found</h1><p>This product is temporarily unavailable.</p>` +
+              `<p><a href="/">Back to store</a></p></body></html>`
             );
             return;
           }

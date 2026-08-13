@@ -420,7 +420,7 @@ export function getCachedProductImageBySlug(slug: string): string {
   return product.thumbnailUrl || product.imageUrl || "";
 }
 
-export function getCachedProductMetaBySlug(slug: string): {
+export interface ProductMetaForSsr {
   productId: number; title: string; description: string; image: string; images: string[];
   price: number; sku: string; stock: number; category: string;
   sizes: string[]; colors: string[]; preorderEnabled: boolean;
@@ -429,11 +429,10 @@ export function getCachedProductMetaBySlug(slug: string): {
   measurements: Array<{ size: string; [key: string]: string }> | null;
   featureBadgeIds: string[];
   createdAt: Date | null; updatedAt: Date | null;
-} | null {
-  const products = productsCache.get("all");
-  if (!products || products.length === 0) return null;
-  const product = products.find(p => (p as any).slug === slug);
-  if (!product) return null;
+}
+
+/** Builds the SSR product meta from a parsed product row (cache or YDB). */
+function buildProductMeta(product: any): ProductMetaForSsr {
   const extraImages: string[] = [];
   try {
     const raw = (product as any).images;
@@ -471,6 +470,29 @@ export function getCachedProductMetaBySlug(slug: string): {
   };
 }
 
+export function getCachedProductMetaBySlug(slug: string): ProductMetaForSsr | null {
+  const products = productsCache.get("all");
+  if (!products || products.length === 0) return null;
+  const product = products.find(p => (p as any).slug === slug);
+  if (!product) return null;
+  return buildProductMeta(product);
+}
+
+/**
+ * Fetches a product straight from YDB by slug (bypassing the in-memory cache).
+ * Used by bot-SSR as a fallback when the slug is not in the cache (e.g. right
+ * after a server restart) so crawlers get the real product card instead of the
+ * empty SPA shell. `isPublic` mirrors the same visibility filter the cache path
+ * uses: !isHidden && !artistOnly && price > 0.
+ */
+export async function getProductMetaBySlugFromDb(slug: string): Promise<{ meta: ProductMetaForSsr; isPublic: boolean } | null> {
+  const product = await storage.getProductBySlugFromDb(slug);
+  if (!product) return null;
+  const meta = buildProductMeta(product);
+  const isPublic = !product.isHidden && !product.artistOnly && (product.price ?? 0) > 0;
+  return { meta, isPublic };
+}
+
 // ─── Artist Tracks ────────────────────────────────────────────────────────────
 export interface ArtistTrack {
   id: number;
@@ -489,6 +511,7 @@ export interface ArtistTrack {
 export interface IStorage {
   getProductByExternalId(externalId: string): Promise<Product | undefined>;
   getProductBySlug(slug: string): Promise<Product | undefined>;
+  getProductBySlugFromDb(slug: string): Promise<Product | undefined>;
   getProductBySku(sku: string): Promise<Product | undefined>;
   getColorVariantsBySku(sku: string, excludeId?: number): Promise<Product[]>; // Get all color variants for same SKU
   getProducts(): Promise<Product[]>;
@@ -760,6 +783,35 @@ export interface IStorage {
 const devProducts: Product[] = [];
 const devCartItems: CartItem[] = [];
 
+/**
+ * Normalizes timestamps returned by YDB and legacy data.
+ * YDB timestamps may already be ISO strings after extractTypedValue(), while
+ * older paths can still return seconds, milliseconds, or microseconds.
+ */
+function parseStorageDate(value: unknown, fallback: Date | null): Date | null {
+  if (value == null || value === "") return fallback;
+
+  let date: Date;
+  if (value instanceof Date) {
+    date = new Date(value.getTime());
+  } else if (typeof value === "number" || (typeof value === "string" && /^[+-]?[0-9]+(?:[.][0-9]+)?$/.test(value.trim()))) {
+    const numeric = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+
+    const absolute = Math.abs(numeric);
+    const milliseconds = absolute >= 1e14
+      ? numeric / 1000 // YDB Timestamp: microseconds
+      : absolute >= 1e11
+        ? numeric // Unix milliseconds
+        : numeric * 1000; // Unix seconds
+    date = new Date(milliseconds);
+  } else {
+    date = new Date(String(value).trim());
+  }
+
+  return Number.isFinite(date.getTime()) ? date : fallback;
+}
+
 export class DatabaseStorage implements IStorage {
   private async safeQuery<T>(fn: (session: ydb.Session) => Promise<T>, maxRetries: number = 3): Promise<T | null> {
     if (!driver) return null;
@@ -962,6 +1014,7 @@ export class DatabaseStorage implements IStorage {
       badgeText: data.badge_text || null,
       onSale: data.on_sale === true,
       isHidden: data.is_hidden === true,
+      autoHideOverride: data.auto_hide_override === true,
       inStock: data.in_stock !== false, // Default to true if not set
       stock: data.stock ? Number(data.stock) : 0, // Stock quantity from YDB
       sizeStock: sizeStock, // Stock per size for wholesale users
@@ -1056,8 +1109,8 @@ export class DatabaseStorage implements IStorage {
         return [];
       })(),
       slug: data.slug || null,
-      createdAt: data.created_at ? new Date(Number(data.created_at) / 1000) : new Date(),
-      updatedAt: data.updated_at ? new Date(Number(data.updated_at) / 1000) : null,
+      createdAt: parseStorageDate(data.created_at, new Date())!,
+      updatedAt: parseStorageDate(data.updated_at, null),
       composition: data.composition || null,
       careInstructions: data.care_instructions || null,
       specsHtml: data.specs_html || null,
@@ -1248,6 +1301,23 @@ export class DatabaseStorage implements IStorage {
       const query = "DECLARE $sku AS Utf8; SELECT * FROM products WHERE sku = $sku";
       const { TypedValues, Types } = await import("ydb-sdk");
       const { resultSets } = await session.executeQuery(query, { $sku: TypedValues.fromNative(Types.UTF8, sku) });
+      const rs = resultSets[0];
+      const row = rs.rows?.[0];
+      if (!row || !rs.columns) return undefined;
+      const data = this.parseRowWithColumns(row, rs.columns);
+      return this.parseProduct(data);
+    });
+    return result || undefined;
+  }
+
+  async getProductBySlugFromDb(slug: string): Promise<Product | undefined> {
+    if (!driver) {
+      return devProducts.find((p: any) => p.slug === slug);
+    }
+    const result = await this.safeQuery(async (session) => {
+      const query = "DECLARE $slug AS Utf8; SELECT * FROM products WHERE slug = $slug";
+      const { TypedValues, Types } = await import("ydb-sdk");
+      const { resultSets } = await session.executeQuery(query, { $slug: TypedValues.fromNative(Types.UTF8, slug) });
       const rs = resultSets[0];
       const row = rs.rows?.[0];
       if (!row || !rs.columns) return undefined;

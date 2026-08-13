@@ -1273,16 +1273,53 @@ export async function registerRoutes(
   // If generation fails (e.g. transient YDB error), we serve the last successfully
   // generated copy instead of a 500, so search engines never see a hard error.
   const generatedXmlCache: Record<string, { xml: string; generatedAt: number }> = {};
+
+  /**
+   * Sitemap lastmod must be a valid W3C date. Product timestamps can come from
+   * YDB as Date instances, ISO strings, unix timestamps, or invalid legacy data.
+   * Normalize all valid inputs to YYYY-MM-DD and use today's valid date for bad
+   * values so malformed data can never break the whole sitemap.
+   */
+  function formatSitemapLastmod(value: unknown, fallback: string): string {
+    if (value == null || value === "") return fallback;
+
+    let date: Date;
+    if (value instanceof Date) {
+      date = new Date(value.getTime());
+    } else if (typeof value === "number" || (typeof value === "string" && /^[+-]?[0-9]+(?:[.][0-9]+)?$/.test(value.trim()))) {
+      const numeric = typeof value === "number" ? value : Number(value);
+      if (!Number.isFinite(numeric)) return fallback;
+
+      const absolute = Math.abs(numeric);
+      const milliseconds = absolute >= 1e14
+        ? numeric / 1000 // microseconds
+        : absolute >= 1e11
+          ? numeric // milliseconds
+          : numeric * 1000; // seconds
+      date = new Date(milliseconds);
+    } else {
+      date = new Date(String(value).trim());
+    }
+
+    if (!Number.isFinite(date.getTime())) return fallback;
+    return date.toISOString().slice(0, 10);
+  }
+
   function serveGeneratedXml(
     res: express.Response,
     cacheKey: string,
     xml: string,
     contentLanguage?: string,
   ) {
-    generatedXmlCache[cacheKey] = { xml, generatedAt: Date.now() };
+    const today = new Date().toISOString().slice(0, 10);
+    const normalizedXml = xml.replace(
+      /(<lastmod>)([^<]*)(<\/lastmod>)/g,
+      (_match, open, value, close) => `${open}${formatSitemapLastmod(value, today)}${close}`,
+    );
+    generatedXmlCache[cacheKey] = { xml: normalizedXml, generatedAt: Date.now() };
     const type = res.type("application/xml");
     if (contentLanguage) type.set("Content-Language", contentLanguage);
-    type.send(xml);
+    type.send(normalizedXml);
   }
   function serveStaleXmlOrError(res: express.Response, cacheKey: string, label: string, err: unknown) {
     console.error(`[SEO] ${label} generation error:`, err);
@@ -1385,16 +1422,57 @@ Sitemap: ${siteUrl}/sitemap.xml
     );
   });
 
+  // Fallback cache for llms.txt: if live generation fails (e.g. transient YDB
+  // error), serve the last successfully generated copy instead of a stub.
+  let llmsTextCache: { text: string; generatedAt: number } | null = null;
+
   // SEO: llms.txt — structured info for AI crawlers
   app.get("/llms.txt", async (_req, res) => {
     try {
       const allProducts = await storage.getProducts();
-      const visibleProducts = allProducts.filter((p: any) => !p.isHidden && (p.inStock || p.autoHideOverride || p.preorderEnabled) && p.price > 0);
+      const visibleProducts = allProducts.filter((p: any) =>
+        !p.isHidden &&
+        !p.artistOnly &&
+        p.price > 0 &&
+        typeof p.slug === "string" && p.slug.trim().length > 0 &&
+        // Reject pure-numeric slugs (e.g. a product exported by 1C with its ID
+        // as slug before the real slug is generated) — they’d produce
+        // numeric-ID links like /232 instead of real product URLs.
+        !/^\d+$/.test(p.slug.trim()) &&
+        (p.inStock || p.autoHideOverride || p.preorderEnabled)
+      );
       const categories = [...new Set(visibleProducts.map((p: any) => p.category).filter(Boolean))];
       const priceRange = visibleProducts.length > 0 ? {
         min: Math.min(...visibleProducts.map((p: any) => p.price)) / 100,
         max: Math.max(...visibleProducts.map((p: any) => p.price)) / 100,
       } : { min: 0, max: 0 };
+
+      const seenSlugs = new Set<string>();
+      const productLines = [...visibleProducts]
+        .sort((a: any, b: any) => (a.category === "socks" ? 0 : 1) - (b.category === "socks" ? 0 : 1))
+        .filter((p: any) => {
+          if (seenSlugs.has(p.slug)) return false;
+          seenSlugs.add(p.slug);
+          return true;
+        })
+        .map((p: any) => {
+          const categoryName = CATEGORIES[p.category]?.name || p.category || "";
+          const price = (p.price / 100).toLocaleString("ru-RU");
+          const status = p.preorderEnabled ? "предзаказ" : (p.inStock ? "в наличии" : "по запросу");
+          const sizes = Array.isArray(p.sizes) ? p.sizes.filter((s: any) => s).join(", ") : "";
+          const description = String(p.description || "")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+          const shortDesc = description.length > 140 ? description.slice(0, 137) + "..." : description;
+          const meta = [
+            categoryName,
+            sizes ? "размеры " + sizes : "",
+            price + " ₽, " + status,
+          ].filter(Boolean).join(", ");
+          return "- [" + p.name + "](https://booomerangs.ru/" + p.slug + ") — " + meta + (shortDesc ? ". " + shortDesc : "");
+        })
+        .join("\n");
 
       let artistLinks = "";
       try {
@@ -1407,8 +1485,7 @@ Sitemap: ${siteUrl}/sitemap.xml
         }
       } catch { /* artist_pages not set yet — section stays empty */ }
 
-      res.type("text/plain").send(
-`# BMGBRAND / Booomerangs — российский бренд мерча и одежды
+      const llmsText = `# BMGBRAND / Booomerangs — российский бренд мерча и одежды
 
 > Производитель мерча, необычных носков с принтом, худи, футболок и аксессуаров. Собственное производство. Доставка по всей России.
 
@@ -1465,6 +1542,10 @@ ${artistLinks || "- (список формируется)"}
 - Каталог целиком: [Все товары](https://booomerangs.ru/products)
 - По категориям: [Одежда](https://booomerangs.ru/products/clothing) · [Носки](https://booomerangs.ru/products/socks) · [Аксессуары](https://booomerangs.ru/products/accessories) · [Мерч артистов](https://booomerangs.ru/products/merch) · [Распродажа](https://booomerangs.ru/products/sale)
 
+## Товарные дизайны
+
+${productLines || "- (список формируется)"}
+
 ## Подарочные карты
 
 Электронная подарочная карта — номиналы 500 / 1 000 / 2 000 / 5 000 / 10 000 ₽. Доставка на e-mail, действует 1 год, можно использовать частями на весь каталог.
@@ -1510,11 +1591,17 @@ ${artistLinks || "- (список формируется)"}
 - Город производства: Тула
 - Язык сайта: Русский
 - Основан: 2020
-`
-      );
+`;
+      llmsTextCache = { text: llmsText, generatedAt: Date.now() };
+      res.type("text/plain").send(llmsText);
     } catch (err) {
       console.error("[SEO] llms.txt generation error:", err);
-      res.type("text/plain").send("# BMGBRAND\n\n> Российский бренд одежды с авторскими принтами. Доставка по всей России.");
+      if (llmsTextCache) {
+        console.warn(`[SEO] llms.txt: serving stale cached copy from ${new Date(llmsTextCache.generatedAt).toISOString()}`);
+        res.type("text/plain").send(llmsTextCache.text);
+      } else {
+        res.type("text/plain").send("# BMGBRAND\n\n> Российский бренд одежды с авторскими принтами. Доставка по всей России.");
+      }
     }
   });
 

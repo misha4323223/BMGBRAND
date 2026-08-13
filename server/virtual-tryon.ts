@@ -153,8 +153,26 @@ async function runTryOn(vtonPath: string, garmPath: string): Promise<string> {
 
         console.log('[VirtualTryOn] img объект:', JSON.stringify(img).slice(0, 200));
 
-        const url = img.url ?? (img.path ? `${SPACE_URL}/gradio_api/file=${img.path}` : null);
-        if (!url) throw new Error('URL результата не найден в ответе');
+        const rawUrl = img.url ?? (img.path ? `${SPACE_URL}/gradio_api/file=${img.path}` : null);
+        if (!rawUrl) throw new Error('URL результата не найден в ответе');
+
+        // HF Space возвращает абсолютный URL на hf.space, который в РФ заблокирован.
+        // Переписываем origin на прокси (SPACE_URL), чтобы браузер мог открыть
+        // результат примерки напрямую (через HF_PROXY_URL, если он задан).
+        let url = rawUrl;
+        try {
+          const parsed = new URL(rawUrl, SPACE_URL);
+          if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            url = rawUrl; // не http(s) (например data:) — оставляем как есть
+          } else {
+            const proxyOrigin = new URL(SPACE_URL).origin;
+            if (parsed.origin !== proxyOrigin) {
+              url = `${SPACE_URL}${parsed.pathname}${parsed.search}`;
+            }
+          }
+        } catch {
+          // не парсится как URL — оставляем как есть
+        }
         return url;
       }
     }
