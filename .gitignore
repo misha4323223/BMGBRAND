@@ -13,7 +13,10 @@ sa-key*.json
 
 # 1C uploads - store images in Object Storage, not Git
 1c_uploads/
-# Production secrets — never commit
+# Local and production secrets — never commit
+.env
+.env.local
+.env.*.local
 .env.production
 
 # Ignore new files in attached_assets (Replit chat attachments, screenshots, logs)

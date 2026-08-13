@@ -37,7 +37,7 @@ function hfHeaders(extra: Record<string, string> = {}): Record<string, string> {
 
 /** Загружает Buffer на HF Space и возвращает серверный path */
 async function uploadToSpace(buffer: Buffer, filename: string, mimeType: string): Promise<string> {
-  const blob = new Blob([buffer], { type: mimeType });
+  const blob = new Blob([new Uint8Array(buffer).buffer as ArrayBuffer], { type: mimeType });
   const fd = new FormData();
   fd.append('files', blob, filename);
 
@@ -171,6 +171,12 @@ async function isTryOnEnabled(): Promise<boolean> {
 }
 
 export function registerVirtualTryOnRoutes(app: Express): void {
+  /** GET /api/virtual-tryon/enabled — публичный статус для витрины */
+  app.get('/api/virtual-tryon/enabled', async (_req: Request, res: Response): Promise<void> => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ enabled: await isTryOnEnabled() });
+  });
+
   /** GET /api/admin/virtual-tryon/settings — статус */
   app.get('/api/admin/virtual-tryon/settings', async (req: Request, res: Response): Promise<void> => {
     const apiKey = req.headers['x-api-key'];

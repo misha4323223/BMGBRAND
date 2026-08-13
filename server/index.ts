@@ -113,6 +113,7 @@ app.use(cors({
       || allowedOrigins.some(allowed => origin === allowed)
       || origin.endsWith('.replit.dev')
       || origin.endsWith('.pike.replit.dev')
+      || origin.endsWith('.daytonaproxy01.net')
       || origin.startsWith('http://localhost:')
       || origin.startsWith('http://127.0.0.1:')
       || origin.startsWith('http://0.0.0.0:')

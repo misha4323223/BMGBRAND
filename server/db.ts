@@ -116,35 +116,191 @@ export function shouldReconnectYdb(error: any): boolean {
 // external imports keep working.
 export const isAuthError = shouldReconnectYdb;
 
+function extractJsonObject(text: string, start: number): string | null {
+  const open = text.indexOf('{', start);
+  if (open < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = open; i < text.length; i++) {
+    const char = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char.charCodeAt(0) === 92) escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === '{') depth++;
+    else if (char === '}') {
+      depth--;
+      if (depth === 0) return text.slice(open, i + 1);
+    }
+  }
+
+  return null;
+}
+
+function rawYdbAssignmentsFromFiles(): string[] {
+  const values: string[] = [];
+
+  for (const filename of ['.env.local', '.env']) {
+    try {
+      const content = fs.readFileSync(path.resolve(filename), 'utf8');
+      const assignment = /(?:^|\r?\n)\s*YDB_SA_KEY\s*=\s*/m.exec(content);
+      if (!assignment) continue;
+
+      const valueStart = assignment.index + assignment[0].length;
+      const jsonValue = extractJsonObject(content, valueStart);
+      if (jsonValue) {
+        values.push(jsonValue);
+      } else {
+        // Keep a single-line fallback for a non-JSON value without logging it.
+        const lineValue = content.slice(valueStart).split(/\r?\n/, 1)[0].trim();
+        if (lineValue) values.push(lineValue);
+      }
+    } catch {
+      // Preview may receive the secret directly through its environment.
+    }
+  }
+
+  return values;
+}
+
+function normalizeYdbServiceAccountKeyWithFileFallback(raw: string): string {
+  try {
+    return normalizeYdbServiceAccountKey(raw);
+  } catch {
+    const fileCandidates = rawYdbAssignmentsFromFiles();
+    for (const candidate of fileCandidates) {
+      for (const variant of [candidate, candidate.replace(/\\"/g, '"')]) {
+        try {
+          return normalizeYdbServiceAccountKey(variant);
+        } catch {
+          // Try the next representation without logging the secret.
+        }
+      }
+    }
+
+    throw new Error('YDB_SA_KEY is present but is not valid service-account JSON with private_key');
+  }
+}
+
+function escapeNewlinesInsideJsonStrings(value: string): string {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < value.length; index++) {
+    const char = value[index];
+
+    if (inString) {
+      if (escaped) {
+        result += char;
+        escaped = false;
+        continue;
+      }
+      if (char === '\\') {
+        result += char;
+        escaped = true;
+        continue;
+      }
+      if (char === '"') {
+        result += char;
+        inString = false;
+        continue;
+      }
+      if (char === '\r') {
+        if (value[index + 1] === '\n') index++;
+        result += '\\n';
+        continue;
+      }
+      if (char === '\n') {
+        result += '\\n';
+        continue;
+      }
+    } else if (char === '"') {
+      inString = true;
+    }
+
+    result += char;
+  }
+
+  return result;
+}
+
+function normalizeYdbServiceAccountKey(raw: string): string {
+  let value = raw.trim().replace(/^\uFEFF/, '');
+
+  // Разрешаем вставку вида `YDB_SA_KEY=...` из .env-файла.
+  value = value.replace(/^YDB_SA_KEY\s*=\s*/i, '').trim();
+
+  // Убираем Markdown-обёртку, если JSON скопировали из блока ```json.
+  value = value.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+  // Пробуем несколько безопасных представлений: чистый JSON, JSON в кавычках
+  // и вариант с экранированными кавычками из API Keys/.env.
+  const candidates = new Set<string>();
+  const addCandidate = (candidate: string) => {
+    const trimmed = candidate.trim();
+    if (!trimmed) return;
+    candidates.add(trimmed);
+    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+        (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+      candidates.add(trimmed.slice(1, -1).trim());
+    }
+  };
+
+  addCandidate(value);
+  addCandidate(value.replace(/\\"/g, '"'));
+  addCandidate(value.replace(/\\\\/g, '\\').replace(/\\"/g, '"'));
+
+  for (const candidate of candidates) {
+    try {
+      let parsed: unknown = JSON.parse(escapeNewlinesInsideJsonStrings(candidate));
+      // Поддерживаем значение, сохранённое как JSON-строка внутри JSON.
+      if (typeof parsed === 'string') {
+        parsed = JSON.parse(escapeNewlinesInsideJsonStrings(parsed));
+      }
+
+      if (!parsed || typeof parsed !== 'object') continue;
+      const account = parsed as { private_key?: unknown };
+      if (typeof account.private_key !== 'string') continue;
+
+      // SDK нужен обычный перенос строки внутри PEM-ключа. Вход может
+      // содержать как \\n, так и двойное экранирование \\\\n.
+      account.private_key = account.private_key
+        .split('\\\\n').join('\n')
+        .split('\\n').join('\n');
+      return JSON.stringify(account);
+    } catch {
+      // Переходим к следующему представлению без вывода секрета в лог.
+    }
+  }
+
+  throw new Error('YDB_SA_KEY must be valid service-account JSON with private_key');
+}
+
 export async function initYdb() {
-  const isCloud = process.env.NODE_ENV === "production" || !!process.env.YDB_SA_KEY;
+  const rawSaKey = process.env.YDB_SA_KEY?.trim();
+  const isCloud = process.env.NODE_ENV === "production" || !!rawSaKey;
   
   if (isCloud) {
     console.log(`[YDB] Initializing Driver for: ${endpoint}`);
     console.log(`[YDB] Database: ${database}`);
     console.log(`[YDB] NODE_ENV: ${process.env.NODE_ENV}`);
-    console.log(`[YDB] YDB_SA_KEY present: ${!!process.env.YDB_SA_KEY}`);
+    console.log(`[YDB] YDB_SA_KEY present: ${!!rawSaKey}`);
     
     try {
       let authService: ydb.IAuthService;
       
       // Если есть YDB_SA_KEY - используем его (для Replit и локальной разработки)
       // Иначе используем MetadataAuthService (для Yandex Serverless Containers)
-      if (process.env.YDB_SA_KEY) {
-        // Создаём временный файл с ключом для SDK
-        // В Replit Secrets символы \n хранятся как буквальные два символа \+n,
-        // поэтому восстанавливаем реальные переносы строк в private_key
+      if (rawSaKey) {
         const tmpFile = path.join(os.tmpdir(), 'ydb-sa-key.json');
-        let saKeyJson = process.env.YDB_SA_KEY;
-        try {
-          const parsed = JSON.parse(saKeyJson);
-          if (parsed.private_key && typeof parsed.private_key === 'string') {
-            parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
-            saKeyJson = JSON.stringify(parsed);
-          }
-        } catch {
-          // если не парсится как JSON — записываем как есть
-        }
+        const saKeyJson = normalizeYdbServiceAccountKeyWithFileFallback(rawSaKey);
         fs.writeFileSync(tmpFile, saKeyJson);
         const saCredentials = getSACredentialsFromJson(tmpFile);
         authService = new ydb.IamAuthService(saCredentials);

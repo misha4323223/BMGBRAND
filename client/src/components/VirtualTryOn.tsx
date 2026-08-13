@@ -9,6 +9,7 @@
  */
 
 import { useState, useRef, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Camera, Upload, X, Loader2, Download, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +40,17 @@ export function VirtualTryOn({ garmentImages, productName }: VirtualTryOnProps) 
   const [selectedGarmentIdx, setSelectedGarmentIdx] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { data: settings } = useQuery<{ enabled: boolean }>({
+    queryKey: ["/api/virtual-tryon/enabled"],
+    queryFn: async () => {
+      const response = await fetch("/api/virtual-tryon/enabled");
+      if (!response.ok) throw new Error("Не удалось получить настройки АР-примерки");
+      return response.json() as Promise<{ enabled: boolean }>;
+    },
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
 
   const garmentUrl = garmentImages[selectedGarmentIdx] ?? garmentImages[0];
 
@@ -141,6 +153,10 @@ export function VirtualTryOn({ garmentImages, productName }: VirtualTryOnProps) 
 
   const formatElapsed = (s: number) =>
     s < 60 ? `${s} сек` : `${Math.floor(s / 60)} мин ${s % 60} сек`;
+
+  // Не показываем функцию, пока сервер не подтвердил, что она включена.
+  // Это также скрывает кнопку при ошибке/недоступности настройки.
+  if (settings?.enabled !== true) return null;
 
   return (
     <>
