@@ -7031,7 +7031,7 @@ ${productLines || "- (список формируется)"}
     }
 
     try {
-      const { productIds, category, subcategory, action } = req.body;
+      const { productIds, category, subcategory, subSubcategory, action } = req.body;
 
       if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
         return res.status(400).json({ message: "productIds array required" });
@@ -7046,24 +7046,35 @@ ${productLines || "- (список формируется)"}
           const product = await storage.getProduct(id);
           if (!product) continue;
 
-          const existing: Array<{ category: string; subcategory: string }> =
+          const existing: Array<{ category: string; subcategory: string; subSubcategory?: string }> =
             (product as any).additionalCategories || [];
 
-          let newList: Array<{ category: string; subcategory: string }>;
+          let newList: Array<{ category: string; subcategory: string; subSubcategory?: string }>;
 
+          const normSubSub = (s: any) => (s == null ? "" : String(s));
           if (action === "remove") {
             newList = existing.filter(
-              (ac) => !(ac.category === category && (ac.subcategory || "") === (subcategory || ""))
+              (ac) => !(
+                ac.category === category &&
+                (ac.subcategory || "") === (subcategory || "") &&
+                normSubSub(ac.subSubcategory) === normSubSub(subSubcategory)
+              )
             );
           } else {
             const alreadyExists = existing.some(
-              (ac) => ac.category === category && (ac.subcategory || "") === (subcategory || "")
+              (ac) => ac.category === category &&
+                (ac.subcategory || "") === (subcategory || "") &&
+                normSubSub(ac.subSubcategory) === normSubSub(subSubcategory)
             );
             if (alreadyExists) {
               updated++;
               continue;
             }
-            newList = [...existing, { category, subcategory: subcategory || "" }];
+            newList = [...existing, {
+              category,
+              subcategory: subcategory || "",
+              ...(subSubcategory ? { subSubcategory: String(subSubcategory) } : {}),
+            }];
           }
 
           await storage.updateProduct(id, { additionalCategories: newList } as any);
@@ -7073,8 +7084,8 @@ ${productLines || "- (список формируется)"}
         }
       }
 
-      console.log(`[Admin] Bulk ${action || "add"} additional category: ${category}/${subcategory || "none"} for ${updated} products`);
-      res.json({ success: true, updated, category, subcategory });
+      console.log(`[Admin] Bulk ${action || "add"} additional category: ${category}/${subcategory || "none"}/${subSubcategory || "none"} for ${updated} products`);
+      res.json({ success: true, updated, category, subcategory, subSubcategory: subSubcategory || null });
     } catch (err) {
       console.error("[Admin] Bulk additional category error:", err);
       res.status(500).json({ success: false, message: "Update failed" });
@@ -8901,7 +8912,7 @@ ${productLines || "- (список формируется)"}
         const catLower = category.toLowerCase();
         filtered = filtered.filter(p => {
           if (p.category?.toLowerCase() === catLower) return true;
-          const addCats: Array<{category: string, subcategory: string}> = (p as any).additionalCategories || [];
+          const addCats: Array<{ category: string; subcategory: string; subSubcategory?: string }> = (p as any).additionalCategories || [];
           return addCats.some(ac => ac.category?.toLowerCase() === catLower);
         });
         if (subcategory) {
@@ -8914,7 +8925,7 @@ ${productLines || "- (список формируется)"}
               const pSub = normalize(p.subcategory);
               if (pSub === decodedSub || pSub === rawSub) return true;
             }
-            const addCats: Array<{category: string, subcategory: string}> = (p as any).additionalCategories || [];
+            const addCats: Array<{ category: string; subcategory: string; subSubcategory?: string }> = (p as any).additionalCategories || [];
             return addCats.some(ac => {
               if (ac.category?.toLowerCase() !== catLower) return false;
               const ns = normalize(ac.subcategory || '');
@@ -8925,10 +8936,18 @@ ${productLines || "- (список формируется)"}
           if (subSubcategory) {
             const decodedSubSub = normalize(decodeURIComponent(subSubcategory));
             const rawSubSub = normalize(subSubcategory);
-            filtered = filtered.filter(p => {
+            const matchesSubSub = (p: any) => {
               const pss = normalize((p as any).subSubcategory || '');
-              return pss && (pss === decodedSubSub || pss === rawSubSub);
-            });
+              if (pss && (pss === decodedSubSub || pss === rawSubSub)) return true;
+              // sub-subcategory can also be set on an additional category pair
+              const addCats: Array<{ category: string; subcategory: string; subSubcategory?: string }> =
+                (p as any).additionalCategories || [];
+              return addCats.some((ac: any) => {
+                const acss = normalize(ac?.subSubcategory || '');
+                return acss && (acss === decodedSubSub || acss === rawSubSub);
+              });
+            };
+            filtered = filtered.filter(p => matchesSubSub(p));
           }
         }
       }
@@ -10740,7 +10759,7 @@ ${productLines || "- (список формируется)"}
               if (promoCats && promoCats.length > 0) {
                 const cat = (product?.category || '').toLowerCase().trim();
                 const sub = (product?.subcategory || '').toLowerCase().trim();
-                const addlCats = (product?.additionalCategories || []) as Array<{category: string, subcategory: string}>;
+                const addlCats = (product?.additionalCategories || []) as Array<{ category: string; subcategory: string; subSubcategory?: string }>;
                 const addlMatch = addlCats.some((ac: any) =>
                   promoCats.includes((ac.category || '').toLowerCase().trim()) ||
                   promoCats.includes((ac.subcategory || '').toLowerCase().trim())
@@ -12530,7 +12549,7 @@ ${productLines || "- (список формируется)"}
           if (promoCatsValidation && promoCatsValidation.length > 0) {
             const cat = (item.category || '').toLowerCase().trim();
             const sub = (item.subcategory || '').toLowerCase().trim();
-            const addlCats = (item.additionalCategories || []) as Array<{category: string, subcategory: string}>;
+            const addlCats = (item.additionalCategories || []) as Array<{ category: string; subcategory: string; subSubcategory?: string }>;
             const addlMatch = addlCats.some((ac: any) =>
               promoCatsValidation.includes((ac.category || '').toLowerCase().trim()) ||
               promoCatsValidation.includes((ac.subcategory || '').toLowerCase().trim())

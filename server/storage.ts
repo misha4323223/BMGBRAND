@@ -203,11 +203,24 @@ export function getCachedReviewsByProductId(productId: number): CachedReview[] {
 
 export function getCachedProductsByCategory(categorySlug: string, limit = 80): Array<{
   slug: string; name: string; price: number; stock: number; category: string;
+  subcategory: string | null;
+  subSubcategory: string | null;
+  additionalCategories: Array<{ category: string; subcategory: string; subSubcategory?: string }>;
+  preorderEnabled: boolean;
 }> {
   const products = productsCache.get("all");
   if (!products || products.length === 0) return [];
   return products
-    .filter((p: any) => !p.isHidden && !p.artistOnly && p.slug && p.category === categorySlug && p.price > 0)
+    .filter((p: any) => {
+      if (p.isHidden || p.artistOnly || !p.slug || p.price <= 0) return false;
+      // The product belongs to the category either directly or via additionalCategories
+      // (e.g. merch artist collabs like "Людмил Огурченко" live under clothing/accessories
+      // with additionalCategories pointing at merch). The API's /api/products filter uses
+      // exactly the same rule — mirror it so bot SSR sees the same products as the browser.
+      if (p.category === categorySlug) return true;
+      const addCats: Array<{ category: string; subcategory: string }> = (p as any).additionalCategories || [];
+      return addCats.some((ac: any) => ac?.category?.toLowerCase() === categorySlug.toLowerCase());
+    })
     .slice(0, limit)
     .map((p: any) => ({
       slug: String(p.slug),
@@ -215,11 +228,27 @@ export function getCachedProductsByCategory(categorySlug: string, limit = 80): A
       price: Number(p.price || 0),
       stock: Number(p.stock ?? 0),
       category: String(p.category || ""),
+      // bot-ssr.ts filters by these fields (renderSubcategory/renderSubSubcategory) —
+      // without them the SSR list is always empty and bot pages fall back to 404.
+      subcategory: (p as any).subcategory != null && String((p as any).subcategory).trim() !== ""
+        ? String((p as any).subcategory) : null,
+      subSubcategory: (p as any).subSubcategory != null && String((p as any).subSubcategory).trim() !== ""
+        ? String((p as any).subSubcategory) : null,
+      additionalCategories: Array.isArray((p as any).additionalCategories)
+        ? (p as any).additionalCategories.map((ac: any) => ({
+            category: String(ac?.category || ""),
+            subcategory: String(ac?.subcategory || ""),
+            subSubcategory: ac?.subSubcategory != null && String(ac.subSubcategory).trim() !== ""
+              ? String(ac.subSubcategory) : undefined,
+          }))
+        : [],
+      preorderEnabled: (p as any).preorderEnabled === true,
     }));
 }
 
 export function getCachedAllVisibleProducts(limit = 50): Array<{
   slug: string; name: string; price: number; stock: number; category: string;
+  preorderEnabled: boolean;
 }> {
   const products = productsCache.get("all");
   if (!products || products.length === 0) return [];
@@ -232,6 +261,7 @@ export function getCachedAllVisibleProducts(limit = 50): Array<{
       price: Number(p.price || 0),
       stock: Number(p.stock ?? 0),
       category: String(p.category || ""),
+      preorderEnabled: (p as any).preorderEnabled === true,
     }));
 }
 

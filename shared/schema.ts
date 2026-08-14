@@ -177,7 +177,7 @@ export const products = pgTable("products", {
   imageThumbnails: jsonb("image_thumbnails").$type<string[]>().default([]), // 450px thumbnails for ALL images
   category: text("category").notNull(), // Main category slug: clothing, socks, accessories, merch, sale
   subcategory: text("subcategory"), // Subcategory name
-  additionalCategories: jsonb("additional_categories").$type<Array<{category: string, subcategory: string}>>().default([]), // Extra category+subcategory pairs for cross-listing
+  additionalCategories: jsonb("additional_categories").$type<Array<{category: string, subcategory: string, subSubcategory?: string}>>().default([]), // Extra category+subcategory(+subSubcategory) pairs for cross-listing
   color: text("color"), // Color of THIS variant (extracted from name)
   sizes: jsonb("sizes").$type<string[]>().notNull(), // e.g. ["S", "M", "L", "XL"]
   colors: jsonb("colors").$type<string[]>().notNull(), // e.g. ["Black", "White"] - legacy, keep for compatibility

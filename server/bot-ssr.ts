@@ -312,6 +312,35 @@ function price(kopecks: number): string {
   return Math.round(kopecks / 100).toLocaleString("ru-RU") + "\u00a0₽";
 }
 
+// Availability of a product for SSR listing cards. Preorder products (stock is a
+// preorder reserve, not shelf stock) must be labeled "предзаказ" / PreOrder —
+// showing them as "в наличии" / InStock misleads search engines and users.
+function cardStatus(p: { stock: number; preorderEnabled?: boolean }): {
+  cls: string;
+  text: string;
+  availability: string;
+} {
+  if (p.preorderEnabled) {
+    return {
+      cls: "preorder",
+      text: "предзаказ",
+      availability: "https://schema.org/PreOrder",
+    };
+  }
+  if (p.stock > 0) {
+    return {
+      cls: "in-stock",
+      text: "в наличии",
+      availability: "https://schema.org/InStock",
+    };
+  }
+  return {
+    cls: "out-of-stock",
+    text: "под заказ",
+    availability: "https://schema.org/OutOfStock",
+  };
+}
+
 // Safe JSON-LD serialization: user-generated text (review comments, author
 // names) flows into these objects, so raw JSON.stringify output must be
 // neutralized against </script> breakout and U+2028/U+2029 line separators
@@ -488,7 +517,7 @@ function renderHome(): string | null {
     <article class="card">
       <div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div>
       <div class="price">${price(p.price)}</div>
-      <div class="status in-stock">в наличии</div>
+      <div class="status ${cardStatus(p).cls}">${cardStatus(p).text}</div>
     </article>`).join("\n");
 
   const homeSeoTitle = getSeoOverride("home").title || `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
@@ -566,7 +595,7 @@ function renderCatalog(): string | null {
     const catProducts = catGroups[slug] || [];
     if (catProducts.length === 0) return "";
     const items = catProducts.slice(0, 8).map(p =>
-      `<article class="card"><div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div><div class="price">${price(p.price)}</div><div class="status">${p.stock > 0 ? "в наличии" : "под заказ"}</div></article>`
+      `<article class="card"><div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div><div class="price">${price(p.price)}</div><div class="status ${cardStatus(p).cls}">${cardStatus(p).text}</div></article>`
     ).join("\n");
     return `<h2><a href="/products/${slug}">${esc(cat.name)}</a> <span style="font-size:.75rem;font-weight:400;text-transform:none;color:#888">(${catProducts.length} тов.)</span></h2><div class="grid">${items}</div>`;
   }).filter(Boolean).join("\n");
@@ -612,9 +641,7 @@ function renderCatalog(): string | null {
             "@type": "Offer",
             "priceCurrency": "RUB",
             "price": (p.price / 100).toFixed(2),
-            "availability": p.stock > 0
-              ? "https://schema.org/InStock"
-              : "https://schema.org/OutOfStock",
+            "availability": cardStatus(p).availability,
           },
         },
       })),
@@ -654,7 +681,7 @@ function renderCategory(catSlug: string): string | null {
     <article class="card">
       <div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div>
       <div class="price">${price(p.price)}</div>
-      <div class="status ${p.stock > 0 ? "in-stock" : "out-of-stock"}">${p.stock > 0 ? "в наличии" : "под заказ"}</div>
+      <div class="status ${cardStatus(p).cls}">${cardStatus(p).text}</div>
     </article>`).join("\n");
 
   const catSeo = getSeoOverride(`category:${catSlug}`);
@@ -698,9 +725,7 @@ function renderCategory(catSlug: string): string | null {
             "@type": "Offer",
             "priceCurrency": "RUB",
             "price": (p.price / 100).toFixed(2),
-            "availability": p.stock > 0
-              ? "https://schema.org/InStock"
-              : "https://schema.org/OutOfStock",
+            "availability": cardStatus(p).availability,
           },
         },
       })),
@@ -1144,9 +1169,20 @@ function renderSubcategory(subSlug: string, canonicalSlug?: string): string | nu
   const products = getCachedProductsByCategory(category.slug, 500);
   if (products.length === 0) return null;
 
-  const filtered = (products as any[]).filter((p: any) =>
-    p.subcategory && p.subcategory.toLowerCase().trim() === subcategory.name.toLowerCase().trim()
-  );
+  // Products belong to a subcategory either directly (p.subcategory) or via
+  // additionalCategories (e.g. merch collabs like "Людмил Огурченко" whose products
+  // live under clothing/accessories but list the merch subcategory in additionalCategories).
+  // Mirrors the /api/products filter so bots see the same products as the browser.
+  const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
+  const targetCat = norm(category.slug);
+  const targetSub = norm(subcategory.name);
+  const filtered = (products as any[]).filter((p: any) => {
+    if (p.subcategory && norm(p.subcategory) === targetSub) return true;
+    const addCats: Array<{ category: string; subcategory: string; subSubcategory?: string }> = p.additionalCategories || [];
+    return addCats.some(ac =>
+      ac?.category && norm(ac.category) === targetCat && ac.subcategory && norm(ac.subcategory) === targetSub
+    );
+  });
   if (filtered.length === 0) return null;
 
   const inStock = filtered.filter((p: any) => p.stock > 0);
@@ -1198,7 +1234,7 @@ function renderSubcategory(subSlug: string, canonicalSlug?: string): string | nu
             "@type": "Offer",
             "priceCurrency": "RUB",
             "price": (p.price / 100).toFixed(2),
-            "availability": p.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            "availability": cardStatus(p).availability,
           },
         },
       })),
@@ -1217,7 +1253,7 @@ function renderSubcategory(subSlug: string, canonicalSlug?: string): string | nu
     <article class="card">
       <div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div>
       <div class="price">${price(p.price)}</div>
-      <div class="status ${p.stock > 0 ? "in-stock" : "out-of-stock"}">${p.stock > 0 ? "в наличии" : "под заказ"}</div>
+      <div class="status ${cardStatus(p).cls}">${cardStatus(p).text}</div>
     </article>`).join("\n");
 
   const body = `
@@ -1235,7 +1271,13 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
   let cats = CATEGORIES as Record<string, any>;
   try {
     const raw = getCachedRawPageSettings('site_config');
-    if (raw?.categories) cats = normalizeCategories(raw.categories);
+    if (raw?.categories_data) {
+      const parsed = typeof raw.categories_data === 'string'
+        ? JSON.parse(raw.categories_data)
+        : raw.categories_data;
+      const normalized = normalizeCategories(parsed);
+      if (Object.keys(normalized).length > 0) cats = normalized;
+    }
   } catch { /* keep static fallback */ }
 
   const found = findCategoryBySubSubcategorySlug(cats, subSlug, subSubSlug);
@@ -1245,10 +1287,26 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
   const products = getCachedProductsByCategory(category.slug, 1000);
   if (products.length === 0) return null;
 
-  const filtered = (products as any[]).filter((p: any) =>
-    p.subcategory && p.subcategory.toLowerCase().trim() === subcategory.name.toLowerCase().trim() &&
-    p.subSubcategory && p.subSubcategory.toLowerCase().trim() === subSubcategory.name.toLowerCase().trim()
-  );
+  const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
+  const targetCat = norm(category.slug);
+  const targetSub = norm(subcategory.name);
+  const targetSubSub = norm(subSubcategory.name);
+  const filtered = (products as any[]).filter((p: any) => {
+    const direct = p.subcategory && norm(p.subcategory) === targetSub &&
+      p.subSubcategory && norm(p.subSubcategory) === targetSubSub;
+    if (direct) return true;
+    const addCats: Array<{ category: string; subcategory: string; subSubcategory?: string }> = p.additionalCategories || [];
+    // via additionalCategories we can match subcategory AND subSubcategory directly
+    // (mirrors the /api/products filter); otherwise fall back to the product's
+    // direct subSubcategory field.
+    return addCats.some(ac =>
+      ac?.category && norm(ac.category) === targetCat &&
+      ac.subcategory && norm(ac.subcategory) === targetSub &&
+      ac.subSubcategory && norm(ac.subSubcategory) === targetSubSub
+    ) || (addCats.some(ac =>
+      ac?.category && norm(ac.category) === targetCat && ac.subcategory && norm(ac.subcategory) === targetSub
+    ) && p.subSubcategory && norm(p.subSubcategory) === targetSubSub);
+  });
   if (filtered.length === 0) return null;
 
   const inStock = filtered.filter((p: any) => p.stock > 0);
@@ -1293,7 +1351,7 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
             "@type": "Offer",
             "priceCurrency": "RUB",
             "price": (p.price / 100).toFixed(2),
-            "availability": p.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            "availability": cardStatus(p).availability,
           },
         },
       })),
@@ -1306,7 +1364,7 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
     <article class="card">
       <div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div>
       <div class="price">${price(p.price)}</div>
-      <div class="status ${p.stock > 0 ? "in-stock" : "out-of-stock"}">${p.stock > 0 ? "в наличии" : "под заказ"}</div>
+      <div class="status ${cardStatus(p).cls}">${cardStatus(p).text}</div>
     </article>`).join("\n");
 
   const body = `

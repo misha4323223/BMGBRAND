@@ -1499,6 +1499,7 @@ export default function Admin() {
   const [targetSubSubcategory, setTargetSubSubcategory] = useState<string>("");
   const [addlCategory, setAddlCategory] = useState<string>("");
   const [addlSubcategory, setAddlSubcategory] = useState<string>("");
+  const [addlSubSubcategory, setAddlSubSubcategory] = useState<string>("");
   const VALID_TABS = ["products","orders","wholesale","problems","bonuses","pages","reviews","favorites","preorders","security","clients","analytics","partners","ai","seo","integrations"] as const;
   type AdminTab = typeof VALID_TABS[number];
   const [activeTab, setActiveTabRaw] = useState<AdminTab>(() => {
@@ -1681,7 +1682,7 @@ export default function Admin() {
     sizeDiscounts: Record<string, number>;
     disabledNotifySizes: string[];
     noSize: boolean;
-    additionalCategories: Array<{category: string, subcategory: string}>;
+    additionalCategories: Array<{ category: string; subcategory: string; subSubcategory?: string }>;
     subSubcategory: string;
     artistSlug: string;
     videoUrl: string;
@@ -3716,11 +3717,11 @@ export default function Admin() {
   })();
 
   const bulkAddlCategoryMutation = useMutation({
-    mutationFn: async ({ ids, category, subcategory, action }: { ids: number[], category: string, subcategory?: string, action?: string }) => {
+    mutationFn: async ({ ids, category, subcategory, subSubcategory, action }: { ids: number[], category: string, subcategory?: string, subSubcategory?: string, action?: string }) => {
       return adminFetch("/api/admin/products/additional-category", apiKey, {
         method: "PATCH",
         headers: { "Content-Type": "application/json; charset=utf-8" },
-        body: JSON.stringify({ productIds: ids, category, subcategory, action }),
+        body: JSON.stringify({ productIds: ids, category, subcategory, subSubcategory, action }),
       });
     },
     onSuccess: (data, variables) => {
@@ -3728,14 +3729,16 @@ export default function Admin() {
       refetch();
       const catName = editingCategories[data.category]?.name || data.category;
       const subName = data.subcategory ? ` / ${data.subcategory}` : "";
+      const subSubName = data.subSubcategory ? ` / ${data.subSubcategory}` : "";
       const actionLabel = variables.action === "remove" ? "убрано из" : "добавлено в";
       toast({
         title: "Доп. категория обновлена",
-        description: `${data.updated} товаров ${actionLabel} "${catName}${subName}"`,
+        description: `${data.updated} товаров ${actionLabel} "${catName}${subName}${subSubName}"`,
       });
       setSelectedProducts(new Set());
       setAddlCategory("");
       setAddlSubcategory("");
+      setAddlSubSubcategory("");
     },
     onError: (error: Error) => {
       toast({ title: "Ошибка", description: error.message, variant: "destructive" });
@@ -4352,6 +4355,7 @@ export default function Admin() {
                 onValueChange={(v) => {
                   setAddlCategory(v);
                   setAddlSubcategory("");
+                  setAddlSubSubcategory("");
                 }}
               >
                 <SelectTrigger className="w-36 h-8 text-xs" data-testid="select-addl-category">
@@ -4367,7 +4371,7 @@ export default function Admin() {
               </Select>
 
               {availableAddlSubcategories.length > 0 && (
-                <Select value={addlSubcategory} onValueChange={setAddlSubcategory}>
+                <Select value={addlSubcategory} onValueChange={(v) => { setAddlSubcategory(v); setAddlSubSubcategory(""); }}>
                   <SelectTrigger className="w-36 h-8 text-xs" data-testid="select-addl-subcategory">
                     <SelectValue placeholder="Подкатегория" />
                   </SelectTrigger>
@@ -4382,6 +4386,27 @@ export default function Admin() {
                 </Select>
               )}
 
+              {(() => {
+                const sub = availableAddlSubcategories.find((s) => typeof s === 'string' ? s === addlSubcategory : s.name === addlSubcategory);
+                const subSubs: Array<{name: string; slug: string}> = (sub as any)?.subSubcategories || [];
+                if (!addlSubcategory || addlSubcategory === "_none_" || subSubs.length === 0) return null;
+                return (
+                  <Select value={addlSubSubcategory} onValueChange={setAddlSubSubcategory}>
+                    <SelectTrigger className="w-36 h-8 text-xs" data-testid="select-addl-subsubcategory">
+                      <SelectValue placeholder="Под-подкатегория" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                      <SelectItem value="_none_" className="text-zinc-100 focus:bg-zinc-800 focus:text-white">Без под-подкатегории</SelectItem>
+                      {subSubs.map((ss) => (
+                        <SelectItem key={ss.name} value={ss.name} className="text-zinc-100 focus:bg-zinc-800 focus:text-white">
+                          {ss.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              })()}
+
               <Button
                 size="sm"
                 className="h-8"
@@ -4392,6 +4417,7 @@ export default function Admin() {
                       ids: Array.from(selectedProducts),
                       category: addlCategory,
                       subcategory: addlSubcategory === "_none_" ? undefined : addlSubcategory || undefined,
+                      subSubcategory: addlSubSubcategory === "_none_" ? undefined : addlSubSubcategory || undefined,
                       action: "add",
                     });
                   }
@@ -4414,6 +4440,7 @@ export default function Admin() {
                         ids: Array.from(selectedProducts),
                         category: addlCategory,
                         subcategory: addlSubcategory === "_none_" ? undefined : addlSubcategory || undefined,
+                        subSubcategory: addlSubSubcategory === "_none_" ? undefined : addlSubSubcategory || undefined,
                         action: "remove",
                       });
                     }
@@ -11192,6 +11219,35 @@ export default function Admin() {
                                   data-testid={`input-additional-subcategory-${idx}`}
                                 />
                               )}
+                            </div>
+                            <div className="flex-1">
+                              {idx === 0 && <Label className="text-xs text-muted-foreground mb-1">Под-подкатегория</Label>}
+                              {(() => {
+                                const cat = ac.category ? (editingCategories[ac.category] || CATEGORIES[ac.category as keyof typeof CATEGORIES]) : null;
+                                const sub = (cat as any)?.subcategories?.find((s: any) => s.name === ac.subcategory);
+                                const subSubs: Array<{name: string; slug: string}> = (sub as any)?.subSubcategories || [];
+                                if (!ac.subcategory || subSubs.length === 0) return null;
+                                return (
+                                  <Select
+                                    value={ac.subSubcategory || `__none__`}
+                                    onValueChange={(v) => {
+                                      const updated = [...productForm.additionalCategories];
+                                      updated[idx] = { ...updated[idx], subSubcategory: v === `__none__` ? `` : v };
+                                      setProductForm({ ...productForm, additionalCategories: updated });
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs" data-testid={`select-additional-subsubcategory-${idx}`}>
+                                      <SelectValue placeholder="Все" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value={`__none__`}>— Без под-подкатегории —</SelectItem>
+                                      {subSubs.map((ss) => (
+                                        <SelectItem key={ss.name} value={ss.name}>{ss.name}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                );
+                              })()}
                             </div>
                             <Button
                               type="button"
