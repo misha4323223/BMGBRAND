@@ -20,11 +20,15 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+type TryOnCategory = "upper" | "lower" | "dress";
+
 interface VirtualTryOnProps {
   /** Все фото товара — пользователь выберет нужное */
   garmentImages: string[];
   /** Название товара для подписей */
   productName?: string;
+  /** Подсказка категории одежды от карточки товара */
+  defaultCategory?: TryOnCategory;
 }
 
 type Stage = "idle" | "uploading" | "processing" | "done" | "error";
@@ -84,8 +88,9 @@ async function preparePhoto(file: File): Promise<File> {
   return last;
 }
 
-export function VirtualTryOn({ garmentImages, productName }: VirtualTryOnProps) {
+export function VirtualTryOn({ garmentImages, productName, defaultCategory }: VirtualTryOnProps) {
   const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState<TryOnCategory>(defaultCategory ?? "upper");
   const [stage, setStage] = useState<Stage>("idle");
   const [personPreview, setPersonPreview] = useState<string | null>(null);
   const [personFile, setPersonFile] = useState<File | null>(null);
@@ -177,6 +182,7 @@ export function VirtualTryOn({ garmentImages, productName }: VirtualTryOnProps) 
       const fd = new FormData();
       fd.append("personPhoto", personFile);
       fd.append("garmentUrl", garmentUrl);
+      fd.append("category", category);
 
       setStage("processing");
 
@@ -200,7 +206,7 @@ export function VirtualTryOn({ garmentImages, productName }: VirtualTryOnProps) 
     } finally {
       if (timerRef.current) clearInterval(timerRef.current);
     }
-  }, [personFile, garmentUrl]);
+  }, [personFile, garmentUrl, category]);
 
   const handleDownload = useCallback(async () => {
     if (!resultUrl) return;
@@ -347,6 +353,34 @@ export function VirtualTryOn({ garmentImages, productName }: VirtualTryOnProps) 
                     onError={(e) => { e.currentTarget.style.display = "none"; }}
                   />
                 )}
+              </div>
+            )}
+
+            {/* ── Шаг 3: Тип одежды ── */}
+            {stage !== "done" && (
+              <div>
+                <p className="text-sm font-medium mb-2">3. Тип одежды</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: "upper", label: "Верх", hint: "футболки, худи, куртки" },
+                    { value: "lower", label: "Низ", hint: "шорты, брюки" },
+                    { value: "dress", label: "Платье", hint: "платья" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setCategory(opt.value)}
+                      className={`flex flex-col items-center gap-1 rounded-lg border px-3 py-2.5 text-center transition-all ${
+                        category === opt.value
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                      }`}
+                    >
+                      <span className="text-sm font-medium">{opt.label}</span>
+                      <span className="text-[10px] opacity-70">{opt.hint}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 

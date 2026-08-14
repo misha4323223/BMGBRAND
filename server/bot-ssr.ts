@@ -410,6 +410,16 @@ function trimDesc(s: string, max = 155): string {
   return (cut > 60 ? s.slice(0, cut) : s.slice(0, max)) + "…";
 }
 
+/**
+ * Absolute product image URL for listing JSON-LD (Google Merchant requires "image").
+ * Falls back to thumbnail, then first gallery image; returns undefined if none.
+ */
+function productImageUrl(p: any): string | undefined {
+  const img = p.imageUrl || p.thumbnailUrl || (Array.isArray(p.images) ? p.images[0] : null);
+  if (!img) return undefined;
+  return img.startsWith("http") ? img : `${SITE_URL}${img}`;
+}
+
 function baseHead(opts: {
   title: string;
   description: string;
@@ -636,6 +646,9 @@ function renderCatalog(): string | null {
         "item": {
           "@type": "Product",
           "name": p.name,
+          "image": productImageUrl(p),
+          "sku": p.article || p.sku || String(p.id),
+          "brand": { "@type": "Brand", "name": "BMGBRAND" },
           "url": `${SITE_URL}/${p.slug}`,
           "offers": {
             "@type": "Offer",
@@ -652,7 +665,7 @@ function renderCatalog(): string | null {
     title: catalogTitle,
     description: catalogDesc,
     canonical: `${SITE_URL}/products`,
-    ogImage: `${SITE_URL}/favicon.png`,
+    ogImage: `${SITE_URL}/og-image.png`,
     jsonLd,
   });
 
@@ -720,6 +733,9 @@ function renderCategory(catSlug: string): string | null {
         "item": {
           "@type": "Product",
           "name": p.name,
+          "image": productImageUrl(p),
+          "sku": p.article || p.sku || String(p.id),
+          "brand": { "@type": "Brand", "name": "BMGBRAND" },
           "url": `${SITE_URL}/${p.slug}`,
           "offers": {
             "@type": "Offer",
@@ -736,7 +752,7 @@ function renderCategory(catSlug: string): string | null {
     title,
     description: desc,
     canonical: `${SITE_URL}/products/${catSlug}`,
-    ogImage: `${SITE_URL}/favicon.png`,
+    ogImage: `${SITE_URL}/og-image.png`,
     jsonLd,
   });
 
@@ -1229,6 +1245,9 @@ function renderSubcategory(subSlug: string, canonicalSlug?: string): string | nu
         "item": {
           "@type": "Product",
           "name": p.name,
+          "image": productImageUrl(p),
+          "sku": p.article || p.sku || String(p.id),
+          "brand": { "@type": "Brand", "name": "BMGBRAND" },
           "url": `${SITE_URL}/${p.slug}`,
           "offers": {
             "@type": "Offer",
@@ -1245,7 +1264,7 @@ function renderSubcategory(subSlug: string, canonicalSlug?: string): string | nu
     title,
     description: desc,
     canonical: `${SITE_URL}/${pageSlug}`,
-    ogImage: `${SITE_URL}/favicon.png`,
+    ogImage: `${SITE_URL}/og-image.png`,
     jsonLd,
   });
 
@@ -1346,6 +1365,9 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
         "item": {
           "@type": "Product",
           "name": p.name,
+          "image": productImageUrl(p),
+          "sku": p.article || p.sku || String(p.id),
+          "brand": { "@type": "Brand", "name": "BMGBRAND" },
           "url": `${SITE_URL}/${p.slug}`,
           "offers": {
             "@type": "Offer",
@@ -1358,7 +1380,7 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
     },
   ]);
 
-  const head = baseHead({ title, description: desc, canonical: pageUrl, ogImage: `${SITE_URL}/favicon.png`, jsonLd });
+  const head = baseHead({ title, description: desc, canonical: pageUrl, ogImage: `${SITE_URL}/og-image.png`, jsonLd });
 
   const cards = allSorted.map((p: any) => `
     <article class="card">
@@ -1535,7 +1557,7 @@ function renderFaq(): string {
     title: faqSeo.title || `Вопросы и ответы | ${SITE_NAME}`,
     description: faqSeo.description || description,
     canonical: `${SITE_URL}/faq`,
-    ogImage: `${SITE_URL}/favicon.png`,
+    ogImage: `${SITE_URL}/og-image.png`,
     jsonLd,
   });
 
@@ -1878,6 +1900,9 @@ function renderConceptCampaign(slug: string): string | null {
         "item": {
           "@type": "Product",
           "name": p.name,
+          "image": productImageUrl(p),
+          "sku": p.article || p.sku || String(p.id),
+          "brand": { "@type": "Brand", "name": "BMGBRAND" },
           "url": p.slug ? `${SITE_URL}/${p.slug}` : `${SITE_URL}/concept/${slug}`,
           "offers": {
             "@type": "Offer",
@@ -2031,7 +2056,7 @@ function renderVacancies(): string {
       title: "Вакансии — BMGBRAND",
       description: "Открытые вакансии в команду BMGBRAND.",
       canonical: `${SITE_URL}/vacancies`,
-      ogImage: `${SITE_URL}/favicon.png`,
+      ogImage: `${SITE_URL}/og-image.png`,
     });
     return wrapPage(head, `<h1>Вакансии временно недоступны</h1><p><a href="/">На главную</a></p>`);
   }
@@ -2065,7 +2090,7 @@ function renderVacancies(): string {
     title:       vacSeo.title       || `Вакансии — присоединяйся к команде BMGBRAND | ${SITE_NAME}`,
     description: vacSeo.description || `Открытые вакансии в команду BMGBRAND. ${vacancies.map((v: any) => v.title).join(", ")}.`,
     canonical:   `${SITE_URL}/vacancies`,
-    ogImage:     `${SITE_URL}/favicon.png`,
+    ogImage:     `${SITE_URL}/og-image.png`,
     jsonLd,
   });
 
@@ -2128,7 +2153,7 @@ E-mail: <a href="mailto:info@booomerangs.ru">info@booomerangs.ru</a></p>`;
     title:       `Пользовательское соглашение | ${SITE_NAME}`,
     description: "Условия использования и публичная оферта интернет-магазина BMGBRAND.",
     canonical:   `${SITE_URL}/terms`,
-    ogImage:     `${SITE_URL}/favicon.png`,
+    ogImage:     `${SITE_URL}/og-image.png`,
     extra:       '<meta name="robots" content="noindex, follow">',
   });
 
@@ -2168,7 +2193,7 @@ function renderPrivacy(): string {
     title:       `Политика конфиденциальности | ${SITE_NAME}`,
     description: "Политика конфиденциальности и обработки персональных данных BMGBRAND.",
     canonical:   `${SITE_URL}/privacy`,
-    ogImage:     `${SITE_URL}/favicon.png`,
+    ogImage:     `${SITE_URL}/og-image.png`,
     extra:       '<meta name="robots" content="noindex, follow">',
   });
 
@@ -2217,7 +2242,7 @@ function renderCare(): string {
     title: "Уход за одеждой — BOOOMERANGS | " + SITE_NAME,
     description: "Рекомендации по уходу за одеждой BOOOMERANGS: носки, футболки, худи, свитшоты, куртки, брюки и шорты. Правильная стирка, сушка и хранение.",
     canonical: SITE_URL + "/care",
-    ogImage: SITE_URL + "/favicon.png",
+    ogImage: SITE_URL + "/og-image.png",
   });
 
   const body =
@@ -2246,6 +2271,7 @@ function renderGiftCards(): string {
       "@type": "Product",
       "name": "Подарочная карта BMGBRAND",
       "description": `Электронная подарочная карта интернет-магазина BMGBRAND (Booomerangs). Номиналы: ${amountsList}. Доставляется на e-mail получателя, действует 1 год.`,
+      "image": `${SITE_URL}/og-image.png`,
       "brand": { "@id": `${SITE_URL}/#organization` },
       "offers": GIFT_CARD_AMOUNTS.map(a => ({
         "@type": "Offer",
@@ -2262,7 +2288,7 @@ function renderGiftCards(): string {
     title: `Подарочная карта BMGBRAND — от ${minAmount} до ${maxAmount} | ${SITE_NAME}`,
     description: `Электронная подарочная карта интернет-магазина BMGBRAND. Номиналы: ${amountsList}. Мгновенная доставка на e-mail, действует 1 год. Оплата картой, ЮKassa, Т-Банк.`,
     canonical: `${SITE_URL}/gift-cards`,
-    ogImage: `${SITE_URL}/favicon.png`,
+    ogImage: `${SITE_URL}/og-image.png`,
     jsonLd,
   });
 

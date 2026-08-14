@@ -1434,7 +1434,7 @@ Allow: /
 Sitemap: ${siteUrl}/sitemap.xml
 
 # AI/LLM structured information available at:
-# ${siteUrl}/llms.txt`
+# ${siteUrl}/llms.txt (сводка) и ${siteUrl}/llms-full.txt (полная)`
     );
   });
 
@@ -1621,6 +1621,192 @@ ${productLines || "- (список формируется)"}
         res.type("text/plain").send(llmsTextCache.text);
       } else {
         res.type("text/plain").send("# BMGBRAND\n\n> Российский бренд одежды с авторскими принтами. Доставка по всей России.");
+      }
+    }
+  });
+
+  // SEO: llms-full.txt — полная версия для AI-краулеров: каталог + FAQ + артисты + бренд.
+  // llms.txt даёт краткую сводку, llms-full.txt — развёрнутый контент (стандарт llmstxt.org).
+  let llmsFullTextCache: { text: string; generatedAt: number } | null = null;
+
+  app.get("/llms-full.txt", async (_req, res) => {
+    const llmsBaseUrl = (process.env.SITE_URL || "https://booomerangs.ru").replace(/\/$/, "");
+    try {
+      const allProducts = await storage.getProducts();
+      const visibleProducts = allProducts.filter((p: any) =>
+        !p.isHidden &&
+        !p.artistOnly &&
+        p.price > 0 &&
+        typeof p.slug === "string" && p.slug.trim().length > 0 &&
+        !/^\d+$/.test(p.slug.trim()) &&
+        (p.inStock || p.autoHideOverride || p.preorderEnabled)
+      );
+      const categories = [...new Set(visibleProducts.map((p: any) => p.category).filter(Boolean))];
+      const priceRange = visibleProducts.length > 0 ? {
+        min: Math.min(...visibleProducts.map((p: any) => p.price)) / 100,
+        max: Math.max(...visibleProducts.map((p: any) => p.price)) / 100,
+      } : { min: 0, max: 0 };
+
+      const seenSlugs = new Set<string>();
+      const productLines = [...visibleProducts]
+        .sort((a: any, b: any) => (a.category === "socks" ? 0 : 1) - (b.category === "socks" ? 0 : 1))
+        .filter((p: any) => {
+          if (seenSlugs.has(p.slug)) return false;
+          seenSlugs.add(p.slug);
+          return true;
+        })
+        .map((p: any) => {
+          const categoryName = CATEGORIES[p.category]?.name || p.category || "";
+          const price = (p.price / 100).toLocaleString("ru-RU");
+          const status = p.preorderEnabled ? "предзаказ" : (p.inStock ? "в наличии" : "по запросу");
+          const sizes = Array.isArray(p.sizes) ? p.sizes.filter((s: any) => s).join(", ") : "";
+          const description = String(p.description || "")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+          const shortDesc = description.length > 140 ? description.slice(0, 137) + "..." : description;
+          const meta = [categoryName, sizes ? "размеры " + sizes : "", price + " ₽, " + status].filter(Boolean).join(", ");
+          return "- [" + p.name + "](" + llmsBaseUrl + "/" + p.slug + ") — " + meta + (shortDesc ? ". " + shortDesc : "");
+        })
+        .join("\n");
+
+      let artistLinks = "";
+      try {
+        const artistPages = await storage.getPageSettings("artist_pages") as Record<string, any> | null;
+        if (artistPages) {
+          const names = Object.entries(artistPages)
+            .filter(([, v]: [string, any]) => v && v.name)
+            .map(([slug, v]: [string, any]) => `- [${v.name}](${llmsBaseUrl}/@${slug})`);
+          if (names.length > 0) artistLinks = names.join("\n");
+        }
+      } catch { /* artist_pages not set yet — section stays empty */ }
+
+      // FAQ — приоритет админским данным, иначе базовый набор
+      const FALLBACK_FAQ: Array<{ question: string; answer: string }> = [
+        { question: "Как оформить заказ?", answer: "Добавьте товары в корзину, перейдите к оформлению и заполните данные доставки. Подтверждение придёт на e-mail, статус заказа можно отслеживать в личном кабинете." },
+        { question: "Какие способы оплаты доступны?", answer: "Банковские карты (Visa, MasterCard, МИР), СБП и T-Pay через ЮKassa и Т-Банк." },
+        { question: "Сколько стоит и как долго идёт доставка?", answer: "Доставка по России через СДЭК, стоимость рассчитывается при оформлении. Обычно 1–10 рабочих дней в зависимости от региона." },
+        { question: "Можно ли вернуть или обменять товар?", answer: "Да, в течение 14 дней с момента получения, если товар сохранил товарный вид, бирки и упаковку." },
+      ];
+      let faqItems: Array<{ question: string; answer: string }> = FALLBACK_FAQ;
+      try {
+        const sp = await storage.getPageSettings("static_pages") as Record<string, any> | null;
+        const raw = sp?.faq_data;
+        const parsed = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : null;
+        if (parsed?.items && Array.isArray(parsed.items) && parsed.items.length > 0) faqItems = parsed.items;
+      } catch { /* keep fallback */ }
+
+      const faqSection = faqItems
+        .map((it: any) => {
+          const answer = String(it.answer || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+          return `### ${String(it.question || "").trim()}\n${answer}`;
+        })
+        .join("\n\n");
+
+      const llmsFullText = `# BMGBRAND / Booomerangs — полная информация (llms-full)
+
+> Производитель мерча, необычных носков с принтом, худи, футболок и аксессуаров. Собственное производство. Доставка по всей России.
+
+## Кто мы
+
+BMGBRAND (Booomerangs) — российский бренд одежды и аксессуаров с собственным производством в Туле.
+Делаем мерч для артистов, блогеров, брендов и мероприятий — от идеи и дизайна до готовой продукции.
+Специализируемся на носках с авторскими принтами (более 200 дизайнов), а также на худи, футболках, брюках и аксессуарах.
+
+**Ключевые запросы:** необычные носки с принтом купить, мерч на заказ, создать мерч, мерч артиста, купить мерч, носки с принтом Россия
+
+## Официальный мерч артистов
+
+BMGBRAND — официальный производитель и магазин мерча российских артистов и проектов: Гудтаймс, Молодость внутри, Дикая Мята, Драгни, МультФильмы.
+
+Купить официальный мерч: [Мерч артистов](${llmsBaseUrl}/products/merch)
+
+Персональные страницы артистов:
+${artistLinks || "- (список формируется)"}
+
+## Мерч на заказ
+
+- Носки с принтом — от 180 ₽/пара, тираж от 50 пар
+- Футболки — от 900 ₽, тираж от 20 штук
+- Худи и свитшоты — от 1 800 ₽, тираж от 20 штук
+- Аксессуары (кружки, шапки, сумки, панамы) — от 30 единиц
+- Разработка дизайна включена при тираже от 50 единиц
+- Срок производства: носки от 10 рабочих дней, одежда 2–4 недели
+
+Подробнее: [Мерч на заказ](${llmsBaseUrl}/merch-na-zakaz)
+
+## Носки с принтом
+
+Флагманский продукт. Более 200 дизайнов. Состав: хлопок 75%, полиамид 23%, эластан 2%.
+Размеры: 36-39, 40-45. Уход: машинная стирка 30°, без отбеливателя, не сушить в барабане.
+
+Смотреть каталог: [Носки с принтом](${llmsBaseUrl}/products/socks)
+
+## Каталог товаров
+
+- Всего товаров: ${visibleProducts.length}
+- Категории: ${categories.join(", ") || "Носки, Одежда, Мерч, Аксессуары"}
+- Цены: от ${priceRange.min.toLocaleString("ru-RU")} ₽ до ${priceRange.max.toLocaleString("ru-RU")} ₽
+- Валюта: RUB (российский рубль)
+- [Все товары](${llmsBaseUrl}/products)
+
+## Товарные дизайны
+
+${productLines || "- (список формируется)"}
+
+## Вопросы и ответы (FAQ)
+
+${faqSection}
+
+## Подарочные карты
+
+Электронная подарочная карта — номиналы 500 / 1 000 / 2 000 / 5 000 / 10 000 ₽. Доставка на e-mail, действует 1 год.
+Подробнее: [Подарочные карты](${llmsBaseUrl}/gift-cards)
+
+## Доставка и оплата
+
+- Доставка по всей России: СДЭК (курьер, ПВЗ, постаматы)
+- Производство и отгрузка: Тула / Новомосковск
+- Оплата: банковские карты МИР/Visa/MasterCard, Т-Банк (Тинькофф), ЮKassa, подарочные карты BMGBRAND
+
+## Уход за вещами
+
+- Носки: стирка при 30°, без отбеливателя, не сушить в барабане
+- Одежда с принтом: стирка наизнанку при 30–40°, без машинной сушки, гладить с изнанки
+
+## Ссылки
+
+- [Главная](${llmsBaseUrl}/)
+- [Каталог товаров](${llmsBaseUrl}/products)
+- [Носки с принтом](${llmsBaseUrl}/products/socks)
+- [Одежда](${llmsBaseUrl}/products/clothing)
+- [Аксессуары](${llmsBaseUrl}/products/accessories)
+- [Мерч артистов](${llmsBaseUrl}/products/merch)
+- [Распродажа](${llmsBaseUrl}/products/sale)
+- [Мерч на заказ](${llmsBaseUrl}/merch-na-zakaz)
+- [Подарочные карты](${llmsBaseUrl}/gift-cards)
+- [О бренде](${llmsBaseUrl}/about)
+- [FAQ](${llmsBaseUrl}/faq)
+- [Блог](${llmsBaseUrl}/blog)
+- [Вакансии](${llmsBaseUrl}/vacancies)
+
+## О бренде
+
+- Название: BMGBRAND / Booomerangs
+- Страна производства: Россия
+- Город производства: Тула
+- Язык сайта: Русский
+- Основан: 2020
+`;
+      llmsFullTextCache = { text: llmsFullText, generatedAt: Date.now() };
+      res.type("text/plain").send(llmsFullText);
+    } catch (err) {
+      console.error("[SEO] llms-full.txt generation error:", err);
+      if (llmsFullTextCache) {
+        console.warn(`[SEO] llms-full.txt: serving stale cached copy from ${new Date(llmsFullTextCache.generatedAt).toISOString()}`);
+        res.type("text/plain").send(llmsFullTextCache.text);
+      } else {
+        res.type("text/plain").send("# BMGBRAND / Booomerangs\n\n> Российский бренд одежды с авторскими принтами. Доставка по всей России.");
       }
     }
   });

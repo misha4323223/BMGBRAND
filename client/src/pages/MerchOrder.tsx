@@ -158,8 +158,8 @@ export default function MerchOrder() {
       "@context": "https://schema.org",
       "@type": "LocalBusiness",
       "name": "BMGBRAND (Booomerangs)",
-      "url": "https://www.booomerangs.ru",
-      "image": "https://www.booomerangs.ru/og-image.png",
+      "url": "https://booomerangs.ru",
+      "image": "https://booomerangs.ru/og-image.png",
       "description": "Производство мерча на заказ под ключ: футболки, худи, носки, аксессуары с авторскими принтами. Работаем по всей России.",
       "address": { "@type": "PostalAddress", "addressLocality": "Тула", "addressRegion": "Тульская область", "addressCountry": "RU" },
       "areaServed": "RU",
@@ -173,7 +173,7 @@ export default function MerchOrder() {
       "@context": "https://schema.org",
       "@type": "WebPage",
       "name": "Мерч на заказ — BMGBRAND (Booomerangs)",
-      "url": "https://www.booomerangs.ru/merch-na-zakaz",
+      "url": "https://booomerangs.ru/merch-na-zakaz",
       "speakable": {
         "@type": "SpeakableSpecification",
         "cssSelector": ["#merch-hero-desc", "#merch-faq"],
@@ -198,7 +198,7 @@ export default function MerchOrder() {
       "provider": {
         "@type": "Organization",
         "name": "BMGBRAND",
-        "url": "https://www.booomerangs.ru",
+        "url": "https://booomerangs.ru",
         "address": { "@type": "PostalAddress", "addressLocality": "Тула", "addressCountry": "RU" },
       },
       "description": "Производство мерча на заказ под ключ: футболки, худи, носки, аксессуары с авторскими принтами. Работаем с блогерами, артистами, компаниями по всей России. Тираж от 20 штук.",
@@ -225,8 +225,8 @@ export default function MerchOrder() {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Главная", "item": "https://www.booomerangs.ru" },
-        { "@type": "ListItem", "position": 2, "name": "Мерч на заказ", "item": "https://www.booomerangs.ru/merch-na-zakaz" },
+        { "@type": "ListItem", "position": 1, "name": "Главная", "item": "https://booomerangs.ru" },
+        { "@type": "ListItem", "position": 2, "name": "Мерч на заказ", "item": "https://booomerangs.ru/merch-na-zakaz" },
       ],
     },
   ];
@@ -239,7 +239,7 @@ export default function MerchOrder() {
         keywords="мерч на заказ, создать мерч, заказать мерч, производство мерча, мерч для блогеров, мерч для артистов, корпоративный мерч, футболки на заказ, носки на заказ, худи на заказ с принтом, мерч Тула, брендированная одежда на заказ, мерч для мероприятий, мерч для фестиваля, печать на одежде, одежда с принтом на заказ, мерч под ключ"
         ogImage="/og-image.png"
         jsonLd={jsonLd}
-        canonical="https://www.booomerangs.ru/merch-na-zakaz"
+        canonical="https://booomerangs.ru/merch-na-zakaz"
       />
       <Navbar />
       <h1 className="sr-only">{pageH1}</h1>

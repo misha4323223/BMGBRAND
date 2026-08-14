@@ -496,7 +496,7 @@ export default function PartnerRegister() {
         title={partnerSeoTitle}
         description={partnerSeoDescription}
         keywords="партнёрская программа одежда, заработок на рекомендациях, реферальная программа магазин одежды, партнёрка для самозанятых, комиссия с продаж одежды, партнёр бренда одежды, заработок на партнёрке, партнёрская программа BOOOMERANGS, партнёрка интернет-магазина одежды, заработок без вложений на одежде, реферальная программа Россия, стать амбассадором бренда, заработок для самозанятых онлайн, партнёрская программа для блогеров, партнёрка для ИП, комиссия за продажи одежды, заработок на рекомендациях одежды, реферальная ссылка магазин"
-        canonical="https://www.booomerangs.ru/partner/register"
+        canonical="https://booomerangs.ru/partner/register"
         ogImage="/og-partner.png"
         jsonLd={[
           {
@@ -504,12 +504,12 @@ export default function PartnerRegister() {
             "@type": "WebPage",
             "name": "Партнёрская программа BOOOMERANGS — зарабатывай 15–25% комиссии",
             "description": "Рекомендуй одежду BOOOMERANGS и получай комиссию 15–25% с каждого заказа. Для самозанятых, ИП и юридических лиц.",
-            "url": "https://www.booomerangs.ru/partner/register",
+            "url": "https://booomerangs.ru/partner/register",
             "publisher": {
               "@type": "Organization",
               "name": "BOOOMERANGS",
-              "url": "https://www.booomerangs.ru",
-              "logo": "https://www.booomerangs.ru/og-image.png"
+              "url": "https://booomerangs.ru",
+              "logo": "https://booomerangs.ru/og-image.png"
             }
           },
           {
@@ -520,7 +520,7 @@ export default function PartnerRegister() {
             "provider": {
               "@type": "Organization",
               "name": "BOOOMERANGS",
-              "url": "https://www.booomerangs.ru"
+              "url": "https://booomerangs.ru"
             },
             "offers": {
               "@type": "Offer",
@@ -588,8 +588,8 @@ export default function PartnerRegister() {
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             "itemListElement": [
-              { "@type": "ListItem", "position": 1, "name": "Главная", "item": "https://www.booomerangs.ru" },
-              { "@type": "ListItem", "position": 2, "name": "Партнёрская программа", "item": "https://www.booomerangs.ru/partner/register" }
+              { "@type": "ListItem", "position": 1, "name": "Главная", "item": "https://booomerangs.ru" },
+              { "@type": "ListItem", "position": 2, "name": "Партнёрская программа", "item": "https://booomerangs.ru/partner/register" }
             ]
           }
         ]}

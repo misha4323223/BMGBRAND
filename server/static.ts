@@ -935,7 +935,7 @@ export function serveStatic(app: Express) {
           html = injectMeta(html, {
             title,
             description: catDesc,
-            ogImage: `${siteUrl}/favicon.png`,
+            ogImage: `${siteUrl}/og-image.png`,
             ogType: "website",
             canonical: `${siteUrl}/products/${catSlug}`,
             jsonLd,
@@ -957,7 +957,7 @@ export function serveStatic(app: Express) {
         html = injectMeta(html, {
           title: `Каталог — одежда и аксессуары | ${SITE_NAME}`,
           description: "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.",
-          ogImage: `${siteUrl}/favicon.png`,
+          ogImage: `${siteUrl}/og-image.png`,
           canonical: `${siteUrl}/products`,
           jsonLd,
         });
@@ -1150,7 +1150,7 @@ export function serveStatic(app: Express) {
         html = injectMeta(html, {
           title: staticPage.title,
           description: staticPage.description,
-          ogImage: `${siteUrl}/favicon.png`,
+          ogImage: `${siteUrl}/og-image.png`,
           canonical: `${siteUrl}${cleanUrl}`,
           jsonLd: staticJsonLd,
         });

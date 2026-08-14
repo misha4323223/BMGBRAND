@@ -89,20 +89,32 @@ async function fetchAndUploadToSpace(url: string, filename: string): Promise<str
   }
 }
 
-/** Вызывает /process_hd и ждёт SSE-события complete */
-async function runTryOn(vtonPath: string, garmPath: string): Promise<string> {
+// Категория одежды для full-body модели (process_dc). OOTDiffusion требует,
+// чтобы категория совпадала с типом одежды на фото товара.
+type TryOnCategory = 'Upper-body' | 'Lower-body' | 'Dress';
+
+function toDcCategory(value: unknown): TryOnCategory {
+  const v = String(value ?? '').toLowerCase();
+  if (v === 'lower' || v === 'lower-body' || v === 'lowerbody') return 'Lower-body';
+  if (v === 'dress' || v === 'dresses') return 'Dress';
+  return 'Upper-body';
+}
+
+/** Вызывает /process_dc (full-body) и ждёт SSE-события complete */
+async function runTryOn(vtonPath: string, garmPath: string, category: TryOnCategory): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
     // 1. Запустить задачу — оба изображения передаём как path (уже на Space)
-    const joinRes = await fetch(`${SPACE_URL}/gradio_api/call/process_hd`, {
+    const joinRes = await fetch(`${SPACE_URL}/gradio_api/call/process_dc`, {
       method: 'POST',
       headers: hfHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         data: [
           { path: vtonPath, meta: { _type: 'gradio.FileData' } }, // vton_img — фото человека
           { path: garmPath, meta: { _type: 'gradio.FileData' } }, // garm_img — одежда
+          category, // Garment category: Upper-body / Lower-body / Dress
           1,    // n_samples
           20,   // n_steps
           2.0,  // image_scale (guidance scale)
@@ -121,7 +133,7 @@ async function runTryOn(vtonPath: string, garmPath: string): Promise<string> {
     if (!event_id) throw new Error('event_id не получен');
 
     // 2. Читать SSE-поток до события complete
-    const pollRes = await fetch(`${SPACE_URL}/gradio_api/call/process_hd/${event_id}`, {
+    const pollRes = await fetch(`${SPACE_URL}/gradio_api/call/process_dc/${event_id}`, {
       headers: hfHeaders(),
       signal: controller.signal,
     });
@@ -249,6 +261,7 @@ export function registerVirtualTryOnRoutes(app: Express): void {
       try {
         const file = req.file;
         const garmentUrl = typeof req.body.garmentUrl === 'string' ? req.body.garmentUrl.trim() : '';
+        const category = toDcCategory(req.body.category);
 
         if (!(await isTryOnEnabled())) {
           res.status(503).json({ error: 'АР-примерка отключена' });
@@ -273,7 +286,7 @@ export function registerVirtualTryOnRoutes(app: Express): void {
         ]);
         console.log('[VirtualTryOn] Оба фото загружены. person:', vtonPath.slice(-20), 'garment:', garmPath.slice(-20));
 
-        const resultUrl = await runTryOn(vtonPath, garmPath);
+        const resultUrl = await runTryOn(vtonPath, garmPath, category);
         console.log('[VirtualTryOn] Готово:', resultUrl.slice(0, 80));
 
         res.json({ resultUrl });

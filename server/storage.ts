@@ -207,6 +207,12 @@ export function getCachedProductsByCategory(categorySlug: string, limit = 80): A
   subSubcategory: string | null;
   additionalCategories: Array<{ category: string; subcategory: string; subSubcategory?: string }>;
   preorderEnabled: boolean;
+  imageUrl: string;
+  thumbnailUrl: string;
+  images: string[];
+  article: string;
+  sku: string;
+  id: number;
 }> {
   const products = productsCache.get("all");
   if (!products || products.length === 0) return [];
@@ -243,12 +249,24 @@ export function getCachedProductsByCategory(categorySlug: string, limit = 80): A
           }))
         : [],
       preorderEnabled: (p as any).preorderEnabled === true,
+      imageUrl: (p as any).imageUrl ? String((p as any).imageUrl) : "",
+      thumbnailUrl: (p as any).thumbnailUrl ? String((p as any).thumbnailUrl) : "",
+      images: Array.isArray((p as any).images) ? (p as any).images.map((u: any) => String(u)) : [],
+      article: (p as any).article != null ? String((p as any).article) : "",
+      sku: (p as any).sku != null ? String((p as any).sku) : "",
+      id: Number((p as any).id || 0),
     }));
 }
 
 export function getCachedAllVisibleProducts(limit = 50): Array<{
   slug: string; name: string; price: number; stock: number; category: string;
   preorderEnabled: boolean;
+  imageUrl: string;
+  thumbnailUrl: string;
+  images: string[];
+  article: string;
+  sku: string;
+  id: number;
 }> {
   const products = productsCache.get("all");
   if (!products || products.length === 0) return [];
@@ -262,11 +280,22 @@ export function getCachedAllVisibleProducts(limit = 50): Array<{
       stock: Number(p.stock ?? 0),
       category: String(p.category || ""),
       preorderEnabled: (p as any).preorderEnabled === true,
+      imageUrl: (p as any).imageUrl ? String((p as any).imageUrl) : "",
+      thumbnailUrl: (p as any).thumbnailUrl ? String((p as any).thumbnailUrl) : "",
+      images: Array.isArray((p as any).images) ? (p as any).images.map((u: any) => String(u)) : [],
+      article: (p as any).article != null ? String((p as any).article) : "",
+      sku: (p as any).sku != null ? String((p as any).sku) : "",
+      id: Number((p as any).id || 0),
     }));
 }
 
 export function getCachedProductsForRecommendations(limit = 2000): Array<{
   id: number; slug: string; name: string; price: number; stock: number; category: string;
+  imageUrl: string;
+  thumbnailUrl: string;
+  images: string[];
+  article: string;
+  sku: string;
 }> {
   const products = productsCache.get("all");
   if (!products || products.length === 0) return [];
@@ -280,6 +309,11 @@ export function getCachedProductsForRecommendations(limit = 2000): Array<{
       price: Number(p.price || 0),
       stock: Number(p.stock ?? 0),
       category: String(p.category || ""),
+      imageUrl: (p as any).imageUrl ? String((p as any).imageUrl) : "",
+      thumbnailUrl: (p as any).thumbnailUrl ? String((p as any).thumbnailUrl) : "",
+      images: Array.isArray((p as any).images) ? (p as any).images.map((u: any) => String(u)) : [],
+      article: (p as any).article != null ? String((p as any).article) : "",
+      sku: (p as any).sku != null ? String((p as any).sku) : "",
     }));
 }
 

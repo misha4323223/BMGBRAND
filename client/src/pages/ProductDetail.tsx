@@ -379,6 +379,15 @@ export default function ProductDetail() {
     }
   }, [(product as any)?.id, isEffectivelyNoSize(product)]);
   const isSockProduct = (product as any)?.category === 'socks';
+  const tryOnCategory = useMemo<"upper" | "lower">(() => {
+    const sub = ((product as any)?.subcategory || "").toString();
+    if (/шорт|брюк|джинс|штаны/i.test(sub)) return "lower";
+    return "upper";
+  }, [product]);
+  const isTryOnSupported = useMemo(() => {
+    const cat = ((product as any)?.category || "").toString().toLowerCase();
+    return cat !== "socks" && cat !== "accessories";
+  }, [product]);
   const wholesaleSockMinQty = isWholesale && isSockProduct ? 2 : 1;
   const [quantity, setQuantity] = useState(wholesaleSockMinQty);
   // Когда auth подгружается и оказывается wholesale+носки — принудительно ставим минимум 2
@@ -955,7 +964,7 @@ export default function ProductDetail() {
         description={seoDescription}
         keywords={seoKeywords}
         ogType="product"
-        ogImage={product.imageUrl || "/favicon.png"}
+        ogImage={product.imageUrl || "/og-image.png"}
         jsonLd={productJsonLd}
       />
       <Navbar />
@@ -2146,11 +2155,12 @@ export default function ProductDetail() {
             )}
 
             {/* AI-примерка */}
-            {allImages.length > 0 && (
+            {allImages.length > 0 && isTryOnSupported && (
               <div className="mb-4">
                 <VirtualTryOn
                   garmentImages={allImages}
                   productName={product.name}
+                  defaultCategory={tryOnCategory}
                 />
               </div>
             )}

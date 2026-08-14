@@ -163,7 +163,7 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
             { "@type": "ListItem", "position": 3, "name": cat.name, "item": `${origin}/products/${catMatch[1]}` },
           ],
         });
-        return injectMeta(html, { title, description: cat.desc, ogImage: `${origin}/favicon.png`, canonical: `${origin}/products/${catMatch[1]}`, jsonLd });
+        return injectMeta(html, { title, description: cat.desc, ogImage: `${origin}/og-image.png`, canonical: `${origin}/products/${catMatch[1]}`, jsonLd });
       }
     }
 
@@ -172,7 +172,7 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
       return injectMeta(html, {
         title: `Каталог — одежда и аксессуары | ${SITE_NAME}`,
         description: "Каталог BMGBRAND — уличная одежда, мерч артистов, носки, аксессуары. Доставка по всей России.",
-        ogImage: `${origin}/favicon.png`,
+        ogImage: `${origin}/og-image.png`,
         canonical: `${origin}/products`,
       });
     }

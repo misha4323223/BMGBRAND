@@ -1424,6 +1424,12 @@ interface ProductListProps {
   forcedUrlSlug?: string;
 }
 
+function productImageUrl(p: any): string | undefined {
+  const img = p.imageUrl || p.thumbnailUrl || (Array.isArray(p.images) ? p.images[0] : null);
+  if (!img) return undefined;
+  return img.startsWith("http") ? img : `${window.location.origin}${img}`;
+}
+
 export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlug, forcedUrlSlug }: ProductListProps = {}) {
   const { isWholesale } = useWholesalePrice();
   const [, catSubSubParams] = useRoute("/products/:catSlug/:subSlug/:subSubSlug");
@@ -1895,6 +1901,9 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
               "item": {
                 "@type": "Product",
                 "name": p.name,
+                "image": productImageUrl(p),
+                "sku": p.article || p.sku || String(p.id),
+                "brand": { "@type": "Brand", "name": "BMGBRAND" },
                 "url": `${window.location.origin}/${p.slug}`,
                 "offers": {
                   "@type": "Offer",
