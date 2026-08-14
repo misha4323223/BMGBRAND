@@ -1133,15 +1133,28 @@ export async function registerRoutes(
     tolstovki: "hoodies", svitshoty: "sweatshirts", svitera: "sweaters",
     futbolki: "t-shirts", shorty: "shorts", shapki: "hats", sumki: "bags",
   };
+  // Старые slug-и подкатегорий распродажи, которые раньше конфликтовали
+  // с основным разделом /socks и с /jackets («Куртки» из одежды).
+  // После переименования в данных перенаправляем старые адреса на новые.
+  const SALE_LEGACY_SUBSLUG_MAP: Record<string, string> = {
+    socks: "sale-socks",
+    jackets: "sale-jackets",
+  };
   app.get('/products/:catSlug/:subSlug', (req, res, next) => {
-    const { subSlug } = req.params;
+    const { catSlug, subSlug } = req.params;
+    if (catSlug === "sale" && SALE_LEGACY_SUBSLUG_MAP[subSlug]) {
+      return res.redirect(301, `/products/sale/${SALE_LEGACY_SUBSLUG_MAP[subSlug]}`);
+    }
     if (subSlug && /^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subSlug)) {
       return res.redirect(301, `/${SUBCATEGORY_CYRILLIC_MAP[subSlug] || subSlug}`);
     }
     next();
   });
   app.get('/products/:catSlug/:subSlug/', (req, res, next) => {
-    const { subSlug } = req.params;
+    const { catSlug, subSlug } = req.params;
+    if (catSlug === "sale" && SALE_LEGACY_SUBSLUG_MAP[subSlug]) {
+      return res.redirect(301, `/products/sale/${SALE_LEGACY_SUBSLUG_MAP[subSlug]}`);
+    }
     if (subSlug && /^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subSlug)) {
       return res.redirect(301, `/${SUBCATEGORY_CYRILLIC_MAP[subSlug] || subSlug}`);
     }
@@ -1689,13 +1702,53 @@ ${productLines || "- (список формируется)"}
       }
 
       let dynamicCategories: any = {};
-      try { dynamicCategories = await (storage as any).getCategories(); } catch {}
+      try {
+        // Читаем живые категории из site_config так же, как /api/categories.
+        // (Раньше тут был несуществующий storage.getCategories(), из-за чего
+        // подкатегории и под-подкатегории вообще не попадали в sitemap.)
+        const siteConfig = await storage.getPageSettings("site_config");
+        if (siteConfig?.categories_data) {
+          const cats = typeof siteConfig.categories_data === "string"
+            ? JSON.parse(siteConfig.categories_data)
+            : siteConfig.categories_data;
+          if (cats && Object.keys(cats).length > 0) {
+            dynamicCategories = normalizeCategories(cats);
+          }
+        }
+      } catch {}
       const seenSubUrls = new Set<string>();
+      const norm = (s: string) => (s || "").toLowerCase().trim().replace(/\s+/g, " ");
+      // Подкатегория/под-подкатегория попадает в sitemap только если в ней есть
+      // видимые товары (та же логика фильтра, что в /api/products, с учётом
+      // additionalCategories). Пустые страницы отдают ботам soft-404 — их нельзя.
+      const hasProductInSub = (catSlug: string, subName: string) =>
+        visibleProducts.some((p: any) => {
+          const catLower = catSlug.toLowerCase();
+          const subN = norm(subName);
+          if (p.category?.toLowerCase() === catLower && norm(p.subcategory) === subN) return true;
+          const addCats: Array<{ category: string; subcategory: string; subSubcategory?: string }> =
+            (p as any).additionalCategories || [];
+          return addCats.some((ac: any) => ac.category?.toLowerCase() === catLower && norm(ac.subcategory) === subN);
+        });
+      const hasProductInSubSub = (catSlug: string, subName: string, subSubName: string) =>
+        visibleProducts.some((p: any) => {
+          const catLower = catSlug.toLowerCase();
+          const subN = norm(subName);
+          const subSubN = norm(subSubName);
+          if (p.category?.toLowerCase() === catLower && norm(p.subcategory) === subN && norm(p.subSubcategory) === subSubN) return true;
+          const addCats: Array<{ category: string; subcategory: string; subSubcategory?: string }> =
+            (p as any).additionalCategories || [];
+          return addCats.some((ac: any) =>
+            ac.category?.toLowerCase() === catLower && norm(ac.subcategory) === subN && norm(ac.subSubcategory) === subSubN
+          );
+        });
       for (const [catSlug, cat] of Object.entries<any>(dynamicCategories)) {
         for (const sub of (cat.subcategories || [])) {
           // Only include subcategories with a proper URL-safe slug (flat canonical URL)
           const subSlug = typeof sub === 'object' ? sub.slug : null;
           if (subSlug && typeof subSlug === 'string' && /^[a-z0-9][a-z0-9-]*[a-z0-9]?$/.test(subSlug)) {
+            const subName = typeof sub === 'object' ? sub.name : '';
+            if (!hasProductInSub(catSlug, subName)) continue;
             const subUrl = `${baseUrl}/${subSlug}`;
             if (!seenSubUrls.has(subUrl)) {
               seenSubUrls.add(subUrl);
@@ -1709,6 +1762,8 @@ ${productLines || "- (список формируется)"}
             for (const subSub of (sub.subSubcategories || [])) {
               const ssSlug = typeof subSub === 'object' ? subSub.slug : null;
               if (ssSlug && typeof ssSlug === 'string' && /^[a-z0-9][a-z0-9-]*[a-z0-9]?$/.test(ssSlug)) {
+                const ssName = typeof subSub === 'object' ? subSub.name : '';
+                if (!hasProductInSubSub(catSlug, subName, ssName)) continue;
                 const ssUrl = `${baseUrl}/products/${catSlug}/${subSlug}/${ssSlug}`;
                 if (!seenSubUrls.has(ssUrl)) {
                   seenSubUrls.add(ssUrl);
