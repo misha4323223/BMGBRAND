@@ -16,6 +16,8 @@ import cors from "cors";
 import { registerRoutes, syncArtistPagesToMerchSubcategories } from "./routes";
 import { migrateAiKnowledgeDefaults } from "./ai-chat";
 import { registerVirtualTryOnRoutes } from "./virtual-tryon";
+import { registerAiQuestionsRoutes } from "./ai-questions-routes";
+import { migrateAiQuestionsTable } from "./ai-questions-store";
 import { serveStatic } from "./static";
 import { botSsrMiddleware } from "./bot-ssr";
 import { createServer } from "http";
@@ -156,6 +158,39 @@ app.use(cookieParser());
 app.use((_req: Request, res: Response, next: NextFunction) => {
   res.vary('Accept-Encoding');
   next();
+});
+
+// Cache-Control: public catalog GET endpoints are safe to cache briefly.
+// Prices/stock change slowly and React Query revalidates client-side; a short
+// max-age + stale-while-revalidate cuts repeat requests and TTFB for
+// crawlers/browsers without ever serving stale data as the primary response.
+//
+// The header is applied at response-write time, so it also covers routes that
+// set their own `no-cache` header (products list, categories). Existing
+// PUBLIC cache headers from routes (e.g. page-settings' CDN-oriented
+// `s-maxage=120`) are respected and left untouched. Endpoints outside the
+// whitelist are never modified.
+const PUBLIC_CACHE_API_PREFIXES = [
+  '/api/products',
+  '/api/categories',
+  '/api/page-settings',
+  '/api/artists',
+];
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method !== 'GET' || !PUBLIC_CACHE_API_PREFIXES.some(p => req.path.startsWith(p))) {
+    return next();
+  }
+  const originalWriteHead = res.writeHead;
+  res.writeHead = function (this: Response, statusCode: number, ...args: any[]) {
+    if (statusCode >= 200 && statusCode < 400) {
+      const existing = res.getHeader('Cache-Control') as string | undefined;
+      if (!existing || /no-cache|no-store/i.test(existing)) {
+        res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+      }
+    }
+    return (originalWriteHead as any).apply(this, [statusCode, ...args]);
+  } as typeof res.writeHead;
+  return next();
 });
 
 // SEO: X-Robots-Tag — prevents /admin pages and /api endpoints from being
@@ -383,6 +418,7 @@ async function seedDefaultLegalDocuments() {
   await seedDefaultLegalDocuments().catch((e) => console.error('[Legal Seed] failed:', e?.message));
   await registerRoutes(httpServer, app);
   registerVirtualTryOnRoutes(app);
+  registerAiQuestionsRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -473,6 +509,9 @@ async function seedDefaultLegalDocuments() {
       startPreorderNotifierJob();
       startPreorderStatusScheduler();
       migrateAiKnowledgeDefaults();
+      migrateAiQuestionsTable()
+        .then(r => console.log(`[AiQuestions] ${r.message}`))
+        .catch((e: any) => console.error("[AiQuestions] migration failed:", e?.message));
     },
   );
 })();

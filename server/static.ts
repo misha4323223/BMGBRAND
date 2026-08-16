@@ -630,7 +630,9 @@ export function serveStatic(app: Express) {
     immutable: true,
     index: false, // Prevent express.static from serving index.html directly for "/" — injection must happen in the catch-all handler
     setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.html')) {
+      if (filePath.endsWith('.html') || filePath.endsWith('sw.js')) {
+        // sw.js must never be cached — browsers must be able to pick up new
+        // versions (and new cache strategies) immediately on the next visit.
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       }
       if (filePath.endsWith('.css') || filePath.endsWith('.js')) {

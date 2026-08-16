@@ -236,6 +236,22 @@ export function Navbar() {
   );
   const categoryEntries = useMemo(() => Object.entries(categories), [categories]);
 
+  // Под-подкатегории без товаров: сервер отдаёт count=0, скрываем их из меню,
+  // чтобы не вести пользователей и поисковиков на пустые страницы (soft-404).
+  const emptySubSubs = useMemo(() => {
+    const set = new Set<string>();
+    const raw = dynamicCategories as Record<string, any> | undefined;
+    if (!raw) return set;
+    for (const [catSlug, cat] of Object.entries(raw)) {
+      for (const sub of (cat?.subcategories || [])) {
+        for (const ss of (sub?.subSubcategories || [])) {
+          if (ss && ss.count === 0) set.add(`${catSlug}/${sub.slug}/${ss.slug}`);
+        }
+      }
+    }
+    return set;
+  }, [dynamicCategories]);
+
   const settings: NavbarSettings = (() => {
     if (navbarData?.navbar_data) {
       const parsed = typeof navbarData.navbar_data === "string"
@@ -634,7 +650,9 @@ export function Navbar() {
                         const activeSub = hoveredCat && hoveredSub
                           ? categories[hoveredCat]?.subcategories.find(s => s.slug === hoveredSub)
                           : null;
-                        const subSubs = activeSub?.subSubcategories || [];
+                        const subSubs = activeSub && hoveredCat
+                          ? (activeSub.subSubcategories || []).filter((ss) => !emptySubSubs.has(`${hoveredCat}/${activeSub.slug}/${ss.slug}`))
+                          : [];
                         return (
                           <div
                             className={`${getShopMenuClasses()} py-2 min-w-[160px]`}
@@ -942,7 +960,8 @@ export function Navbar() {
                                   {allCategoryLabel(cat.name)}
                                 </Link>
                                 {cat.subcategories.map((sub) => {
-                                  const hasSubSubs = (sub.subSubcategories || []).length > 0;
+                                  const visibleSubSubs = (sub.subSubcategories || []).filter((ss) => !emptySubSubs.has(`${slug}/${sub.slug}/${ss.slug}`));
+                                  const hasSubSubs = visibleSubSubs.length > 0;
                                   return (
                                     <div key={sub.slug}>
                                       {hasSubSubs ? (
@@ -980,7 +999,7 @@ export function Navbar() {
                                             >
                                               {allCategoryLabel(sub.name)}
                                             </Link>
-                                            {(sub.subSubcategories || []).map((ss) => (
+                                            {visibleSubSubs.map((ss) => (
                                               <Link
                                                 key={ss.slug}
                                                 href={`/products/${slug}/${sub.slug}/${ss.slug}`}

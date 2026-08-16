@@ -558,6 +558,10 @@ export default function ProductDetail() {
   if (!product || error) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+        {/* Dead product URL: noindex instead of a soft-404 that leaks the
+            homepage canonical — the shell <head> canonical stays on the
+            homepage until a page renders <SEO>, so every branch must render it. */}
+        <SEO noindex />
         <h2 className="text-2xl font-semibold mb-4 text-foreground">Товар не найден</h2>
         <button onClick={() => setLocation("/products")} className="text-primary underline">Вернуться в магазин</button>
       </div>
@@ -1035,11 +1039,13 @@ export default function ProductDetail() {
                 <img
                   ref={el => { if (el) el.setAttribute('fetchpriority', 'high'); }}
                   src={allImages[0] || product.imageUrl}
+                  srcSet={`${getThumbForImage(allImages[0] || product.imageUrl)} 800w, ${allImages[0] || product.imageUrl} 1600w`}
                   alt={getImageAlt(0)}
                   title={getImageTitle(0)}
                   loading="eager"
                   decoding="sync"
                   sizes="(max-width: 480px) 96vw, (max-width: 768px) 94vw, (max-width: 1024px) 50vw, 40vw"
+                  onError={(e) => { const orig = allImages[0] || product.imageUrl || ""; if (orig && e.currentTarget.src !== orig) e.currentTarget.src = orig; }}
                   className="w-full h-full object-cover"
                   data-testid="img-product-mobile-0"
                 />

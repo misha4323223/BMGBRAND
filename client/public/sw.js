@@ -6,6 +6,42 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// App-shell caching for repeat visits.
+// - /assets/* (hashed, immutable build output): cache-first, refresh in
+//   background — never stale because the filename changes on every deploy.
+// - Page navigations: network-first, cache only as an offline fallback so
+//   users always get the latest HTML when online.
+// - Everything else (API, auth, images on other origins): pass through.
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.open(CACHE_VERSION).then(async (cache) => {
+        const cached = await cache.match(request);
+        const network = fetch(request).then((response) => {
+          if (response && response.ok) cache.put(request, response.clone());
+          return response;
+        });
+        return cached || network;
+      })
+    );
+    return;
+  }
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() =>
+        caches.match(request).then((c) => c || Response.error())
+      )
+    );
+  }
+});
+
 self.addEventListener('push', function (event) {
   let data = {};
   try {

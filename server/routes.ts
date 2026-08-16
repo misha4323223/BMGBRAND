@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { config } from "./config";
 import { getPushSubs, savePushSubs, sendPushToAll as _sendPushToAllSvc, getAdminPushSubs, saveAdminPushSubs, sendPushToAdmins as _sendPushToAdminsSvc, acquirePushLock, releasePushLock, getPushHistory, sendPushToUser, orderStatusPushPayload } from './push-service';
 import type { Server } from "http";
-import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsForSeoAudit } from "./storage";
+import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsForSeoAudit, getCachedProductsByCategory, isProductsCacheWarm } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import express from "express";
@@ -15,7 +15,7 @@ import { queuePreorderStatusEmail } from "./lib/preorder-email-buffer";
 import { resolveItemPrice } from "./lib/pricing";
 import sharp from "sharp";
 import { mapProductCategory, isOnSale, extractColorFromName, extractSizesFromName, mapGroupHierarchyToCategory, isIgnoredRootGroup, isAllowedRootGroup, getRootGroupCategorySlug, getArtistSlugFromName, type GroupHierarchy } from "./categoryMapper";
-import { CATEGORIES, normalizeCategories, transliterateToSlug, insertPromoCodeSchema, insertLoyaltyTierSchema, insertNewsletterSubscriptionSchema, insertBonusSettingSchema, PARTNER_COOKIE_NAME, PARTNER_DEFAULT_COMMISSION_PERCENT, getProgressiveCommissionRate } from "@shared/schema";
+import { CATEGORIES, normalizeCategories, buildCategoryIndex, resolveProductCategoryPaths, transliterateToSlug, insertPromoCodeSchema, insertLoyaltyTierSchema, insertNewsletterSubscriptionSchema, insertBonusSettingSchema, PARTNER_COOKIE_NAME, PARTNER_DEFAULT_COMMISSION_PERCENT, getProgressiveCommissionRate } from "@shared/schema";
 import type { SubcategoryConfig, SubSubcategoryConfig, CategoryConfig } from "@shared/schema";
 import authRoutes, { authMiddleware, requireAdminRole, type AuthRequest } from "./auth-routes";
 import { notifyError } from "./error-monitor";
@@ -40,7 +40,7 @@ import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notif
 import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyNewReview, vkNotifyMerchOrder, verifyActionLink, sendVkChatNotification, startVkLongPoll, vkNotifyAgentAlert } from "./vk";
 import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
 import { registerAddonOrderRoutes, processAddonOrderPaid } from "./addon-order";
-import { clearBotSsrCache } from "./bot-ssr";
+import { clearBotSsrCache, CYRILLIC_TO_CANONICAL } from "./bot-ssr";
 import {
   registerAiChatRoute,
   registerProductInfoRoute,
@@ -749,7 +749,7 @@ async function generate1cThumbUrl(imageUrl: string): Promise<string | null> {
     if (!imageBuffer) return null;
     const thumbBuffer = await sharp(imageBuffer)
       .resize(800, null, { withoutEnlargement: true, kernel: 'lanczos3' })
-      .webp({ quality: 100 })
+      .webp({ quality: 88 })
       .toBuffer();
     const thumbFilename = thumbKey.replace('products/', '');
     await uploadToYandexStorage(thumbBuffer, thumbFilename, 'image/webp');
@@ -1903,63 +1903,55 @@ ${faqSection}
         }
       } catch {}
       const seenSubUrls = new Set<string>();
-      const norm = (s: string) => (s || "").toLowerCase().trim().replace(/\s+/g, " ");
-      // Подкатегория/под-подкатегория попадает в sitemap только если в ней есть
-      // видимые товары (та же логика фильтра, что в /api/products, с учётом
-      // additionalCategories). Пустые страницы отдают ботам soft-404 — их нельзя.
-      const hasProductInSub = (catSlug: string, subName: string) =>
-        visibleProducts.some((p: any) => {
-          const catLower = catSlug.toLowerCase();
-          const subN = norm(subName);
-          if (p.category?.toLowerCase() === catLower && norm(p.subcategory) === subN) return true;
-          const addCats: Array<{ category: string; subcategory: string; subSubcategory?: string }> =
-            (p as any).additionalCategories || [];
-          return addCats.some((ac: any) => ac.category?.toLowerCase() === catLower && norm(ac.subcategory) === subN);
-        });
-      const hasProductInSubSub = (catSlug: string, subName: string, subSubName: string) =>
-        visibleProducts.some((p: any) => {
-          const catLower = catSlug.toLowerCase();
-          const subN = norm(subName);
-          const subSubN = norm(subSubName);
-          if (p.category?.toLowerCase() === catLower && norm(p.subcategory) === subN && norm(p.subSubcategory) === subSubN) return true;
-          const addCats: Array<{ category: string; subcategory: string; subSubcategory?: string }> =
-            (p as any).additionalCategories || [];
-          return addCats.some((ac: any) =>
-            ac.category?.toLowerCase() === catLower && norm(ac.subcategory) === subN && norm(ac.subSubcategory) === subSubN
-          );
-        });
-      for (const [catSlug, cat] of Object.entries<any>(dynamicCategories)) {
+      // Единый резолвер (shared/schema.ts): считаем, к каким подкатегориям и
+      // под-подкатегориям реально привязаны видимые товары — по каноническим
+      // slug'ам, а не по строкам названий. Один источник правды для sitemap,
+      // bot-SSR и /api/products.
+      const catIndex = buildCategoryIndex(dynamicCategories);
+      const productSubPaths = new Set<string>();
+      const productSubSubPaths = new Set<string>();
+      for (const p of visibleProducts) {
+        for (const path of resolveProductCategoryPaths(p as any, catIndex)) {
+          if (path.subcategorySlug) {
+            productSubPaths.add(`${path.categorySlug}/${path.subcategorySlug}`);
+          }
+          if (path.subSubcategorySlug) {
+            productSubSubPaths.add(`${path.categorySlug}/${path.subcategorySlug}/${path.subSubcategorySlug}`);
+          }
+        }
+      }
+      // Тот же slug-формат, что разрешает админка при сохранении категорий.
+      const URL_SAFE_SLUG = /^[a-z0-9_-]+$/;
+      for (const [, cat] of Object.entries<any>(dynamicCategories)) {
+        const catCanonicalSlug = typeof cat.slug === "string" ? cat.slug : null;
+        if (!catCanonicalSlug) continue;
         for (const sub of (cat.subcategories || [])) {
-          // Only include subcategories with a proper URL-safe slug (flat canonical URL)
           const subSlug = typeof sub === 'object' ? sub.slug : null;
-          if (subSlug && typeof subSlug === 'string' && /^[a-z0-9][a-z0-9-]*[a-z0-9]?$/.test(subSlug)) {
-            const subName = typeof sub === 'object' ? sub.name : '';
-            if (!hasProductInSub(catSlug, subName)) continue;
-            const subUrl = `${baseUrl}/${subSlug}`;
-            if (!seenSubUrls.has(subUrl)) {
-              seenSubUrls.add(subUrl);
+          if (!subSlug || typeof subSlug !== 'string' || !URL_SAFE_SLUG.test(subSlug)) continue;
+          // Подкатегория попадает в sitemap только если в ней есть видимые товары
+          if (!productSubPaths.has(`${catCanonicalSlug}/${subSlug}`)) continue;
+          const subUrl = `${baseUrl}/${CYRILLIC_TO_CANONICAL[subSlug] || subSlug}`;
+          if (!seenSubUrls.has(subUrl)) {
+            seenSubUrls.add(subUrl);
+            xml += `  <url>\n`;
+            xml += `    <loc>${subUrl}</loc>\n`;
+            xml += `    <changefreq>weekly</changefreq>\n`;
+            xml += `    <priority>0.7</priority>\n`;
+            xml += `  </url>\n`;
+          }
+          // Sub-subcategories: /products/:catSlug/:subSlug/:subSubSlug
+          for (const subSub of (sub.subSubcategories || [])) {
+            const ssSlug = typeof subSub === 'object' ? subSub.slug : null;
+            if (!ssSlug || typeof ssSlug !== 'string' || !URL_SAFE_SLUG.test(ssSlug)) continue;
+            if (!productSubSubPaths.has(`${catCanonicalSlug}/${subSlug}/${ssSlug}`)) continue;
+            const ssUrl = `${baseUrl}/products/${catCanonicalSlug}/${subSlug}/${ssSlug}`;
+            if (!seenSubUrls.has(ssUrl)) {
+              seenSubUrls.add(ssUrl);
               xml += `  <url>\n`;
-              xml += `    <loc>${subUrl}</loc>\n`;
+              xml += `    <loc>${ssUrl}</loc>\n`;
               xml += `    <changefreq>weekly</changefreq>\n`;
-              xml += `    <priority>0.7</priority>\n`;
+              xml += `    <priority>0.75</priority>\n`;
               xml += `  </url>\n`;
-            }
-            // Sub-subcategories: /products/:catSlug/:subSlug/:subSubSlug
-            for (const subSub of (sub.subSubcategories || [])) {
-              const ssSlug = typeof subSub === 'object' ? subSub.slug : null;
-              if (ssSlug && typeof ssSlug === 'string' && /^[a-z0-9][a-z0-9-]*[a-z0-9]?$/.test(ssSlug)) {
-                const ssName = typeof subSub === 'object' ? subSub.name : '';
-                if (!hasProductInSubSub(catSlug, subName, ssName)) continue;
-                const ssUrl = `${baseUrl}/products/${catSlug}/${subSlug}/${ssSlug}`;
-                if (!seenSubUrls.has(ssUrl)) {
-                  seenSubUrls.add(ssUrl);
-                  xml += `  <url>\n`;
-                  xml += `    <loc>${ssUrl}</loc>\n`;
-                  xml += `    <changefreq>weekly</changefreq>\n`;
-                  xml += `    <priority>0.75</priority>\n`;
-                  xml += `  </url>\n`;
-                }
-              }
             }
           }
         }
@@ -8477,6 +8469,45 @@ ${faqSection}
     }
   });
 
+  // Считает видимые товары по под-подкатегориям (из тёплого in-memory кэша) и
+  // добавляет `count` к каждой под-подкатегории, чтобы клиент мог скрывать
+  // пустые разделы. Если кэш товаров холодный — ничего не добавляем (ответ
+  // категорий не блокируем и не заставляем идти в YDB).
+  function attachSubSubcategoryCounts(categories: Record<string, any>): Record<string, any> {
+    if (!isProductsCacheWarm()) return categories;
+    try {
+      const index = buildCategoryIndex(categories);
+      const counts = new Map<string, number>();
+      const seenProductIds = new Set<number>();
+      for (const cat of Object.values<any>(categories)) {
+        const catSlug = cat?.slug;
+        if (!catSlug) continue;
+        const products = getCachedProductsByCategory(catSlug, 2000) as any[];
+        for (const p of products) {
+          const pid = Number(p.id || 0);
+          if (!pid || seenProductIds.has(pid)) continue;
+          seenProductIds.add(pid);
+          for (const path of resolveProductCategoryPaths(p, index)) {
+            if (path.subSubcategorySlug) {
+              const key = `${path.categorySlug}/${path.subcategorySlug}/${path.subSubcategorySlug}`;
+              counts.set(key, (counts.get(key) || 0) + 1);
+            }
+          }
+        }
+      }
+      for (const cat of Object.values<any>(categories)) {
+        for (const sub of (cat?.subcategories || [])) {
+          for (const ss of (sub?.subSubcategories || [])) {
+            // Кэш тёплый — для пустых разделов тоже проставляем count=0,
+            // чтобы клиент мог их скрыть (undefined ≠ 0 в Navbar).
+            ss.count = counts.get(`${cat.slug}/${sub.slug}/${ss.slug}`) ?? 0;
+          }
+        }
+      }
+    } catch { /* counts опциональны — не ломаем категории */ }
+    return categories;
+  }
+
   // Get categories list for navigation (dynamic from DB, fallback to hardcoded)
   app.get("/api/categories", async (req, res) => {
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -8487,7 +8518,7 @@ ${faqSection}
           ? JSON.parse(dynamicConfig.categories_data) 
           : dynamicConfig.categories_data;
         if (cats && Object.keys(cats).length > 0) {
-          return res.json(normalizeCategories(cats));
+          return res.json(attachSubSubcategoryCounts(normalizeCategories(cats)));
         }
       }
     } catch (e) {
@@ -9177,10 +9208,31 @@ ${faqSection}
           if (subSubcategory) {
             const decodedSubSub = normalize(decodeURIComponent(subSubcategory));
             const rawSubSub = normalize(subSubcategory);
+            // Единый резолвер (shared/schema.ts) — матчим под-подкатегорию по
+            // каноническому slug'у (как в sitemap.xml и bot-SSR), а не по сырой
+            // строке названия. Конфиг категорий берём из кэша настроек.
+            let subSubIndex: ReturnType<typeof buildCategoryIndex> | null = null;
+            try {
+              const cfg = await storage.getPageSettings("site_config");
+              if (cfg?.categories_data) {
+                const parsed = typeof cfg.categories_data === "string"
+                  ? JSON.parse(cfg.categories_data)
+                  : cfg.categories_data;
+                subSubIndex = buildCategoryIndex(normalizeCategories(parsed));
+              }
+            } catch { /* конфиг недоступен — fallback ниже */ }
             const matchesSubSub = (p: any) => {
+              if (subSubIndex) {
+                return resolveProductCategoryPaths(p, subSubIndex).some((path) => {
+                  const name = normalize(path.subSubcategoryName || '');
+                  const slug = normalize(path.subSubcategorySlug || '');
+                  return (name && (name === decodedSubSub || name === rawSubSub))
+                    || (slug && (slug === decodedSubSub || slug === rawSubSub));
+                });
+              }
+              // fallback: точное совпадение по названию (прежнее поведение)
               const pss = normalize((p as any).subSubcategory || '');
               if (pss && (pss === decodedSubSub || pss === rawSubSub)) return true;
-              // sub-subcategory can also be set on an additional category pair
               const addCats: Array<{ category: string; subcategory: string; subSubcategory?: string }> =
                 (p as any).additionalCategories || [];
               return addCats.some((ac: any) => {

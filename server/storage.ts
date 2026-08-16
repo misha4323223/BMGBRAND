@@ -361,6 +361,11 @@ export function getCachedProductsForSeoAudit(): Array<{
   }));
 }
 
+export function isProductsCacheWarm(): boolean {
+  const products = productsCache.get("all");
+  return !!(products && products.length > 0);
+}
+
 export function clearAllCaches() {
   productsCache.clear();
   productCache.clear();

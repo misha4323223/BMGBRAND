@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { z } from "zod";
 import { storage, warmRatingsCache } from "./storage";
+import { isWorthSavingAiQuestion, normalizeAiQuestion } from "./ai-questions-lib";
+import { saveAiQuestion } from "./ai-questions-store";
 import { authMiddleware, type AuthRequest } from "./auth-routes";
 import { sendAgentAlert, answerCallbackQuery, editMessageText } from "./telegram";
 import { vkNotifyAgentAlert } from "./vk";
@@ -974,8 +976,21 @@ export function registerAiChatRoute(app: Express): void {
         .map((m: any) => m.content as string)
         .join(' ');
       const topicKey = detectAiTopic(lastMsgContent) ?? detectAiTopic(recentUserContents);
-      console.log(`[AI Chat] model=llama-3.3-70b-versatile query="${(lastUserMsg?.content || '').substring(0, 60)}" topic=${topicKey || 'none'}`);
+      console.log(`[AI Chat] model=llama-3.1-8b-instant query="${(lastUserMsg?.content || '').substring(0, 60)}" topic=${topicKey || 'none'}`);
       logChatTopic(lastUserMsg?.content || '', topicKey);
+      // --- FAQ analytics: persist the user question (fire-and-forget, never blocks the chat) ---
+      try {
+        const rawQ = (lastUserMsg?.content || '').trim();
+        if (isWorthSavingAiQuestion(rawQ)) {
+          saveAiQuestion({
+            question: normalizeAiQuestion(rawQ),
+            originalText: rawQ,
+            askedAt: Date.now(),
+          }).catch((e: any) => console.error('[AI Chat] saveAiQuestion failed:', e?.message));
+        }
+      } catch (e: any) {
+        console.error('[AI Chat] saveAiQuestion error:', e?.message);
+      }
       let systemPrompt = getAiKnowledgeCached('ai_prompt_base');
       const assortmentBlock = getAiKnowledgeCached('ai_block_assortment');
       if (assortmentBlock) systemPrompt += '\n\n' + assortmentBlock;
@@ -1030,7 +1045,7 @@ export function registerAiChatRoute(app: Express): void {
       // FIX #5: raised from 600 → 1000 for regular questions so think-tokens don't eat the answer
       const isSizeAdvisor = !!sizeAdvisorContext;
       const groqBody = {
-        model: "llama-3.3-70b-versatile",
+        model: "llama-3.1-8b-instant",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages.slice(-10),
@@ -1585,7 +1600,7 @@ export function registerProductInfoRoute(app: Express): void {
 
       // ── Helper: one Groq streaming attempt, returns chars written ────────────
       // llama-3.1-8b-instant: быстрая модель для карточки товара (300-700ms)
-      // Основной чат использует llama-3.3-70b-versatile (тяжелее, умнее)
+      // Основной чат теперь тоже использует llama-3.1-8b-instant (как и карточка товара)
       const groqBody = (apiKey: string) => JSON.stringify({
         model: "llama-3.1-8b-instant",
         messages: [{ role: "system", content: sys }, ...messages.slice(-6)],

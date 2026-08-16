@@ -34,6 +34,20 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // Tiny shared utilities MUST NOT live inside heavy admin chunks.
+          // Rollup co-locates small modules used by both the entry and
+          // admin-only libraries into the manualChunk of the heavy library,
+          // which forces the entry to import the entire 380 KB+ vendor
+          // chunk just for clsx()/useSyncExternalStore(). Keep them separate.
+          if (
+            id.includes('/node_modules/clsx/') ||
+            id.includes('/node_modules/tailwind-merge/')
+          ) {
+            return 'vendor-utils';
+          }
+          if (id.includes('/node_modules/use-sync-external-store/')) {
+            return 'vendor-react';
+          }
           // Admin-only: charts (recharts + d3 deps) — never load on storefront
           if (
             id.includes('/node_modules/recharts/') ||

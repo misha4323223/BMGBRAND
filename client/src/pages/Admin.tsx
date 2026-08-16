@@ -30,6 +30,7 @@ import { AnalyticsTab } from "@/pages/admin/AnalyticsTab";
 import { PartnersTab } from "@/pages/admin/PartnersTab";
 import { AiKnowledgeTab } from "@/pages/admin/AiKnowledgeTab";
 import { SeoTab } from "@/pages/admin/SeoTab";
+import { AiQuestionsTab } from "@/pages/admin/AiQuestionsTab";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES, normalizeCategories, type Product, type CategorySlug } from "@shared/schema";
@@ -1500,7 +1501,8 @@ export default function Admin() {
   const [addlCategory, setAddlCategory] = useState<string>("");
   const [addlSubcategory, setAddlSubcategory] = useState<string>("");
   const [addlSubSubcategory, setAddlSubSubcategory] = useState<string>("");
-  const VALID_TABS = ["products","orders","wholesale","problems","bonuses","pages","reviews","favorites","preorders","security","clients","analytics","partners","ai","seo","integrations"] as const;
+  const VALID_TABS = ["products","orders","wholesale","problems","bonuses","pages","reviews","favorites","preorders","security","clients","analytics","partners","ai","ai_questions","seo","integrations"] as const;
+
   type AdminTab = typeof VALID_TABS[number];
   const [activeTab, setActiveTabRaw] = useState<AdminTab>(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem("admin_active_tab") : null;
@@ -4160,6 +4162,16 @@ export default function Admin() {
               >
                 <MessageSquare className="w-4 h-4 mr-1" />
                 <span className="hidden sm:inline">AI-чат</span>
+              </Button>
+              <Button
+                variant={activeTab === "ai_questions" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setActiveTab("ai_questions")}
+                className="h-8"
+                data-testid="button-tab-ai-questions"
+              >
+                <Sparkles className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">AI-вопросы</span>
               </Button>
               <Button
                 variant={activeTab === "seo" ? "secondary" : "ghost"}
@@ -14524,6 +14536,9 @@ export default function Admin() {
 
         {activeTab === "ai" && (
           <AiKnowledgeTab apiKey={apiKey} adminFetch={adminFetch} />
+        )}
+        {activeTab === "ai_questions" && (
+          <AiQuestionsTab apiKey={apiKey} adminFetch={adminFetch} />
         )}
 
         {activeTab === "seo" && (

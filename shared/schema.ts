@@ -142,6 +142,137 @@ export function findCategoryBySubcategorySlug(cats: Record<string, CategoryConfi
   return null;
 }
 
+// ─── Единый резолвер «товар → категория/подкатегория/под-подкатегория» ───────
+// Один источник правды для sitemap.xml, bot-SSR и /api/products.
+// Раньше сопоставление товара с под-подкатегорией было продублировано в трёх
+// местах с разными нюансами, из-за чего под-подкатегории могли молча выпадать
+// из sitemap/SSR при переименовании категории или изменении данных товара.
+// Здесь матчинг идёт по каноническим slug'ам из конфига категорий, поэтому
+// переименование в админке не ломает привязку «товар → раздел».
+
+export interface ProductCategoryPath {
+  categorySlug: string;
+  subcategorySlug: string | null;
+  subSubcategorySlug: string | null;
+  subcategoryName: string | null;
+  subSubcategoryName: string | null;
+}
+
+export interface CategoryIndex {
+  // норм(ключ|slug|название категории) → канонический slug категории
+  categoryByKey: Map<string, string>;
+  // `${catSlug}` → норм(название|slug подкатегории) → { slug, name }
+  subByCat: Map<string, Map<string, { slug: string; name: string }>>;
+  // `${catSlug}/${subSlug}` → норм(название|slug под-подкатегории) → { slug, name }
+  subSubBySub: Map<string, Map<string, { slug: string; name: string }>>;
+}
+
+const normCategoryKey = (s: string) => (s || "").toLowerCase().trim().replace(/\s+/g, " ");
+
+export function buildCategoryIndex(categories: Record<string, CategoryConfig>): CategoryIndex {
+  const categoryByKey = new Map<string, string>();
+  const subByCat = new Map<string, Map<string, { slug: string; name: string }>>();
+  const subSubBySub = new Map<string, Map<string, { slug: string; name: string }>>();
+
+  for (const [key, cat] of Object.entries(categories)) {
+    if (!cat || !cat.name) continue;
+    const catSlug = cat.slug || key;
+    categoryByKey.set(normCategoryKey(key), catSlug);
+    categoryByKey.set(normCategoryKey(catSlug), catSlug);
+    categoryByKey.set(normCategoryKey(cat.name), catSlug);
+
+    const subs = new Map<string, { slug: string; name: string }>();
+    subByCat.set(catSlug, subs);
+    for (const sub of cat.subcategories || []) {
+      if (!sub || !sub.name) continue;
+      const subSlug = sub.slug || transliterateToSlug(sub.name);
+      const subEntry = { slug: subSlug, name: sub.name };
+      subs.set(normCategoryKey(sub.name), subEntry);
+      subs.set(normCategoryKey(subSlug), subEntry);
+
+      const subSubs = new Map<string, { slug: string; name: string }>();
+      subSubBySub.set(`${catSlug}/${subSlug}`, subSubs);
+      for (const ss of sub.subSubcategories || []) {
+        if (!ss || !ss.name) continue;
+        const ssSlug = ss.slug || transliterateToSlug(ss.name);
+        const ssEntry = { slug: ssSlug, name: ss.name };
+        subSubs.set(normCategoryKey(ss.name), ssEntry);
+        subSubs.set(normCategoryKey(ssSlug), ssEntry);
+      }
+    }
+  }
+  return { categoryByKey, subByCat, subSubBySub };
+}
+
+export function resolveProductCategoryPaths(
+  product: {
+    category?: string | null;
+    subcategory?: string | null;
+    subSubcategory?: string | null;
+    additionalCategories?: Array<{ category?: string; subcategory?: string; subSubcategory?: string }> | null;
+  },
+  index: CategoryIndex,
+): ProductCategoryPath[] {
+  const paths: ProductCategoryPath[] = [];
+  const seen = new Set<string>();
+
+  const push = (
+    categorySlug: string,
+    subcategorySlug: string | null,
+    subSubcategorySlug: string | null,
+    subcategoryName: string | null,
+    subSubcategoryName: string | null,
+  ) => {
+    const key = `${categorySlug}\u0000${subcategorySlug || ""}\u0000${subSubcategorySlug || ""}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    paths.push({ categorySlug, subcategorySlug, subSubcategorySlug, subcategoryName, subSubcategoryName });
+  };
+
+  const resolve = (
+    catKey: string | null | undefined,
+    subKey: string | null | undefined,
+    subSubKey: string | null | undefined,
+  ) => {
+    if (!catKey) return;
+    const categorySlug = index.categoryByKey.get(normCategoryKey(catKey));
+    if (!categorySlug) return;
+
+    let subcategorySlug: string | null = null;
+    let subcategoryName: string | null = null;
+    if (subKey) {
+      const sub = index.subByCat.get(categorySlug)?.get(normCategoryKey(subKey));
+      if (sub) {
+        subcategorySlug = sub.slug;
+        subcategoryName = sub.name;
+      }
+    }
+
+    let subSubcategorySlug: string | null = null;
+    let subSubcategoryName: string | null = null;
+    if (subKey && subcategorySlug && subSubKey) {
+      const ss = index.subSubBySub.get(`${categorySlug}/${subcategorySlug}`)?.get(normCategoryKey(subSubKey));
+      if (ss) {
+        subSubcategorySlug = ss.slug;
+        subSubcategoryName = ss.name;
+      }
+    }
+
+    push(categorySlug, subcategorySlug, subSubcategorySlug, subcategoryName, subSubcategoryName);
+  };
+
+  // Прямые поля товара
+  resolve(product.category, product.subcategory, product.subSubcategory);
+
+  // Дополнительные категории (коллаборации, товар в нескольких разделах)
+  for (const ac of product.additionalCategories || []) {
+    if (!ac) continue;
+    resolve(ac.category, ac.subcategory, ac.subSubcategory);
+  }
+
+  return paths;
+}
+
 // Products
 // Type for size measurements table
 export type SizeMeasurement = {
