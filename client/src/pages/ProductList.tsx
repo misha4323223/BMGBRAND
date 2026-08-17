@@ -8,12 +8,13 @@ import { useWholesalePrice } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { CATEGORIES, CategorySlug, normalizeCategories } from "@shared/schema";
 import type { CategoryConfig, SubcategoryConfig, SubSubcategoryConfig } from "@shared/schema";
 import { useRoute, Link, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
-import { Loader2, X, ChevronDown, ChevronRight, ChevronLeft, PanelLeft, PanelLeftClose, ArrowRight, Heart, ShoppingBag, ArrowLeft, BrainCog, MessageCircle, Menu, Play, Pause, Headphones, Music } from "lucide-react";
+import { Loader2, X, ChevronDown, ChevronRight, ChevronLeft, PanelLeft, PanelLeftClose, ArrowRight, Heart, Home, ShoppingBag, ArrowLeft, BrainCog, MessageCircle, Menu, Play, Pause, Headphones, Music } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/hooks/use-cart";
@@ -1913,6 +1914,27 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     breadcrumbItems.push({ "@type": "ListItem", "position": breadcrumbItems.length + 1, "name": subSubcategoryParam, "item": catalogCanonical });
   }
 
+  // Видимые хлебные крошки для пользователя — те же уровни, что в JSON-LD выше.
+  const toPath = (url: string) => (url.startsWith("http") ? url.replace(window.location.origin, "") : url);
+  const uiBreadcrumbItems: Array<{ name: string; href: string }> = [
+    { name: "Каталог", href: "/products" },
+  ];
+  if (currentCategory) {
+    uiBreadcrumbItems.push({ name: currentCategory.name, href: `/products/${categoryParam}` });
+  }
+  if (subcategoryParam) {
+    const subHref = (() => {
+      // Используем фактический slug из URL (например /sweaters), а не YDB-слаг (/svitera)
+      if (forcedUrlSlug) return `/${forcedUrlSlug}`;
+      const subSlugFound = categoryParam ? categories[categoryParam]?.subcategories.find(s => s.name === subcategoryParam)?.slug ?? pathSubSlug : null;
+      return subSlugFound ? `/${subSlugFound}` : toPath(catalogCanonical);
+    })();
+    uiBreadcrumbItems.push({ name: subcategoryParam, href: subHref });
+  }
+  if (subSubcategoryParam) {
+    uiBreadcrumbItems.push({ name: subSubcategoryParam, href: toPath(catalogCanonical) });
+  }
+
   const pageContent = (
     <>
       <SEO 
@@ -1981,6 +2003,33 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
       <div className={`pb-12 ${(isMerch && !subcategoryParam) || isCollabPage ? 'pt-4 sm:pt-6' : 'pt-28'}`}>
         <div className="px-4 sm:px-6 lg:px-8 max-w-8xl mx-auto">
           {isJDM && <JDMBanner />}
+        </div>
+
+        {/* Хлебные крошки (видимые) — Главная / Каталог / … / текущий раздел */}
+        <div className="px-4 sm:px-6 lg:px-8 max-w-8xl mx-auto mb-3 sm:mb-4">
+          <Breadcrumb data-testid="breadcrumb-catalog">
+            <BreadcrumbList className="text-[11px] sm:text-xs text-muted-foreground flex-nowrap">
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/" className="flex items-center gap-0.5" aria-label="Главная">
+                  <Home className="w-3 h-3" />
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              {uiBreadcrumbItems.map((item, i) => {
+                const isLast = i === uiBreadcrumbItems.length - 1;
+                return (
+                  <BreadcrumbItem key={item.name}>
+                    {isLast ? (
+                      <BreadcrumbPage className="truncate max-w-[150px] sm:max-w-[220px]">{item.name}</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink href={item.href}>{item.name}</BreadcrumbLink>
+                    )}
+                    {!isLast && <BreadcrumbSeparator />}
+                  </BreadcrumbItem>
+                );
+              })}
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
 
         {/* Title row — hidden visually for merch pages (shown in hero), keep for a11y + count */}
