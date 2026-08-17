@@ -31,7 +31,7 @@ import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./in
 import { runAbandonedCartCheck, addAbandonedCartUnsub } from "./abandoned-cart";
 import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow, removeFromNewProductsQueue, addToNewProductsQueueManual } from "./new-products-notifier";
 import { enqueuePreorderProduct, getPreorderQueueStatus, triggerPreorderNotifierNow, removeFromPreorderQueue, addToPreorderQueueManual } from "./preorder-notifier";
-import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
+import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getOrderReadyForPickupEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
 import { CATEGORIES as SEO_CATEGORY_DEFAULTS, ARTISTS as SEO_ARTIST_DEFAULTS, HOME_SEO_DEFAULT, CONCEPT_SEO_DEFAULT, MERCH_ORDER_SEO_DEFAULT, PARTNER_REGISTER_SEO_DEFAULT } from "./static";
 import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
@@ -5133,6 +5133,7 @@ ${faqSection}
                 let statusText = "Новый";
                 if (order.status === "paid" || order.status === "completed") statusText = "Оплачен";
                 else if (order.status === "shipped") statusText = "Отгружен";
+                else if (order.status === "ready_for_pickup") statusText = "Готов к выдаче";
                 else if (order.status === "cancelled") statusText = "Отменён";
                 else if (order.status === "pending") statusText = "В обработке";
 
@@ -13329,12 +13330,44 @@ ${faqSection}
         return res.status(400).json({ error: "Status required" });
       }
       const orderId = Number(req.params.id);
+      const prevOrder = await storage.getOrder(orderId);
       const order = await storage.updateOrderStatus(orderId, status);
 
       // Push-уведомление пользователю о смене статуса
-      if (order?.userId) {
+      if (prevOrder?.userId) {
         const pushData = orderStatusPushPayload(orderId, status);
-        if (pushData) sendPushToUser(String(order.userId), pushData).catch(() => {});
+        if (pushData) sendPushToUser(String(prevOrder.userId), pushData).catch(() => {});
+      }
+
+      // Email клиенту: заказ привезён в пункт самовывоза
+      if (status === "ready_for_pickup" && prevOrder?.status !== "ready_for_pickup") {
+        try {
+          const customerEmail = prevOrder?.customerEmail;
+          if (customerEmail) {
+            let isPickup = /^самовывоз:/i.test(String(prevOrder?.address || ""));
+            try {
+              const d = typeof prevOrder?.cdekData === "string" ? JSON.parse(prevOrder.cdekData) : prevOrder?.cdekData;
+              if (d?.deliveryService === "pickup") isPickup = true;
+            } catch { /* ignore malformed cdekData */ }
+            if (isPickup) {
+              const pickupPoint = String(prevOrder?.address || "").replace(/^Самовывоз:\s*/i, "").trim() || undefined;
+              const ok = await sendEmail({
+                to: customerEmail,
+                subject: `Заказ #${orderId} готов к выдаче — BOOOMERANGS`,
+                html: getOrderReadyForPickupEmailHtml({
+                  id: orderId,
+                  customerName: prevOrder?.customerName || "Покупатель",
+                  pickupPoint,
+                }),
+              });
+              console.log(`[Pickup] Ready-for-pickup email for order #${orderId} -> ${customerEmail}: ${ok ? "sent" : "failed/disabled"}`);
+            } else {
+              console.log(`[Pickup] Status ready_for_pickup set for order #${orderId}, but order is not pickup — email skipped`);
+            }
+          }
+        } catch (emailErr: any) {
+          console.error(`[Pickup] Failed to send ready-for-pickup email for order #${orderId}:`, emailErr?.message);
+        }
       }
 
       storage.getOrderBitrixDealId(orderId).then(dealId => {

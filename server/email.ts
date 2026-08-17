@@ -554,6 +554,64 @@ export function getOrderShippedEmailHtml(order: {
   `;
 }
 
+export function getOrderReadyForPickupEmailHtml(params: {
+  id: number;
+  customerName: string;
+  pickupPoint?: string;
+}): string {
+  const { id, customerName, pickupPoint } = params;
+  const profileUrl = `https://www.booomerangs.ru/profile`;
+  const firstName = customerName?.split(' ')[0] || customerName || 'Покупатель';
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .logo { font-size: 24px; font-weight: bold; color: #1C1C1C; }
+        .logo span { color: #E53935; }
+        .status { background: #e8f5e9; color: #2e7d32; padding: 12px 20px; border-radius: 8px; text-align: center; font-weight: bold; margin: 20px 0; }
+        .info-box { background: #f5f5f5; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .button { display: inline-block; padding: 12px 24px; background: #1C1C1C; color: #fff !important; text-decoration: none; border-radius: 6px; margin: 10px 5px; font-size: 14px; }
+        .footer { margin-top: 40px; font-size: 12px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="logo">BOOOMERANGS</div>
+        
+        <div class="status">📍 Ваш заказ ждёт вас!</div>
+        
+        <p>Привет, ${firstName}!</p>
+        <p>Ваш заказ <strong>#${id}</strong> привезён в пункт самовывоза и готов к выдаче.</p>
+        
+        ${pickupPoint ? `
+        <div class="info-box">
+          <p style="margin: 0 0 5px; color: #666; font-size: 13px;">Пункт самовывоза:</p>
+          <p style="margin: 0; font-weight: bold;">${pickupPoint}</p>
+        </div>
+        ` : ''}
+        
+        <p>Приходите за заказом — достаточно назвать номер заказа или показать это письмо.</p>
+        
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${profileUrl}" class="button">Личный кабинет</a>
+        </div>
+        
+        <p style="color: #666; font-size: 13px;">Если у вас есть вопросы, напишите нам в ответ на это письмо или в Telegram.</p>
+        
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.</p>
+          <p>booomerangs.ru</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 export function getOrderCancelledAdminEmailHtml(order: {
   id: number;
   customerName: string;

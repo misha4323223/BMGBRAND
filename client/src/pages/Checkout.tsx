@@ -1185,7 +1185,7 @@ export default function Checkout() {
                       <Store className="w-5 h-5 text-muted-foreground" />
                       <div>
                         <p className="text-sm font-medium">Самовывоз</p>
-                        <p className="text-xs text-muted-foreground">Бесплатно</p>
+                        <p className="text-xs text-muted-foreground">Бесплатно · 3–5 дней</p>
                       </div>
                     </div>
                   </Label>

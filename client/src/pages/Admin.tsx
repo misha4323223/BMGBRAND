@@ -1351,11 +1351,23 @@ function AbandonedCartTriggerButton() {
   );
 }
 
+function isPickupOrder(order: any): boolean {
+  if (String(order.address || "").startsWith("Самовывоз")) return true;
+  if (!order.cdekData) return false;
+  try {
+    const d = typeof order.cdekData === "string" ? JSON.parse(order.cdekData) : order.cdekData;
+    return d?.deliveryService === "pickup";
+  } catch {
+    return false;
+  }
+}
+
 function downloadOrderExcel(order: any) {
   const statusMap: Record<string, string> = {
     pending: 'Ожидает оплаты',
     paid: 'Оплачен',
     shipped: 'Отправлен',
+    ready_for_pickup: 'Готов к выдаче',
     delivered: 'Доставлен',
     cancelled: 'Отменён',
   };
@@ -14795,7 +14807,7 @@ export default function Admin() {
                                       <div className="flex items-center gap-2 flex-wrap">
                                         <span className="font-mono text-xs">#{o.id}</span>
                                         <Badge variant={o.status === "paid" || o.status === "delivered" ? "default" : o.status === "cancelled" ? "destructive" : "secondary"} className="text-xs h-5">
-                                          {o.status === "pending" ? "Ожидает" : o.status === "paid" ? "Оплачен" : o.status === "processing" ? "В обработке" : o.status === "shipped" ? "Отправлен" : o.status === "delivered" ? "Доставлен" : o.status === "cancelled" ? "Отменён" : o.status}
+                                          {o.status === "pending" ? "Ожидает" : o.status === "paid" ? "Оплачен" : o.status === "processing" ? "В обработке" : o.status === "shipped" ? "Отправлен" : o.status === "ready_for_pickup" ? "Готов к выдаче" : o.status === "delivered" ? "Доставлен" : o.status === "cancelled" ? "Отменён" : o.status}
                                         </Badge>
                                         {o.isPreorder && (
                                           <Badge variant="outline" className="text-xs h-5 border-orange-400 text-orange-500">Предзаказ</Badge>
@@ -15536,9 +15548,11 @@ export default function Admin() {
                               {order.status === "paid" && <CreditCard className="w-3 h-3 mr-1" />}
                               {order.status === "shipped" && <Truck className="w-3 h-3 mr-1" />}
                               {order.status === "cancelled" && <Ban className="w-3 h-3 mr-1" />}
+                              {order.status === "ready_for_pickup" && <Store className="w-3 h-3 mr-1" />}
                               {order.status === "pending" ? "Ожидает оплаты" : 
                                order.status === "paid" ? "Оплачен" : 
                                order.status === "shipped" ? "Отправлен" : 
+                               order.status === "ready_for_pickup" ? "Готов к выдаче" :
                                order.status === "cancelled" ? "Отменен" : 
                                order.status}
                             </Badge>
@@ -15666,9 +15680,23 @@ export default function Admin() {
                               <SelectItem value="paid">Оплачен</SelectItem>
                               <SelectItem value="shipped">Отправлен</SelectItem>
                               <SelectItem value="delivered">Доставлен</SelectItem>
+                              <SelectItem value="ready_for_pickup">Готов к выдаче</SelectItem>
                               <SelectItem value="cancelled">Отменен</SelectItem>
                             </SelectContent>
                           </Select>
+                          {isPickupOrder(order) && order.status !== "ready_for_pickup" && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              title="Отметить, что заказ привезён в точку — клиенту уйдёт письмо и push-уведомление"
+                              disabled={updateOrderStatusMutation.isPending}
+                              onClick={() => updateOrderStatusMutation.mutate({ id: order.id, status: "ready_for_pickup" })}
+                              data-testid={`button-pickup-ready-${order.id}`}
+                            >
+                              <Store className="w-4 h-4 mr-1" />
+                              Привезён на точку — уведомить клиента
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"

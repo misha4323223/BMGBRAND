@@ -382,6 +382,8 @@ export default function Profile() {
         return <Badge variant="default">В обработке</Badge>;
       case 'shipped':
         return <Badge variant="default">Отправлен</Badge>;
+      case 'ready_for_pickup':
+        return <Badge variant="default" className="bg-amber-500">Готов к выдаче</Badge>;
       case 'delivered':
         return <Badge variant="outline" className="border-green-500 text-green-600">Доставлен</Badge>;
       case 'cancelled':
@@ -1976,6 +1978,7 @@ export default function Profile() {
                 { key: 'paid', label: 'Оплачен' },
                 { key: 'processing', label: 'Собирается' },
                 { key: 'shipped', label: 'Отправлен' },
+                { key: 'ready_for_pickup', label: 'Готов к выдаче' },
                 { key: 'delivered', label: 'Доставлен' },
               ];
               
