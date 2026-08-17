@@ -8,7 +8,10 @@
     <meta name="keywords" content="мерч Гудтаймс, мерч Молодость внутри, мерч Дикая мята, мерч Драгни, мерч МультFильмы, купить мерч, Booomerangs, BMGBRAND, российский бренд одежды с авторскими принтами" />
     <meta name="author" content="BMGBRAND" />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
-    <link rel="canonical" href="https://booomerangs.ru" />
+    <!-- НЕТ статического canonical здесь: эта оболочка отдаётся для ЛЮБОГО пути
+         (в т.ч. категорий 3-го уровня, когда bot-SSR пропускает запрос в SPA),
+         и canonical главной протекал на все такие страницы. Каждая страница
+         задаёт свой canonical через компонент SEO (react-helmet-async). -->
     <meta name="theme-color" content="#1C1C1C" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" href="/favicon.png" />

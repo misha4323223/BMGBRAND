@@ -286,7 +286,7 @@ export function AuthModal({ open, onOpenChange, initialView = "login" }: AuthMod
         </div>
 
         <div className="mx-4 mb-4 -mt-2 text-center">
-          <Link href="/partner/register" onClick={handleClose} data-testid="link-partner-register">
+          <Link href="/partner" onClick={handleClose} data-testid="link-partner-register">
             <button className="text-[11px] text-zinc-500 hover:text-primary transition-colors">
               Стать партнёром →
             </button>

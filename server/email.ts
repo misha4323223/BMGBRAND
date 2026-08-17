@@ -1243,11 +1243,11 @@ export function getPayoutPaidEmailHtml(
   const stepsHtml = isReceipt
     ? `<li>Откройте приложение «Мой налог»</li>
       <li>Сформируйте чек на сумму <b>${amountRub} ₽</b> (покупатель — ООО «БУМЕРАНГ»)</li>
-      <li>Войдите в <a href="https://booomerangs.ru/partner">личный кабинет партнёра</a></li>
+      <li>Войдите в <a href="https://booomerangs.ru/partner/profile">личный кабинет партнёра</a></li>
       <li>Загрузите чек в раздел «Выплаты»</li>`
     : `<li>Сформируйте акт оказанных услуг на сумму <b>${amountRub} ₽</b> (заказчик — ООО «БУМЕРАНГ»)</li>
       <li>Подпишите его и сохраните в PDF (или сфотографируйте подписанный экземпляр)</li>
-      <li>Войдите в <a href="https://booomerangs.ru/partner">личный кабинет партнёра</a></li>
+      <li>Войдите в <a href="https://booomerangs.ru/partner/profile">личный кабинет партнёра</a></li>
       <li>Загрузите акт в раздел «Выплаты»</li>`;
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
@@ -1276,7 +1276,7 @@ export function getPayoutPaidEmailHtml(
     <ol class="steps">
       ${stepsHtml}
     </ol>
-    <a href="https://booomerangs.ru/partner" class="btn">Открыть личный кабинет</a>
+    <a href="https://booomerangs.ru/partner/profile" class="btn">Открыть личный кабинет</a>
     <p style="font-size:12px;color:#666;margin-top:16px">Если ${docWord} не будет загружен в течение 7 дней, мы напомним вам об этом ещё раз.</p>
   </div>
   <div class="foot">&copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.</div>
@@ -1309,7 +1309,7 @@ export function getPayoutCompletedEmailHtml(partnerName: string, amountRub: stri
     <div class="amount">${amountRub} ₽</div>
     <p>успешно завершена. Деньги уже у вас, чек принят — всё оформлено.</p>
     <p>Продолжайте делиться реферальными ссылками, и новые комиссии будут накапливаться в вашем кабинете.</p>
-    <a href="https://booomerangs.ru/partner" class="btn">Открыть личный кабинет</a>
+    <a href="https://booomerangs.ru/partner/profile" class="btn">Открыть личный кабинет</a>
   </div>
   <div class="foot">&copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.</div>
 </div></body></html>`;
@@ -1341,7 +1341,7 @@ export function getPayoutRejectedEmailHtml(partnerName: string, amountRub: strin
     <p>была отклонена. Причина:</p>
     <div class="reason">${reason}</div>
     <p>Если у вас есть вопросы, напишите нам — разберёмся вместе. Если выплата была отклонена из-за проблемы с документами, вы можете подать новую заявку после исправления.</p>
-    <a href="https://booomerangs.ru/partner" class="btn">Открыть личный кабинет</a>
+    <a href="https://booomerangs.ru/partner/profile" class="btn">Открыть личный кабинет</a>
   </div>
   <div class="foot">&copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.</div>
 </div></body></html>`;
@@ -1410,7 +1410,7 @@ export function getWholesaleRejectedEmailHtml(name: string): string {
 }
 
 export function getPartnerApprovedEmailHtml(contactName: string, partnerSlug: string): string {
-  const profileUrl = `https://www.booomerangs.ru/partner`;
+  const profileUrl = `https://www.booomerangs.ru/partner/profile`;
   const publicUrl = `https://www.booomerangs.ru/@${partnerSlug}`;
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8">

@@ -17,6 +17,7 @@ import {
   buildFaqDraftSystemPrompt,
 } from "./ai-questions-lib";
 import { loadAiKnowledgeIfNeeded, getAiKnowledgeCached } from "./ai-chat";
+import { groqCompleteStream } from "./groq-utils";
 
 function getAdminKey(): string | undefined {
   return process.env.ADMIN_API_KEY || process.env.SYNC_API_KEY;
@@ -42,7 +43,7 @@ async function loadFaqItems(): Promise<Array<{ question: string; answer: string 
   }
 }
 
-/** Non-streaming Groq call for FAQ draft generation. Mirrors admin-agent.ts. */
+/** Streaming Groq call for FAQ draft generation. Mirrors the working chat route. */
 async function generateFaqDraft(question: string, faqContext: Array<{ question: string; answer: string }>): Promise<string> {
   await loadAiKnowledgeIfNeeded();
   const brandPrompt = getAiKnowledgeCached("ai_prompt_base");
@@ -63,54 +64,34 @@ async function generateFaqDraft(question: string, faqContext: Array<{ question: 
 
   let lastError: Error | null = null;
   for (const key of attempts) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 60_000);
     try {
-      const resp = await fetch(`${groqBase}/openai/v1/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(key ? { Authorization: `Bearer ${key}` } : {}),
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-oss-20b",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: `Вопрос покупателя: ${question}` },
-          ],
-          temperature: 0.3,
-          max_tokens: 700,
-        }),
+      const text = await groqCompleteStream({
+        baseUrl: groqBase,
+        apiKey: key || undefined,
+        model: "openai/gpt-oss-20b",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Вопрос покупателя: ${question}` },
+        ],
+        temperature: 0.3,
+        maxTokens: 1500,
+        signal: ctrl.signal,
       });
-
-      if (!resp.ok) {
-        let detail = "";
-        try {
-          const body = await resp.json();
-          detail = body?.error?.message || JSON.stringify(body).slice(0, 200);
-        } catch {
-          /* ignore */
-        }
-        const err = new Error(`Groq error: ${resp.status}${detail ? ` — ${detail}` : ""}`);
-        if (resp.status === 429) {
-          lastError = err;
-          continue; // try the other key
-        }
-        throw err;
-      }
-
-      const data = (await resp.json()) as any;
-      // gpt-oss-20b is a reasoning model — strip any <think>…</think> tokens
-      // so the saved FAQ draft contains only the visible answer.
-      const text: string = (data.choices?.[0]?.message?.content || "")
-        .replace(/<think>[\s\S]*?<\/think>/gi, "")
-        .replace(/<think>[\s\S]*/gi, "")
-        .trim();
       if (!text) throw new Error("Groq вернул пустой ответ");
       return text;
     } catch (err: any) {
       lastError = err;
       // Retry with the other key only on rate-limit / network hiccups.
-      if (err.message?.startsWith("Groq error: 429")) continue;
+      if (err.name === "AbortError") {
+        lastError = new Error("Groq не ответил за 60 секунд — попробуйте ещё раз");
+        throw lastError;
+      }
+      if (err?.status === 429) continue; // try the other key
       throw err;
+    } finally {
+      clearTimeout(timer);
     }
   }
   throw lastError || new Error("AI недоступен");

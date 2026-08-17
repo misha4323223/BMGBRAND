@@ -50,7 +50,7 @@ export default function PartnerLogin() {
       const data = await res.json();
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       toast({ title: "Вход выполнен", description: `Добро пожаловать, ${data.user.name || ""}!` });
-      setLocation("/partner");
+      setLocation("/partner/profile");
     } catch (err: any) {
       setError(parseApiError(err, "Ошибка входа"));
     } finally {
@@ -93,7 +93,7 @@ export default function PartnerLogin() {
 
   return (
     <>
-      <SEO title="Вход для партнёров — BMG BRAND" description="Партнёрский кабинет BMG BRAND" />
+      <SEO title="Вход для партнёров — BMG BRAND" description="Партнёрский кабинет BMG BRAND" noindex />
       <Navbar />
       <main className="container mx-auto px-4 pt-24 sm:pt-28 pb-12 min-h-[70vh] flex items-start justify-center">
         <div className="w-full max-w-sm">

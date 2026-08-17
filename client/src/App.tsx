@@ -35,12 +35,14 @@ const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const Profile = lazy(() => import("@/pages/Profile"));
 const Vacancies = lazy(() => import("@/pages/Vacancies"));
 const FAQ = lazy(() => import("@/pages/FAQ"));
+const WholesaleLanding = lazy(() => import("@/pages/WholesaleLanding"));
 const WholesaleRegister = lazy(() => import("@/pages/WholesaleRegister"));
 const WholesaleProfile = lazy(() => import("@/pages/WholesaleProfile"));
 const PartnerLogin = lazy(() => import("@/pages/PartnerLogin"));
 const PartnerRegister = lazy(() => import("@/pages/PartnerRegister"));
 const PartnerConfirmSignature = lazy(() => import("@/pages/PartnerConfirmSignature"));
 const PartnerProfile = lazy(() => import("@/pages/PartnerProfile"));
+const PartnerLanding = lazy(() => import("@/pages/PartnerLanding"));
 const PartnerPublic = lazy(() => import("@/pages/PartnerPublic"));
 const PartnerWidget = lazy(() => import("@/pages/PartnerWidget"));
 const GiftCards = lazy(() => import("@/pages/GiftCards"));
@@ -127,15 +129,17 @@ function Router() {
         <Route path="/favorites" component={Favorites} />
         <Route path="/vacancies" component={Vacancies} />
         <Route path="/faq" component={FAQ} />
+        <Route path="/wholesale" component={WholesaleLanding} />
         <Route path="/wholesale/register" component={WholesaleRegister} />
         <Route path="/wholesale/profile" component={WholesaleProfile} />
         <Route path="/wholesale/preorder" component={WholesalePreorder} />
         <Route path="/partner/login" component={PartnerLogin} />
         <Route path="/partner/register" component={PartnerRegister} />
         <Route path="/partner/confirm-signature" component={PartnerConfirmSignature} />
-        <Route path="/partner" component={PartnerProfile} />
+        <Route path="/partner/profile" component={PartnerProfile} />
         <Route path="/partner/:slug/widget" component={PartnerWidget} />
         <Route path="/partner/:slug" component={PartnerPublic} />
+        <Route path="/partner" component={PartnerLanding} />
         <Route path="/gift-cards" component={GiftCards} />
         <Route path="/blog" component={Blog} />
         <Route path="/blog/:id" component={BlogDetail} />

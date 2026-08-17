@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ interface MediaInfoDialogProps {
 
 export function MediaInfoDialog({ open, onOpenChange }: MediaInfoDialogProps) {
   const [offerLoading, setOfferLoading] = useState(false);
+  const [, setLocation] = useLocation();
 
   async function openOffer() {
     const w = window.open("", "_blank");
@@ -163,7 +165,7 @@ export function MediaInfoDialog({ open, onOpenChange }: MediaInfoDialogProps) {
                 type="button"
                 variant="default"
                 size="sm"
-                onClick={() => onOpenChange(false)}
+                onClick={() => { onOpenChange(false); setLocation("/partner/register"); }}
                 data-testid="button-media-dialog-close"
               >
                 Понятно, перейти к регистрации

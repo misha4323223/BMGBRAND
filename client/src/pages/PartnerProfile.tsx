@@ -288,7 +288,7 @@ export default function PartnerProfile() {
 
   return (
     <>
-      <SEO title="Партнёрский кабинет — BMG BRAND" />
+      <SEO title="Партнёрский кабинет — BMG BRAND" noindex />
       <Navbar />
       <main className="container mx-auto px-4 pt-24 pb-10 min-h-[70vh]">
         {/* Шапка кабинета */}

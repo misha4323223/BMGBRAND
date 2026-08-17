@@ -1,7 +1,7 @@
 import SEO from "@/components/SEO";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
@@ -147,13 +147,19 @@ export default function WholesaleRegister() {
   return (
     <div className="min-h-screen bg-background">
       <SEO 
-        title="Оптовая регистрация"
-        description="Регистрация оптового покупателя BMGBRAND — специальные цены для партнёров."
+        title="Регистрация оптового покупателя — BOOOMERANGS"
+        description="Регистрация оптового покупателя BOOOMERANGS — специальные цены для ИП и юридических лиц."
         keywords="опт BMGBRAND, оптовые цены, партнёрство, оптовый покупатель"
+        noindex
+        canonical="https://booomerangs.ru/wholesale"
       />
       <Navbar />
       
       <div className="pt-32 pb-24 max-w-2xl mx-auto px-4 sm:px-6">
+        <Link href="/wholesale" className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors mb-6" data-testid="link-back-to-wholesale">
+          <ArrowLeft className="w-4 h-4" />
+          Оптовое сотрудничество
+        </Link>
         <div className="text-center mb-8">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
             <Briefcase className="w-8 h-8 text-primary" />

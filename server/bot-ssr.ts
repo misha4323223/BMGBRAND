@@ -728,7 +728,21 @@ function renderCategory(catSlug: string): string | null {
   if (!cat) return null;
 
   const products = getCachedProductsByCategory(catSlug, 500);
-  // If cache is still warming, pass through to the React app
+  // Кэш ещё холодный (первые секунды после рестарта) — отдаём временную
+  // страницу с правильным canonical/title, а не пустую SPA-оболочку,
+  // которую поисковики и ИИ-краулеры «не видят».
+  if (products.length === 0 && !isProductsCacheWarm()) {
+    const catSeo = getSeoOverride(`category:${catSlug}`);
+    const title = catSeo.title || cat.title || `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
+    const desc = catSeo.description || cat.desc;
+    return renderLoadingPlaceholder({
+      title,
+      description: desc,
+      canonical: `${SITE_URL}/products/${catSlug}`,
+      breadcrumb: `<a href="/">Главная</a> / <a href="/products">Каталог</a> / ${esc(cat.name)}`,
+      body: `<h1>${esc(cat.name)}</h1><p class="desc">${esc(desc)}</p><p>Товары раздела загружаются — зайдите чуть позже.</p>`,
+    });
+  }
   if (products.length === 0) return null;
 
   const inStock = products.filter(p => p.stock > 0);
@@ -1256,7 +1270,30 @@ function renderSubcategory(subSlug: string, canonicalSlug?: string): string | nu
 
   const { category, subcategory } = found;
   const products = getCachedProductsByCategory(category.slug, 500);
-  if (products.length === 0) return null;
+  if (products.length === 0) {
+    // Холодный кэш — временная страница с правильным canonical, не SPA-оболочка.
+    if (!isProductsCacheWarm()) {
+      const pageSlug = canonicalSlug ?? subSlug;
+      const subSeo = getSeoOverride(`subcategory:${category.slug}:${subSlug}`);
+      const catMeta = CAT_META[category.slug];
+      const catName = catMeta?.name || category.name;
+      const isMerch = category.slug === "merch";
+      const title = subSeo.title || (isMerch
+        ? `Мерч ${subcategory.name} — купить официальный мерч | ${SITE_NAME}`
+        : `${subcategory.name} — купить в ${SITE_NAME} | ${catName}`);
+      const desc = subSeo.description || (isMerch
+        ? `Официальный мерч ${subcategory.name} в интернет-магазине BMGBRAND: одежда и аксессуары с авторскими принтами. Доставка по всей России СДЭК.`
+        : `${subcategory.name} от BMGBRAND — ${catName.toLowerCase()} с авторскими принтами. Доставка по всей России.`);
+      return renderLoadingPlaceholder({
+        title,
+        description: desc,
+        canonical: `${SITE_URL}/${pageSlug}`,
+        breadcrumb: `<a href="/">Главная</a> / <a href="/products">Каталог</a> / <a href="/products/${esc(category.slug)}">${esc(catName)}</a> / ${esc(subcategory.name)}`,
+        body: `<h1>${esc(subcategory.name)}</h1><p class="desc">${esc(desc)}</p><p>Товары раздела загружаются — зайдите чуть позже.</p>`,
+      });
+    }
+    return null;
+  }
 
   // Products belong to a subcategory either directly (p.subcategory) or via
   // additionalCategories (e.g. merch collabs like "Людмил Огурченко" whose products
@@ -1382,6 +1419,67 @@ function renderEmptySubSubcategory(
   return wrapPage(head, body);
 }
 
+/**
+ * Временная страница на время холодного кэша (первые секунды после рестарта).
+ * Раньше в этом случае боты получали пустую SPA-оболочку с заголовком и
+ * canonical главной — поисковики и ИИ-краулеры «не видели» раздел. Теперь
+ * отдаём полноценный HTML с правильными canonical/title, хлебными крошками
+ * и ссылками на соседние разделы. baseHead по умолчанию отдаёт index,follow —
+ * краулер успевает заиндексировать страницу, а когда кэш прогреется и товары
+ * появятся, следующий обход получит полную страницу (кэш ботов живёт 5 минут).
+ */
+function renderLoadingPlaceholder(opts: {
+  title: string;
+  description: string;
+  canonical: string;
+  breadcrumb: string;
+  body: string;
+}): string {
+  const head = baseHead({
+    title: opts.title,
+    description: opts.description,
+    canonical: opts.canonical,
+    ogImage: `${SITE_URL}/og-image.png`,
+  });
+  return wrapPage(head, `<div class="breadcrumb">${opts.breadcrumb}</div>${opts.body}`);
+}
+
+function renderSubSubcategoryLoading(
+  category: { name: string; slug: string },
+  subcategory: { name: string; slug: string },
+  subSubcategory: { name: string; slug: string },
+): string {
+  const catMeta = CAT_META[category.slug];
+  const catName = catMeta?.name || category.name;
+  const pageUrl = `${SITE_URL}/products/${category.slug}/${subcategory.slug}/${subSubcategory.slug}`;
+  const subSubSeo = getSeoOverride(`subsubcategory:${category.slug}:${subcategory.slug}:${subSubcategory.slug}`);
+  const title = subSubSeo.title || `${subSubcategory.name} — купить в ${SITE_NAME} | ${subcategory.name}, ${catName}`;
+  const desc = subSubSeo.description || `${subSubcategory.name} от BMGBRAND — ${subcategory.name.toLowerCase()}, ${catName.toLowerCase()} с авторскими принтами. Доставка по всей России СДЭК.`;
+
+  // Ссылки на соседние под-подкатегории — краулеры продолжают обход по разделу
+  let siblingLinks = "";
+  try {
+    const live = getLiveCategories()[category.slug]?.subcategories || [];
+    const liveSub = (live as any[]).find((s: any) => s.slug === subcategory.slug);
+    const siblings: Array<{ name: string; slug: string }> = (liveSub?.subSubcategories || []);
+    if (siblings.length > 0) {
+      siblingLinks = `<h2>Разделы</h2><ul>${siblings.map((ss: any) =>
+        `<li><a href="/products/${esc(category.slug)}/${esc(subcategory.slug)}/${esc(ss.slug)}">${esc(ss.name)}</a></li>`
+      ).join("")}</ul>`;
+    }
+  } catch { /* нет конфига — обходимся без ссылок */ }
+
+  const head = baseHead({ title, description: desc, canonical: pageUrl, ogImage: `${SITE_URL}/og-image.png` });
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / <a href="/products">Каталог</a> / <a href="/products/${esc(category.slug)}">${esc(catName)}</a> / <a href="/${esc(subcategory.slug)}">${esc(subcategory.name)}</a> / ${esc(subSubcategory.name)}</div>
+<h1>${esc(subSubcategory.name)}</h1>
+<p class="desc">${esc(desc)}</p>
+<p>Товары раздела загружаются — зайдите чуть позже.</p>
+${siblingLinks}
+<p style="margin-top:1.5rem"><a href="/${esc(subcategory.slug)}">← Все ${esc(subcategory.name)}</a></p>`;
+  return wrapPage(head, body);
+}
+
 function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: string): string | null {
   let cats = CATEGORIES as Record<string, any>;
   try {
@@ -1400,12 +1498,16 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
 
   const { category, subcategory, subSubcategory } = found;
   const products = getCachedProductsByCategory(category.slug, 1000);
-  // Кэш холодный → не знаем, пустая ли категория: пропускаем к SPA (клиент сам
-  // догрузит товары). Кэш тёплый и товаров нет → честная noindex-страница.
+  // Кэш тёплый и товаров нет → честная noindex-страница (не индексируем пустоту).
+  if (products.length === 0 && isProductsCacheWarm()) {
+    return renderEmptySubSubcategory(category, subcategory, subSubcategory);
+  }
+  // Кэш ещё холодный (первые секунды после рестарта) — отдаём временную страницу
+  // с правильным canonical/title и ссылками на соседние разделы, а НЕ пустую
+  // SPA-оболочку с заголовком главной: раньше из-за этого поисковики и
+  // ИИ-краулеры «не видели» 3-й уровень категорий.
   if (products.length === 0) {
-    return isProductsCacheWarm()
-      ? renderEmptySubSubcategory(category, subcategory, subSubcategory)
-      : null;
+    return renderSubSubcategoryLoading(category, subcategory, subSubcategory);
   }
 
   // Единый резолвер shared/schema.ts — тот же, что в sitemap.xml и /api/products.
@@ -2463,7 +2565,7 @@ function makeETag(html: string): string {
 // 404 — в отличие от мёртвых товарных слагов, которых нет ни в каталоге, ни в YDB.
 const KNOWN_CLIENT_SLUGS = new Set<string>([
   "cart", "checkout", "admin", "verify-email", "reset-password",
-  "profile", "favorites", "links", "partner",
+  "profile", "favorites", "links", "partner", "wholesale",
 ]);
 
 export async function botSsrMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {

@@ -215,7 +215,7 @@ export function Navbar() {
   const { isWholesale } = useWholesalePrice();
   const isPartner = user?.role === 'partner';
   const profileHref = isPartner
-    ? "/partner"
+    ? "/partner/profile"
     : isWholesale
       ? "/wholesale/profile"
       : "/profile";
@@ -443,7 +443,7 @@ export function Navbar() {
                     </div>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/wholesale/register" className="cursor-pointer flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60 transition-colors">
+                    <Link href="/wholesale" className="cursor-pointer flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60 transition-colors">
                       <Briefcase className="w-4 h-4 shrink-0 text-foreground/50" />
                       <div>
                         <p className="font-medium leading-tight">Оптовым партнёрам</p>
@@ -452,7 +452,7 @@ export function Navbar() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/partner/register" className="cursor-pointer flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60 transition-colors">
+                    <Link href="/partner" className="cursor-pointer flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60 transition-colors">
                       <TrendingUp className="w-4 h-4 shrink-0 text-foreground/50" />
                       <div>
                         <p className="font-medium leading-tight">Партнёрская программа</p>
@@ -836,7 +836,7 @@ export function Navbar() {
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link
-                      href="/wholesale/register"
+                      href="/wholesale"
                       onClick={() => setIsLoginDropdownOpen(false)}
                       className="cursor-pointer flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60 transition-colors"
                     >
@@ -851,7 +851,7 @@ export function Navbar() {
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link
-                      href="/partner/register"
+                      href="/partner"
                       onClick={() => setIsLoginDropdownOpen(false)}
                       className="cursor-pointer flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-foreground/80 hover:text-foreground hover:bg-muted/60 transition-colors"
                     >

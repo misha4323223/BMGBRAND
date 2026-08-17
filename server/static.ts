@@ -305,6 +305,41 @@ function buildFaqNoscript(): string {
     `</div></noscript>`;
 }
 
+function buildPartnerNoscript(): string {
+  return `<noscript><div>` +
+    `<h1>Партнёрская программа BOOOMERANGS</h1>` +
+    `<p>Реферальная программа с комиссией 15–25% с каждого заказа и авторский мерч для артистов, блогеров и брендов. Для самозанятых, ИП и юридических лиц.</p>` +
+    `<h2>Реферальная программа</h2>` +
+    `<ul>` +
+    `<li>Комиссия 15–25% с каждого оплаченного заказа</li>` +
+    `<li>Атрибуция 30 дней</li>` +
+    `<li>Выплаты без минимальной суммы за 5 рабочих дней</li>` +
+    `</ul>` +
+    `<h2>Мерч для артистов и брендов</h2>` +
+    `<ul>` +
+    `<li>Персональная страница booomerangs.ru/@ваш-slug</li>` +
+    `<li>Витрина мерча и авторские коллекции</li>` +
+    `<li>Договорной процент комиссии</li>` +
+    `</ul>` +
+    `<p><a href="/partner/register">Стать партнёром</a> · <a href="/merch-na-zakaz">Мерч на заказ</a></p>` +
+    `</div></noscript>`;
+}
+
+function buildWholesaleNoscript(): string {
+  return `<noscript><div>` +
+    `<h1>Оптовые продажи BOOOMERANGS</h1>` +
+    `<p>Оптовые поставки носков и одежды BOOOMERANGS с собственного производства в Туле. Для ИП и юридических лиц.</p>` +
+    `<h2>Условия</h2>` +
+    `<ul>` +
+    `<li>Носки — от 5 000 ₽ (от 2 штук на артикул)</li>` +
+    `<li>Одежда — от 10 000 ₽</li>` +
+    `<li>Маркировка «Честный знак»</li>` +
+    `<li>Доставка: СДЭК, ПЭК, Деловые линии, Байкал, Почта России</li>` +
+    `</ul>` +
+    `<p><a href="/wholesale/register">Стать оптовым партнёром</a></p>` +
+    `</div></noscript>`;
+}
+
 function buildAboutNoscript(): string {
   return `<noscript><div itemscope itemtype="https://schema.org/Organization">` +
     `<h1>О бренде BOOOMERANGS (BMGBRAND)</h1>` +
@@ -474,10 +509,7 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
       "hasMerchantReturnPolicy": buildMerchantReturnPolicy(siteUrl),
       "shippingDetails": buildShippingDetails(),
     },
-    ...(rating && rating.reviewCount >= 1 ? {
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": rating.averageRating.toFixed(1),
+    ...(rating && rating.reviewCount >= 1 ? {"aggregateRating": { "@type": "AggregateRating", "ratingValue": rating.averageRating.toFixed(1),
         "reviewCount": rating.reviewCount,
         "bestRating": "5",
         "worstRating": "1",
@@ -714,7 +746,7 @@ export function serveStatic(app: Express) {
 
     let routeLcpImage = "";
 
-    const knownRoutes = new Set(['/', '/products', '/cart', '/checkout', '/about', '/admin', '/verify-email', '/reset-password', '/profile', '/favorites', '/vacancies', '/faq', '/terms', '/privacy', '/links', '/concept', '/blog', '/wholesale-register', '/wholesale-profile', '/order-success', '/order-failed', '/contacts', '/merch-na-zakaz', '/partner/register', '/partner/login']);
+    const knownRoutes = new Set(['/', '/products', '/cart', '/checkout', '/about', '/admin', '/verify-email', '/reset-password', '/profile', '/favorites', '/vacancies', '/faq', '/terms', '/privacy', '/links', '/concept', '/blog', '/wholesale', '/wholesale-register', '/wholesale-profile', '/order-success', '/order-failed', '/contacts', '/merch-na-zakaz', '/partner', '/partner/profile', '/partner/register', '/partner/login']);
     const knownPrefixes = ['/products/', '/wholesale/', '/gift-cards/', '/blog/', '/@', '/order-success/', '/order-failed/', '/track/', '/api/', '/assets/'];
     const isKnownRoute = knownRoutes.has(cleanUrl) || knownPrefixes.some(p => url.startsWith(p));
     const slugMatch = !isKnownRoute ? cleanUrl.match(/^\/([a-z0-9][a-z0-9-]*[a-z0-9])(?:\/?)$/) : null;
@@ -1103,8 +1135,8 @@ export function serveStatic(app: Express) {
         });
       }
 
-      // --- Partner register page ---
-      if (cleanUrl === "/partner/register" || cleanUrl === "/partner/login") {
+      // --- Partner program landing (public hub) ---
+      if (cleanUrl === "/partner") {
         const partnerJsonLd = JSON.stringify([
           {
             "@context": "https://schema.org",
@@ -1114,8 +1146,7 @@ export function serveStatic(app: Express) {
             "provider": { "@type": "Organization", "name": SITE_NAME, "url": siteUrl },
             "areaServed": "RU",
             "serviceType": "Партнёрская программа",
-            "audience": { "@type": "Audience", "audienceType": "Самозанятые, ИП, юридические лица, блогеры, артисты" },
-            "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.8", "reviewCount": "63", "bestRating": "5" },
+            "audience": { "@type": "Audience", "audienceType": "Самозанятые, ИП, юридические лица, блогеры, артисты, бренды" },
             "offers": { "@type": "Offer", "description": "Комиссия 15–25% с каждого оплаченного заказа по реферальной ссылке", "priceCurrency": "RUB" },
           },
           {
@@ -1135,7 +1166,7 @@ export function serveStatic(app: Express) {
             "@type": "BreadcrumbList",
             "itemListElement": [
               { "@type": "ListItem", "position": 1, "name": "Главная", "item": siteUrl },
-              { "@type": "ListItem", "position": 2, "name": "Партнёрская программа", "item": `${siteUrl}/partner/register` },
+              { "@type": "ListItem", "position": 2, "name": "Партнёрская программа", "item": `${siteUrl}/partner` },
             ],
           },
         ]);
@@ -1145,9 +1176,86 @@ export function serveStatic(app: Express) {
           description: partnerSeo.description || PARTNER_REGISTER_SEO_DEFAULT.description,
           ogImage: `${siteUrl}/og-partner.png`,
           ogType: "website",
-          canonical: `${siteUrl}/partner/register`,
+          canonical: `${siteUrl}/partner`,
           jsonLd: partnerJsonLd,
         });
+        html = injectSeoBody(html, buildPartnerNoscript());
+      }
+
+      // --- Partner register/login forms (not for search engines) ---
+      if (cleanUrl === "/partner/register" || cleanUrl === "/partner/login") {
+        const isLogin = cleanUrl === "/partner/login";
+        html = injectMeta(html, {
+          title: isLogin ? `Вход для партнёров | ${SITE_NAME}` : `Регистрация партнёра | ${SITE_NAME}`,
+          description: isLogin
+            ? "Вход в личный кабинет партнёра BOOOMERANGS."
+            : "Регистрация в партнёрской программе BOOOMERANGS: реферальная комиссия 15–25% и авторский мерч для артистов.",
+          ogImage: `${siteUrl}/og-partner.png`,
+          ogType: "website",
+          canonical: `${siteUrl}/partner`,
+        });
+        html = html.replace('</head>', '  <meta name="robots" content="noindex,follow">\n  </head>');
+      }
+
+      // --- Wholesale program landing (public hub) ---
+      if (cleanUrl === "/wholesale") {
+        const wholesaleJsonLd = JSON.stringify([
+          {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": "Оптовые продажи BOOOMERANGS",
+            "description": "Оптовые поставки носков и одежды BOOOMERANGS. Минимальный заказ: носки от 5 000 ₽, одежда от 10 000 ₽. Собственное производство, маркировка «Честный знак», доставка СДЭК, ПЭК, Деловые линии, Байкал, Почта России.",
+            "provider": { "@type": "Organization", "name": SITE_NAME, "url": siteUrl },
+            "areaServed": "RU",
+            "serviceType": "Оптовые продажи",
+            "audience": { "@type": "Audience", "audienceType": "Индивидуальные предприниматели, юридические лица" },
+            "offers": { "@type": "Offer", "description": "Специальные оптовые цены после одобрения заявки", "priceCurrency": "RUB" },
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              { "@type": "Question", "name": "Какая минимальная сумма оптового заказа?", "acceptedAnswer": { "@type": "Answer", "text": "Носки — от 5 000 ₽ (от 2 штук на один артикул), одежда — от 10 000 ₽." } },
+              { "@type": "Question", "name": "Кто может стать оптовым покупателем BOOOMERANGS?", "acceptedAnswer": { "@type": "Answer", "text": "Индивидуальные предприниматели и юридические лица. Заполните заявку — одобрение занимает около 15 минут." } },
+              { "@type": "Question", "name": "Вы работаете с маркировкой «Честный знак»?", "acceptedAnswer": { "@type": "Answer", "text": "Да, поставляем товар с кодами маркировки «Честный знак»." } },
+              { "@type": "Question", "name": "Как вы отправляете оптовые заказы?", "acceptedAnswer": { "@type": "Answer", "text": "СДЭК, ПЭК, Деловые линии, Байкал и Почта России." } },
+              { "@type": "Question", "name": "Есть ли специальные оптовые цены?", "acceptedAnswer": { "@type": "Answer", "text": "Да. После одобрения заявки вы получаете доступ к оптовому кабинету со специальными ценами и персональным менеджером." } },
+            ],
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Главная", "item": siteUrl },
+              { "@type": "ListItem", "position": 2, "name": "Оптовые продажи", "item": `${siteUrl}/wholesale` },
+            ],
+          },
+        ]);
+        const wholesaleSeo = getSeoOverride("wholesale_register");
+        html = injectMeta(html, {
+          title: wholesaleSeo.title || `Оптовые продажи — носки и одежда | ${SITE_NAME}`,
+          description: wholesaleSeo.description || "Оптовые поставки носков и одежды BOOOMERANGS. Носки от 5 000 ₽, одежда от 10 000 ₽. Собственное производство в Туле, маркировка «Честный знак», доставка по России.",
+          ogImage: `${siteUrl}/og-image.png`,
+          ogType: "website",
+          canonical: `${siteUrl}/wholesale`,
+          jsonLd: wholesaleJsonLd,
+        });
+        html = injectSeoBody(html, buildWholesaleNoscript());
+      }
+
+      // --- Wholesale register/profile (not for search engines) ---
+      if (cleanUrl === "/wholesale/register" || cleanUrl === "/wholesale/profile") {
+        const isProfile = cleanUrl === "/wholesale/profile";
+        html = injectMeta(html, {
+          title: isProfile ? `Оптовый кабинет | ${SITE_NAME}` : `Регистрация оптового покупателя | ${SITE_NAME}`,
+          description: isProfile
+            ? "Оптовый кабинет BOOOMERANGS."
+            : "Регистрация оптового покупателя BOOOMERANGS: специальные цены для ИП и юридических лиц.",
+          ogImage: `${siteUrl}/og-image.png`,
+          ogType: "website",
+          canonical: `${siteUrl}/wholesale`,
+        });
+        html = html.replace('</head>', '  <meta name="robots" content="noindex,follow">\n  </head>');
       }
 
       // --- Static pages ---

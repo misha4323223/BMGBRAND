@@ -1,4 +1,5 @@
 import { storage } from "./storage";
+import { groqCompleteStream } from "./groq-utils";
 
 const SYSTEM_PROMPT = `Ты — AI-ассистент администратора интернет-магазина BMGBRAND (booomerangs.ru).
 Ты получаешь команды на русском и выполняешь операции с данными магазина.
@@ -490,26 +491,27 @@ export async function processAdminCommand(
     { role: "user" as const, content: command },
   ];
 
-  const resp = await fetch(`${groqBase}/openai/v1/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-    },
-    body: JSON.stringify({
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 60_000);
+  let raw: string;
+  try {
+    raw = await groqCompleteStream({
+      baseUrl: groqBase,
+      apiKey,
       model: "openai/gpt-oss-20b",
       messages,
       temperature: 0.1,
-      max_tokens: 1024,
-    }),
-  });
+      maxTokens: 2000,
+      signal: ctrl.signal,
+    });
+  } catch (err: any) {
+    if (err?.name === "AbortError") throw new Error("Groq не ответил за 60 секунд — попробуйте ещё раз");
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
-  if (!resp.ok) throw new Error(`Groq error: ${resp.status}`);
-  const data = (await resp.json()) as any;
-  let raw: string = (data.choices?.[0]?.message?.content || "").trim();
-
-  // Strip <think>...</think> tags from Qwen3 reasoning
-  raw = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  raw = raw.trim();
   // Strip markdown code block if present
   const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (codeBlock) raw = codeBlock[1].trim();

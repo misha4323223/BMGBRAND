@@ -704,7 +704,7 @@ export default function MerchOrder() {
                     Хотите также зарабатывать на продажах своего мерча? Ваша аудитория - ваши проценты.
                   </p>
                   <Button size="sm" variant="outline" className="w-full uppercase tracking-wider text-xs" asChild data-testid="btn-success-learn-partner">
-                    <Link href="/partner/register">Узнать о партнёрской программе</Link>
+                    <Link href="/partner">Узнать о партнёрской программе</Link>
                   </Button>
                 </div>
               )}

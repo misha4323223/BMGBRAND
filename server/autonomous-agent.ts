@@ -8,6 +8,7 @@ import {
 import { notifyAgentQueueItem, sendAgentAlert, sendAgentDigest } from "./telegram";
 import { vkNotifyAgentAlert, vkNotifyAgentDigest } from "./vk";
 import { sendPushToAdmins } from "./push-service";
+import { groqCompleteStream } from "./groq-utils";
 
 const MONDAY_SENT_KEY = "agent_monday_sent_date";
 
@@ -72,7 +73,7 @@ function sleep(ms: number) {
 async function groqComplete(
   userPrompt: string,
   systemPrompt: string,
-  maxTokens = 512
+  maxTokens = 1500
 ): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY_2 || process.env.GROQ_API_KEY;
   const proxyUrl = process.env.GROQ_PROXY_URL;
@@ -101,52 +102,41 @@ async function groqComplete(
   // До 3 попыток при 429. При каждом 429 ждём GROQ_429_WAIT_MS (3 мин).
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
-    const resp = await fetch(`${groqBase}/openai/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-      },
-      body: JSON.stringify({
+    try {
+      const text = await groqCompleteStream({
+        baseUrl: groqBase,
+        apiKey,
         model: "openai/gpt-oss-20b",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
         temperature: 0.3,
-        max_tokens: maxTokens,
-      }),
-    });
+        maxTokens,
+      });
 
-    if (resp.status === 429) {
-      const retryAfterSec = Number(resp.headers.get("retry-after") || "0");
-      const waitMs = Math.max(retryAfterSec * 1_000, GROQ_429_WAIT_MS);
-      lastError = new Error(`Groq 429 rate limit — stopping run until tomorrow`);
-      console.warn(`[AutonomousAgent] Groq 429 (attempt ${attempt + 1}/3) — waiting ${Math.round(waitMs / 1000)}s…`);
-      await sleep(waitMs);
-      requestsThisMinute = 0;
-      minuteWindowStart = Date.now();
-      if (attempt === 2) {
-        // 3-й раз подряд 429 — останавливаем весь батч до следующей ночи
-        throw new Error("Groq 429: три попытки подряд — батч остановлен до следующей ночи");
+      requestsThisRun++;
+      requestsThisMinute++;
+
+      // Пауза после каждого успешного запроса (5 секунд)
+      await sleep(GROQ_DELAY_MS);
+      return text;
+    } catch (err: any) {
+      if (err?.status === 429) {
+        const waitMs = GROQ_429_WAIT_MS;
+        lastError = new Error(`Groq 429 rate limit — stopping run until tomorrow`);
+        console.warn(`[AutonomousAgent] Groq 429 (attempt ${attempt + 1}/3) — waiting ${Math.round(waitMs / 1000)}s…`);
+        await sleep(waitMs);
+        requestsThisMinute = 0;
+        minuteWindowStart = Date.now();
+        if (attempt === 2) {
+          // 3-й раз подряд 429 — останавливаем весь батч до следующей ночи
+          throw new Error("Groq 429: три попытки подряд — батч остановлен до следующей ночи");
+        }
+        continue;
       }
-      continue;
+      throw err;
     }
-
-    if (!resp.ok) throw new Error(`Groq HTTP ${resp.status}`);
-
-    const data: any = await resp.json();
-    let text: string = data.choices?.[0]?.message?.content || "";
-    // Убираем <think>...</think> блоки (Qwen3 reasoning), включая незакрытые теги
-    text = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
-    text = text.replace(/<think>[\s\S]*/gi, "");
-    text = text.trim();
-    requestsThisRun++;
-    requestsThisMinute++;
-
-    // Пауза после каждого успешного запроса (5 секунд)
-    await sleep(GROQ_DELAY_MS);
-    return text;
   }
 
   throw lastError ?? new Error("Groq: all retries failed");
@@ -280,7 +270,7 @@ ${isPrint ? "ВАЖНО: это товар с авторским принтом,
 
 Сгенерируй seoTitle и seoDescription.`;
 
-      const raw = await groqComplete(prompt, SEO_SYSTEM, 1024);
+      const raw = await groqComplete(prompt, SEO_SYSTEM, 1500);
 
       console.log(`[AutonomousAgent] SEO raw for ${product.id}: ${raw.slice(0, 120)}`);
 
@@ -505,7 +495,7 @@ export async function runDescriptionJob(): Promise<void> {
 
 Задание: ${typeHint[productType]}`;
 
-      const description = await groqComplete(prompt, DESC_SYSTEM, 1024);
+      const description = await groqComplete(prompt, DESC_SYSTEM, 1500);
       if (!description || description.length < 20) continue;
 
       // Флаг «проверь принт» только когда принт реально детектирован
@@ -660,7 +650,7 @@ export async function runWeeklyDigest(force = false): Promise<void> {
         `новых покупателей: ${newBuyers}, повторных: ${returningBuyers}. ` +
         `Топ товар по продажам: ${sortedByQty[0]?.name || "—"} (${sortedByQty[0]?.qty || 0} шт.). ` +
         `Критический остаток (1 шт.): ${criticalStock} товаров.`;
-      aiComment = await groqComplete(digestSummaryForAi, DIGEST_AI_SYSTEM, 1024);
+      aiComment = await groqComplete(digestSummaryForAi, DIGEST_AI_SYSTEM, 1500);
     } catch (aiErr: any) {
       console.warn("[AutonomousAgent] Weekly digest: AI comment failed —", aiErr?.message);
     }
@@ -840,7 +830,7 @@ export async function runCartAnalysisJob(): Promise<void> {
         const bought = purchaseMap.get(id) ?? 0;
         return `${p.name} (${p.cartCount} корзин, ${bought} покупок за 30 дн., ${Math.round(p.price / 100)} ₽)`;
       });
-      const raw = await groqComplete(inputLines.join("\n"), CART_ANALYSIS_AI_SYSTEM, 600);
+      const raw = await groqComplete(inputLines.join("\n"), CART_ANALYSIS_AI_SYSTEM, 1200);
       const cleaned = raw.replace(/```(?:json)?|```/g, "").trim();
       const parsed = JSON.parse(cleaned);
       if (Array.isArray(parsed)) aiRecs = parsed.map(String);
@@ -1077,7 +1067,7 @@ export async function runChatGapAnalysisJob(): Promise<void> {
       const prompt = `Покупатели ${data.count} раз за неделю задавали похожие вопросы. Примеры:\n${sampleQueries}\n\nСоздай блок знаний для ИИ-ассистента.`;
 
       try {
-        const draftContent = await groqComplete(prompt, GAP_SYSTEM, 600);
+        const draftContent = await groqComplete(prompt, GAP_SYSTEM, 1200);
         if (!draftContent || draftContent.length < 20) continue;
 
         await addToQueue({
@@ -1182,7 +1172,7 @@ export async function runChatConversionAnalysisJob(): Promise<void> {
       `— Конверсия чат→покупка: ${conversionRate}%\n` +
       `— Топ тем в чате: ${topTopics || "данных нет"}`;
 
-    const insight = await groqComplete(statsText, CONVERSION_SYSTEM, 600);
+    const insight = await groqComplete(statsText, CONVERSION_SYSTEM, 1200);
     if (!insight || insight.length < 20) {
       console.log("[AutonomousAgent] Chat conversion: AI returned empty insight.");
       return;
@@ -1475,7 +1465,7 @@ export async function runFavoritesAnalysisJob(): Promise<void> {
       const inputLines = sorted.map(([, p]) =>
         `${p.name} (${p.favCount} в избранном, ${Math.round(p.price / 100)} ₽)`
       );
-      const raw = await groqComplete(inputLines.join("\n"), FAVORITES_AI_SYSTEM, 400);
+      const raw = await groqComplete(inputLines.join("\n"), FAVORITES_AI_SYSTEM, 1200);
       const cleaned = raw.replace(/```(?:json)?|```/g, "").trim();
       const parsed = JSON.parse(cleaned);
       if (Array.isArray(parsed)) aiRecs = parsed.map(String);
@@ -1671,7 +1661,7 @@ export async function runPriceDropAnalysisJob(force = false): Promise<void> {
         const dropPct = Math.round((1 - p.suggestedPrice / p.currentPrice) * 100);
         return `${p.productName} (${p.subscriberCount} подписчиков, цена ${curRub} ₽, ждут ${wantRub} ₽, скидка ~${dropPct}%)`;
       });
-      const raw = await groqComplete(inputLines.join("\n"), PRICE_DROP_AI_SYSTEM, 500);
+      const raw = await groqComplete(inputLines.join("\n"), PRICE_DROP_AI_SYSTEM, 1200);
       const cleaned = raw.replace(/```(?:json)?|```/g, "").trim();
       const parsed = JSON.parse(cleaned);
       if (Array.isArray(parsed)) aiRecs = parsed.map(String);
