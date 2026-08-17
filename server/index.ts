@@ -28,6 +28,7 @@ import { initAutonomousAgent } from "./autonomous-agent";
 import { startNewProductsNotifierJob } from "./new-products-notifier";
 import { startPreorderNotifierJob } from "./preorder-notifier";
 import { startPreorderStatusScheduler } from "./preorder-status-scheduler";
+import { startOrderNotifyWatcher } from "./order-notify-watcher";
 import { notifyError } from "./error-monitor";
 
 // Last-resort safety net: if a YDB-related promise escapes try/catch (e.g.
@@ -508,6 +509,7 @@ async function seedDefaultLegalDocuments() {
       startNewProductsNotifierJob();
       startPreorderNotifierJob();
       startPreorderStatusScheduler();
+      startOrderNotifyWatcher();
       migrateAiKnowledgeDefaults();
       migrateAiQuestionsTable()
         .then(r => console.log(`[AiQuestions] ${r.message}`))

@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { storage } from "./storage";
 
 const SITE_URL = process.env.SITE_URL || "https://www.booomerangs.ru";
 const VK_MAX_LENGTH = 4000;
@@ -141,7 +142,8 @@ interface OrderNotification {
   deliveryService?: string;
 }
 
-export function vkNotifyNewOrder(order: OrderNotification): void {
+export async function vkNotifyNewOrder(order: OrderNotification): Promise<boolean> {
+  try {
   const discountDetails: any = (order.items as any[]).find((i: any) => i && i._discountDetails)?._discountDetails;
   const items = order.items.filter((i: any) => !i._discountDetails);
   const totalQty = items.reduce((s, i) => s + i.quantity, 0);
@@ -227,8 +229,9 @@ export function vkNotifyNewOrder(order: OrderNotification): void {
   const fullText = header + sep + itemLines.join("\n") + sep + footer;
 
   if (fullText.length <= VK_MAX_LENGTH) {
-    sendVkMessage(fullText).catch(err => console.error("[VK] vkNotifyNewOrder failed:", err));
-    return;
+    const ok = await sendVkMessage(fullText);
+    if (ok) markOrderVkNotified(order.orderId).catch(() => {});
+    return ok;
   }
 
   const messages: string[] = [];
@@ -249,12 +252,40 @@ export function vkNotifyNewOrder(order: OrderNotification): void {
   current += sep + footer;
   messages.push(current);
 
-  const sendAll = async () => {
-    for (const msg of messages) {
-      await sendVkMessage(msg);
+  for (const msg of messages) {
+    const ok = await sendVkMessage(msg);
+    if (!ok) return false;
+  }
+  markOrderVkNotified(order.orderId).catch(() => {});
+  return true;
+  } catch (err: any) {
+    console.error("[VK] vkNotifyNewOrder failed:", err?.message);
+    return false;
+  }
+}
+
+/**
+ * Помечает заказ как успешно уведомлённый в VK-чат.
+ * Флаг хранится в существующей колонке orders.addon_data (JSON, ключ vkNotifiedAt),
+ * чтобы страховочный watcher не отправлял один и тот же заказ повторно.
+ * Читает свежий addon_data перед записью — не затирает параллельные записи (Ozon и т.п.).
+ */
+export async function markOrderVkNotified(orderId: number | string): Promise<void> {
+  const nid = Number(orderId);
+  if (!Number.isFinite(nid) || nid <= 0) return;
+  try {
+    const order = await storage.getOrder(nid);
+    if (!order) return;
+    let existing: Record<string, any> = {};
+    try {
+      existing = JSON.parse(order.addonData || "{}");
+    } catch {
+      existing = {};
     }
-  };
-  sendAll().catch(err => console.error("[VK] vkNotifyNewOrder failed:", err));
+    await storage.updateOrderAddonData(nid, JSON.stringify({ ...existing, vkNotifiedAt: new Date().toISOString() }));
+  } catch (err: any) {
+    console.error(`[VK] Failed to save vkNotifiedAt for order ${orderId}:`, err?.message);
+  }
 }
 
 interface PreorderNotification {
