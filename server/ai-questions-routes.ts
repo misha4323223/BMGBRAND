@@ -56,19 +56,22 @@ async function generateFaqDraft(question: string, faqContext: Array<{ question: 
   const proxyUrl = process.env.GROQ_PROXY_URL;
   const groqBase = proxyUrl ? proxyUrl.replace(/\/$/, "") : "https://api.groq.com";
   const keys = [process.env.GROQ_API_KEY_2, process.env.GROQ_API_KEY].filter(Boolean) as string[];
-  if (keys.length === 0) throw new Error("AI service not configured");
+  // Proxy deployments may inject the Groq key server-side, so a key is only
+  // mandatory when there is no proxy either (mirrors admin-agent.ts).
+  if (keys.length === 0 && !proxyUrl) throw new Error("AI service not configured");
+  const attempts = keys.length > 0 ? keys : [""];
 
   let lastError: Error | null = null;
-  for (const key of keys) {
+  for (const key of attempts) {
     try {
       const resp = await fetch(`${groqBase}/openai/v1/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
+          ...(key ? { Authorization: `Bearer ${key}` } : {}),
         },
         body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
+          model: "openai/gpt-oss-20b",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: `Вопрос покупателя: ${question}` },
@@ -95,7 +98,12 @@ async function generateFaqDraft(question: string, faqContext: Array<{ question: 
       }
 
       const data = (await resp.json()) as any;
-      const text: string = (data.choices?.[0]?.message?.content || "").trim();
+      // gpt-oss-20b is a reasoning model — strip any <think>…</think> tokens
+      // so the saved FAQ draft contains only the visible answer.
+      const text: string = (data.choices?.[0]?.message?.content || "")
+        .replace(/<think>[\s\S]*?<\/think>/gi, "")
+        .replace(/<think>[\s\S]*/gi, "")
+        .trim();
       if (!text) throw new Error("Groq вернул пустой ответ");
       return text;
     } catch (err: any) {
@@ -111,48 +119,49 @@ async function generateFaqDraft(question: string, faqContext: Array<{ question: 
 export function registerAiQuestionsRoutes(app: Express): void {
   // List collected questions + current FAQ items (so the UI can flag duplicates).
   app.get("/api/admin/ai-questions", async (req: Request, res: Response) => {
-    if (!isAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+    if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
     try {
       const [questions, faq] = await Promise.all([listAiQuestions(), loadFaqItems()]);
       res.json({ questions, faq });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ message: err.message });
     }
   });
 
   // Generate a draft answer with Groq for a collected question.
   app.post("/api/admin/ai-questions/:question/regenerate", async (req: Request, res: Response) => {
-    if (!isAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+    if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
     try {
       const question = normalizeAiQuestion(String(req.params.question || "").trim());
-      if (!question) return res.status(400).json({ error: "Вопрос пустой" });
+      if (!question) return res.status(400).json({ message: "Вопрос пустой" });
       const faq = await loadFaqItems();
       const draft = await generateFaqDraft(question, faq);
       await setAiQuestionDraft(question, draft, "draft");
       res.json({ draft, status: "draft" });
     } catch (err: any) {
-      res.status(502).json({ error: err.message || "AI недоступен" });
+      console.error("[AiQuestions] regenerate error:", err?.message || err);
+      res.status(502).json({ message: err.message || "AI недоступен" });
     }
   });
 
   // Save an edited draft (no AI call).
   app.post("/api/admin/ai-questions/:question/draft", async (req: Request, res: Response) => {
-    if (!isAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+    if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
     try {
       const question = normalizeAiQuestion(String(req.params.question || "").trim());
       const answer = String((req.body as any)?.answer || "").trim();
       const status = String((req.body as any)?.status || "draft");
-      if (!question || !answer) return res.status(400).json({ error: "Нужны вопрос и ответ" });
+      if (!question || !answer) return res.status(400).json({ message: "Нужны вопрос и ответ" });
       await setAiQuestionDraft(question, answer, status);
       res.json({ success: true });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ message: err.message });
     }
   });
 
   // Append the draft to the public FAQ page (static_pages → faq_data.items).
   app.post("/api/admin/ai-questions/:question/add-to-faq", async (req: Request, res: Response) => {
-    if (!isAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+    if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
     try {
       const question = normalizeAiQuestion(String(req.params.question || "").trim());
       const faq = await loadFaqItems();
@@ -162,7 +171,7 @@ export function registerAiQuestionsRoutes(app: Express): void {
       }
       const row = (await listAiQuestions()).find((r) => r.question === question);
       const answer = String(req.body?.answer || row?.draftAnswer || "").trim();
-      if (!answer) return res.status(400).json({ error: "Сначала сгенерируйте или введите ответ" });
+      if (!answer) return res.status(400).json({ message: "Сначала сгенерируйте или введите ответ" });
       const newItems = [
         ...faq,
         { question: row?.originalText || question, answer },
@@ -171,13 +180,13 @@ export function registerAiQuestionsRoutes(app: Express): void {
       await setAiQuestionDraft(question, answer, "published");
       res.json({ success: true, added: true, faqCount: newItems.length });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ message: err.message });
     }
   });
 
   // Bulk cleanup: delete stale / never-repeated questions (or all, when no criteria given).
   app.post("/api/admin/ai-questions/prune", async (req: Request, res: Response) => {
-    if (!isAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+    if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
     try {
       const olderThanDays = Number((req.body as any)?.olderThanDays ?? 0);
       const maxCount = Number((req.body as any)?.maxCount ?? 0);
@@ -187,19 +196,19 @@ export function registerAiQuestionsRoutes(app: Express): void {
       });
       res.json({ success: true, deleted });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ message: err.message });
     }
   });
 
   // Remove a collected question (does NOT touch the public FAQ page).
   app.delete("/api/admin/ai-questions/:question", async (req: Request, res: Response) => {
-    if (!isAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+    if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
     try {
       const question = normalizeAiQuestion(String(req.params.question || "").trim());
       await deleteAiQuestion(question);
       res.json({ success: true });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ message: err.message });
     }
   });
 }

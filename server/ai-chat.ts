@@ -976,7 +976,7 @@ export function registerAiChatRoute(app: Express): void {
         .map((m: any) => m.content as string)
         .join(' ');
       const topicKey = detectAiTopic(lastMsgContent) ?? detectAiTopic(recentUserContents);
-      console.log(`[AI Chat] model=llama-3.1-8b-instant query="${(lastUserMsg?.content || '').substring(0, 60)}" topic=${topicKey || 'none'}`);
+      console.log(`[AI Chat] model=openai/gpt-oss-20b query="${(lastUserMsg?.content || '').substring(0, 60)}" topic=${topicKey || 'none'}`);
       logChatTopic(lastUserMsg?.content || '', topicKey);
       // --- FAQ analytics: persist the user question (fire-and-forget, never blocks the chat) ---
       try {
@@ -1045,7 +1045,7 @@ export function registerAiChatRoute(app: Express): void {
       // FIX #5: raised from 600 → 1000 for regular questions so think-tokens don't eat the answer
       const isSizeAdvisor = !!sizeAdvisorContext;
       const groqBody = {
-        model: "llama-3.1-8b-instant",
+        model: "openai/gpt-oss-20b",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages.slice(-10),
@@ -1599,10 +1599,10 @@ export function registerProductInfoRoute(app: Express): void {
       res.flushHeaders();
 
       // ── Helper: one Groq streaming attempt, returns chars written ────────────
-      // llama-3.1-8b-instant: быстрая модель для карточки товара (300-700ms)
-      // Основной чат теперь тоже использует llama-3.1-8b-instant (как и карточка товара)
+      // openai/gpt-oss-20b: быстрая модель для карточки товара (300-700ms)
+      // Основной чат теперь тоже использует openai/gpt-oss-20b (как и карточка товара)
       const groqBody = (apiKey: string) => JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "openai/gpt-oss-20b",
         messages: [{ role: "system", content: sys }, ...messages.slice(-6)],
         max_tokens: 900,
         temperature: 0.6,
