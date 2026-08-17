@@ -837,6 +837,16 @@ export default function ProductDetail() {
     "returnMethod": "https://schema.org/ReturnByMail",
     "returnFees": "https://schema.org/ReturnFeesCustomerResponsibility",
   };
+  const shippingDetails = {
+    "@type": "OfferShippingDetails",
+    "shippingRate": { "@type": "MonetaryAmount", "currency": "RUB", "minValue": "0", "maxValue": "600" },
+    "shippingDestination": { "@type": "DefinedRegion", "addressCountry": "RU" },
+    "deliveryTime": {
+      "@type": "ShippingDeliveryTime",
+      "handlingTime": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 2, "unitCode": "DAY" },
+      "transitTime": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 10, "unitCode": "DAY" },
+    },
+  };
 
   // ─── Admin JSON-LD override (Variant B) ─────────────────────────────────────
   // If admin set seoJsonLd with @type Product → its fields merge ON TOP of the
@@ -891,6 +901,7 @@ export default function ProductDetail() {
       "url": productUrl,
       "seller": { "@id": organizationSchema["@id"] },
       "hasMerchantReturnPolicy": merchantReturnPolicy,
+      "shippingDetails": shippingDetails,
     },
     ...(product.category ? { "category": product.category } : {}),
     ...((product.colors?.length > 0 || selectedColorName) ? { "color": product.colors?.length > 0 ? product.colors.join(", ") : selectedColorName } : {}),

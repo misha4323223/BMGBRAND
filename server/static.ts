@@ -401,6 +401,38 @@ function buildMerchantReturnPolicy(siteUrl: string) {
   };
 }
 
+// Стандартные условия доставки по России СДЭК/Яндекс.
+function buildShippingDetails() {
+  return {
+    "@type": "OfferShippingDetails",
+    "shippingRate": {
+      "@type": "MonetaryAmount",
+      "currency": "RUB",
+      "minValue": "0",
+      "maxValue": "600",
+    },
+    "shippingDestination": {
+      "@type": "DefinedRegion",
+      "addressCountry": "RU",
+    },
+    "deliveryTime": {
+      "@type": "ShippingDeliveryTime",
+      "handlingTime": {
+        "@type": "QuantitativeValue",
+        "minValue": 1,
+        "maxValue": 2,
+        "unitCode": "DAY",
+      },
+      "transitTime": {
+        "@type": "QuantitativeValue",
+        "minValue": 1,
+        "maxValue": 10,
+        "unitCode": "DAY",
+      },
+    },
+  };
+}
+
 function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProductMetaBySlug>>, slug: string, siteUrl: string): string {
   const isMerch = ["merch", "мерч"].includes(meta.category.toLowerCase());
   const pageDesc = meta.seoDescription || [
@@ -440,6 +472,7 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
       "url": productUrl,
       "seller": { "@id": organizationSchema["@id"] },
       "hasMerchantReturnPolicy": buildMerchantReturnPolicy(siteUrl),
+      "shippingDetails": buildShippingDetails(),
     },
     ...(rating && rating.reviewCount >= 1 ? {
       "aggregateRating": {
@@ -550,21 +583,41 @@ export function serveStatic(app: Express) {
   }
 
   const assetsDir = path.join(distPath, "assets");
+  const indexHtmlPath = path.resolve(distPath, "index.html");
   let cssFileName = "";
   let jsFileName = "";
   let allJsChunks: string[] = [];
+  let homeChunkFileName = "";
   try {
     const files = fs.readdirSync(assetsDir);
     cssFileName = files.find((f: string) => f.endsWith(".css") && f.startsWith("index-")) || "";
-    jsFileName = files.find((f: string) => f.endsWith(".js") && f.startsWith("index-")) || "";
+    // The entry chunk is whatever index.html actually loads, NOT the first
+    // "index-*.js" alphabetically — there can be a second, smaller chunk whose
+    // hash sorts before the entry (e.g. index-BvF... < index-DaK...). Getting
+    // this wrong would re-preload the 150 KB entry as a "shared" chunk.
+    let entryFileName = "";
+    try {
+      const idxHtml = fs.readFileSync(indexHtmlPath, "utf-8");
+      const entryMatch = idxHtml.match(/<script[^>]*src="\/assets\/(index-[^"]+\.js)"/);
+      entryFileName = entryMatch ? entryMatch[1] : "";
+    } catch {}
+    jsFileName = entryFileName || files.find((f: string) => f.endsWith(".js") && f.startsWith("index-")) || "";
+    // Home page chunk is lazy-loaded by React Router — preloaded per-request on "/".
+    homeChunkFileName = files.find((f: string) => f.endsWith(".js") && f.startsWith("Home-")) || "";
     // Page-specific chunks — load lazily per route, never preload globally
     const pageChunkPrefixes = [
       "Admin", "Home", "ProductList", "ProductDetail", "Cart", "Checkout",
       "Profile", "About", "FAQ", "Blog", "BlogDetail", "ArtistPage",
       "WholesaleRegister", "WholesaleProfile", "WholesalePreorder",
+      // Partner pages are heavy (PartnerProfile ≈136 KB) and only used after
+      // partner login — never preload them on the storefront/home page.
+      "Partner",
       "GiftCard", "Order", "Favorites", "Links", "TrackOrder",
-      "ConceptPage", "Vacancies", "Terms", "Privacy", "SlugResolver",
-      "VerifyEmail", "ResetPassword", "MerchOrder", "Care"
+      // "Concept" covers both ConceptPage and ConceptCampaignPage.
+      "Concept", "PreorderCheckout", "Vacancies", "Terms", "Privacy", "SlugResolver",
+      "VerifyEmail", "ResetPassword", "MerchOrder", "Care",
+      // Deferred widgets loaded via requestIdleCallback — never preload globally.
+      "ChatWidget", "CookieConsent", "NewsletterPopup"
     ];
     const isPageChunk = (name: string) =>
       pageChunkPrefixes.some(prefix => name.startsWith(prefix));
@@ -589,7 +642,6 @@ export function serveStatic(app: Express) {
   const criticalChunks = allJsChunks.slice(0, 6);
   const secondaryChunks = allJsChunks.slice(6);
 
-  const indexHtmlPath = path.resolve(distPath, "index.html");
   let cachedHtml = "";
   try {
     let html = fs.readFileSync(indexHtmlPath, "utf-8");
@@ -697,6 +749,9 @@ export function serveStatic(app: Express) {
 
     const isHomePage = url === "/" || url === "";
     if (isHomePage) {
+      // Preload the lazy Home route chunk in parallel with the entry chunk,
+      // instead of waiting for React Router to trigger a second round-trip.
+      if (homeChunkFileName) linkParts.push(`</assets/${homeChunkFileName}>; rel=modulepreload`);
       linkParts.push(`</api/products?page=1&limit=24>; rel=preload; as=fetch`);
       linkParts.push(`</api/page-settings/home>; rel=preload; as=fetch`);
       linkParts.push(`</api/page-settings/navbar>; rel=preload; as=fetch`);
@@ -733,6 +788,10 @@ export function serveStatic(app: Express) {
     }
 
     if (isHomePage) {
+      if (homeChunkFileName) {
+        const homeChunkTag = `<link rel="modulepreload" href="/assets/${homeChunkFileName}">`;
+        html = html.replace('</head>', `    ${homeChunkTag}\n  </head>`);
+      }
       const heroData = getCachedHeroData();
       if (heroData) {
         const safeHero = JSON.stringify(heroData).replace(/<\/script>/gi, '<\\/script>');

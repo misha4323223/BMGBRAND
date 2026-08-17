@@ -1,5 +1,5 @@
 import SEO from "@/components/SEO";
-import { ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Truck, Palette, Flag, Mail, Shirt, Pencil, Settings2, ShoppingBag, Globe, X } from "lucide-react";
+import { ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Truck, Palette, Flag, Shirt, Pencil, Settings2, ShoppingBag, Globe, X } from "lucide-react";
 
 declare global {
   interface Window {
@@ -71,34 +71,6 @@ function LazyVideo({ src, className }: { src: string; className?: string }) {
       className={className}
     />
   );
-}
-
-function LazySection({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          observer.disconnect();
-          if (typeof requestIdleCallback !== "undefined") {
-            requestIdleCallback(() => setMounted(true), { timeout: 2000 });
-          } else {
-            setTimeout(() => setMounted(true), 50);
-          }
-        }
-      },
-      { rootMargin: "800px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  if (!mounted) return <div ref={ref} />;
-  return <>{children}</>;
 }
 
 function getOptimizedImageUrl(url: string): string {
@@ -839,6 +811,8 @@ export default function Home() {
                       alt={s.heroImageAlt || "Booomerangs — российский бренд одежды и мерча"}
                       loading={i === 0 ? "eager" : "lazy"}
                       fetchpriority={i === 0 ? "high" : "low"}
+                      width={2560}
+                      height={1740}
                       className="w-full h-full object-cover object-center"
                     />
                   </picture>
@@ -854,6 +828,8 @@ export default function Home() {
                     alt={desktopSlide.heroImageAlt || "Booomerangs — российский бренд одежды и мерча"}
                     loading="eager"
                     fetchpriority="high"
+                    width={2560}
+                    height={1740}
                     className="w-full h-full object-cover object-center"
                   />
                 </picture>
@@ -868,6 +844,8 @@ export default function Home() {
                     alt={window.__HERO__.imgAlt || "Booomerangs — российский бренд одежды и мерча"}
                     loading="eager"
                     fetchpriority="high"
+                    width={2560}
+                    height={1740}
                     className="w-full h-full object-cover object-center"
                   />
                 </picture>
@@ -894,7 +872,7 @@ export default function Home() {
                 ) : (
                   <picture className="absolute inset-0 block">
                     {pageSettings?.hero?.heroImageMobile && <source media="(max-width: 639px)" srcSet={pageSettings.hero.heroImageMobile} />}
-                    <img src={pageSettings?.hero?.heroImage || ""} alt={pageSettings?.hero?.heroImageAlt || "Booomerangs — российский бренд одежды и мерча"} loading="eager" fetchpriority="high" className="w-full h-full object-cover object-center" />
+                    <img src={pageSettings?.hero?.heroImage || ""} alt={pageSettings?.hero?.heroImageAlt || "Booomerangs — российский бренд одежды и мерча"} loading="eager" fetchpriority="high" width={2560} height={1740} className="w-full h-full object-cover object-center" />
                   </picture>
                 )}
               </div>

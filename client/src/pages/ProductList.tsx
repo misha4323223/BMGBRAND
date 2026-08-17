@@ -1430,6 +1430,55 @@ function productImageUrl(p: any): string | undefined {
   return img.startsWith("http") ? img : `${window.location.origin}${img}`;
 }
 
+const LISTING_MERCHANT_RETURN_POLICY = {
+  "@type": "MerchantReturnPolicy",
+  "applicableCountry": "RU",
+  "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+  "merchantReturnDays": 14,
+  "returnMethod": "https://schema.org/ReturnByMail",
+  "returnFees": "https://schema.org/ReturnFeesCustomerResponsibility",
+};
+
+const LISTING_SHIPPING_DETAILS = {
+  "@type": "OfferShippingDetails",
+  "shippingRate": { "@type": "MonetaryAmount", "currency": "RUB", "minValue": "0", "maxValue": "600" },
+  "shippingDestination": { "@type": "DefinedRegion", "addressCountry": "RU" },
+  "deliveryTime": {
+    "@type": "ShippingDeliveryTime",
+    "handlingTime": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 2, "unitCode": "DAY" },
+    "transitTime": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 10, "unitCode": "DAY" },
+  },
+};
+
+// Полная Product-сущность для CollectionPage: description + торговая политика
+// (возврат/доставка) обязательны для Google Merchant — раньше их не было.
+function buildListingProductItem(p: any): Record<string, any> {
+  const rawDesc = p.description || "";
+  const description = rawDesc
+    ? String(rawDesc).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160)
+    : `Купить ${p.name} в интернет-магазине BMGBRAND. Доставка по России.`;
+  return {
+    "@type": "Product",
+    "name": p.name,
+    "description": description,
+    "image": productImageUrl(p),
+    "sku": p.article || p.sku || String(p.id),
+    "brand": { "@type": "Brand", "name": "BMGBRAND" },
+    "url": `${window.location.origin}/${p.slug}`,
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "RUB",
+      "price": ((p.price || 0) / 100).toFixed(2),
+      "availability": (p.stock ?? 0) > 0
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+      "url": `${window.location.origin}/${p.slug}`,
+      "hasMerchantReturnPolicy": LISTING_MERCHANT_RETURN_POLICY,
+      "shippingDetails": LISTING_SHIPPING_DETAILS,
+    },
+  };
+}
+
 export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlug, forcedUrlSlug }: ProductListProps = {}) {
   const { isWholesale } = useWholesalePrice();
   const [, catSubSubParams] = useRoute("/products/:catSlug/:subSlug/:subSubSlug");
@@ -1898,22 +1947,7 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
             "itemListElement": allProducts.slice(0, 12).map((p: any, i: number) => ({
               "@type": "ListItem",
               "position": i + 1,
-              "item": {
-                "@type": "Product",
-                "name": p.name,
-                "image": productImageUrl(p),
-                "sku": p.article || p.sku || String(p.id),
-                "brand": { "@type": "Brand", "name": "BMGBRAND" },
-                "url": `${window.location.origin}/${p.slug}`,
-                "offers": {
-                  "@type": "Offer",
-                  "priceCurrency": "RUB",
-                  "price": ((p.price || 0) / 100).toFixed(2),
-                  "availability": (p.stock ?? 0) > 0
-                    ? "https://schema.org/InStock"
-                    : "https://schema.org/OutOfStock",
-                },
-              },
+              "item": buildListingProductItem(p),
             })),
           }] : []),
         ]}

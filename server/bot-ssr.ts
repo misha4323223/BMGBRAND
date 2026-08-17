@@ -421,6 +421,43 @@ function productImageUrl(p: any): string | undefined {
   return img.startsWith("http") ? img : `${SITE_URL}${img}`;
 }
 
+/**
+ * Полная Product-сущность для листингов (ItemList / CollectionPage).
+ * Google Merchant требует в каждом offers поля hasMerchantReturnPolicy и
+ * shippingDetails, а в самом Product — description. Раньше листинги отдавали
+ * «лёгкий» Product без этих полей, из-за чего Search Console ругался на
+ * /remni, /products/accessories и другие страницы-каталоги.
+ */
+function buildListingProductItem(
+  p: any,
+  opts: { availability?: string; url?: string } = {},
+): Record<string, any> {
+  const url = opts.url || `${SITE_URL}/${p.slug}`;
+  const availability = opts.availability || cardStatus(p).availability;
+  const rawDesc = p.description || p.seoDescription || "";
+  const description = rawDesc
+    ? trimDesc(stripHtml(String(rawDesc)), 160)
+    : `Купить ${p.name} в интернет-магазине BMGBRAND. Доставка по России.`;
+  return {
+    "@type": "Product",
+    "name": p.name,
+    "description": description,
+    "image": productImageUrl(p),
+    "sku": p.article || p.sku || String(p.id),
+    "brand": { "@type": "Brand", "name": "BMGBRAND" },
+    "url": url,
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "RUB",
+      "price": (p.price / 100).toFixed(2),
+      "availability": availability,
+      "url": url,
+      "hasMerchantReturnPolicy": buildMerchantReturnPolicy(),
+      "shippingDetails": buildShippingDetails(),
+    },
+  };
+}
+
 function baseHead(opts: {
   title: string;
   description: string;
@@ -644,20 +681,7 @@ function renderCatalog(): string | null {
       "itemListElement": topProducts.map((p, i) => ({
         "@type": "ListItem",
         "position": i + 1,
-        "item": {
-          "@type": "Product",
-          "name": p.name,
-          "image": productImageUrl(p),
-          "sku": p.article || p.sku || String(p.id),
-          "brand": { "@type": "Brand", "name": "BMGBRAND" },
-          "url": `${SITE_URL}/${p.slug}`,
-          "offers": {
-            "@type": "Offer",
-            "priceCurrency": "RUB",
-            "price": (p.price / 100).toFixed(2),
-            "availability": cardStatus(p).availability,
-          },
-        },
+        "item": buildListingProductItem(p),
       })),
     },
   ]);
@@ -770,20 +794,7 @@ function renderCategory(catSlug: string): string | null {
       "itemListElement": allSorted.map((p, i) => ({
         "@type": "ListItem",
         "position": i + 1,
-        "item": {
-          "@type": "Product",
-          "name": p.name,
-          "image": productImageUrl(p),
-          "sku": p.article || p.sku || String(p.id),
-          "brand": { "@type": "Brand", "name": "BMGBRAND" },
-          "url": `${SITE_URL}/${p.slug}`,
-          "offers": {
-            "@type": "Offer",
-            "priceCurrency": "RUB",
-            "price": (p.price / 100).toFixed(2),
-            "availability": cardStatus(p).availability,
-          },
-        },
+        "item": buildListingProductItem(p),
       })),
     },
   ]);
@@ -981,6 +992,25 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
       const variants = findProductVariantsSync(currentAsInput, variantCandidates)
         .filter(v => v.slug && v.slug !== slug);
       if (variants.length > 0) {
+        // Каждый вариант группы получает собственные offers (цена + наличие),
+        // как рекомендует Google для ProductGroup — раньше варианты были только
+        // «указателями» без цены. Предзаказ наследуется от текущего товара:
+        // варианты цвета относятся к той же модели.
+        const variantAvailability = (stock: number) =>
+          meta.preorderEnabled
+            ? "https://schema.org/PreOrder"
+            : stock > 0
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock";
+        const variantOffers = (price: number, stock: number, url: string) => ({
+          "@type": "Offer",
+          "priceCurrency": "RUB",
+          "price": (price / 100).toFixed(2),
+          "availability": variantAvailability(stock),
+          "url": url,
+          "hasMerchantReturnPolicy": buildMerchantReturnPolicy(),
+          "shippingDetails": buildShippingDetails(),
+        });
         productSchema.isVariantOf = {
           "@type": "ProductGroup",
           "name": meta.title,
@@ -992,12 +1022,14 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
               "url": `${SITE_URL}/${slug}`,
               "sku": meta.sku,
               "image": meta.image || undefined,
+              "offers": variantOffers(meta.price, meta.stock, `${SITE_URL}/${slug}`),
             },
             ...variants.map(v => ({
               "@type": "Product",
               "name": v.name,
               "url": `${SITE_URL}/${v.slug}`,
               "image": v.imageUrl || undefined,
+              "offers": variantOffers(v.price, v.stock, `${SITE_URL}/${v.slug}`),
             })),
           ],
         };
@@ -1290,20 +1322,7 @@ function renderSubcategory(subSlug: string, canonicalSlug?: string): string | nu
       "itemListElement": allSorted.slice(0, 30).map((p: any, i: number) => ({
         "@type": "ListItem",
         "position": i + 1,
-        "item": {
-          "@type": "Product",
-          "name": p.name,
-          "image": productImageUrl(p),
-          "sku": p.article || p.sku || String(p.id),
-          "brand": { "@type": "Brand", "name": "BMGBRAND" },
-          "url": `${SITE_URL}/${p.slug}`,
-          "offers": {
-            "@type": "Offer",
-            "priceCurrency": "RUB",
-            "price": (p.price / 100).toFixed(2),
-            "availability": cardStatus(p).availability,
-          },
-        },
+        "item": buildListingProductItem(p),
       })),
     },
   ]);
@@ -1441,20 +1460,7 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
       "itemListElement": allSorted.slice(0, 30).map((p: any, i: number) => ({
         "@type": "ListItem",
         "position": i + 1,
-        "item": {
-          "@type": "Product",
-          "name": p.name,
-          "image": productImageUrl(p),
-          "sku": p.article || p.sku || String(p.id),
-          "brand": { "@type": "Brand", "name": "BMGBRAND" },
-          "url": `${SITE_URL}/${p.slug}`,
-          "offers": {
-            "@type": "Offer",
-            "priceCurrency": "RUB",
-            "price": (p.price / 100).toFixed(2),
-            "availability": cardStatus(p).availability,
-          },
-        },
+        "item": buildListingProductItem(p),
       })),
     },
   ]);
@@ -1976,20 +1982,7 @@ function renderConceptCampaign(slug: string): string | null {
       "itemListElement": campaignProducts.slice(0, 20).map((p: any, i: number) => ({
         "@type": "ListItem",
         "position": i + 1,
-        "item": {
-          "@type": "Product",
-          "name": p.name,
-          "image": productImageUrl(p),
-          "sku": p.article || p.sku || String(p.id),
-          "brand": { "@type": "Brand", "name": "BMGBRAND" },
-          "url": p.slug ? `${SITE_URL}/${p.slug}` : `${SITE_URL}/concept/${slug}`,
-          "offers": {
-            "@type": "Offer",
-            "priceCurrency": "RUB",
-            "price": (p.price / 100).toFixed(2),
-            "availability": "https://schema.org/PreOrder",
-          },
-        },
+        "item": buildListingProductItem(p, { availability: "https://schema.org/PreOrder", url: p.slug ? `${SITE_URL}/${p.slug}` : `${SITE_URL}/concept/${slug}` }),
       })),
     }] : []),
   ]);
@@ -2359,6 +2352,8 @@ function renderGiftCards(): string {
         "availability": "https://schema.org/InStock",
         "url": `${SITE_URL}/gift-cards`,
         "seller": { "@id": `${SITE_URL}/#organization` },
+        "hasMerchantReturnPolicy": buildMerchantReturnPolicy(),
+        "shippingDetails": buildShippingDetails(),
       })),
     },
   ]);
