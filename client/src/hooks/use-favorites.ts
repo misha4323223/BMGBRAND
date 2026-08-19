@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 
 const LOCAL_STORAGE_KEY = "guest_favorites";
 const LOCAL_QUERY_KEY = ["local_favorites"];
@@ -21,6 +21,15 @@ function setLocalFavorites(ids: number[]) {
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(ids));
   queryClient.setQueryData<number[]>(LOCAL_QUERY_KEY, ids);
 }
+
+function removeLocalFavorite(productId: number) {
+  setLocalFavorites(getLocalFavorites().filter((id) => id !== productId));
+}
+
+// Синхронизация гостевых избранных на сервер выполняется один раз на сессию входа,
+// иначе при каждом перемонтировании/ревалидации старые id заново заливаются на сервер
+// и «воскрешают» удалённое избранное.
+let guestFavoritesSyncDone = false;
 
 export function useFavoriteStatus(productId: number): boolean {
   const { data: authData } = useAuth();
@@ -86,6 +95,7 @@ export function useFavoriteActions() {
         await queryClient.cancelQueries({ queryKey: ["/api/auth/favorites"] });
         const prev = queryClient.getQueryData<number[]>(["/api/auth/favorites"]) || [];
         queryClient.setQueryData<number[]>(["/api/auth/favorites"], prev.filter(id => id !== productId));
+        removeLocalFavorite(productId);
         return { prev };
       } else {
         setLocalFavorites(getLocalFavorites().filter(id => id !== productId));
@@ -116,7 +126,6 @@ export function useFavoriteActions() {
 export function useFavorites() {
   const { data: authData } = useAuth();
   const isLoggedIn = !!authData?.user;
-  const syncedRef = useRef(false);
 
   const { data: serverFavorites = [], isLoading: serverLoading } = useQuery<number[]>({
     queryKey: ["/api/auth/favorites"],
@@ -136,17 +145,21 @@ export function useFavorites() {
 
   useEffect(() => {
     if (!isLoggedIn) {
-      syncedRef.current = false;
+      guestFavoritesSyncDone = false;
       queryClient.setQueryData<number[]>(LOCAL_QUERY_KEY, getLocalFavorites());
     }
   }, [isLoggedIn]);
 
   useEffect(() => {
-    if (!isLoggedIn || syncedRef.current || serverLoading) return;
+    if (!isLoggedIn || guestFavoritesSyncDone || serverLoading) return;
     const pending = getLocalFavorites();
-    if (pending.length === 0) return;
+    if (pending.length === 0) {
+      // Нет гостевых избранных — не повторяем попытку при каждой ревалидации.
+      guestFavoritesSyncDone = true;
+      return;
+    }
 
-    syncedRef.current = true;
+    guestFavoritesSyncDone = true;
     let mounted = true;
     const sync = async () => {
       try {
@@ -173,7 +186,7 @@ export function useFavorites() {
         }
       } catch (err) {
         console.error("[Favorites] Sync error:", err);
-        syncedRef.current = false;
+        guestFavoritesSyncDone = false; // повторим при следующей возможности
       }
     };
     sync();
@@ -223,6 +236,7 @@ export function useFavorites() {
         await queryClient.cancelQueries({ queryKey: ["/api/auth/favorites"] });
         const prev = queryClient.getQueryData<number[]>(["/api/auth/favorites"]) || [];
         queryClient.setQueryData<number[]>(["/api/auth/favorites"], prev.filter(id => id !== productId));
+        removeLocalFavorite(productId);
         return { prev };
       } else {
         const current = getLocalFavorites();

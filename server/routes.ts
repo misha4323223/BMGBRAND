@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { config } from "./config";
 import { getPushSubs, savePushSubs, sendPushToAll as _sendPushToAllSvc, getAdminPushSubs, saveAdminPushSubs, sendPushToAdmins as _sendPushToAdminsSvc, acquirePushLock, releasePushLock, getPushHistory, sendPushToUser, orderStatusPushPayload } from './push-service';
 import type { Server } from "http";
-import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsForSeoAudit, getCachedProductsByCategory, isProductsCacheWarm } from "./storage";
+import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsForSeoAudit, getCachedProductsByCategory, isProductsCacheWarm, isLoyaltyCountedStatus } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import express from "express";
@@ -30,6 +30,7 @@ import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PV
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
 import { runAbandonedCartCheck, addAbandonedCartUnsub } from "./abandoned-cart";
 import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow, removeFromNewProductsQueue, addToNewProductsQueueManual } from "./new-products-notifier";
+import { getReviewRequestCandidates, sendReviewRequestsNow, sendReviewRequestPreview } from "./review-request-email";
 import { enqueuePreorderProduct, getPreorderQueueStatus, triggerPreorderNotifierNow, removeFromPreorderQueue, addToPreorderQueueManual } from "./preorder-notifier";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getOrderReadyForPickupEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
 import { CATEGORIES as SEO_CATEGORY_DEFAULTS, ARTISTS as SEO_ARTIST_DEFAULTS, HOME_SEO_DEFAULT, CONCEPT_SEO_DEFAULT, MERCH_ORDER_SEO_DEFAULT, PARTNER_REGISTER_SEO_DEFAULT } from "./static";
@@ -2115,7 +2116,7 @@ ${faqSection}
       "merch":       { id: 2, name: "Мерч" },
       "socks":       { id: 3, name: "Носки" },
       "accessories": { id: 4, name: "Аксессуары" },
-      "sale":        { id: 5, name: "Распродажа" },
+      "sale":        { id: 5, name: "SALE" },
     };
 
     try {
@@ -3930,11 +3931,10 @@ ${faqSection}
 
                 if (order.userId && !order.isWholesale) {
                   try {
-                    await storage.updateUserTotalSpent(order.userId, order.total);
-                    const newDiscount = await storage.recalculateUserLoyaltyDiscount(order.userId);
-                    console.log(`[YooKassa Webhook] User ${order.userId} loyalty updated: +${order.total / 100} RUB, discount: ${newDiscount}%`);
+                    const lr = await storage.accrueOrderLoyalty(order.id);
+                    if (lr.accrued) console.log(`[YooKassa Webhook] User ${order.userId} loyalty updated: +${order.total / 100} RUB, discount: ${lr.discount}%`);
                   } catch (loyaltyErr) {
-                    console.error(`[YooKassa Webhook] Error updating loyalty for user ${order.userId}:`, loyaltyErr);
+                    console.error(`[YooKassa Webhook] Error updating loyalty for order ${order.id}:`, loyaltyErr);
                   }
                 }
 
@@ -4469,11 +4469,10 @@ ${faqSection}
                 console.log(`[T-Bank Webhook] Order ${numericId} details: userId=${order?.userId}, isWholesale=${order?.isWholesale}, email=${order?.customerEmail}`);
                 if (order && order.userId && !order.isWholesale) {
                   try {
-                    await storage.updateUserTotalSpent(order.userId, order.total);
-                    const newDiscount = await storage.recalculateUserLoyaltyDiscount(order.userId);
-                    console.log(`[T-Bank Webhook] User ${order.userId} loyalty updated: +${order.total / 100} RUB, new discount: ${newDiscount}%`);
+                    const lr = await storage.accrueOrderLoyalty(order.id);
+                    if (lr.accrued) console.log(`[T-Bank Webhook] User ${order.userId} loyalty updated: +${order.total / 100} RUB, discount: ${lr.discount}%`);
                   } catch (loyaltyErr) {
-                    console.error(`[T-Bank Webhook] Error updating loyalty for user ${order.userId}:`, loyaltyErr);
+                    console.error(`[T-Bank Webhook] Error updating loyalty for order ${order.id}:`, loyaltyErr);
                   }
                 } else if (order && !order.userId) {
                   console.log(`[T-Bank Webhook] Order ${numericId} has no userId, skipping loyalty update`);
@@ -10559,7 +10558,15 @@ ${faqSection}
     try {
       const { status } = z.object({ status: z.string() }).parse(req.body);
       const orderId = Number(req.params.id);
+      const prevOrder = await storage.getOrder(orderId);
       const order = await storage.updateOrderStatus(orderId, status);
+
+      // Лояльность: списываем total_spent при возврате/отмене оплаченного заказа
+      if ((status === "cancelled" || status === "refunded") && prevOrder && isLoyaltyCountedStatus(prevOrder.status)) {
+        storage.revokeOrderLoyalty(orderId).then(r => {
+          if (r.revoked) console.log(`[Sync] Loyalty revoked for order ${orderId} (${status}), discount: ${r.discount}%`);
+        }).catch(err => console.error(`[Sync] Loyalty revoke failed for order ${orderId}:`, err?.message));
+      }
 
       storage.getOrderBitrixDealId(orderId).then(dealId => {
         if (!dealId) return;
@@ -11738,9 +11745,8 @@ ${faqSection}
             
             if (order.userId && !order.isWholesale) {
               try {
-                await storage.updateUserTotalSpent(order.userId, order.total);
-                const newDiscount = await storage.recalculateUserLoyaltyDiscount(order.userId);
-                console.log(`[Loyalty] Updated user ${order.userId}: +${order.total / 100} RUB, new discount: ${newDiscount}%`);
+                const lr = await storage.accrueOrderLoyalty(order.id);
+                if (lr.accrued) console.log(`[Loyalty] Updated user ${order.userId}: +${order.total / 100} RUB, discount: ${lr.discount}%`);
               } catch (loyaltyErr) {
                 console.error(`[Loyalty] Error updating user ${order.userId}:`, loyaltyErr);
               }
@@ -13333,6 +13339,13 @@ ${faqSection}
       const prevOrder = await storage.getOrder(orderId);
       const order = await storage.updateOrderStatus(orderId, status);
 
+      // Лояльность: списываем total_spent при возврате/отмене оплаченного заказа
+      if ((status === "cancelled" || status === "refunded") && prevOrder && isLoyaltyCountedStatus(prevOrder.status)) {
+        storage.revokeOrderLoyalty(orderId).then(r => {
+          if (r.revoked) console.log(`[Admin] Loyalty revoked for order ${orderId} (${status}), discount: ${r.discount}%`);
+        }).catch(err => console.error(`[Admin] Loyalty revoke failed for order ${orderId}:`, err?.message));
+      }
+
       // Push-уведомление пользователю о смене статуса
       if (prevOrder?.userId) {
         const pushData = orderStatusPushPayload(orderId, status);
@@ -13871,6 +13884,48 @@ ${faqSection}
       const html = getNewProductsNewsletterHtml(sample, sample.length);
       const ok = await sendEmail({ to: email, subject: '[ПРЕВЬЮ] Смотри, что появилось 🆕', html: html(email) });
       res.json({ success: ok, sentTo: email, productsCount: sample.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Review-request email — candidates (read-only)
+  app.get("/api/admin/review-requests/candidates", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const expectedKey = getAdminKey();
+    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const candidates = await getReviewRequestCandidates();
+      res.json({ candidates, count: candidates.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Send review-request emails now (manual; optionally only selected orders)
+  app.post("/api/admin/review-requests/send", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const expectedKey = getAdminKey();
+    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const orderIds = Array.isArray(req.body?.orderIds) ? req.body.orderIds : undefined;
+      const result = await sendReviewRequestsNow(orderIds);
+      res.json({ success: true, ...result });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Send review-request email preview to a single address
+  app.post("/api/admin/review-requests/preview", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const expectedKey = getAdminKey();
+    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: "email is required" });
+      const result = await sendReviewRequestPreview(email);
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -14466,6 +14521,21 @@ ${faqSection}
     try {
       const users = await storage.getUsersWithLoyalty();
       res.json({ users: users || [] });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Полный пересчёт лояльности по истории заказов
+  app.post("/api/admin/loyalty/recalculate-all", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const expectedKey = getAdminKey();
+    if (apiKey !== expectedKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const result = await storage.recalculateAllUsersLoyalty();
+      res.json({ success: true, ...result });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

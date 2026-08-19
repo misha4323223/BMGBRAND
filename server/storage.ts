@@ -492,6 +492,8 @@ export function getCachedProductImageBySlug(slug: string): string {
 export interface ProductMetaForSsr {
   productId: number; title: string; description: string; image: string; images: string[];
   price: number; sku: string; stock: number; category: string;
+  subcategory: string | null; subSubcategory: string | null;
+  additionalCategories: Array<{ category: string; subcategory: string; subSubcategory?: string }>;
   sizes: string[]; colors: string[]; preorderEnabled: boolean;
   seoTitle: string | null; seoDescription: string | null; seoBody: string | null; seoJsonLd: string | null; specsHtml: string | null; videoUrl: string | null;
   composition: string | null; careInstructions: string | null;
@@ -519,6 +521,12 @@ function buildProductMeta(product: any): ProductMetaForSsr {
     sku: (product as any).article || (product as any).sku || String(product.id),
     stock: Number((product as any).stock ?? 0),
     category: (product as any).category || "",
+    subcategory: (product as any).subcategory != null && String((product as any).subcategory).trim() !== ""
+      ? String((product as any).subcategory) : null,
+    subSubcategory: (product as any).subSubcategory != null && String((product as any).subSubcategory).trim() !== ""
+      ? String((product as any).subSubcategory) : null,
+    additionalCategories: Array.isArray((product as any).additionalCategories)
+      ? (product as any).additionalCategories : [],
     sizes: Array.isArray((product as any).sizes) ? (product as any).sizes : [],
     colors: Array.isArray((product as any).colors) ? (product as any).colors : [],
     preorderEnabled: !!(product as any).preorderEnabled,
@@ -680,7 +688,12 @@ export interface IStorage {
   saveRetailPickupPoints(points: PickupPoint[]): Promise<void>;
   // User loyalty
   updateUserTotalSpent(userId: number, amount: number): Promise<void>;
+  decrementUserTotalSpent(userId: number, amount: number): Promise<void>;
   recalculateUserLoyaltyDiscount(userId: number): Promise<number>;
+  accrueOrderLoyalty(orderId: number): Promise<{ accrued: boolean; discount: number }>;
+  revokeOrderLoyalty(orderId: number): Promise<{ revoked: boolean; discount: number }>;
+  mergeGuestOrdersToUser(userId: number, email: string): Promise<{ linked: number; accrued: number }>;
+  recalculateAllUsersLoyalty(): Promise<{ total: number; updated: number }>;
   // Page settings
   getPageSettings(pageName: string): Promise<Record<string, any>>;
   setPageSectionSettings(pageName: string, sectionId: string, settings: any): Promise<void>;
@@ -879,6 +892,33 @@ function parseStorageDate(value: unknown, fallback: Date | null): Date | null {
   }
 
   return Number.isFinite(date.getTime()) ? date : fallback;
+}
+
+/**
+ * Статусы, при которых заказ НЕ считается оплаченным для программы лояльности.
+ * Начисление total_spent происходит при оплате (status становится "paid"),
+ * далее статус движется по цепочке processing → shipped → delivered и т.д.
+ * Эти статусы исключаем из зачёта при пересчёте и начислении.
+ */
+const LOYALTY_NOT_COUNTED_STATUSES = new Set([
+  'pending',
+  'awaiting_payment',
+  'cancelled',
+  'refunded',
+  'new',
+  'created',
+]);
+
+export function isLoyaltyCountedStatus(status: string | null | undefined): boolean {
+  return !!status && !LOYALTY_NOT_COUNTED_STATUSES.has(status);
+}
+
+function safeParseJson(raw: string | null | undefined): Record<string, any> {
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4876,7 +4916,7 @@ export class DatabaseStorage implements IStorage {
   async getAllNewsletterSubscriptions(): Promise<NewsletterSubscription[]> {
     if (!driver) return [];
     const result = await this.safeQuery(async (session) => {
-      const query = "SELECT * FROM newsletter_subscriptions ORDER BY subscribed_at DESC LIMIT 1000";
+      const query = "SELECT * FROM newsletter_subscriptions ORDER BY subscribed_at DESC LIMIT 5000";
       const { resultSets } = await session.executeQuery(query, {});
       return this.parseResultSet<NewsletterSubscription>(resultSets[0]);
     });
@@ -5125,6 +5165,175 @@ export class DatabaseStorage implements IStorage {
     });
 
     return discount;
+  }
+
+  async getUserTotalSpent(userId: number): Promise<number> {
+    if (!driver) return 0;
+    const { TypedValues, Types } = await import("ydb-sdk");
+    const userData = await this.safeQuery(async (session) => {
+      const { resultSets } = await session.executeQuery(
+        `DECLARE $id AS Utf8; SELECT total_spent FROM users WHERE id = $id LIMIT 1`,
+        { '$id': TypedValues.fromNative(Types.UTF8, String(userId)) }
+      );
+      return this.parseResultSet<{ totalSpent: number }>(resultSets[0])[0];
+    });
+    return Number(userData?.totalSpent) || 0;
+  }
+
+  async setUserTotalSpent(userId: number, amount: number): Promise<void> {
+    if (!driver) return;
+    const value = Math.max(0, Math.round(amount));
+    await this.safeQuery(async (session) => {
+      const { TypedValues, Types } = await import("ydb-sdk");
+      await session.executeQuery(
+        `DECLARE $id AS Utf8; DECLARE $amount AS Int32; UPDATE users SET total_spent = $amount WHERE id = $id`,
+        {
+          '$id': TypedValues.fromNative(Types.UTF8, String(userId)),
+          '$amount': TypedValues.int32(value),
+        }
+      );
+    });
+  }
+
+  async decrementUserTotalSpent(userId: number, amount: number): Promise<void> {
+    const current = await this.getUserTotalSpent(userId);
+    await this.setUserTotalSpent(userId, current - amount);
+  }
+
+  // Начисляет total_spent за оплаченный заказ ровно один раз (флаг loyaltyAccruedAt).
+  async accrueOrderLoyalty(orderId: number): Promise<{ accrued: boolean; discount: number }> {
+    const order = await this.getOrder(orderId);
+    if (!order || !order.userId || order.isWholesale) return { accrued: false, discount: 0 };
+    if (!isLoyaltyCountedStatus(order.status)) return { accrued: false, discount: 0 };
+
+    const addon = safeParseJson(order.addonData);
+    if (addon.loyaltyAccruedAt) return { accrued: false, discount: 0 };
+
+    await this.updateUserTotalSpent(order.userId, order.total);
+    const discount = await this.recalculateUserLoyaltyDiscount(order.userId);
+    await this.updateOrderAddonData(
+      orderId,
+      JSON.stringify({ ...addon, loyaltyAccruedAt: new Date().toISOString() }),
+    );
+    console.log(`[Loyalty] Accrued order ${orderId} for user ${order.userId}: +${order.total / 100} RUB, discount ${discount}%`);
+    return { accrued: true, discount };
+  }
+
+  // Списывает total_spent при возврате/отмене ровно один раз (флаг loyaltyRevokedAt).
+  async revokeOrderLoyalty(orderId: number): Promise<{ revoked: boolean; discount: number }> {
+    const order = await this.getOrder(orderId);
+    if (!order || !order.userId || order.isWholesale) return { revoked: false, discount: 0 };
+
+    const addon = safeParseJson(order.addonData);
+    if (addon.loyaltyRevokedAt) return { revoked: false, discount: 0 };
+
+    await this.decrementUserTotalSpent(order.userId, order.total);
+    const discount = await this.recalculateUserLoyaltyDiscount(order.userId);
+    await this.updateOrderAddonData(
+      orderId,
+      JSON.stringify({ ...addon, loyaltyRevokedAt: new Date().toISOString() }),
+    );
+    console.log(`[Loyalty] Revoked order ${orderId} for user ${order.userId}: -${order.total / 100} RUB, discount ${discount}%`);
+    return { revoked: true, discount };
+  }
+
+  async getGuestOrdersByEmail(email: string): Promise<number[]> {
+    if (!driver) return [];
+    const result = await this.safeQuery(async (session) => {
+      const { TypedValues, Types } = await import("ydb-sdk");
+      const { resultSets } = await session.executeQuery(
+        `DECLARE $email AS Utf8;
+         SELECT id FROM orders
+         WHERE customer_email = $email AND user_id IS NULL
+         ORDER BY created_at ASC`,
+        { '$email': TypedValues.fromNative(Types.UTF8, email) }
+      );
+      return resultSets[0]?.rows || [];
+    });
+    if (!result) return [];
+    return result.map((row: any) => Number(this.extractTypedValue(row.items[0]))).filter((n: number) => Number.isFinite(n) && n > 0);
+  }
+
+  // Привязывает гостевые заказы к аккаунту и начисляет за них лояльность (если оплачены).
+  async mergeGuestOrdersToUser(userId: number, email: string): Promise<{ linked: number; accrued: number }> {
+    const normalized = (email || '').toLowerCase().trim();
+    if (!normalized) return { linked: 0, accrued: 0 };
+
+    const ids = await this.getGuestOrdersByEmail(normalized);
+    let linked = 0;
+    let accrued = 0;
+    for (const orderId of ids) {
+      const ok = await this.updateOrderUserId(orderId, userId);
+      if (!ok) continue;
+      linked++;
+      const res = await this.accrueOrderLoyalty(orderId);
+      if (res.accrued) accrued++;
+    }
+    if (linked > 0) {
+      console.log(`[Loyalty] Merged ${linked} guest orders for user ${userId} (${normalized}), accrued ${accrued}`);
+    }
+    return { linked, accrued };
+  }
+
+  // Полный пересчёт total_spent и loyalty_discount для всех retail-пользователей по истории заказов.
+  // Считает заказы и по user_id, и по email (гостевые), как админка «Клиенты» — иначе
+  // сумма в профиле (342k) расходится с накопленной в колонке total_spent.
+  async recalculateAllUsersLoyalty(): Promise<{ total: number; updated: number }> {
+    if (!driver) return { total: 0, updated: 0 };
+
+    // Retail (включая admin, но без wholesale): email -> userId
+    const userRows = await this.safeQuery(async (session) => {
+      const { resultSets } = await session.executeQuery(
+        `SELECT id, email FROM users WHERE role != 'wholesale' OR role IS NULL`
+      );
+      return resultSets[0]?.rows || [];
+    });
+    const emailToUserId = new Map<string, number>();
+    if (userRows) {
+      for (const row of userRows as any[]) {
+        const userId = Number(this.extractTypedValue(row.items[0]));
+        const email = String(this.extractTypedValue(row.items[1]) || '').toLowerCase().trim();
+        if (Number.isFinite(userId) && userId > 0 && email) {
+          emailToUserId.set(email, userId);
+        }
+      }
+    }
+
+    const result = await this.safeQuery(async (session) => {
+      const { resultSets } = await session.executeQuery(
+        `SELECT user_id, customer_email, total, status, is_wholesale FROM orders`
+      );
+      return resultSets[0]?.rows || [];
+    });
+    if (!result) return { total: 0, updated: 0 };
+
+    const totalsByUser = new Map<number, number>();
+    for (const row of result as any[]) {
+      const rawUserId = Number(this.extractTypedValue(row.items[0]));
+      const email = String(this.extractTypedValue(row.items[1]) || '').toLowerCase().trim();
+      const total = Number(this.extractTypedValue(row.items[2])) || 0;
+      const status = String(this.extractTypedValue(row.items[3]) || '');
+      const isWholesale = this.extractTypedValue(row.items[4]) === true;
+      if (isWholesale) continue;
+      if (!isLoyaltyCountedStatus(status)) continue;
+
+      let userId = rawUserId;
+      if (!Number.isFinite(userId) || userId <= 0) {
+        userId = emailToUserId.get(email) || 0;
+      }
+      if (!Number.isFinite(userId) || userId <= 0) continue;
+
+      totalsByUser.set(userId, (totalsByUser.get(userId) || 0) + total);
+    }
+
+    let updated = 0;
+    for (const [userId, totalSpent] of totalsByUser) {
+      await this.setUserTotalSpent(userId, totalSpent);
+      await this.recalculateUserLoyaltyDiscount(userId);
+      updated++;
+    }
+    console.log(`[Loyalty] Bulk recalc done: ${updated} users updated`);
+    return { total: totalsByUser.size, updated };
   }
 
   // Page settings

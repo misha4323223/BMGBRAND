@@ -30,7 +30,7 @@ import {
 } from "./storage";
 import { getRecommendationsSync } from "./recommendations";
 import { findProductVariantsSync } from "./variant-matching";
-import { CATEGORIES, normalizeCategories, findCategoryBySubcategorySlug, findCategoryBySubSubcategorySlug, buildCategoryIndex, resolveProductCategoryPaths, GIFT_CARD_AMOUNTS } from "../shared/schema";
+import { CATEGORIES, normalizeCategories, findCategoryBySubcategorySlug, findCategoryBySubSubcategorySlug, buildCategoryIndex, resolveProductCategoryPaths, sortProductCategoryPaths, GIFT_CARD_AMOUNTS } from "../shared/schema";
 
 // ─── Bot User-Agent detection ─────────────────────────────────────────────────
 // Only include server-side crawlers and link-preview fetchers.
@@ -274,7 +274,7 @@ const CAT_META: Record<string, { name: string; title?: string; desc: string }> =
     desc: "Купить необычные носки с принтом BOOOMERANGS: оригинальные носки с мемами, прикольные авторские рисунки, носки хорошего качества — хлопок 75%. Большой выбор принтов. Доставка по всей России СДЭК.",
   },
   accessories: { name: "Аксессуары",                desc: "Купить аксессуары BMGBRAND — шапки, сумки, ремни и другие аксессуары. Доставка по всей России." },
-  sale:        { name: "Распродажа",                desc: "Распродажа BMGBRAND — выгодные цены на одежду и аксессуары. Доставка по всей России." },
+  sale:        { name: "SALE",                desc: "Распродажа BMGBRAND — выгодные цены на одежду и аксессуары. Доставка по всей России." },
 };
 
 // ─── Admin-editable SEO overrides ──────────────────────────────────────────────
@@ -515,6 +515,8 @@ function navHtml(): string {
       <a href="/products/socks">Носки</a>
       <a href="/products/clothing">Одежда</a>
       <a href="/products/accessories">Аксессуары</a>
+      <a href="/products/merch">Мерч</a>
+      <a href="/products/sale">SALE</a>
       <a href="/merch-na-zakaz">Мерч на заказ</a>
     </nav>
   </div>
@@ -526,7 +528,8 @@ function footerHtml(): string {
   <div class="container">
     <p>© ${new Date().getFullYear()} BMGBRAND (Booomerangs). Все права защищены.</p>
     <p><a href="https://vk.com/bmgbrand">ВКонтакте</a> · <a href="https://t.me/bmg_booomerangs">Telegram</a> · <a href="mailto:info@booomerangs.ru">info@booomerangs.ru</a></p>
-    <p><a href="/products">Каталог</a> · <a href="/about">О бренде</a> · <a href="/faq">Вопросы и ответы</a> · <a href="/contacts">Контакты</a> · <a href="/merch-na-zakaz">Мерч на заказ</a></p>
+    <p><a href="/products">Каталог</a> · <a href="/products/socks">Носки</a> · <a href="/products/clothing">Одежда</a> · <a href="/products/accessories">Аксессуары</a> · <a href="/products/merch">Мерч</a> · <a href="/products/sale">SALE</a></p>
+    <p><a href="/about">О бренде</a> · <a href="/faq">Вопросы и ответы</a> · <a href="/contacts">Контакты</a> · <a href="/merch-na-zakaz">Мерч на заказ</a></p>
   </div>
 </footer>`;
 }
@@ -746,7 +749,10 @@ function renderCategory(catSlug: string): string | null {
   if (products.length === 0) return null;
 
   const inStock = products.filter(p => p.stock > 0);
-  const outOfStock = products.filter(p => p.stock === 0);
+  // Всё, что не «в наличии» (0, отрицательное, null/undefined/NaN), попадает
+  // в «под заказ» — иначе товар с «битым» stock не выводился бы вообще, а счётчик
+  // «Всего товаров» (products.length) расходился бы с числом карточек.
+  const outOfStock = products.filter(p => !(p.stock > 0));
   const allSorted = [...inStock, ...outOfStock];
 
   const cards = allSorted.map(p => `
@@ -826,8 +832,8 @@ function renderCategory(catSlug: string): string | null {
 <h1>${esc(cat.name)}</h1>
 <p class="desc">${esc(desc)}</p>
 <p style="margin-bottom:1rem;color:#888;font-size:.9rem">Всего товаров: <strong>${products.length}</strong>. В наличии: <strong>${inStock.length}</strong>.</p>
-<div class="grid">${cards}</div>
-${subLinksBlock}`;
+${subLinksBlock}
+<div class="grid">${cards}</div>`;
 
   return wrapPage(head, body);
 }
@@ -1055,16 +1061,34 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
   } catch { /* safe to skip */ }
 
   const catName = meta.category ? CAT_META[meta.category]?.name || meta.category : "";
+  // Полные пути товара (категория → подкатегория → под-подкатегория), включая
+  // дополнительные категории (коллаборации). Тот же резолвер, что в sitemap.xml.
+  const catPaths = sortProductCategoryPaths(resolveProductCategoryPaths(
+    { category: meta.category, subcategory: meta.subcategory, subSubcategory: meta.subSubcategory, additionalCategories: meta.additionalCategories },
+    buildCategoryIndex(getLiveCategories()),
+  ));
+  const primaryPath = catPaths[0] || null;
+
   const breadcrumbItems: any[] = [
     { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
     { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${SITE_URL}/products` },
   ];
-  if (catName) {
-    breadcrumbItems.push({ "@type": "ListItem", "position": 3, "name": catName, "item": `${SITE_URL}/products/${meta.category}` });
+  let bcPos = 3;
+  if (primaryPath) {
+    breadcrumbItems.push({ "@type": "ListItem", "position": bcPos++, "name": CAT_META[primaryPath.categorySlug]?.name || primaryPath.categorySlug, "item": `${SITE_URL}/products/${primaryPath.categorySlug}` });
+    if (primaryPath.subcategorySlug) {
+      const subCanonical = CYRILLIC_TO_CANONICAL[primaryPath.subcategorySlug] || primaryPath.subcategorySlug;
+      breadcrumbItems.push({ "@type": "ListItem", "position": bcPos++, "name": primaryPath.subcategoryName || primaryPath.subcategorySlug, "item": `${SITE_URL}/${subCanonical}` });
+    }
+    if (primaryPath.subcategorySlug && primaryPath.subSubcategorySlug) {
+      breadcrumbItems.push({ "@type": "ListItem", "position": bcPos++, "name": primaryPath.subSubcategoryName || primaryPath.subSubcategorySlug, "item": `${SITE_URL}/products/${primaryPath.categorySlug}/${primaryPath.subcategorySlug}/${primaryPath.subSubcategorySlug}` });
+    }
+  } else if (catName) {
+    breadcrumbItems.push({ "@type": "ListItem", "position": bcPos++, "name": catName, "item": `${SITE_URL}/products/${meta.category}` });
   }
   breadcrumbItems.push({
     "@type": "ListItem",
-    "position": catName ? 4 : 3,
+    "position": bcPos,
     "name": meta.title,
     "item": `${SITE_URL}/${slug}`,
   });
@@ -1165,9 +1189,24 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
     </div>`).join("\n")}</div>`
     : "";
 
+  const breadcrumbSegmentsHtml = primaryPath
+    ? (() => {
+        const segs: string[] = [];
+        segs.push(`<a href="/products/${esc(primaryPath.categorySlug)}">${esc(CAT_META[primaryPath.categorySlug]?.name || primaryPath.categorySlug)}</a>`);
+        if (primaryPath.subcategorySlug) {
+          const subCanonical = CYRILLIC_TO_CANONICAL[primaryPath.subcategorySlug] || primaryPath.subcategorySlug;
+          segs.push(`<a href="/${esc(subCanonical)}">${esc(primaryPath.subcategoryName || primaryPath.subcategorySlug)}</a>`);
+        }
+        if (primaryPath.subcategorySlug && primaryPath.subSubcategorySlug) {
+          segs.push(`<a href="/products/${esc(primaryPath.categorySlug)}/${esc(primaryPath.subcategorySlug)}/${esc(primaryPath.subSubcategorySlug)}">${esc(primaryPath.subSubcategoryName || primaryPath.subSubcategorySlug)}</a>`);
+        }
+        return segs.join(" / ");
+      })()
+    : (catName ? `<a href="/products/${esc(meta.category)}">${esc(catName)}</a>` : "");
+
   const breadcrumbHtml = `<div class="breadcrumb">
   <a href="/">Главная</a> /
-  <a href="/products">Каталог</a>${catName ? ` / <a href="/products/${esc(meta.category)}">${esc(catName)}</a>` : ""} /
+  <a href="/products">Каталог</a>${breadcrumbSegmentsHtml ? ` / ${breadcrumbSegmentsHtml}` : ""} /
   ${esc(meta.title)}
 </div>`;
 
@@ -1182,7 +1221,18 @@ ${videoHtml}
   ${ratingHtml}
   ${meta.sizes.length > 0 ? `<p style="margin-top:.75rem">Размеры: <strong>${esc(meta.sizes.join(", "))}</strong></p>` : ""}
   ${meta.colors.length > 0 ? `<p>Цвета: ${esc(meta.colors.join(", "))}</p>` : ""}
-  ${catName ? `<p>Категория: <a href="/products/${esc(meta.category)}">${esc(catName)}</a></p>` : ""}
+  ${catPaths.length > 0 ? `<p>Разделы: ${catPaths.map((p) => {
+    const segs: string[] = [];
+    segs.push(`<a href="/products/${esc(p.categorySlug)}">${esc(CAT_META[p.categorySlug]?.name || p.categorySlug)}</a>`);
+    if (p.subcategorySlug) {
+      const subCanonical = CYRILLIC_TO_CANONICAL[p.subcategorySlug] || p.subcategorySlug;
+      segs.push(`<a href="/${esc(subCanonical)}">${esc(p.subcategoryName || p.subcategorySlug)}</a>`);
+    }
+    if (p.subcategorySlug && p.subSubcategorySlug) {
+      segs.push(`<a href="/products/${esc(p.categorySlug)}/${esc(p.subcategorySlug)}/${esc(p.subSubcategorySlug)}">${esc(p.subSubcategoryName || p.subSubcategorySlug)}</a>`);
+    }
+    return segs.join(" → ");
+  }).join(" · ")}</p>` : ""}
   ${meta.description ? `<p class="desc" style="margin-top:1rem;max-width:none">${esc(meta.description)}</p>` : ""}
   ${featureBadgesHtml}
   ${meta.seoBody ? `<div style="margin-top:1rem"><h2>Подробнее о товаре</h2>${meta.seoBody}</div>` : ""}

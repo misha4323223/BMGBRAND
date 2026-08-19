@@ -75,19 +75,17 @@
     </script>
     <!-- /Yandex.Metrika -->
 
-    <!-- Top.Mail.Ru counter — deferred until user interaction or 5s timeout -->
+    <!-- Top.Mail.Ru counter — deferred until first user interaction -->
     <script type="text/javascript">
       var _tmr = window._tmr || (window._tmr = []);
       _tmr.push({id: "3762887", type: "pageView", start: (new Date()).getTime()});
       (function (d, id) {
         var tmrLoaded = false;
-        var tmrTimer = null;
         var tmrEvents = ['mousemove', 'scroll', 'click', 'touchstart', 'keydown'];
         function loadTmr() {
           if (tmrLoaded) return;
           tmrLoaded = true;
           tmrEvents.forEach(function(e) { d.removeEventListener(e, loadTmr); });
-          if (tmrTimer) clearTimeout(tmrTimer);
           if (d.getElementById(id)) return;
           var ts = d.createElement("script");
           ts.type = "text/javascript"; ts.async = true; ts.id = id;
@@ -97,7 +95,6 @@
         tmrEvents.forEach(function(e) {
           d.addEventListener(e, loadTmr, { once: true, passive: true });
         });
-        tmrTimer = setTimeout(loadTmr, 5000);
       })(document, "tmr-code");
     </script>
     <!-- /Top.Mail.Ru counter -->
@@ -128,7 +125,7 @@
          React replaces #root content on first render, removing it automatically. ── */
       @keyframes sk-pulse{0%,100%{opacity:1}50%{opacity:.45}}
       .sk-nav{height:64px;background:#1C1C1C;position:sticky;top:0;z-index:50;display:flex;align-items:center;padding:0 1.25rem;gap:1rem}
-      .sk-nav-logo{width:96px;height:18px;background:#333;border-radius:3px;animation:sk-pulse 1.6s ease-in-out infinite}
+      .sk-nav-logo{height:80px;width:auto;object-fit:contain;display:block}
       .sk-nav-links{display:none;gap:.75rem;margin-left:auto}
       @media(min-width:640px){.sk-nav-links{display:flex}}
       .sk-nav-link{width:52px;height:12px;background:#333;border-radius:3px;animation:sk-pulse 1.6s ease-in-out infinite}
@@ -148,7 +145,7 @@
     <noscript><div><img src="https://mc.yandex.ru/watch/107182693" style="position:absolute;left:-9999px;" alt="" /></div></noscript>
     <!-- Top.Mail.Ru noscript fallback -->
     <noscript><div><img src="https://top-fwz1.mail.ru/counter?id=3762887;js=na" style="position:absolute;left:-9999px;" alt="Top.Mail.Ru" /></div></noscript>
-    <div id="root"><nav class="sk-nav" aria-hidden="true"><div class="sk-nav-logo"></div><div class="sk-nav-links"><div class="sk-nav-link"></div><div class="sk-nav-link"></div><div class="sk-nav-link"></div></div></nav><div class="sk-hero"></div><div class="sk-grid"><div class="sk-card"><div class="sk-card-img"></div><div class="sk-card-body"><div class="sk-card-name"></div><div class="sk-card-price"></div></div></div><div class="sk-card"><div class="sk-card-img"></div><div class="sk-card-body"><div class="sk-card-name"></div><div class="sk-card-price"></div></div></div><div class="sk-card"><div class="sk-card-img"></div><div class="sk-card-body"><div class="sk-card-name"></div><div class="sk-card-price"></div></div></div><div class="sk-card"><div class="sk-card-img"></div><div class="sk-card-body"><div class="sk-card-name"></div><div class="sk-card-price"></div></div></div></div></div>
+    <div id="root"><nav class="sk-nav" aria-hidden="true"><img class="sk-nav-logo" src="/images/boomerangs-logo.webp" alt="Booomerangs" fetchpriority="high" width="80" height="80"><div class="sk-nav-links"><div class="sk-nav-link"></div><div class="sk-nav-link"></div><div class="sk-nav-link"></div></div></nav><div class="sk-hero"></div><div class="sk-grid"><div class="sk-card"><div class="sk-card-img"></div><div class="sk-card-body"><div class="sk-card-name"></div><div class="sk-card-price"></div></div></div><div class="sk-card"><div class="sk-card-img"></div><div class="sk-card-body"><div class="sk-card-name"></div><div class="sk-card-price"></div></div></div><div class="sk-card"><div class="sk-card-img"></div><div class="sk-card-body"><div class="sk-card-name"></div><div class="sk-card-price"></div></div></div><div class="sk-card"><div class="sk-card-img"></div><div class="sk-card-body"><div class="sk-card-name"></div><div class="sk-card-price"></div></div></div></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

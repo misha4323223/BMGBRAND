@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 import { SiVk, SiTelegram, SiInstagram, SiYoutube, SiTiktok, SiWhatsapp } from "react-icons/si";
 import { useQuery } from "@tanstack/react-query";
 import { DEFAULT_FOOTER_SETTINGS, type FooterSettings } from "./footer-settings";
@@ -130,6 +131,9 @@ export function Footer() {
           {s.description && (
             <p className="hidden lg:block text-xs text-white/35 max-w-xs leading-relaxed">{s.description}</p>
           )}
+          <div className="flex items-center gap-4 sm:gap-5 shrink-0">
+            <PushSubscribeButton className="px-3 py-2 rounded-xl border border-white/10" iconClassName="w-4 h-4" label />
+          </div>
           {visibleSocials.length > 0 && (
             <div className="flex items-center gap-4 sm:gap-5 shrink-0">
               {visibleSocials.map((soc, i) => (

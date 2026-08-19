@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import * as XLSX from 'xlsx';
 import PushNotificationsPanel from "@/components/admin/PushNotificationsPanel";
+import ReviewRequestsPanel from "@/components/admin/ReviewRequestsPanel";
 import VirtualTryOnToggle from "@/components/admin/VirtualTryOnToggle";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -3202,6 +3203,19 @@ export default function Admin() {
     },
   });
 
+  const recalculateLoyaltyMutation = useMutation({
+    mutationFn: async () => {
+      return adminFetch("/api/admin/loyalty/recalculate-all", apiKey, { method: "POST" });
+    },
+    onSuccess: (data: any) => {
+      loyaltyUsersQuery.refetch();
+      toast({ title: `✅ Лояльность пересчитана: ${data.updated || 0} пользователей` });
+    },
+    onError: (err: any) => {
+      toast({ title: "Ошибка пересчёта", description: err.message, variant: "destructive" });
+    },
+  });
+
   const popupPromoQuery = useQuery<{ popup: any; homepage: any }>({
     queryKey: ["/api/admin/popup-promo"],
     queryFn: async () => {
@@ -3271,7 +3285,12 @@ export default function Admin() {
     mutationFn: async () => adminFetch("/api/admin/newsletter-trigger-now", apiKey, { method: "POST" }),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/newsletter-queue-status"] });
-      toast({ title: "Рассылка новинок отправлена", description: `Отправлено: ${data.sent}, товаров: ${data.products}` });
+      const totalEmails = data.totalEmails ?? data.total ?? 0;
+      if (data.alreadyRunning) {
+        toast({ title: "Рассылка новинок уже идёт", description: `Отправлено: ${data.sent} из ${totalEmails}, товаров: ${data.products}` });
+      } else {
+        toast({ title: "Рассылка новинок запущена", description: `Отправлено: ${data.sent} из ${totalEmails}, товаров: ${data.products}` });
+      }
     },
     onError: (err: any) => toast({ title: "Ошибка", description: err.message, variant: "destructive" }),
   });
@@ -5106,17 +5125,32 @@ export default function Admin() {
                       <TrendingUp className="w-5 h-5" />
                       Уровни накопительной скидки
                     </CardTitle>
-                    <Button 
-                      size="sm" 
-                      onClick={() => {
-                        setLoyaltyTierForm({ id: null, name: "", minSpent: 0, discountPercent: 0 });
-                        setShowLoyaltyTierForm(true);
-                      }}
-                      data-testid="button-add-loyalty-tier"
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Добавить
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (!confirm("Пересчитать накопительную сумму и скидки всех клиентов по истории заказов?")) return;
+                          recalculateLoyaltyMutation.mutate();
+                        }}
+                        disabled={recalculateLoyaltyMutation.isPending}
+                        data-testid="button-recalculate-loyalty"
+                      >
+                        <RefreshCw className={`w-4 h-4 mr-1 ${recalculateLoyaltyMutation.isPending ? "animate-spin" : ""}`} />
+                        Пересчитать всех
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        onClick={() => {
+                          setLoyaltyTierForm({ id: null, name: "", minSpent: 0, discountPercent: 0 });
+                          setShowLoyaltyTierForm(true);
+                        }}
+                        data-testid="button-add-loyalty-tier"
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Добавить
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {showLoyaltyTierForm && (
@@ -5128,7 +5162,7 @@ export default function Admin() {
                           <div>
                             <label className="text-sm text-muted-foreground">Название</label>
                             <Input
-                              placeholder="Например: Серебро"
+                              placeholder="Например: Уровень 1"
                               value={loyaltyTierForm.name}
                               onChange={(e) => setLoyaltyTierForm({ ...loyaltyTierForm, name: e.target.value })}
                               data-testid="input-loyalty-tier-name"
@@ -14248,6 +14282,8 @@ export default function Admin() {
                 Обновить
               </Button>
             </div>
+
+            <ReviewRequestsPanel apiKey={apiKey} isActive={activeTab === "reviews"} />
 
             {adminReviewsQuery.isLoading ? (
               <div className="flex items-center justify-center py-12">

@@ -581,9 +581,11 @@ export default function Profile() {
 
   const user = authData.user;
   
+  // Сумма для бонусной программы: только розничные (не оптовые) заказы
+  // в статусах, которые учитывает лояльность (без pending/cancelled/refunded/awaiting_payment).
   const totalSpent = ordersData?.orders
     ? ordersData.orders
-        .filter((o: any) => !['cancelled', 'awaiting_payment'].includes(o.status))
+        .filter((o: any) => !o.isWholesale && !['pending', 'awaiting_payment', 'cancelled', 'refunded', 'new', 'created'].includes(o.status))
         .reduce((sum: number, o: any) => sum + (o.total || 0), 0)
     : ((user as any).totalSpent || 0);
   const currentDiscount = (user as any).loyaltyDiscount || 0;

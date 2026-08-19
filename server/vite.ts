@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
 import { getCachedProductMetaBySlug, getCachedArtistHeroImage, getCachedRawPageSettings } from "./storage";
+import { CATEGORIES as SCHEMA_CATEGORIES, buildCategoryIndex, resolveProductCategoryPaths, sortProductCategoryPaths } from "../shared/schema";
 
 const SITE_NAME = "BMGBRAND";
 
@@ -22,7 +23,7 @@ const CATEGORIES: Record<string, { name: string; desc: string }> = {
   "merch":       { name: "Мерч",        desc: "Купить официальный мерч артистов BMGBRAND — одежда и аксессуары с уникальными принтами. Доставка по всей России." },
   "socks":       { name: "Носки",       desc: "Купить носки BMGBRAND — стильные носки с уникальными принтами. Доставка по всей России." },
   "accessories": { name: "Аксессуары", desc: "Купить аксессуары BMGBRAND — шапки, сумки, ремни. Доставка по всей России." },
-  "sale":        { name: "Распродажа", desc: "Распродажа BMGBRAND — выгодные цены на одежду и аксессуары. Доставка по всей России." },
+  "sale":        { name: "SALE", desc: "Распродажа BMGBRAND — выгодные цены на одежду и аксессуары. Доставка по всей России." },
 };
 
 function escHtml(s: string): string {
@@ -90,6 +91,28 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
         const priceValidUntil = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split("T")[0];
         const availability = meta.preorderEnabled ? "https://schema.org/PreOrder"
           : meta.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock";
+        const bcPaths = sortProductCategoryPaths(resolveProductCategoryPaths(
+          { category: meta.category, subcategory: meta.subcategory, subSubcategory: meta.subSubcategory, additionalCategories: meta.additionalCategories },
+          buildCategoryIndex(SCHEMA_CATEGORIES),
+        ));
+        const bcPrimary = bcPaths[0] || null;
+        const bcItems: any[] = [
+          { "@type": "ListItem", "position": 1, "name": "Главная", "item": origin },
+          { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${origin}/products` },
+        ];
+        let bcPos = 3;
+        if (bcPrimary) {
+          bcItems.push({ "@type": "ListItem", "position": bcPos++, "name": SCHEMA_CATEGORIES[bcPrimary.categorySlug]?.name || bcPrimary.categorySlug, "item": `${origin}/products/${bcPrimary.categorySlug}` });
+          if (bcPrimary.subcategorySlug) {
+            bcItems.push({ "@type": "ListItem", "position": bcPos++, "name": bcPrimary.subcategoryName || bcPrimary.subcategorySlug, "item": `${origin}/${bcPrimary.subcategorySlug}` });
+          }
+          if (bcPrimary.subcategorySlug && bcPrimary.subSubcategorySlug) {
+            bcItems.push({ "@type": "ListItem", "position": bcPos++, "name": bcPrimary.subSubcategoryName || bcPrimary.subSubcategorySlug, "item": `${origin}/products/${bcPrimary.categorySlug}/${bcPrimary.subcategorySlug}/${bcPrimary.subSubcategorySlug}` });
+          }
+        } else if (meta.category) {
+          bcItems.push({ "@type": "ListItem", "position": bcPos++, "name": CATEGORIES[meta.category]?.name || meta.category, "item": `${origin}/products/${meta.category}` });
+        }
+        bcItems.push({ "@type": "ListItem", "position": bcPos, "name": meta.title, "item": `${origin}/${slug}` });
         const jsonLd = JSON.stringify([
           {
             "@context": "https://schema.org", "@type": "Product",
@@ -130,12 +153,7 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
           },
           {
             "@context": "https://schema.org", "@type": "BreadcrumbList",
-            "itemListElement": [
-              { "@type": "ListItem", "position": 1, "name": "Главная", "item": origin },
-              { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${origin}/products` },
-              ...(meta.category ? [{ "@type": "ListItem", "position": 3, "name": CATEGORIES[meta.category]?.name || meta.category, "item": `${origin}/products/${meta.category}` }] : []),
-              { "@type": "ListItem", "position": meta.category ? 4 : 3, "name": meta.title, "item": `${origin}/${slug}` },
-            ],
+            "itemListElement": bcItems,
           },
         ]);
         return injectMeta(html, { title, description: desc, ogImage: image, ogType: "product", canonical: `${origin}/${slug}`, jsonLd });

@@ -210,6 +210,13 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Ошибка создания пользователя' });
     }
     
+    // Подтягиваем гостевые заказы к аккаунту и начисляем за них лояльность
+    try {
+      await storage.mergeGuestOrdersToUser(user.id, email);
+    } catch (mergeErr: any) {
+      console.error('[Auth] Guest order merge failed:', mergeErr?.message);
+    }
+    
     const verificationUrl = `${config.app.domain}/verify-email?token=${verificationToken}`;
     await sendEmail({
       to: email,
@@ -265,6 +272,15 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
       }
     }
     
+    // Подтягиваем гостевые заказы к аккаунту и начисляем за них лояльность
+    if (loginRole === 'retail' && user.role !== 'admin') {
+      try {
+        await storage.mergeGuestOrdersToUser(user.id, email);
+      } catch (mergeErr: any) {
+        console.error('[Auth] Guest order merge failed:', mergeErr?.message);
+      }
+    }
+
     const token = generateToken({ userId: user.id, email: user.email });
     
     const isProduction = process.env.NODE_ENV === 'production';

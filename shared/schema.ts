@@ -43,42 +43,144 @@ function sub(name: string, slug?: string): SubcategoryConfig {
   return { name, slug: slug || transliterateToSlug(name) };
 }
 
-// Category structure for navigation
+// Category structure for navigation.
+// Static fallback used only when site_config.categories_data is not available
+// (cold cache right after restart). Keep it in sync with the admin-edited DB
+// categories so bots never see an outdated tree during that window.
 export const CATEGORIES: Record<string, CategoryConfig> = {
   clothing: {
     name: "Одежда",
     slug: "clothing",
-    subcategories: [sub("Толстовки"), sub("Свитшоты"), sub("Свитера"), sub("Шорты"), sub("Футболки"), sub("Куртки"), sub("Брюки")]
+    subcategories: [
+      {
+        name: "Толстовки",
+        slug: "hoodies",
+        subSubcategories: [
+          { name: "Худи с начёсом", slug: "xudi-s-nacyosom" },
+          { name: "Худи без начёса", slug: "xudi-bez-nacyosa" },
+        ],
+      },
+      sub("Свитшоты", "sweatshirts"),
+      sub("Свитера", "sweaters"),
+      sub("Шорты", "shorts"),
+      {
+        name: "Футболки",
+        slug: "t-shirts",
+        subSubcategories: [
+          { name: "Футболки с принтом", slug: "futbolki-s-printami" },
+          { name: "Футболки базовые (Oversize)", slug: "futbolki-bazovye-oversize" },
+          { name: "Футболки с Артистами", slug: "futbolki-artists" },
+        ],
+      },
+      sub("Куртки", "jackets"),
+      sub("Брюки", "trousers"),
+    ],
   },
   socks: {
     name: "Носки",
     slug: "socks",
     subcategories: [
-      sub("Классические (40-45)", "klassicheskie-40-45"),
-      sub("Классические (34-39)", "klassicheskie-34-39"),
-      sub("Спортивные (40-45)", "sportivnye-40-45"),
-      sub("Спортивные (34-39)", "sportivnye-34-39"),
-      sub("Короткие (40-45)", "korotkie-40-45"),
-      sub("Короткие (34-39)", "korotkie-34-39"),
-      sub("Детские"),
-      sub("Подарочные наборы"),
-    ]
+      {
+        name: "ПО ТИПУ",
+        slug: "tip",
+        subSubcategories: [
+          { name: "Мужские", slug: "men-socks" },
+          { name: "Женские", slug: "women-socks" },
+          { name: "Короткие", slug: "short-socks" },
+          { name: "Детские", slug: "kids-socks" },
+          { name: "Черные", slug: "black-socks" },
+          { name: "Белые", slug: "white-socks" },
+        ],
+      },
+      {
+        name: "По тематике",
+        slug: "subject",
+        subSubcategories: [
+          { name: "С мемами", slug: "memes-socks" },
+          { name: "Ретро игры", slug: "retro-socks" },
+          { name: "Тульские", slug: "tula-socks" },
+          { name: "Артисты", slug: "performes-socks" },
+          { name: "С принтами", slug: "with-prints" },
+          { name: "Японский стиль", slug: "japanese-socks" },
+          { name: "Цветные", slug: "colored-sock" },
+          { name: "Стратегический запас", slug: "strategic-socks" },
+        ],
+      },
+      {
+        name: "Подборки",
+        slug: "podborki",
+        subSubcategories: [
+          { name: "Новинки", slug: "new-socks" },
+          { name: "Хиты  продаж", slug: "hits-socks" },
+          { name: "Подарочные наборы", slug: "gift-sets" },
+          { name: "Новый год", slug: "new-year" },
+        ],
+      },
+    ],
   },
   accessories: {
     name: "Аксессуары",
     slug: "accessories",
-    subcategories: [sub("Кружки"), sub("Ремни"), sub("Сумки"), sub("Шапки")]
+    subcategories: [sub("Кружки", "mugs"), sub("Ремни", "belts"), sub("Сумки", "bags"), sub("Шапки", "hats")],
   },
   merch: {
     name: "Мерч",
     slug: "merch",
-    subcategories: [sub("formula", "formula"), sub("JDM", "jdm"), sub("ГУДТАЙМС", "gudtajms"), sub("ДИКАЯ МЯТА", "dikaya-myata"), sub("Драгни", "dragni"), sub("Мультfильмы", "multfilmy"), sub("Тульские Дизайнеры", "tulskie-dizajnery")]
+    subcategories: [
+      sub("JDM", "jdm"),
+      {
+        name: "ГУДТАЙМС",
+        slug: "gudtajms",
+        subSubcategories: [
+          { name: "Носки", slug: "noski" },
+          { name: "Футболки", slug: "futbolki" },
+        ],
+      },
+      {
+        name: "ДИКАЯ МЯТА",
+        slug: "dikaya-myata",
+        subSubcategories: [
+          { name: "Футболки", slug: "futbolki" },
+          { name: "Худи", slug: "xudi" },
+          { name: "Носки", slug: "noski" },
+          { name: "Шорты", slug: "shorts" },
+          { name: "Аксессуары", slug: "aksessuary" },
+          { name: "Рюкзаки", slug: "ryukzaki" },
+        ],
+      },
+      sub("Драгни", "dragni"),
+      sub("Мультfильмы", "multfilmy"),
+      sub("Тульские Дизайнеры", "tulskie-dizajnery"),
+      {
+        name: "Молодость внутри",
+        slug: "molodost-vnutri",
+        subSubcategories: [
+          { name: "Футболки", slug: "futbolki" },
+          { name: "Носки", slug: "noski" },
+          { name: "Худи", slug: "xudi" },
+          { name: "Стикерпаки", slug: "stikerpaki" },
+          { name: "Лонгсливы", slug: "longslivy" },
+          { name: "Плащи", slug: "plashhi" },
+          { name: "Аксессуары", slug: "aksessuary" },
+        ],
+      },
+      sub("BOOOMERANGS × ТУЛЬСКИЕ ДИЗАЙНЕРЫ", "booomerangs-tulskie-dizajnery"),
+      sub("«Марк и Монти»", "mark-i-monti"),
+      sub("Вашана", "vashana"),
+      sub("Людмил Огурченко", "lyudmil-ogurchenko"),
+    ],
   },
   sale: {
-    name: "Распродажа",
+    name: "SALE",
     slug: "sale",
-    subcategories: []
-  }
+    subcategories: [
+      sub("Худи", "hoodie"),
+      sub("Футболки", "t-shirt"),
+      sub("Свитшоты", "sweatshirt"),
+      sub("Куртки", "sale-jackets"),
+      sub("Носки", "sale-socks"),
+    ],
+  },
 };
 
 export type CategorySlug = string;
@@ -271,6 +373,15 @@ export function resolveProductCategoryPaths(
   }
 
   return paths;
+}
+
+/**
+ * Сортирует пути товара от самого глубокого (под-подкатегория) к самому общему
+ * (только категория). Для breadcrumb берём первый — самый специфичный путь.
+ */
+export function sortProductCategoryPaths(paths: ProductCategoryPath[]): ProductCategoryPath[] {
+  const depth = (p: ProductCategoryPath) => (p.subSubcategorySlug ? 3 : p.subcategorySlug ? 2 : 1);
+  return [...paths].sort((a, b) => depth(b) - depth(a));
 }
 
 // Products

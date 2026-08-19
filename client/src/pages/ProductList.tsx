@@ -1722,7 +1722,7 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
 
   const getTitle = () => {
     if (searchParam) return `Результаты поиска: "${searchParam}"`;
-    if (saleParam) return "Распродажа";
+    if (saleParam) return "SALE";
     if (currentCategory) {
       if (subcategoryParam) return subcategoryParam;
       return currentCategory.name;
@@ -1799,7 +1799,7 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   // Dynamic SEO based on active filters
   const catalogSeoTitle = seoOverride?.title || (() => {
     if (searchParam) return `Поиск: «${searchParam}» — BMGBRAND`;
-    if (saleParam) return "Распродажа — скидки на одежду";
+    if (saleParam) return "SALE — скидки на одежду";
     if (subSubcategoryParam) return `${subSubcategoryParam} — купить | ${subcategoryParam || ''} BMGBRAND`;
     if (subcategoryParam && isMerch) return `Мерч ${subcategoryParam} — купить официальный мерч`;
     if (subcategoryParam) return `${subcategoryParam} — купить`;

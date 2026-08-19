@@ -3,48 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, Copy, Bell } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { enablePush, pushSupported, getPushSubscription } from "@/lib/push";
 
 type PushStatus = "idle" | "pending" | "subscribed" | "denied" | "unsupported";
-
-async function subscribeToPush(): Promise<{ success: boolean; error?: string }> {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    return { success: false, error: "unsupported" };
-  }
-  try {
-    const keyRes = await fetch("/api/push/vapid-public-key");
-    if (!keyRes.ok) return { success: false, error: "no_vapid" };
-    const { publicKey } = await keyRes.json();
-
-    const swReadyTimeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), 10_000)
-    );
-    const reg = await Promise.race([navigator.serviceWorker.ready, swReadyTimeout]);
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") return { success: false, error: "denied" };
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
-      });
-    }
-    await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subscription: sub.toJSON() }),
-    });
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message };
-  }
-}
-
-function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = atob(base64);
-  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
-}
 
 export function NewsletterPopup() {
   const [isVisible, setIsVisible] = useState(false);
@@ -75,15 +36,18 @@ export function NewsletterPopup() {
   }, [popupPromo?.settings?.delay]);
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    if (!pushSupported()) {
       setPushStatus("unsupported");
       return;
     }
-    if (localStorage.getItem("push-subscribed")) {
-      setPushStatus("subscribed");
-    } else if (Notification.permission === "denied") {
-      setPushStatus("denied");
-    }
+    getPushSubscription().then((sub) => {
+      if (sub) {
+        setPushStatus("subscribed");
+        localStorage.setItem("push-subscribed", "true");
+      } else if (Notification.permission === "denied") {
+        setPushStatus("denied");
+      }
+    });
   }, []);
 
   const subscribeMutation = useMutation({
@@ -94,26 +58,10 @@ export function NewsletterPopup() {
       });
       return res.json();
     },
-    onSuccess: async (data: { promoCode?: string }) => {
+    onSuccess: (data: { promoCode?: string }) => {
       setIsSubscribed(true);
       localStorage.setItem("newsletter-subscribed", "true");
       if (data.promoCode) setPromoCode(data.promoCode);
-
-      // Автоматически запрашиваем пуш-разрешение после email-подписки
-      if (pushStatus === "idle") {
-        setPushStatus("pending");
-        const result = await subscribeToPush();
-        if (result.success) {
-          setPushStatus("subscribed");
-          localStorage.setItem("push-subscribed", "true");
-        } else if (result.error === "unsupported") {
-          setPushStatus("unsupported");
-        } else if (result.error === "denied") {
-          setPushStatus("denied");
-        } else {
-          setPushStatus("idle");
-        }
-      }
     },
     onError: (err: any) => setError(err.message || "Ошибка подписки"),
   });
@@ -131,6 +79,25 @@ export function NewsletterPopup() {
     }
     subscribeMutation.mutate(email);
   };
+
+  const handleEnablePush = useCallback(async () => {
+    if (!pushSupported()) {
+      setPushStatus("unsupported");
+      return;
+    }
+    setPushStatus("pending");
+    const result = await enablePush();
+    if (result === "subscribed") {
+      setPushStatus("subscribed");
+      localStorage.setItem("push-subscribed", "true");
+    } else if (result === "denied") {
+      setPushStatus("denied");
+    } else if (result === "unsupported") {
+      setPushStatus("unsupported");
+    } else {
+      setPushStatus("idle");
+    }
+  }, []);
 
   const handleDismiss = useCallback(() => {
     localStorage.setItem("newsletter-popup-dismissed", "true");
@@ -224,6 +191,17 @@ export function NewsletterPopup() {
                         : popupPromo?.settings?.buttonText || "Получить скидку"}
                     </button>
 
+                    <button
+                      type="button"
+                      onClick={handleEnablePush}
+                      disabled={pushStatus === "pending" || pushStatus === "subscribed"}
+                      className="w-full py-3 rounded-xl text-sm font-semibold text-white/80 hover:text-white border border-white/10 hover:border-primary/40 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                      data-testid="button-enable-push"
+                    >
+                      <Bell className="w-4 h-4" />
+                      {pushStatus === "subscribed" ? "Уведомления включены" : "Включить уведомления о дропах"}
+                    </button>
+
                     {error && (
                       <p className="text-red-400 text-xs text-center">{error}</p>
                     )}
@@ -304,11 +282,22 @@ export function NewsletterPopup() {
                       </p>
                     </div>
 
-                    {pushStatus === "subscribed" && (
+                    {pushStatus === "subscribed" ? (
                       <p className="text-green-400/70 text-[11px] flex items-center justify-center gap-1.5">
                         <Bell className="w-3.5 h-3.5" /> Пуш-уведомления включены
                       </p>
-                    )}
+                    ) : pushStatus !== "unsupported" ? (
+                      <button
+                        type="button"
+                        onClick={handleEnablePush}
+                        disabled={pushStatus === "pending"}
+                        className="w-full py-3 rounded-xl text-sm font-semibold text-white/80 hover:text-white border border-white/10 hover:border-primary/40 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                        data-testid="button-enable-push-success"
+                      >
+                        <Bell className="w-4 h-4" />
+                        {pushStatus === "denied" ? "Разрешите уведомления в настройках браузера" : "Включить уведомления о дропах"}
+                      </button>
+                    ) : null}
 
                     <button
                       onClick={handleDismiss}

@@ -13,10 +13,9 @@ import { AuthModal } from "@/components/AuthModal";
 import { BrandLoader } from "@/components/BrandLoader";
 import { Badge } from "@/components/ui/badge";
 import SEO from "@/components/SEO";
-import { Minus, Plus, ShoppingBag, ShoppingCart, ChevronLeft, ChevronRight, Loader2, X, Percent, Flame, ArrowRight, Target, Clock, Landmark, Share2, Check, Home, ZoomIn, ZoomOut, Bell, TrendingUp, TrendingDown, LogIn, AlertTriangle, MapPin, Truck, RotateCcw, Gift, Ruler } from "lucide-react";
+import { Star, Minus, Plus, ShoppingBag, ShoppingCart, ChevronLeft, ChevronRight, Loader2, X, Percent, Flame, ArrowRight, Target, Clock, Landmark, Share2, Check, Home, ZoomIn, ZoomOut, Bell, TrendingUp, TrendingDown, LogIn, AlertTriangle, MapPin, Truck, RotateCcw, Gift, Ruler } from "lucide-react";
 import { getFeatureBadgeIcon } from "@/lib/featureBadgeIcons";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
-import { ProductCard } from "@/components/ProductCard";
 import { RecommendationBlock } from "@/components/RecommendationBlock";
 import {
   Breadcrumb,
@@ -43,7 +42,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
-import { CATEGORIES, transliterateToSlug, type CategorySlug, type SizeMeasurement } from "@shared/schema";
+import { CATEGORIES, buildCategoryIndex, resolveProductCategoryPaths, sortProductCategoryPaths, transliterateToSlug, type CategorySlug, type SizeMeasurement } from "@shared/schema";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFavoriteStatus, useFavoriteActions } from "@/hooks/use-favorites";
@@ -346,6 +345,71 @@ export default function ProductDetail() {
   const avgRating = reviewCount > 0
     ? Math.round((productReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount) * 10) / 10
     : 0;
+
+  const scrollToReviews = () => document.getElementById("reviews")?.scrollIntoView({ behavior: "smooth" });
+  const reviewsWord = reviewCount === 1 ? "отзыв" : reviewCount < 5 ? "отзыва" : "отзывов";
+  const ratingChip = reviewCount > 0 ? (
+    <button
+      onClick={scrollToReviews}
+      className="inline-flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity"
+      data-testid="link-reviews-anchor"
+      aria-label={`${avgRating.toFixed(1)} из 5, ${reviewCount} ${reviewsWord}`}
+    >
+      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 shrink-0" />
+      <span className="font-semibold text-foreground">{avgRating.toFixed(1)}</span>
+      <span className="text-muted-foreground">· {reviewCount} {reviewsWord}</span>
+    </button>
+  ) : null;
+
+  const ratingSummary = (
+    <div className="mt-4 mb-6 rounded-xl border border-border/60 bg-muted/30 p-4" data-testid="section-rating-summary">
+      {reviewCount > 0 ? (
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col items-center justify-center min-w-[64px]">
+            <span className="text-3xl font-extrabold leading-none text-foreground">{avgRating.toFixed(1)}</span>
+            <div className="flex gap-0.5 mt-1">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star key={s} className={`w-3.5 h-3.5 ${s <= Math.round(avgRating) ? "fill-yellow-400 text-yellow-400" : "fill-transparent text-zinc-300 dark:text-zinc-600"}`} />
+              ))}
+            </div>
+            <button onClick={scrollToReviews} className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-1 underline-offset-2 hover:underline">
+              {reviewCount} {reviewsWord}
+            </button>
+          </div>
+          <div className="flex-1 space-y-1">
+            {[5, 4, 3, 2, 1].map((s) => {
+              const count = productReviews.filter((r) => r.rating === s).length;
+              const pct = reviewCount > 0 ? Math.round((count / reviewCount) * 100) : 0;
+              return (
+                <div key={s} className="flex items-center gap-2 text-[11px]">
+                  <span className="w-2 text-right text-muted-foreground">{s}</span>
+                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400 shrink-0" />
+                  <div className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-5 text-right text-muted-foreground">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={scrollToReviews}
+          className="w-full flex flex-col items-center gap-1.5 py-1 text-center"
+          data-testid="button-no-reviews-anchor"
+        >
+          <div className="flex gap-0.5">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Star key={s} className="w-4 h-4 fill-transparent text-zinc-300 dark:text-zinc-600" />
+            ))}
+          </div>
+          <span className="text-sm font-semibold text-foreground">Пока нет отзывов</span>
+          <span className="text-xs text-muted-foreground">Будьте первым — нажмите, чтобы оставить отзыв</span>
+        </button>
+      )}
+    </div>
+  );
 
   const { data: lookData } = useQuery<{ products: any[]; categoryProducts: any[]; lookCategory: string | null; lookSubcategory: string | null }>({
     queryKey: ['/api/products', id, 'look'],
@@ -933,22 +997,45 @@ export default function ProductDetail() {
     }
   }
 
-  // BreadcrumbList — use the proper Russian category name, not the raw slug
-  const breadcrumbCategoryName = product.category
-    ? (CATEGORIES[product.category as keyof typeof CATEGORIES]?.name ?? product.category)
-    : null;
+  // Полные пути товара (категория → подкатегория → под-подкатегория),
+  // включая дополнительные категории. Резолвер тот же, что в sitemap/SSR.
+  const catPaths = sortProductCategoryPaths(resolveProductCategoryPaths(
+    {
+      category: (product as any).category || null,
+      subcategory: (product as any).subcategory || null,
+      subSubcategory: (product as any).subSubcategory || null,
+      additionalCategories: Array.isArray((product as any).additionalCategories)
+        ? (product as any).additionalCategories : null,
+    },
+    buildCategoryIndex(CATEGORIES),
+  ));
+  const primaryPath = catPaths[0] || null;
+
+  // BreadcrumbList — полный путь товара (категория/подкатегория/под-подкатегория)
+  const breadcrumbListItems: Array<{ "@type": string; position: number; name: string; item: string }> = [
+    { "@type": "ListItem", "position": 1, "name": "Главная", "item": origin },
+    { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${origin}/products` },
+  ];
+  let bcPos = 3;
+  if (primaryPath) {
+    breadcrumbListItems.push({ "@type": "ListItem", "position": bcPos++, "name": CATEGORIES[primaryPath.categorySlug as keyof typeof CATEGORIES]?.name || primaryPath.categorySlug, "item": `${origin}/products/${primaryPath.categorySlug}` });
+    if (primaryPath.subcategorySlug) {
+      breadcrumbListItems.push({ "@type": "ListItem", "position": bcPos++, "name": primaryPath.subcategoryName || primaryPath.subcategorySlug, "item": `${origin}/${primaryPath.subcategorySlug}` });
+    }
+    if (primaryPath.subcategorySlug && primaryPath.subSubcategorySlug) {
+      breadcrumbListItems.push({ "@type": "ListItem", "position": bcPos++, "name": primaryPath.subSubcategoryName || primaryPath.subSubcategorySlug, "item": `${origin}/products/${primaryPath.categorySlug}/${primaryPath.subcategorySlug}/${primaryPath.subSubcategorySlug}` });
+    }
+  } else if (product.category) {
+    breadcrumbListItems.push({ "@type": "ListItem", "position": bcPos++, "name": CATEGORIES[product.category as keyof typeof CATEGORIES]?.name ?? product.category, "item": `${origin}/products/${encodeURIComponent(product.category)}` });
+  }
+  breadcrumbListItems.push({ "@type": "ListItem", "position": bcPos, "name": product.name, "item": productUrl });
 
   const productJsonLd = [
     baseProduct,
     {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
-      "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Главная", "item": origin },
-        { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${origin}/products` },
-        ...(breadcrumbCategoryName ? [{ "@type": "ListItem", "position": 3, "name": breadcrumbCategoryName, "item": `${origin}/products/${encodeURIComponent(product.category!)}` }] : []),
-        { "@type": "ListItem", "position": breadcrumbCategoryName ? 4 : 3, "name": product.name, "item": productUrl },
-      ],
+      "itemListElement": breadcrumbListItems,
     },
     ...adminExtraSchemas,
     { "@context": "https://schema.org", ...organizationSchema },
@@ -1016,15 +1103,46 @@ export default function ProductDetail() {
             <BreadcrumbItem>
               <BreadcrumbLink href="/products">Каталог</BreadcrumbLink>
             </BreadcrumbItem>
-            {product.category && (
+            {primaryPath ? (
               <>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href={`/products/${encodeURIComponent(product.category)}`}>
-                    {CATEGORIES[product.category as keyof typeof CATEGORIES]?.name || product.category}
+                  <BreadcrumbLink href={`/products/${primaryPath.categorySlug}`}>
+                    {CATEGORIES[primaryPath.categorySlug as keyof typeof CATEGORIES]?.name || primaryPath.categorySlug}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
+                {primaryPath.subcategorySlug && (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbLink href={`/${primaryPath.subcategorySlug}`}>
+                        {primaryPath.subcategoryName || primaryPath.subcategorySlug}
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                  </>
+                )}
+                {primaryPath.subcategorySlug && primaryPath.subSubcategorySlug && (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbLink href={`/products/${primaryPath.categorySlug}/${primaryPath.subcategorySlug}/${primaryPath.subSubcategorySlug}`}>
+                        {primaryPath.subSubcategoryName || primaryPath.subSubcategorySlug}
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                  </>
+                )}
               </>
+            ) : (
+              product.category && (
+                <>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink href={`/products/${encodeURIComponent(product.category)}`}>
+                      {CATEGORIES[product.category as keyof typeof CATEGORIES]?.name || product.category}
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                </>
+              )
             )}
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -1032,6 +1150,29 @@ export default function ProductDetail() {
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
+        {catPaths.length > 1 && (
+          <div className="mt-2 text-[11px] sm:text-xs text-muted-foreground">
+            <span className="opacity-70">Также в разделах:</span>{" "}
+            {catPaths.slice(1).map((p, i) => {
+              const label = [
+                CATEGORIES[p.categorySlug as keyof typeof CATEGORIES]?.name || p.categorySlug,
+                p.subcategoryName || p.subcategorySlug,
+                p.subSubcategoryName || p.subSubcategorySlug,
+              ].filter(Boolean).join(" → ");
+              const href = p.subSubcategorySlug
+                ? `/products/${p.categorySlug}/${p.subcategorySlug}/${p.subSubcategorySlug}`
+                : p.subcategorySlug
+                  ? `/${p.subcategorySlug}`
+                  : `/products/${p.categorySlug}`;
+              return (
+                <span key={i}>
+                  {i > 0 && " · "}
+                  <a href={href} className="hover:text-foreground hover:underline">{label}</a>
+                </span>
+              );
+            })}
+          </div>
+        )}
       </div>
       <div className="pt-3 sm:pt-5 pb-8 max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-4 gap-6">
@@ -1139,17 +1280,17 @@ export default function ProductDetail() {
               const badges = badgeIds.map((id) => templates[id]).filter((t): t is { icon?: string; title?: string; description?: string } => !!t && !!t.title);
               if (badges.length === 0) return null;
               return (
-                <div className="grid grid-cols-3 gap-x-2 gap-y-2 mt-3" data-testid="section-feature-badges-mobile">
+                <div className="grid grid-cols-2 gap-2.5 mt-3" data-testid="section-feature-badges-mobile">
                   {badges.map((b, idx) => {
                     const Icon = getFeatureBadgeIcon(b.icon);
                     return (
-                      <div key={idx} className="flex items-start gap-2" data-testid={`badge-feature-mobile-${idx}`}>
-                        <div className="w-7 h-7 rounded-lg bg-foreground/[0.06] flex items-center justify-center shrink-0 mt-0.5">
-                          <Icon className="w-3.5 h-3.5 text-foreground/60" />
+                      <div key={idx} className="flex flex-col gap-2 rounded-xl border border-border/50 bg-card/60 p-3" data-testid={`badge-feature-mobile-${idx}`}>
+                        <div className="w-8 h-8 rounded-full bg-foreground/[0.06] flex items-center justify-center shrink-0">
+                          <Icon className="w-4 h-4 text-foreground/70" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[11px] font-semibold text-foreground leading-tight">{b.title}</p>
-                          {b.description && <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{b.description}</p>}
+                          <p className="text-xs font-semibold text-foreground leading-snug">{b.title}</p>
+                          {b.description && <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{b.description}</p>}
                         </div>
                       </div>
                     );
@@ -1171,6 +1312,11 @@ export default function ProductDetail() {
                 <h1 className="text-base font-semibold leading-snug text-foreground mb-3" data-testid={`text-product-name-${product.id}`}>
                   {displayName(product.name)}
                 </h1>
+                {reviewCount > 0 && (
+                  <div className="mb-3">
+                    {ratingChip}
+                  </div>
+                )}
                 <div className={`grid gap-2 ${isWholesale ? 'grid-cols-2' : 'grid-cols-3'}`}>
                   <button
                     onClick={() => toggleFavorite(product.id)}
@@ -1308,6 +1454,11 @@ export default function ProductDetail() {
                   </div>
                 )}
               </div>
+              {reviewCount > 0 && (
+                <div className="hidden md:block mb-2">
+                  {ratingChip}
+                </div>
+              )}
               <div className="border-t border-border my-3 sm:my-2"></div>
               {/* Цена — скрыта на десктопе (переехала в шапку) */}
               <div className="md:hidden space-y-1" data-testid={`text-product-price-${product.id}`}>
@@ -2164,6 +2315,8 @@ export default function ProductDetail() {
             </>
               );
             })()}
+
+            {ratingSummary}
             
             {((product.sizes?.length > 0 && !selectedSize && !hasMultipleSizeRanges && !isEffectivelyNoSize(product)) || (!hasColorVariants && product.colors?.length > 0 && !selectedColor)) && (
               <p className="mb-4 text-center text-primary text-sm">
@@ -2596,9 +2749,9 @@ export default function ProductDetail() {
                   {badges.map((b, idx) => {
                     const Icon = getFeatureBadgeIcon(b.icon);
                     return (
-                      <div key={idx} className="flex items-start gap-2" data-testid={`badge-feature-desktop-${idx}`}>
-                        <div className="w-7 h-7 rounded-lg bg-foreground/[0.06] flex items-center justify-center shrink-0 mt-0.5">
-                          <Icon className="w-3.5 h-3.5 text-foreground/60" />
+                      <div key={idx} className="group flex items-start gap-2" data-testid={`badge-feature-desktop-${idx}`}>
+                        <div className="w-7 h-7 rounded-lg bg-foreground/[0.06] flex items-center justify-center shrink-0 mt-0.5 transition-colors duration-200 group-hover:bg-foreground/[0.13]">
+                          <Icon className="w-3.5 h-3.5 text-foreground/60 transition-colors duration-200 group-hover:text-foreground" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-[11px] font-semibold text-foreground leading-tight">{b.title}</p>
@@ -2889,15 +3042,39 @@ export default function ProductDetail() {
         <RecommendationBlock
           productId={product.id}
           title="С этим часто берут"
+          subtitle="Покупатели часто дополняют заказ этим"
+          category={product.category}
         />
       )}
 
       {recentlyViewedProducts && recentlyViewedProducts.length > 0 && (
         <section className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="section-recently-viewed">
           <h2 className="text-xl font-semibold mb-4 text-foreground">Недавно просмотренные</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {recentlyViewedProducts.slice(0, 6).map((p: any) => (
-              <ProductCard key={p.id} product={p} />
+          <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none snap-x snap-mandatory">
+            {recentlyViewedProducts.slice(0, 8).map((p: any) => (
+              <Link
+                key={p.id}
+                href={`/${p.slug || p.id}`}
+                className="group flex-shrink-0 w-[140px] sm:w-[170px] lg:w-[200px] snap-start"
+                data-testid={`card-recently-viewed-${p.id}`}
+              >
+                <div className="relative aspect-[3/4] rounded-md overflow-hidden bg-muted mb-2">
+                  <img
+                    src={p.thumbnailUrl || p.imageUrl}
+                    alt={displayName(p.name)}
+                    title={displayName(p.name)}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
+                    onError={(e) => { if (p.imageUrl && e.currentTarget.src !== p.imageUrl) e.currentTarget.src = p.imageUrl; }}
+                  />
+                </div>
+                <p className="text-xs sm:text-sm font-medium text-foreground line-clamp-2 leading-tight">
+                  {displayName(p.name)}
+                </p>
+                <p className="text-xs sm:text-sm text-foreground/70 mt-0.5">
+                  {p.price ? `${(p.price / 100).toLocaleString('ru-RU')} ₽` : ''}
+                </p>
+              </Link>
             ))}
           </div>
         </section>

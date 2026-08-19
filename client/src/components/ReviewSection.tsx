@@ -313,7 +313,7 @@ export function ReviewSection({ productId }: { productId: number }) {
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-10" data-testid="review-section">
+    <div id="reviews" className="w-full max-w-3xl mx-auto px-4 py-10 scroll-mt-24" data-testid="review-section">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold tracking-tight">Отзывы</h2>
         {user && (

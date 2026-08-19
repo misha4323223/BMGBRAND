@@ -90,11 +90,16 @@ export async function runAbandonedCartCheck(): Promise<void> {
         if (reminder) {
           const sentAt = new Date(reminder.sentAt).getTime();
           const withinCooldown = (Date.now() - sentAt) < COOLDOWN_MS;
-          // Не слать повторно если 4 дня с последней отправки ещё не прошло
-          // (независимо от того изменилась корзина или нет)
+          // Не слать повторно если 7 дней с последней отправки ещё не прошло
           if (withinCooldown) {
             skipped++;
             cooldown++;
+            continue;
+          }
+          // Повторно шлём только если корзина реально изменилась с прошлой отправки,
+          // иначе не спамим одним и тем же письмом.
+          if (reminder.cartHash === cartHash) {
+            skipped++;
             continue;
           }
         }

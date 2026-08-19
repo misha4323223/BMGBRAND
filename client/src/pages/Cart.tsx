@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import SEO from "@/components/SEO";
 import { useCart, useRemoveFromCart, useClearCart, useUpdateCartQuantity } from "@/hooks/use-cart";
 import { useAuth, useWholesalePrice } from "@/hooks/use-auth";
@@ -6,11 +7,12 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { AuthModal } from "@/components/AuthModal";
 import { Link, useLocation } from "wouter";
-import { Trash2, ArrowRight, ShoppingBag, Percent, AlertCircle, Plus, Minus } from "lucide-react";
+import { Trash2, ArrowRight, ShoppingBag, Percent, AlertCircle, Plus, Minus, Gift } from "lucide-react";
 import { BrandLoader } from "@/components/BrandLoader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 const MIN_WHOLESALE_ORDER = 500000; // 5000 RUB in cents
 
@@ -24,6 +26,16 @@ export default function Cart() {
   const { data: authData } = useAuth();
   const isLoggedIn = !!(authData?.user);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  const loyaltyTiersQuery = useQuery<Array<{ id: number; minSpent: number; discountPercent: number; name: string | null }>>({
+    queryKey: ["/api/loyalty-tiers"],
+    queryFn: async () => {
+      const res = await fetch("/api/loyalty-tiers");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isLoggedIn && !isWholesale,
+  });
 
   if (isLoading) {
     return (
@@ -63,6 +75,12 @@ export default function Cart() {
   const savings = retailSubtotal - wholesaleSubtotal;
   
   const meetsMinOrder = !isWholesale || subtotal >= MIN_WHOLESALE_ORDER;
+
+  const loyaltyTiers = (loyaltyTiersQuery.data || []).slice().sort((a, b) => a.minSpent - b.minSpent);
+  const userTotalSpent = authData?.user?.totalSpent || 0;
+  const nextLoyaltyTier = loyaltyTiers.find((t) => userTotalSpent < t.minSpent);
+  const loyaltyProgress = nextLoyaltyTier ? Math.min(100, Math.round((userTotalSpent / nextLoyaltyTier.minSpent) * 100)) : 100;
+  const amountToNextTier = nextLoyaltyTier ? nextLoyaltyTier.minSpent - userTotalSpent : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -265,6 +283,29 @@ export default function Cart() {
                         Создать аккаунт →
                       </button>
                     </div>
+                  </div>
+                )}
+
+                {isLoggedIn && !isWholesale && loyaltyTiers.length > 0 && (
+                  <div className="p-3 mb-4 rounded-lg bg-primary/5 border border-primary/20" data-testid="cart-loyalty-progress">
+                    <div className="flex items-center gap-2 text-sm mb-2">
+                      <Gift className="w-4 h-4 text-primary flex-shrink-0" />
+                      {nextLoyaltyTier ? (
+                        <span className="font-medium text-foreground">
+                          До «{nextLoyaltyTier.name || "следующего уровня"}» ({nextLoyaltyTier.discountPercent}%) осталось {formatPrice(amountToNextTier)}
+                        </span>
+                      ) : (
+                        <span className="font-medium text-foreground">
+                          Максимальный уровень — ваша скидка {authData?.user?.loyaltyDiscount || 0}%
+                        </span>
+                      )}
+                    </div>
+                    <Progress value={loyaltyProgress} className="h-2" />
+                    <p className="text-muted-foreground text-xs mt-1.5">
+                      {nextLoyaltyTier
+                        ? `Сейчас ваша скидка ${authData?.user?.loyaltyDiscount || 0}%. Покупки учитываются накопительно — сумма заказа прибавится после оплаты.`
+                        : "Ваша накопительная скидка применяется автоматически к каждому заказу."}
+                    </p>
                   </div>
                 )}
 

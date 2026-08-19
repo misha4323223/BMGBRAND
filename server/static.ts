@@ -18,6 +18,7 @@ function getSeoOverride(key: string): { title?: string; description?: string } {
   return {};
 }
 import { getRecommendationsSync } from "./recommendations";
+import { CATEGORIES as SCHEMA_CATEGORIES, buildCategoryIndex, resolveProductCategoryPaths, sortProductCategoryPaths } from "../shared/schema";
 
 const SITE_NAME = "BMGBRAND";
 const DEFAULT_TITLE = `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
@@ -100,7 +101,7 @@ export const CATEGORIES: Record<string, { name: string; title?: string; desc: st
     desc: "Купить необычные носки с принтом BOOOMERANGS: оригинальные носки с мемами, прикольные авторские рисунки, носки хорошего качества — хлопок 75%. Большой выбор принтов. Доставка по всей России СДЭК.",
   },
   "accessories": { name: "Аксессуары", desc: "Купить аксессуары BMGBRAND — шапки, сумки, ремни и другие аксессуары. Доставка по всей России." },
-  "sale":     { name: "Распродажа",  desc: "Распродажа BMGBRAND — выгодные цены на одежду и аксессуары. Доставка по всей России." },
+  "sale":     { name: "SALE",  desc: "Распродажа BMGBRAND — выгодные цены на одежду и аксессуары. Доставка по всей России." },
 };
 
 function escHtml(s: string): string {
@@ -541,15 +542,35 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
     ],
   };
 
+  // Полный путь товара в breadcrumb (категория → подкатегория → под-подкатегория).
+  // Резолвер тот же, что в sitemap/SSR; имена/слаги берём из shared/schema.ts.
+  const bcPaths = sortProductCategoryPaths(resolveProductCategoryPaths(
+    { category: meta.category, subcategory: meta.subcategory, subSubcategory: meta.subSubcategory, additionalCategories: meta.additionalCategories },
+    buildCategoryIndex(SCHEMA_CATEGORIES),
+  ));
+  const bcPrimary = bcPaths[0] || null;
+  const bcItems: any[] = [
+    { "@type": "ListItem", "position": 1, "name": "Главная", "item": siteUrl },
+    { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${siteUrl}/products` },
+  ];
+  let bcPos = 3;
+  if (bcPrimary) {
+    bcItems.push({ "@type": "ListItem", "position": bcPos++, "name": SCHEMA_CATEGORIES[bcPrimary.categorySlug]?.name || bcPrimary.categorySlug, "item": `${siteUrl}/products/${bcPrimary.categorySlug}` });
+    if (bcPrimary.subcategorySlug) {
+      bcItems.push({ "@type": "ListItem", "position": bcPos++, "name": bcPrimary.subcategoryName || bcPrimary.subcategorySlug, "item": `${siteUrl}/${bcPrimary.subcategorySlug}` });
+    }
+    if (bcPrimary.subcategorySlug && bcPrimary.subSubcategorySlug) {
+      bcItems.push({ "@type": "ListItem", "position": bcPos++, "name": bcPrimary.subSubcategoryName || bcPrimary.subSubcategorySlug, "item": `${siteUrl}/products/${bcPrimary.categorySlug}/${bcPrimary.subcategorySlug}/${bcPrimary.subSubcategorySlug}` });
+    }
+  } else if (meta.category) {
+    bcItems.push({ "@type": "ListItem", "position": bcPos++, "name": CATEGORIES[meta.category]?.name || meta.category, "item": `${siteUrl}/products/${meta.category}` });
+  }
+  bcItems.push({ "@type": "ListItem", "position": bcPos, "name": meta.title, "item": productUrl });
+
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    "itemListElement": [
-      { "@type": "ListItem", "position": 1, "name": "Главная", "item": siteUrl },
-      { "@type": "ListItem", "position": 2, "name": "Каталог", "item": `${siteUrl}/products` },
-      ...(meta.category ? [{ "@type": "ListItem", "position": 3, "name": CATEGORIES[meta.category]?.name || meta.category, "item": `${siteUrl}/products/${meta.category}` }] : []),
-      { "@type": "ListItem", "position": meta.category ? 4 : 3, "name": meta.title, "item": productUrl },
-    ],
+    "itemListElement": bcItems,
   };
 
   return JSON.stringify([productSchema, organizationSchema, breadcrumbSchema]);

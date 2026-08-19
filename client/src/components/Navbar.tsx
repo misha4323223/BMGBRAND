@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { ShoppingBag, Menu, X, ArrowLeft, Search, User, LogOut, LogIn, Gift, Heart, ChevronDown, ChevronRight, Briefcase, TrendingUp, Shirt, PackageOpen, Headphones, Music, Play, Pause } from "lucide-react";
+import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 import { usePartnerBanner, PartnerBannerContent } from "./PartnerBanner";
 import { MusicDrawer } from "./MusicDrawer";
 import { usePlayer } from "@/context/PlayerContext";
@@ -395,6 +396,7 @@ export function Navbar() {
                 <Search className="w-5 h-5 text-foreground" />
               </button>
             )}
+            <PushSubscribeButton />
             {!isConceptPage && (
               <Link href="/favorites" className="relative p-1.5 hover:bg-muted rounded-full transition-colors" aria-label="Избранное">
                 <Heart className={`w-5 h-5 ${favoritesCount > 0 ? 'fill-foreground text-foreground' : 'text-foreground'}`} />
@@ -785,6 +787,7 @@ export function Navbar() {
                 ) : null}
               </>
             )}
+            <PushSubscribeButton className="p-2" iconClassName="w-6 h-6" />
             {!isConceptPage && (
               <Link href="/favorites" className="relative cursor-pointer group p-2 hover:bg-muted rounded-full transition-colors" data-testid="link-favorites" aria-label="Избранное">
                 <Heart className={`w-6 h-6 transition-colors ${favoritesCount > 0 ? 'fill-foreground text-foreground' : 'text-foreground group-hover:text-primary'}`} />
