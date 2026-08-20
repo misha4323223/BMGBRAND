@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ru.boomerangs.mobile",
+      "sha256_cert_fingerprints": [
+        "0D:98:A5:B9:77:98:72:3B:8D:3E:5A:0A:3E:EC:BE:BA:6A:E1:41:A8:AB:DF:B0:68:25:B7:2E:B7:30:C2:08:2A"
+      ]
+    }
+  }
+]

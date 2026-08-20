@@ -64,9 +64,12 @@ export default function AddonOrderDialog({ orderId, open, onClose }: AddonOrderD
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
   const [addedTotal, setAddedTotal] = useState(0);
 
-  const { data: configData } = useQuery<{ yookassaEnabled: boolean; tbankEnabled: boolean }>({
-    queryKey: ["/api/payment-config"],
+  const { data: configData } = useQuery<{ methods: { id: string; name: string }[]; enabled: boolean }>({
+    queryKey: ["/api/payment-methods"],
   });
+  const paymentMethods = configData?.methods || [];
+  const yookassaEnabled = paymentMethods.some((m) => m.id === "yookassa");
+  const tbankEnabled = paymentMethods.length === 0 ? true : paymentMethods.some((m) => m.id === "tbank");
 
   const { data: productsData, isLoading: productsLoading } = useQuery<{
     products: Product[];
@@ -89,9 +92,9 @@ export default function AddonOrderDialog({ orderId, open, onClose }: AddonOrderD
   }, [open]);
 
   useEffect(() => {
-    if (configData) {
-      if (configData.tbankEnabled) setPaymentMethod("tbank");
-      else if (configData.yookassaEnabled) setPaymentMethod("yookassa");
+    if (configData && paymentMethods.length > 0) {
+      if (tbankEnabled) setPaymentMethod("tbank");
+      else if (yookassaEnabled) setPaymentMethod("yookassa");
     }
   }, [configData]);
 
@@ -196,8 +199,6 @@ export default function AddonOrderDialog({ orderId, open, onClose }: AddonOrderD
     }
   }
 
-  const yookassaEnabled = configData?.yookassaEnabled ?? false;
-  const tbankEnabled = configData?.tbankEnabled ?? true;
 
   return (
     <>

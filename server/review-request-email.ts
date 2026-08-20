@@ -1,11 +1,22 @@
 import { storage } from './storage';
 import { sendEmail } from './email';
+import { groqCompleteStream } from './groq-utils';
 
 // Ручная рассылка «оставьте отзыв» покупателям, получившим заказ.
 // Автозапуск сознательно НЕ делаем (по команде владельца) — только кнопка в админке.
 const SITE_URL = 'https://booomerangs.ru';
 const SEND_DELAY_MS = 400;      // пауза между письмами
 const MAX_SEND_PER_RUN = 100;   // страховка на один запуск (чтобы случайно не упереться в таймаут)
+const MAX_REVIEW_MESSAGE_LENGTH = 5000;
+
+export const DEFAULT_REVIEW_REQUEST_SUBJECT = 'Понравилась покупка? Оставьте отзыв ⭐';
+export const DEFAULT_REVIEW_REQUEST_BODY =
+  'Привет, {name}! Надеемся, ваш заказ уже радует. Поделитесь впечатлением — это займёт минуту и поможет другим покупателям.';
+
+export interface ReviewRequestMessage {
+  subject?: string;
+  body?: string;
+}
 
 export interface ReviewRequestItem {
   productId: number;
@@ -20,6 +31,40 @@ export interface ReviewRequestCandidate {
   status: string;
   createdAt: string | null;
   items: ReviewRequestItem[];
+}
+
+function normalizeReviewRequestMessage(message?: ReviewRequestMessage): { subject: string; body: string } {
+  const subject = typeof message?.subject === 'string'
+    ? message.subject.trim().slice(0, 200)
+    : '';
+  const body = typeof message?.body === 'string'
+    ? message.body.trim().slice(0, MAX_REVIEW_MESSAGE_LENGTH)
+    : '';
+
+  return {
+    subject: subject || DEFAULT_REVIEW_REQUEST_SUBJECT,
+    body: body || DEFAULT_REVIEW_REQUEST_BODY,
+  };
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>\"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '\"': '&quot;',
+    "'": '&#39;',
+  }[char] || char));
+}
+
+function renderReviewMessage(body: string, firstName: string): string {
+  const personalized = body.split("{name}").join(firstName);
+  return personalized
+    .split("\n\n")
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p style=\"font-size:14px;color:#555;line-height:1.6;margin:0 0 16px;\">${escapeHtml(paragraph).replaceAll(String.fromCharCode(10), '<br />')}</p>`)
+    .join('');
 }
 
 function parseAddon(raw: string | null | undefined): Record<string, any> {
@@ -118,7 +163,9 @@ export async function getReviewRequestCandidates(): Promise<ReviewRequestCandida
 
 export async function sendReviewRequestsNow(
   orderIds?: number[],
+  message?: ReviewRequestMessage,
 ): Promise<{ total: number; sent: number; failed: number; skipped: number }> {
+  const reviewMessage = normalizeReviewRequestMessage(message);
   let candidates = await getReviewRequestCandidates();
 
   if (orderIds && orderIds.length > 0) {
@@ -139,10 +186,14 @@ export async function sendReviewRequestsNow(
     processed++;
 
     try {
-      const html = getReviewRequestEmailHtml({ customerName: c.customerName, items: c.items });
+      const html = getReviewRequestEmailHtml({
+        customerName: c.customerName,
+        items: c.items,
+        message: reviewMessage,
+      });
       const ok = await sendEmail({
         to: c.customerEmail,
-        subject: 'Понравилась покупка? Оставьте отзыв ⭐',
+        subject: reviewMessage.subject,
         html,
       });
       if (ok) {
@@ -170,28 +221,88 @@ export async function sendReviewRequestsNow(
   };
 }
 
-export async function sendReviewRequestPreview(email: string): Promise<{ success: boolean; sentTo: string; itemsCount: number }> {
+export async function sendReviewRequestPreview(
+  email: string,
+  message?: ReviewRequestMessage,
+): Promise<{ success: boolean; sentTo: string; itemsCount: number }> {
+  const reviewMessage = normalizeReviewRequestMessage(message);
   const candidates = await getReviewRequestCandidates();
   let items = candidates[0]?.items || [];
   if (items.length === 0) {
     items = [{ productId: 0, name: 'Пример товара', url: `${SITE_URL}/products#reviews` }];
   }
 
-  const html = getReviewRequestEmailHtml({ customerName: '', items });
+  const html = getReviewRequestEmailHtml({ customerName: '', items, message: reviewMessage });
   const ok = await sendEmail({
     to: email,
-    subject: '[ПРЕВЬЮ] Понравилась покупка? Оставьте отзыв ⭐',
+    subject: `[ПРЕВЬЮ] ${reviewMessage.subject}`,
     html,
   });
   return { success: ok, sentTo: email, itemsCount: items.length };
 }
 
+export async function generateReviewRequestDraft(): Promise<string> {
+  const proxyUrl = process.env.GROQ_PROXY_URL;
+  const groqBase = proxyUrl ? proxyUrl.replace(/\/$/, '') : 'https://api.groq.com';
+  const keys = [process.env.GROQ_API_KEY_2, process.env.GROQ_API_KEY].filter(
+    (value): value is string => Boolean(value),
+  );
+  if (keys.length === 0 && !proxyUrl) {
+    throw new Error('AI service not configured');
+  }
+
+  const attempts = keys.length > 0 ? keys : [''];
+  const prompt = `Напиши короткий текст для письма покупателю российского бренда одежды BOOOMERANGS с просьбой оставить отзыв о доставленном заказе.
+
+Требования:
+- русский язык, тёплый живой тон без канцелярита и навязчивых продаж;
+- 2 коротких абзаца, без темы письма, без HTML и Markdown;
+- упомяни, что отзыв займёт около минуты и поможет другим покупателям;
+- используй плейсхолдер {name} для имени покупателя;
+- не обещай скидки, подарки или бонусы, если их нет в задании;
+- не добавляй подпись бренда — она уже есть в шаблоне письма.`;
+
+  let lastError: Error | null = null;
+  for (const apiKey of attempts) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60_000);
+    try {
+      const text = await groqCompleteStream({
+        baseUrl: groqBase,
+        apiKey: apiKey || undefined,
+        model: 'openai/gpt-oss-20b',
+        messages: [
+          { role: 'system', content: 'Ты пишешь аккуратные тексты для email-рассылок интернет-магазина.' },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.75,
+        maxTokens: 350,
+        signal: controller.signal,
+      });
+      if (!text) throw new Error('Groq вернул пустой ответ');
+      return text.slice(0, MAX_REVIEW_MESSAGE_LENGTH);
+    } catch (err: any) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (err?.name === 'AbortError') {
+        throw new Error('Groq не ответил за 60 секунд — попробуйте ещё раз');
+      }
+      if (err?.status === 429) continue;
+      throw lastError;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  throw lastError || new Error('AI request failed');
+}
+
 export function getReviewRequestEmailHtml(params: {
   customerName: string;
   items: ReviewRequestItem[];
+  message?: ReviewRequestMessage;
 }): string {
+  const reviewMessage = normalizeReviewRequestMessage(params.message);
   const firstName = params.customerName?.split(' ')[0] || 'Покупатель';
-  const plural = params.items.length === 1 ? 'товар' : 'товары';
 
   const itemsHtml = params.items
     .map(
@@ -227,13 +338,10 @@ export function getReviewRequestEmailHtml(params: {
           </tr>
           <tr>
             <td style="padding:32px 32px 8px;">
-              <div style="font-size:22px;font-weight:800;color:#1C1C1C;margin-bottom:10px;line-height:1.25;">
+              <div style="font-size:22px;font-weight:800;color:#1C1C1C;margin-bottom:18px;line-height:1.25;">
                 Как вам покупка?
               </div>
-              <p style="font-size:14px;color:#555;line-height:1.6;margin:0 0 24px;">
-                Привет, ${firstName}! Надеемся, ваш ${plural} уже радует. Поделитесь впечатлением —
-                это займёт минуту и поможет другим покупателям.
-              </p>
+              ${renderReviewMessage(reviewMessage.body, firstName)}
               <table width="100%" cellpadding="0" cellspacing="0">
                 ${itemsHtml}
               </table>

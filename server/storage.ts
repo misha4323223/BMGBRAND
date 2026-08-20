@@ -701,6 +701,7 @@ export interface IStorage {
   // Reviews
   getReviewsByProduct(productId: number): Promise<Review[]>;
   getAllReviews(): Promise<Review[]>;
+  getReviewById(id: number): Promise<Review | undefined>;
   createReview(review: InsertReview): Promise<Review>;
   updateReview(id: number, updates: Partial<Review>): Promise<Review>;
   deleteReview(id: number): Promise<boolean>;
@@ -5515,6 +5516,23 @@ export class DatabaseStorage implements IStorage {
       }));
     });
     return result || [];
+  }
+
+  async getReviewById(id: number): Promise<Review | undefined> {
+    const result = await this.safeQuery(async (session) => {
+      const { resultSets } = await session.executeQuery(
+        `DECLARE $id AS Uint64; SELECT * FROM reviews WHERE id = $id LIMIT 1`,
+        { '$id': ydb.TypedValues.uint64(id) }
+      );
+      const rows = this.parseResultSet<Review>(resultSets[0]);
+      const row = rows[0];
+      if (!row) return undefined;
+      return {
+        ...row,
+        photos: row.photos ? (typeof row.photos === 'string' ? JSON.parse(row.photos) : row.photos) : [],
+      };
+    });
+    return result || undefined;
   }
 
   async getAllReviews(): Promise<Review[]> {

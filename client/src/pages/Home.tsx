@@ -76,9 +76,8 @@ function LazyVideo({ src, className }: { src: string; className?: string }) {
 function getOptimizedImageUrl(url: string): string {
   if (!url) return url;
   if (url.includes('_thumb.webp')) return url;
-  // Изображения артистов загружаются через ЛК партнёра — thumbnail генерируется отдельно,
-  // но старые загрузки его не имеют, поэтому для site/artist/ возвращаем оригинал
-  if (url.includes('storage.yandexcloud.net/bmg/site/artist/')) return url;
+  // У артистов на CDN тоже есть _thumb.webp — применяем ту же замену, что и для товаров.
+  // Если миниатюра вдруг отсутствует, у <img> есть onError-фолбэк на оригинал.
   if (
     url.includes('storage.yandexcloud.net/bmg/products/') ||
     url.includes('storage.yandexcloud.net/bmg/site/')
@@ -171,6 +170,7 @@ function MarqueeSection({ text }: { text: string }) {
   const offsetRef = useRef(0);
   const rafRef = useRef<number>(0);
   const halfWidthRef = useRef(0);
+  const runningRef = useRef(true);
 
   useEffect(() => {
     const inner = innerRef.current;
@@ -187,7 +187,8 @@ function MarqueeSection({ text }: { text: string }) {
     ro.observe(inner);
 
     const animate = (time: number) => {
-      if (lastTime) {
+      // Обновляем позицию только когда строка видна — на скролле не тратим main thread
+      if (lastTime && runningRef.current) {
         const delta = time - lastTime;
         offsetRef.current -= speed * (delta / 16);
         if (Math.abs(offsetRef.current) >= halfWidthRef.current) {
@@ -204,6 +205,17 @@ function MarqueeSection({ text }: { text: string }) {
       cancelAnimationFrame(rafRef.current);
       ro.disconnect();
     };
+  }, []);
+
+  // Пауза анимации, когда строка вне вьюпорта
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      runningRef.current = entry.isIntersecting;
+    }, { threshold: 0 });
+    obs.observe(el);
+    return () => obs.disconnect();
   }, []);
 
   return (
@@ -230,17 +242,8 @@ function ReelPill({ item, onClick }: { item: any; onClick: () => void }) {
       {/* Внешнее кольцо — как в Telegram/Instagram: градиентный ободок + чёрный зазор перед превью */}
       <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full p-[2.5px] bg-gradient-to-tr from-primary via-red-500 to-orange-400 group-active:scale-95 transition-transform duration-150">
         <div className="relative w-full h-full rounded-full overflow-hidden ring-2 ring-black">
-          {/* video с preload="metadata" — браузер загружает первый кадр, не воспроизводит */}
-          {item.videoUrl ? (
-            <video
-              src={item.videoUrl}
-              poster={item.thumbnailUrl || undefined}
-              preload="metadata"
-              muted
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : item.thumbnailUrl ? (
+          {/* В ленте показываем только картинку (thumbnailUrl) — видео монтируется в модалке по клику */}
+          {item.thumbnailUrl ? (
             <img
               src={item.thumbnailUrl}
               alt={item.label || ""}
@@ -306,6 +309,19 @@ export default function Home() {
   const [heroAnimKey, setHeroAnimKey] = useState(0);
   const [heroCrtClass, setHeroCrtClass] = useState('');
   const heroCrtTransitioningRef = useRef(false);
+  // Пауза автопереключения слайдов, когда hero вне экрана — не перерендериваем всю страницу при скролле
+  const heroObsRef = useRef<IntersectionObserver | null>(null);
+  const [heroVisible, setHeroVisible] = useState(true);
+  const heroSectionRef = useCallback((node: HTMLDivElement | null) => {
+    if (heroObsRef.current) {
+      heroObsRef.current.disconnect();
+      heroObsRef.current = null;
+    }
+    if (!node) return;
+    const obs = new IntersectionObserver(([entry]) => setHeroVisible(entry.isIntersecting), { threshold: 0 });
+    obs.observe(node);
+    heroObsRef.current = obs;
+  }, []);
 
   // Load page settings from database FIRST
   const { data: pageSettings, isLoading: settingsLoading } = useQuery<Record<string, any>>({
@@ -439,7 +455,7 @@ export default function Home() {
   useEffect(() => {
     const slides = getHeroSlides();
     if (slides.length <= 1) return;
-    if (heroPaused) return;
+    if (heroPaused || !heroVisible) return;
     const currentDuration = Math.max(1, Number(slides[heroSlideIndex]?.duration) || 7) * 1000;
     const timer = setTimeout(() => {
       const next = (heroSlideIndex + 1) % slides.length;
@@ -465,7 +481,7 @@ export default function Home() {
       }
     }, currentDuration);
     return () => clearTimeout(timer);
-  }, [pageSettings, heroPaused, heroSlideIndex]);
+  }, [pageSettings, heroPaused, heroSlideIndex, heroVisible]);
 
   // Предзагрузка всех слайдов кроме первого — чтобы не было "квадратиков" при переходе
   useEffect(() => {
@@ -683,7 +699,7 @@ export default function Home() {
             }
           };
           return showHero ? (
-            <div key="section-hero">
+            <div key="section-hero" ref={heroSectionRef}>
         {/* ── Mobile TV (video slides only, hidden on desktop) ── */}
         {isVideoSlide && pageSettings?.hero?.showOnMobile !== false && (
           <div className="sm:hidden bg-black">
@@ -993,12 +1009,17 @@ export default function Home() {
                               <img
                                 src={getOptimizedImageUrl(artist.image)}
                                 alt={artist.name}
-                                loading={idx < 5 ? "eager" : "lazy"}
+                                loading={idx < 2 ? "eager" : "lazy"}
                                 // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
-                                fetchpriority={idx < 5 ? "high" : "auto"}
-                                decoding={idx < 5 ? "sync" : "async"}
+                                fetchpriority={idx < 2 ? "high" : "auto"}
+                                decoding="async"
                                 width={86}
                                 height={110}
+                                onError={(e) => {
+                                  const el = e.currentTarget;
+                                  const original = artist.image;
+                                  if (original && el.src !== original) el.src = original;
+                                }}
                                 className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
                               />
                             </div>

@@ -379,7 +379,7 @@ export function Navbar() {
                 variant="ghost"
                 size="icon"
                 onClick={() => window.history.back()}
-                className="w-8 h-8 rounded-full text-foreground mr-1"
+                className="w-7 h-7 rounded-full text-foreground mr-0.5 flex-shrink-0"
                 data-testid="button-back"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -389,16 +389,16 @@ export function Navbar() {
               <img src="/images/boomerangs-logo.webp" alt="Booomerangs" className="h-20 w-auto object-contain" fetchpriority="high" width={80} height={80} />
             </Link>
           </div>
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-0.5 flex-shrink-0">
             {isHome && <RuStoreButton variant="mobile" />}
             {settings.showSearch && (
-              <button onClick={() => { setSearchEverOpened(true); setIsSearchOpen(true); }} className="p-1.5 hover:bg-muted rounded-full transition-colors" aria-label="Поиск">
+              <button onClick={() => { setSearchEverOpened(true); setIsSearchOpen(true); }} className="p-1 hover:bg-muted rounded-full transition-colors" aria-label="Поиск">
                 <Search className="w-5 h-5 text-foreground" />
               </button>
             )}
-            <PushSubscribeButton />
+            <PushSubscribeButton className="p-1 rounded-full" />
             {!isConceptPage && (
-              <Link href="/favorites" className="relative p-1.5 hover:bg-muted rounded-full transition-colors" aria-label="Избранное">
+              <Link href="/favorites" className="relative p-1 hover:bg-muted rounded-full transition-colors" aria-label="Избранное">
                 <Heart className={`w-5 h-5 ${favoritesCount > 0 ? 'fill-foreground text-foreground' : 'text-foreground'}`} />
                 {favoritesCount > 0 && (
                   <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{favoritesCount}</span>
@@ -406,13 +406,13 @@ export function Navbar() {
               </Link>
             )}
             {preorderCount > 0 && (
-              <Link href="/predrop/checkout" className="relative p-1.5 hover:bg-muted rounded-full transition-colors" aria-label="Корзина предзаказов">
+              <Link href="/predrop/checkout" className="relative p-1 hover:bg-muted rounded-full transition-colors" aria-label="Корзина предзаказов">
                 <PackageOpen className="w-5 h-5 text-foreground" />
                 <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{preorderCount}</span>
               </Link>
             )}
             {settings.showCart && (
-              <Link href="/cart" className="relative p-1.5 hover:bg-muted rounded-full transition-colors" aria-label="Корзина">
+              <Link href="/cart" className="relative p-1 hover:bg-muted rounded-full transition-colors" aria-label="Корзина">
                 <ShoppingBag className="w-5 h-5 text-foreground" />
                 {cartCount > 0 && (
                   <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{cartCount}</span>
@@ -422,7 +422,7 @@ export function Navbar() {
             {settings.showUser && user && (
               <Link
                 href={profileHref}
-                className="p-1.5 hover:bg-muted rounded-full transition-colors"
+                className="p-1 hover:bg-muted rounded-full transition-colors"
                 aria-label="Личный кабинет"
                 data-testid="link-mobile-profile"
               >
@@ -432,8 +432,8 @@ export function Navbar() {
             {settings.showUser && !user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" data-testid="button-login" className="text-xs px-3 flex items-center gap-1 text-foreground">
-                    Войти <ChevronDown className="w-3 h-3 opacity-60" />
+                  <Button variant="ghost" size="sm" data-testid="button-login" className="text-xs px-1.5 flex items-center gap-0.5 text-foreground font-medium">
+                    Войти <ChevronDown className="w-3 h-3 opacity-60 hidden min-[400px]:inline" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="navbar-glass-dark w-52 bg-card/95 backdrop-blur-2xl border border-border/50 shadow-xl rounded-2xl overflow-hidden p-1.5">

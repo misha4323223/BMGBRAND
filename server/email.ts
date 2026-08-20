@@ -2099,3 +2099,84 @@ export function getAddonOrderEmailHtml(order: {
 </body>
 </html>`;
 }
+
+export function getReviewPromoEmailHtml(params: {
+  name: string;
+  code: string;
+  discountPercent: number;
+  expiresAt: Date;
+}): string {
+  const { name, code, discountPercent, expiresAt } = params;
+  const expiresLabel = expiresAt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+
+  return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fff;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="background:#1C1C1C;padding:24px 32px;">
+              <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:2px;text-transform:uppercase;">
+                BOO<span style="color:#E53935;">O</span>MERANGS
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 32px 8px;">
+              <div style="font-size:22px;font-weight:800;color:#1C1C1C;margin-bottom:18px;line-height:1.25;">
+                Спасибо за отзыв! 🎉
+              </div>
+              <p style="font-size:14px;color:#555;line-height:1.6;margin:0 0 16px;">
+                Привет, ${name}! Ваш отзыв опубликован. В благодарность — персональный промокод на скидку <strong>${discountPercent}%</strong> к следующему заказу.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafafa;border:1px solid #eee;border-radius:10px;padding:20px;margin:0 0 16px;">
+                <tr>
+                  <td align="center">
+                    <div style="font-size:11px;font-weight:700;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">Ваш промокод</div>
+                    <div style="display:inline-block;background:#1C1C1C;color:#fff;font-size:24px;font-weight:800;letter-spacing:3px;font-family:'Courier New',monospace;padding:14px 28px;border-radius:8px;">${code}</div>
+                    <div style="font-size:12px;color:#777;margin-top:12px;">Действует до ${expiresLabel} · одноразовый</div>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size:13px;color:#777;line-height:1.6;margin:0 0 8px;">
+                🔥 Промокод <strong>суммируется</strong> со скидкой вашего уровня в бонусной программе.
+              </p>
+              <p style="font-size:13px;color:#777;line-height:1.6;margin:0 0 8px;">
+                ⚠️ Не суммируется с другими промокодами и не действует на товары со скидкой (SALE).
+              </p>
+              <p style="font-size:13px;color:#777;line-height:1.6;margin:0 0 24px;">
+                Введите код при оформлении заказа — скидка применится автоматически.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
+                <tr>
+                  <td align="center">
+                    <a href="https://booomerangs.ru/catalog" style="display:inline-block;background:#1C1C1C;color:#fff;text-decoration:none;font-size:14px;font-weight:700;padding:14px 36px;border-radius:8px;">Выбрать товары</a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size:12px;color:#999;margin:0 0 4px;line-height:1.5;">Промокод также доступен в личном кабинете → «Мои промокоды».</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #eee;font-size:11px;color:#999;line-height:1.6;">
+              &copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.<br />
+              <a href="https://booomerangs.ru" style="color:#999;text-decoration:none;">booomerangs.ru</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}

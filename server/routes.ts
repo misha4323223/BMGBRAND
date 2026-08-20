@@ -30,7 +30,13 @@ import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PV
 import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
 import { runAbandonedCartCheck, addAbandonedCartUnsub } from "./abandoned-cart";
 import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow, removeFromNewProductsQueue, addToNewProductsQueueManual } from "./new-products-notifier";
-import { getReviewRequestCandidates, sendReviewRequestsNow, sendReviewRequestPreview } from "./review-request-email";
+import {
+  generateReviewRequestDraft,
+  getReviewRequestCandidates,
+  sendReviewRequestsNow,
+  sendReviewRequestPreview,
+} from "./review-request-email";
+import { onReviewApproved, canEarnReviewPromo } from "./review-promo";
 import { enqueuePreorderProduct, getPreorderQueueStatus, triggerPreorderNotifierNow, removeFromPreorderQueue, addToPreorderQueueManual } from "./preorder-notifier";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getOrderReadyForPickupEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
 import { CATEGORIES as SEO_CATEGORY_DEFAULTS, ARTISTS as SEO_ARTIST_DEFAULTS, HOME_SEO_DEFAULT, CONCEPT_SEO_DEFAULT, MERCH_ORDER_SEO_DEFAULT, PARTNER_REGISTER_SEO_DEFAULT } from "./static";
@@ -140,6 +146,58 @@ const CDEK_ITEM_WEIGHT_GRAMS = 300;
 
 function isApprovedWholesaleUser(user: any): boolean {
   return !!user && user.role === "wholesale" && (user.wholesaleApproved === true || user.approved === true);
+}
+
+// Расчёт скидки промокода для заказов (используется предзаказами).
+// Зеркалит логику обычного чекаута: только активные коды, блокировка для опта,
+// один раз на email, скидка не применяется к товарам, у которых уже есть своя скидка.
+async function applyPromoToOrder(opts: {
+  promoCode?: string;
+  customerEmail: string;
+  isWholesale: boolean;
+  items: Array<{ price: number; quantity: number; size?: string; product?: any }>;
+}): Promise<{ promoDiscount: number; appliedPromo: any | null }> {
+  const { promoCode, customerEmail, isWholesale, items } = opts;
+  if (!promoCode) return { promoDiscount: 0, appliedPromo: null };
+
+  const promo = await storage.getPromoCodeByCode(promoCode);
+  if (!promo || !promo.isActive) {
+    console.warn(`[Promo] ${promoCode} ignored — not found or inactive`);
+    return { promoDiscount: 0, appliedPromo: null };
+  }
+  if (isWholesale && !promo.allowForWholesale) {
+    console.warn(`[Promo] ${promoCode} blocked — not allowed for wholesale user ${customerEmail}`);
+    return { promoDiscount: 0, appliedPromo: null };
+  }
+  const alreadyUsed = await storage.isPromoUsedByEmail(customerEmail, promoCode);
+  if (alreadyUsed) {
+    console.warn(`[Promo] ${promoCode} blocked — already used by ${customerEmail}`);
+    return { promoDiscount: 0, appliedPromo: null };
+  }
+
+  const eligibleSubtotal = items.reduce((sum, it) => {
+    const p = it.product as any;
+    const hasProductDiscount = p && (
+      (p.salePrice && p.salePrice > 0 && p.salePrice < (p.price || 0)) ||
+      (p.discountPercent > 0) ||
+      (it.size != null && p.sizeDiscounts?.[it.size] > 0)
+    );
+    if (hasProductDiscount) return sum;
+    return sum + it.price * it.quantity;
+  }, 0);
+
+  let promoDiscount = 0;
+  if (promo.discountPercent) {
+    promoDiscount = Math.round(eligibleSubtotal * (promo.discountPercent / 100));
+  } else if (promo.discountAmount) {
+    promoDiscount = promo.discountAmount;
+  }
+  promoDiscount = Math.min(promoDiscount, eligibleSubtotal);
+
+  if (promoDiscount > 0) {
+    console.log(`[Promo] Applied ${promoCode}: -${promoDiscount / 100} RUB (eligible subtotal ${eligibleSubtotal / 100} RUB)`);
+  }
+  return { promoDiscount, appliedPromo: promo };
 }
 
 
@@ -589,6 +647,7 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
   
   let hidden = 0;
   let shown = 0;
+  const hiddenProducts: Array<{ id: number; name: string; stock: number }> = [];
   
   const allProducts = await storage.getProducts();
   const productsByExternalId = new Map<string, any>();
@@ -617,8 +676,14 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
         // Update stock field with actual quantity
         updateData.stock = priceData.totalStock;
         // Save stock per size for wholesale users
+        // Единый источник остатка: sizeStock всегда отражает последние данные 1С.
+        // Если товар распродан (totalStock <= 0) и размеров в выгрузке нет —
+        // чистим sizeStock, чтобы в админке не висели устаревшие положительные
+        // остатки по размерам при скрытом товаре («товар скрыт, а по размерам 5 шт»).
         if (Object.keys(priceData.sizeStock).length > 0) {
           updateData.sizeStock = priceData.sizeStock;
+        } else if (shouldBeHidden) {
+          updateData.sizeStock = {};
         }
         // Save characteristic GUIDs per size for 1C order export
         if (Object.keys(priceData.sizeCharacteristicIds).length > 0) {
@@ -633,6 +698,7 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
           updateData.isHidden = true;
           updateData.inStock = false;
           hidden++;
+          hiddenProducts.push({ id: existing.id, name: existing.name, stock: priceData.totalStock });
           console.log(`[Stock] Hiding product "${existing.name}" (stock: ${priceData.totalStock})`);
         } else if (shouldBeHidden && (hasOverride || isPreorder)) {
           updateData.inStock = false;
@@ -662,6 +728,14 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
     }
   }
   
+  if (hiddenProducts.length > 0) {
+    const list = hiddenProducts.slice(0, 15).map(p => `• ${p.name} (id ${p.id}, остаток ${p.stock})`).join('\n');
+    const more = hiddenProducts.length > 15 ? `\n…и ещё ${hiddenProducts.length - 15} товар(ов)` : '';
+    const alertText = `⚠️ 1С-синк скрыл ${hiddenProducts.length} товар(ов) — остаток 0:\n${list}${more}\n\nСкрытые товары: админка → «Скрытые товары».`;
+    sendAgentAlert(alertText).catch(() => {});
+    vkNotifyAgentAlert(alertText);
+  }
+
   console.log(`[Prices] Updated prices for ${updated} products, hidden: ${hidden}, shown: ${shown}`);
   return updated;
 }
@@ -1052,6 +1126,28 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Android App Links (Digital Asset Links) — подтверждение связи домена с Android-приложением
+  // ru.boomerangs.mobile (RuStore). Файл должен отдаваться по /.well-known/assetlinks.json
+  // без авторизации и редиректов, с Content-Type: application/json и без агрессивного кеша.
+  // Явный роут зарегистрирован раньше express.static, чтобы не попасть под maxAge 1y/immutable
+  // и под SPA catch-all.
+  app.get("/.well-known/assetlinks.json", (_req, res) => {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.send(JSON.stringify([
+      {
+        relation: ["delegate_permission/common.handle_all_urls"],
+        target: {
+          namespace: "android_app",
+          package_name: "ru.boomerangs.mobile",
+          sha256_cert_fingerprints: [
+            "0D:98:A5:B9:77:98:72:3B:8D:3E:5A:0A:3E:EC:BE:BA:6A:E1:41:A8:AB:DF:B0:68:25:B7:2E:B7:30:C2:08:2A",
+          ],
+        },
+      },
+    ]));
+  });
+
   // Initialize payment service
   paymentService.initialize({
     yookassa: process.env.YOOKASSA_SHOP_ID && process.env.YOOKASSA_SECRET_KEY ? {
@@ -2899,6 +2995,21 @@ ${faqSection}
     }
   });
 
+  // Проверка права на промокод «за отзыв» (для подсказки в форме отзыва)
+  app.get("/api/reviews/eligibility/:productId", authMiddleware, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) return res.json({ eligible: false });
+      const productId = parseInt(req.params.productId);
+      if (isNaN(productId)) return res.status(400).json({ error: "Invalid product ID" });
+      const email = String(user.email || "").toLowerCase().trim();
+      const eligible = await canEarnReviewPromo(user.id, email, productId);
+      res.json({ eligible });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Upload photo for review (before submitting review)
   app.post("/api/reviews/upload-photo", authMiddleware, async (req: any, res) => {
     try {
@@ -3312,17 +3423,10 @@ ${faqSection}
         console.log(`[VK Action] Wholesale user ${numId} rejected`);
         return res.send(htmlPage(true, "Заявка отклонена."));
 
-      } else if (act === "review_approve") {
-        await storage.updateReview(numId, { isApproved: true });
-        warmRatingsCache(storage).catch(() => {});
-        console.log(`[VK Action] Review ${numId} approved`);
-        return res.send(htmlPage(true, "Отзыв опубликован на сайте."));
-
-      } else if (act === "review_reject") {
-        await storage.deleteReview(numId);
-        warmRatingsCache(storage).catch(() => {});
-        console.log(`[VK Action] Review ${numId} rejected`);
-        return res.send(htmlPage(true, "Отзыв удалён."));
+      } else if (act === "review_approve" || act === "review_reject") {
+        // Модерация отзывов перенесена в админку — старые ссылки больше не выполняют действий.
+        console.log(`[VK Action] Review moderation via VK disabled (act=${act}, id=${numId})`);
+        return res.status(403).send(htmlPage(false, "Модерация отзывов перенесена в админку сайта."));
 
       } else {
         return res.status(400).send(htmlPage(false, "Неизвестное действие."));
@@ -3634,15 +3738,17 @@ ${faqSection}
         const updates: any = { stock: newStock };
         if (size && product.sizeStock && typeof product.sizeStock === 'object') {
           const sizeStockMap = product.sizeStock as Record<string, number>;
-          // Find the actual existing key matching this size (handles legacy variants
-          // like "(OneSize)", "One Size", "OneSize"). Falls back to the canonical key
-          // if no existing key matches, instead of creating a new phantom key.
+          // Списываем ТОЛЬКО существующий размер (с учётом legacy-вариантов вида
+          // "(OneSize)", "One Size", "OneSize"). Если размера нет в карте —
+          // sizeStock не трогаем, чтобы не плодить «фантомные» ключи с нулями
+          // и не разводить сумму размеров с общим остатком.
           const norm = normalizeSizeKey(size);
           const matchingKey = Object.keys(sizeStockMap).find(k => normalizeSizeKey(k) === norm);
-          const keyToUpdate = matchingKey ?? canonicalizeSizeKey(size);
-          const currentSizeQty = Number(sizeStockMap[keyToUpdate] ?? 0);
-          const newSizeQty = Math.max(0, currentSizeQty - quantity);
-          updates.sizeStock = { ...sizeStockMap, [keyToUpdate]: newSizeQty };
+          if (matchingKey !== undefined) {
+            const currentSizeQty = Number(sizeStockMap[matchingKey] ?? 0);
+            const newSizeQty = Math.max(0, currentSizeQty - quantity);
+            updates.sizeStock = { ...sizeStockMap, [matchingKey]: newSizeQty };
+          }
         }
         await storage.updateProduct(Number(productId), updates);
         console.log(`[StockDecrement] Product ${productId} (size: ${size ?? 'N/A'}): stock ${product.stock} → ${newStock}`);
@@ -7490,6 +7596,20 @@ ${faqSection}
         }
         updateData.sizeStock = cleanedSizeStock;
         console.log(`[Admin] SizeStock update for product ${id}: ${JSON.stringify(cleanedSizeStock)}`);
+      }
+      // Единый источник остатка: если у товара есть остатки по размерам,
+      // «Общий остаток» не хранится как независимое число — всегда равен сумме
+      // размеров. Исключает расхождение двух полей в админке и «молчаливое»
+      // скрытие товара при ненулевых остатках по размерам.
+      const finalSizeStock: Record<string, number> = (updateData.sizeStock !== undefined && updateData.sizeStock !== null)
+        ? updateData.sizeStock
+        : (((product as any).sizeStock as Record<string, number> | null) || {});
+      if (
+        Object.keys(finalSizeStock).length > 0 &&
+        (updateData.stock !== undefined || updateData.sizeStock !== undefined)
+      ) {
+        updateData.stock = Object.values(finalSizeStock).reduce((sum, v) => sum + (Number(v) || 0), 0);
+        console.log(`[Admin] Stock recomputed from sizeStock for product ${id}: ${updateData.stock}`);
       }
       if (sizeDiscounts !== undefined && typeof sizeDiscounts === 'object') {
         const cleanedSizeDiscounts: Record<string, number> = {};
@@ -12957,6 +13077,59 @@ ${faqSection}
     }
   });
 
+  // Публичная проверка промокода для мобильного приложения.
+  // Тело: { code: "BMG10", email?: "user@example.com" }.
+  // Успех:  { valid: true, discount: { type: "percent"|"fixed", value }, description: "Скидка 10%" }
+  // Ошибка: { valid: false, error: "..." }
+  app.post("/api/promo/validate", async (req, res) => {
+    try {
+      const { code, email } = req.body || {};
+      if (!code || typeof code !== "string" || !code.trim()) {
+        return res.status(400).json({ valid: false, error: "Код не указан" });
+      }
+
+      const promo = await storage.getPromoCodeByCode(code.trim());
+      if (!promo) return res.json({ valid: false, error: "Код не найден" });
+      if (!promo.isActive) return res.json({ valid: false, error: "Код неактивен" });
+
+      const now = new Date();
+      if (promo.startsAt && new Date(promo.startsAt) > now) {
+        return res.json({ valid: false, error: "Код ещё не активен" });
+      }
+      if (promo.expiresAt && new Date(promo.expiresAt) < now) {
+        return res.json({ valid: false, error: "Срок действия кода истёк" });
+      }
+      if (promo.maxUses && (promo.usedCount ?? 0) >= promo.maxUses) {
+        return res.json({ valid: false, error: "Лимит использований исчерпан" });
+      }
+
+      // Привязка к покупателю: если приложение передало email — проверяем, что код
+      // ещё не использовался этим пользователем (1 раз на пользователя).
+      if (email && typeof email === "string" && email.trim()) {
+        const used = await storage.isPromoUsedByEmail(email.trim(), code.trim());
+        if (used) return res.json({ valid: false, error: "Код уже использован" });
+      }
+
+      let discount: { type: "percent" | "fixed"; value: number };
+      let description: string;
+      if (promo.discountPercent != null && promo.discountPercent > 0) {
+        discount = { type: "percent", value: promo.discountPercent };
+        description = `Скидка ${promo.discountPercent}%`;
+      } else if (promo.discountAmount != null && promo.discountAmount > 0) {
+        // discountAmount хранится в копейках; приложению отдаём рубли для отображения
+        const rub = Math.round(promo.discountAmount / 100);
+        discount = { type: "fixed", value: rub };
+        description = `Скидка ${rub} ₽`;
+      } else {
+        return res.json({ valid: false, error: "У кода не задана скидка" });
+      }
+
+      res.json({ valid: true, discount, description });
+    } catch (err: any) {
+      res.status(500).json({ valid: false, error: err.message });
+    }
+  });
+
   // Get loyalty tiers (admin)
   app.get("/api/loyalty-tiers", async (req, res) => {
     try {
@@ -13630,6 +13803,10 @@ ${faqSection}
     try {
       const id = parseInt(req.params.id);
       const review = await storage.updateReview(id, req.body);
+      // Отзыв одобрен → автоматически выдаём покупателю промокод «за отзыв»
+      if (req.body?.isApproved === true) {
+        onReviewApproved(id).catch((e: any) => console.error('[ReviewPromo] hook error (admin):', e?.message));
+      }
       res.json(review);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -13909,7 +14086,11 @@ ${faqSection}
     if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
     try {
       const orderIds = Array.isArray(req.body?.orderIds) ? req.body.orderIds : undefined;
-      const result = await sendReviewRequestsNow(orderIds);
+      const message = {
+        subject: typeof req.body?.subject === "string" ? req.body.subject : undefined,
+        body: typeof req.body?.body === "string" ? req.body.body : undefined,
+      };
+      const result = await sendReviewRequestsNow(orderIds, message);
       res.json({ success: true, ...result });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -13924,10 +14105,29 @@ ${faqSection}
     try {
       const { email } = req.body;
       if (!email) return res.status(400).json({ error: "email is required" });
-      const result = await sendReviewRequestPreview(email);
+      const message = {
+        subject: typeof req.body?.subject === "string" ? req.body.subject : undefined,
+        body: typeof req.body?.body === "string" ? req.body.body : undefined,
+      };
+      const result = await sendReviewRequestPreview(email, message);
       res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Generate a review-request draft without sending any email
+  app.post("/api/admin/review-requests/generate", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const expectedKey = getAdminKey();
+    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const text = await generateReviewRequestDraft();
+      res.json({ text });
+    } catch (err: any) {
+      const message = err?.message || "AI generation failed";
+      const status = message === "AI service not configured" ? 503 : 502;
+      res.status(status).json({ error: message });
     }
   });
 
@@ -16025,7 +16225,7 @@ ${offersXml}
         return res.status(401).json({ error: "Для оформления предзаказа необходимо авторизоваться" });
       }
 
-      const { productId, color, customerName, customerEmail, customerPhone, customerLastName, customerFirstName, customerMiddleName, address, paymentMethod, items: reqItems, cdekPointCode, cdekCityCode, cdekTariffCode, cdekPointAddress, cdekDeliverySum } = req.body;
+      const { productId, color, customerName, customerEmail, customerPhone, customerLastName, customerFirstName, customerMiddleName, address, paymentMethod, items: reqItems, cdekPointCode, cdekCityCode, cdekTariffCode, cdekPointAddress, cdekDeliverySum, promoCode } = req.body;
       if (!productId) {
         return res.status(400).json({ error: "Missing required fields" });
       }
@@ -16095,7 +16295,15 @@ ${offersXml}
         };
       });
 
-      const totalPrice = orderItems.reduce((s: number, i: any) => s + i.price * i.quantity, 0) + deliveryCost;
+      const orderItemsSubtotal = orderItems.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
+      const promoResult = await applyPromoToOrder({
+        promoCode,
+        customerEmail: finalEmail,
+        isWholesale: isWholesaleUser,
+        items: orderItems.map(it => ({ price: it.price, quantity: it.quantity, size: it.size, product })),
+      });
+      const promoDiscount = promoResult.promoDiscount;
+      const totalPrice = orderItemsSubtotal + deliveryCost - promoDiscount;
 
       const order = await storage.createOrder({
         sessionId: req.sessionID || `preorder-${Date.now()}`,
@@ -16103,8 +16311,11 @@ ${offersXml}
         customerEmail: finalEmail,
         customerPhone: finalPhone,
         address: address || '',
-        items: orderItems,
+        items: promoDiscount > 0
+          ? [...orderItems, { _discountDetails: { subtotal: orderItemsSubtotal, deliveryCost, promoCode: promoCode || null, promoDiscountPercent: promoResult.appliedPromo?.discountPercent || null, promoDiscountAmount: promoDiscount, loyaltyPercent: 0, loyaltyDiscountAmount: 0, isWholesale: isWholesaleUser } }]
+          : orderItems,
         total: totalPrice,
+        promoCode: promoCode || undefined,
         userId: user?.id,
       });
 
@@ -16437,6 +16648,7 @@ ${offersXml}
         address, paymentMethod, items: reqItems,
         deliveryType, pickupPointId,
         cdekPointCode, cdekPointAddress, cdekCityCode, cdekTariffCode, cdekDeliverySum,
+        promoCode,
       } = req.body;
 
       if (!customerLastName?.trim() || !customerFirstName?.trim()) {
@@ -16503,6 +16715,7 @@ ${offersXml}
       const transportCompany: string | undefined = isWholesalePreorder ? (req.body.transportCompany || "cdek") : undefined;
 
       // Verify prices against database — do not trust client-provided prices
+      const promoProducts: Record<number, any> = {};
       for (const item of orderItems) {
         const product = await storage.getProduct(item.productId);
         if (!product) {
@@ -16515,6 +16728,7 @@ ${offersXml}
         // для опта, salePrice/discountPercent для розницы.
         item.price = resolveItemPrice(product as any, { isWholesale: isWholesaleUser }).price;
         item.productName = product.name;
+        promoProducts[item.productId] = product;
       }
 
       // Verify delivery cost via CDEK if city code is provided; otherwise no charge
@@ -16541,7 +16755,15 @@ ${offersXml}
         }
       }
 
-      const totalPrice = orderItems.reduce((s: number, i: any) => s + i.price * i.quantity, 0) + deliveryCost;
+      const orderItemsSubtotal = orderItems.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
+      const promoResult = await applyPromoToOrder({
+        promoCode,
+        customerEmail: customerEmail.trim(),
+        isWholesale: isWholesaleUser,
+        items: orderItems.map(it => ({ price: it.price, quantity: it.quantity, size: it.size, product: promoProducts[it.productId] })),
+      });
+      const promoDiscount = promoResult.promoDiscount;
+      const totalPrice = orderItemsSubtotal + deliveryCost - promoDiscount;
 
       const order = await storage.createOrder({
         sessionId: req.sessionID || `preorder-multi-${Date.now()}`,
@@ -16549,8 +16771,11 @@ ${offersXml}
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone || "",
         address: address || "",
-        items: orderItems,
+        items: promoDiscount > 0
+          ? [...orderItems, { _discountDetails: { subtotal: orderItemsSubtotal, deliveryCost, promoCode: promoCode || null, promoDiscountPercent: promoResult.appliedPromo?.discountPercent || null, promoDiscountAmount: promoDiscount, loyaltyPercent: 0, loyaltyDiscountAmount: 0, isWholesale: isWholesaleUser } }]
+          : orderItems,
         total: totalPrice,
+        promoCode: promoCode || undefined,
         userId: req.user?.id,
       });
 

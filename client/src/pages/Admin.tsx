@@ -11119,15 +11119,29 @@ export default function Admin() {
                         </div>
                         <div>
                           <Label className="text-sm">Общий остаток (шт)</Label>
-                          <Input
-                            type="number"
-                            value={productForm.stock}
-                            onChange={(e) => setProductForm({...productForm, stock: e.target.value})}
-                            placeholder="0"
-                            min="0"
-                            data-testid="input-product-stock"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">Суммарный остаток по всем размерам</p>
+                          {Object.keys(productForm.sizeStock).length > 0 ? (
+                            <>
+                              <Input
+                                type="number"
+                                value={String(Object.values(productForm.sizeStock).reduce((sum, v) => sum + (Number(v) || 0), 0))}
+                                disabled
+                                data-testid="input-product-stock"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">Считается автоматически из «Остатка по размерам» — правится только там.</p>
+                            </>
+                          ) : (
+                            <>
+                              <Input
+                                type="number"
+                                value={productForm.stock}
+                                onChange={(e) => setProductForm({...productForm, stock: e.target.value})}
+                                placeholder="0"
+                                min="0"
+                                data-testid="input-product-stock"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">Товар без размеров — остаток задаётся здесь.</p>
+                            </>
+                          )}
                         </div>
                         <div>
                           <Label className="text-sm">Категория *</Label>

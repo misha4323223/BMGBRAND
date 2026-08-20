@@ -11,6 +11,7 @@ import { sendWholesaleRegistrationToBitrix, syncOrderStatusToBitrix } from './bi
 import { notifyWholesaleRegistration, notifyPartnerRegistration, answerCallbackQuery, editMessageText } from './telegram';
 import { vkNotifyWholesaleRegistration } from './vk';
 import { cdekService } from './cdek';
+import { paymentService } from './payments';
 
 import { generateInvoicePDF, generateUpdPDF, generateTorg12PDF } from './invoice';
 import { partnerRegisterSchema, LEGAL_DOCUMENT_SLUGS, type LegalDocumentSlug } from '@shared/schema';
@@ -1292,6 +1293,75 @@ router.post('/orders/:id/cancel', authMiddleware, async (req: AuthRequest, res: 
   }
 });
 
+// Оплатить неоплаченный заказ (повторная оплата) — для мобильного приложения.
+router.post('/orders/:id/pay', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Не авторизован' });
+    const orderId = Number(req.params.id);
+    if (isNaN(orderId)) return res.status(400).json({ error: 'Некорректный ID заказа' });
+
+    const order = await storage.getOrder(orderId);
+    if (!order) return res.status(404).json({ error: 'Заказ не найден' });
+    if (order.userId !== req.user.id && order.customerEmail !== req.user.email) {
+      return res.status(403).json({ error: 'Нет доступа к этому заказу' });
+    }
+
+    const payableStatuses = ['pending', 'awaiting_payment', 'created', 'new'];
+    if (!payableStatuses.includes(order.status)) {
+      return res.status(400).json({ error: 'Заказ уже оплачен или не может быть оплачен' });
+    }
+
+    const amount = Number(order.total) || 0;
+    if (amount <= 0) {
+      return res.status(400).json({ error: 'Сумма к оплате равна нулю' });
+    }
+
+    // Способ оплаты: уважаем выбор приложения (paymentMethod в теле), иначе как при
+    // создании заказа — YooKassa (redirect, чтобы приложение могло открыть paymentUrl
+    // в браузере/WebView), затем T-Bank, если YooKassa выключен.
+    const requestedMethod = req.body?.paymentMethod;
+    let method: 'yookassa' | 'tbank' | null = null;
+    if (requestedMethod === 'yookassa' && paymentService.isYooKassaEnabled()) method = 'yookassa';
+    else if (requestedMethod === 'tbank' && paymentService.isTBankEnabled()) method = 'tbank';
+    if (!method) method = paymentService.isYooKassaEnabled() ? 'yookassa' : paymentService.isTBankEnabled() ? 'tbank' : null;
+    if (!method) {
+      return res.status(500).json({ error: 'Оплата не настроена' });
+    }
+
+    // Куда вернуть после оплаты: по умолчанию страница успеха заказа на сайте,
+    // приложение может передать свой returnUrl в теле запроса.
+    const bodyReturnUrl = typeof req.body?.returnUrl === 'string' && req.body.returnUrl.trim() ? req.body.returnUrl.trim() : null;
+    const defaultReturnUrl = `${config.app.domain}/order-success/${orderId}`;
+
+    const paymentResult = await paymentService.createPayment({
+      amount,
+      description: `Заказ #${orderId}`,
+      orderId: String(orderId),
+      returnUrl: bodyReturnUrl || defaultReturnUrl,
+      paymentMethod: method,
+      useWidget: false,
+    });
+
+    if (!paymentResult.success) {
+      console.error(`[Auth] Pay order #${orderId} payment failed:`, paymentResult.error);
+      return res.status(500).json({ error: paymentResult.error || 'Не удалось создать платёж' });
+    }
+
+    if (paymentResult.paymentId) {
+      await storage.updateOrderPaymentId(orderId, paymentResult.paymentId);
+    }
+
+    console.log(`[Auth] User ${req.user.id} started payment for order #${orderId}: ${paymentResult.confirmationUrl ? 'redirect' : 'widget'}`);
+    res.json({
+      paymentUrl: paymentResult.confirmationUrl,
+      confirmationToken: paymentResult.confirmationToken,
+    });
+  } catch (error: any) {
+    console.error('[Auth] Pay order error:', error);
+    res.status(500).json({ error: 'Ошибка при оплате' });
+  }
+});
+
 async function getOrderForUser(orderId: number, user: NonNullable<AuthRequest['user']>) {
   const order = await storage.getOrder(orderId);
   if (!order) return null;
@@ -1744,6 +1814,37 @@ router.get('/my-promo-codes', authMiddleware, async (req: AuthRequest, res: Resp
           }
         }
       }
+    }
+    
+    // Промокоды «за отзыв» (выдаются автоматически при одобрении отзыва)
+    try {
+      const allSettings = await storage.getAllBonusSettings();
+      for (const [key, value] of Object.entries(allSettings)) {
+        if (!key.startsWith('review_promo:')) continue;
+        let rec: any = null;
+        try {
+          rec = JSON.parse(value);
+        } catch {
+          continue;
+        }
+        if (!rec || !rec.code) continue;
+        if (String(rec.email || '').toLowerCase() !== userEmail) continue;
+        if (promoCodes.find((p) => p.code === rec.code)) continue;
+        const promo = await storage.getPromoCodeByCode(rec.code);
+        if (!promo) continue;
+        const usedByMe = await storage.isPromoUsedByEmail(userEmail, promo.code);
+        promoCodes.push({
+          code: promo.code,
+          discountPercent: promo.discountPercent ?? undefined,
+          discountAmount: promo.discountAmount ?? undefined,
+          source: 'review',
+          isActive: promo.isActive ?? true,
+          expiresAt: promo.expiresAt ? promo.expiresAt.toISOString() : null,
+          usedByMe,
+        });
+      }
+    } catch (e) {
+      console.error('[Auth] Get review promo codes error:', e);
     }
     
     res.json(promoCodes);

@@ -367,6 +367,8 @@ export default function Profile() {
         return 'За подписку';
       case 'order':
         return 'Использован в заказе';
+      case 'review':
+        return 'За отзыв';
       default:
         return source;
     }

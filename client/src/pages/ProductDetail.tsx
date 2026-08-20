@@ -1150,29 +1150,6 @@ export default function ProductDetail() {
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
-        {catPaths.length > 1 && (
-          <div className="mt-2 text-[11px] sm:text-xs text-muted-foreground">
-            <span className="opacity-70">Также в разделах:</span>{" "}
-            {catPaths.slice(1).map((p, i) => {
-              const label = [
-                CATEGORIES[p.categorySlug as keyof typeof CATEGORIES]?.name || p.categorySlug,
-                p.subcategoryName || p.subcategorySlug,
-                p.subSubcategoryName || p.subSubcategorySlug,
-              ].filter(Boolean).join(" → ");
-              const href = p.subSubcategorySlug
-                ? `/products/${p.categorySlug}/${p.subcategorySlug}/${p.subSubcategorySlug}`
-                : p.subcategorySlug
-                  ? `/${p.subcategorySlug}`
-                  : `/products/${p.categorySlug}`;
-              return (
-                <span key={i}>
-                  {i > 0 && " · "}
-                  <a href={href} className="hover:text-foreground hover:underline">{label}</a>
-                </span>
-              );
-            })}
-          </div>
-        )}
       </div>
       <div className="pt-3 sm:pt-5 pb-8 max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-4 gap-6">

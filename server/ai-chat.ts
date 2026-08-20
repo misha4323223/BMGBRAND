@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { z } from "zod";
-import { storage, warmRatingsCache } from "./storage";
+import { storage } from "./storage";
 import { isWorthSavingAiQuestion, normalizeAiQuestion } from "./ai-questions-lib";
 import { saveAiQuestion } from "./ai-questions-store";
 import { authMiddleware, type AuthRequest } from "./auth-routes";
@@ -2098,33 +2098,10 @@ export function registerTelegramChatWebhook(
         const originalText: string = callbackQuery.message?.text || '';
         const retailToken = process.env.TELEGRAM_BOT_TOKEN || '';
 
-        if (data.startsWith('review_approve:')) {
-          const reviewId = parseInt(data.split(':')[1]);
-          if (!isNaN(reviewId)) {
-            try {
-              await storage.updateReview(reviewId, { isApproved: true });
-              console.log(`[Telegram] Review ${reviewId} approved via Telegram button`);
-              warmRatingsCache(storage).catch(() => {});
-              await answerCallbackQuery(callbackId, '✅ Отзыв одобрен!', retailToken);
-              await editMessageText(chatId, messageId, originalText + '\n\n✅ <b>Одобрен</b> (через Telegram)', retailToken);
-            } catch (e: any) {
-              await answerCallbackQuery(callbackId, '❌ Ошибка при одобрении', retailToken);
-              console.error('[Telegram] Error approving review:', e.message);
-            }
-          }
-        } else if (data.startsWith('review_reject:')) {
-          const reviewId = parseInt(data.split(':')[1]);
-          if (!isNaN(reviewId)) {
-            try {
-              await storage.deleteReview(reviewId);
-              console.log(`[Telegram] Review ${reviewId} rejected via Telegram button`);
-              await answerCallbackQuery(callbackId, '❌ Отзыв отклонён', retailToken);
-              await editMessageText(chatId, messageId, originalText + '\n\n❌ <b>Отклонён</b> (через Telegram)', retailToken);
-            } catch (e: any) {
-              await answerCallbackQuery(callbackId, '❌ Ошибка при отклонении', retailToken);
-              console.error('[Telegram] Error rejecting review:', e.message);
-            }
-          }
+        if (data.startsWith('review_approve:') || data.startsWith('review_reject:')) {
+          // Модерация отзывов перенесена в админку — старые кнопки больше не выполняют действий.
+          console.log(`[Telegram] Review moderation via Telegram disabled (data=${data})`);
+          await answerCallbackQuery(callbackId, 'Модерация отзывов — в админке сайта', retailToken);
         } else if (data.startsWith('agent_approve:')) {
           const itemId = data.slice('agent_approve:'.length);
           try {

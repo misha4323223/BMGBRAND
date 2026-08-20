@@ -650,12 +650,9 @@ export function notifyNewReview(data: {
     `👤 Автор: ${data.authorName}` +
     commentLine;
 
-  const buttons = [[
-    { text: "✅ Одобрить", callback_data: `review_approve:${data.reviewId}` },
-    { text: "❌ Отклонить", callback_data: `review_reject:${data.reviewId}` },
-  ]];
-
-  sendMessageWithInlineKeyboard(chatId, text, buttons, token)
+  // Модерация отзывов — только через админку сайта (кнопки в Telegram убраны).
+  const moderationNote = `\n\n✅ Модерация отзыва — в админке сайта (раздел «Отзывы»).`;
+  sendMessageWithInlineKeyboard(chatId, text + moderationNote, [], token)
     .catch(err => console.error("[Telegram] notifyNewReview failed:", err));
 }
 

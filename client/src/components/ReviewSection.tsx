@@ -230,6 +230,12 @@ export function ReviewSection({ productId }: { productId: number }) {
     staleTime: 30000,
   });
 
+  const { data: reviewEligibility } = useQuery<{ eligible: boolean }>({
+    queryKey: ["/api/reviews/eligibility", productId],
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const handlePhotoSelect = useCallback(async (files: FileList | null) => {
     if (!files) return;
     const remaining = 5 - photoPreviews.length;
@@ -497,6 +503,11 @@ export function ReviewSection({ productId }: { productId: number }) {
               </div>
               <p className="text-sm font-medium text-zinc-500">Пока нет отзывов</p>
               <p className="text-xs text-zinc-400 mt-0.5">Будьте первым, кто поделится мнением</p>
+              {reviewEligibility?.eligible && (
+                <p className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 mt-3 max-w-xs mx-auto">
+                  🎁 Поделись впечатлением о товаре — отправим промокод −10% на следующую покупку. Код придёт на email после модерации отзыва.
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-0 divide-y divide-zinc-100 dark:divide-zinc-800">

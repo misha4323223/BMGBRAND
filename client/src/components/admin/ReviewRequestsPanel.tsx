@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Star, Send, Mail, Users, RefreshCw, Loader2, CheckSquare, Square } from "lucide-react";
+import { Star, Send, Mail, Users, RefreshCw, Loader2, CheckSquare, Square, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,6 +41,10 @@ const STATUS_LABEL: Record<string, string> = {
   ready_for_pickup: "Готов к выдаче",
 };
 
+const DEFAULT_REVIEW_REQUEST_SUBJECT = "Понравилась покупка? Оставьте отзыв ⭐";
+const DEFAULT_REVIEW_REQUEST_BODY =
+  "Привет, {name}! Надеемся, ваш заказ уже радует. Поделитесь впечатлением — это займёт минуту и поможет другим покупателям.";
+
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -51,6 +56,8 @@ export default function ReviewRequestsPanel({ apiKey, isActive }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [previewEmail, setPreviewEmail] = useState("");
+  const [reviewSubject, setReviewSubject] = useState(DEFAULT_REVIEW_REQUEST_SUBJECT);
+  const [reviewBody, setReviewBody] = useState(DEFAULT_REVIEW_REQUEST_BODY);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const candidatesQuery = useQuery<{ candidates: Candidate[]; count: number }>({
@@ -60,11 +67,11 @@ export default function ReviewRequestsPanel({ apiKey, isActive }: Props) {
   });
 
   const sendMutation = useMutation({
-    mutationFn: (orderIds: number[]) =>
+    mutationFn: (payload: { orderIds: number[]; subject: string; body: string }) =>
       adminFetch("/api/admin/review-requests/send", apiKey, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderIds }),
+        body: JSON.stringify(payload),
       }),
     onSuccess: (data: any) => {
       toast({
@@ -79,11 +86,11 @@ export default function ReviewRequestsPanel({ apiKey, isActive }: Props) {
   });
 
   const previewMutation = useMutation({
-    mutationFn: (email: string) =>
+    mutationFn: (payload: { email: string; subject: string; body: string }) =>
       adminFetch("/api/admin/review-requests/preview", apiKey, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(payload),
       }),
     onSuccess: (data: any) => {
       toast({
@@ -93,6 +100,23 @@ export default function ReviewRequestsPanel({ apiKey, isActive }: Props) {
     },
     onError: (err: any) =>
       toast({ title: "Ошибка превью", description: err.message, variant: "destructive" }),
+  });
+
+  const draftMutation = useMutation({
+    mutationFn: () =>
+      adminFetch("/api/admin/review-requests/generate", apiKey, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }),
+    onSuccess: (data: any) => {
+      if (typeof data.text === "string" && data.text.trim()) {
+        setReviewBody(data.text.trim());
+        toast({ title: "Черновик сгенерирован", description: "Проверьте и отредактируйте текст перед отправкой." });
+      }
+    },
+    onError: (err: any) =>
+      toast({ title: "Не удалось сгенерировать текст", description: err.message, variant: "destructive" }),
   });
 
   const candidates = candidatesQuery.data?.candidates ?? [];
@@ -117,8 +141,14 @@ export default function ReviewRequestsPanel({ apiKey, isActive }: Props) {
   const handleSendSelected = () => {
     const ids = candidates.filter((c) => selected.has(c.orderId)).map((c) => c.orderId);
     if (ids.length === 0) return;
+    const subject = reviewSubject.trim();
+    const body = reviewBody.trim();
+    if (!subject || !body) {
+      toast({ title: "Заполните тему и текст письма", variant: "destructive" });
+      return;
+    }
     if (!confirm(`Отправить запрос на отзыв ${ids.length} покупателям?`)) return;
-    sendMutation.mutate(ids);
+    sendMutation.mutate({ orderIds: ids, subject, body });
   };
 
   const handlePreview = () => {
@@ -127,7 +157,13 @@ export default function ReviewRequestsPanel({ apiKey, isActive }: Props) {
       toast({ title: "Введите email для превью", variant: "destructive" });
       return;
     }
-    previewMutation.mutate(email);
+    const subject = reviewSubject.trim();
+    const body = reviewBody.trim();
+    if (!subject || !body) {
+      toast({ title: "Заполните тему и текст письма", variant: "destructive" });
+      return;
+    }
+    previewMutation.mutate({ email, subject, body });
   };
 
   return (
@@ -170,6 +206,72 @@ export default function ReviewRequestsPanel({ apiKey, isActive }: Props) {
         </div>
 
         <Separator />
+
+        <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+          <div>
+            <p className="text-sm font-semibold">Содержание письма</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Изменения применятся только к этой отправке и не затронут стандартный шаблон.
+            </p>
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block" htmlFor="review-request-subject">
+              Тема письма
+            </label>
+            <Input
+              id="review-request-subject"
+              value={reviewSubject}
+              onChange={(e) => setReviewSubject(e.target.value)}
+              maxLength={200}
+              data-testid="input-review-request-subject"
+            />
+          </div>
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <label className="text-sm font-medium" htmlFor="review-request-body">
+                Текст письма
+              </label>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => draftMutation.mutate()}
+                  disabled={draftMutation.isPending}
+                  data-testid="button-review-request-generate"
+                >
+                  <Sparkles className="w-4 h-4 mr-1.5" />
+                  {draftMutation.isPending ? "Генерирую…" : "Сгенерировать ИИ"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setReviewSubject(DEFAULT_REVIEW_REQUEST_SUBJECT);
+                    setReviewBody(DEFAULT_REVIEW_REQUEST_BODY);
+                  }}
+                  disabled={draftMutation.isPending}
+                  data-testid="button-review-request-reset-message"
+                >
+                  Сбросить
+                </Button>
+              </div>
+            </div>
+            <Textarea
+              id="review-request-body"
+              value={reviewBody}
+              onChange={(e) => setReviewBody(e.target.value)}
+              maxLength={5000}
+              rows={6}
+              placeholder="Введите текст письма…"
+              data-testid="textarea-review-request-body"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Плейсхолдер <code>{"{name}"}</code> автоматически заменится именем покупателя. Ссылки на товары добавляются ниже письма.
+            </p>
+          </div>
+        </div>
 
         {candidatesQuery.isLoading ? (
           <div className="flex items-center justify-center py-8">

@@ -414,8 +414,9 @@ export function vkNotifyNewReview(data: {
     `👤 Автор: ${data.authorName}` +
     commentLine;
 
-  text += `\n\n✅ Одобрить:\n${generateActionLink("review_approve", data.reviewId)}`;
-  text += `\n\n❌ Отклонить:\n${generateActionLink("review_reject", data.reviewId)}`;
+  // Модерация отзывов — только через админку сайта. Без action-ссылок в VK:
+  // линк-превью VK выполняет GET по таким ссылкам без участия человека.
+  text += `\n\n✅ Модерация отзыва — в админке сайта (раздел «Отзывы»).`;
 
   sendVkMessage(text).catch(err => console.error("[VK] vkNotifyNewReview failed:", err));
 }
