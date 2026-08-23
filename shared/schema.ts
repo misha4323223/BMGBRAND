@@ -619,6 +619,7 @@ export const promoCodes = pgTable("promo_codes", {
   canCombineWithLoyalty: boolean("can_combine_with_loyalty").default(true), // Can stack with loyalty discount
   isActive: boolean("is_active").default(true),
   allowForWholesale: boolean("allow_for_wholesale").default(false), // If true, wholesale users can apply this promo
+  appOnly: boolean("app_only").default(false), // If true, only usable from the mobile app (x-source: app header)
   applicableCategories: text("applicable_categories"), // JSON array of subcategory/category names, null = all
   startsAt: timestamp("starts_at"),
   expiresAt: timestamp("expires_at"),

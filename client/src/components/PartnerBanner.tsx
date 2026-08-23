@@ -59,6 +59,13 @@ export function PartnerBannerContent({ visible, rendered, dismiss }: PartnerBann
         willChange: "max-height, opacity",
       }}
     >
+      <style>{`
+        @keyframes partner-wave-v1 {
+          from { transform: scaleX(0); }
+          to   { transform: scaleX(1); }
+        }
+      `}</style>
+
       {/* Mobile */}
       <div
         className="flex sm:hidden items-center gap-2 px-3 py-2"
@@ -72,10 +79,20 @@ export function PartnerBannerContent({ visible, rendered, dismiss }: PartnerBann
           href="/partner/register"
           onClick={dismiss}
           data-testid="link-partner-banner-cta"
-          className="text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0"
-          style={{ background: "#E53935", color: "#fff" }}
+          className="text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 relative overflow-hidden"
+          style={{ background: "rgba(229,57,53,0.2)", color: "#fff" }}
         >
-          Стать партнёром
+          <span
+            onAnimationEnd={dismiss}
+            style={{
+              position: "absolute", inset: 0,
+              background: "#E53935", borderRadius: "inherit",
+              transformOrigin: "left center",
+              animation: "partner-wave-v1 11s linear forwards",
+              willChange: "transform",
+            }}
+          />
+          <span style={{ position: "relative", zIndex: 1 }}>Стать партнёром</span>
         </Link>
         <button
           onClick={dismiss}
@@ -119,13 +136,23 @@ export function PartnerBannerContent({ visible, rendered, dismiss }: PartnerBann
               href="/partner/register"
               onClick={dismiss}
               data-testid="link-partner-banner-cta"
-              className="group flex items-center gap-2 font-bold text-sm px-5 py-2 rounded-full whitespace-nowrap transition-all duration-200"
-              style={{ background: "#E53935", color: "#fff" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#c62828"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#E53935"; }}
+              className="group flex items-center gap-2 font-bold text-sm px-5 py-2 rounded-full whitespace-nowrap relative overflow-hidden"
+              style={{ background: "rgba(229,57,53,0.2)", color: "#fff" }}
             >
-              Стать партнёром
-              <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+              <span
+                onAnimationEnd={dismiss}
+                style={{
+                  position: "absolute", inset: 0,
+                  background: "#E53935", borderRadius: "inherit",
+                  transformOrigin: "left center",
+                  animation: "partner-wave-v1 11s linear forwards",
+                  willChange: "transform",
+                }}
+              />
+              <span style={{ position: "relative", zIndex: 1 }} className="flex items-center gap-2">
+                Стать партнёром
+                <ArrowRight className="w-4 h-4" />
+              </span>
             </Link>
             <button
               onClick={dismiss}

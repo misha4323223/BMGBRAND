@@ -664,14 +664,42 @@ export default function ProductDetail() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          stream: true,
           messages: [{ role: 'user', content: msgText }],
           productId: product.id,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) { setSizeAdvisorResult('Не удалось получить рекомендацию. Попробуйте ещё раз.'); return; }
-      const text: string = data.reply || '';
-      setSizeAdvisorResult(text);
+      if (!res.ok || !res.body) {
+        setSizeAdvisorResult('Не удалось получить рекомендацию. Попробуйте ещё раз.');
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let text = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const event = JSON.parse(line.slice(6).trim());
+            if (event.error) throw new Error(event.error);
+            if (event.chunk) {
+              text += event.chunk;
+              setSizeAdvisorResult(text);
+            }
+          } catch (error) {
+            if (error instanceof SyntaxError) continue;
+            throw error;
+          }
+        }
+      }
+      if (!text) throw new Error('empty_response');
       const sizeStock = (product as any).sizeStock;
       const availableSizes: string[] = product.sizes?.length > 0
         ? product.sizes

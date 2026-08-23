@@ -3408,6 +3408,7 @@ export default function Admin() {
         maxUses: 0,
         isActive: true,
         allowForWholesale: false,
+        appOnly: false,
         startsAt: "",
         expiresAt: "",
         applicableCategories: "",
@@ -3470,6 +3471,7 @@ export default function Admin() {
     maxUses: 0,
     isActive: true,
     allowForWholesale: false,
+    appOnly: false,
     startsAt: "",
     expiresAt: "",
     applicableCategories: "",
@@ -4873,6 +4875,17 @@ export default function Admin() {
                       Доступен для оптовых покупателей
                     </label>
                   </div>
+                  <div className="flex items-center gap-3 py-1">
+                    <Checkbox
+                      id="promo-app-only"
+                      checked={newPromo.appOnly}
+                      onCheckedChange={(v) => setNewPromo({...newPromo, appOnly: !!v})}
+                      className="border-zinc-500"
+                    />
+                    <label htmlFor="promo-app-only" className="text-sm text-zinc-300 cursor-pointer select-none">
+                      Только в мобильном приложении
+                    </label>
+                  </div>
                   <div className="space-y-2 sm:col-span-2">
                     <label className="text-sm text-zinc-400">Применять только к категориям (пусто = на весь заказ)</label>
                     {(() => {
@@ -4988,6 +5001,9 @@ export default function Admin() {
                           <div className="font-bold text-lg text-white">{promo.code}</div>
                           {promo.allowForWholesale && (
                             <span className="text-xs bg-blue-600/30 text-blue-300 border border-blue-600/40 px-1.5 py-0.5 rounded">Опт</span>
+                          )}
+                          {promo.appOnly && (
+                            <span className="text-xs bg-emerald-600/30 text-emerald-300 border border-emerald-600/40 px-1.5 py-0.5 rounded">Приложение</span>
                           )}
                         </div>
                         <div className="text-sm text-zinc-400">

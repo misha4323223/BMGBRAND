@@ -1139,7 +1139,7 @@ export async function registerRoutes(
         relation: ["delegate_permission/common.handle_all_urls"],
         target: {
           namespace: "android_app",
-          package_name: "ru.boomerangs.mobile",
+          package_name: "ru.boooomerangs.mobile",
           sha256_cert_fingerprints: [
             "0D:98:A5:B9:77:98:72:3B:8D:3E:5A:0A:3E:EC:BE:BA:6A:E1:41:A8:AB:DF:B0:68:25:B7:2E:B7:30:C2:08:2A",
           ],
@@ -12750,12 +12750,14 @@ ${faqSection}
         created_at Timestamp,
         description Utf8,
         applicable_categories Utf8,
+        app_only Bool,
         PRIMARY KEY (id)
       )`, "create promo_codes");
       
       await executeSchemeQuery(`ALTER TABLE promo_codes ADD COLUMN description Utf8`, "add description column");
       await executeSchemeQuery(`ALTER TABLE promo_codes ADD COLUMN applicable_categories Utf8`, "add applicable_categories column");
       await executeSchemeQuery(`ALTER TABLE promo_codes ADD COLUMN allow_for_wholesale Bool`, "add allow_for_wholesale column");
+      await executeSchemeQuery(`ALTER TABLE promo_codes ADD COLUMN app_only Bool`, "add app_only column");
 
       await executeSchemeQuery(`CREATE TABLE loyalty_tiers (
         id Uint64,
@@ -12799,6 +12801,7 @@ ${faqSection}
       await executeSchemeQuery("ALTER TABLE promo_codes ADD COLUMN description Utf8", "alter promo_codes.description");
       await executeSchemeQuery("ALTER TABLE promo_codes ADD COLUMN applicable_categories Utf8", "alter promo_codes.applicable_categories");
       await executeSchemeQuery("ALTER TABLE promo_codes ADD COLUMN allow_for_wholesale Bool", "alter promo_codes.allow_for_wholesale");
+      await executeSchemeQuery("ALTER TABLE promo_codes ADD COLUMN app_only Bool", "alter promo_codes.app_only");
       await executeSchemeQuery("ALTER TABLE orders ADD COLUMN invoice_number Int32", "alter orders.invoice_number");
 
       // Partner platform tables
@@ -13004,6 +13007,11 @@ ${faqSection}
         return res.json({ valid: false, message: "Этот промокод недоступен для оптовых покупателей" });
       }
 
+      // Check app-only restriction
+      if (promo.appOnly && req.headers["x-source"] !== "app") {
+        return res.json({ valid: false, message: "Этот промокод доступен только в мобильном приложении" });
+      }
+
       // Check per-email usage (one-time promo protection)
       const emailToCheck = email || reqUser?.email;
       if (emailToCheck) {
@@ -13101,6 +13109,11 @@ ${faqSection}
       }
       if (promo.maxUses && (promo.usedCount ?? 0) >= promo.maxUses) {
         return res.json({ valid: false, error: "Лимит использований исчерпан" });
+      }
+
+      // Проверка app_only: если промокод только для приложения — нужен заголовок x-source: app
+      if (promo.appOnly && req.headers["x-source"] !== "app") {
+        return res.json({ valid: false, error: "Этот промокод доступен только в мобильном приложении" });
       }
 
       // Привязка к покупателю: если приложение передало email — проверяем, что код
@@ -17599,6 +17612,79 @@ ${offersXml}
     } catch (err: any) {
       console.error("[Preorder] Status update error:", err.message);
       res.status(500).json({ error: "Failed to update preorder status" });
+    }
+  });
+
+  // Deep-link landing for app promo codes (before SPA catch-all)
+  app.get("/app", async (req, res) => {
+    try {
+      const promoCode = typeof req.query.promo === "string" ? req.query.promo.trim() : "";
+      if (!promoCode) return res.redirect("/");
+
+      const promo = await storage.getPromoCodeByCode(promoCode);
+      if (!promo || !promo.isActive) return res.redirect("/");
+
+      let discountDesc = "";
+      if (promo.discountPercent != null && promo.discountPercent > 0) {
+        discountDesc = `Скидка ${promo.discountPercent}%`;
+      } else if (promo.discountAmount != null && promo.discountAmount > 0) {
+        const rub = Math.round(promo.discountAmount / 100);
+        discountDesc = `Скидка ${rub} ₽`;
+      }
+
+      const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      const title = discountDesc
+        ? `Ваша ${discountDesc.toLowerCase()} ждёт в приложении BOOOMERANGS`
+        : "Скачайте приложение BOOOMERANGS";
+      const desc = discountDesc
+        ? `Промокод ${esc(promoCode)} на ${discountDesc.toLowerCase()} уже ждёт вас. Скачайте приложение и скидка применится автоматически.`
+        : "Скачайте официальное приложение BOOOMERANGS в RuStore.";
+
+      const rustoreUrl = "https://www.rustore.ru/catalog/app/ru.boooomerangs.mobile";
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(rustoreUrl)}`;
+
+      const html = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${esc(title)}</title>
+  <meta name="description" content="${esc(desc)}">
+  <meta property="og:title" content="${esc(title)}">
+  <meta property="og:description" content="${esc(desc)}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://boooomerangs.ru/app?promo=${esc(promoCode)}">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:20px}
+    .card{max-width:380px;width:100%}
+    .badge{display:inline-block;background:rgba(200,255,0,.15);color:#c8ff00;border:1px solid rgba(200,255,0,.3);border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600;margin-bottom:16px}
+    h1{font-size:22px;line-height:1.3;margin-bottom:8px}
+    p{color:#888;font-size:14px;margin-bottom:24px}
+    .qr{border-radius:12px;margin-bottom:16px}
+    .btn{display:inline-block;background:#c8ff00;color:#0a0a0a;font-weight:700;font-size:15px;padding:14px 28px;border-radius:10px;text-decoration:none;transition:opacity .2s}
+    .btn:hover{opacity:.85}
+    .footer{color:#555;font-size:11px;margin-top:20px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">${esc(discountDesc || "BOOOMERANGS")}</div>
+    <h1>${esc(title)}</h1>
+    <p>${esc(desc)}</p>
+    <img class="qr" src="${qrUrl}" width="200" height="200" alt="QR-код для скачивания">
+    <br>
+    <a class="btn" href="${esc(rustoreUrl)}">Скачать в RuStore</a>
+    <div class="footer">BOOOMERANGS &copy; ${new Date().getFullYear()}</div>
+  </div>
+</body>
+</html>`;
+
+      res.set("Cache-Control", "public, max-age=300");
+      res.type("html").send(html);
+    } catch (err: any) {
+      console.error("[App] Deep link error:", err.message);
+      res.redirect("/");
     }
   });
 

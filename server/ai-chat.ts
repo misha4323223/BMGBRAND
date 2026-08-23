@@ -663,7 +663,7 @@ export function registerAiChatRoute(app: Express): void {
       let productContext = "";
       let fullInventoryStr = "";
       let matched: any[] = [];
-      if (lastUserMsg?.content && pageContext?.pageType !== "product" && pageContext?.pageType !== "artist") {
+      if (lastUserMsg?.content && pageContext?.pageType !== "product" && pageContext?.pageType !== "artist" && !sizeProductId) {
         const query = (lastUserMsg.content as string).toLowerCase();
 
         const subcategoryKeywords: Array<{ kw: string; sub: string }> = [
