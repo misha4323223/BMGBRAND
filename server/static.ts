@@ -494,7 +494,7 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
     "@type": "Product",
     "name": meta.title,
     "description": pageDesc,
-    "image": meta.images.length > 0 ? meta.images : (meta.image ? [meta.image] : []),
+    "image": meta.images.length > 0 ? meta.images : (meta.image ? meta.image : undefined),
     "url": productUrl,
     "sku": meta.sku,
     "brand": { "@id": organizationSchema["@id"] },

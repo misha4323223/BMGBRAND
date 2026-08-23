@@ -56,7 +56,7 @@ async function generateFaqDraft(question: string, faqContext: Array<{ question: 
 
   const proxyUrl = process.env.GROQ_PROXY_URL;
   const groqBase = proxyUrl ? proxyUrl.replace(/\/$/, "") : "https://api.groq.com";
-  const keys = [process.env.GROQ_API_KEY_2, process.env.GROQ_API_KEY].filter(Boolean) as string[];
+  const keys = [process.env.GROQ_API_KEY_2, process.env.GROQ_API_KEY, process.env.GROQ_API_KEY_3].filter(Boolean) as string[];
   // Proxy deployments may inject the Groq key server-side, so a key is only
   // mandatory when there is no proxy either (mirrors admin-agent.ts).
   if (keys.length === 0 && !proxyUrl) throw new Error("AI service not configured");

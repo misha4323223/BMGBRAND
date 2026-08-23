@@ -1,11 +1,5 @@
 /**
- * Shared Groq helper — STREAMING chat.completions call, exactly like the
- * working chat widget / product-info routes (gpt-oss-20b does NOT respond
- * reliably in non-streaming mode through the proxy, but streams fine).
- *
- * Accumulates the streamed content (stripping any <think>…</think> reasoning)
- * and returns the final visible text. Throws on non-2xx with `.status` set
- * so callers can implement their own 429/retry logic.
+ * Shared Groq helper — STREAMING chat.completions call.
  */
 export interface GroqStreamOptions {
   baseUrl: string;
@@ -86,10 +80,12 @@ export async function groqCompleteStream(opts: GroqStreamOptions): Promise<strin
     }
   }
 
-  // Reasoning models may still emit <think>…</think> in streamed deltas.
+  // Strip reasoning/think tags — gpt-oss models wrap answers in these
   content = content
-    .replace(/<think>[\s\S]*?<\/think>/gi, "")
-    .replace(/<think>[\s\S]*/gi, "")
+    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, "")
+    .replace(/<reasoning>[\s\S]*/gi, "")
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
+    .replace(/<thinking>[\s\S]*/gi, "")
     .trim();
 
   return content;

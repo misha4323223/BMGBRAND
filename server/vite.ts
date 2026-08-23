@@ -117,7 +117,7 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
           {
             "@context": "https://schema.org", "@type": "Product",
             "name": meta.title, "description": desc,
-            "image": meta.images.length > 0 ? meta.images : [image],
+            "image": meta.images.length > 0 ? meta.images : (image ? image : undefined),
             "url": `${origin}/${slug}`, "sku": meta.sku,
             "brand": { "@type": "Brand", "name": SITE_NAME },
             "offers": {

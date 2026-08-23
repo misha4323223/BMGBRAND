@@ -12,6 +12,11 @@ const dateFmt = (d: any) => {
   return new Date(typeof d === "string" ? d : d).toLocaleDateString("ru-RU");
 };
 
+// MSK timezone offset for day-based grouping (UTC → UTC+3)
+const MSK_OFFSET = 3 * 3600000;
+const dayKey = (d: Date) => new Date(d.getTime() + MSK_OFFSET).toISOString().slice(0, 10);
+const nowMsk = () => new Date(Date.now() + MSK_OFFSET);
+
 const STATUS_LABELS: Record<string, string> = {
   paid: "Оплачен",
   processing: "В обработке",
@@ -183,9 +188,9 @@ export async function getStats(_params: any): Promise<string> {
     ["paid", "shipped", "delivered"].includes(o.status)
   );
   const revenue = paidO.reduce((s: number, o: any) => s + (o.total || 0), 0);
-  const today = new Date().toDateString();
+  const today = dayKey(nowMsk());
   const todayO = allO.filter(
-    (o: any) => o.createdAt && new Date(String(o.createdAt)).toDateString() === today
+    (o: any) => o.createdAt && dayKey(new Date(String(o.createdAt))) === today
   );
   return (
     `📊 Статистика магазина:\n` +
@@ -288,7 +293,27 @@ export async function getAbandonedCarts(params: any): Promise<string> {
   const dates = await (storage as any).getCartSessionDates?.() as Record<string, number> ?? {};
   if (!sessions.length) return "Брошенных корзин не найдено.";
 
-  const topSessions = sessions.slice(0, Math.min(Number(params.limit) || 20, 50));
+  // Filter by date range
+  const dateFrom = params.dateFrom ? new Date(params.dateFrom).getTime() : 0;
+  const dateTo = params.dateTo ? new Date(params.dateTo).getTime() + 86400000 - 1 : Infinity; // end of day
+  let filtered = sessions.filter((sid) => {
+    const ts = dates[sid];
+    if (!ts) return !dateFrom; // keep sessions without dates only if no filter
+    return ts >= dateFrom && ts <= dateTo;
+  });
+
+  // Sort
+  const sortDir = params.sort === "oldest" ? 1 : -1; // newest first by default
+  filtered = [...filtered].sort((a, b) => {
+    const ta = dates[a] || 0;
+    const tb = dates[b] || 0;
+    return (ta - tb) * sortDir;
+  });
+
+  // Apply limit after sort/filter
+  const limit = Math.min(Number(params.limit) || 20, 50);
+  const topSessions = filtered.slice(0, limit);
+
   const now = Date.now();
   const lines: string[] = [];
   for (const sid of topSessions) {
@@ -301,31 +326,53 @@ export async function getAbandonedCarts(params: any): Promise<string> {
       `• ${user?.name || "—"} (${user?.email || sid}) — брошена ${ageStr} назад`
     );
   }
-  return `Брошенные корзины (${sessions.length}, показано ${topSessions.length}):\n${lines.join("\n")}`;
+
+  const periodLabel = params.dateFrom || params.dateTo
+    ? ` (${params.dateFrom ? `с ${params.dateFrom.slice(0, 10)}` : ""}${params.dateTo ? ` по ${params.dateTo.slice(0, 10)}` : ""})`
+    : "";
+  return `Брошенные корзины${periodLabel} (${filtered.length}, показано ${topSessions.length}):\n${lines.join("\n")}`;
 }
 
 export async function getRevenueByPeriod(params: any): Promise<string> {
   const groupBy = params.groupBy || "day"; // "day" | "week" | "month"
-  const daysBack = Number(params.days) || 30;
   let orders = (await storage.getOrders()) as any[];
   orders = orders.filter(
     (o: any) => !o.isDraft && o.status !== "cancelled" && o.createdAt
   );
-  const cutoff = new Date(Date.now() - daysBack * 86400000);
-  orders = orders.filter((o: any) => new Date(o.createdAt) >= cutoff);
+
+  // Absolute date range takes precedence over relative days
+  let dateFrom: number;
+  let dateTo: number;
+  let periodLabel: string;
+  if (params.dateFrom || params.dateTo) {
+    dateFrom = params.dateFrom ? new Date(params.dateFrom).getTime() : 0;
+    dateTo = params.dateTo ? new Date(params.dateTo).getTime() + 86400000 - 1 : Date.now() + MSK_OFFSET;
+    periodLabel = `${params.dateFrom ? params.dateFrom.slice(0, 10) : "начало"} – ${params.dateTo ? params.dateTo.slice(0, 10) : "сегодня"}`;
+  } else {
+    const daysBack = Number(params.days) || 30;
+    dateFrom = nowMsk().getTime() - daysBack * 86400000;
+    dateTo = Date.now() + MSK_OFFSET;
+    periodLabel = `${daysBack} дн.`;
+  }
+
+  orders = orders.filter((o: any) => {
+    const ts = new Date(o.createdAt).getTime();
+    return ts >= dateFrom && ts <= dateTo;
+  });
 
   const buckets = new Map<string, { revenue: number; count: number }>();
   for (const o of orders) {
-    const d = new Date(o.createdAt);
+    const d = new Date(new Date(o.createdAt).getTime() + MSK_OFFSET);
     let key: string;
     if (groupBy === "month") {
       key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     } else if (groupBy === "week") {
-      const monday = new Date(d);
-      monday.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
+      const wkDay = d.getDay();
+      const monday = new Date(d.getTime());
+      monday.setDate(d.getDate() - (wkDay === 0 ? 6 : wkDay - 1));
       key = monday.toISOString().slice(0, 10);
     } else {
-      key = d.toISOString().slice(0, 10);
+      key = dayKey(new Date(o.createdAt));
     }
     const cur = buckets.get(key) || { revenue: 0, count: 0 };
     cur.revenue += o.total || 0;
@@ -337,8 +384,9 @@ export async function getRevenueByPeriod(params: any): Promise<string> {
   if (!sorted.length) return "Нет данных за выбранный период.";
   const totalRevenue = sorted.reduce((s, [, v]) => s + v.revenue, 0);
   const totalOrders = sorted.reduce((s, [, v]) => s + v.count, 0);
+  const groupingLabel = groupBy === "month" ? "по месяцам" : groupBy === "week" ? "по неделям" : "по дням";
   const lines = [
-    `📈 Выручка за ${daysBack} дн. (${groupBy === "month" ? "по месяцам" : groupBy === "week" ? "по неделям" : "по дням"}):`,
+    `📈 Выручка ${periodLabel} (${groupingLabel}, МСК):`,
     `Всего: ${rubFmt(totalRevenue)}, ${totalOrders} заказов`,
     ...sorted.map(([k, v]) => `• ${k} — ${rubFmt(v.revenue)} (${v.count} зак.)`),
   ];
@@ -346,11 +394,31 @@ export async function getRevenueByPeriod(params: any): Promise<string> {
 }
 
 export async function exportOrdersCsv(params: any): Promise<string> {
-  const daysBack = Number(params.days) || 90;
   let orders = (await storage.getOrders()) as any[];
-  const cutoff = new Date(Date.now() - daysBack * 86400000);
+
+  // Absolute date range takes precedence over relative days
+  let dateFrom: number;
+  let dateTo: number;
+  let periodLabel: string;
+  if (params.dateFrom || params.dateTo) {
+    dateFrom = params.dateFrom ? new Date(params.dateFrom).getTime() : 0;
+    dateTo = params.dateTo ? new Date(params.dateTo).getTime() + 86400000 - 1 : Date.now() + MSK_OFFSET;
+    periodLabel = `${params.dateFrom ? params.dateFrom.slice(0, 10) : "начало"} – ${params.dateTo ? params.dateTo.slice(0, 10) : "сегодня"}`;
+  } else {
+    const daysBack = Number(params.days) || 90;
+    dateFrom = nowMsk().getTime() - daysBack * 86400000;
+    dateTo = Date.now() + MSK_OFFSET;
+    periodLabel = `${daysBack} дн.`;
+  }
+
   orders = orders.filter(
-    (o: any) => !o.isDraft && o.status !== "cancelled" && o.createdAt && new Date(o.createdAt) >= cutoff
+    (o: any) => {
+      if (!o.isDraft && o.status !== "cancelled" && o.createdAt) {
+        const ts = new Date(o.createdAt).getTime();
+        return ts >= dateFrom && ts <= dateTo;
+      }
+      return false;
+    }
   );
   if (!orders.length) return "Нет заказов за выбранный период.";
 
@@ -374,7 +442,7 @@ export async function exportOrdersCsv(params: any): Promise<string> {
     ].join(";");
   });
 
-  return `CSV (${orders.length} заказов, ${daysBack} дн):\n\`\`\`\n${header}\n${rows.join("\n")}\n\`\`\``;
+  return `CSV (${orders.length} заказов, ${periodLabel}, МСК):\n\`\`\`\n${header}\n${rows.join("\n")}\n\`\`\``;
 }
 
 // ── WRITE TOOLS ─────────────────────────────────────────────────────────────

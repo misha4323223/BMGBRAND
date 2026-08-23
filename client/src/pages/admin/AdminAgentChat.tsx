@@ -95,6 +95,25 @@ function formatDate(iso: string) {
   });
 }
 
+const WELCOME_MSG: ChatMessage = {
+  id: "welcome",
+  role: "assistant",
+  content: "Привет! Я AI-ассистент администратора. Могу искать и обновлять товары, управлять промокодами, смотреть заказы и статистику.\n\nПримеры:\n• «Найди все толстовки»\n• «Покажи последние 5 заказов»\n• «Создай промокод ЛЕТО20 на 20%»\n• «Покажи статистику магазина»",
+};
+
+const CHAT_STORAGE_KEY = "admin_agent_chat_v1";
+
+function loadChatHistory(): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return [WELCOME_MSG];
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
@@ -102,12 +121,11 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<"chat" | "queue" | "log" | "settings">("chat");
 
-  // ── Chat state ──
-  const [messages, setMessages] = useState<ChatMessage[]>([{
-    id: "welcome",
-    role: "assistant",
-    content: "Привет! Я AI-ассистент администратора. Могу искать и обновлять товары, управлять промокодами, смотреть заказы и статистику.\n\nПримеры:\n• «Найди все толстовки»\n• «Покажи последние 5 заказов»\n• «Создай промокод ЛЕТО20 на 20%»\n• «Покажи статистику магазина»",
-  }]);
+  // ── Chat state (persisted to localStorage) ──
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadChatHistory());
+  useEffect(() => {
+    try { localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages)); } catch {}
+  }, [messages]);
   const [input, setInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [executingId, setExecutingId] = useState<string | null>(null);
@@ -182,7 +200,7 @@ export function AdminAgentChat({ apiKey, adminFetch }: AdminAgentChatProps) {
 
   // ── Chat functions ──
   const historyForApi = () =>
-    messages.filter((m) => !m.pending).slice(-12).map((m) => ({ role: m.role, content: m.content }));
+    messages.filter((m) => !m.pending).slice(-15).map((m) => ({ role: m.role, content: m.content }));
 
   async function handleSend() {
     const text = input.trim();

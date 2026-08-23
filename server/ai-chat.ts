@@ -451,9 +451,9 @@ export function registerAiChatRoute(app: Express): void {
       if (!Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "messages required" });
       }
-      const apiKey = process.env.GROQ_API_KEY;
+      const apiKeys = [process.env.GROQ_API_KEY, process.env.GROQ_API_KEY_2, process.env.GROQ_API_KEY_3].filter(Boolean) as string[];
       const proxyUrl = process.env.GROQ_PROXY_URL;
-      if (!apiKey && !proxyUrl) {
+      if (apiKeys.length === 0 && !proxyUrl) {
         return res.status(503).json({ error: "AI service not configured" });
       }
       const groqBase = proxyUrl
@@ -1015,7 +1015,9 @@ export function registerAiChatRoute(app: Express): void {
       systemPrompt += `\n\n## ВАЖНО: тег [NO_ANSWER]\nИспользуй [NO_ANSWER] ТОЛЬКО если пользователь спрашивает конкретный факт о магазине или товаре (условия акции, точный срок доставки в регион, статус заказа и т.п.) которого нет в данных выше. Формат: начни ответ ровно с [NO_ANSWER] без пробела, затем вежливый ответ. Пример: "[NO_ANSWER]Уточните у менеджера — он ответит быстро."\nНЕ используй [NO_ANSWER] для субъективных вопросов ("что лучше", "что выбрать", "что посоветуешь", сравнение товаров) — на них отвечай самостоятельно на основе имеющихся данных. НЕ используй если информация есть в данных выше.`;
 
       const groqHeaders: Record<string, string> = { "Content-Type": "application/json" };
-      if (apiKey) groqHeaders["Authorization"] = `Bearer ${apiKey}`;
+
+      // Helper: build headers for a specific key (KEY -> KEY_2 -> KEY_3 fallback on 429)
+      const makeHeaders = (key: string) => ({ "Content-Type": "application/json", ...(key ? { Authorization: `Bearer ${key}` } : {}) });
 
       // Product cards: keyword-matched + similar (from product page context)
       const allProductsCached = await storage.getProducts() as any[];
@@ -1064,16 +1066,28 @@ export function registerAiChatRoute(app: Express): void {
         res.setHeader("X-Accel-Buffering", "no");
         res.flushHeaders();
 
-        const streamRes = await fetch(`${groqBase}/openai/v1/chat/completions`, {
-          method: "POST",
-          headers: groqHeaders,
-          body: JSON.stringify({ ...groqBody, stream: true }),
-        });
+                // SSE: try keys in order (KEY -> KEY_2 -> KEY_3); 429 triggers fallback
+        let streamRes: any = null;
+        let lastStatus = 0;
+        for (const key of apiKeys) {
+          streamRes = await fetch(`${groqBase}/openai/v1/chat/completions`, {
+            method: "POST",
+            headers: makeHeaders(key),
+            body: JSON.stringify({ ...groqBody, stream: true }),
+          });
+          if (streamRes.ok && streamRes.body) break;
+          lastStatus = streamRes.status;
+          if (streamRes.status === 429) {
+            console.warn("[AI Chat] 429 on key, trying next...");
+            continue;
+          }
+          break; // non-429 error -> don't retry
+        }
 
-        if (!streamRes.ok || !streamRes.body) {
-          console.error(`[AI Chat] Groq stream error: status=${streamRes.status}`);
-          const errCode = streamRes.status === 429 ? "rate_limit" : "ai_unavailable";
-          res.write(`data: ${JSON.stringify({ error: errCode })}\n\n`);
+        if (!streamRes || !streamRes.ok || !streamRes.body) {
+          console.error(`[AI Chat] Groq stream error: status=${lastStatus}`);
+          const errCode = lastStatus === 429 ? "rate_limit" : "ai_unavailable";
+          res.write(`data: ${JSON.stringify({ error: errCode })}`);
           res.end();
           return;
         }
@@ -1230,16 +1244,25 @@ export function registerAiChatRoute(app: Express): void {
       }
 
       // ── Non-streaming path ─────────────────────────────────────────────────
-      const response = await fetch(`${groqBase}/openai/v1/chat/completions`, {
-        method: "POST",
-        headers: groqHeaders,
-        body: JSON.stringify(groqBody),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("[AI Chat] Groq API error:", response.status, errText);
+      let response: any = null;
+      for (const key of apiKeys) {
+        response = await fetch(`${groqBase}/openai/v1/chat/completions`, {
+          method: "POST",
+          headers: makeHeaders(key),
+          body: JSON.stringify(groqBody),
+        });
+        if (response.ok) break;
         if (response.status === 429) {
+          console.warn("[AI Chat] 429 on key, trying next...");
+          continue;
+        }
+        break;
+      }
+
+      if (!response || !response.ok) {
+        const errText = response ? await response.text() : "";
+        console.error("[AI Chat] Groq API error:", response?.status, errText);
+        if (response?.status === 429) {
           return res.status(429).json({ error: "rate_limit" });
         }
         return res.status(502).json({ error: "ai_unavailable" });
@@ -1335,13 +1358,14 @@ export function registerProductInfoRoute(app: Express): void {
         return res.status(400).json({ error: "product and messages required" });
       }
 
-      // Key priority: GROQ_API_KEY_2 → GROQ_API_KEY
+      // Key priority: GROQ_API_KEY_2 → GROQ_API_KEY → GROQ_API_KEY_3
       const primaryKey = process.env.GROQ_API_KEY_2 || "";
       const fallbackKey = process.env.GROQ_API_KEY || "";
-      if (!primaryKey && !fallbackKey) {
+      const tertiaryKey = process.env.GROQ_API_KEY_3 || "";
+      if (!primaryKey && !fallbackKey && !tertiaryKey) {
         return res.status(503).json({ error: "AI not configured" });
       }
-      const keysToTry = [primaryKey, fallbackKey].filter(Boolean);
+      const keysToTry = [primaryKey, fallbackKey, tertiaryKey].filter(Boolean);
 
       // ── Build system prompt ────────────────────────────────────────────────
       const priceStr = product.price

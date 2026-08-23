@@ -84,6 +84,7 @@ jobs:
             DADATA_API_KEY=${{ secrets.DADATA_API_KEY }}
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
             GROQ_API_KEY_2=${{ secrets.GROQ_API_KEY_2 }}
+            GROQ_API_KEY_3=${{ secrets.GROQ_API_KEY_3 }}
             GROQ_PROXY_URL=${{ secrets.GROQ_PROXY_URL }}
             VAPID_PUBLIC_KEY=${{ secrets.VAPID_PUBLIC_KEY }}
             VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}

@@ -244,7 +244,7 @@ export async function sendReviewRequestPreview(
 export async function generateReviewRequestDraft(): Promise<string> {
   const proxyUrl = process.env.GROQ_PROXY_URL;
   const groqBase = proxyUrl ? proxyUrl.replace(/\/$/, '') : 'https://api.groq.com';
-  const keys = [process.env.GROQ_API_KEY_2, process.env.GROQ_API_KEY].filter(
+  const keys = [process.env.GROQ_API_KEY_2, process.env.GROQ_API_KEY, process.env.GROQ_API_KEY_3].filter(
     (value): value is string => Boolean(value),
   );
   if (keys.length === 0 && !proxyUrl) {

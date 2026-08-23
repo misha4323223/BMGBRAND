@@ -893,18 +893,24 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
 
   const organizationSchema = buildOrganizationSchema();
   const rawImages: string[] = meta.images.length > 0 ? meta.images.slice(0, 6) : (meta.image ? [meta.image] : []);
+  // Google Merchant Listings: image must be URL or ImageObject.
+  // Single image → plain URL (simplest). Multiple → ImageObject array.
+  // Empty → undefined (JSON.stringify strips it).
+  // representativeOfPage is NOT recognized by Google on ImageObject — omit it.
+  const productImageJsonLd: string | Record<string, any>[] | undefined =
+    rawImages.length === 0 ? undefined
+    : rawImages.length === 1 ? rawImages[0]
+    : rawImages.map((url) => ({
+        "@type": "ImageObject",
+        "url": url,
+        "contentUrl": url,
+      }));
   const productSchema: Record<string, any> = {
     "@context": "https://schema.org",
     "@type": "Product",
     "name": meta.title,
     "description": desc,
-    "image": rawImages.map((url, i) => ({
-      "@type": "ImageObject",
-      "url": url,
-      "contentUrl": url,
-      "name": i === 0 ? `${meta.title} — фото` : `${meta.title} — фото ${i + 1}`,
-      "representativeOfPage": i === 0,
-    })),
+    ...(productImageJsonLd ? { "image": productImageJsonLd } : {}),
     "url": `${SITE_URL}/${slug}`,
     "sku": meta.sku,
     "brand": { "@id": organizationSchema["@id"] },
