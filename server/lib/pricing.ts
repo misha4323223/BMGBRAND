@@ -28,23 +28,42 @@ export interface ResolveItemPriceOptions {
    * каждого размера — иначе скидка по размеру не применяется.
    */
   size?: string | null;
+  /**
+   * Персональная скидка/наценка оптового пользователя (в процентах).
+   * Положительное = скидка, отрицательное = наценка. 0 = без изменений.
+   */
+  userWholesaleDiscount?: number;
 }
 
 export function resolveItemPrice(
   product: PriceableProduct,
   options: ResolveItemPriceOptions = {},
 ): ResolvedItemPrice {
-  const { isWholesale = false, size = null } = options;
+  const { isWholesale = false, size = null, userWholesaleDiscount = 0 } = options;
 
   if (isWholesale) {
     const wholesalePrice = product.wholesalePrice;
     if (wholesalePrice && wholesalePrice > 0) {
+      let price = wholesalePrice;
+
+      // Step 1: product-level wholesale discount percent
       const discountPercent = product.wholesaleDiscountPercent;
       if (discountPercent && discountPercent > 0) {
-        const discounted = Math.round(wholesalePrice * (1 - discountPercent / 100));
-        return { price: discounted, wholesaleDiscountPerUnit: wholesalePrice - discounted };
+        price = Math.round(price * (1 - discountPercent / 100));
       }
-      return { price: wholesalePrice, wholesaleDiscountPerUnit: 0 };
+
+      // Step 2: user-level discount/markup (negative = markup)
+      if (userWholesaleDiscount !== 0) {
+        price = Math.round(price * (1 - userWholesaleDiscount / 100));
+      }
+
+      const wholesaleDiscountPerUnit = wholesalePrice - price;
+      return { price, wholesaleDiscountPerUnit };
+    }
+    // Fallback: no wholesale price → apply user discount to retail
+    if (userWholesaleDiscount !== 0) {
+      const pr = Math.round(product.price * (1 - userWholesaleDiscount / 100));
+      return { price: pr, wholesaleDiscountPerUnit: product.price - pr };
     }
     return { price: product.price, wholesaleDiscountPerUnit: 0 };
   }

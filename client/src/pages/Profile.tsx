@@ -1,4 +1,5 @@
 import { useAuth, useLogout } from "@/hooks/use-auth";
+import { transportCompanyName } from "@shared/transport-companies";
 import { useLocation } from "wouter";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -2259,7 +2260,7 @@ export default function Profile() {
                           {selectedOrder.transportCompany && (
                             <div className="flex items-center gap-2 text-sm">
                               <Truck className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                              <span className="text-muted-foreground" data-testid={`text-order-transport-${selectedOrder.id}`}>{selectedOrder.transportCompany}</span>
+                              <span className="text-muted-foreground" data-testid={`text-order-transport-${selectedOrder.id}`}>{transportCompanyName(selectedOrder.transportCompany)}</span>
                             </div>
                           )}
                         </div>

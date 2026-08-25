@@ -7,6 +7,7 @@ import SEO from "@/components/SEO";
 import WholesaleSlideViewer from "@/components/WholesaleSlideViewer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TransportCompanyCards } from "@/components/TransportCompanyCards";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -71,14 +72,6 @@ interface SelectionEntry {
   price: number;
   category?: string;
 }
-
-const TC_OPTIONS = [
-  { value: "cdek",   label: "СДЭК" },
-  { value: "dellin", label: "Деловые Линии" },
-  { value: "pek",    label: "ПЭК" },
-  { value: "pochta", label: "Почта России" },
-  { value: "baikal", label: "ТК Байкал" },
-];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   collecting: { label: "Сбор заявок", color: "bg-primary text-primary-foreground" },
@@ -1492,18 +1485,7 @@ export default function WholesalePreorder() {
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Транспортная компания
               </label>
-              <Select value={transportCompany} onValueChange={setTransportCompany}>
-                <SelectTrigger className="h-10" data-testid="select-transport-company">
-                  <SelectValue placeholder="Выберите ТК" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TC_OPTIONS.map(tc => (
-                    <SelectItem key={tc.value} value={tc.value} data-testid={`option-tc-${tc.value}`}>
-                      {tc.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TransportCompanyCards value={transportCompany} onChange={setTransportCompany} testIdPrefix="wh" />
             </div>
 
             {/* Delivery address */}

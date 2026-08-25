@@ -585,7 +585,8 @@ export const users = pgTable("users", {
   contactPerson: text("contact_person"), // Контактное лицо
   contactPhone: text("contact_phone"), // Телефон для связи
   wholesaleApproved: boolean("wholesale_approved").default(false), // Подтверждён ли опт
-  wholesaleDiscount: integer("wholesale_discount").default(30), // Скидка в процентах (по умолчанию 30%)
+  wholesaleDiscount: integer("wholesale_discount").default(0), // Скидка в процентах (0-100)
+  wholesaleMarkup: integer("wholesale_markup").default(0), // Наценка в процентах (0-99)
   // Loyalty/Bonus system
   totalSpent: integer("total_spent").default(0), // Total amount spent in kopeks
   loyaltyDiscount: integer("loyalty_discount").default(0), // Current loyalty discount %

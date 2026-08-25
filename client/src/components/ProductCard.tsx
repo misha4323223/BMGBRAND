@@ -242,7 +242,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
   const activeRetailPrice = formatPrice(activeProduct.price);
   const activeDisplayPrice = activeWholesalePrice ? formatPrice(activeWholesalePrice) : activeRetailPrice;
   // Промежуточная оптовая цена без скидки для модалки
-  const activeWholesaleBasePrice = (activeWholesalePrice && (activeProduct as any).wholesaleDiscountPercent > 0 && (activeProduct as any).wholesalePrice > 0)
+  const activeWholesaleBasePrice = (activeWholesalePrice && (activeProduct as any).wholesalePrice > 0 && activeWholesalePrice !== (activeProduct as any).wholesalePrice)
     ? formatPrice((activeProduct as any).wholesalePrice)
     : null;
   const isModalPreorderCollecting = (activeProduct as any).preorderEnabled && (activeProduct as any).preorderStatus === "collecting";

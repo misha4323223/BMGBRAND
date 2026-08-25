@@ -3,6 +3,7 @@ import { Search, X, Loader2, ArrowRight } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { Product } from "@shared/schema";
+import { useWholesalePrice } from "@/hooks/use-auth";
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ function useDebounce<T>(value: T, delay: number): T {
 export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const { isWholesale, getWholesalePrice } = useWholesalePrice();
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const [, navigate] = useLocation();
@@ -164,7 +166,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                         </h4>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className={`text-sm font-bold ${product.onSale ? 'text-primary' : 'text-foreground/80'}`}>
-                            {(product.price / 100).toLocaleString()} ₽
+                            {((isWholesale ? (getWholesalePrice(product.price, (product as any).wholesalePrice, (product as any).wholesaleDiscountPercent) || product.price) : product.price) / 100).toLocaleString()} ₽
                           </span>
                           {product.onSale && (
                             <span className="text-[9px] px-1.5 py-0.5 bg-black text-white tracking-widest uppercase font-medium">

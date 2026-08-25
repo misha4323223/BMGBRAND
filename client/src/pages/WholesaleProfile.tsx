@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { transportCompanyName } from "@shared/transport-companies";
 import { BrandLoader } from "@/components/BrandLoader";
 import { useLocation } from "wouter";
 import { Navbar } from "@/components/Navbar";
@@ -1188,7 +1189,7 @@ export default function WholesaleProfile() {
                         {selectedOrder.transportCompany && (
                           <div className="flex items-center gap-2 text-sm">
                             <Truck className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                            <span className="text-muted-foreground" data-testid={`text-order-transport-${selectedOrder.id}`}>{selectedOrder.transportCompany}</span>
+                            <span className="text-muted-foreground" data-testid={`text-order-transport-${selectedOrder.id}`}>{transportCompanyName(selectedOrder.transportCompany)}</span>
                           </div>
                         )}
                       </div>

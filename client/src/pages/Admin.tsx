@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import PushNotificationsPanel from "@/components/admin/PushNotificationsPanel";
 import ReviewRequestsPanel from "@/components/admin/ReviewRequestsPanel";
 import VirtualTryOnToggle from "@/components/admin/VirtualTryOnToggle";
+import CreateWholesaleUserPanel from "@/components/admin/CreateWholesaleUserPanel";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ import { AiQuestionsTab } from "@/pages/admin/AiQuestionsTab";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES, normalizeCategories, type Product, type CategorySlug } from "@shared/schema";
+import { transportCompanyName, TRANSPORT_COMPANY_COLORS } from "@shared/transport-companies";
 import SEO from "@/components/SEO";
 import { NavbarEditor } from "@/components/NavbarEditor";
 import { FooterEditor } from "@/components/FooterEditor";
@@ -56,6 +58,7 @@ interface WholesaleUser {
   contactPhone: string | null;
   wholesaleApproved: boolean;
   wholesaleDiscount: number;
+  wholesaleMarkup: number;
   createdAt: string | null;
 }
 
@@ -1429,7 +1432,7 @@ function downloadOrderExcel(order: any) {
     ['ПВЗ / точка выдачи', deliveryPoint],
     ['Адрес курьера', deliveryAddress],
     ['Трек-номер', trackingNumber],
-    ['ТК (опт)', order.transportCompany || ''],
+    ['ТК (опт)', transportCompanyName(order.transportCompany)],
     ['', ''],
     ['ОПЛАТА', ''],
     ['Способ оплаты', paymentMap[(order as any).paymentMethod] || (order as any).paymentMethod || ''],
@@ -2114,16 +2117,17 @@ export default function Admin() {
   });
 
   const updateDiscountMutation = useMutation({
-    mutationFn: async ({ userId, discount }: { userId: number; discount: number }) => {
+    mutationFn: async ({ userId, discount, markup }: { userId: number; discount: number; markup: number }) => {
       return adminFetch(`/api/auth/admin/wholesale/${userId}/discount`, apiKey, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ discount }),
+        body: JSON.stringify({ discount, markup }),
       });
     },
-    onSuccess: () => {
-      refetchWholesale();
-      toast({ title: "Скидка обновлена" });
+    onSuccess: async (_, { discount, markup }) => {
+      await refetchWholesale();
+      const effective = discount - markup;
+      toast({ title: effective < 0 ? `Наценка ${Math.abs(effective)}% установлена` : effective > 0 ? `Скидка ${effective}% установлена` : "Скидка сброшена" });
     },
     onError: (error: Error) => {
       toast({ title: "Ошибка", description: error.message, variant: "destructive" });
@@ -12782,6 +12786,8 @@ export default function Admin() {
 
             <InvoiceVatSettings apiKey={apiKey} />
 
+            <CreateWholesaleUserPanel apiKey={apiKey} onCreated={() => refetchWholesale()} />
+
             {wholesaleLoading ? (
               <div className="text-center py-8 text-muted-foreground">Загрузка...</div>
             ) : wholesaleUsers.length === 0 ? (
@@ -12832,14 +12838,19 @@ export default function Admin() {
                               <div className="flex items-center gap-1">
                                 <Input
                                   type="number"
-                                  defaultValue={user.wholesaleDiscount}
-                                  min={0}
+                                  defaultValue={(user.wholesaleDiscount ?? 0) - (user.wholesaleMarkup ?? 0)}
+                                  min={-99}
                                   max={100}
                                   className="w-20 h-8 text-center"
                                   onBlur={(e) => {
-                                    const newDiscount = parseInt(e.target.value);
-                                    if (!isNaN(newDiscount) && newDiscount !== user.wholesaleDiscount) {
-                                      updateDiscountMutation.mutate({ userId: user.id, discount: newDiscount });
+                                    const val = parseInt(e.target.value);
+                                    if (!isNaN(val)) {
+                                      const effective = (user.wholesaleDiscount ?? 0) - (user.wholesaleMarkup ?? 0);
+                                      if (val !== effective) {
+                                        const discount = val >= 0 ? val : 0;
+                                        const markup = val < 0 ? Math.abs(val) : 0;
+                                        updateDiscountMutation.mutate({ userId: user.id, discount, markup });
+                                      }
                                     }
                                   }}
                                   data-testid={`input-discount-${user.id}`}
@@ -14781,8 +14792,8 @@ export default function Admin() {
                           ) : (
                             <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">Ожидает</Badge>
                           )}
-                          {u.wholesaleDiscount > 0 && (
-                            <Badge variant="secondary" className="text-xs">−{u.wholesaleDiscount}%</Badge>
+                          {((u.wholesaleDiscount ?? 0) - (u.wholesaleMarkup ?? 0)) !== 0 && (
+                            <Badge variant="secondary" className="text-xs">{((u.wholesaleDiscount ?? 0) - (u.wholesaleMarkup ?? 0)) > 0 ? `−${(u.wholesaleDiscount ?? 0) - (u.wholesaleMarkup ?? 0)}%` : `+${Math.abs((u.wholesaleDiscount ?? 0) - (u.wholesaleMarkup ?? 0))}%`}</Badge>
                           )}
                           <ChevronRight className="w-4 h-4 text-muted-foreground" />
                         </div>
@@ -15069,7 +15080,7 @@ export default function Admin() {
                                 : <span className="text-orange-600 font-medium">Ожидает одобрения</span>}
                               </div>
                             </div>
-                            <div><div className="text-xs text-muted-foreground">Скидка</div><div>{u.wholesaleDiscount ? `${u.wholesaleDiscount}%` : "—"}</div></div>
+                            <div><div className="text-xs text-muted-foreground">Скидка/наценка</div><div>{((u.wholesaleDiscount ?? 0) - (u.wholesaleMarkup ?? 0)) !== 0 ? `${(u.wholesaleDiscount ?? 0) - (u.wholesaleMarkup ?? 0)}%` : "—"}</div></div>
                             <div><div className="text-xs text-muted-foreground">Зарегистрирован</div><div>{fmtDate(u.createdAt)}</div></div>
                             <div><div className="text-xs text-muted-foreground">Всего заявок</div><div className="font-semibold">{orders.length}</div></div>
                             <div><div className="text-xs text-muted-foreground">Сумма заявок</div><div className="font-semibold text-green-600">{fmt(totalSpent)}</div></div>
@@ -15644,6 +15655,8 @@ export default function Admin() {
                             <p><strong>Адрес:</strong> {order.address}</p>
                             {(() => {
                               if (!order.cdekData) return null;
+                              // Оптовый заказ с ТК (не СДЭК): источник правды — transportCompany, блок СДЭК/ПВЗ не показываем
+                              if (order.isWholesale && order.transportCompany && order.transportCompany !== 'cdek') return null;
                               let d: any = {};
                               try { d = typeof order.cdekData === 'string' ? JSON.parse(order.cdekData) : order.cdekData; } catch { return null; }
                               const svc = d.deliveryService === 'yandex' ? '🟡 Яндекс Доставка' : d.deliveryService === 'cdek' ? '🟢 СДЭК' : d.deliveryService === 'ozon' ? '🔵 Ozon Доставка' : null;
@@ -15670,18 +15683,9 @@ export default function Admin() {
                                 <strong>ТК:</strong>
                                 <span 
                                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-white text-xs font-bold"
-                                  style={{ 
-                                    backgroundColor: 
-                                      order.transportCompany === 'cdek' ? '#00A94B' :
-                                      order.transportCompany === 'dellin' ? '#ED1C24' :
-                                      order.transportCompany === 'pek' ? '#00599D' :
-                                      order.transportCompany === 'pochta' ? '#004D9E' : '#666'
-                                  }}
+                                  style={{ backgroundColor: TRANSPORT_COMPANY_COLORS[order.transportCompany] || '#666' }}
                                 >
-                                  {order.transportCompany === 'cdek' && 'СДЭК'}
-                                  {order.transportCompany === 'dellin' && 'Деловые Линии'}
-                                  {order.transportCompany === 'pek' && 'ПЭК'}
-                                  {order.transportCompany === 'pochta' && 'Почта России'}
+                                  {transportCompanyName(order.transportCompany)}
                                 </span>
                               </p>
                             )}
@@ -15772,7 +15776,7 @@ export default function Admin() {
                             <Pencil className="w-4 h-4 mr-1" />
                             Товары
                           </Button>
-                          {(order.transportCompany === 'cdek' || (order.cdekData && order.transportCompany !== 'yandex')) && (
+                          {(order.transportCompany === 'cdek' || (!order.isWholesale && order.cdekData && order.transportCompany !== 'yandex')) && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -16777,8 +16781,8 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
                             </div>
                             <div className="text-right shrink-0">
                               <div className="font-bold text-sm">{fmtPrice(o.total)}</div>
-                              {customer.wholesaleDiscount > 0 && (
-                                <div className="text-xs text-muted-foreground">−{customer.wholesaleDiscount}%</div>
+                              {((customer.wholesaleDiscount ?? 0) - (customer.wholesaleMarkup ?? 0)) !== 0 && (
+                                <div className="text-xs text-muted-foreground">{((customer.wholesaleDiscount ?? 0) - (customer.wholesaleMarkup ?? 0)) > 0 ? `−${(customer.wholesaleDiscount ?? 0) - (customer.wholesaleMarkup ?? 0)}%` : `+${Math.abs((customer.wholesaleDiscount ?? 0) - (customer.wholesaleMarkup ?? 0))}%`}</div>
                               )}
                             </div>
                             <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform shrink-0 mt-1 ${isExpanded ? "rotate-180" : ""}`} />
@@ -16817,7 +16821,7 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
                                   <div><div className="text-xs text-muted-foreground">Телефон</div><div>{customer.contactPhone}</div></div>
                                 )}
                                 {o.transportCompany && (
-                                  <div><div className="text-xs text-muted-foreground">Транспортная компания</div><div className="capitalize">{o.transportCompany}</div></div>
+                                  <div><div className="text-xs text-muted-foreground">Транспортная компания</div><div>{transportCompanyName(o.transportCompany)}</div></div>
                                 )}
                                 {o.shippingAddress && (
                                   <div className="col-span-2"><div className="text-xs text-muted-foreground">Адрес доставки</div><div>{o.shippingAddress}</div></div>

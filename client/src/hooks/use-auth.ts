@@ -60,24 +60,40 @@ export function useWholesalePrice() {
   
   const isWholesale = user?.role === 'wholesale' && user?.wholesaleApproved === true;
   
-  // Get wholesale price - only use real price from 1C (no fallback calculation)
+  // Effective user-level percent: discount (0-100) minus markup (0-99).
+  // Positive = discount, negative = markup.
+  const userWholesaleDiscount = ((user as any)?.wholesaleDiscount ?? 0) - ((user as any)?.wholesaleMarkup ?? 0);
+
+  // Get wholesale price. Applies product-level discount first, then user-level discount/markup.
+  // Negative userWholesaleDiscount = markup (price increases).
   const getWholesalePrice = (retailPrice: number, productWholesalePrice?: number | null, wholesaleDiscountPercent?: number | null) => {
     if (!isWholesale) return null;
     
-    // Only return real wholesale price from 1C
     if (productWholesalePrice != null && productWholesalePrice > 0) {
-      // Apply wholesale discount percentage if set
+      let price = productWholesalePrice;
+      
+      // Step 1: product-level wholesale discount percent
       if (wholesaleDiscountPercent != null && wholesaleDiscountPercent > 0) {
-        return Math.round(productWholesalePrice * (1 - wholesaleDiscountPercent / 100));
+        price = Math.round(price * (1 - wholesaleDiscountPercent / 100));
       }
-      return productWholesalePrice;
+      
+      // Step 2: user-level discount/markup (negative = markup)
+      if (userWholesaleDiscount !== 0) {
+        price = Math.round(price * (1 - userWholesaleDiscount / 100));
+      }
+      
+      return price;
     }
     
-    // No fallback - if no 1C price, show retail price
+    // Fallback: no wholesale price from 1C → compute from retail
+    if (userWholesaleDiscount !== 0) {
+      return Math.round(retailPrice * (1 - userWholesaleDiscount / 100));
+    }
+    
     return null;
   };
   
-  return { isWholesale, getWholesalePrice };
+  return { isWholesale, getWholesalePrice, userWholesaleDiscount };
 }
 
 export function useRegister() {

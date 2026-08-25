@@ -3,6 +3,7 @@ import { sendEmail } from './email';
 import path from 'path';
 import fs from 'fs';
 import QRCode from 'qrcode';
+import { transportCompanyName } from '../shared/transport-companies';
 
 interface InvoiceItem {
   name: string;
@@ -324,7 +325,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
       '1. Покупатель обязуется оплатить и принять товары, указанные в настоящем счете.',
       '2. Покупатель проинформирован о виде, количестве, ассортименте, комплектности, характеристиках товара.',
       '3. Покупатель обязуется оплатить товары в течение 3 рабочих дней.',
-      `4. Доставка товаров Покупателю осуществляется силами Транспортной компании${data.transportCompany ? ` (${data.transportCompany})` : ''}. Поставщик осуществляет доставку до ТК за свой счет в течение 5 рабочих дней со дня оплаты.`,
+      `4. Доставка товаров Покупателю осуществляется силами Транспортной компании${data.transportCompany ? ` (${transportCompanyName(data.transportCompany)})` : ''}. Поставщик осуществляет доставку до ТК за свой счет в течение 5 рабочих дней со дня оплаты.`,
       '5. При получении товара Покупатель обязан осмотреть товар, проверить его количество, качество и ассортимент. В случае отсутствия претензий к количеству, качеству или ассортименту товара уполномоченный представитель Покупателя подписывает товарную накладную. В случае наличия претензий к количеству, качеству или ассортименту товара, уполномоченные представители Поставщика и Покупателя подписывают акт об обнаружении недостатков товара в течении 5 (Пяти) календарных дней с даты получения товара.',
       'Положения ст. 317.1 ГК РФ к поставке товаров, указанных в настоящем счете, не применяются.',
     ];
@@ -390,13 +391,6 @@ export async function sendInvoiceEmail(data: InvoiceData): Promise<boolean> {
       },
     });
 
-    const tcNames: Record<string, string> = {
-      'cdek': 'СДЭК',
-      'dellin': 'Деловые Линии',
-      'pek': 'ПЭК',
-      'pochta': 'Почта России',
-    };
-
     await transporter.sendMail({
       from: `"BMGBRAND" <${config.email.from}>`,
       to: data.customerEmail,
@@ -420,7 +414,7 @@ export async function sendInvoiceEmail(data: InvoiceData): Promise<boolean> {
             <h2>Счет на оплату № ${data.invoiceNumber}</h2>
             <p>Здравствуйте, ${data.customerName}!</p>
             ${data.noteText ? `<div class="note">${data.noteText}</div>` : `<p>Благодарим вас за оптовый заказ в BMGBRAND.</p>`}
-            <p>Во вложении счет на оплату. После оплаты мы отправим ваш заказ ${data.transportCompany ? `через ${tcNames[data.transportCompany] || data.transportCompany}` : 'транспортной компанией'}.</p>
+            <p>Во вложении счет на оплату. После оплаты мы отправим ваш заказ ${data.transportCompany ? `через ${transportCompanyName(data.transportCompany)}` : 'транспортной компанией'}.</p>
             ${(data.promoDiscount && data.promoDiscount > 0 && data.promoCode) ? `
             <p><strong>Сумма товаров:</strong> ${formatMoney(data.items.reduce((sum, i) => sum + i.price * i.quantity, 0))} ₽</p>
             <p><strong>Скидка по промокоду "${data.promoCode}":</strong> -${formatMoney(data.promoDiscount)} ₽</p>

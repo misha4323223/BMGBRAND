@@ -26,6 +26,7 @@ export const DEFAULT_NAVBAR_SETTINGS: NavbarSettings = {
     { label: "Предзаказ", href: "/concept", visible: true },
     { label: "Подарочные карты", href: "/gift-cards", visible: true },
     { label: "О нас", href: "/about", visible: true },
+    { label: "Сотрудничество/ОПТ", href: "/wholesale", visible: true },
   ],
   style: "pill",
   showSearch: true,

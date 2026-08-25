@@ -11,13 +11,15 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useCart, useUpdateCartQuantity, useRemoveFromCart } from "@/hooks/use-cart";
 import { useCreateOrder } from "@/hooks/use-orders";
 import { useSession } from "@/hooks/use-session";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useWholesalePrice } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { type CheckoutSettings, DEFAULT_CHECKOUT_SETTINGS } from "@/components/checkout-settings";
 import { Loader2, CheckCircle2, MapPin, Truck, Search, Package, Tag, Percent, CreditCard, Landmark, Building2, Info, Gift, Plus, Minus, Trash2, Clock, ShieldCheck, AlertCircle, Store } from "lucide-react";
 import { BrandLoader } from "@/components/BrandLoader";
+import { TransportCompanyCards } from "@/components/TransportCompanyCards";
+import { transportCompanyName } from "@shared/transport-companies";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,14 +32,6 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getStoredRef } from "@/lib/partner-ref";
 
-// Transport companies for wholesale
-const TRANSPORT_COMPANIES = [
-  { id: "cdek",    name: "СДЭК",           abbr: "СД",  color: "#00A94B", desc: "Доставка по всей России" },
-  { id: "dellin",  name: "Деловые Линии",  abbr: "ДЛ",  color: "#ED1C24", desc: "Грузовая логистика" },
-  { id: "pek",     name: "ПЭК",            abbr: "ПЭК", color: "#00599D", desc: "Межрегиональная доставка" },
-  { id: "pochta",  name: "Почта России",   abbr: "ПР",  color: "#004D9E", desc: "Отправление по всей РФ" },
-  { id: "baikal",  name: "ТК Байкал",      abbr: "БК",  color: "#0070C0", desc: "Доставка до терминала" },
-];
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -168,6 +162,7 @@ export default function Checkout() {
 
   // Check if user is wholesale (for pricing and delivery)
   const isWholesale = authData?.user?.role === "wholesale" && authData?.user?.wholesaleApproved;
+  const { getWholesalePrice } = useWholesalePrice();
   
   // Wholesale users (any role=wholesale) are excluded from bonus program, regardless of approval status
   const isEligibleForLoyalty = authData?.user && authData?.user?.role !== "wholesale";
@@ -662,20 +657,18 @@ export default function Checkout() {
 
   // Helper to get correct price based on wholesale status (with discount support)
   const getItemPrice = (product: any, size?: string | null) => {
-    if (isWholesale && product.wholesalePrice) {
-      if (product.wholesaleDiscountPercent && product.wholesaleDiscountPercent > 0) {
-        return Math.round(product.wholesalePrice * (1 - product.wholesaleDiscountPercent / 100));
-      }
-      return product.wholesalePrice;
+    if (isWholesale) {
+      // Uses user-level discount/markup (wholesaleDiscount − wholesaleMarkup) via the shared hook
+      return getWholesalePrice(product.price, product.wholesalePrice, product.wholesaleDiscountPercent) || product.price;
     }
-    if (!isWholesale && product.salePrice && product.salePrice > 0 && product.salePrice < product.price) {
+    if (product.salePrice && product.salePrice > 0 && product.salePrice < product.price) {
       return product.salePrice;
     }
     const discountPct = product.discountPercent;
     const sizeDiscounts = product.sizeDiscounts as Record<string, number> | null;
     const sizeDiscount = sizeDiscounts && size ? sizeDiscounts[size] : null;
     const effectiveDiscount = sizeDiscount ?? discountPct;
-    if (effectiveDiscount && effectiveDiscount > 0 && !isWholesale) {
+    if (effectiveDiscount && effectiveDiscount > 0) {
       return Math.round(product.price * (1 - effectiveDiscount / 100));
     }
     return product.price;
@@ -1080,50 +1073,7 @@ export default function Checkout() {
                   {cs.wholesaleTransportDescription}
                 </p>
 
-                <RadioGroup
-                  value={selectedTransport}
-                  onValueChange={setSelectedTransport}
-                  className="grid grid-cols-2 sm:grid-cols-3 gap-2.5"
-                >
-                  {TRANSPORT_COMPANIES.map((tc) => {
-                    const isSelected = selectedTransport === tc.id;
-                    return (
-                      <div
-                        key={tc.id}
-                        onClick={() => setSelectedTransport(tc.id)}
-                        className={`relative cursor-pointer rounded-xl border-2 p-3.5 transition-all select-none ${
-                          isSelected
-                            ? "border-primary bg-primary/5 shadow-sm"
-                            : "border-border bg-card hover:border-primary/40 hover:bg-muted/40"
-                        }`}
-                        data-testid={`card-tc-${tc.id}`}
-                      >
-                        <RadioGroupItem value={tc.id} id={`tc-${tc.id}`} className="sr-only" data-testid={`radio-tc-${tc.id}`} />
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center justify-between">
-                            <div
-                              className="h-7 px-2 rounded-md flex items-center justify-center text-white font-bold text-[11px] tracking-wide"
-                              style={{ backgroundColor: tc.color }}
-                            >
-                              {tc.abbr}
-                            </div>
-                            {isSelected && (
-                              <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                                <svg className="w-2.5 h-2.5 text-primary-foreground" fill="none" viewBox="0 0 10 10">
-                                  <path d="M2 5l2.5 2.5L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-sm leading-tight">{tc.name}</div>
-                            <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{tc.desc}</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </RadioGroup>
+                <TransportCompanyCards value={selectedTransport} onChange={setSelectedTransport} />
               </Card>
             )}
 
@@ -2122,7 +2072,7 @@ export default function Checkout() {
                 <div className="flex justify-between text-muted-foreground">
                   <span>
                     {isWholesale 
-                      ? `${cs.summaryDeliveryLabelWholesale} ${TRANSPORT_COMPANIES.find(tc => tc.id === selectedTransport)?.name || 'ТК'}` 
+                      ? `${cs.summaryDeliveryLabelWholesale} ${transportCompanyName(selectedTransport) || 'ТК'}` 
                       : deliveryService === "pickup"
                         ? "Самовывоз"
                         : deliveryService === "ozon"

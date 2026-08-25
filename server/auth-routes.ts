@@ -100,7 +100,7 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
     authStorage.getUserById(decoded.userId).then(async user => {
       if (user) {
-        req.user = {
+        (req as any).user = {
           id: user.id,
           email: user.email,
           name: user.name,
@@ -113,7 +113,8 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
           contactPerson: user.contactPerson,
           contactPhone: user.contactPhone,
           wholesaleApproved: user.wholesaleApproved || false,
-          wholesaleDiscount: user.wholesaleDiscount || 30,
+          wholesaleDiscount: user.wholesaleDiscount ?? 0,
+          wholesaleMarkup: (user as any).wholesaleMarkup ?? 0,
           totalSpent: user.totalSpent || 0,
           loyaltyDiscount: user.loyaltyDiscount || 0,
         };
@@ -122,9 +123,9 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
           try {
             const partner = await storage.getPartnerByUserId(user.id);
             if (partner) {
-              req.user.partnerId = partner.id;
-              req.user.partnerSlug = partner.partnerSlug;
-              req.user.partnerStatus = partner.status;
+              (req as any).user.partnerId = partner.id;
+              (req as any).user.partnerSlug = partner.partnerSlug;
+              (req as any).user.partnerStatus = partner.status;
             }
           } catch (err) {
             console.error('[Auth] Failed to load partner data:', err);
@@ -302,7 +303,8 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
         contactPerson: user.contactPerson,
         contactPhone: user.contactPhone,
         wholesaleApproved: user.wholesaleApproved || false,
-        wholesaleDiscount: user.wholesaleDiscount || 30,
+        wholesaleDiscount: user.wholesaleDiscount ?? 0,
+        wholesaleMarkup: (user as any).wholesaleMarkup ?? 0,
       },
     });
   } catch (error) {
@@ -1950,27 +1952,49 @@ router.post('/admin/wholesale/:id/reject', adminMiddleware, async (req: Request,
   }
 });
 
-// Update wholesale discount
+// Update wholesale discount/markup
 router.patch('/admin/wholesale/:id/discount', adminMiddleware, async (req: Request, res: Response) => {
   try {
     const userId = parseInt(req.params.id);
-    const { discount } = req.body;
+    const { discount: rawDiscount, markup: rawMarkup } = req.body;
     
-    if (typeof discount !== 'number' || discount < 0 || discount > 100) {
-      return res.status(400).json({ error: 'Скидка должна быть числом от 0 до 100' });
+    // Accept either combined value in 'discount' (negative = markup) or separate discount+markup
+    let discount: number;
+    let markup: number;
+    if (typeof rawMarkup === 'number') {
+      discount = typeof rawDiscount === 'number' ? Math.max(0, rawDiscount) : 0;
+      markup = rawMarkup;
+    } else if (typeof rawDiscount === 'number') {
+      if (rawDiscount < 0) {
+        discount = 0;
+        markup = Math.abs(rawDiscount);
+      } else {
+        discount = rawDiscount;
+        markup = 0;
+      }
+    } else {
+      return res.status(400).json({ error: 'Передайте discount (или discount+markup)' });
     }
     
-    const success = await authStorage.approveWholesale(userId, true, discount);
+    if (discount < 0 || discount > 100 || markup < 0 || markup > 99) {
+      return res.status(400).json({ error: 'Скидка 0-100, наценка 0-99' });
+    }
+    
+    if (discount > 0 && markup > 0) {
+      return res.status(400).json({ error: 'Нельзя одновременно задать скидку и наценку' });
+    }
+    
+    const success = await authStorage.approveWholesale(userId, true, discount, markup);
     if (!success) {
-      return res.status(500).json({ error: 'Ошибка обновления скидки' });
+      return res.status(500).json({ error: 'Ошибка обновления' });
     }
     
-    console.log(`[Admin] Wholesale user ${userId} discount updated to ${discount}%`);
+    console.log(`[Admin] Wholesale user ${userId} discount=${discount}% markup=${markup}%`);
     
-    res.json({ message: 'Скидка обновлена', userId, discount });
+    res.json({ message: discount > 0 ? 'Скидка обновлена' : markup > 0 ? 'Наценка установлена' : 'Скидка/наценка сброшены', userId, discount, markup });
   } catch (error) {
     console.error('[Admin] Update discount error:', error);
-    res.status(500).json({ error: 'Ошибка обновления скидки' });
+    res.status(500).json({ error: 'Ошибка обновления' });
   }
 });
 
@@ -2409,7 +2433,8 @@ router.post('/mobile-login', authLimiter, async (req: Request, res: Response) =>
         contactPerson: user.contactPerson,
         contactPhone: user.contactPhone,
         wholesaleApproved: user.wholesaleApproved || false,
-        wholesaleDiscount: user.wholesaleDiscount || 30,
+        wholesaleDiscount: user.wholesaleDiscount ?? 0,
+        wholesaleMarkup: (user as any).wholesaleMarkup ?? 0,
       },
     });
   } catch (error) {

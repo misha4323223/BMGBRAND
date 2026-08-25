@@ -1,3 +1,5 @@
+import { transportCompanyName } from '../shared/transport-companies';
+
 const TG_MAX_LENGTH = 4000;
 
 function getConfig() {
@@ -245,7 +247,7 @@ export function notifyNewOrder(order: OrderNotification): void {
   if (isWh && order.companyName) {
     header += `\n\u{1F3E2} ${esc(order.companyName)}`;
     if (order.inn) header += ` (${esc(order.inn)})`;
-    if (order.transportCompany) header += `  \u{2022}  \u{1F69A} ${esc(order.transportCompany)}`;
+    if (order.transportCompany) header += `  \u{2022}  \u{1F69A} ${esc(transportCompanyName(order.transportCompany))}`;
   }
 
   if (!isWh && order.deliveryService) {

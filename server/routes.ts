@@ -21,6 +21,7 @@ import authRoutes, { authMiddleware, requireAdminRole, type AuthRequest } from "
 import { notifyError } from "./error-monitor";
 import partnerRoutes, { partnerRefQueryMiddleware, partnerRefRedirectHandler, getApprovedPartnerCached, getGlobalPartnerCommissionPercentCached, getGlobalPartnerHoldDaysCached } from "./partner-routes";
 import adminPartnerRoutes from "./admin-partner-routes";
+import adminWholesaleRoutes from "./admin-wholesale-routes";
 import { authStorage } from "./auth-storage";
 import { paymentService } from "./payments";
 import { ozonDeliveryService } from "./ozon-delivery";
@@ -3167,6 +3168,7 @@ ${faqSection}
   // Partner platform routes
   app.use("/api/partner", partnerRoutes);
   app.use("/api/admin", adminPartnerRoutes);
+  app.use("/api/admin", adminWholesaleRoutes);
   // Redirect /r/:slug — sets ref cookie + counts click + redirects (target via ?to=/path)
   app.get("/r/:slug", partnerRefRedirectHandler);
   // Apply ?ref=slug query middleware globally so any landing URL with ?ref= sets the cookie
@@ -11103,6 +11105,7 @@ ${faqSection}
           const { price, wholesaleDiscountPerUnit } = resolveItemPrice(item.product as any, {
             isWholesale,
             size: item.size,
+            userWholesaleDiscount: ((req.user as any)?.wholesaleDiscount ?? 0) - ((req.user as any)?.wholesaleMarkup ?? 0),
           });
           wholesaleItemDiscountTotal += wholesaleDiscountPerUnit * item.quantity;
           const sizeCharIds = (item.product as any).sizeCharacteristicIds as Record<string, string> | null | undefined;
@@ -15015,6 +15018,7 @@ ${faqSection}
           contactPhone: u.contactPhone,
           wholesaleApproved: u.wholesaleApproved,
           wholesaleDiscount: u.wholesaleDiscount,
+          wholesaleMarkup: u.wholesaleMarkup,
           createdAt: u.createdAt,
           orderCount: userOrders.length,
           totalSpent,
@@ -15294,6 +15298,7 @@ ${faqSection}
               contactPerson: wUser?.contactPerson || null,
               contactPhone: wUser?.contactPhone || o.customerPhone || null,
               wholesaleDiscount: wUser?.wholesaleDiscount || 0,
+              wholesaleMarkup: wUser?.wholesaleMarkup || 0,
             },
           };
         });
@@ -16300,7 +16305,7 @@ ${offersXml}
           productId: product.id,
           productName: product.name,
           quantity: item.quantity,
-          price: resolveItemPrice(product as any, { isWholesale: isWholesaleUser, size: item.size }).price,
+          price: resolveItemPrice(product as any, { isWholesale: isWholesaleUser, size: item.size, userWholesaleDiscount: (user?.wholesaleDiscount ?? 0) - (user?.wholesaleMarkup ?? 0) }).price,
           size: item.size || undefined,
           color: color || undefined,
           sizeCharacteristicId: sizeCharGuid || undefined,
@@ -16739,7 +16744,7 @@ ${offersXml}
         }
         // Цена считается так же, как её видит покупатель: оптовая цена со скидкой
         // для опта, salePrice/discountPercent для розницы.
-        item.price = resolveItemPrice(product as any, { isWholesale: isWholesaleUser }).price;
+        item.price = resolveItemPrice(product as any, { isWholesale: isWholesaleUser, userWholesaleDiscount: (req.user?.wholesaleDiscount ?? 0) - (req.user?.wholesaleMarkup ?? 0) }).price;
         item.productName = product.name;
         promoProducts[item.productId] = product;
       }

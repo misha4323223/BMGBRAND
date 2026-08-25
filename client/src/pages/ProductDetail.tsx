@@ -813,7 +813,7 @@ export default function ProductDetail() {
   const wholesalePriceValue = getWholesalePrice(product.price, (product as any).wholesalePrice, (product as any).wholesaleDiscountPercent);
   const displayPrice = wholesalePriceValue ? formatPrice(wholesalePriceValue) : retailPrice;
   // Промежуточная оптовая цена БЕЗ скидки — для трёх уровней цен
-  const wholesaleBasePriceFormatted = (wholesalePriceValue && (product as any).wholesaleDiscountPercent > 0 && (product as any).wholesalePrice > 0)
+  const wholesaleBasePriceFormatted = (wholesalePriceValue && (product as any).wholesalePrice > 0 && wholesalePriceValue !== (product as any).wholesalePrice)
     ? formatPrice((product as any).wholesalePrice)
     : null;
   const discountPct = (product as any).discountPercent;

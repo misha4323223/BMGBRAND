@@ -28,6 +28,7 @@ export interface WholesaleUser {
   contactPhone: string | null;
   wholesaleApproved: boolean;
   wholesaleDiscount: number;
+  wholesaleMarkup: number;
   createdAt: Date | null;
 }
 
@@ -60,6 +61,7 @@ export interface SavedAddress {
 export interface IAuthStorage {
   createUser(user: InsertUser & { verificationToken: string }): Promise<User | null>;
   createWholesaleUser(user: InsertUser & { verificationToken: string } & WholesaleData): Promise<User | null>;
+  createWholesaleUserAdmin(user: InsertUser & WholesaleData): Promise<User | null>;
   createPartnerUser(user: InsertUser & { verificationToken: string }): Promise<User | null>;
   getUserByEmail(email: string): Promise<User | null>;
   getUserByEmailAndRole(email: string, role: 'retail' | 'wholesale' | 'partner'): Promise<User | null>;
@@ -131,6 +133,10 @@ export class YdbAuthStorage implements IAuthStorage {
     if (item.boolValue !== undefined && item.boolValue !== null) return item.boolValue;
     if (item.uint64Value !== undefined && item.uint64Value !== null) return item.uint64Value;
     if (item.int64Value !== undefined && item.int64Value !== null) return item.int64Value;
+    if (item.uint32Value !== undefined && item.uint32Value !== null) return item.uint32Value;
+    if (item.int32Value !== undefined && item.int32Value !== null) return item.int32Value;
+    if (item.doubleValue !== undefined && item.doubleValue !== null) return item.doubleValue;
+    if (item.floatValue !== undefined && item.floatValue !== null) return item.floatValue;
     if (item.optionalValue !== undefined && item.optionalValue !== null) {
       return this.extractTypedValue(item.optionalValue);
     }
@@ -168,7 +174,8 @@ export class YdbAuthStorage implements IAuthStorage {
       contactPerson: data.contact_person || null,
       contactPhone: data.contact_phone || null,
       wholesaleApproved: data.wholesale_approved === true,
-      wholesaleDiscount: typeof data.wholesale_discount === 'string' ? parseInt(data.wholesale_discount) || 30 : (data.wholesale_discount || 30),
+      wholesaleDiscount: typeof data.wholesale_discount === 'string' ? parseInt(data.wholesale_discount) || 0 : (data.wholesale_discount ?? 0),
+      wholesaleMarkup: typeof data.wholesale_markup === 'string' ? parseInt(data.wholesale_markup) || 0 : (data.wholesale_markup ?? 0),
       totalSpent: typeof data.total_spent === 'string' ? parseInt(data.total_spent) || 0 : (Number(data.total_spent) || 0),
       loyaltyDiscount: typeof data.loyalty_discount === 'string' ? parseInt(data.loyalty_discount) || 0 : (Number(data.loyalty_discount) || 0),
       phone: data.phone || null,
@@ -490,10 +497,11 @@ export class YdbAuthStorage implements IAuthStorage {
         DECLARE $contact_phone AS Utf8;
         DECLARE $wholesale_approved AS Bool;
         DECLARE $wholesale_discount AS Uint32;
+        DECLARE $wholesale_markup AS Uint32;
         DECLARE $created_at AS Timestamp;
         
-        UPSERT INTO users (id, email, password_hash, name, email_verified, verification_token, role, company_name, inn, kpp, legal_address, store_name, store_address, contact_person, contact_phone, wholesale_approved, wholesale_discount, created_at)
-        VALUES ($id, $email, $password_hash, $name, $email_verified, $verification_token, $role, $company_name, $inn, $kpp, $legal_address, $store_name, $store_address, $contact_person, $contact_phone, $wholesale_approved, $wholesale_discount, $created_at);
+        UPSERT INTO users (id, email, password_hash, name, email_verified, verification_token, role, company_name, inn, kpp, legal_address, store_name, store_address, contact_person, contact_phone, wholesale_approved, wholesale_discount, wholesale_markup, created_at)
+        VALUES ($id, $email, $password_hash, $name, $email_verified, $verification_token, $role, $company_name, $inn, $kpp, $legal_address, $store_name, $store_address, $contact_person, $contact_phone, $wholesale_approved, $wholesale_discount, $wholesale_markup, $created_at);
       `;
       
       await session.executeQuery(query, {
@@ -514,6 +522,66 @@ export class YdbAuthStorage implements IAuthStorage {
         $contact_phone: TypedValues.fromNative(Types.UTF8, user.contactPhone),
         $wholesale_approved: TypedValues.fromNative(Types.BOOL, false),
         $wholesale_discount: TypedValues.fromNative(Types.UINT32, 30),
+        $wholesale_markup: TypedValues.fromNative(Types.UINT32, 0),
+        $created_at: TypedValues.fromNative(Types.TIMESTAMP, new Date()),
+      });
+      
+      return this.getUserById(id);
+    });
+    
+    return result;
+  }
+
+  async createWholesaleUserAdmin(user: InsertUser & WholesaleData): Promise<User | null> {
+    const id = Date.now();
+    // Generate a random verification token so the column is never NULL
+    const verificationToken = Math.random().toString(36).substring(2, 15);
+    const result = await this.safeQuery(async (session) => {
+      const { TypedValues, Types } = await import("ydb-sdk");
+      const query = `
+        DECLARE $id AS Utf8;
+        DECLARE $email AS Utf8;
+        DECLARE $password_hash AS Utf8;
+        DECLARE $name AS Utf8;
+        DECLARE $email_verified AS Bool;
+        DECLARE $verification_token AS Utf8;
+        DECLARE $role AS Utf8;
+        DECLARE $company_name AS Utf8;
+        DECLARE $inn AS Utf8;
+        DECLARE $kpp AS Utf8;
+        DECLARE $legal_address AS Utf8;
+        DECLARE $store_name AS Utf8;
+        DECLARE $store_address AS Utf8;
+        DECLARE $contact_person AS Utf8;
+        DECLARE $contact_phone AS Utf8;
+        DECLARE $wholesale_approved AS Bool;
+        DECLARE $wholesale_discount AS Uint32;
+        DECLARE $wholesale_markup AS Uint32;
+        DECLARE $created_at AS Timestamp;
+        
+        UPSERT INTO users (id, email, password_hash, name, email_verified, verification_token, role, company_name, inn, kpp, legal_address, store_name, store_address, contact_person, contact_phone, wholesale_approved, wholesale_discount, wholesale_markup, created_at)
+        VALUES ($id, $email, $password_hash, $name, $email_verified, $verification_token, $role, $company_name, $inn, $kpp, $legal_address, $store_name, $store_address, $contact_person, $contact_phone, $wholesale_approved, $wholesale_discount, $wholesale_markup, $created_at);
+      `;
+      
+      await session.executeQuery(query, {
+        $id: TypedValues.fromNative(Types.UTF8, String(id)),
+        $email: TypedValues.fromNative(Types.UTF8, user.email),
+        $password_hash: TypedValues.fromNative(Types.UTF8, user.passwordHash),
+        $name: TypedValues.fromNative(Types.UTF8, user.name),
+        $email_verified: TypedValues.fromNative(Types.BOOL, true),
+        $verification_token: TypedValues.fromNative(Types.UTF8, verificationToken),
+        $role: TypedValues.fromNative(Types.UTF8, 'wholesale'),
+        $company_name: TypedValues.fromNative(Types.UTF8, user.companyName),
+        $inn: TypedValues.fromNative(Types.UTF8, user.inn),
+        $kpp: TypedValues.fromNative(Types.UTF8, user.kpp || ''),
+        $legal_address: TypedValues.fromNative(Types.UTF8, user.legalAddress),
+        $store_name: TypedValues.fromNative(Types.UTF8, user.storeName),
+        $store_address: TypedValues.fromNative(Types.UTF8, user.storeAddress),
+        $contact_person: TypedValues.fromNative(Types.UTF8, user.contactPerson),
+        $contact_phone: TypedValues.fromNative(Types.UTF8, user.contactPhone),
+        $wholesale_approved: TypedValues.fromNative(Types.BOOL, true),
+        $wholesale_discount: TypedValues.fromNative(Types.UINT32, 0),
+        $wholesale_markup: TypedValues.fromNative(Types.UINT32, 0),
         $created_at: TypedValues.fromNative(Types.TIMESTAMP, new Date()),
       });
       
@@ -610,19 +678,21 @@ export class YdbAuthStorage implements IAuthStorage {
     return result === true;
   }
 
-  async approveWholesale(userId: number, approved: boolean, discount: number = 30): Promise<boolean> {
+  async approveWholesale(userId: number, approved: boolean, discount: number = 30, markup: number = 0): Promise<boolean> {
     const result = await this.safeQuery(async (session) => {
       const { TypedValues, Types } = await import("ydb-sdk");
       const query = `
         DECLARE $id AS Utf8;
         DECLARE $wholesale_approved AS Bool;
         DECLARE $wholesale_discount AS Uint32;
-        UPDATE users SET wholesale_approved = $wholesale_approved, wholesale_discount = $wholesale_discount WHERE id = $id;
+        DECLARE $wholesale_markup AS Uint32;
+        UPDATE users SET wholesale_approved = $wholesale_approved, wholesale_discount = $wholesale_discount, wholesale_markup = $wholesale_markup WHERE id = $id;
       `;
       await session.executeQuery(query, {
         $id: TypedValues.fromNative(Types.UTF8, String(userId)),
         $wholesale_approved: TypedValues.fromNative(Types.BOOL, approved),
         $wholesale_discount: TypedValues.fromNative(Types.UINT32, discount),
+        $wholesale_markup: TypedValues.fromNative(Types.UINT32, markup),
       });
       return true;
     });
@@ -648,7 +718,7 @@ export class YdbAuthStorage implements IAuthStorage {
     const result = await this.safeQuery(async (session) => {
       const query = `
         SELECT id, email, name, email_verified, company_name, inn, kpp, legal_address, 
-               store_name, store_address, contact_person, contact_phone, wholesale_approved, wholesale_discount, created_at
+               store_name, store_address, contact_person, contact_phone, wholesale_approved, wholesale_discount, wholesale_markup, created_at
         FROM users 
         WHERE role = 'wholesale'
         ORDER BY created_at DESC;
@@ -669,8 +739,9 @@ export class YdbAuthStorage implements IAuthStorage {
         contactPerson: row.items?.[10]?.textValue || null,
         contactPhone: row.items?.[11]?.textValue || null,
         wholesaleApproved: row.items?.[12]?.boolValue === true,
-        wholesaleDiscount: parseInt(row.items?.[13]?.uint32Value || '30'),
-        createdAt: row.items?.[14]?.textValue ? new Date(row.items[14].textValue) : null,
+        wholesaleDiscount: parseInt(row.items?.[13]?.uint32Value || '0'),
+        wholesaleMarkup: parseInt(row.items?.[14]?.uint32Value || '0'),
+        createdAt: row.items?.[15]?.textValue ? new Date(row.items[15].textValue) : null,
       }));
     });
     return result || [];
@@ -727,6 +798,7 @@ export class YdbAuthStorage implements IAuthStorage {
         { name: 'contact_phone', type: ydbModule.Types.optional(ydbModule.Types.UTF8) },
         { name: 'wholesale_approved', type: ydbModule.Types.optional(ydbModule.Types.BOOL) },
         { name: 'wholesale_discount', type: ydbModule.Types.optional(ydbModule.Types.UINT32) },
+        { name: 'wholesale_markup', type: ydbModule.Types.optional(ydbModule.Types.UINT32) },
         { name: 'shipping_data', type: ydbModule.Types.optional(ydbModule.Types.JSON) },
         { name: 'saved_addresses', type: ydbModule.Types.optional(ydbModule.Types.JSON) },
       ];

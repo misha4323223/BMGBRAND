@@ -6,6 +6,7 @@ import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TransportCompanyCards } from "@/components/TransportCompanyCards";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { useAuth, useWholesalePrice } from "@/hooks/use-auth";
 import YooKassaWidget from "@/components/YooKassaWidget";
@@ -483,18 +484,7 @@ export default function PreorderCheckout() {
                 <div className="space-y-4">
                   <div>
                     <p className="text-xs text-muted-foreground mb-2">Транспортная компания</p>
-                    <Select value={transportCompany} onValueChange={setTransportCompany}>
-                      <SelectTrigger className="h-10" data-testid="select-preorder-transport">
-                        <SelectValue placeholder="Выберите ТК" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cdek">СДЭК</SelectItem>
-                        <SelectItem value="dellin">Деловые Линии</SelectItem>
-                        <SelectItem value="pek">ПЭК</SelectItem>
-                        <SelectItem value="pochta">Почта России</SelectItem>
-                        <SelectItem value="baikal">ТК Байкал</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <TransportCompanyCards value={transportCompany} onChange={setTransportCompany} testIdPrefix="pre" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-2">Адрес доставки <span className="text-muted-foreground/50">(до ТК или юридический)</span></p>

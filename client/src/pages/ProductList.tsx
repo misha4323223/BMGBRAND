@@ -1630,7 +1630,8 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     if (!data?.pages) return [];
     const flat = data.pages.flatMap(page => page.products);
     if (!isWholesale) return flat;
-    return flat.filter((p: any) => p.wholesalePrice && p.wholesalePrice > 0);
+    // Show all products — user-level wholesale discount/markup handles pricing
+    return flat;
   }, [data, isWholesale]);
 
   const cachedSizesRef = useRef<string[]>([]);
