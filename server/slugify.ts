@@ -39,3 +39,16 @@ export function generateUniqueSlug(name: string, existingSlugs: string[]): strin
   }
   return `${base}-${counter}`;
 }
+
+/**
+ * Canonical key for detecting duplicate products by name.
+ * Strips brand-noise and punctuation so "Носки BMGBRAND (Классика Спорт SC02) Черный 34-39"
+ * and "Носки (Классика Спорт SC02) Черный 34-39" normalize to the same key.
+ */
+export function normalizeProductName(name: string): string {
+  return (name || "")
+    .toLowerCase()
+    .replace(/bmgbrand|bmbrand|booomerangs/g, " ")
+    .replace(/[^a-zа-я0-9]+/g, "")
+    .trim();
+}

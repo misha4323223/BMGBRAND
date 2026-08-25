@@ -1317,6 +1317,54 @@ export async function registerRoutes(
   app.get('/artist/:slug', (req, res) => res.redirect(301, `/@${req.params.slug}`));
   app.get('/artist/:slug/', (req, res) => res.redirect(301, `/@${req.params.slug}`));
 
+  // ── Duplicate-slug 301 redirects (SEO dedup) ──────────────────────────────
+  // Hidden duplicate products keep their old slugs indexed by search engines.
+  // The map lives in bonus_settings["slug_redirects"] as [{from, to}] and is
+  // written by the dedup tooling. Checked for every bare single-segment path so
+  // both humans (SPA fallback) and bots (bot-SSR middleware, registered later
+  // in index.ts) get a 301 before anything else renders.
+  let slugRedirectCache: Map<string, string> | null = null;
+  let slugRedirectCacheTs = 0;
+  const SLUG_REDIRECT_TTL_MS = 60_000;
+  async function getSlugRedirectMap(): Promise<Map<string, string>> {
+    const now = Date.now();
+    if (slugRedirectCache && now - slugRedirectCacheTs < SLUG_REDIRECT_TTL_MS) return slugRedirectCache;
+    const map = new Map<string, string>();
+    try {
+      const raw = await storage.getBonusSetting("slug_redirects");
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          for (const r of arr) {
+            if (r && typeof r.from === "string" && typeof r.to === "string" && r.from !== r.to) {
+              map.set(r.from.replace(/^\/+|\/+$/g, ""), r.to.replace(/^\/+|\/+$/g, ""));
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[SlugRedirect] parse error:", e);
+    }
+    slugRedirectCache = map;
+    slugRedirectCacheTs = now;
+    return map;
+  }
+
+  app.get("/:slug", async (req, res, next) => {
+    const slug = req.params.slug;
+    // Only bare product-style slugs — skip files (/favicon.png), prefixed paths, etc.
+    if (!slug || slug.includes(".") || slug.startsWith("_")) return next();
+    try {
+      const map = await getSlugRedirectMap();
+      const target = map.get(slug);
+      if (target) {
+        res.redirect(301, `/${target}`);
+        return;
+      }
+    } catch { /* never break the app on a redirect lookup */ }
+    next();
+  });
+
   // Admin verify endpoint with rate limiting
   app.post("/api/admin/verify", authMiddleware, (req: AuthRequest, res) => {
     const ip = req.ip || req.socket.remoteAddress || "unknown";
@@ -1467,68 +1515,6 @@ Disallow: /gift-cards/success
 Disallow: /gift-cards/failed
 Disallow: /links
 Disallow: /*?
-
-User-agent: GPTBot
-Allow: /
-Disallow: /admin
-Disallow: /api/
-Disallow: /checkout
-Disallow: /cart
-Disallow: /profile
-
-User-agent: Google-Extended
-Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: anthropic-ai
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
-User-agent: Applebot-Extended
-Allow: /
-
-User-agent: YandexBot
-Allow: /
-
-User-agent: YandexImages
-Allow: /
-
-User-agent: YandexMobileBot
-Allow: /
-
-User-agent: Mail.RU_Bot
-Allow: /
-
-User-agent: OAI-SearchBot
-Allow: /
-
-User-agent: meta-externalagent
-Allow: /
-
-User-agent: cohere-ai
-Allow: /
-
-User-agent: YouBot
-Allow: /
-
-User-agent: DuckAssistBot
-Allow: /
-
-User-agent: Bytespider
-Allow: /
-
-User-agent: Diffbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
 
 Sitemap: ${siteUrl}/sitemap.xml
 
@@ -5413,8 +5399,15 @@ ${faqSection}
                 .map((p: any) => p.slug)
                 .filter(Boolean);
               const productsByExtId = new Map<string, any>();
+              const { normalizeProductName } = await import("./slugify");
+              const cachedByNormName = new Map<string, any>();
               for (const p of allProducts) {
                 if ((p as any).externalId) productsByExtId.set((p as any).externalId, p);
+                const n = normalizeProductName((p as any).name);
+                if (n.length >= 6) {
+                  const cur = cachedByNormName.get(n);
+                  if (!cur || ((cur as any).isHidden && !(p as any).isHidden)) cachedByNormName.set(n, p);
+                }
               }
               
               for (const item of productsArray) {
@@ -5574,6 +5567,21 @@ ${faqSection}
                 
                 try {
                   if (!existing) {
+                    const normName = normalizeProductName(name);
+                    const existingByName = normName.length >= 6 ? cachedByNormName.get(normName) : null;
+                    if (existingByName) {
+                      const updateData: any = { externalId, name, description, category, subcategory, onSale, sizes: finalSizes, colors, color: extractedColor };
+                      if (hasRealNewImages) {
+                        updateData.imageUrl = imageUrl;
+                        updateData.thumbnailUrl = thumbnailUrl;
+                        updateData.images = images;
+                      }
+                      if (sku) updateData.sku = sku;
+                      console.log(`[1C IMPORT] Same product by name "${name}" already exists (id ${existingByName.id}) — updating instead of creating`);
+                      await storage.updateProduct(existingByName.id, updateData);
+                      await throttle();
+                      updatedCount++;
+                    } else {
                     const slug = generateUniqueSlug(name, existingSlugs);
                     existingSlugs.push(slug);
                     const created1c = await storage.createProduct({ 
@@ -5590,6 +5598,7 @@ ${faqSection}
                     await throttle();
                     createdCount++;
                     console.log(`[1C IMPORT] [${processedCount}/${productsArray.length}] CREATED: ${name} → ${slug} (${sku}) [Color: ${extractedColor || 'N/A'}, Sizes: ${finalSizes.join(',')}]`);
+                    }
                   } else {
                     const updateData: any = { name, description, sku, category, subcategory, onSale, sizes: finalSizes, colors, color: extractedColor };
                     if (hasRealNewImages) {
@@ -6993,6 +7002,91 @@ ${faqSection}
     }
   });
 
+  // Duplicate products detection (admin) — groups of products that look like the same item.
+  // Primary signal: normalized name (catches same-name clones). Secondary: slug-prefix
+  // pairs (slug with a "-N" counter suffix whose base slug exists) — catches renamed clones.
+  app.get("/api/admin/products/duplicates", requireAdminOrApiKey, async (_req, res) => {
+    try {
+      const { normalizeProductName } = await import("./slugify");
+      const all = await storage.getProducts();
+      const byName = new Map<string, any[]>();
+      const bySlug = new Map<string, any>();
+      for (const p of all) {
+        if (p.slug) bySlug.set(String(p.slug), p);
+        const n = normalizeProductName(p.name);
+        if (n.length >= 6) {
+          const arr = byName.get(n) || [];
+          arr.push(p);
+          byName.set(n, arr);
+        }
+      }
+      const groups: any[] = [];
+      const seenIds = new Set<number>();
+      const toItem = (p: any) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        price: p.price ?? 0,
+        stock: p.stock ?? 0,
+        imageCount: Array.isArray(p.images) ? p.images.length : 0,
+        isHidden: !!p.isHidden,
+        autoHideOverride: !!p.autoHideOverride,
+        inStock: !!p.inStock,
+        updatedAt: p.updatedAt ?? null,
+        externalId: p.externalId ?? null,
+        color: p.color ?? null,
+        sizes: Array.isArray(p.sizes) ? p.sizes : [],
+        danger: false,
+      });
+      const sortGroup = (arr: any[]) =>
+        arr.slice().sort((a: any, b: any) =>
+          ((a.isHidden ? 1 : 0) - (b.isHidden ? 1 : 0)) ||
+          String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""))
+        );
+      const pushGroup = (items: any[], key: string, reason: string) => {
+        const sorted = sortGroup(items);
+        const canonical = sorted.find((x: any) => !x.isHidden) || sorted[0];
+        const list = sorted.map(toItem);
+        const canonicalPrice = canonical ? canonical.price : null;
+        for (const it of list) {
+          // Danger: this duplicate carries a different price than the canonical one.
+          // Deleting it makes 1C re-attach its externalId to the canonical (name-dedup),
+          // which would change the canonical price on the next sync.
+          it.danger = canonical && it.id !== canonical.id ? it.price !== canonicalPrice : false;
+        }
+        const normNames = items.map((x: any) => normalizeProductName(x.name));
+        const nameDiffers = normNames.some((n: string) => n !== normNames[0]);
+        groups.push({ key, reason, nameDiffers, canonicalId: canonical ? canonical.id : null, items: list });
+        for (const it of items) seenIds.add(it.id);
+      };
+      for (const [key, items] of byName) {
+        if (items.length > 1) pushGroup(items, key, "name");
+      }
+      for (const p of all) {
+        if (seenIds.has(p.id)) continue;
+        const m = String(p.slug || "").match(/^(.*)-(\d+)$/);
+        if (!m) continue;
+        const counter = parseInt(m[2], 10);
+        if (counter < 2 || counter > 20) continue; // counter suffix, not a size (34-39/40-45)
+        const base = bySlug.get(m[1]);
+        if (!base) continue;
+        // Exclude genuinely different products that merely share a slug base:
+        // different color (e.g. чёрная vs белая сумка) or different sizes.
+        const colorA = String((base as any).color || "").trim().toLowerCase();
+        const colorB = String((p as any).color || "").trim().toLowerCase();
+        const sizesMatch = JSON.stringify((base as any).sizes || []) === JSON.stringify((p as any).sizes || []);
+        if (colorA && colorB && colorA !== colorB) continue;
+        if (!sizesMatch) continue;
+        pushGroup([base, p], m[1], "slug");
+      }
+      // Only report groups that actually contain a non-canonical duplicate
+      const realGroups = groups.filter((g: any) => g.items.some((it: any) => it.id !== g.canonicalId));
+      res.json({ groups: realGroups, total: realGroups.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || "Failed" });
+    }
+  });
+
   // Bulk delete products completely (YDB + S3 images) — admin only
   app.post("/api/admin/products/bulk-delete", requireAdminOrApiKey, async (req, res) => {
     try {
@@ -7518,7 +7612,8 @@ ${faqSection}
         isNew, badgeText, lookProducts, lookCategory, lookSubcategory,
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate,
         stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl, disabledNotifySizes,
-        seoTitle, seoDescription, seoBody, seoJsonLd, specsHtml, imageAlts, featureBadgeIds
+        seoTitle, seoDescription, seoBody, seoJsonLd, specsHtml, imageAlts, featureBadgeIds,
+        isHidden, autoHideOverride, inStock
       } = req.body;
       
       const updateData: any = {};
@@ -7526,6 +7621,9 @@ ${faqSection}
       if (name !== undefined) updateData.name = name;
       if (description !== undefined) updateData.description = description;
       if (price !== undefined) updateData.price = parseInt(price);
+      if (isHidden !== undefined) updateData.isHidden = isHidden === true;
+      if (autoHideOverride !== undefined) updateData.autoHideOverride = autoHideOverride === true;
+      if (inStock !== undefined) updateData.inStock = inStock === true;
       if (category !== undefined) updateData.category = category;
       if (subcategory !== undefined) updateData.subcategory = subcategory;
       if (subSubcategory !== undefined) updateData.subSubcategory = subSubcategory || null;
@@ -8999,9 +9097,16 @@ ${faqSection}
           const allCachedProducts = await storage.getProducts();
           const cachedByExtId = new Map<string, any>();
           const cachedBySku = new Map<string, any>();
+          const { normalizeProductName } = await import("./slugify");
+          const cachedByNormName = new Map<string, any>();
           for (const p of allCachedProducts) {
             if ((p as any).externalId) cachedByExtId.set((p as any).externalId, p);
             if ((p as any).sku) cachedBySku.set((p as any).sku, p);
+            const n = normalizeProductName((p as any).name);
+            if (n.length >= 6) {
+              const cur = cachedByNormName.get(n);
+              if (!cur || ((cur as any).isHidden && !(p as any).isHidden)) cachedByNormName.set(n, p);
+            }
           }
           
           for (const item of productsArray) {
@@ -9103,28 +9208,46 @@ ${faqSection}
                   productsUpdated++;
                   await throttle(); // Prevent YDB overload
                 } else {
-                  console.log(`[1C] Creating new product: ${name} (${externalId})`);
-                  const created1cV2 = await storage.createProduct({
-                    externalId,
-                    sku,
-                    name,
-                    description,
-                    price: 0,
-                    imageUrl,
-                    thumbnailUrl,
-                    images,
-                    category,
-                    subcategory,
-                    onSale,
-                    sizes,
-                    colors,
-                    color: extractColorFromName(name) || 'Default',
-                    isNew: true,
-                    badgeText: "NEW"
-                  } as any);
-                  enqueueNewProduct(created1cV2.id).catch(() => {});
-                  productsCreated++;
-                  await throttle(); // Prevent YDB overload
+                  const normName = normalizeProductName(name);
+                  const existingByName = normName.length >= 6 ? cachedByNormName.get(normName) : null;
+                  if (existingByName) {
+                    // Same physical product under a new externalId — update in place
+                    // instead of creating a duplicate (prevents -2/-3 slug clones).
+                    const updateData: any = { externalId, name, description, category, subcategory, onSale, sizes, colors };
+                    if (hasRealNewImages) {
+                      updateData.imageUrl = imageUrl;
+                      updateData.thumbnailUrl = thumbnailUrl;
+                      updateData.images = images;
+                    }
+                    if (sku) updateData.sku = sku;
+                    console.log(`[1C] Same product by name "${name}" already exists (id ${existingByName.id}) — updating instead of creating`);
+                    await storage.updateProduct(existingByName.id, updateData);
+                    productsUpdated++;
+                    await throttle(); // Prevent YDB overload
+                  } else {
+                    console.log(`[1C] Creating new product: ${name} (${externalId})`);
+                    const created1cV2 = await storage.createProduct({
+                      externalId,
+                      sku,
+                      name,
+                      description,
+                      price: 0,
+                      imageUrl,
+                      thumbnailUrl,
+                      images,
+                      category,
+                      subcategory,
+                      onSale,
+                      sizes,
+                      colors,
+                      color: extractColorFromName(name) || 'Default',
+                      isNew: true,
+                      badgeText: "NEW"
+                    } as any);
+                    enqueueNewProduct(created1cV2.id).catch(() => {});
+                    productsCreated++;
+                    await throttle(); // Prevent YDB overload
+                  }
                 }
               } else {
                 // IMPORTANT: Only update images if we have REAL new images (not fallback)
