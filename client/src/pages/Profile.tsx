@@ -21,6 +21,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useAddToCart } from "@/hooks/use-cart";
 import { useToast } from "@/hooks/use-toast";
+import { makeVariant } from "@/lib/ecommerce";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 
@@ -526,6 +527,13 @@ export default function Profile() {
               quantity: item.quantity,
               size: item.size || "One Size",
               color: item.color || "Default",
+              ecommerce: {
+                id: item.sku || item.productId,
+                name: item.productName || item.name || String(item.productId),
+                priceCents: item.price,
+                variant: makeVariant(item.size, item.color),
+                quantity: item.quantity,
+              },
             },
             {
               onSuccess: () => resolve(),

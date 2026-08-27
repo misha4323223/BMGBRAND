@@ -1,4 +1,5 @@
 import { useCart, useRemoveFromCart, useUpdateCartQuantity } from "@/hooks/use-cart";
+import { makeVariant } from "@/lib/ecommerce";
 import { RecommendationBlock } from "@/components/RecommendationBlock";
 import { useWholesalePrice } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
@@ -266,6 +267,13 @@ function CartDrawer() {
                                   size: item.size,
                                   color: item.color,
                                   productName: item.product?.name,
+                                  ecommerce: {
+                                    id: item.product?.sku || item.productId,
+                                    name: item.product?.name || "",
+                                    priceCents: item.product?.price || 0,
+                                    variant: makeVariant(item.size, item.color),
+                                    quantity: item.quantity,
+                                  },
                                 })
                               }
                               data-testid={`button-drawer-remove-${item.productId}`}
@@ -292,6 +300,13 @@ function CartDrawer() {
                                       size: item.size,
                                       color: item.color,
                                       productName: item.product?.name,
+                                      ecommerce: {
+                                        id: item.product?.sku || item.productId,
+                                        name: item.product?.name || "",
+                                        priceCents: item.product?.price || 0,
+                                        variant: makeVariant(item.size, item.color),
+                                        quantity: item.quantity,
+                                      },
                                     });
                                   } else {
                                     updateQuantity.mutate({

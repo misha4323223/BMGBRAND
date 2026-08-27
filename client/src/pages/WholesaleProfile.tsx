@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import SEO from "@/components/SEO";
+import { makeVariant } from "@/lib/ecommerce";
 import { useAddToCart } from "@/hooks/use-cart";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -275,6 +276,13 @@ export default function WholesaleProfile() {
               quantity: item.quantity,
               size: item.size || "One Size",
               color: item.color || "Default",
+              ecommerce: {
+                id: item.sku || item.productId,
+                name: item.productName || item.name || String(item.productId),
+                priceCents: item.price,
+                variant: makeVariant(item.size, item.color),
+                quantity: item.quantity,
+              },
             },
             {
               onSuccess: () => resolve(),

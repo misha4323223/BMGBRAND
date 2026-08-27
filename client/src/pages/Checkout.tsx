@@ -10,6 +10,7 @@ import { z } from "zod";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useCart, useUpdateCartQuantity, useRemoveFromCart } from "@/hooks/use-cart";
 import { useCreateOrder } from "@/hooks/use-orders";
+import { pushEcommercePurchase, makeVariant } from "@/lib/ecommerce";
 import { useSession } from "@/hooks/use-session";
 import { useAuth, useWholesalePrice } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
@@ -913,6 +914,17 @@ export default function Checkout() {
 
     createOrder.mutate(orderData, {
       onSuccess: (orderData: any) => {
+        // Яндекс.Метрика e-commerce: покупка — один раз на заказ (дедуп в localStorage)
+        const purchasedItems: any[] = Array.isArray(orderData?.items) ? orderData.items : [];
+        if (purchasedItems.length > 0) {
+          pushEcommercePurchase(orderData.id, purchasedItems.map((it: any) => ({
+            id: it.sku || it.productExternalId || it.productId,
+            name: it.productName || String(it.productId),
+            priceCents: Number(it.price) || 0,
+            variant: makeVariant(it.size, it.color),
+            quantity: Number(it.quantity) || 1,
+          })));
+        }
         if (orderData.confirmationToken) {
           setWidgetToken(orderData.confirmationToken);
           setWidgetOrderId(orderData.id);
@@ -1900,6 +1912,13 @@ export default function Checkout() {
                             productId: item.productId,
                             size: item.size,
                             color: item.color,
+                            ecommerce: {
+                              id: item.product?.sku || item.productId,
+                              name: item.product?.name || "",
+                              priceCents: item.product?.price || 0,
+                              variant: makeVariant(item.size, item.color),
+                              quantity: item.quantity,
+                            },
                           })}
                           data-testid={`button-checkout-remove-${item.id}`}
                           className="text-muted-foreground hover:text-destructive transition-colors p-0.5 flex-shrink-0"

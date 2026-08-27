@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import SEO from "@/components/SEO";
 import { useCart, useRemoveFromCart, useClearCart, useUpdateCartQuantity } from "@/hooks/use-cart";
+import { makeVariant } from "@/lib/ecommerce";
 import { useAuth, useWholesalePrice } from "@/hooks/use-auth";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -204,6 +205,13 @@ export default function Cart() {
                           size: item.size,
                           color: item.color,
                           productName: item.product?.name,
+                          ecommerce: {
+                            id: item.product?.sku || item.productId,
+                            name: item.product?.name || "",
+                            priceCents: item.product?.price || 0,
+                            variant: makeVariant(item.size, item.color),
+                            quantity: item.quantity,
+                          },
                         })}
                         data-testid={`button-remove-cart-item-${item.id}`}
                         className="text-muted-foreground hover:text-destructive transition-colors p-1"

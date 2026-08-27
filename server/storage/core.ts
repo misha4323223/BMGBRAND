@@ -94,6 +94,22 @@ class SimpleCache<T> {
     console.log("[Cache] Cleared all cached data");
   }
 
+  /** Число ключей в кэше (для диагностики, ТЗ №5). */
+  get size(): number {
+    return this.cache.size;
+  }
+
+  /** Возраст самой свежей записи в секундах (null, если кэш пуст). */
+  get ageSec(): number | null {
+    if (this.cache.size === 0) return null;
+    let newest = 0;
+    for (const entry of this.cache.values()) {
+      const created = entry.expires - this.ttlMs;
+      if (created > newest) newest = created;
+    }
+    return Math.max(0, Math.round((Date.now() - newest) / 1000));
+  }
+
   delete(key: string): void {
     this.cache.delete(key);
   }
@@ -1274,6 +1290,16 @@ export class DatabaseStorage implements IStorage {
       logError("[Migration Error]:", err.message);
       return { success: false, message: err.message || String(err) };
     }
+  }
+
+  /** Состояние кэшей для /api/admin/diagnostics/cache (ТЗ №5). */
+  getCacheStats(): Record<string, { size: number; ttlSec?: number; ageSec?: number | null }> {
+    return {
+      products: { size: productsCache.size, ttlSec: 300, ageSec: productsCache.ageSec },
+      pageSettings: { size: pageSettingsCache.size, ttlSec: 120, ageSec: pageSettingsCache.ageSec },
+      ratings: { size: ratingsCache.size },
+      reviews: { size: reviewsCache.size },
+    };
   }
 
   public _cartRemindersTableReady = false;

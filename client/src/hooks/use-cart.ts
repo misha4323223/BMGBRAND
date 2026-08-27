@@ -4,6 +4,7 @@ import { InsertCartItem } from "@shared/schema";
 import { useSession } from "./use-session";
 import { useToast } from "@/hooks/use-toast";
 import { useCartDrawer } from "@/components/CartDrawer";
+import { pushEcommerce, type EcommerceProductInput } from "@/lib/ecommerce";
 
 export function useCart() {
   const sessionId = useSession();
@@ -21,6 +22,8 @@ export function useCart() {
   });
 }
 
+type AddToCartInput = Omit<InsertCartItem, 'sessionId'> & { ecommerce?: EcommerceProductInput };
+
 export function useAddToCart() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -28,10 +31,11 @@ export function useAddToCart() {
   const { openDrawer } = useCartDrawer();
 
   return useMutation({
-    mutationFn: async (data: Omit<InsertCartItem, 'sessionId'>) => {
+    mutationFn: async (data: AddToCartInput) => {
       if (!sessionId) throw new Error("No session");
       
-      const payload: InsertCartItem = { ...data, sessionId };
+      const { ecommerce: _ecommerce, ...rest } = data;
+      const payload: InsertCartItem = { ...rest, sessionId };
       const res = await fetch(api.cart.addItem.path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,7 +52,10 @@ export function useAddToCart() {
       const result = await res.json();
       return { ...result, stockLimited: result.stockLimited, stockMessage: result.message };
     },
-    onSuccess: (result: any) => {
+    onSuccess: (result: any, variables: AddToCartInput) => {
+      if (variables.ecommerce) {
+        pushEcommerce("add", [{ ...variables.ecommerce, quantity: variables.quantity }]);
+      }
       queryClient.invalidateQueries({ queryKey: [api.cart.list.path] });
       openDrawer();
       if (result?.stockLimited) {
@@ -153,6 +160,8 @@ interface RemoveCartItemParams {
   size: string | null;
   color: string | null;
   productName?: string;
+  /** Метаданные для Яндекс.Метрики (e-commerce remove) */
+  ecommerce?: EcommerceProductInput;
 }
 
 export function useRemoveFromCart() {
@@ -193,6 +202,9 @@ export function useRemoveFromCart() {
       }
     },
     onSuccess: (_data: void, _variables: RemoveCartItemParams) => {
+      if (_variables.ecommerce) {
+        pushEcommerce("remove", [_variables.ecommerce]);
+      }
       toast({
         title: "УДАЛЕНО",
         description: "Товар удален из корзины.",

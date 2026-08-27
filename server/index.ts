@@ -31,6 +31,29 @@ import { startPreorderNotifierJob } from "./preorder-notifier";
 import { startPreorderStatusScheduler } from "./preorder-status-scheduler";
 import { startOrderNotifyWatcher } from "./order-notify-watcher";
 import { notifyError } from "./error-monitor";
+import { pushRequest, pushError } from "./log-buffer";
+
+// ── Диагностика (ТЗ №5): перехват консольных потоков в кольцевой буфер ──
+// Ловим error и warn. console.log (info) сознательно НЕ перехватываем: он забит
+// логами каждого /api-запроса и вытеснил бы ошибки из буфера на 200 записей.
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+console.error = (...args: unknown[]) => {
+  originalConsoleError(...args);
+  try {
+    pushError({ level: "error", source: "console", message: args.map(String).join(" ").slice(0, 500) });
+  } catch {
+    /* не ронять приложение */
+  }
+};
+console.warn = (...args: unknown[]) => {
+  originalConsoleWarn(...args);
+  try {
+    pushError({ level: "warn", source: "console", message: args.map(String).join(" ").slice(0, 500) });
+  } catch {
+    /* не ронять приложение */
+  }
+};
 
 // Last-resort safety net: if a YDB-related promise escapes try/catch (e.g.
 // a fire-and-forget background task), proactively trigger driver reconnect
@@ -292,6 +315,7 @@ app.use((req, res, next) => {
       }
 
       log(logLine);
+      pushRequest({ ts: Date.now(), method: req.method, path, status: res.statusCode, ms: duration });
     }
   });
 

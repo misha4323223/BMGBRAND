@@ -35,6 +35,10 @@
     <!-- Yandex.Metrika — deferred until user interaction or 5s timeout -->
     <script>
       (function() {
+        // Контейнер электронной коммерции: создаётся ДО инициализации счётчика,
+        // чтобы события, отправленные раньше загрузки Метрики, не терялись.
+        window.dataLayer = window.dataLayer || [];
+
         window.ym = window.ym || function() {
           (window.ym.a = window.ym.a || []).push(arguments);
         };

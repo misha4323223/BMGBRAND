@@ -39,6 +39,7 @@ import {
 } from "./routes/wholesale";
 import { registerAdminSeoRoutes } from "./routes/admin-seo";
 import { registerAdminUsersRoutes } from "./routes/admin-users";
+import { registerAdminDiagnosticsRoutes } from "./routes/admin-diagnostics";
 import { registerAdminPromoRoutes } from "./routes/admin-promo";
 import { registerAdminGiftCardRoutes } from "./routes/admin-giftcards";
 import { registerAdminProductsRoutes, registerAdminProductDeleteRoutes } from "./routes/admin-products";
@@ -11387,6 +11388,9 @@ ${faqSection}
 
   // Admin users + loyalty (server/routes/admin-users.ts)
   registerAdminUsersRoutes(app, getAdminKey);
+
+  // Diagnostics: журнал ошибок, статистика запросов, кэши (ТЗ №5)
+  registerAdminDiagnosticsRoutes(app, getAdminKey);
 
   // Wholesale admin (server/routes/wholesale.ts)
   registerWholesaleAdminRoutes(app, getAdminKey, authMiddleware);

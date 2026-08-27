@@ -6,6 +6,11 @@ type ProductId = number;
 // Built once at startup from paid orders; incrementally updated on each new paid order.
 const coPurchaseMap = new Map<ProductId, Map<ProductId, number>>();
 
+/** Размер co-purchase индекса для диагностики (ТЗ №5). */
+export function getCoPurchaseIndexSize(): number {
+  return coPurchaseMap.size;
+}
+
 // ── Per-product recommendation cache ──────────────────────────────────────
 // Stores final recommendation list per product with a 2-hour TTL.
 // Invalidated whenever a paid order updates the co-purchase counters for a product.

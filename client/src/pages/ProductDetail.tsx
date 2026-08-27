@@ -4,6 +4,7 @@ import YooKassaWidget from "@/components/YooKassaWidget";
 import { DolyameWidget } from "@/components/DolyameWidget";
 import { useProduct, useProductBySlug, useColorVariants, usePrefetchProduct } from "@/hooks/use-products";
 import { useAddToCart } from "@/hooks/use-cart";
+import { pushEcommerce, makeVariant, makeCategoryFromSlugs } from "@/lib/ecommerce";
 import { useWholesalePrice, useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
@@ -514,6 +515,22 @@ export default function ProductDetail() {
 
   // Check if we have multiple color variants (different products with same SKU)
   const hasColorVariants = colorVariants && colorVariants.length > 1;
+
+  // Яндекс.Метрика e-commerce: просмотр карточки товара (detail)
+  useEffect(() => {
+    if (!product) return;
+    const detailColor = hasColorVariants
+      ? (colorVariants?.find(v => v.id === product.id)?.color || "")
+      : (selectedColor || "");
+    pushEcommerce("detail", [{
+      id: product.sku || product.id,
+      name: product.name,
+      priceCents: product.price,
+      category: makeCategoryFromSlugs(product.category, (product as any).subcategory),
+      variant: makeVariant(selectedSize, detailColor || product.color),
+    }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
   
   // Check if variants have different size ranges (40-45 vs 34-39)
   const variantSizeRanges = useMemo(() => {
@@ -739,6 +756,13 @@ export default function ProductDetail() {
       quantity,
       size: selectedSize || "One Size",
       color: cartColor,
+      ecommerce: {
+        id: product.sku || product.id,
+        name: product.name,
+        priceCents: product.price,
+        category: makeCategoryFromSlugs(product.category, (product as any).subcategory),
+        variant: makeVariant(selectedSize, cartColor),
+      },
     });
   };
   

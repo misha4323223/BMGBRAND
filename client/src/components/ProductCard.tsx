@@ -10,6 +10,7 @@ import { useCart, useAddToCart } from "@/hooks/use-cart";
 import { useToast } from "@/hooks/use-toast";
 import { useWholesalePrice } from "@/hooks/use-auth";
 import { useFavoriteStatus, useFavoriteActions } from "@/hooks/use-favorites";
+import { makeVariant, makeCategoryFromSlugs } from "@/lib/ecommerce";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useColorVariants, ColorVariant } from "@/hooks/use-products";
@@ -271,7 +272,14 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
       productId: activeProduct.id, 
       quantity, 
       size: autoSize,
-      color: selectedColor || undefined
+      color: selectedColor || undefined,
+      ecommerce: {
+        id: activeProduct.sku || activeProduct.id,
+        name: activeProduct.name,
+        priceCents: activeProduct.price,
+        category: makeCategoryFromSlugs(activeProduct.category, (activeProduct as any).subcategory),
+        variant: makeVariant(autoSize, selectedColor),
+      },
     });
     setSelectedSize("");
     setQuantity(1);
@@ -291,6 +299,13 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
       productId: product.id,
       quantity: qty,
       size: singleSockSize,
+      ecommerce: {
+        id: product.sku || product.id,
+        name: product.name,
+        priceCents: product.price,
+        category: makeCategoryFromSlugs(product.category, (product as any).subcategory),
+        variant: makeVariant(singleSockSize, undefined),
+      },
     });
     toast({ title: `${product.name}`, description: `Добавлено: ${qty} шт.` });
     setSockQty(sockMinQty);

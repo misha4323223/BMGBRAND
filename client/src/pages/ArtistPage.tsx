@@ -11,6 +11,7 @@ import { BrandLoader } from "@/components/BrandLoader";
 import { transliterateToSlug } from "@shared/schema";
 import SEO from "@/components/SEO";
 import { useAddToCart } from "@/hooks/use-cart";
+import { makeVariant, makeCategoryFromSlugs } from "@/lib/ecommerce";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 import { useFavoriteStatus, useFavoriteActions } from "@/hooks/use-favorites";
@@ -438,7 +439,18 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
 
   function doAdd(mode: 'cart' | 'checkout', size?: string) {
     addItem(
-      { productId: product.id, quantity: 1, size: size || undefined },
+      {
+        productId: product.id,
+        quantity: 1,
+        size: size || undefined,
+        ecommerce: {
+          id: product.sku || product.id,
+          name: product.name,
+          priceCents: product.price,
+          category: makeCategoryFromSlugs(product.category, (product as any).subcategory),
+          variant: makeVariant(size, undefined),
+        },
+      },
       {
         onSuccess: () => {
           if (mode === 'checkout') {
