@@ -1033,7 +1033,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   // Android App Links (Digital Asset Links) — подтверждение связи домена с Android-приложением
-  // ru.boomerangs.mobile (RuStore). Файл должен отдаваться по /.well-known/assetlinks.json
+  // ru.booomerangs.mobile (RuStore). Файл должен отдаваться по /.well-known/assetlinks.json
   // без авторизации и редиректов, с Content-Type: application/json и без агрессивного кеша.
   // Явный роут зарегистрирован раньше express.static, чтобы не попасть под maxAge 1y/immutable
   // и под SPA catch-all.
@@ -1045,7 +1045,7 @@ export async function registerRoutes(
         relation: ["delegate_permission/common.handle_all_urls"],
         target: {
           namespace: "android_app",
-          package_name: "ru.boooomerangs.mobile",
+          package_name: "ru.booomerangs.mobile",
           sha256_cert_fingerprints: [
             "0D:98:A5:B9:77:98:72:3B:8D:3E:5A:0A:3E:EC:BE:BA:6A:E1:41:A8:AB:DF:B0:68:25:B7:2E:B7:30:C2:08:2A",
           ],
@@ -12974,7 +12974,7 @@ ${faqSection}
         ? `Промокод ${esc(promoCode)} на ${discountDesc.toLowerCase()} уже ждёт вас. Скачайте приложение и скидка применится автоматически.`
         : "Скачайте официальное приложение BOOOMERANGS в RuStore.";
 
-      const rustoreUrl = "https://www.rustore.ru/catalog/app/ru.boooomerangs.mobile";
+      const rustoreUrl = "https://www.rustore.ru/catalog/app/ru.booomerangs.mobile";
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(rustoreUrl)}`;
 
       const html = `<!DOCTYPE html>
@@ -12987,7 +12987,7 @@ ${faqSection}
   <meta property="og:title" content="${esc(title)}">
   <meta property="og:description" content="${esc(desc)}">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://boooomerangs.ru/app?promo=${esc(promoCode)}">
+  <meta property="og:url" content="https://booomerangs.ru/app?promo=${esc(promoCode)}">
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:20px}
