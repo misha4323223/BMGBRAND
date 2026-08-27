@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import { logError, logWarn } from "./logger";
 import fs from "fs";
 import path from "path";
 import { getCachedLcpImageUrls, getCachedProductImageBySlug, getCachedProductMetaBySlug, getCachedRatingByProductId, getCachedProductsByCategory, getCachedAllVisibleProducts, getCachedProductsForRecommendations, getCachedHeroData, getCachedArtistHeroImage, getCachedRawPageSettings } from "./storage";
@@ -290,7 +291,7 @@ function getFaqItems(): Array<{ question: string; answer: string }> {
       return parsed.items;
     }
   } catch (e) {
-    console.error("[Static] FAQ items parse error:", e);
+    logError("[Static] FAQ items parse error:", e);
   }
   return DEFAULT_FAQ_ITEMS;
 }
@@ -719,10 +720,10 @@ export function serveStatic(app: Express) {
         html = replaced;
         console.log(`[Static] CSS async loading applied for ${cssFileName}`);
       } else {
-        console.warn(`[Static] CSS tag not found in HTML for ${cssFileName}, blocking CSS remains`);
+        logWarn(`[Static] CSS tag not found in HTML for ${cssFileName}, blocking CSS remains`);
       }
     } else {
-      console.warn("[Static] No CSS file found in assets directory");
+      logWarn("[Static] No CSS file found in assets directory");
     }
 
     cachedHtml = html;
@@ -1356,7 +1357,7 @@ export function serveStatic(app: Express) {
         }
       }
     } catch (e) {
-      console.error("[Static] Meta injection error:", e);
+      logError("[Static] Meta injection error:", e);
     }
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

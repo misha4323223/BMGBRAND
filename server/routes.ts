@@ -1,8 +1,8 @@
 import type { Express } from "express";
+import { logError, logInfo, logWarn } from "./logger";
 import { config } from "./config";
-import { getPushSubs, savePushSubs, sendPushToAll as _sendPushToAllSvc, getAdminPushSubs, saveAdminPushSubs, sendPushToAdmins as _sendPushToAdminsSvc, acquirePushLock, releasePushLock, getPushHistory, sendPushToUser, orderStatusPushPayload } from './push-service';
 import type { Server } from "http";
-import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsForSeoAudit, getCachedProductsByCategory, isProductsCacheWarm, isLoyaltyCountedStatus } from "./storage";
+import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsByCategory, isProductsCacheWarm, isLoyaltyCountedStatus } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import express from "express";
@@ -13,9 +13,38 @@ import { uploadToYandexStorage, downloadFromYandexStorage, listObjectsFromYandex
 import { createCdekWaybillForOrder, recreateCdekWaybillForOrder } from "./lib/cdek-waybill";
 import { queuePreorderStatusEmail } from "./lib/preorder-email-buffer";
 import { resolveItemPrice } from "./lib/pricing";
+import { computePromoEligibleSubtotal, computePromoDiscount } from "./lib/checkout";
+import { SIZE_ORDER, STANDARD_CLOTHING_SIZES, sanitizeHtmlBlock, sanitizeJsonLd, sortSizes, normalizeSizeKey, canonicalizeSizeKey, resolveSizeStock } from "./lib/product-utils";
+import { registerDadataRoutes } from "./routes/dadata";
+import { registerReviewsRoutes } from "./routes/reviews";
+import { registerPushRoutes } from "./routes/push";
+import { registerProductMaintenanceRoutes } from "./routes/product-maintenance";
+import { registerArtistsRoutes } from "./routes/artists";
+import { registerAdminContentRoutes } from "./routes/admin-content";
+import { registerProductFixesRoutes } from "./routes/product-fixes";
+import { registerAnalyticsRoutes } from "./routes/analytics";
+import { registerPreorderSubscribersRoutes } from "./routes/preorder-subscribers";
+import { registerOzonRoutes } from "./routes/ozon";
+import { registerCategoriesAdminRoutes } from "./routes/categories-admin";
+import { registerPageSettingsRoutes } from "./routes/page-settings";
+import { registerAdminOrdersRoutes } from "./routes/admin-orders";
+import { registerMailingsRoutes } from "./routes/mailings";
+import { registerBonusSettingsRoutes } from "./routes/bonus-settings";
+import {
+  registerWholesaleAdminRoutes,
+  registerWholesaleFeedRoutes,
+  registerWholesaleSlidesRoutes,
+  registerWholesalePreorderProductsRoutes,
+  registerWholesalePreorderOrderRoute,
+} from "./routes/wholesale";
+import { registerAdminSeoRoutes } from "./routes/admin-seo";
+import { registerAdminUsersRoutes } from "./routes/admin-users";
+import { registerAdminPromoRoutes } from "./routes/admin-promo";
+import { registerAdminGiftCardRoutes } from "./routes/admin-giftcards";
+import { registerAdminProductsRoutes, registerAdminProductDeleteRoutes } from "./routes/admin-products";
 import sharp from "sharp";
 import { mapProductCategory, isOnSale, extractColorFromName, extractSizesFromName, mapGroupHierarchyToCategory, isIgnoredRootGroup, isAllowedRootGroup, getRootGroupCategorySlug, getArtistSlugFromName, type GroupHierarchy } from "./categoryMapper";
-import { CATEGORIES, normalizeCategories, buildCategoryIndex, resolveProductCategoryPaths, transliterateToSlug, insertPromoCodeSchema, insertLoyaltyTierSchema, insertNewsletterSubscriptionSchema, insertBonusSettingSchema, PARTNER_COOKIE_NAME, PARTNER_DEFAULT_COMMISSION_PERCENT, getProgressiveCommissionRate } from "@shared/schema";
+import { CATEGORIES, normalizeCategories, buildCategoryIndex, resolveProductCategoryPaths, transliterateToSlug, insertPromoCodeSchema, insertLoyaltyTierSchema, insertNewsletterSubscriptionSchema, PARTNER_COOKIE_NAME, PARTNER_DEFAULT_COMMISSION_PERCENT, getProgressiveCommissionRate } from "@shared/schema";
 import type { SubcategoryConfig, SubSubcategoryConfig, CategoryConfig } from "@shared/schema";
 import authRoutes, { authMiddleware, requireAdminRole, type AuthRequest } from "./auth-routes";
 import { notifyError } from "./error-monitor";
@@ -25,30 +54,22 @@ import adminWholesaleRoutes from "./admin-wholesale-routes";
 import { authStorage } from "./auth-storage";
 import { paymentService } from "./payments";
 import { ozonDeliveryService } from "./ozon-delivery";
-import { ozonDeliveryOAuth, OZON_OAUTH_KEYS, OZON_OAUTH_REDIRECT_URI } from "./ozon-delivery-oauth";
+import { ozonDeliveryOAuth, OZON_OAUTH_KEYS } from "./ozon-delivery-oauth";
 import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PVZ_CODE, CDEK_DEFAULT_PACKAGE, CDEK_TARIFFS, isTariffToDoor, isTariffFromPvz } from "./cdek";
 
-import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "./invoice";
-import { runAbandonedCartCheck, addAbandonedCartUnsub } from "./abandoned-cart";
-import { enqueueNewProduct, getNewProductsQueueStatus, triggerNewProductsNotifierNow, removeFromNewProductsQueue, addToNewProductsQueueManual } from "./new-products-notifier";
-import {
-  generateReviewRequestDraft,
-  getReviewRequestCandidates,
-  sendReviewRequestsNow,
-  sendReviewRequestPreview,
-} from "./review-request-email";
-import { onReviewApproved, canEarnReviewPromo } from "./review-promo";
-import { enqueuePreorderProduct, getPreorderQueueStatus, triggerPreorderNotifierNow, removeFromPreorderQueue, addToPreorderQueueManual } from "./preorder-notifier";
-import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getOrderReadyForPickupEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml, sendPriceDropEmail, sendPreorderNotifications, getNewProductsNewsletterHtml } from "./email";
-import { CATEGORIES as SEO_CATEGORY_DEFAULTS, ARTISTS as SEO_ARTIST_DEFAULTS, HOME_SEO_DEFAULT, CONCEPT_SEO_DEFAULT, MERCH_ORDER_SEO_DEFAULT, PARTNER_REGISTER_SEO_DEFAULT } from "./static";
+import { sendInvoiceEmail, getNextInvoiceNumber } from "./invoice";
+import { addAbandonedCartUnsub } from "./abandoned-cart";
+import { enqueueNewProduct } from "./new-products-notifier";
+import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml } from "./email";
 import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
-import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notifyPreorderStatusChange, registerWholesaleWebhook, sendChatNotification, registerChatWebhook, notifyNewReview, notifyMerchOrder, sendAgentAlert } from "./telegram";
-import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyNewReview, vkNotifyMerchOrder, verifyActionLink, sendVkChatNotification, startVkLongPoll, vkNotifyAgentAlert } from "./vk";
+import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notifyPreorderStatusChange, registerWholesaleWebhook, sendChatNotification, registerChatWebhook, notifyMerchOrder, sendAgentAlert } from "./telegram";
+import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyMerchOrder, verifyActionLink, sendVkChatNotification, startVkLongPoll, vkNotifyAgentAlert } from "./vk";
 import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
 import { registerAddonOrderRoutes, processAddonOrderPaid } from "./addon-order";
-import { clearBotSsrCache, CYRILLIC_TO_CANONICAL } from "./bot-ssr";
+import { registerOllamaRoutes } from "./ollama";
+import { CYRILLIC_TO_CANONICAL } from "./bot-ssr";
 import {
   registerAiChatRoute,
   registerProductInfoRoute,
@@ -90,7 +111,7 @@ async function enrichItemsWithProductColor(items: any[]): Promise<any[]> {
         return { ...it, color: productColor };
       }
     } catch (err: any) {
-      console.warn(`[Notify] enrich color: failed to load product ${pid}:`, err?.message);
+      logWarn(`[Notify] enrich color: failed to load product ${pid}:`, err?.message);
     }
     return it;
   }));
@@ -163,40 +184,24 @@ async function applyPromoToOrder(opts: {
 
   const promo = await storage.getPromoCodeByCode(promoCode);
   if (!promo || !promo.isActive) {
-    console.warn(`[Promo] ${promoCode} ignored — not found or inactive`);
+    logWarn(`[Promo] ${promoCode} ignored — not found or inactive`);
     return { promoDiscount: 0, appliedPromo: null };
   }
   if (isWholesale && !promo.allowForWholesale) {
-    console.warn(`[Promo] ${promoCode} blocked — not allowed for wholesale user ${customerEmail}`);
+    logWarn(`[Promo] ${promoCode} blocked — not allowed for wholesale user ${customerEmail}`);
     return { promoDiscount: 0, appliedPromo: null };
   }
   const alreadyUsed = await storage.isPromoUsedByEmail(customerEmail, promoCode);
   if (alreadyUsed) {
-    console.warn(`[Promo] ${promoCode} blocked — already used by ${customerEmail}`);
+    logWarn(`[Promo] ${promoCode} blocked — already used by ${customerEmail}`);
     return { promoDiscount: 0, appliedPromo: null };
   }
 
-  const eligibleSubtotal = items.reduce((sum, it) => {
-    const p = it.product as any;
-    const hasProductDiscount = p && (
-      (p.salePrice && p.salePrice > 0 && p.salePrice < (p.price || 0)) ||
-      (p.discountPercent > 0) ||
-      (it.size != null && p.sizeDiscounts?.[it.size] > 0)
-    );
-    if (hasProductDiscount) return sum;
-    return sum + it.price * it.quantity;
-  }, 0);
-
-  let promoDiscount = 0;
-  if (promo.discountPercent) {
-    promoDiscount = Math.round(eligibleSubtotal * (promo.discountPercent / 100));
-  } else if (promo.discountAmount) {
-    promoDiscount = promo.discountAmount;
-  }
-  promoDiscount = Math.min(promoDiscount, eligibleSubtotal);
+  const eligibleSubtotal = computePromoEligibleSubtotal(items);
+  const promoDiscount = computePromoDiscount(promo, eligibleSubtotal);
 
   if (promoDiscount > 0) {
-    console.log(`[Promo] Applied ${promoCode}: -${promoDiscount / 100} RUB (eligible subtotal ${eligibleSubtotal / 100} RUB)`);
+    logInfo(`[Promo] Applied ${promoCode}: -${promoDiscount / 100} RUB (eligible subtotal ${eligibleSubtotal / 100} RUB)`);
   }
   return { promoDiscount, appliedPromo: promo };
 }
@@ -208,107 +213,7 @@ const THROTTLE_DELAY_BULK_MS = 400; // 400ms delay for bulk operations (YDB Serv
 const throttle = () => new Promise(resolve => setTimeout(resolve, THROTTLE_DELAY_MS));
 const throttleBulk = () => new Promise(resolve => setTimeout(resolve, THROTTLE_DELAY_BULK_MS));
 
-// Standard size order for sorting (from smallest to largest)
-const SIZE_ORDER: Record<string, number> = {
-  '3XS': 1, 'XXS': 2, 'XS': 3, 'S': 4, 'M': 5, 'L': 6, 'XL': 7, 'XXL': 8, 'XXXL': 9, '3XL': 9, '4XL': 10
-};
-
-// Sort sizes in logical order
-// Sanitize the SEO body HTML block entered in the admin product editor:
-// - strips <title> entirely (invalid outside <head>, would just be dead weight in the page body)
-// - downgrades <h1> to <h2> so it never duplicates the product page's own <h1> (the product name)
-// Everything else (<p>, <strong>, <ul>, <li>, etc.) passes through untouched.
-function sanitizeHtmlBlock(html: string): string {
-  if (!html) return '';
-  return html
-    .replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '')
-    .replace(/<h1(\s[^>]*)?>/gi, '<h2$1>')
-    .replace(/<\/h1>/gi, '</h2>')
-    .trim();
-}
-
-/**
- * Escapes raw control characters (U+0000–U+001F) that appear inside JSON
- * string literals — the most common cause of "Bad control character" errors
- * when users paste multi-line HTML into a JSON-LD textarea.
- * Uses a simple state machine so only chars INSIDE strings are touched;
- * whitespace between JSON tokens is left alone.
- */
-function sanitizeJsonLd(raw: string): string {
-  if (!raw) return '';
-  try {
-    JSON.parse(raw);
-    return raw; // already valid — nothing to do
-  } catch {
-    // Walk char-by-char, escape control chars only inside string literals
-    let result = '';
-    let inString = false;
-    let escaped = false;
-    const ESC: Record<string, string> = {
-      '\n': '\\n', '\r': '\\r', '\t': '\\t', '\b': '\\b', '\f': '\\f',
-    };
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (escaped) { result += c; escaped = false; continue; }
-      if (c === '\\' && inString) { result += c; escaped = true; continue; }
-      if (c === '"') { inString = !inString; result += c; continue; }
-      if (inString && c.charCodeAt(0) < 0x20) {
-        result += ESC[c] ?? `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`;
-        continue;
-      }
-      result += c;
-    }
-    return result;
-  }
-}
-
-function sortSizes(sizes: string[]): string[] {
-  return sizes.sort((a, b) => {
-    const orderA = SIZE_ORDER[a.toUpperCase()] ?? 100;
-    const orderB = SIZE_ORDER[b.toUpperCase()] ?? 100;
-    if (orderA !== orderB) return orderA - orderB;
-    return a.localeCompare(b);
-  });
-}
-
-// Normalize size key for comparison (remove spaces and parentheses, lowercase)
-// Standard clothing sizes — used to distinguish legitimate sold-out sizes from garbage 1C artifacts
-const STANDARD_CLOTHING_SIZES = new Set([
-  "XXS","XS","S","M","L","XL","XXL","XXXL","3XL","2XL","4XL","5XL","XXXXL",
-  "44","46","48","50","52","54","56","58","60","62",
-]);
-
-function normalizeSizeKey(s: string): string {
-  return s.replace(/[\s()]/g, '').toLowerCase();
-}
-
-// Canonicalize size key for storage — converts all "one size" variants to "OneSize"
-function canonicalizeSizeKey(s: string): string {
-  if (!s) return s;
-  const norm = normalizeSizeKey(s);
-  if (norm === 'onesize' || norm === 'one') return 'OneSize';
-  return s;
-}
-
-// Resolve available stock for a given size string from sizeStock map.
-// Handles legacy key variants like "One Size", "(OneSize)", "OneSize" by normalizing.
-// Returns the maximum stock found among all keys that normalize to the same form.
-// Returns undefined if no matching key found (caller should fallback to product.stock).
-function resolveSizeStock(sizeStock: Record<string, number>, size: string): number | undefined {
-  if (sizeStock[size] !== undefined) {
-    // Exact match found — but still check if a normalized match has higher stock
-    const norm = normalizeSizeKey(size);
-    const matches = Object.entries(sizeStock).filter(([k]) => normalizeSizeKey(k) === norm);
-    if (matches.length > 1) {
-      return Math.max(...matches.map(([, v]) => v));
-    }
-    return sizeStock[size];
-  }
-  const norm = normalizeSizeKey(size);
-  const matches = Object.entries(sizeStock).filter(([k]) => normalizeSizeKey(k) === norm);
-  if (matches.length === 0) return undefined;
-  return Math.max(...matches.map(([, v]) => v));
-}
+// Чистые хелперы размеров/стоков/санитизации вынесены в server/lib/product-utils.ts
 
 // Extract size from offer's ХарактеристикиТовара
 function extractSizeFromOffer(offer: any): string | null {
@@ -407,7 +312,7 @@ function extractStockFromOffer(offer: any): StockInfo {
   // Try Количество at offer level (common in 1C exports)
   if (offer["Количество"] !== undefined) {
     const qty = parseFloat(String(offer["Количество"]).replace(',', '.'));
-    console.log(`[Stock DEBUG] Found Количество: ${offer["Количество"]} -> parsed: ${qty}`);
+    logInfo(`[Stock DEBUG] Found Количество: ${offer["Количество"]} -> parsed: ${qty}`);
     return { stock: isNaN(qty) ? 0 : qty, hasData: true };
   }
   
@@ -488,7 +393,7 @@ async function updateProductSizesFromOffers(
 
       const sizes = sortSizes(filteredSizes);
       if (sizes.length > 0) {
-        console.log(`[Sizes] Updating ${product.name}: ${sizes.join(', ')}`);
+        logInfo(`[Sizes] Updating ${product.name}: ${sizes.join(', ')}`);
         await storage.updateProduct(product.id, { sizes, skipCacheClear: true } as any);
         await throttleBulk();
         updated++;
@@ -511,7 +416,7 @@ interface ProductPriceData {
 }
 
 function collectPricesFromOffers(offersArray: any[], priceTypesMap: Map<string, string>): Map<string, ProductPriceData> {
-  console.log(`[Stock COLLECT] Starting collectPricesFromOffers with ${offersArray.length} offers`);
+  logInfo(`[Stock COLLECT] Starting collectPricesFromOffers with ${offersArray.length} offers`);
   const productPrices = new Map<string, ProductPriceData>();
   
   // Debug: IDs of longsleeves we're tracking
@@ -519,7 +424,7 @@ function collectPricesFromOffers(offersArray: any[], priceTypesMap: Map<string, 
   
   // Log first offer structure to understand format
   if (offersArray.length > 0) {
-    console.log(`[Stock COLLECT] First offer sample:`, JSON.stringify(offersArray[0]).slice(0, 800));
+    logInfo(`[Stock COLLECT] First offer sample:`, JSON.stringify(offersArray[0]).slice(0, 800));
   }
   
   for (const offer of offersArray) {
@@ -533,7 +438,7 @@ function collectPricesFromOffers(offersArray: any[], priceTypesMap: Map<string, 
     
     // Debug logging for longsleeves
     if (debugIds.some(id => baseId.includes(id) || externalId?.includes(id))) {
-      console.log(`[DEBUG LONGSLEEVE] externalId: ${externalId}, baseId: ${baseId}, stock: ${stockInfo.stock}, hasData: ${stockInfo.hasData}, offer:`, JSON.stringify(offer).slice(0, 500));
+      logInfo(`[DEBUG LONGSLEEVE] externalId: ${externalId}, baseId: ${baseId}, stock: ${stockInfo.stock}, hasData: ${stockInfo.hasData}, offer:`, JSON.stringify(offer).slice(0, 500));
     }
     
     const existing = productPrices.get(baseId);
@@ -595,7 +500,7 @@ function collectPricesFromOffers(offersArray: any[], priceTypesMap: Map<string, 
 
 async function processStockNotifications(productId: number, productName: string, oldSizeStock: Record<string, number> | null, newSizeStock: Record<string, number>, imageUrl?: string, slug?: string): Promise<void> {
   try {
-    console.log(`[StockNotify] Checking product ${productId} "${productName}": old=${JSON.stringify(oldSizeStock)}, new=${JSON.stringify(newSizeStock)}`);
+    logInfo(`[StockNotify] Checking product ${productId} "${productName}": old=${JSON.stringify(oldSizeStock)}, new=${JSON.stringify(newSizeStock)}`);
     const sizesBackInStock: string[] = [];
     for (const [size, newCount] of Object.entries(newSizeStock)) {
       if (newCount > 0) {
@@ -606,7 +511,7 @@ async function processStockNotifications(productId: number, productName: string,
       }
     }
     if (sizesBackInStock.length === 0) {
-      console.log(`[StockNotify] No sizes back in stock, skipping`);
+      logInfo(`[StockNotify] No sizes back in stock, skipping`);
       return;
     }
 
@@ -614,11 +519,11 @@ async function processStockNotifications(productId: number, productName: string,
     for (const size of sizesBackInStock) {
       const subscribers = await storage.getUnnotifiedByProductAndSize(productId, size);
       if (subscribers.length === 0) {
-        console.log(`[StockNotify] No subscribers for "${productName}" size ${size}`);
+        logInfo(`[StockNotify] No subscribers for "${productName}" size ${size}`);
         continue;
       }
 
-      console.log(`[StockNotify] Sending ${subscribers.length} notifications for "${productName}" size ${size}`);
+      logInfo(`[StockNotify] Sending ${subscribers.length} notifications for "${productName}" size ${size}`);
       const productUrl = slug ? `${baseUrl}/${slug}` : `${baseUrl}/products/${productId}`;
       const html = getStockNotificationEmailHtml(productName, size, productUrl, imageUrl);
       const ids: string[] = [];
@@ -628,22 +533,22 @@ async function processStockNotifications(productId: number, productName: string,
           await sendEmail({ to: sub.email, subject: `${productName} (${size}) снова в наличии!`, html });
           ids.push(sub.id);
         } catch (e) {
-          console.error(`[StockNotify] Failed to send to ${sub.email}:`, e);
+          logError(`[StockNotify] Failed to send to ${sub.email}:`, e);
         }
       }
       if (ids.length > 0) {
         await storage.markStockNotificationsNotified(ids);
-        console.log(`[StockNotify] Marked ${ids.length} notifications as sent for "${productName}" size ${size}`);
+        logInfo(`[StockNotify] Marked ${ids.length} notifications as sent for "${productName}" size ${size}`);
       }
     }
   } catch (err) {
-    console.error("[StockNotify] Error processing notifications:", err);
+    logError("[StockNotify] Error processing notifications:", err);
   }
 }
 
 // Update product prices in database (one update per product)
 async function updateProductPricesFromOffers(productPrices: Map<string, ProductPriceData>): Promise<number> {
-  console.log(`[Stock PROCESS] Starting updateProductPricesFromOffers with ${productPrices.size} products`);
+  logInfo(`[Stock PROCESS] Starting updateProductPricesFromOffers with ${productPrices.size} products`);
   let updated = 0;
   
   let hidden = 0;
@@ -690,7 +595,7 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
         if (Object.keys(priceData.sizeCharacteristicIds).length > 0) {
           updateData.sizeCharacteristicIds = priceData.sizeCharacteristicIds;
         }
-        console.log(`[Stock SAVE] Product "${existing.name}" (${existing.id}): stock=${priceData.totalStock}, sizeStock=${JSON.stringify(priceData.sizeStock)}, charIds=${JSON.stringify(priceData.sizeCharacteristicIds)}`);
+        logInfo(`[Stock SAVE] Product "${existing.name}" (${existing.id}): stock=${priceData.totalStock}, sizeStock=${JSON.stringify(priceData.sizeStock)}, charIds=${JSON.stringify(priceData.sizeCharacteristicIds)}`);
         
         const hasOverride = (existing as any).autoHideOverride === true;
         const isPreorder = (existing as any).preorderEnabled === true;
@@ -700,16 +605,16 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
           updateData.inStock = false;
           hidden++;
           hiddenProducts.push({ id: existing.id, name: existing.name, stock: priceData.totalStock });
-          console.log(`[Stock] Hiding product "${existing.name}" (stock: ${priceData.totalStock})`);
+          logInfo(`[Stock] Hiding product "${existing.name}" (stock: ${priceData.totalStock})`);
         } else if (shouldBeHidden && (hasOverride || isPreorder)) {
           updateData.inStock = false;
-          console.log(`[Stock] Product "${existing.name}" not auto-hiding (stock: ${priceData.totalStock}, override: ${hasOverride}, preorder: ${isPreorder})`);
+          logInfo(`[Stock] Product "${existing.name}" not auto-hiding (stock: ${priceData.totalStock}, override: ${hasOverride}, preorder: ${isPreorder})`);
         } else if (!shouldBeHidden && existing.isHidden && !hasOverride) {
           // Re-show product if stock became positive (but was auto-hidden before, not manually overridden)
           updateData.isHidden = false;
           updateData.inStock = true;
           shown++;
-          console.log(`[Stock] Showing product "${existing.name}" (stock: ${priceData.totalStock})`);
+          logInfo(`[Stock] Showing product "${existing.name}" (stock: ${priceData.totalStock})`);
         } else if (!shouldBeHidden) {
           // Stock > 0 and product is already visible — ensure inStock is true
           updateData.inStock = true;
@@ -737,7 +642,7 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
     vkNotifyAgentAlert(alertText);
   }
 
-  console.log(`[Prices] Updated prices for ${updated} products, hidden: ${hidden}, shown: ${shown}`);
+  logInfo(`[Prices] Updated prices for ${updated} products, hidden: ${hidden}, shown: ${shown}`);
   return updated;
 }
 
@@ -747,7 +652,7 @@ async function loadExistingFilesFromStorage(forceRefresh: boolean = false): Prom
   const now = Date.now();
   // Return cached data if fresh enough (unless force refresh)
   if (!forceRefresh && existingFilesCache.size > 0 && (now - existingFilesCacheTime) < CACHE_TTL) {
-    console.log(`[Storage] Using cached files list (${existingFilesCache.size} files, age: ${now - existingFilesCacheTime}ms)`);
+    logInfo(`[Storage] Using cached files list (${existingFilesCache.size} files, age: ${now - existingFilesCacheTime}ms)`);
     return;
   }
   
@@ -756,17 +661,17 @@ async function loadExistingFilesFromStorage(forceRefresh: boolean = false): Prom
   }
   
   try {
-    console.log(`[Storage] Loading existing files list from Object Storage... (forceRefresh: ${forceRefresh})`);
+    logInfo(`[Storage] Loading existing files list from Object Storage... (forceRefresh: ${forceRefresh})`);
     const files = await listObjectsFromYandexStorage('products/');
     existingFilesCache = new Set(files);
     existingFilesCacheTime = now;
-    console.log(`[Storage] Loaded ${existingFilesCache.size} existing files from Object Storage`);
+    logInfo(`[Storage] Loaded ${existingFilesCache.size} existing files from Object Storage`);
     
     // Log first 10 files for debugging
     const filesList = Array.from(existingFilesCache).slice(0, 10);
-    console.log(`[Storage] Sample files: ${filesList.join(', ')}`);
+    logInfo(`[Storage] Sample files: ${filesList.join(', ')}`);
   } catch (error) {
-    console.error('[Storage] Failed to load files list:', error);
+    logError('[Storage] Failed to load files list:', error);
   }
 }
 
@@ -793,9 +698,9 @@ function getImageUrl(imgPath: string | null, existingFiles: Set<string>): string
   const s3Key = `products/${flatFilename}`;
   
   if (existingFiles.has(s3Key)) {
-    console.log(`[getImageUrl] Found in S3: ${s3Key}`);
+    logInfo(`[getImageUrl] Found in S3: ${s3Key}`);
   } else {
-    console.log(`[getImageUrl] Will be uploaded: ${s3Key}`);
+    logInfo(`[getImageUrl] Will be uploaded: ${s3Key}`);
   }
   
   return `https://storage.yandexcloud.net/${bucket}/${s3Key}`;
@@ -804,7 +709,7 @@ function getImageUrl(imgPath: string | null, existingFiles: Set<string>): string
 // Helper to get thumbnail URL from image URL
 function getThumbnailUrl(imageUrl: string | null): string | null {
   if (!imageUrl) return null;
-  console.log(`[getThumbnailUrl] Using main image for thumbnail: ${imageUrl}`);
+  logInfo(`[getThumbnailUrl] Using main image for thumbnail: ${imageUrl}`);
   // If we don't have separate thumbnails, just use the main image
   return imageUrl;
 }
@@ -831,10 +736,10 @@ async function generate1cThumbUrl(imageUrl: string): Promise<string | null> {
     await uploadToYandexStorage(thumbBuffer, thumbFilename, 'image/webp');
     const bucket = process.env.YANDEX_STORAGE_BUCKET_NAME || "bmg";
     const thumbUrl = `https://storage.yandexcloud.net/${bucket}/${thumbKey}`;
-    console.log(`[1C IMPORT] Thumb generated: ${thumbFilename}`);
+    logInfo(`[1C IMPORT] Thumb generated: ${thumbFilename}`);
     return thumbUrl;
   } catch (err: any) {
-    console.error(`[1C IMPORT] Thumb gen failed for ${imageUrl}: ${err.message}`);
+    logError(`[1C IMPORT] Thumb gen failed for ${imageUrl}: ${err.message}`);
     return null;
   }
 }
@@ -872,7 +777,7 @@ async function pollCdekStatuses() {
       return;
     }
     
-    console.log(`[CDEK Poll] Checking ${activeOrders.length} active orders...`);
+    logInfo(`[CDEK Poll] Checking ${activeOrders.length} active orders...`);
     
     for (const order of activeOrders) {
       let cdekInfo: any = {};
@@ -948,17 +853,17 @@ async function pollCdekStatuses() {
                     pointAddress: cdekInfo.pointAddress || undefined,
                   }),
                 });
-                console.log(`[CDEK Poll] Sent tracking email for order #${order.id} to ${customerEmail}, track: ${cdekInfo.cdekNumber}`);
+                logInfo(`[CDEK Poll] Sent tracking email for order #${order.id} to ${customerEmail}, track: ${cdekInfo.cdekNumber}`);
               }
             }
           } catch (emailErr: any) {
-            console.error(`[CDEK Poll] Failed to send tracking email for order #${order.id}:`, emailErr.message);
+            logError(`[CDEK Poll] Failed to send tracking email for order #${order.id}:`, emailErr.message);
           }
         }
 
         if (newOrderStatus && newOrderStatus !== order.status) {
           await storage.updateOrderStatus(order.id, newOrderStatus);
-          console.log(`[CDEK Poll] Order #${order.id}: ${order.status} -> ${newOrderStatus} (CDEK: ${cdekCode})`);
+          logInfo(`[CDEK Poll] Order #${order.id}: ${order.status} -> ${newOrderStatus} (CDEK: ${cdekCode})`);
           
           // Sync to Bitrix24 — fully fire-and-forget with catches on EVERY
           // promise in the chain so a failure here can never bubble up as an
@@ -969,14 +874,14 @@ async function pollCdekStatuses() {
             import('./bitrix24')
               .then(({ syncOrderStatusToBitrix }) =>
                 syncOrderStatusToBitrix(order.id, newOrderStatus!, dealId).catch(err =>
-                  console.error(`[CDEK Poll] Bitrix sync failed for order ${order.id}:`, err?.message || err)
+                  logError(`[CDEK Poll] Bitrix sync failed for order ${order.id}:`, err?.message || err)
                 )
               )
               .catch(err =>
-                console.error(`[CDEK Poll] Bitrix import failed for order ${order.id}:`, err?.message || err)
+                logError(`[CDEK Poll] Bitrix import failed for order ${order.id}:`, err?.message || err)
               );
           }).catch(err =>
-            console.error(`[CDEK Poll] getOrderBitrixDealId failed for order ${order.id}:`, err?.message || err)
+            logError(`[CDEK Poll] getOrderBitrixDealId failed for order ${order.id}:`, err?.message || err)
           );
         }
         
@@ -986,16 +891,16 @@ async function pollCdekStatuses() {
         if (err.message?.includes('CDEK API error: 400')) {
           cdekInfo.cdekNotFound = true;
           await storage.updateOrderCdekData(order.id, JSON.stringify(cdekInfo)).catch(() => {});
-          console.warn(`[CDEK Poll] Order #${order.id}: UUID не найден в CDEK, больше не опрашиваем`);
+          logWarn(`[CDEK Poll] Order #${order.id}: UUID не найден в CDEK, больше не опрашиваем`);
         } else {
-          console.error(`[CDEK Poll] Error checking order #${order.id}:`, err.message);
+          logError(`[CDEK Poll] Error checking order #${order.id}:`, err.message);
         }
       }
     }
     
-    console.log(`[CDEK Poll] Done checking ${activeOrders.length} orders`);
+    logInfo(`[CDEK Poll] Done checking ${activeOrders.length} orders`);
   } catch (err: any) {
-    console.error('[CDEK Poll] Error:', err.message);
+    logError('[CDEK Poll] Error:', err.message);
   } finally {
     isCdekPolling = false;
   }
@@ -1013,10 +918,10 @@ async function cleanupExpiredDrafts() {
     // Помечаем заказы как expired через 30 дней (не удаляем!)
     const expired = await storage.deleteExpiredDraftOrders(30 * 24 * 60);
     if (expired > 0) {
-      console.log(`[Draft Cleanup] Marked ${expired} draft orders as expired (30d)`);
+      logInfo(`[Draft Cleanup] Marked ${expired} draft orders as expired (30d)`);
     }
   } catch (err: any) {
-    console.error(`[Draft Cleanup] Error:`, err.message);
+    logError(`[Draft Cleanup] Error:`, err.message);
   }
 }
 setTimeout(() => {
@@ -1040,10 +945,10 @@ async function autoConfirmExpiredHolds() {
       }
     }
     if (confirmed > 0) {
-      console.log(`[HoldAutoConfirm] Confirmed ${confirmed} commission(s) with expired hold`);
+      logInfo(`[HoldAutoConfirm] Confirmed ${confirmed} commission(s) with expired hold`);
     }
   } catch (err: any) {
-    console.error('[HoldAutoConfirm] Error:', err.message);
+    logError('[HoldAutoConfirm] Error:', err.message);
   }
 }
 // First run after 5 seconds (covers commissions already expired at startup), then every hour
@@ -1063,9 +968,9 @@ export async function syncArtistPagesToMerchSubcategories(storageRef: any): Prom
       const name: string = (artistPages[slug]?.name && String(artistPages[slug].name).trim()) || slug;
       await autoAddSubcategory("merch", name, storageRef);
     }
-    console.log(`[AutoSubcat] Startup sync: checked ${slugs.length} artist pages against merch subcategories`);
+    logInfo(`[AutoSubcat] Startup sync: checked ${slugs.length} artist pages against merch subcategories`);
   } catch (e) {
-    console.error("[AutoSubcat] Startup sync error:", e);
+    logError("[AutoSubcat] Startup sync error:", e);
   }
 }
 
@@ -1088,7 +993,7 @@ async function autoAddSubcategory(categorySlug: string, subcategoryName: string,
     }
 
     if (!categories[categorySlug]) {
-      console.log(`[AutoSubcat] Category "${categorySlug}" not found in config, skipping`);
+      logInfo(`[AutoSubcat] Category "${categorySlug}" not found in config, skipping`);
       autoAddedSubcategoriesCache.add(cacheKey);
       return;
     }
@@ -1109,9 +1014,9 @@ async function autoAddSubcategory(categorySlug: string, subcategoryName: string,
 
     await storageRef.setPageSectionSettings("site_config", "categories_data", categories);
     autoAddedSubcategoriesCache.add(cacheKey);
-    console.log(`[AutoSubcat] Added new subcategory "${subcategoryName}" to "${categorySlug}"`);
+    logInfo(`[AutoSubcat] Added new subcategory "${subcategoryName}" to "${categorySlug}"`);
   } catch (e) {
-    console.error(`[AutoSubcat] Error adding subcategory "${subcategoryName}" to "${categorySlug}":`, e);
+    logError(`[AutoSubcat] Error adding subcategory "${subcategoryName}" to "${categorySlug}":`, e);
   }
 }
 
@@ -1175,14 +1080,14 @@ export async function registerRoutes(
           storage.setBonusSetting(OZON_OAUTH_KEYS.refreshToken, "").catch(() => {}),
           storage.setBonusSetting(OZON_OAUTH_KEYS.expiresAt, "").catch(() => {}),
         ]);
-        console.log("[OzonDelivery OAuth] Недействительные токены очищены из YDB");
+        logInfo("[OzonDelivery OAuth] Недействительные токены очищены из YDB");
       } else {
         await Promise.all([
           storage.setBonusSetting(OZON_OAUTH_KEYS.accessToken, accessToken).catch(() => {}),
           storage.setBonusSetting(OZON_OAUTH_KEYS.refreshToken, refreshToken).catch(() => {}),
           storage.setBonusSetting(OZON_OAUTH_KEYS.expiresAt, String(expiresAt)).catch(() => {}),
         ]);
-        console.log("[OzonDelivery OAuth] Токены сохранены в YDB после авто-рефреша");
+        logInfo("[OzonDelivery OAuth] Токены сохранены в YDB после авто-рефреша");
       }
     });
     // Загружаем сохранённые OAuth-токены из БД
@@ -1194,23 +1099,23 @@ export async function registerRoutes(
       ]);
       if (accessToken && refreshToken && expiresAtStr) {
         ozonDeliveryOAuth.loadTokensFromStorage(accessToken, refreshToken, Number(expiresAtStr));
-        console.log("[OzonDelivery] OAuth-токены загружены из хранилища");
+        logInfo("[OzonDelivery] OAuth-токены загружены из хранилища");
       } else {
-        console.log("[OzonDelivery] OAuth-токенов нет — авторизуйте приложение в Admin → Интеграции");
+        logInfo("[OzonDelivery] OAuth-токенов нет — авторизуйте приложение в Admin → Интеграции");
       }
     } catch (e: any) {
-      console.warn("[OzonDelivery] Не удалось загрузить OAuth-токены:", e.message);
+      logWarn("[OzonDelivery] Не удалось загрузить OAuth-токены:", e.message);
     }
     // Флаг включения в чекауте
     const ozonDeliveryFlag = await storage.getBonusSetting("ozon_delivery_enabled").catch(() => null);
     if (ozonDeliveryFlag === "true") {
       ozonDeliveryService.setEnabled(true);
-      console.log("[OzonDelivery] Доставка включена (ozon_delivery_enabled=true)");
+      logInfo("[OzonDelivery] Доставка включена (ozon_delivery_enabled=true)");
     } else {
-      console.log("[OzonDelivery] Credentials загружены, доставка выключена (включить в Admin → Интеграции)");
+      logInfo("[OzonDelivery] Credentials загружены, доставка выключена (включить в Admin → Интеграции)");
     }
   } else {
-    console.log("[OzonDelivery] OZON_CLIENT_ID или OZON_CLIENT_SECRET не заданы — доставка недоступна");
+    logInfo("[OzonDelivery] OZON_CLIENT_ID или OZON_CLIENT_SECRET не заданы — доставка недоступна");
   }
 
   // ==================== Legacy URL Redirects (booomerangs.ru compatibility) ====================
@@ -1343,7 +1248,7 @@ export async function registerRoutes(
         }
       }
     } catch (e) {
-      console.error("[SlugRedirect] parse error:", e);
+      logError("[SlugRedirect] parse error:", e);
     }
     slugRedirectCache = map;
     slugRedirectCacheTs = now;
@@ -1420,7 +1325,7 @@ export async function registerRoutes(
   app.post("/api/admin/1c-sync-toggle", authMiddleware, adminAuthMiddleware, (req, res) => {
     const { enabled } = req.body;
     is1CSyncEnabled = !!enabled;
-    console.log(`[1C] Sync ${is1CSyncEnabled ? 'ENABLED' : 'DISABLED'} by admin`);
+    logInfo(`[1C] Sync ${is1CSyncEnabled ? 'ENABLED' : 'DISABLED'} by admin`);
     res.json({ enabled: is1CSyncEnabled });
   });
 
@@ -1484,10 +1389,10 @@ export async function registerRoutes(
     type.send(normalizedXml);
   }
   function serveStaleXmlOrError(res: express.Response, cacheKey: string, label: string, err: unknown) {
-    console.error(`[SEO] ${label} generation error:`, err);
+    logError(`[SEO] ${label} generation error:`, err);
     const cached = generatedXmlCache[cacheKey];
     if (cached) {
-      console.warn(`[SEO] ${label}: serving stale cached copy from ${new Date(cached.generatedAt).toISOString()}`);
+      logWarn(`[SEO] ${label}: serving stale cached copy from ${new Date(cached.generatedAt).toISOString()}`);
       res.type("application/xml").send(cached.xml);
     } else {
       res.status(500).type("text/plain").send(`${label} generation failed`);
@@ -1731,9 +1636,9 @@ ${productLines || "- (список формируется)"}
       llmsTextCache = { text: llmsText, generatedAt: Date.now() };
       res.type("text/plain").send(llmsText);
     } catch (err) {
-      console.error("[SEO] llms.txt generation error:", err);
+      logError("[SEO] llms.txt generation error:", err);
       if (llmsTextCache) {
-        console.warn(`[SEO] llms.txt: serving stale cached copy from ${new Date(llmsTextCache.generatedAt).toISOString()}`);
+        logWarn(`[SEO] llms.txt: serving stale cached copy from ${new Date(llmsTextCache.generatedAt).toISOString()}`);
         res.type("text/plain").send(llmsTextCache.text);
       } else {
         res.type("text/plain").send("# BMGBRAND\n\n> Российский бренд одежды с авторскими принтами. Доставка по всей России.");
@@ -1948,9 +1853,9 @@ ${faqSection}
       llmsFullTextCache = { text: llmsFullText, generatedAt: Date.now() };
       res.type("text/plain").send(llmsFullText);
     } catch (err) {
-      console.error("[SEO] llms-full.txt generation error:", err);
+      logError("[SEO] llms-full.txt generation error:", err);
       if (llmsFullTextCache) {
-        console.warn(`[SEO] llms-full.txt: serving stale cached copy from ${new Date(llmsFullTextCache.generatedAt).toISOString()}`);
+        logWarn(`[SEO] llms-full.txt: serving stale cached copy from ${new Date(llmsFullTextCache.generatedAt).toISOString()}`);
         res.type("text/plain").send(llmsFullTextCache.text);
       } else {
         res.type("text/plain").send("# BMGBRAND / Booomerangs\n\n> Российский бренд одежды с авторскими принтами. Доставка по всей России.");
@@ -2295,7 +2200,7 @@ ${faqSection}
       xml += `</yml_catalog>`;
 
       serveGeneratedXml(res, "yml-feed.xml", xml, "ru");
-      console.log(`[YML] Feed generated: ${visibleProducts.length} products`);
+      logInfo(`[YML] Feed generated: ${visibleProducts.length} products`);
     } catch (err) {
       serveStaleXmlOrError(res, "yml-feed.xml", "YML feed", err);
     }
@@ -2484,9 +2389,9 @@ ${faqSection}
       xml += `</yml_catalog>`;
 
       res.type("application/xml").set("Content-Language", "ru").send(xml);
-      console.log(`[OzonFeed] Generated: ${visibleProducts.length} products`);
+      logInfo(`[OzonFeed] Generated: ${visibleProducts.length} products`);
     } catch (err) {
-      console.error("[OzonFeed] Generation error:", err);
+      logError("[OzonFeed] Generation error:", err);
       res.status(500).type("text/plain").send("Ozon feed generation failed");
     }
   });
@@ -2505,7 +2410,7 @@ ${faqSection}
       await storage.createStockNotification(Number(productId), productName || '', size, email);
       res.json({ success: true });
     } catch (err: any) {
-      console.error("[StockNotify] Error:", err);
+      logError("[StockNotify] Error:", err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -2539,7 +2444,7 @@ ${faqSection}
       await storage.createPriceDropSubscription(Number(productId), productName || product.name || '', email, effectiveP);
       res.json({ success: true, alreadySubscribed: false });
     } catch (err: any) {
-      console.error("[PriceDrop] Error:", err);
+      logError("[PriceDrop] Error:", err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -2752,7 +2657,7 @@ ${faqSection}
                   commissionType: 'referral',
                 });
                 commissionsCreated.push(`ref-nonown:${refSlug} ${refRate}% (${refRateSource}) = ${nonOwnAmount / 100}₽`);
-                console.log(`[TestOrder] Artist non-own ref commission: order=${order.id} partner=${refSlug} base=${nonOwnBase / 100} percent=${refRate} (${refRateSource}) amount=${nonOwnAmount / 100}`);
+                logInfo(`[TestOrder] Artist non-own ref commission: order=${order.id} partner=${refSlug} base=${nonOwnBase / 100} percent=${refRate} (${refRateSource}) amount=${nonOwnAmount / 100}`);
               }
 
             } else if (refPartner.commissionOverride != null) {
@@ -2767,7 +2672,7 @@ ${faqSection}
                 commissionType: 'referral',
               });
               commissionsCreated.push(`ref:${refSlug} ${refPartner.commissionOverride}% (override) = ${commissionAmount / 100}₽`);
-              console.log(`[TestOrder] Ref commission: order=${order.id} partner=${refSlug} percent=${refPartner.commissionOverride} (override) amount=${commissionAmount / 100}`);
+              logInfo(`[TestOrder] Ref commission: order=${order.id} partner=${refSlug} percent=${refPartner.commissionOverride} (override) amount=${commissionAmount / 100}`);
 
             } else {
               // Прогрессивная шкала
@@ -2786,13 +2691,13 @@ ${faqSection}
               });
               await storage.recalcMonthlyCommissions(refPartner.id, monthlyYear, monthlyMonth, effectivePercent);
               commissionsCreated.push(`ref:${refSlug} ${effectivePercent}% (${percentSource}) = ${commissionAmount / 100}₽`);
-              console.log(`[TestOrder] Ref commission: order=${order.id} partner=${refSlug} percent=${effectivePercent} (${percentSource}) amount=${commissionAmount / 100}`);
+              logInfo(`[TestOrder] Ref commission: order=${order.id} partner=${refSlug} percent=${effectivePercent} (${percentSource}) amount=${commissionAmount / 100}`);
             }
           } else {
-            console.warn(`[TestOrder] refSlug '${refSlug}' not found or not approved`);
+            logWarn(`[TestOrder] refSlug '${refSlug}' not found or not approved`);
           }
         } catch (e: any) {
-          console.error('[TestOrder] Ref commission error:', e?.message);
+          logError('[TestOrder] Ref commission error:', e?.message);
         }
       }
 
@@ -2821,10 +2726,10 @@ ${faqSection}
             commissionType: 'artist',
           });
           commissionsCreated.push(`artist:${artistSlug} ${artist.artistRate}% = ${commissionAmount / 100}₽`);
-          console.log(`[TestOrder] Artist commission: order=${order.id} artist=${artistSlug} base=${totalAmount / 100} percent=${artist.artistRate} amount=${commissionAmount / 100} type=artist`);
+          logInfo(`[TestOrder] Artist commission: order=${order.id} artist=${artistSlug} base=${totalAmount / 100} percent=${artist.artistRate} amount=${commissionAmount / 100} type=artist`);
         }
       } catch (e: any) {
-        console.error('[TestOrder] Artist commission error:', e?.message);
+        logError('[TestOrder] Artist commission error:', e?.message);
       }
 
       res.json({ success: true, orderId: order.id, total, commissionsCreated });
@@ -2945,7 +2850,7 @@ ${faqSection}
 
       res.json({ updated: nullRows.length, artist: updatedArtist, referral: updatedReferral });
     } catch (err: any) {
-      console.error('[Migrate commission types]', err);
+      logError('[Migrate commission types]', err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -2970,117 +2875,7 @@ ${faqSection}
     }
   });
 
-  // Reviews - public
-  app.get("/api/reviews/:productId", async (req, res) => {
-    try {
-      const productId = parseInt(req.params.productId);
-      if (isNaN(productId)) return res.status(400).json({ error: "Invalid product ID" });
-      const reviews = await storage.getReviewsByProduct(productId);
-      res.json(reviews);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Проверка права на промокод «за отзыв» (для подсказки в форме отзыва)
-  app.get("/api/reviews/eligibility/:productId", authMiddleware, async (req: any, res) => {
-    try {
-      const user = req.user;
-      if (!user) return res.json({ eligible: false });
-      const productId = parseInt(req.params.productId);
-      if (isNaN(productId)) return res.status(400).json({ error: "Invalid product ID" });
-      const email = String(user.email || "").toLowerCase().trim();
-      const eligible = await canEarnReviewPromo(user.id, email, productId);
-      res.json({ eligible });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Upload photo for review (before submitting review)
-  app.post("/api/reviews/upload-photo", authMiddleware, async (req: any, res) => {
-    try {
-      const user = req.user;
-      if (!user) return res.status(401).json({ error: "Необходимо войти в аккаунт" });
-      const { imageData } = req.body;
-      if (!imageData) return res.status(400).json({ error: "imageData is required" });
-      const match = imageData.match(/^data:(image\/[a-zA-Z+]+);base64,/);
-      if (!match) return res.status(400).json({ error: "Invalid image format" });
-      const mimeType = match[1];
-      const ext = mimeType.includes("png") ? "png" : mimeType.includes("webp") ? "webp" : "jpg";
-      const base64Data = imageData.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
-      const buffer = Buffer.from(base64Data, "base64");
-      if (buffer.length > 10 * 1024 * 1024) return res.status(400).json({ error: "Файл слишком большой (макс. 10MB)" });
-      // Resize to max 1200px wide via sharp
-      let processedBuffer = buffer;
-      try {
-        processedBuffer = await sharp(buffer)
-          .resize({ width: 1200, withoutEnlargement: true })
-          .webp({ quality: 85 })
-          .toBuffer() as unknown as Buffer<ArrayBuffer>;
-      } catch { /* use original if sharp fails */ }
-      const filename = `review_images/${Date.now()}_${user.id}.webp`;
-      const url = await uploadToYandexStorage(processedBuffer, filename, "image/webp");
-      if (!url) return res.status(500).json({ error: "Не удалось загрузить фото" });
-      res.json({ url });
-    } catch (err: any) {
-      console.error("[Reviews] Photo upload error:", err.message);
-      res.status(500).json({ error: "Upload failed" });
-    }
-  });
-
-  app.post("/api/reviews", authMiddleware, async (req: any, res) => {
-    try {
-      const user = req.user;
-      if (!user) {
-        return res.status(401).json({ error: "Для отправки отзыва необходимо войти в аккаунт" });
-      }
-      const { productId, rating, comment, photos } = req.body;
-      if (!productId || !rating) {
-        return res.status(400).json({ error: "productId and rating are required" });
-      }
-      if (rating < 1 || rating > 5) {
-        return res.status(400).json({ error: "Rating must be between 1 and 5" });
-      }
-      const photoUrls: string[] = Array.isArray(photos)
-        ? photos.filter((u: any) => typeof u === "string" && u.startsWith("http")).slice(0, 5)
-        : [];
-      const review = await storage.createReview({
-        productId: Number(productId),
-        authorName: user.name,
-        rating: Number(rating),
-        comment: comment ? String(comment).trim() : null,
-        photos: photoUrls as any,
-        userId: user.id,
-      });
-
-      try {
-        const product = await storage.getProduct(Number(productId));
-        notifyNewReview({
-          authorName: user.name || "Аноним",
-          rating: Number(rating),
-          comment: comment ? String(comment).trim() : null,
-          productName: product?.name || `Товар #${productId}`,
-          productId: Number(productId),
-          reviewId: review.id,
-        });
-        vkNotifyNewReview({
-          authorName: user.name || "Аноним",
-          rating: Number(rating),
-          comment: comment ? String(comment).trim() : null,
-          productName: product?.name || `Товар #${productId}`,
-          productId: Number(productId),
-          reviewId: review.id,
-        });
-      } catch (tgErr: any) {
-        console.error("[Reviews] Telegram notify error:", tgErr.message);
-      }
-
-      res.json(review);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
+  registerReviewsRoutes(app);
 
   // Merch order form
   app.post("/api/merch-order", async (req, res) => {
@@ -3120,10 +2915,10 @@ ${faqSection}
           isActive: true,
         });
         await storage.setBonusSetting("popup_promo_id", String(newPromo.id));
-        console.log("[Init] Created WELCOME10 promo code, ID:", newPromo.id);
+        logInfo("[Init] Created WELCOME10 promo code, ID:", newPromo.id);
       } else if (!popupPromoId) {
         await storage.setBonusSetting("popup_promo_id", String(popupPromo.id));
-        console.log("[Init] Stored popup promo ID:", popupPromo.id);
+        logInfo("[Init] Stored popup promo ID:", popupPromo.id);
       }
       
       // Find or create homepage promo
@@ -3138,13 +2933,13 @@ ${faqSection}
           isActive: true,
         });
         await storage.setBonusSetting("homepage_promo_id", String(newPromo.id));
-        console.log("[Init] Created WELCOME7 promo code, ID:", newPromo.id);
+        logInfo("[Init] Created WELCOME7 promo code, ID:", newPromo.id);
       } else if (!homepagePromoId) {
         await storage.setBonusSetting("homepage_promo_id", String(homepagePromo.id));
-        console.log("[Init] Stored homepage promo ID:", homepagePromo.id);
+        logInfo("[Init] Stored homepage promo ID:", homepagePromo.id);
       }
     } catch (err) {
-      console.error("[Init] Failed to create default promo codes:", err);
+      logError("[Init] Failed to create default promo codes:", err);
     }
   })();
 
@@ -3166,13 +2961,13 @@ ${faqSection}
     .replace('https://www.', 'https://')
     .replace('http://www.', 'http://');
   registerWholesaleWebhook(`${tgWebhookBase}/api/auth/telegram/webhook`).catch(err => {
-    console.error('[Init] Failed to register Telegram webhook:', err);
+    logError('[Init] Failed to register Telegram webhook:', err);
   });
 
   // Register chat webhook for retail bot (replies from admin)
   setTimeout(() => {
     registerChatWebhook(`${tgWebhookBase}/api/telegram/chat-webhook`).catch(err => {
-      console.error('[Init] Failed to register chat webhook:', err);
+      logError('[Init] Failed to register chat webhook:', err);
     });
   }, 2000);
 
@@ -3181,7 +2976,7 @@ ${faqSection}
     startVkLongPoll(async (vkMessageId, replyText, adminName) => {
       const sessionId = await storage.getSessionIdByVkMessageId(vkMessageId);
       if (!sessionId) {
-        console.warn(`[VK LongPoll] Session not found for vk_message_id=${vkMessageId}`);
+        logWarn(`[VK LongPoll] Session not found for vk_message_id=${vkMessageId}`);
         return;
       }
       const { randomUUID } = await import("crypto");
@@ -3194,7 +2989,7 @@ ${faqSection}
         userName: adminName,
       });
       chatCacheInvalidate(sessionId);
-      console.log(`[VK LongPoll] Admin reply saved for session ${sessionId.slice(0, 8)}`);
+      logInfo(`[VK LongPoll] Admin reply saved for session ${sessionId.slice(0, 8)}`);
     });
   }, 3000);
 
@@ -3238,32 +3033,32 @@ ${faqSection}
   app.post("/api/chat/upload-image", authMiddleware, async (req: any, res) => {
     try {
       const { imageData, sessionId } = req.body;
-      console.log(`[Chat] Upload image request: sessionId=${sessionId?.slice(0, 8)}, hasImageData=${!!imageData}, dataLength=${imageData?.length || 0}`);
+      logInfo(`[Chat] Upload image request: sessionId=${sessionId?.slice(0, 8)}, hasImageData=${!!imageData}, dataLength=${imageData?.length || 0}`);
       if (!imageData || !sessionId) {
         return res.status(400).json({ error: "imageData and sessionId are required" });
       }
       const match = imageData.match(/^data:(image\/[a-zA-Z+]+);base64,/);
       if (!match) {
-        console.error("[Chat] Invalid image data format");
+        logError("[Chat] Invalid image data format");
         return res.status(400).json({ error: "Invalid image data" });
       }
       const mimeType = match[1];
       const ext = mimeType.includes("png") ? "png" : mimeType.includes("webp") ? "webp" : "jpg";
       const base64Data = imageData.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
       const buffer = Buffer.from(base64Data, "base64");
-      console.log(`[Chat] Image buffer size: ${buffer.length} bytes, type: ${mimeType}`);
+      logInfo(`[Chat] Image buffer size: ${buffer.length} bytes, type: ${mimeType}`);
       if (buffer.length > 5 * 1024 * 1024) {
         return res.status(400).json({ error: "Image too large (max 5MB)" });
       }
       const filename = `chat_images/chat_${sessionId.slice(0, 8)}_${Date.now()}.${ext}`;
       const url = await uploadToYandexStorage(buffer, filename, mimeType);
-      console.log(`[Chat] S3 upload result: ${url ? url : 'NULL (failed)'}`);
+      logInfo(`[Chat] S3 upload result: ${url ? url : 'NULL (failed)'}`);
       if (!url) {
         return res.status(500).json({ error: "Failed to upload image" });
       }
       res.json({ url });
     } catch (err: any) {
-      console.error("[Chat] Image upload error:", err.message);
+      logError("[Chat] Image upload error:", err.message);
       res.status(500).json({ error: "Upload failed" });
     }
   });
@@ -3298,7 +3093,7 @@ ${faqSection}
       chatCacheInvalidate(sessionId);
       res.json({ success: true, messageId, timestamp });
     } catch (err: any) {
-      console.error("[Chat] Error saving message:", err.message);
+      logError("[Chat] Error saving message:", err.message);
       res.status(500).json({ error: "Failed to send message" });
     }
   });
@@ -3315,13 +3110,14 @@ ${faqSection}
       chatCacheSet(sessionId, since, messages);
       res.json({ messages });
     } catch (err: any) {
-      console.error("[Chat] Error fetching messages:", err.message);
+      logError("[Chat] Error fetching messages:", err.message);
       res.status(500).json({ error: "Failed to fetch messages" });
     }
   });
 
   registerAiChatRoute(app);
   registerProductInfoRoute(app);
+  registerOllamaRoutes(app);
 
   // ─── Proactive chat stats ────────────────────────────────────────────────────
   registerProactiveStatsRoutes(app, checkAdminKey);
@@ -3402,25 +3198,25 @@ ${faqSection}
         const success = await authStorage.approveWholesale(numId, true, 30);
         if (!success) return res.send(htmlPage(false, "Не удалось найти пользователя или он уже обработан."));
         await authStorage.verifyEmailAdmin(numId);
-        console.log(`[VK Action] Wholesale user ${numId} approved`);
+        logInfo(`[VK Action] Wholesale user ${numId} approved`);
         return res.send(htmlPage(true, "Клиент принят. Скидка 30% активирована, письмо отправлено."));
 
       } else if (act === "wh_reject") {
         const success = await authStorage.approveWholesale(numId, false, 0);
         if (!success) return res.send(htmlPage(false, "Не удалось найти пользователя или он уже обработан."));
-        console.log(`[VK Action] Wholesale user ${numId} rejected`);
+        logInfo(`[VK Action] Wholesale user ${numId} rejected`);
         return res.send(htmlPage(true, "Заявка отклонена."));
 
       } else if (act === "review_approve" || act === "review_reject") {
         // Модерация отзывов перенесена в админку — старые ссылки больше не выполняют действий.
-        console.log(`[VK Action] Review moderation via VK disabled (act=${act}, id=${numId})`);
+        logInfo(`[VK Action] Review moderation via VK disabled (act=${act}, id=${numId})`);
         return res.status(403).send(htmlPage(false, "Модерация отзывов перенесена в админку сайта."));
 
       } else {
         return res.status(400).send(htmlPage(false, "Неизвестное действие."));
       }
     } catch (err: any) {
-      console.error("[VK Action] Error:", err.message);
+      logError("[VK Action] Error:", err.message);
       return res.status(500).send(htmlPage(false, "Внутренняя ошибка сервера. Попробуйте позже."));
     }
   });
@@ -3463,7 +3259,7 @@ ${faqSection}
       });
       res.json(cities);
     } catch (error: any) {
-      console.error("[CDEK] Cities error:", error.message);
+      logError("[CDEK] Cities error:", error.message);
       res.status(500).json({ error: "Ошибка при поиске городов" });
     }
   });
@@ -3492,7 +3288,7 @@ ${faqSection}
       
       res.json(points);
     } catch (error: any) {
-      console.error("[CDEK] Delivery points error:", error.message);
+      logError("[CDEK] Delivery points error:", error.message);
       res.status(500).json({ error: "Ошибка при получении пунктов выдачи" });
     }
   });
@@ -3550,7 +3346,7 @@ ${faqSection}
       const result = popularTariffs.length > 0 ? popularTariffs : tariffs.slice(0, 5);
       res.json({ tariffs: result });
     } catch (error: any) {
-      console.error("[CDEK] Calculate error:", error.message);
+      logError("[CDEK] Calculate error:", error.message);
       res.status(500).json({ error: "Ошибка при расчёте доставки", details: error.message });
     }
   });
@@ -3585,12 +3381,12 @@ ${faqSection}
       
       // If no action, it's initial config check
       if (!action) {
-        console.log('[CDEK Widget Proxy] Initial config check');
+        logInfo('[CDEK Widget Proxy] Initial config check');
         res.setHeader('X-Service-Version', '3.11.1');
         return res.json({ status: 'ok', version: '3.11.1' });
       }
 
-      console.log(`[CDEK Widget Proxy] GET action=${action}`, params);
+      logInfo(`[CDEK Widget Proxy] GET action=${action}`, params);
       res.setHeader('X-Service-Version', '3.11.1');
 
       if (action === 'offices') {
@@ -3606,15 +3402,15 @@ ${faqSection}
           const defaultCityCode = params.default_city_code;
           if (defaultCityCode) {
             queryParams.append('city_code', String(defaultCityCode));
-            console.log(`[CDEK Widget Proxy GET] Using default city_code: ${defaultCityCode}`);
+            logInfo(`[CDEK Widget Proxy GET] Using default city_code: ${defaultCityCode}`);
           } else {
-            console.log('[CDEK Widget Proxy GET] No city filter, returning empty offices');
+            logInfo('[CDEK Widget Proxy GET] No city filter, returning empty offices');
             return res.json([]);
           }
         }
         
         const url = `/deliverypoints?${queryParams.toString()}`;
-        console.log(`[CDEK Widget Proxy GET] Fetching offices: ${url}`);
+        logInfo(`[CDEK Widget Proxy GET] Fetching offices: ${url}`);
         const result = await (cdekService as any).request("GET", url);
         return res.json(result);
       }
@@ -3626,7 +3422,7 @@ ${faqSection}
 
       res.status(400).json({ message: 'Unknown action' });
     } catch (error: any) {
-      console.error("[CDEK Widget Proxy] Error:", error.message);
+      logError("[CDEK Widget Proxy] Error:", error.message);
       res.status(500).json({ error: "Proxy error", details: error.message });
     }
   });
@@ -3637,7 +3433,7 @@ ${faqSection}
       const requestData = { ...req.query, ...req.body };
       const { action, ...params } = requestData;
 
-      console.log(`[CDEK Widget Proxy] POST action=${action}`, JSON.stringify(params).slice(0, 200));
+      logInfo(`[CDEK Widget Proxy] POST action=${action}`, JSON.stringify(params).slice(0, 200));
       res.setHeader('X-Service-Version', '3.11.1');
 
       if (!action) {
@@ -3662,15 +3458,15 @@ ${faqSection}
           const defaultCityCode = params.default_city_code || req.query.default_city_code;
           if (defaultCityCode) {
             queryParams.append('city_code', String(defaultCityCode));
-            console.log(`[CDEK Widget Proxy POST] Using default city_code: ${defaultCityCode}`);
+            logInfo(`[CDEK Widget Proxy POST] Using default city_code: ${defaultCityCode}`);
           } else {
-            console.log('[CDEK Widget Proxy POST] No city filter provided');
+            logInfo('[CDEK Widget Proxy POST] No city filter provided');
             return res.json([]);
           }
         }
         
         const url = `/deliverypoints?${queryParams.toString()}`;
-        console.log(`[CDEK Widget Proxy] Fetching offices: ${url}`);
+        logInfo(`[CDEK Widget Proxy] Fetching offices: ${url}`);
         const result = await (cdekService as any).request("GET", url);
         return res.json(result);
       }
@@ -3692,18 +3488,18 @@ ${faqSection}
         const toLocation = calcParams.to_location;
         if (!toLocation || (Object.keys(toLocation).length === 0) || 
             (!toLocation.code && !toLocation.address && !toLocation.postal_code)) {
-          console.log('[CDEK Widget Proxy] Empty to_location, returning empty tariffs');
+          logInfo('[CDEK Widget Proxy] Empty to_location, returning empty tariffs');
           return res.json({ tariff_codes: [] });
         }
         
-        console.log(`[CDEK Widget Proxy] Calculating:`, JSON.stringify(calcParams).slice(0, 300));
+        logInfo(`[CDEK Widget Proxy] Calculating:`, JSON.stringify(calcParams).slice(0, 300));
         const result = await (cdekService as any).request("POST", "/calculator/tarifflist", calcParams);
         return res.json(result);
       }
 
       res.status(400).json({ message: 'Unknown action' });
     } catch (error: any) {
-      console.error("[CDEK Widget Proxy POST] Error:", error.message);
+      logError("[CDEK Widget Proxy POST] Error:", error.message);
       res.status(500).json({ error: "Proxy error", details: error.message });
     }
   });
@@ -3739,9 +3535,9 @@ ${faqSection}
           }
         }
         await storage.updateProduct(Number(productId), updates);
-        console.log(`[StockDecrement] Product ${productId} (size: ${size ?? 'N/A'}): stock ${product.stock} → ${newStock}`);
+        logInfo(`[StockDecrement] Product ${productId} (size: ${size ?? 'N/A'}): stock ${product.stock} → ${newStock}`);
       } catch (stockErr: any) {
-        console.error(`[StockDecrement] Error updating stock for product ${productId}:`, stockErr.message);
+        logError(`[StockDecrement] Error updating stock for product ${productId}:`, stockErr.message);
       }
     }
   }
@@ -3751,16 +3547,16 @@ ${faqSection}
   // ============================================
 
   app.post("/api/webhooks/yookassa", async (req, res) => {
-    console.log("[YooKassa Webhook] Received webhook:", JSON.stringify(req.body?.event), "payment:", req.body?.object?.id);
+    logInfo("[YooKassa Webhook] Received webhook:", JSON.stringify(req.body?.event), "payment:", req.body?.object?.id);
     // Anti-spoof (30.04.2026): полагаемся ТОЛЬКО на req.ip (последний хоп XFF после trust proxy=1).
     // Сырой XFF (req.headers['x-forwarded-for'].split(',')[0]) позволял злоумышленнику
     // прислать «webhook от имени ЮKassa» прямо на публичный URL контейнера, подменив XFF
     // на 185.71.76.0 — и обойти allowlist в paymentService.verifyYooKassaWebhook.
     // req.ip = адрес, который реально поставил Yandex Cloud Gateway, его подделать нельзя.
     const ip = req.ip || req.socket.remoteAddress || "";
-    console.log(`[YooKassa Webhook] IP: ${ip}, raw XFF: ${req.headers['x-forwarded-for'] || 'none'}`);
+    logInfo(`[YooKassa Webhook] IP: ${ip}, raw XFF: ${req.headers['x-forwarded-for'] || 'none'}`);
     if (!paymentService.verifyYooKassaWebhook(req.body, ip)) {
-      console.warn("[YooKassa Webhook] Verification failed", { ip, body: req.body });
+      logWarn("[YooKassa Webhook] Verification failed", { ip, body: req.body });
       return res.status(400).send("Verification failed");
     }
 
@@ -3771,19 +3567,19 @@ ${faqSection}
       const metadataType = object.metadata?.type;
       const metadataGiftCardId = object.metadata?.giftCardId;
       const metadataGiftCardIds = object.metadata?.giftCardIds;
-      console.log(`[YooKassa Webhook] Payment succeeded: ${paymentId}, Order: ${orderId}, type: ${metadataType}, giftCardId: ${metadataGiftCardId}, giftCardIds: ${metadataGiftCardIds}`);
+      logInfo(`[YooKassa Webhook] Payment succeeded: ${paymentId}, Order: ${orderId}, type: ${metadataType}, giftCardId: ${metadataGiftCardId}, giftCardIds: ${metadataGiftCardIds}`);
 
       // Подтверждение через API ЮKassa: не верим телу webhook на слово —
       // реальный запрос к ЮKassa должен подтвердить, что платёж действительно succeeded.
       try {
         const confirmedStatus = await paymentService.getPaymentStatus(paymentId, "yookassa");
         if (!confirmedStatus || confirmedStatus.status !== "succeeded" || !confirmedStatus.paid) {
-          console.warn(`[YooKassa Webhook] API confirmation failed for payment ${paymentId}:`, confirmedStatus);
+          logWarn(`[YooKassa Webhook] API confirmation failed for payment ${paymentId}:`, confirmedStatus);
           return res.status(400).send("Payment not confirmed");
         }
-        console.log(`[YooKassa Webhook] API confirmed: payment ${paymentId} is succeeded+paid`);
+        logInfo(`[YooKassa Webhook] API confirmed: payment ${paymentId} is succeeded+paid`);
       } catch (confirmErr: any) {
-        console.error(`[YooKassa Webhook] API confirmation error for payment ${paymentId}:`, confirmErr?.message);
+        logError(`[YooKassa Webhook] API confirmation error for payment ${paymentId}:`, confirmErr?.message);
         return res.status(400).send("Payment confirmation error");
       }
       
@@ -3816,10 +3612,10 @@ ${faqSection}
 
           for (const cardId of giftCardIdsToActivate) {
             await storage.updateGiftCard(cardId, { status: "active" });
-            console.log(`[YooKassa Webhook] Gift card ${cardId} activated`);
+            logInfo(`[YooKassa Webhook] Gift card ${cardId} activated`);
           }
 
-          console.log(`[YooKassa Webhook] Activated ${giftCardIdsToActivate.length} gift cards: ${giftCardIdsToActivate.join(', ')}`);
+          logInfo(`[YooKassa Webhook] Activated ${giftCardIdsToActivate.length} gift cards: ${giftCardIdsToActivate.join(', ')}`);
 
           const activatedCards = [];
           for (const cid of giftCardIdsToActivate) {
@@ -3861,7 +3657,7 @@ ${faqSection}
                     html: batchHtml
                   });
                 }
-                console.log(`[YooKassa Webhook] Email sent to purchaser: ${firstCard.purchaserEmail}`);
+                logInfo(`[YooKassa Webhook] Email sent to purchaser: ${firstCard.purchaserEmail}`);
 
                 for (const card of activatedCards) {
                   if (card.recipientEmail && card.recipientEmail !== card.purchaserEmail) {
@@ -3879,15 +3675,15 @@ ${faqSection}
                         subject: `Вам подарили подарочную карту BOOOMERANGS на ${(card.amount / 100).toLocaleString('ru-RU')} ₽!`,
                         html: recipientHtml
                       });
-                      console.log(`[YooKassa Webhook] Email sent to recipient: ${card.recipientEmail}`);
+                      logInfo(`[YooKassa Webhook] Email sent to recipient: ${card.recipientEmail}`);
                     } catch (recipientErr: any) {
-                      console.error(`[YooKassa Webhook] Failed to send recipient email for card ${card.code}:`, recipientErr.message);
+                      logError(`[YooKassa Webhook] Failed to send recipient email for card ${card.code}:`, recipientErr.message);
                       notifyError('Email подарочная карта (YooKassa)', `Сертификат ${card.code} — не удалось отправить получателю`, `${card.recipientEmail} | ${recipientErr.message}`);
                     }
                   }
                 }
               } catch (emailErr: any) {
-                console.error(`[YooKassa Webhook] Failed to send gift card email:`, emailErr.message);
+                logError(`[YooKassa Webhook] Failed to send gift card email:`, emailErr.message);
                 notifyError('Email подарочная карта (YooKassa)', 'Не удалось отправить письмо с подарочной картой', emailErr.message);
               }
             }
@@ -3904,7 +3700,7 @@ ${faqSection}
               for (const pid of uniqueProductIds) {
                 await storage.incrementPreorderCurrent(pid as number);
               }
-              console.log(`[YooKassa Webhook] Multi-preorder paid: order ${multiOrderId}, products: [${uniqueProductIds.join(', ')}]`);
+              logInfo(`[YooKassa Webhook] Multi-preorder paid: order ${multiOrderId}, products: [${uniqueProductIds.join(', ')}]`);
               const multiProductNames = [...new Set(multiItems.map((i: any) => i.productName).filter(Boolean))].join(", ");
               const multiCdekDeliveryInfo = (() => {
                 try {
@@ -3950,9 +3746,9 @@ ${faqSection}
                     subject: `Предзаказ #${multiOrder.id} оформлен — BOOOMERANGS`,
                     html: emailHtml,
                   });
-                  console.log(`[YooKassa Webhook] Multi-preorder email sent to ${multiOrder.customerEmail}`);
+                  logInfo(`[YooKassa Webhook] Multi-preorder email sent to ${multiOrder.customerEmail}`);
                 } catch (emailErr: any) {
-                  console.error(`[YooKassa Webhook] Failed to send multi-preorder email:`, emailErr.message);
+                  logError(`[YooKassa Webhook] Failed to send multi-preorder email:`, emailErr.message);
                 }
               }
             }
@@ -3960,7 +3756,7 @@ ${faqSection}
         } else if (orderId.startsWith("ADDON-")) {
           const addonOrderId = Number(orderId.replace("ADDON-", ""));
           if (!isNaN(addonOrderId)) {
-            console.log(`[YooKassa Webhook] Addon payment succeeded for order ${addonOrderId}, paymentId=${paymentId}`);
+            logInfo(`[YooKassa Webhook] Addon payment succeeded for order ${addonOrderId}, paymentId=${paymentId}`);
             await processAddonOrderPaid(addonOrderId, paymentId, "yookassa", "[YooKassa Webhook]");
             // If a CDEK waybill was already created for this order, recreate it with the updated items list
             const addonOrderForCdek = await storage.getOrder(addonOrderId);
@@ -3968,9 +3764,9 @@ ${faqSection}
               try {
                 const cdekInfo = JSON.parse(addonOrderForCdek.cdekData as string);
                 if (cdekInfo?.orderUuid) {
-                  console.log(`[YooKassa Webhook] Addon order ${addonOrderId} has existing CDEK waybill, recreating with updated items`);
+                  logInfo(`[YooKassa Webhook] Addon order ${addonOrderId} has existing CDEK waybill, recreating with updated items`);
                   recreateCdekWaybillForOrder(addonOrderId).catch(err =>
-                    console.error(`[YooKassa Webhook] CDEK recreate after addon failed for order ${addonOrderId}:`, err.message)
+                    logError(`[YooKassa Webhook] CDEK recreate after addon failed for order ${addonOrderId}:`, err.message)
                   );
                 }
               } catch {}
@@ -3984,10 +3780,10 @@ ${faqSection}
               if (order && order.status !== "paid") {
                 await storage.updateOrderStatus(numericId, "paid");
                 await storage.updateOrderPaymentId(numericId, paymentId);
-                console.log(`[YooKassa Webhook] Order ${numericId} marked as paid`);
+                logInfo(`[YooKassa Webhook] Order ${numericId} marked as paid`);
                 if (order.sessionId) {
                   storage.clearCart(order.sessionId).catch(err =>
-                    console.error(`[YooKassa Webhook] clearCart failed for order ${numericId}:`, err?.message)
+                    logError(`[YooKassa Webhook] clearCart failed for order ${numericId}:`, err?.message)
                   );
                 }
                 updateCoPurchaseIndex(order.items);
@@ -3996,7 +3792,7 @@ ${faqSection}
                   const itemsForStock = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
                   await decrementStockForOrderItems(Array.isArray(itemsForStock) ? itemsForStock : []);
                 } catch (stockErr: any) {
-                  console.error(`[YooKassa Webhook] Stock decrement error for order ${numericId}:`, stockErr.message);
+                  logError(`[YooKassa Webhook] Stock decrement error for order ${numericId}:`, stockErr.message);
                 }
 
                 // Start hold-period for partner commission once payment succeeded.
@@ -4009,26 +3805,26 @@ ${faqSection}
                   for (const commission of commissions) {
                     if (commission.status === 'pending' && !commission.holdUntil) {
                       await storage.setCommissionHoldUntil(commission.id, holdUntil);
-                      console.log(`[YooKassa Webhook] Partner commission hold started: order=${numericId} commission=${commission.id} holdDays=${holdDays} holdUntil=${holdUntil.toISOString()}`);
+                      logInfo(`[YooKassa Webhook] Partner commission hold started: order=${numericId} commission=${commission.id} holdDays=${holdDays} holdUntil=${holdUntil.toISOString()}`);
                     }
                   }
-                }).catch(err => console.error(`[YooKassa Webhook] Commission hold-start failed for order ${numericId}:`, err?.message));
+                }).catch(err => logError(`[YooKassa Webhook] Commission hold-start failed for order ${numericId}:`, err?.message));
 
                 storage.getOrderBitrixDealId(numericId).then(dealId => {
                   if (!dealId) return;
                   syncOrderStatusToBitrix(numericId, 'paid', dealId).catch(err =>
-                    console.error(`[YooKassa Webhook] Bitrix sync failed for order ${numericId}:`, err?.message || err)
+                    logError(`[YooKassa Webhook] Bitrix sync failed for order ${numericId}:`, err?.message || err)
                   );
                 }).catch(err =>
-                  console.error(`[YooKassa Webhook] getOrderBitrixDealId failed for order ${numericId}:`, err?.message || err)
+                  logError(`[YooKassa Webhook] getOrderBitrixDealId failed for order ${numericId}:`, err?.message || err)
                 );
 
                 if (order.userId && !order.isWholesale) {
                   try {
                     const lr = await storage.accrueOrderLoyalty(order.id);
-                    if (lr.accrued) console.log(`[YooKassa Webhook] User ${order.userId} loyalty updated: +${order.total / 100} RUB, discount: ${lr.discount}%`);
+                    if (lr.accrued) logInfo(`[YooKassa Webhook] User ${order.userId} loyalty updated: +${order.total / 100} RUB, discount: ${lr.discount}%`);
                   } catch (loyaltyErr) {
-                    console.error(`[YooKassa Webhook] Error updating loyalty for order ${order.id}:`, loyaltyErr);
+                    logError(`[YooKassa Webhook] Error updating loyalty for order ${order.id}:`, loyaltyErr);
                   }
                 }
 
@@ -4047,9 +3843,9 @@ ${faqSection}
                       subject: `Заказ #${order.id} оплачен — BMGBRAND`,
                       html: emailHtml,
                     });
-                    console.log(`[YooKassa Webhook] Order confirmation email sent to ${order.customerEmail}`);
+                    logInfo(`[YooKassa Webhook] Order confirmation email sent to ${order.customerEmail}`);
                   } catch (emailErr: any) {
-                    console.error(`[YooKassa Webhook] Failed to send order email:`, emailErr.message);
+                    logError(`[YooKassa Webhook] Failed to send order email:`, emailErr.message);
                     notifyError('Email (YooKassa)', `Заказ #${order.id} — не удалось отправить письмо покупателю`, `${order.customerEmail} | ${emailErr.message}`);
                   }
                 }
@@ -4057,11 +3853,11 @@ ${faqSection}
                 if (order.customerEmail) {
                   const _ooItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
                   schedulePostPurchaseEmail(numericId, order.customerEmail, order.customerName || '', Array.isArray(_ooItems) ? _ooItems : [])
-                    .catch(err => console.error(`[YooKassa Webhook] PPEmail schedule failed for order ${numericId}:`, err?.message));
+                    .catch(err => logError(`[YooKassa Webhook] PPEmail schedule failed for order ${numericId}:`, err?.message));
                 }
 
                 createCdekWaybillForOrder(numericId).catch(err => 
-                  console.error(`[YooKassa Webhook] CDEK waybill error for order ${numericId}:`, err.message)
+                  logError(`[YooKassa Webhook] CDEK waybill error for order ${numericId}:`, err.message)
                 );
 
                 // Если доставка Ozon — создаём заказ в Ozon Logistics (fire-and-forget)
@@ -4083,13 +3879,13 @@ ${faqSection}
                     })),
                   }).then(result => {
                     if (result.success && result.ozonOrderId) {
-                      console.log(`[YooKassa Webhook] Ozon Delivery order created: ${result.ozonOrderId} for order ${numericId}`);
+                      logInfo(`[YooKassa Webhook] Ozon Delivery order created: ${result.ozonOrderId} for order ${numericId}`);
                       // Сохраняем ozonOrderId в addon_data заказа
                       const _ykExisting = (() => { try { return JSON.parse(order.addonData || '{}'); } catch { return {}; } })();
                       storage.updateOrderAddonData(numericId, JSON.stringify({ ..._ykExisting, ozonOrderId: result.ozonOrderId }))
-                        .catch(e => console.error(`[YooKassa Webhook] Failed to save ozonOrderId for order ${numericId}:`, e?.message));
+                        .catch(e => logError(`[YooKassa Webhook] Failed to save ozonOrderId for order ${numericId}:`, e?.message));
                     } else {
-                      console.error(`[YooKassa Webhook] Ozon Delivery order creation failed for order ${numericId}:`, result.error);
+                      logError(`[YooKassa Webhook] Ozon Delivery order creation failed for order ${numericId}:`, result.error);
                       notifyError('Ozon Доставка', `Заказ #${numericId} — не удалось создать доставку Ozon`, result.error || "");
                       // Сохраняем факт ошибки в YDB — иначе при сбое Ozon API заказ теряется навсегда.
                       // Менеджер может потом повторить через Admin → /api/admin/ozon-delivery/retry-order.
@@ -4099,9 +3895,9 @@ ${faqSection}
                         ozonCreateFailed: true,
                         ozonCreateError: result.error || "unknown",
                         ozonCreateFailedAt: new Date().toISOString(),
-                      })).catch(e => console.error(`[YooKassa Webhook] Failed to save ozonCreateFailed for order ${numericId}:`, e?.message));
+                      })).catch(e => logError(`[YooKassa Webhook] Failed to save ozonCreateFailed for order ${numericId}:`, e?.message));
                     }
-                  }).catch(err => console.error(`[YooKassa Webhook] Ozon Delivery error for order ${numericId}:`, err.message));
+                  }).catch(err => logError(`[YooKassa Webhook] Ozon Delivery error for order ${numericId}:`, err.message));
                 }
 
                 const orderItemsParsed = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
@@ -4134,7 +3930,7 @@ ${faqSection}
                 });
               }
             } catch (err: any) {
-              console.error(`[YooKassa Webhook] Error processing order ${numericId}:`, err.message);
+              logError(`[YooKassa Webhook] Error processing order ${numericId}:`, err.message);
             }
           }
         }
@@ -4147,7 +3943,7 @@ ${faqSection}
       const cancelMetadataType = object.metadata?.type;
       const cancelMetadataGiftCardIds = object.metadata?.giftCardIds;
       const cancelMetadataGiftCardId = object.metadata?.giftCardId;
-      console.log(`[YooKassa Webhook] Payment canceled: ${paymentId}, Order: ${orderId}, type: ${cancelMetadataType}`);
+      logInfo(`[YooKassa Webhook] Payment canceled: ${paymentId}, Order: ${orderId}, type: ${cancelMetadataType}`);
       
       if (orderId) {
         const isCancelGiftCard = orderId.startsWith("GIFT-") || orderId.startsWith("BATCH-") || cancelMetadataType === "gift_card" || !!cancelMetadataGiftCardId || !!cancelMetadataGiftCardIds;
@@ -4177,17 +3973,17 @@ ${faqSection}
           }
           for (const cardId of cancelCardIds) {
             await storage.deleteGiftCard(cardId);
-            console.log(`[YooKassa Webhook] Deleted draft gift card ${cardId} after payment cancellation`);
+            logInfo(`[YooKassa Webhook] Deleted draft gift card ${cardId} after payment cancellation`);
           }
         } else if (orderId.startsWith("PREORDER-REMAINING-")) {
-          console.log(`[YooKassa Webhook] Preorder remaining payment canceled for ${orderId}, keeping order`);
+          logInfo(`[YooKassa Webhook] Preorder remaining payment canceled for ${orderId}, keeping order`);
         } else if (orderId.startsWith("PREORDER-MULTI-")) {
           const multiOrderId = Number(orderId.replace("PREORDER-MULTI-", ""));
           if (!isNaN(multiOrderId)) {
             const multiOrder = await storage.getOrder(multiOrderId);
             if (multiOrder && multiOrder.status === "awaiting_payment") {
               await storage.deleteOrder(multiOrderId);
-              console.log(`[YooKassa Webhook] Deleted draft multi-preorder ${multiOrderId} after cancel`);
+              logInfo(`[YooKassa Webhook] Deleted draft multi-preorder ${multiOrderId} after cancel`);
             }
           }
         } else if (orderId.startsWith("PREORDER-")) {
@@ -4196,18 +3992,18 @@ ${faqSection}
             const order = await storage.getOrder(preorderOrderId);
             if (order && order.status === "awaiting_payment") {
               await storage.deleteOrder(preorderOrderId);
-              console.log(`[YooKassa Webhook] Deleted draft preorder ${preorderOrderId} after payment cancellation`);
+              logInfo(`[YooKassa Webhook] Deleted draft preorder ${preorderOrderId} after payment cancellation`);
             }
           }
         } else if (orderId.startsWith("ADDON-")) {
-          console.log(`[YooKassa Webhook] Addon payment canceled for ${orderId}, no action needed`);
+          logInfo(`[YooKassa Webhook] Addon payment canceled for ${orderId}, no action needed`);
         } else {
           const numericId = Number(orderId);
           if (!isNaN(numericId)) {
             const order = await storage.getOrder(numericId);
             if (order && order.status === "awaiting_payment") {
               await storage.deleteOrder(numericId);
-              console.log(`[YooKassa Webhook] Deleted draft order ${numericId} after payment cancellation`);
+              logInfo(`[YooKassa Webhook] Deleted draft order ${numericId} after payment cancellation`);
             }
           }
         }
@@ -4218,51 +4014,51 @@ ${faqSection}
   });
 
   app.post("/api/webhooks/tbank", async (req, res) => {
-    console.log("[T-Bank Webhook] Received:", JSON.stringify(req.body));
+    logInfo("[T-Bank Webhook] Received:", JSON.stringify(req.body));
     
     if (!paymentService.verifyTBankWebhook(req.body)) {
-      console.warn("[T-Bank Webhook] Verification failed", req.body);
+      logWarn("[T-Bank Webhook] Verification failed", req.body);
       return res.status(400).send("Verification failed");
     }
 
     const { Status, PaymentId, OrderId, Success } = req.body;
     if (Success && Status === "CONFIRMED") {
-      console.log(`[T-Bank Webhook] Payment CONFIRMED: ${PaymentId}, Order: ${OrderId}`);
+      logInfo(`[T-Bank Webhook] Payment CONFIRMED: ${PaymentId}, Order: ${OrderId}`);
 
       // The webhook is already authenticated by T-Bank's signed Token.
       // Do not make order settlement depend on a second outbound GetState call:
       // a transient network/TLS failure there previously turned a real CONFIRMED
       // payment into HTTP 400 and left the order in awaiting_payment.
-      console.log(`[T-Bank Webhook] Signed CONFIRMED accepted; settling order without blocking on GetState`);
+      logInfo(`[T-Bank Webhook] Signed CONFIRMED accepted; settling order without blocking on GetState`);
       
       if (OrderId) {
         if (OrderId.startsWith("GIFT-")) {
           // Single gift card payment
           const cardId = parseInt(OrderId.replace("GIFT-", ""));
           await storage.updateGiftCard(cardId, { status: "active" });
-          console.log(`[T-Bank Webhook] Gift card ${cardId} activated`);
+          logInfo(`[T-Bank Webhook] Gift card ${cardId} activated`);
         } else if (OrderId.startsWith("BATCH-")) {
           // Batch gift cards payment - find cards by paymentId
           const paymentIdStr = String(PaymentId);
-          console.log(`[T-Bank Webhook] Looking for gift cards with paymentId: ${paymentIdStr}`);
+          logInfo(`[T-Bank Webhook] Looking for gift cards with paymentId: ${paymentIdStr}`);
           
           const allCards = await storage.getGiftCards();
-          console.log(`[T-Bank Webhook] Total cards in DB: ${allCards.length}`);
+          logInfo(`[T-Bank Webhook] Total cards in DB: ${allCards.length}`);
           
           // Log pending cards with their paymentIds
           const pendingCards = allCards.filter((c: any) => c.status === "pending");
-          console.log(`[T-Bank Webhook] Pending cards: ${pendingCards.map((c: any) => `${c.code}:${c.paymentId}`).join(', ')}`);
+          logInfo(`[T-Bank Webhook] Pending cards: ${pendingCards.map((c: any) => `${c.code}:${c.paymentId}`).join(', ')}`);
           
           const batchCards = allCards.filter((c: any) => 
             c.paymentId === paymentIdStr && c.status === "pending"
           );
-          console.log(`[T-Bank Webhook] Matched cards: ${batchCards.length}`);
+          logInfo(`[T-Bank Webhook] Matched cards: ${batchCards.length}`);
           
           for (const card of batchCards) {
             await storage.updateGiftCard(card.id, { status: "active" });
-            console.log(`[T-Bank Webhook] Gift card ${card.id} (${card.code}) activated`);
+            logInfo(`[T-Bank Webhook] Gift card ${card.id} (${card.code}) activated`);
           }
-          console.log(`[T-Bank Webhook] Activated ${batchCards.length} gift cards for payment ${PaymentId}`);
+          logInfo(`[T-Bank Webhook] Activated ${batchCards.length} gift cards for payment ${PaymentId}`);
           
           // Send email to purchaser with all cards
           if (batchCards.length > 0 && batchCards[0].purchaserEmail) {
@@ -4321,7 +4117,7 @@ ${faqSection}
                 subject: `Подарочные карты BMGBRAND (${batchCards.length} шт.) на ${(totalAmount / 100).toLocaleString('ru-RU')} ₽ оплачены`,
                 html: batchHtml
               });
-              console.log(`[T-Bank Webhook] Batch email sent to: ${firstCard.purchaserEmail}`);
+              logInfo(`[T-Bank Webhook] Batch email sent to: ${firstCard.purchaserEmail}`);
 
               for (const card of batchCards) {
                 if (card.recipientEmail && card.recipientEmail !== card.purchaserEmail) {
@@ -4338,15 +4134,15 @@ ${faqSection}
                       subject: `Вам подарили подарочную карту BMGBRAND на ${(card.amount / 100).toLocaleString('ru-RU')} ₽!`,
                       html: recipientHtml
                     });
-                    console.log(`[T-Bank Webhook] Batch recipient email sent to: ${card.recipientEmail}`);
+                    logInfo(`[T-Bank Webhook] Batch recipient email sent to: ${card.recipientEmail}`);
                   } catch (recipientErr: any) {
-                    console.error(`[T-Bank Webhook] Failed to send batch recipient email to ${card.recipientEmail}:`, recipientErr.message);
+                    logError(`[T-Bank Webhook] Failed to send batch recipient email to ${card.recipientEmail}:`, recipientErr.message);
                     notifyError('Email подарочная карта (T-Bank)', `Не удалось отправить получателю`, `${card.recipientEmail} | ${recipientErr.message}`);
                   }
                 }
               }
             } catch (emailErr: any) {
-              console.error(`[T-Bank Webhook] Failed to send batch email:`, emailErr.message);
+              logError(`[T-Bank Webhook] Failed to send batch email:`, emailErr.message);
               notifyError('Email подарочная карта (T-Bank)', 'Не удалось отправить письмо с подарочной картой', emailErr.message);
             }
           }
@@ -4362,7 +4158,7 @@ ${faqSection}
               for (const pid of uniqueProductIds) {
                 await storage.incrementPreorderCurrent(pid as number);
               }
-              console.log(`[T-Bank Webhook] Multi-preorder paid: order ${multiOrderId}, products: [${uniqueProductIds.join(', ')}]`);
+              logInfo(`[T-Bank Webhook] Multi-preorder paid: order ${multiOrderId}, products: [${uniqueProductIds.join(', ')}]`);
               const multiProductNames = [...new Set(multiItems.map((i: any) => i.productName).filter(Boolean))].join(", ");
               const tbankCdekDeliveryInfo = (() => {
                 try {
@@ -4408,9 +4204,9 @@ ${faqSection}
                     subject: `Предзаказ #${multiOrder.id} оформлен — BOOOMERANGS`,
                     html: emailHtml,
                   });
-                  console.log(`[T-Bank Webhook] Multi-preorder email sent to ${multiOrder.customerEmail}`);
+                  logInfo(`[T-Bank Webhook] Multi-preorder email sent to ${multiOrder.customerEmail}`);
                 } catch (emailErr: any) {
-                  console.error(`[T-Bank Webhook] Failed to send multi-preorder email:`, emailErr.message);
+                  logError(`[T-Bank Webhook] Failed to send multi-preorder email:`, emailErr.message);
                 }
               }
             }
@@ -4418,7 +4214,7 @@ ${faqSection}
         } else if (OrderId.startsWith("ADDON-")) {
           const addonOrderId = Number(OrderId.replace("ADDON-", ""));
           if (!isNaN(addonOrderId)) {
-            console.log(`[T-Bank Webhook] Addon payment succeeded for order ${addonOrderId}, paymentId=${PaymentId}`);
+            logInfo(`[T-Bank Webhook] Addon payment succeeded for order ${addonOrderId}, paymentId=${PaymentId}`);
             await processAddonOrderPaid(addonOrderId, String(PaymentId), "tbank", "[T-Bank Webhook]");
             // If a CDEK waybill was already created for this order, recreate it with the updated items list
             const addonOrderForCdek = await storage.getOrder(addonOrderId);
@@ -4426,9 +4222,9 @@ ${faqSection}
               try {
                 const cdekInfo = JSON.parse(addonOrderForCdek.cdekData as string);
                 if (cdekInfo?.orderUuid) {
-                  console.log(`[T-Bank Webhook] Addon order ${addonOrderId} has existing CDEK waybill, recreating with updated items`);
+                  logInfo(`[T-Bank Webhook] Addon order ${addonOrderId} has existing CDEK waybill, recreating with updated items`);
                   recreateCdekWaybillForOrder(addonOrderId).catch(err =>
-                    console.error(`[T-Bank Webhook] CDEK recreate after addon failed for order ${addonOrderId}:`, err.message)
+                    logError(`[T-Bank Webhook] CDEK recreate after addon failed for order ${addonOrderId}:`, err.message)
                   );
                 }
               } catch {}
@@ -4446,7 +4242,7 @@ ${faqSection}
                 status: "active", 
                 paymentId: String(PaymentId) 
               });
-              console.log(`[T-Bank Webhook] Gift card ${numericId} (${giftCard.code}) activated`);
+              logInfo(`[T-Bank Webhook] Gift card ${numericId} (${giftCard.code}) activated`);
               
               // Send email to purchaser
               if (giftCard.purchaserEmail) {
@@ -4465,7 +4261,7 @@ ${faqSection}
                     subject: `Подарочная карта BMGBRAND на ${(giftCard.amount / 100).toLocaleString('ru-RU')} ₽ оплачена`,
                     html: purchaserHtml
                   });
-                  console.log(`[T-Bank Webhook] Email sent to purchaser: ${giftCard.purchaserEmail}`);
+                  logInfo(`[T-Bank Webhook] Email sent to purchaser: ${giftCard.purchaserEmail}`);
                   
                   // If there's a recipient, send them an email too
                   if (giftCard.recipientEmail && giftCard.recipientEmail !== giftCard.purchaserEmail) {
@@ -4482,44 +4278,44 @@ ${faqSection}
                       subject: `Вам подарили подарочную карту BMGBRAND на ${(giftCard.amount / 100).toLocaleString('ru-RU')} ₽!`,
                       html: recipientHtml
                     });
-                    console.log(`[T-Bank Webhook] Email sent to recipient: ${giftCard.recipientEmail}`);
+                    logInfo(`[T-Bank Webhook] Email sent to recipient: ${giftCard.recipientEmail}`);
                   }
                 } catch (emailErr: any) {
-                  console.error(`[T-Bank Webhook] Failed to send gift card email:`, emailErr.message);
+                  logError(`[T-Bank Webhook] Failed to send gift card email:`, emailErr.message);
                 }
               }
             } else {
               const incomingPaymentId = String(PaymentId);
               const orderBeforePayment = await storage.getOrder(numericId);
               if (!orderBeforePayment) {
-                console.error(`[T-Bank Webhook] Paid callback references missing order ${numericId}`);
+                logError(`[T-Bank Webhook] Paid callback references missing order ${numericId}`);
                 notifyError("T-Bank: заказ не найден", `Оплата ${incomingPaymentId} получена, но заказ ${numericId} не найден в YDB`, "");
                 return res.status(500).send("Order not found");
               }
               if (orderBeforePayment.status === "paid") {
-                console.log(`[T-Bank Webhook] Order ${numericId} is already paid; skipping duplicate callback side effects`);
+                logInfo(`[T-Bank Webhook] Order ${numericId} is already paid; skipping duplicate callback side effects`);
                 return res.status(200).send("OK");
               }
               if (orderBeforePayment.paymentId && String(orderBeforePayment.paymentId) !== incomingPaymentId) {
-                console.error(`[T-Bank Webhook] Payment ID mismatch for order ${numericId}: stored=${orderBeforePayment.paymentId}, incoming=${incomingPaymentId}`);
+                logError(`[T-Bank Webhook] Payment ID mismatch for order ${numericId}: stored=${orderBeforePayment.paymentId}, incoming=${incomingPaymentId}`);
                 notifyError("T-Bank: mismatch платежа", `Заказ ${numericId} получил другой PaymentId`, `stored=${orderBeforePayment.paymentId}, incoming=${incomingPaymentId}`);
                 return res.status(400).send("Payment mismatch");
               }
               const webhookAmount = Number(req.body.Amount);
               if (Number.isFinite(webhookAmount) && webhookAmount > 0 && webhookAmount !== orderBeforePayment.total) {
-                console.error(`[T-Bank Webhook] Amount mismatch for order ${numericId}: order=${orderBeforePayment.total}, webhook=${webhookAmount}`);
+                logError(`[T-Bank Webhook] Amount mismatch for order ${numericId}: order=${orderBeforePayment.total}, webhook=${webhookAmount}`);
                 notifyError("T-Bank: mismatch суммы", `Заказ ${numericId} получил другую сумму`, `order=${orderBeforePayment.total}, webhook=${webhookAmount}`);
                 return res.status(400).send("Amount mismatch");
               }
               if (tbankProcessingOrders.has(numericId)) {
-                console.log(`[T-Bank Webhook] Order ${numericId} is already being processed; acknowledging duplicate callback`);
+                logInfo(`[T-Bank Webhook] Order ${numericId} is already being processed; acknowledging duplicate callback`);
                 return res.status(200).send("OK");
               }
               tbankProcessingOrders.add(numericId);
 
               try {
                 await storage.markOrderPaid(numericId, incomingPaymentId);
-                console.log(`[T-Bank Webhook] Order ${numericId} marked as paid`);
+                logInfo(`[T-Bank Webhook] Order ${numericId} marked as paid`);
                 storage.getOrder(numericId).then((o: any) => {
                   if (o) updateCoPurchaseIndex(o.items);
                 }).catch(() => {});
@@ -4532,25 +4328,25 @@ ${faqSection}
                   for (const commission of commissions) {
                     if (commission.status === 'pending' && !commission.holdUntil) {
                       await storage.setCommissionHoldUntil(commission.id, holdUntil);
-                      console.log(`[T-Bank Webhook] Partner commission hold started: order=${numericId} commission=${commission.id} holdDays=${holdDays} holdUntil=${holdUntil.toISOString()}`);
+                      logInfo(`[T-Bank Webhook] Partner commission hold started: order=${numericId} commission=${commission.id} holdDays=${holdDays} holdUntil=${holdUntil.toISOString()}`);
                     }
                   }
-                }).catch(err => console.error(`[T-Bank Webhook] Commission hold-start failed for order ${numericId}:`, err?.message));
+                }).catch(err => logError(`[T-Bank Webhook] Commission hold-start failed for order ${numericId}:`, err?.message));
 
                 storage.getOrderBitrixDealId(numericId).then(dealId => {
                   if (!dealId) return;
                   syncOrderStatusToBitrix(numericId, 'paid', dealId).catch(err =>
-                    console.error(`[T-Bank Webhook] Bitrix sync failed for order ${numericId}:`, err?.message || err)
+                    logError(`[T-Bank Webhook] Bitrix sync failed for order ${numericId}:`, err?.message || err)
                   );
                 }).catch(err =>
-                  console.error(`[T-Bank Webhook] getOrderBitrixDealId failed for order ${numericId}:`, err?.message || err)
+                  logError(`[T-Bank Webhook] getOrderBitrixDealId failed for order ${numericId}:`, err?.message || err)
                 );
 
                 const order = await storage.getOrder(numericId);
 
                 if (order?.sessionId) {
                   storage.clearCart(order.sessionId).catch(err =>
-                    console.error(`[T-Bank Webhook] clearCart failed for order ${numericId}:`, err?.message)
+                    logError(`[T-Bank Webhook] clearCart failed for order ${numericId}:`, err?.message)
                   );
                 }
 
@@ -4558,18 +4354,18 @@ ${faqSection}
                   const itemsForStock = order && (typeof order.items === 'string' ? JSON.parse(order.items) : order.items);
                   await decrementStockForOrderItems(Array.isArray(itemsForStock) ? itemsForStock : []);
                 } catch (stockErr: any) {
-                  console.error(`[T-Bank Webhook] Stock decrement error for order ${numericId}:`, stockErr.message);
+                  logError(`[T-Bank Webhook] Stock decrement error for order ${numericId}:`, stockErr.message);
                 }
-                console.log(`[T-Bank Webhook] Order ${numericId} details: userId=${order?.userId}, isWholesale=${order?.isWholesale}, email=${order?.customerEmail}`);
+                logInfo(`[T-Bank Webhook] Order ${numericId} details: userId=${order?.userId}, isWholesale=${order?.isWholesale}, email=${order?.customerEmail}`);
                 if (order && order.userId && !order.isWholesale) {
                   try {
                     const lr = await storage.accrueOrderLoyalty(order.id);
-                    if (lr.accrued) console.log(`[T-Bank Webhook] User ${order.userId} loyalty updated: +${order.total / 100} RUB, discount: ${lr.discount}%`);
+                    if (lr.accrued) logInfo(`[T-Bank Webhook] User ${order.userId} loyalty updated: +${order.total / 100} RUB, discount: ${lr.discount}%`);
                   } catch (loyaltyErr) {
-                    console.error(`[T-Bank Webhook] Error updating loyalty for order ${order.id}:`, loyaltyErr);
+                    logError(`[T-Bank Webhook] Error updating loyalty for order ${order.id}:`, loyaltyErr);
                   }
                 } else if (order && !order.userId) {
-                  console.log(`[T-Bank Webhook] Order ${numericId} has no userId, skipping loyalty update`);
+                  logInfo(`[T-Bank Webhook] Order ${numericId} has no userId, skipping loyalty update`);
                 }
                 
                 if (order && order.customerEmail) {
@@ -4587,9 +4383,9 @@ ${faqSection}
                       subject: `Заказ #${order.id} оплачен — BMGBRAND`,
                       html: emailHtml,
                     });
-                    console.log(`[T-Bank Webhook] Order confirmation email sent to ${order.customerEmail}`);
+                    logInfo(`[T-Bank Webhook] Order confirmation email sent to ${order.customerEmail}`);
                   } catch (emailErr: any) {
-                    console.error(`[T-Bank Webhook] Failed to send order email:`, emailErr.message);
+                    logError(`[T-Bank Webhook] Failed to send order email:`, emailErr.message);
                     notifyError('Email (T-Bank)', `Заказ #${order.id} — не удалось отправить письмо покупателю`, `${order.customerEmail} | ${emailErr.message}`);
                   }
                 }
@@ -4597,11 +4393,11 @@ ${faqSection}
                 if (order && order.customerEmail) {
                   const _tbItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
                   schedulePostPurchaseEmail(numericId, order.customerEmail, order.customerName || '', Array.isArray(_tbItems) ? _tbItems : [])
-                    .catch(err => console.error(`[T-Bank Webhook] PPEmail schedule failed for order ${numericId}:`, err?.message));
+                    .catch(err => logError(`[T-Bank Webhook] PPEmail schedule failed for order ${numericId}:`, err?.message));
                 }
 
                 createCdekWaybillForOrder(numericId).catch(err => 
-                  console.error(`[T-Bank Webhook] CDEK waybill error for order ${numericId}:`, err.message)
+                  logError(`[T-Bank Webhook] CDEK waybill error for order ${numericId}:`, err.message)
                 );
 
                 // Если доставка Ozon — создаём заказ в Ozon Logistics (fire-and-forget)
@@ -4623,13 +4419,13 @@ ${faqSection}
                     })),
                   }).then(result => {
                     if (result.success && result.ozonOrderId) {
-                      console.log(`[T-Bank Webhook] Ozon Delivery order created: ${result.ozonOrderId} for order ${numericId}`);
+                      logInfo(`[T-Bank Webhook] Ozon Delivery order created: ${result.ozonOrderId} for order ${numericId}`);
                       // Сохраняем ozonOrderId в addon_data заказа
                       const _tbExisting = (() => { try { return JSON.parse(order.addonData || '{}'); } catch { return {}; } })();
                       storage.updateOrderAddonData(numericId, JSON.stringify({ ..._tbExisting, ozonOrderId: result.ozonOrderId }))
-                        .catch(e => console.error(`[T-Bank Webhook] Failed to save ozonOrderId for order ${numericId}:`, e?.message));
+                        .catch(e => logError(`[T-Bank Webhook] Failed to save ozonOrderId for order ${numericId}:`, e?.message));
                     } else {
-                      console.error(`[T-Bank Webhook] Ozon Delivery order creation failed for order ${numericId}:`, result.error);
+                      logError(`[T-Bank Webhook] Ozon Delivery order creation failed for order ${numericId}:`, result.error);
                       notifyError('Ozon Доставка', `Заказ #${numericId} — не удалось создать доставку Ozon`, result.error || "");
                       // Сохраняем факт ошибки в YDB — иначе при сбое Ozon API заказ теряется навсегда.
                       // Менеджер может потом повторить через Admin → /api/admin/ozon-delivery/retry-order.
@@ -4639,9 +4435,9 @@ ${faqSection}
                         ozonCreateFailed: true,
                         ozonCreateError: result.error || "unknown",
                         ozonCreateFailedAt: new Date().toISOString(),
-                      })).catch(e => console.error(`[T-Bank Webhook] Failed to save ozonCreateFailed for order ${numericId}:`, e?.message));
+                      })).catch(e => logError(`[T-Bank Webhook] Failed to save ozonCreateFailed for order ${numericId}:`, e?.message));
                     }
-                  }).catch(err => console.error(`[T-Bank Webhook] Ozon Delivery error for order ${numericId}:`, err.message));
+                  }).catch(err => logError(`[T-Bank Webhook] Ozon Delivery error for order ${numericId}:`, err.message));
                 }
 
                 if (order) {
@@ -4675,7 +4471,7 @@ ${faqSection}
                   });
                 }
               } catch (err: any) {
-                console.error(`[T-Bank Webhook] Error updating order ${numericId}:`, err.message);
+                logError(`[T-Bank Webhook] Error updating order ${numericId}:`, err.message);
                 return res.status(500).send("Order processing failed");
               } finally {
                 tbankProcessingOrders.delete(numericId);
@@ -4687,14 +4483,14 @@ ${faqSection}
     }
 
     if (Status === "REJECTED" || Status === "CANCELED" || Status === "DEADLINE_EXPIRED" || Status === "AUTH_FAIL") {
-      console.log(`[T-Bank Webhook] Payment failed (${Status}): ${PaymentId}, Order: ${OrderId}`);
+      logInfo(`[T-Bank Webhook] Payment failed (${Status}): ${PaymentId}, Order: ${OrderId}`);
       
       if (OrderId) {
         if (OrderId.startsWith("GIFT-")) {
           const cardId = parseInt(OrderId.replace("GIFT-", ""));
           if (!isNaN(cardId)) {
             await storage.deleteGiftCard(cardId);
-            console.log(`[T-Bank Webhook] Deleted draft gift card ${cardId} after payment failure`);
+            logInfo(`[T-Bank Webhook] Deleted draft gift card ${cardId} after payment failure`);
           }
         } else if (OrderId.startsWith("BATCH-")) {
           const paymentIdStr = String(PaymentId);
@@ -4703,16 +4499,16 @@ ${faqSection}
           for (const card of pendingCards) {
             await storage.deleteGiftCard(card.id);
           }
-          console.log(`[T-Bank Webhook] Deleted ${pendingCards.length} draft gift cards after payment failure`);
+          logInfo(`[T-Bank Webhook] Deleted ${pendingCards.length} draft gift cards after payment failure`);
         } else if (OrderId.startsWith("PREORDER-REMAINING-")) {
-          console.log(`[T-Bank Webhook] Preorder remaining payment failed for ${OrderId}, keeping order`);
+          logInfo(`[T-Bank Webhook] Preorder remaining payment failed for ${OrderId}, keeping order`);
         } else if (OrderId.startsWith("PREORDER-")) {
           const preorderOrderId = Number(OrderId.replace("PREORDER-", ""));
           if (!isNaN(preorderOrderId)) {
             const order = await storage.getOrder(preorderOrderId);
             if (order && order.status === "awaiting_payment") {
               await storage.deleteOrder(preorderOrderId);
-              console.log(`[T-Bank Webhook] Deleted draft preorder ${preorderOrderId} after payment failure`);
+              logInfo(`[T-Bank Webhook] Deleted draft preorder ${preorderOrderId} after payment failure`);
             }
           }
         } else {
@@ -4721,12 +4517,12 @@ ${faqSection}
             const giftCard = await storage.getGiftCardById(numericId);
             if (giftCard && giftCard.status === "pending") {
               await storage.deleteGiftCard(numericId);
-              console.log(`[T-Bank Webhook] Deleted draft gift card ${numericId} after payment failure`);
+              logInfo(`[T-Bank Webhook] Deleted draft gift card ${numericId} after payment failure`);
             } else {
               const order = await storage.getOrder(numericId);
               if (order && order.status === "awaiting_payment") {
                 await storage.deleteOrder(numericId);
-                console.log(`[T-Bank Webhook] Deleted draft order ${numericId} after payment failure`);
+                logInfo(`[T-Bank Webhook] Deleted draft order ${numericId} after payment failure`);
               }
             }
           }
@@ -4759,259 +4555,8 @@ ${faqSection}
     });
   });
 
-  // ==================== Ozon Delivery Admin ====================
-
-  // GET /api/admin/ozon-delivery/settings — статус + флаг включения
-  app.get("/api/admin/ozon-delivery/settings", authMiddleware, requireAdminRole, async (_req, res) => {
-    res.json(ozonDeliveryService.getStatus());
-  });
-
-  // POST /api/admin/ozon-delivery/settings — включить/выключить доставку в чекауте
-  app.post("/api/admin/ozon-delivery/settings", authMiddleware, requireAdminRole, async (req, res) => {
-    const { enabled } = req.body as { enabled: boolean };
-    if (!ozonDeliveryService.isConfigured()) {
-      return res.status(503).json({ error: "Добавьте OZON_CLIENT_ID и OZON_CLIENT_SECRET в переменные окружения контейнера и перезапустите сервер" });
-    }
-    const value = enabled ? "true" : "false";
-    await storage.setBonusSetting("ozon_delivery_enabled", value).catch(() => {});
-    ozonDeliveryService.setEnabled(enabled);
-    console.log(`[OzonDelivery] Доставка ${enabled ? "включена" : "отключена"} администратором`);
-    res.json({ success: true, enabled });
-  });
-
-  // POST /api/admin/ozon-delivery/check-order — статус заказа по ozonOrderId
-  app.post("/api/admin/ozon-delivery/check-order", authMiddleware, requireAdminRole, async (req, res) => {
-    const { ozonOrderId } = req.body as { ozonOrderId: string };
-    if (!ozonOrderId) return res.status(400).json({ error: "ozonOrderId required" });
-    const result = await ozonDeliveryService.getOrder(ozonOrderId);
-    res.json(result);
-  });
-
-  // POST /api/admin/ozon-delivery/retry-order — повторная отправка заказа в Ozon после сбоя API.
-  // Читает данные заказа из YDB и вызывает createOrder заново.
-  // Используется менеджером когда в addonData.ozonCreateFailed === true.
-  app.post("/api/admin/ozon-delivery/retry-order", authMiddleware, requireAdminRole, async (req, res) => {
-    const { orderId } = req.body as { orderId: number | string };
-    if (!orderId) return res.status(400).json({ error: "orderId required" });
-    const numId = Number(orderId);
-    if (isNaN(numId)) return res.status(400).json({ error: "orderId must be a number" });
-
-    const order = await storage.getOrder(numId);
-    if (!order) return res.status(404).json({ error: "Заказ не найден" });
-    if (order.deliveryService !== "ozon") return res.status(400).json({ error: "Заказ не использует Ozon доставку" });
-    if (!ozonDeliveryService.isEnabled()) return res.status(503).json({ error: "Ozon Delivery не включён или не авторизован" });
-
-    const existingAddon = (() => { try { return JSON.parse(order.addonData || '{}'); } catch { return {}; } })();
-    if (existingAddon.ozonOrderId) {
-      return res.status(400).json({ error: "У заказа уже есть ozonOrderId — повтор не нужен", ozonOrderId: existingAddon.ozonOrderId });
-    }
-
-    const items = (() => { try { return JSON.parse((order.items as unknown as string) || '[]'); } catch { return []; } })();
-    let pvzId: string | undefined;
-    try { pvzId = order.cdekData ? JSON.parse(order.cdekData as string)?.ozonPvzId || undefined : undefined; } catch {}
-
-    const result = await ozonDeliveryService.createOrder({
-      externalOrderId: String(order.id),
-      customerPhone: order.customerPhone || "",
-      customerName: order.customerName || "",
-      amount: order.total,
-      pvzId,
-      items: (Array.isArray(items) ? items : []).map((item: any) => ({
-        offerId: item.article || item.sku || String(item.productId),
-        quantity: item.quantity || 1,
-        price: item.price || 0,
-        name: item.productName || item.name || "",
-      })),
-    });
-
-    if (result.success && result.ozonOrderId) {
-      await storage.updateOrderAddonData(numId, JSON.stringify({
-        ...existingAddon,
-        ozonOrderId: result.ozonOrderId,
-        ozonCreateFailed: false,
-        ozonRetrySuccessAt: new Date().toISOString(),
-      })).catch(e => console.error(`[OzonRetry] Failed to save ozonOrderId for order ${numId}:`, e?.message));
-      console.log(`[OzonRetry] Admin retry succeeded: ozonOrderId=${result.ozonOrderId} for order ${numId}`);
-      return res.json({ success: true, ozonOrderId: result.ozonOrderId });
-    } else {
-      await storage.updateOrderAddonData(numId, JSON.stringify({
-        ...existingAddon,
-        ozonCreateFailed: true,
-        ozonCreateError: result.error || "unknown",
-        ozonCreateFailedAt: new Date().toISOString(),
-        ozonRetryAttemptAt: new Date().toISOString(),
-      })).catch(e => console.error(`[OzonRetry] Failed to save retry error for order ${numId}:`, e?.message));
-      console.error(`[OzonRetry] Admin retry failed for order ${numId}:`, result.error);
-      return res.status(502).json({ success: false, error: result.error });
-    }
-  });
-
-  // ==================== Ozon Delivery OAuth ====================
-
-  // GET /api/admin/ozon-oauth/authorize — URL для авторизации в Ozon
-  app.get("/api/admin/ozon-oauth/authorize", authMiddleware, requireAdminRole, (_req, res) => {
-    if (!ozonDeliveryOAuth.isConfigured()) {
-      return res.status(503).json({ error: "OZON_CLIENT_ID / OZON_CLIENT_SECRET не заданы" });
-    }
-    try {
-      const authUrl = ozonDeliveryOAuth.generateAuthUrl();
-      res.json({ authUrl });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // GET /api/ozon/oauth/callback — OAuth callback от Ozon (redirect_uri)
-  app.get("/api/ozon/oauth/callback", async (req, res) => {
-    const { code, state, error } = req.query as Record<string, string>;
-    if (error) {
-      console.error("[OzonOAuth] Callback error:", error);
-      return res.redirect(`/admin?tab=integrations&ozon_error=${encodeURIComponent(error)}`);
-    }
-    if (!code || !state) {
-      return res.redirect("/admin?tab=integrations&ozon_error=missing_params");
-    }
-    if (!ozonDeliveryOAuth.validateState(state)) {
-      return res.redirect("/admin?tab=integrations&ozon_error=invalid_state");
-    }
-    const result = await ozonDeliveryOAuth.exchangeCode(code);
-    if (!result.success || !result.tokenData) {
-      console.error("[OzonOAuth] Exchange failed:", result.error);
-      return res.redirect(`/admin?tab=integrations&ozon_error=${encodeURIComponent(result.error || "exchange_failed")}`);
-    }
-    // Сохраняем токены в БД
-    const { tokenData } = result;
-    await Promise.all([
-      storage.setBonusSetting(OZON_OAUTH_KEYS.accessToken, tokenData.accessToken).catch(() => {}),
-      storage.setBonusSetting(OZON_OAUTH_KEYS.refreshToken, tokenData.refreshToken).catch(() => {}),
-      storage.setBonusSetting(OZON_OAUTH_KEYS.expiresAt, String(tokenData.expiresAt)).catch(() => {}),
-    ]);
-    console.log("[OzonOAuth] Токены сохранены, авторизация успешна");
-    res.redirect("/admin?tab=integrations&ozon_success=1");
-  });
-
-  // POST /api/admin/ozon-oauth/reload — перечитать токены из YDB без рестарта сервера
-  app.post("/api/admin/ozon-oauth/reload", authMiddleware, requireAdminRole, async (_req, res) => {
-    try {
-      const [accessToken, refreshToken, expiresAtStr] = await Promise.all([
-        storage.getBonusSetting(OZON_OAUTH_KEYS.accessToken).catch(() => null),
-        storage.getBonusSetting(OZON_OAUTH_KEYS.refreshToken).catch(() => null),
-        storage.getBonusSetting(OZON_OAUTH_KEYS.expiresAt).catch(() => null),
-      ]);
-      if (accessToken && refreshToken && expiresAtStr) {
-        ozonDeliveryOAuth.loadTokensFromStorage(accessToken, refreshToken, Number(expiresAtStr));
-        console.log("[OzonOAuth] Токены перечитаны из YDB по запросу");
-        res.json({ success: true, status: ozonDeliveryOAuth.getStatus() });
-      } else {
-        res.json({ success: false, error: "Токены в YDB не найдены — авторизуйтесь заново" });
-      }
-    } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
-    }
-  });
-
-  // POST /api/admin/ozon-oauth/revoke — отключить Ozon (очистить токены)
-  app.post("/api/admin/ozon-oauth/revoke", authMiddleware, requireAdminRole, async (_req, res) => {
-    ozonDeliveryOAuth.clearTokens();
-    ozonDeliveryService.setEnabled(false);
-    await Promise.all([
-      storage.setBonusSetting(OZON_OAUTH_KEYS.accessToken, "").catch(() => {}),
-      storage.setBonusSetting(OZON_OAUTH_KEYS.refreshToken, "").catch(() => {}),
-      storage.setBonusSetting(OZON_OAUTH_KEYS.expiresAt, "").catch(() => {}),
-      storage.setBonusSetting("ozon_delivery_enabled", "false").catch(() => {}),
-    ]);
-    console.log("[OzonOAuth] Токены удалены");
-    res.json({ success: true });
-  });
-
-  // POST /api/admin/trigger-abandoned-cart — ручной запуск проверки брошенных корзин
-  app.post("/api/admin/trigger-abandoned-cart", authMiddleware, requireAdminRole, async (_req, res) => {
-    res.json({ success: true, message: "Запущено — результат появится в логах" });
-    runAbandonedCartCheck().catch(err =>
-      console.error("[AbandonedCart] Manual trigger error:", err.message)
-    );
-  });
-
-  // POST /api/admin/clear-cart-reminders — сброс cooldown-записей (если письма не дошли)
-  app.post("/api/admin/clear-cart-reminders", authMiddleware, requireAdminRole, async (_req, res) => {
-    const db = storage as any;
-    if (typeof db.clearCartReminders !== 'function') {
-      return res.status(400).json({ success: false, message: "Метод недоступен (dev-режим без YDB)" });
-    }
-    try {
-      const count = await db.clearCartReminders();
-      console.log(`[AbandonedCart] Cleared ${count} cart_reminders records by admin`);
-      res.json({ success: true, message: `Сброшено ${count} записей cooldown` });
-    } catch (err: any) {
-      console.error('[AbandonedCart] Clear reminders error:', err.message);
-      res.status(500).json({ success: false, message: err.message });
-    }
-  });
-
-  // ==================== Ozon Delivery: проверка доступности и стоимости ====================
-  // POST /api/ozon-delivery/points — публичный, список ПВЗ по городу
-  app.post("/api/ozon-delivery/points", async (req, res) => {
-    const { city, limit } = req.body as { city?: string; limit?: number };
-    if (!ozonDeliveryService.isEnabled()) {
-      return res.json({ success: false, points: [], error: "Ozon Доставка не подключена" });
-    }
-    try {
-      const result = await ozonDeliveryService.getPvzList(city, limit || 100);
-      res.json(result);
-    } catch (err: any) {
-      console.error("[OzonDelivery] points error:", err.message);
-      res.json({ success: false, points: [], error: err.message });
-    }
-  });
-
-  // POST /api/ozon-delivery/map-points — только координаты всех ПВЗ из кэша (без Ozon API вызовов)
-  app.post("/api/ozon-delivery/map-points", async (req, res) => {
-    const { city } = req.body as { city?: string };
-    if (!ozonDeliveryService.isEnabled()) {
-      return res.json({ success: false, points: [], error: "Ozon Доставка не подключена" });
-    }
-    try {
-      const result = await ozonDeliveryService.getPvzMapPoints(city);
-      res.json(result);
-    } catch (err: any) {
-      console.error("[OzonDelivery] map-points error:", err.message);
-      res.json({ success: false, points: [], error: err.message });
-    }
-  });
-
-  // POST /api/ozon-delivery/point-detail — детали одного ПВЗ по id (для балуна на карте)
-  app.post("/api/ozon-delivery/point-detail", async (req, res) => {
-    const { id } = req.body as { id?: string };
-    if (!id) return res.json({ success: false, error: "id required" });
-    if (!ozonDeliveryService.isEnabled()) {
-      return res.json({ success: false, error: "Ozon Доставка не подключена" });
-    }
-    try {
-      const result = await ozonDeliveryService.getPvzPointDetail(id);
-      res.json(result);
-    } catch (err: any) {
-      console.error("[OzonDelivery] point-detail error:", err.message);
-      res.json({ success: false, error: err.message });
-    }
-  });
-
-  // POST /api/ozon-delivery/check — публичный, вызывается из чекаута
-  app.post("/api/ozon-delivery/check", async (req, res) => {
-    const { phone, items } = req.body as { phone?: string; items?: Array<{ offerId: string; quantity: number }> };
-    if (!phone) {
-      return res.status(400).json({ error: "Требуется номер телефона" });
-    }
-    if (!ozonDeliveryService.isEnabled()) {
-      return res.json({ available: false, cost: 0, error: "Ozon Доставка не подключена" });
-    }
-    try {
-      const result = await ozonDeliveryService.checkDelivery(phone, items);
-      res.json(result);
-    } catch (err: any) {
-      console.error("[OzonDelivery] check error:", err.message);
-      res.json({ available: false, cost: 0, error: err.message });
-    }
-  });
+  // Ozon Delivery admin + public (server/routes/ozon.ts)
+  registerOzonRoutes(app, authMiddleware, requireAdminRole);
 
   // Apply auth middleware to all routes below
   app.use(authMiddleware);
@@ -5020,11 +4565,11 @@ ${faqSection}
   app.all("/api/1c-exchange", express.raw({ type: '*/*', limit: '500mb' }), async (req, res, next) => {
     // Log ALL requests with full details
     const bodyLen = Buffer.isBuffer(req.body) ? req.body.length : (typeof req.body === 'string' ? req.body.length : 0);
-    console.log(`\n========== 1C REQUEST ==========`);
-    console.log(`[1C] ${req.method} ${req.url}`);
-    console.log(`[1C] Body size: ${bodyLen} bytes`);
-    console.log(`[1C] Content-Type: ${req.headers['content-type']}`);
-    console.log(`================================\n`);
+    logInfo(`\n========== 1C REQUEST ==========`);
+    logInfo(`[1C] ${req.method} ${req.url}`);
+    logInfo(`[1C] Body size: ${bodyLen} bytes`);
+    logInfo(`[1C] Content-Type: ${req.headers['content-type']}`);
+    logInfo(`================================\n`);
     
     // Normalize query params
     const type = (req.query.type as string || "").toLowerCase();
@@ -5033,16 +4578,16 @@ ${faqSection}
     
     // Enhanced logging for file saving issue
     if (req.method === "POST" && mode === "file") {
-      console.log(`[1C DEBUG] Receiving file: ${filename}, type: ${type}, body-size: ${req.body?.length || 0}`);
+      logInfo(`[1C DEBUG] Receiving file: ${filename}, type: ${type}, body-size: ${req.body?.length || 0}`);
     }
 
     if (!is1CSyncEnabled) {
-      console.log(`[1C] Sync disabled — rejecting request`);
+      logInfo(`[1C] Sync disabled — rejecting request`);
       return res.status(403).send("failure\n1C sync is disabled");
     }
 
     if (req.method === "GET" && mode === "checkauth") {
-      console.log(`[1C DEBUG] Bypassing checkauth for type: ${type}. Headers: ${JSON.stringify(req.headers)}`);
+      logInfo(`[1C DEBUG] Bypassing checkauth for type: ${type}. Headers: ${JSON.stringify(req.headers)}`);
       
       // 1C standard: success\nCookieName\nCookieValue
       const cookieName = "PHPSESSID";
@@ -5052,7 +4597,7 @@ ${faqSection}
       // Some 1C versions are very sensitive to any extra characters including \r
       const response = "success\n" + cookieName + "\n" + cookieValue;
       
-      console.log(`[1C DEBUG] Sending checkauth response body: ${JSON.stringify(response)}`);
+      logInfo(`[1C DEBUG] Sending checkauth response body: ${JSON.stringify(response)}`);
       
       // Ensure headers are exactly what 1C expects
       res.setHeader("Content-Type", "text/plain; charset=windows-1251");
@@ -5064,25 +4609,25 @@ ${faqSection}
 
     // Ensure session cookie for 1C (critical for sequence of requests)
     if (!req.headers.cookie) {
-      console.log("[1C DEBUG] No incoming cookie, setting PHPSESSID in response headers");
+      logInfo("[1C DEBUG] No incoming cookie, setting PHPSESSID in response headers");
       res.setHeader("Set-Cookie", "PHPSESSID=replit-session-id; Path=/; HttpOnly");
     } else {
-      console.log(`[1C DEBUG] Incoming cookies: ${req.headers.cookie}`);
+      logInfo(`[1C DEBUG] Incoming cookies: ${req.headers.cookie}`);
     }
     
     // Continue to specific handlers or handle simple GETs here
     if (req.method === "GET") {
-      console.log(`[1C DEBUG] GET request: type=${type}, mode=${mode}, filename=${filename}`);
+      logInfo(`[1C DEBUG] GET request: type=${type}, mode=${mode}, filename=${filename}`);
       
       if (type === "catalog" && mode === "checkauth") {
         res.setHeader("Content-Type", "text/plain; charset=windows-1251");
         return res.end(Buffer.from("success\nPHPSESSID\nreplit-session-id", "binary"));
       }
       if (type === "catalog" && mode === "init") {
-        console.log("[1C] Catalog init received. Sending file limits.");
+        logInfo("[1C] Catalog init received. Sending file limits.");
         res.setHeader("Content-Type", "text/plain; charset=windows-1251");
         const initResponse = "zip=no\nfile_limit=104857600";
-        console.log(`[1C DEBUG] Sending init response: ${initResponse}`);
+        logInfo(`[1C DEBUG] Sending init response: ${initResponse}`);
         return res.end(Buffer.from(initResponse, "binary"));
       }
       if (type === "sale" && mode === "checkauth") {
@@ -5090,16 +4635,16 @@ ${faqSection}
         return res.end(Buffer.from("success\nPHPSESSID\nreplit-session-id", "binary"));
       }
       if (type === "sale" && mode === "init") {
-        console.log("[1C] Sale init received. Sending file limits.");
+        logInfo("[1C] Sale init received. Sending file limits.");
         res.setHeader("Content-Type", "text/plain; charset=windows-1251");
         const initResponse = "zip=no\nfile_limit=104857600";
-        console.log(`[1C DEBUG] Sending init response: ${initResponse}`);
+        logInfo(`[1C DEBUG] Sending init response: ${initResponse}`);
         return res.end(Buffer.from(initResponse, "binary"));
       }
       if (type === "sale" && mode === "query") {
         try {
           const orders = await storage.getUnsyncedOrdersFor1C();
-          console.log(`[1C] Exporting ${orders.length} unsynced orders to 1C`);
+          logInfo(`[1C] Exporting ${orders.length} unsynced orders to 1C`);
           lastExportedOrderIds = orders.map(o => o.id);
 
           // Read global VAT settings (same as invoice PDF)
@@ -5114,7 +4659,7 @@ ${faqSection}
             const modeSetting = await storage.getBonusSetting("invoice_vat_mode");
             if (modeSetting === 'on_top' || modeSetting === 'included') vatMode = modeSetting;
           } catch (e) {
-            console.warn("[1C] Could not read VAT settings, using defaults (5%, included):", e);
+            logWarn("[1C] Could not read VAT settings, using defaults (5%, included):", e);
           }
           const vatRateNum = vatRate;
 
@@ -5320,18 +4865,18 @@ ${faqSection}
           res.set("Content-Type", "application/xml");
           return res.send(xmlData);
         } catch (e) {
-          console.error("[1C] Order export error:", e);
+          logError("[1C] Order export error:", e);
           return res.status(500).send("failure");
         }
       }
       if (type === "sale" && mode === "success") {
         if (lastExportedOrderIds.length > 0) {
-          console.log(`[1C] Marking ${lastExportedOrderIds.length} orders as synced to 1C`);
+          logInfo(`[1C] Marking ${lastExportedOrderIds.length} orders as synced to 1C`);
           try {
             await storage.markOrdersSyncedTo1C(lastExportedOrderIds);
-            console.log(`[1C] Successfully marked orders as synced: [${lastExportedOrderIds.join(', ')}]`);
+            logInfo(`[1C] Successfully marked orders as synced: [${lastExportedOrderIds.join(', ')}]`);
           } catch (err) {
-            console.error(`[1C] Error marking orders as synced:`, err);
+            logError(`[1C] Error marking orders as synced:`, err);
           }
           lastExportedOrderIds = [];
         }
@@ -5340,7 +4885,7 @@ ${faqSection}
       if (type === "catalog" && mode === "import") {
         const filenameStr = path.basename(filename as string);
         const uploadPath = path.resolve(process.cwd(), "1c_uploads", filenameStr);
-        console.log(`[1C] GET Import command received. Filename: ${filenameStr}. Reading from: ${uploadPath}`);
+        logInfo(`[1C] GET Import command received. Filename: ${filenameStr}. Reading from: ${uploadPath}`);
         
         // Ensure 1c_uploads directory exists
         const uploadDir = path.resolve(process.cwd(), "1c_uploads");
@@ -5352,7 +4897,7 @@ ${faqSection}
         if (fs.existsSync(uploadPath)) {
           xmlData = fs.readFileSync(uploadPath, "utf-8");
         } else if (process.env.YANDEX_STORAGE_BUCKET_NAME) {
-          console.log(`[1C] File not found locally, checking Object Storage for products/${filename}`);
+          logInfo(`[1C] File not found locally, checking Object Storage for products/${filename}`);
           xmlData = await downloadFromYandexStorage(`products/${filename}`);
         }
 
@@ -5378,15 +4923,15 @@ ${faqSection}
           
           try {
             const result = parser.parse(xmlData);
-            console.log(`[1C] Processing XML data for ${filename}`);
+            logInfo(`[1C] Processing XML data for ${filename}`);
             
             // Handle Products
             const catalog = result?.["КоммерческаяИнформация"]?.["Каталог"];
             if (catalog?.["Товары"]?.["Товар"]) {
               const items = catalog["Товары"]["Товар"];
               const productsArray = Array.isArray(items) ? items : [items];
-              console.log(`[1C IMPORT] ========== STARTING IMPORT ==========`);
-              console.log(`[1C IMPORT] Total products in XML: ${productsArray.length}`);
+              logInfo(`[1C IMPORT] ========== STARTING IMPORT ==========`);
+              logInfo(`[1C IMPORT] Total products in XML: ${productsArray.length}`);
               
               let processedCount = 0;
               let createdCount = 0;
@@ -5473,10 +5018,10 @@ ${faqSection}
                 }
                 
                 // Detailed logging
-                console.log(`[1C IMPORT] Product: ${name}, SKU: ${sku}`);
-                console.log(`[1C IMPORT]   - XML paths: ${xmlImagePaths.length}, Found in S3: ${allImages.length}, Missing: ${missingImages.length}`);
+                logInfo(`[1C IMPORT] Product: ${name}, SKU: ${sku}`);
+                logInfo(`[1C IMPORT]   - XML paths: ${xmlImagePaths.length}, Found in S3: ${allImages.length}, Missing: ${missingImages.length}`);
                 if (missingImages.length > 0) {
-                  console.log(`[1C IMPORT]   - MISSING FILES (1C did not upload): ${missingImages.join(', ')}`);
+                  logInfo(`[1C IMPORT]   - MISSING FILES (1C did not upload): ${missingImages.join(', ')}`);
                 }
                 const imageUrl = allImages.length > 0 ? allImages[0] : fallbackUrl;
                 const thumbnailUrl = await generate1cThumbUrl(imageUrl) || imageUrl;
@@ -5518,7 +5063,7 @@ ${faqSection}
                 let subcategory: string | null;
                 
                 if (importGroupHierarchy && isIgnoredRootGroup(importGroupHierarchy.rootGroup)) {
-                  console.log(`[1C IMPORT] SKIP product "${name}" — root group "${importGroupHierarchy.rootGroup}" is ignored`);
+                  logInfo(`[1C IMPORT] SKIP product "${name}" — root group "${importGroupHierarchy.rootGroup}" is ignored`);
                   processedCount++;
                   continue;
                 }
@@ -5549,7 +5094,7 @@ ${faqSection}
                 }
                 
                 if (importGroupHierarchy) {
-                  console.log(`[1C IMPORT] Product "${name}" 1C group: "${importGroup1c}" (root: "${importGroupHierarchy.rootGroup}", sub: "${importGroupHierarchy.subGroup || 'N/A'}") -> ${category}/${subcategory}`);
+                  logInfo(`[1C IMPORT] Product "${name}" 1C group: "${importGroup1c}" (root: "${importGroupHierarchy.rootGroup}", sub: "${importGroupHierarchy.subGroup || 'N/A'}") -> ${category}/${subcategory}`);
                 }
                 
                 const onSale = isOnSale(name, 0);
@@ -5577,7 +5122,7 @@ ${faqSection}
                         updateData.images = images;
                       }
                       if (sku) updateData.sku = sku;
-                      console.log(`[1C IMPORT] Same product by name "${name}" already exists (id ${existingByName.id}) — updating instead of creating`);
+                      logInfo(`[1C IMPORT] Same product by name "${name}" already exists (id ${existingByName.id}) — updating instead of creating`);
                       await storage.updateProduct(existingByName.id, updateData);
                       await throttle();
                       updatedCount++;
@@ -5597,7 +5142,7 @@ ${faqSection}
                     enqueueNewProduct(created1c.id).catch(() => {});
                     await throttle();
                     createdCount++;
-                    console.log(`[1C IMPORT] [${processedCount}/${productsArray.length}] CREATED: ${name} → ${slug} (${sku}) [Color: ${extractedColor || 'N/A'}, Sizes: ${finalSizes.join(',')}]`);
+                    logInfo(`[1C IMPORT] [${processedCount}/${productsArray.length}] CREATED: ${name} → ${slug} (${sku}) [Color: ${extractedColor || 'N/A'}, Sizes: ${finalSizes.join(',')}]`);
                     }
                   } else {
                     const updateData: any = { name, description, sku, category, subcategory, onSale, sizes: finalSizes, colors, color: extractedColor };
@@ -5615,24 +5160,24 @@ ${faqSection}
                       const slug = generateUniqueSlug(name, existingSlugs);
                       existingSlugs.push(slug);
                       updateData.slug = slug;
-                      console.log(`[1C IMPORT] Auto-slug for existing product: ${name} → ${slug}`);
+                      logInfo(`[1C IMPORT] Auto-slug for existing product: ${name} → ${slug}`);
                     }
                     await storage.updateProduct(existing.id, updateData);
                     await throttle();
                     updatedCount++;
-                    console.log(`[1C IMPORT] [${processedCount}/${productsArray.length}] UPDATED: ${name} (${sku}) [Color: ${extractedColor || 'N/A'}]`);
+                    logInfo(`[1C IMPORT] [${processedCount}/${productsArray.length}] UPDATED: ${name} (${sku}) [Color: ${extractedColor || 'N/A'}]`);
                   }
                 } catch (productError: any) {
                   errorCount++;
-                  console.error(`[1C IMPORT] [${processedCount}/${productsArray.length}] ERROR for ${name}: ${productError.message}`);
+                  logError(`[1C IMPORT] [${processedCount}/${productsArray.length}] ERROR for ${name}: ${productError.message}`);
                 }
               }
               
-              console.log(`[1C IMPORT] ========== IMPORT COMPLETE ==========`);
-              console.log(`[1C IMPORT] Total in XML: ${productsArray.length}`);
-              console.log(`[1C IMPORT] Created: ${createdCount}`);
-              console.log(`[1C IMPORT] Updated: ${updatedCount}`);
-              console.log(`[1C IMPORT] Errors: ${errorCount}`);
+              logInfo(`[1C IMPORT] ========== IMPORT COMPLETE ==========`);
+              logInfo(`[1C IMPORT] Total in XML: ${productsArray.length}`);
+              logInfo(`[1C IMPORT] Created: ${createdCount}`);
+              logInfo(`[1C IMPORT] Updated: ${updatedCount}`);
+              logInfo(`[1C IMPORT] Errors: ${errorCount}`);
               storage.clearCache();
             }
 
@@ -5641,11 +5186,11 @@ ${faqSection}
             if (offersPkg?.["Предложения"]?.["Предложение"]) {
               const offers = offersPkg["Предложения"]["Предложение"];
               const offersArray = Array.isArray(offers) ? offers : [offers];
-              console.log(`[1C] Found ${offersArray.length} offers to process`);
+              logInfo(`[1C] Found ${offersArray.length} offers to process`);
               
               // Build price types map from XML header
               const priceTypesMap = buildPriceTypesMap(result);
-              console.log(`[1C] Price types found: ${Array.from(priceTypesMap.values()).join(', ') || 'none'}`);
+              logInfo(`[1C] Price types found: ${Array.from(priceTypesMap.values()).join(', ') || 'none'}`);
               
               // Collect sizes and prices from offers (deduplicated by baseId)
               const productSizes = await processOffersSizes(offersArray);
@@ -5656,14 +5201,14 @@ ${faqSection}
               
               // Update sizes for products
               const sizesUpdated = await updateProductSizesFromOffers(productSizes, productPrices);
-              console.log(`[1C] Sizes updated for ${sizesUpdated} products`);
+              logInfo(`[1C] Sizes updated for ${sizesUpdated} products`);
             }
             storage.clearCache(); // Clear cache once at the end
           } catch (e) {
-            console.error(`[1C] XML Parse error for ${filename}:`, e);
+            logError(`[1C] XML Parse error for ${filename}:`, e);
           }
         } else {
-          console.error(`[1C] File data not found for ${filename}`);
+          logError(`[1C] File data not found for ${filename}`);
         }
         return res.send("success");
       }
@@ -5672,22 +5217,22 @@ ${faqSection}
     
     // For POST requests with body, let the next handler take over or handle here
     if (req.method === "POST") {
-      console.log(`[1C DEBUG] POST request: type=${type}, mode=${mode}, filename=${filename}, size=${req.headers['content-length']}`);
+      logInfo(`[1C DEBUG] POST request: type=${type}, mode=${mode}, filename=${filename}, size=${req.headers['content-length']}`);
       
       // File and import handling is done in the dedicated app.post handler below
       // Just pass through to the main handler for both catalog and sale types
       if ((type === "catalog" || type === "sale") && (mode === "file" || mode === "import")) {
-        console.log(`[1C DEBUG] Middleware passing through to main handler: type=${type}, mode=${mode}, filename=${filename}`);
+        logInfo(`[1C DEBUG] Middleware passing through to main handler: type=${type}, mode=${mode}, filename=${filename}`);
         return next();
       }
       if (type === "sale" && mode === "success") {
-        console.log("[1C] Sale exchange finished successfully");
+        logInfo("[1C] Sale exchange finished successfully");
         return res.send("success");
       }
       
       // Log unhandled POST requests
-      console.log(`[1C WARNING] Unhandled POST: type=${type}, mode=${mode}, filename=${filename}`);
-      console.log(`[1C WARNING] This POST was not processed! Returning success anyway.`);
+      logInfo(`[1C WARNING] Unhandled POST: type=${type}, mode=${mode}, filename=${filename}`);
+      logInfo(`[1C WARNING] This POST was not processed! Returning success anyway.`);
     }
 
     res.send("success");
@@ -5699,11 +5244,11 @@ ${faqSection}
     const expectedKey = getSyncKey();
 
     if (!expectedKey || apiKey !== expectedKey) {
-      console.log(`[Sync] Unauthorized sync attempt`);
+      logInfo(`[Sync] Unauthorized sync attempt`);
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    console.log("[Sync] Starting sync from Object Storage...");
+    logInfo("[Sync] Starting sync from Object Storage...");
     
     try {
       // Load existing files from Object Storage before parsing XML
@@ -5729,7 +5274,7 @@ ${faqSection}
         return res.status(404).json({ error: "import.xml not found in Object Storage" });
       }
       
-      console.log("[Sync] Downloaded import.xml, parsing...");
+      logInfo("[Sync] Downloaded import.xml, parsing...");
       const importResult = parser.parse(importXml);
       
       let productsCreated = 0;
@@ -5739,7 +5284,7 @@ ${faqSection}
       const items = importResult?.["КоммерческаяИнформация"]?.["Каталог"]?.["Товары"]?.["Товар"];
       if (items) {
         const productsArray = Array.isArray(items) ? items : [items];
-        console.log(`[Sync] Found ${productsArray.length} products in import.xml`);
+        logInfo(`[Sync] Found ${productsArray.length} products in import.xml`);
         
         for (const item of productsArray) {
           const externalId = item["Ид"];
@@ -5830,7 +5375,7 @@ ${faqSection}
           let subcategory: string | null;
           
           if (groupHierarchy && isIgnoredRootGroup(groupHierarchy.rootGroup)) {
-            console.log(`[Sync] SKIP product "${name}" — root group "${groupHierarchy.rootGroup}" is ignored`);
+            logInfo(`[Sync] SKIP product "${name}" — root group "${groupHierarchy.rootGroup}" is ignored`);
             continue;
           }
           
@@ -5861,7 +5406,7 @@ ${faqSection}
           }
           
           if (group1c || groupHierarchy) {
-            console.log(`[Sync] Product "${name}" 1C group: "${group1c}" (root: "${groupHierarchy?.rootGroup || 'N/A'}", sub: "${groupHierarchy?.subGroup || 'N/A'}") -> ${category}/${subcategory}`);
+            logInfo(`[Sync] Product "${name}" 1C group: "${group1c}" (root: "${groupHierarchy?.rootGroup || 'N/A'}", sub: "${groupHierarchy?.subGroup || 'N/A'}") -> ${category}/${subcategory}`);
           }
           const onSale = isOnSale(name, 0);
           
@@ -5918,29 +5463,29 @@ ${faqSection}
               await throttleBulk(); // Use shorter delay for bulk operations
             }
           } catch (err: any) {
-            console.error(`[Sync] Failed to save product ${name}:`, err.message);
+            logError(`[Sync] Failed to save product ${name}:`, err.message);
           }
         }
       }
       
       // Download and parse offers.xml for prices and sizes
-      console.log("[Sync] Attempting to download offers.xml from products/offers.xml...");
+      logInfo("[Sync] Attempting to download offers.xml from products/offers.xml...");
       const offersXml = await downloadFromYandexStorage("products/offers.xml");
       let pricesUpdated = 0;
       let sizesUpdated = 0;
 
       if (offersXml) {
-        console.log("[Sync] Downloaded offers.xml, parsing...");
+        logInfo("[Sync] Downloaded offers.xml, parsing...");
         const offersResult = parser.parse(offersXml);
         const offers = offersResult?.["КоммерческаяИнформация"]?.["ПакетПредложений"]?.["Предложения"]?.["Предложение"];
         
         if (offers) {
           const offersArray = Array.isArray(offers) ? offers : [offers];
-          console.log(`[Sync] Found ${offersArray.length} offers in offers.xml`);
+          logInfo(`[Sync] Found ${offersArray.length} offers in offers.xml`);
           
           // Build price types map from XML header
           const priceTypesMap = buildPriceTypesMap(offersResult);
-          console.log(`[Sync] Price types found: ${Array.from(priceTypesMap.values()).join(', ') || 'none'}`);
+          logInfo(`[Sync] Price types found: ${Array.from(priceTypesMap.values()).join(', ') || 'none'}`);
           
           // Collect sizes from offers
           const productSizes = await processOffersSizes(offersArray);
@@ -5950,17 +5495,17 @@ ${faqSection}
           
           // Update prices AND stock (one update per product instead of per offer)
           pricesUpdated = await updateProductPricesFromOffers(productPrices);
-          console.log(`[Sync] Prices and stock updated for ${pricesUpdated} products`);
+          logInfo(`[Sync] Prices and stock updated for ${pricesUpdated} products`);
           
           // Update sizes for products
           sizesUpdated = await updateProductSizesFromOffers(productSizes, productPrices);
-          console.log(`[Sync] Sizes updated for ${sizesUpdated} products`);
+          logInfo(`[Sync] Sizes updated for ${sizesUpdated} products`);
         }
       }
       
       storage.clearCache();
-      console.log(`[Sync] Complete: ${productsCreated} created, ${productsUpdated} updated`);
-      console.log(`[Sync] Prices and stock: ${pricesUpdated} products updated`);
+      logInfo(`[Sync] Complete: ${productsCreated} created, ${productsUpdated} updated`);
+      logInfo(`[Sync] Prices and stock: ${pricesUpdated} products updated`);
       
       // Auto-fix colors for products with null/empty color
       const allProducts = await storage.getProducts();
@@ -5975,7 +5520,7 @@ ${faqSection}
         }
       }
       if (colorsFixed > 0) {
-        console.log(`[Sync] Auto-fixed colors for ${colorsFixed} products`);
+        logInfo(`[Sync] Auto-fixed colors for ${colorsFixed} products`);
         storage.clearCache();
       }
       
@@ -5984,7 +5529,7 @@ ${faqSection}
         message: `Synced from Object Storage: ${productsCreated} created, ${productsUpdated} updated, ${colorsFixed} colors fixed` 
       });
     } catch (err: any) {
-      console.error("[Sync] Critical error during synchronization:", err);
+      logError("[Sync] Critical error during synchronization:", err);
       return res.status(500).json({ error: "Synchronization failed", details: err.message });
     }
   });
@@ -6020,7 +5565,7 @@ ${faqSection}
   app.post("/api/convert-images-to-webp", async (req, res) => {
     const expectedKey = getAdminKey();
     if (!expectedKey) {
-      console.error("[WebP] SYNC_API_KEY not configured");
+      logError("[WebP] SYNC_API_KEY not configured");
       return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
     }
     const apiKey = req.headers["x-api-key"];
@@ -6030,11 +5575,11 @@ ${faqSection}
     
     try {
       const limit = Math.min(parseInt(req.query.limit as string) || 40, 50);
-      console.log(`[WebP] Starting image conversion (limit: ${limit})...`);
+      logInfo(`[WebP] Starting image conversion (limit: ${limit})...`);
       
       // Clear cache to get fresh data including newly synced products
       storage.clearCache();
-      console.log(`[WebP] Cache cleared to get fresh product data`);
+      logInfo(`[WebP] Cache cleared to get fresh product data`);
       
       // Get main product images (imageUrl) from database - PRIORITY
       const allProducts = await storage.getProducts();
@@ -6048,7 +5593,7 @@ ${faqSection}
           }
         }
       }
-      console.log(`[WebP] Found ${mainImageKeys.size} main product images in database`);
+      logInfo(`[WebP] Found ${mainImageKeys.size} main product images in database`);
       
       // List all images in products folder
       const allKeys = await listObjectsFromYandexStorage("products/");
@@ -6066,7 +5611,7 @@ ${faqSection}
       const mainImagesNeedConversion = needsConversion.filter(key => mainImageKeys.has(key));
       const secondaryImagesNeedConversion = needsConversion.filter(key => !mainImageKeys.has(key));
       
-      console.log(`[WebP] Priority: ${mainImagesNeedConversion.length} main images, ${secondaryImagesNeedConversion.length} secondary images need conversion`);
+      logInfo(`[WebP] Priority: ${mainImagesNeedConversion.length} main images, ${secondaryImagesNeedConversion.length} secondary images need conversion`);
       
       // Take main images first, then fill with secondary if limit allows
       const imageKeys = [
@@ -6076,7 +5621,7 @@ ${faqSection}
       
       const totalRemaining = needsConversion.length;
       
-      console.log(`[WebP] Found ${totalRemaining} images needing conversion, processing ${imageKeys.length}`);
+      logInfo(`[WebP] Found ${totalRemaining} images needing conversion, processing ${imageKeys.length}`);
       
       let converted = 0;
       let failed = 0;
@@ -6089,7 +5634,7 @@ ${faqSection}
           // Download original image
           const imageBuffer = await downloadBinaryFromYandexStorage(key);
           if (!imageBuffer) {
-            console.log(`[WebP] Could not download: ${key}`);
+            logInfo(`[WebP] Could not download: ${key}`);
             failed++;
             continue;
           }
@@ -6113,17 +5658,17 @@ ${faqSection}
           const thumbFilename = thumbKey.replace('products/', '');
           await uploadToYandexStorage(thumbBuffer, thumbFilename, 'image/webp');
           
-          console.log(`[WebP] Converted: ${key} -> ${webpKey} + thumbnail`);
+          logInfo(`[WebP] Converted: ${key} -> ${webpKey} + thumbnail`);
           converted++;
           
         } catch (err: any) {
-          console.error(`[WebP] Failed to convert ${key}:`, err.message);
+          logError(`[WebP] Failed to convert ${key}:`, err.message);
           failed++;
         }
       }
       
       const remaining = totalRemaining - converted;
-      console.log(`[WebP] Batch complete: ${converted} converted, ${failed} failed, ${remaining} remaining`);
+      logInfo(`[WebP] Batch complete: ${converted} converted, ${failed} failed, ${remaining} remaining`);
       
       // Clear cache so next request sees fresh data
       storage.clearCache();
@@ -6135,7 +5680,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[WebP] Error:", error);
+      logError("[WebP] Error:", error);
       res.status(500).json({ error: "Conversion failed", details: String(error) });
     }
   });
@@ -6144,7 +5689,7 @@ ${faqSection}
   app.post("/api/update-images-to-webp", async (req, res) => {
     const expectedKey = getAdminKey();
     if (!expectedKey) {
-      console.error("[WebP URLs] SYNC_API_KEY not configured");
+      logError("[WebP URLs] SYNC_API_KEY not configured");
       return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
     }
     const apiKey = req.headers["x-api-key"];
@@ -6165,7 +5710,7 @@ ${faqSection}
     }
     
     try {
-      console.log("[WebP URLs] Smart update: checking which WebP files exist...");
+      logInfo("[WebP URLs] Smart update: checking which WebP files exist...");
       
       // Clear cache to get fresh data including newly synced products
       storage.clearCache();
@@ -6185,7 +5730,7 @@ ${faqSection}
         p.imageUrl && /\.webp(\?|$)/i.test(p.imageUrl)
       ).length;
       
-      console.log(`[WebP URLs] Checking ${productsToCheck.length} products for WebP versions (${alreadyWebp} already on WebP)...`);
+      logInfo(`[WebP URLs] Checking ${productsToCheck.length} products for WebP versions (${alreadyWebp} already on WebP)...`);
       
       for (let i = 0; i < productsToCheck.length; i += BATCH_SIZE) {
         const batch = productsToCheck.slice(i, i + BATCH_SIZE);
@@ -6209,7 +5754,7 @@ ${faqSection}
             
             await storage.updateProduct(product.id, updateData);
             updated++;
-            console.log(`[WebP] Updated: ${product.name?.substring(0, 30)}`);
+            logInfo(`[WebP] Updated: ${product.name?.substring(0, 30)}`);
           } else {
             skipped++;
           }
@@ -6217,18 +5762,18 @@ ${faqSection}
 
         const failedInBatch = results.filter(r => r.status === 'rejected');
         if (failedInBatch.length) {
-          console.warn(`[WebP URLs] ${failedInBatch.length}/${results.length} items failed in batch:`,
+          logWarn(`[WebP URLs] ${failedInBatch.length}/${results.length} items failed in batch:`,
             failedInBatch.slice(0, 3).map(f => (f as PromiseRejectedResult).reason?.message || (f as PromiseRejectedResult).reason));
         }
 
-        console.log(`[WebP URLs] Progress: ${Math.min(i + BATCH_SIZE, productsToCheck.length)}/${productsToCheck.length} (updated: ${updated}, skipped: ${skipped})`);
+        logInfo(`[WebP URLs] Progress: ${Math.min(i + BATCH_SIZE, productsToCheck.length)}/${productsToCheck.length} (updated: ${updated}, skipped: ${skipped})`);
         
         if (i + BATCH_SIZE < productsToCheck.length) {
           await new Promise(resolve => setTimeout(resolve, DELAY_MS));
         }
       }
       
-      console.log(`[WebP URLs] Complete: ${updated} updated, ${skipped} skipped (no WebP file), ${alreadyWebp} already on WebP`);
+      logInfo(`[WebP URLs] Complete: ${updated} updated, ${skipped} skipped (no WebP file), ${alreadyWebp} already on WebP`);
       storage.clearCache();
       
       const needsJpg = productsToCheck.length;
@@ -6243,7 +5788,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[WebP URLs] Error:", error);
+      logError("[WebP URLs] Error:", error);
       res.status(500).json({ error: "Update failed", details: String(error) });
     }
   });
@@ -6260,7 +5805,7 @@ ${faqSection}
     }
     
     try {
-      console.log("[Rollback JPG] Rolling back image URLs to JPG...");
+      logInfo("[Rollback JPG] Rolling back image URLs to JPG...");
       
       const products = await storage.getProducts();
       let updated = 0;
@@ -6272,7 +5817,7 @@ ${faqSection}
         p.imageUrl && /\.webp(\?|$)/i.test(p.imageUrl)
       );
       
-      console.log(`[Rollback JPG] Found ${productsToUpdate.length} products to rollback`);
+      logInfo(`[Rollback JPG] Found ${productsToUpdate.length} products to rollback`);
       
       for (let i = 0; i < productsToUpdate.length; i += BATCH_SIZE) {
         const batch = productsToUpdate.slice(i, i + BATCH_SIZE);
@@ -6296,18 +5841,18 @@ ${faqSection}
 
         const failedInBatch = results.filter(r => r.status === 'rejected');
         if (failedInBatch.length) {
-          console.warn(`[Rollback JPG] ${failedInBatch.length}/${results.length} items failed in batch:`,
+          logWarn(`[Rollback JPG] ${failedInBatch.length}/${results.length} items failed in batch:`,
             failedInBatch.slice(0, 3).map(f => (f as PromiseRejectedResult).reason?.message || (f as PromiseRejectedResult).reason));
         }
 
-        console.log(`[Rollback JPG] Batch ${Math.floor(i/BATCH_SIZE) + 1}: ${Math.min(i + BATCH_SIZE, productsToUpdate.length)}/${productsToUpdate.length}`);
+        logInfo(`[Rollback JPG] Batch ${Math.floor(i/BATCH_SIZE) + 1}: ${Math.min(i + BATCH_SIZE, productsToUpdate.length)}/${productsToUpdate.length}`);
         
         if (i + BATCH_SIZE < productsToUpdate.length) {
           await new Promise(resolve => setTimeout(resolve, DELAY_MS));
         }
       }
       
-      console.log(`[Rollback JPG] Complete: ${updated} products rolled back`);
+      logInfo(`[Rollback JPG] Complete: ${updated} products rolled back`);
       storage.clearCache();
       
       res.json({
@@ -6317,7 +5862,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[Rollback JPG] Error:", error);
+      logError("[Rollback JPG] Error:", error);
       res.status(500).json({ error: "Rollback failed", details: String(error) });
     }
   });
@@ -6343,7 +5888,7 @@ ${faqSection}
       const filterStr = typeof filter === 'string' ? filter.toLowerCase() : null;
       const isDryRun = dryRun === true;
       
-      console.log(`[Delete JPG] Smart delete: limit=${maxDelete}, filter="${filterStr || 'none'}", dryRun=${isDryRun}`);
+      logInfo(`[Delete JPG] Smart delete: limit=${maxDelete}, filter="${filterStr || 'none'}", dryRun=${isDryRun}`);
       
       const allKeys = await listObjectsFromYandexStorage("products/");
       
@@ -6353,10 +5898,10 @@ ${faqSection}
       // Apply filter if provided
       if (filterStr) {
         jpgFiles = jpgFiles.filter(key => key.toLowerCase().includes(filterStr));
-        console.log(`[Delete JPG] After filter "${filterStr}": ${jpgFiles.length} JPG/PNG files`);
+        logInfo(`[Delete JPG] After filter "${filterStr}": ${jpgFiles.length} JPG/PNG files`);
       }
       
-      console.log(`[Delete JPG] Found ${jpgFiles.length} JPG/PNG files, ${webpFiles.size} WebP files total`);
+      logInfo(`[Delete JPG] Found ${jpgFiles.length} JPG/PNG files, ${webpFiles.size} WebP files total`);
       
       // Get all thumbnailUrls from products to protect them
       const products = await storage.getProducts();
@@ -6368,7 +5913,7 @@ ${faqSection}
           if (match) usedThumbnails.add(match[1]);
         }
       }
-      console.log(`[Delete JPG] Found ${usedThumbnails.size} thumbnails in use by products`);
+      logInfo(`[Delete JPG] Found ${usedThumbnails.size} thumbnails in use by products`);
       
       const jpgToDelete: string[] = [];
       
@@ -6377,7 +5922,7 @@ ${faqSection}
         if (webpFiles.has(webpKey)) {
           // Check if this JPG is used as a thumbnail
           if (usedThumbnails.has(jpgKey)) {
-            console.log(`[Delete JPG] PROTECTED (used as thumbnail): ${jpgKey}`);
+            logInfo(`[Delete JPG] PROTECTED (used as thumbnail): ${jpgKey}`);
             continue;
           }
           jpgToDelete.push(jpgKey);
@@ -6385,7 +5930,7 @@ ${faqSection}
         }
       }
       
-      console.log(`[Delete JPG] ${jpgToDelete.length} JPG files have WebP versions and will be deleted`);
+      logInfo(`[Delete JPG] ${jpgToDelete.length} JPG files have WebP versions and will be deleted`);
       
       // Dry run - just return what would be deleted
       if (isDryRun) {
@@ -6415,19 +5960,19 @@ ${faqSection}
               errors++;
             }
           } catch (err) {
-            console.error(`[Delete JPG] Failed to delete ${key}:`, err);
+            logError(`[Delete JPG] Failed to delete ${key}:`, err);
             errors++;
           }
         }));
         
-        console.log(`[Delete JPG] Batch ${Math.floor(i/BATCH_SIZE) + 1}: deleted ${deleted}/${jpgToDelete.length}`);
+        logInfo(`[Delete JPG] Batch ${Math.floor(i/BATCH_SIZE) + 1}: deleted ${deleted}/${jpgToDelete.length}`);
         
         if (i + BATCH_SIZE < jpgToDelete.length) {
           await new Promise(resolve => setTimeout(resolve, DELAY_MS));
         }
       }
       
-      console.log(`[Delete JPG] Complete: ${deleted} deleted, ${errors} errors`);
+      logInfo(`[Delete JPG] Complete: ${deleted} deleted, ${errors} errors`);
       
       res.json({
         success: true,
@@ -6441,7 +5986,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[Delete JPG] Error:", error);
+      logError("[Delete JPG] Error:", error);
       res.status(500).json({ error: "Delete JPG failed", details: String(error) });
     }
   });
@@ -6450,7 +5995,7 @@ ${faqSection}
   app.post("/api/generate-thumbnails", async (req, res) => {
     const expectedKey = getAdminKey();
     if (!expectedKey) {
-      console.error("[Thumbnails] SYNC_API_KEY not configured");
+      logError("[Thumbnails] SYNC_API_KEY not configured");
       return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
     }
     const apiKey = req.headers["x-api-key"];
@@ -6462,7 +6007,7 @@ ${faqSection}
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
       const force = req.query.force === "true";
       const folder = (req.query.folder as string) || "all"; // "products", "site", or "all"
-      console.log(`[Thumbnails] Starting thumbnail generation (limit: ${limit}, force: ${force}, folder: ${folder})...`);
+      logInfo(`[Thumbnails] Starting thumbnail generation (limit: ${limit}, force: ${force}, folder: ${folder})...`);
 
       const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || "bmg";
       const { S3Client: S3Regen, PutObjectCommand: PutRegen } = await import("@aws-sdk/client-s3");
@@ -6488,20 +6033,20 @@ ${faqSection}
 
         if (force) {
           allToProcess = allToProcess.concat(webpKeys);
-          console.log(`[Thumbnails] Force mode for ${prefix}: ${webpKeys.length} images`);
+          logInfo(`[Thumbnails] Force mode for ${prefix}: ${webpKeys.length} images`);
         } else {
           const needsThumbnail = webpKeys.filter(key => {
             const thumbKey = key.replace(/\.webp$/i, '_thumb.webp');
             return !existingThumbs.has(thumbKey);
           });
           allToProcess = allToProcess.concat(needsThumbnail);
-          console.log(`[Thumbnails] ${prefix}: ${needsThumbnail.length} images need thumbnails`);
+          logInfo(`[Thumbnails] ${prefix}: ${needsThumbnail.length} images need thumbnails`);
         }
       }
 
       const totalCount = allToProcess.length;
       const toProcess = allToProcess.slice(0, limit);
-      console.log(`[Thumbnails] Total to process: ${totalCount}, this batch: ${toProcess.length}`);
+      logInfo(`[Thumbnails] Total to process: ${totalCount}, this batch: ${toProcess.length}`);
 
       let generated = 0;
       let failed = 0;
@@ -6512,7 +6057,7 @@ ${faqSection}
 
           const imageBuffer = await downloadBinaryFromYandexStorage(key);
           if (!imageBuffer) {
-            console.log(`[Thumbnails] Could not download: ${key}`);
+            logInfo(`[Thumbnails] Could not download: ${key}`);
             failed++;
             continue;
           }
@@ -6537,17 +6082,17 @@ ${faqSection}
             }));
           }
 
-          console.log(`[Thumbnails] Generated: ${thumbKey}`);
+          logInfo(`[Thumbnails] Generated: ${thumbKey}`);
           generated++;
 
         } catch (err: any) {
-          console.error(`[Thumbnails] Failed for ${key}:`, err.message);
+          logError(`[Thumbnails] Failed for ${key}:`, err.message);
           failed++;
         }
       }
 
       const remaining = totalCount - toProcess.length + (toProcess.length - generated);
-      console.log(`[Thumbnails] Batch complete: ${generated} generated, ${failed} failed, ~${remaining} remaining`);
+      logInfo(`[Thumbnails] Batch complete: ${generated} generated, ${failed} failed, ~${remaining} remaining`);
       res.json({
         success: true,
         message: `Generated ${generated} thumbnails (450px, quality 88, sharp)`,
@@ -6555,7 +6100,7 @@ ${faqSection}
       });
 
     } catch (error) {
-      console.error("[Thumbnails] Error:", error);
+      logError("[Thumbnails] Error:", error);
       res.status(500).json({ error: "Generation failed", details: String(error) });
     }
   });
@@ -6569,14 +6114,14 @@ ${faqSection}
     }
     
     try {
-      console.log("[Migration] Adding thumbnail_url column to products table...");
+      logInfo("[Migration] Adding thumbnail_url column to products table...");
       
       const result = await storage.addThumbnailColumn();
       
-      console.log("[Migration] Result:", result.message);
+      logInfo("[Migration] Result:", result.message);
       res.json({ success: result.success, message: result.message });
     } catch (error) {
-      console.error("[Migration] Error:", error);
+      logError("[Migration] Error:", error);
       res.status(500).json({ error: "Migration failed", details: String(error) });
     }
   });
@@ -6590,15 +6135,15 @@ ${faqSection}
     }
     
     try {
-      console.log("[Migration] Adding wholesale columns to users table...");
+      logInfo("[Migration] Adding wholesale columns to users table...");
       
       const { authStorage } = await import("./auth-storage");
       const result = await authStorage.addWholesaleColumns();
       
-      console.log("[Migration] Result:", result.message);
+      logInfo("[Migration] Result:", result.message);
       res.json({ success: result.success, message: result.message });
     } catch (error) {
-      console.error("[Migration] Error:", error);
+      logError("[Migration] Error:", error);
       res.status(500).json({ error: "Migration failed", details: String(error) });
     }
   });
@@ -6612,14 +6157,14 @@ ${faqSection}
     }
     
     try {
-      console.log("[Migration] Adding wholesale_price column to products table...");
+      logInfo("[Migration] Adding wholesale_price column to products table...");
       
       const result = await storage.addWholesalePriceColumn();
       
-      console.log("[Migration] Result:", result.message);
+      logInfo("[Migration] Result:", result.message);
       res.json({ success: result.success, message: result.message });
     } catch (error) {
-      console.error("[Migration] Error:", error);
+      logError("[Migration] Error:", error);
       res.status(500).json({ error: "Migration failed", details: String(error) });
     }
   });
@@ -6633,14 +6178,14 @@ ${faqSection}
     }
     
     try {
-      console.log("[Migration] Adding on_sale column to products table...");
+      logInfo("[Migration] Adding on_sale column to products table...");
       
       const result = await storage.addOnSaleColumn();
       
-      console.log("[Migration] Result:", result.message);
+      logInfo("[Migration] Result:", result.message);
       res.json({ success: result.success, message: result.message });
     } catch (error) {
-      console.error("[Migration] Error:", error);
+      logError("[Migration] Error:", error);
       res.status(500).json({ error: "Migration failed", details: String(error) });
     }
   });
@@ -6654,14 +6199,14 @@ ${faqSection}
     }
     
     try {
-      console.log("[Migration] Adding old_price column to products table...");
+      logInfo("[Migration] Adding old_price column to products table...");
       
       const result = await (storage as any).addOldPriceColumn();
       
-      console.log("[Migration] Result:", result.message);
+      logInfo("[Migration] Result:", result.message);
       res.json({ success: result.success, message: result.message });
     } catch (error) {
-      console.error("[Migration] Error:", error);
+      logError("[Migration] Error:", error);
       res.status(500).json({ error: "Migration failed", details: String(error) });
     }
   });
@@ -6675,14 +6220,14 @@ ${faqSection}
     }
     
     try {
-      console.log("[Migration] Adding is_hidden column to products table...");
+      logInfo("[Migration] Adding is_hidden column to products table...");
       
       const result = await storage.addIsHiddenColumn();
       
-      console.log("[Migration] Result:", result.message);
+      logInfo("[Migration] Result:", result.message);
       res.json({ success: result.success, message: result.message });
     } catch (error) {
-      console.error("[Migration] Error:", error);
+      logError("[Migration] Error:", error);
       res.status(500).json({ error: "Migration failed", details: String(error) });
     }
   });
@@ -6696,14 +6241,14 @@ ${faqSection}
     }
     
     try {
-      console.log("[Migration] Adding auto_hide_override column to products table...");
+      logInfo("[Migration] Adding auto_hide_override column to products table...");
       
       const result = await storage.addAutoHideOverrideColumn();
       
-      console.log("[Migration] Result:", result.message);
+      logInfo("[Migration] Result:", result.message);
       res.json({ success: result.success, message: result.message });
     } catch (error) {
-      console.error("[Migration] Error:", error);
+      logError("[Migration] Error:", error);
       res.status(500).json({ error: "Migration failed", details: String(error) });
     }
   });
@@ -6717,7 +6262,7 @@ ${faqSection}
     }
     
     try {
-      console.log("[Migration] Adding product details columns...");
+      logInfo("[Migration] Adding product details columns...");
       
       const ydb = await import("ydb-sdk");
       const ydbDriver = await waitForDriver();
@@ -6751,7 +6296,7 @@ ${faqSection}
             } as any);
           });
           results.push(`${col.name}: added`);
-          console.log(`[Migration] Added column: ${col.name}`);
+          logInfo(`[Migration] Added column: ${col.name}`);
         } catch (err: any) {
           if (err.message?.includes("already exists") || err.message?.includes("Duplicate column") || err.message?.includes("Cannot alter type")) {
             results.push(`${col.name}: already exists`);
@@ -6763,7 +6308,7 @@ ${faqSection}
       
       res.json({ success: true, results });
     } catch (error) {
-      console.error("[Migration] Error:", error);
+      logError("[Migration] Error:", error);
       res.status(500).json({ error: "Migration failed", details: String(error) });
     }
   });
@@ -6781,7 +6326,7 @@ ${faqSection}
         await ydbDriver.tableClient.withSession(async (session) => {
           await session.executeQuery(`ALTER TABLE products ADD COLUMN feature_badge_ids Json`);
         });
-        console.log("[Migration] Added column: feature_badge_ids");
+        logInfo("[Migration] Added column: feature_badge_ids");
         res.json({ success: true, message: "feature_badge_ids: added" });
       } catch (err: any) {
         if (err.message?.includes("already exists") || err.message?.includes("Duplicate column") || err.message?.includes("Cannot alter type") || err.message?.includes("Member not found")) {
@@ -6791,7 +6336,7 @@ ${faqSection}
         }
       }
     } catch (error) {
-      console.error("[Migration] Error:", error);
+      logError("[Migration] Error:", error);
       res.status(500).json({ error: "Migration failed", details: String(error) });
     }
   });
@@ -6805,14 +6350,14 @@ ${faqSection}
     }
     
     try {
-      console.log("[Migration] Adding stock column to products table...");
+      logInfo("[Migration] Adding stock column to products table...");
       
       const result = await storage.addStockColumn();
       
-      console.log("[Migration] Result:", result.message);
+      logInfo("[Migration] Result:", result.message);
       res.json({ success: result.success, message: result.message });
     } catch (error) {
-      console.error("[Migration] Error:", error);
+      logError("[Migration] Error:", error);
       res.status(500).json({ error: "Migration failed", details: String(error) });
     }
   });
@@ -6826,12 +6371,12 @@ ${faqSection}
     }
     
     try {
-      console.log("[Migration] Adding slug column to products table...");
+      logInfo("[Migration] Adding slug column to products table...");
       const result = await storage.addSlugColumn();
-      console.log("[Migration] Result:", result.message);
+      logInfo("[Migration] Result:", result.message);
       res.json({ success: result.success, message: result.message });
     } catch (error) {
-      console.error("[Migration] Error:", error);
+      logError("[Migration] Error:", error);
       res.status(500).json({ error: "Migration failed", details: String(error) });
     }
   });
@@ -6889,18 +6434,18 @@ ${faqSection}
         
         await storage.updateProduct(product.id, { slug } as any);
         updated++;
-        console.log(`[Slug Backfill] ${product.name} → ${slug}`);
+        logInfo(`[Slug Backfill] ${product.name} → ${slug}`);
         await new Promise(r => setTimeout(r, 50));
       }
       
       if (updated > 0) {
         storage.clearCache();
-        console.log(`[Slug Backfill] Cache cleared after ${updated} slug updates`);
+        logInfo(`[Slug Backfill] Cache cleared after ${updated} slug updates`);
       }
-      console.log(`[Slug Backfill] Done: ${updated} updated, ${skipped} skipped`);
+      logInfo(`[Slug Backfill] Done: ${updated} updated, ${skipped} skipped`);
       res.json({ success: true, updated, skipped });
     } catch (error) {
-      console.error("[Slug Backfill] Error:", error);
+      logError("[Slug Backfill] Error:", error);
       res.status(500).json({ error: "Backfill failed", details: String(error) });
     }
   });
@@ -6915,7 +6460,7 @@ ${faqSection}
       }
       res.json(product);
     } catch (error) {
-      console.error("[API] Error fetching product by slug:", error);
+      logError("[API] Error fetching product by slug:", error);
       res.status(500).json({ error: "Failed to fetch product" });
     }
   });
@@ -6970,11 +6515,11 @@ ${faqSection}
           await new Promise(resolve => setTimeout(resolve, 50));
           if (hasNoRealImage) hiddenNoImage++;
           if (hasZeroPrice && !hasNoRealImage) hiddenZeroPrice++;
-          console.log(`[AutoHide] Hidden product "${product.name}" (noImage=${hasNoRealImage}, zeroPrice=${hasZeroPrice})`);
+          logInfo(`[AutoHide] Hidden product "${product.name}" (noImage=${hasNoRealImage}, zeroPrice=${hasZeroPrice})`);
         }
       }
       
-      console.log(`[AutoHide] Hidden ${hiddenNoImage} products without images, ${hiddenZeroPrice} products with zero price, skipped ${skippedOverride} with override`);
+      logInfo(`[AutoHide] Hidden ${hiddenNoImage} products without images, ${hiddenZeroPrice} products with zero price, skipped ${skippedOverride} with override`);
       res.json({ 
         success: true, 
         hiddenNoImage, 
@@ -6983,169 +6528,13 @@ ${faqSection}
         total: hiddenNoImage + hiddenZeroPrice
       });
     } catch (error) {
-      console.error("[AutoHide] Error:", error);
+      logError("[AutoHide] Error:", error);
       res.status(500).json({ error: "Failed to auto-hide products" });
     }
   });
 
-  // Flush all in-memory caches (product cache + bot-SSR page cache) — admin only.
-  // Call this after SEO or product data changes to force fresh renders on the next request.
-  app.post("/api/admin/cache/flush", requireAdminOrApiKey, async (_req, res) => {
-    try {
-      const botSsrCleared = clearBotSsrCache();
-      storage.clearCache();
-      console.log(`[Cache] Admin flush: cleared bot-SSR cache (${botSsrCleared} entries) + product cache`);
-      res.json({ success: true, botSsrCleared, message: "All caches flushed. Next requests will re-render from fresh data." });
-    } catch (err: any) {
-      console.error("[Cache] Flush error:", err?.message);
-      res.status(500).json({ error: "Flush failed", details: String(err?.message) });
-    }
-  });
-
-  // Duplicate products detection (admin) — groups of products that look like the same item.
-  // Primary signal: normalized name (catches same-name clones). Secondary: slug-prefix
-  // pairs (slug with a "-N" counter suffix whose base slug exists) — catches renamed clones.
-  app.get("/api/admin/products/duplicates", requireAdminOrApiKey, async (_req, res) => {
-    try {
-      const { normalizeProductName } = await import("./slugify");
-      const all = await storage.getProducts();
-      const byName = new Map<string, any[]>();
-      const bySlug = new Map<string, any>();
-      for (const p of all) {
-        if (p.slug) bySlug.set(String(p.slug), p);
-        const n = normalizeProductName(p.name);
-        if (n.length >= 6) {
-          const arr = byName.get(n) || [];
-          arr.push(p);
-          byName.set(n, arr);
-        }
-      }
-      const groups: any[] = [];
-      const seenIds = new Set<number>();
-      const toItem = (p: any) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        price: p.price ?? 0,
-        stock: p.stock ?? 0,
-        imageCount: Array.isArray(p.images) ? p.images.length : 0,
-        isHidden: !!p.isHidden,
-        autoHideOverride: !!p.autoHideOverride,
-        inStock: !!p.inStock,
-        updatedAt: p.updatedAt ?? null,
-        externalId: p.externalId ?? null,
-        color: p.color ?? null,
-        sizes: Array.isArray(p.sizes) ? p.sizes : [],
-        danger: false,
-      });
-      const sortGroup = (arr: any[]) =>
-        arr.slice().sort((a: any, b: any) =>
-          ((a.isHidden ? 1 : 0) - (b.isHidden ? 1 : 0)) ||
-          String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""))
-        );
-      const pushGroup = (items: any[], key: string, reason: string) => {
-        const sorted = sortGroup(items);
-        const canonical = sorted.find((x: any) => !x.isHidden) || sorted[0];
-        const list = sorted.map(toItem);
-        const canonicalPrice = canonical ? canonical.price : null;
-        for (const it of list) {
-          // Danger: this duplicate carries a different price than the canonical one.
-          // Deleting it makes 1C re-attach its externalId to the canonical (name-dedup),
-          // which would change the canonical price on the next sync.
-          it.danger = canonical && it.id !== canonical.id ? it.price !== canonicalPrice : false;
-        }
-        const normNames = items.map((x: any) => normalizeProductName(x.name));
-        const nameDiffers = normNames.some((n: string) => n !== normNames[0]);
-        groups.push({ key, reason, nameDiffers, canonicalId: canonical ? canonical.id : null, items: list });
-        for (const it of items) seenIds.add(it.id);
-      };
-      for (const [key, items] of byName) {
-        if (items.length > 1) pushGroup(items, key, "name");
-      }
-      for (const p of all) {
-        if (seenIds.has(p.id)) continue;
-        const m = String(p.slug || "").match(/^(.*)-(\d+)$/);
-        if (!m) continue;
-        const counter = parseInt(m[2], 10);
-        if (counter < 2 || counter > 20) continue; // counter suffix, not a size (34-39/40-45)
-        const base = bySlug.get(m[1]);
-        if (!base) continue;
-        // Exclude genuinely different products that merely share a slug base:
-        // different color (e.g. чёрная vs белая сумка) or different sizes.
-        const colorA = String((base as any).color || "").trim().toLowerCase();
-        const colorB = String((p as any).color || "").trim().toLowerCase();
-        const sizesMatch = JSON.stringify((base as any).sizes || []) === JSON.stringify((p as any).sizes || []);
-        if (colorA && colorB && colorA !== colorB) continue;
-        if (!sizesMatch) continue;
-        pushGroup([base, p], m[1], "slug");
-      }
-      // Only report groups that actually contain a non-canonical duplicate
-      const realGroups = groups.filter((g: any) => g.items.some((it: any) => it.id !== g.canonicalId));
-      res.json({ groups: realGroups, total: realGroups.length });
-    } catch (err: any) {
-      res.status(500).json({ error: err?.message || "Failed" });
-    }
-  });
-
-  // Bulk delete products completely (YDB + S3 images) — admin only
-  app.post("/api/admin/products/bulk-delete", requireAdminOrApiKey, async (req, res) => {
-    try {
-      const { ids } = req.body;
-      if (!Array.isArray(ids) || ids.length === 0) {
-        return res.status(400).json({ error: "ids must be a non-empty array" });
-      }
-      const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || "";
-      const bucketPrefix = `https://storage.yandexcloud.net/${bucketName}/`;
-      let deleted = 0;
-      let s3Deleted = 0;
-      const errors: string[] = [];
-
-      for (const rawId of ids) {
-        const id = Number(rawId);
-        if (!id) continue;
-        try {
-          // Fetch product to get image URLs before deleting
-          const product = await storage.getProduct(id);
-          if (product) {
-            // Collect all image URLs (images array + thumbnailUrl + hoverThumbnailUrl)
-            const urlsToDelete: string[] = [];
-            const prod = product as any;
-            const imagesArr: string[] = Array.isArray(prod.images) ? prod.images : [];
-            for (const url of imagesArr) {
-              if (typeof url === "string" && url.startsWith(bucketPrefix)) urlsToDelete.push(url);
-            }
-            if (prod.imageUrl && prod.imageUrl.startsWith(bucketPrefix)) urlsToDelete.push(prod.imageUrl);
-            if (prod.thumbnailUrl && prod.thumbnailUrl.startsWith(bucketPrefix)) urlsToDelete.push(prod.thumbnailUrl);
-            if (prod.hoverThumbnailUrl && prod.hoverThumbnailUrl.startsWith(bucketPrefix)) urlsToDelete.push(prod.hoverThumbnailUrl);
-
-            // Deduplicate
-            const uniqueUrls = [...new Set(urlsToDelete)];
-            for (const url of uniqueUrls) {
-              const key = url.replace(bucketPrefix, "");
-              const ok = await deleteFromYandexStorage(key);
-              if (ok) s3Deleted++;
-              console.log(`[BulkDelete] S3 ${ok ? "OK" : "FAIL"}: ${key}`);
-            }
-          }
-          // Capture slug BEFORE deletion for HTTP 410 tracking
-          const productSlug = (product as any).slug || null;
-          // Delete from YDB
-          await storage.deleteProduct(id);
-          deleted++;
-          // Fire-and-forget: record deleted slug so bots get 410 for this URL
-          if (productSlug) storage.addDeletedProductSlug(productSlug).catch(() => {});
-        } catch (err: any) {
-          console.error(`[BulkDelete] Error for product ${id}:`, err.message);
-          errors.push(`${id}: ${err.message}`);
-        }
-      }
-
-      res.json({ ok: true, deleted, s3Deleted, errors });
-    } catch (err: any) {
-      console.error("[BulkDelete] Fatal:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Admin maintenance: cache flush, duplicate detection, bulk delete (server/routes/product-maintenance.ts)
+  registerProductMaintenanceRoutes(app, requireAdminOrApiKey);
 
   // Hide/show product (admin only)
   app.post("/api/products/:id/hide", async (req, res) => {
@@ -7185,7 +6574,7 @@ ${faqSection}
         if (hasIssues) {
           // Set override so auto-hide won't touch it
           updateData.autoHideOverride = true;
-          console.log(`[Admin] Product ${id} shown with autoHideOverride (has issues: noImage=${hasNoRealImage}, zeroPrice=${hasZeroPrice}, zeroStock=${hasZeroStock})`);
+          logInfo(`[Admin] Product ${id} shown with autoHideOverride (has issues: noImage=${hasNoRealImage}, zeroPrice=${hasZeroPrice}, zeroStock=${hasZeroStock})`);
         }
       } else {
         // Admin is HIDING the product - remove override and set inStock=false
@@ -7195,10 +6584,10 @@ ${faqSection}
       
       await storage.updateProduct(id, updateData);
       
-      console.log(`[Admin] Product ${id} ${hidden ? 'hidden' : 'shown'}`);
+      logInfo(`[Admin] Product ${id} ${hidden ? 'hidden' : 'shown'}`);
       res.json({ success: true, id, hidden, autoHideOverride: updateData.autoHideOverride });
     } catch (error) {
-      console.error("[Admin] Error hiding product:", error);
+      logError("[Admin] Error hiding product:", error);
       res.status(500).json({ error: "Failed to update product visibility" });
     }
   });
@@ -7214,10 +6603,10 @@ ${faqSection}
     try {
       const products = await storage.getProducts();
       const hiddenProducts = products.filter((p: any) => p.isHidden === true);
-      console.log(`[Admin] Found ${hiddenProducts.length} hidden products out of ${products.length} total`);
+      logInfo(`[Admin] Found ${hiddenProducts.length} hidden products out of ${products.length} total`);
       res.json({ products: hiddenProducts, total: hiddenProducts.length });
     } catch (error) {
-      console.error("[Admin] Error getting hidden products:", error);
+      logError("[Admin] Error getting hidden products:", error);
       res.status(500).json({ error: "Failed to get hidden products" });
     }
   });
@@ -7242,10 +6631,10 @@ ${faqSection}
                url.startsWith("/1c_uploads/") ||
                (!url.startsWith("https://storage.yandexcloud.net/") && !url.startsWith("http"));
       });
-      console.log(`[Admin] Found ${noImageProducts.length} products without proper images`);
+      logInfo(`[Admin] Found ${noImageProducts.length} products without proper images`);
       res.json({ products: noImageProducts, total: noImageProducts.length });
     } catch (error) {
-      console.error("[Admin] Error getting products without images:", error);
+      logError("[Admin] Error getting products without images:", error);
       res.status(500).json({ error: "Failed to get products without images" });
     }
   });
@@ -7264,712 +6653,16 @@ ${faqSection}
         const price = p.price || 0;
         return price <= 0;
       });
-      console.log(`[Admin] Found ${zeroPriceProducts.length} products with zero or negative price`);
+      logInfo(`[Admin] Found ${zeroPriceProducts.length} products with zero or negative price`);
       res.json({ products: zeroPriceProducts, total: zeroPriceProducts.length });
     } catch (error) {
-      console.error("[Admin] Error getting zero-price products:", error);
+      logError("[Admin] Error getting zero-price products:", error);
       res.status(500).json({ error: "Failed to get zero-price products" });
     }
   });
 
-  // ============ ADMIN PRODUCT MANAGEMENT ============
-  
-  // Create new product (admin only)
-  app.post("/api/admin/products", async (req, res) => {
-    const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const { 
-        name, description, price, category, subcategory,
-        sizes, colors, composition, careInstructions, delivery, returnPolicy,
-        measurements, images, imageUrl, sku, color, stock, sizeStock,
-        wholesalePrice, wholesaleDiscountPercent, discountPercent, sizeDiscounts, seoTitle, seoDescription, seoBody, specsHtml, imageAlts, featureBadgeIds,
-        additionalCategories,
-        preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate, preorderNote,
-        preorderGroup,
-      } = req.body;
-      
-      if (!name || !price || !category) {
-        return res.status(400).json({ error: "Missing required fields: name, price, category" });
-      }
-      
-      const { generateUniqueSlug } = await import("./slugify");
-      const allProducts = await storage.getProducts();
-      const existingSlugs = allProducts.map((p: any) => p.slug).filter(Boolean);
-      const autoSlug = req.body.slug || generateUniqueSlug(name, existingSlugs);
-
-      const sizesArray: string[] = Array.isArray(sizes) ? sizes : [];
-      const generatedExternalId = crypto.randomUUID();
-      const generatedSizeCharIds: Record<string, string> = {};
-      for (const s of sizesArray) {
-        generatedSizeCharIds[s] = crypto.randomUUID();
-      }
-
-      const productData: any = {
-        name,
-        description: description || '',
-        price: parseInt(price),
-        category,
-        subcategory: subcategory || null,
-        sizes: sizesArray,
-        colors: colors || [],
-        imageUrl: imageUrl || images?.[0] || "/placeholder.svg",
-        thumbnailUrl: (() => {
-          const firstImg = imageUrl || images?.[0];
-          if (firstImg && firstImg.includes('.webp') && !firstImg.includes('_thumb.webp')) {
-            return firstImg.replace('.webp', '_thumb.webp');
-          }
-          return firstImg || null;
-        })(),
-        images: images || [],
-        sku: sku || `MANUAL-${Date.now()}`,
-        color: color || null,
-        composition: composition || null,
-        careInstructions: careInstructions || null,
-        delivery: delivery || null,
-        returnPolicy: returnPolicy || null,
-        measurements: measurements || null,
-        isNew: true,
-        inStock: true,
-        isHidden: false,
-        stock: stock !== undefined ? parseInt(stock) : 0,
-        sizeStock: sizeStock || {},
-        slug: autoSlug,
-        wholesalePrice: wholesalePrice ? parseInt(wholesalePrice) : null,
-        wholesaleDiscountPercent: wholesaleDiscountPercent ? parseInt(wholesaleDiscountPercent) : 0,
-        discountPercent: discountPercent ? parseInt(discountPercent) : 0,
-        sizeDiscounts: (sizeDiscounts && typeof sizeDiscounts === 'object') ? sizeDiscounts : {},
-        seoTitle: seoTitle || '',
-        seoDescription: seoDescription || '',
-        seoBody: sanitizeHtmlBlock(seoBody || ''),
-        specsHtml: sanitizeHtmlBlock(specsHtml || ''),
-        imageAlts: Array.isArray(imageAlts) ? imageAlts : [],
-        featureBadgeIds: Array.isArray(featureBadgeIds) ? featureBadgeIds : [],
-        additionalCategories: Array.isArray(additionalCategories) ? additionalCategories : [],
-        preorderEnabled: preorderEnabled === true || preorderEnabled === 'true' || false,
-        preorderGoal: preorderGoal ? parseInt(preorderGoal) : null,
-        preorderDeadline: preorderDeadline || null,
-        preorderProductionDate: preorderProductionDate || null,
-        preorderShippingDate: preorderShippingDate || null,
-        preorderNote: preorderNote || null,
-        preorderGroup: preorderGroup || null,
-        preorderStatus: (preorderEnabled === true || preorderEnabled === 'true') ? 'collecting' : null,
-        externalId: generatedExternalId,
-        sizeCharacteristicIds: generatedSizeCharIds,
-      };
-      
-      const product = await storage.createProduct(productData);
-      console.log(`[Admin] Created new product: ${name} (ID: ${product.id})`);
-      if (preorderEnabled === true || preorderEnabled === 'true') {
-        enqueuePreorderProduct(product.id).catch(() => {});
-      } else {
-        enqueueNewProduct(product.id).catch(() => {});
-      }
-      res.json({ success: true, product });
-    } catch (error) {
-      console.error("[Admin] Error creating product:", error);
-      res.status(500).json({ error: "Failed to create product" });
-    }
-  });
-
-  // Admin API - Update product category (move between categories)
-  // IMPORTANT: Must be registered BEFORE /api/admin/products/:id to avoid Express treating "category" as :id
-  app.patch("/api/admin/products/bulk-badges", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-
-    if (!expectedKey) return res.status(503).json({ message: "Admin API not configured" });
-    if (apiKey !== expectedKey) return res.status(401).json({ message: "Unauthorized" });
-
-    const { ids, isNew, badgeText } = req.body;
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: "ids array required" });
-    }
-
-    let updated = 0;
-    const errors: string[] = [];
-
-    for (const id of ids) {
-      try {
-        await storage.updateProduct(id, { isNew: !!isNew, badgeText: badgeText || null } as any);
-        updated++;
-      } catch (err: any) {
-        errors.push(`${id}: ${err.message}`);
-      }
-    }
-
-    storage.clearCache();
-    console.log(`[Admin] Bulk badge update: ${updated}/${ids.length} products, isNew=${isNew}, badgeText="${badgeText || ''}"`);
-    res.json({ updated, total: ids.length, errors: errors.length > 0 ? errors.slice(0, 5) : undefined });
-  });
-
-  app.patch("/api/admin/products/bulk-discount", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-
-    if (!expectedKey) return res.status(503).json({ message: "Admin API not configured" });
-    if (apiKey !== expectedKey) return res.status(401).json({ message: "Unauthorized" });
-
-    const { ids, discountPercent } = req.body;
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: "ids array required" });
-    }
-    const dp = parseInt(discountPercent);
-    const discount = isNaN(dp) ? 0 : Math.max(0, Math.min(dp, 99));
-
-    let updated = 0;
-    const errors: string[] = [];
-
-    for (const id of ids) {
-      try {
-        await storage.updateProduct(id, { discountPercent: discount } as any);
-        updated++;
-      } catch (err: any) {
-        errors.push(`${id}: ${err.message}`);
-      }
-    }
-
-    storage.clearCache();
-    console.log(`[Admin] Bulk discount: ${updated}/${ids.length} products, discount=${discount}%`);
-    res.json({ updated, total: ids.length, errors: errors.length > 0 ? errors.slice(0, 5) : undefined });
-  });
-
-  app.patch("/api/admin/products/bulk-measurements", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-
-    if (!expectedKey) return res.status(503).json({ message: "Admin API not configured" });
-    if (apiKey !== expectedKey) return res.status(401).json({ message: "Unauthorized" });
-
-    const { ids, measurements } = req.body;
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: "ids array required" });
-    }
-    if (!Array.isArray(measurements)) {
-      return res.status(400).json({ message: "measurements array required" });
-    }
-
-    let updated = 0;
-    const errors: string[] = [];
-
-    for (const id of ids) {
-      try {
-        await storage.updateProduct(id, { measurements: measurements.length > 0 ? measurements : null } as any);
-        updated++;
-      } catch (err: any) {
-        errors.push(`${id}: ${err.message}`);
-      }
-    }
-
-    storage.clearCache();
-    console.log(`[Admin] Bulk measurements: ${updated}/${ids.length} products, rows=${measurements.length}`);
-    res.json({ updated, total: ids.length, errors: errors.length > 0 ? errors.slice(0, 5) : undefined });
-  });
-
-  app.patch("/api/admin/products/category", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-
-    if (!expectedKey) {
-      return res.status(503).json({ message: "Admin API not configured" });
-    }
-
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const { productIds, category, subcategory, subSubcategory: bulkSubSubcategory } = req.body;
-      
-      if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
-        return res.status(400).json({ message: "productIds array required" });
-      }
-      
-      if (!category) {
-        return res.status(400).json({ message: "category required" });
-      }
-
-      let updated = 0;
-      for (const id of productIds) {
-        try {
-          await storage.updateProduct(id, { 
-            category, 
-            subcategory: subcategory || null,
-            subSubcategory: bulkSubSubcategory || null,
-          } as any);
-          updated++;
-        } catch (err) {
-          console.error(`[Admin] Failed to update product ${id}:`, err);
-        }
-      }
-
-      console.log(`[Admin] Moved ${updated} products to category: ${category}/${subcategory || 'none'}/${bulkSubSubcategory || 'none'}`);
-      res.json({ success: true, updated, category, subcategory, subSubcategory: bulkSubSubcategory || null });
-    } catch (err) {
-      console.error("[Admin] Update category error:", err);
-      res.status(500).json({ success: false, message: "Update failed" });
-    }
-  });
-
-  // Bulk add/remove additional category (admin only)
-  app.patch("/api/admin/products/additional-category", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-
-    if (!expectedKey) {
-      return res.status(503).json({ message: "Admin API not configured" });
-    }
-
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const { productIds, category, subcategory, subSubcategory, action } = req.body;
-
-      if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
-        return res.status(400).json({ message: "productIds array required" });
-      }
-      if (!category) {
-        return res.status(400).json({ message: "category required" });
-      }
-
-      let updated = 0;
-      for (const id of productIds) {
-        try {
-          const product = await storage.getProduct(id);
-          if (!product) continue;
-
-          const existing: Array<{ category: string; subcategory: string; subSubcategory?: string }> =
-            (product as any).additionalCategories || [];
-
-          let newList: Array<{ category: string; subcategory: string; subSubcategory?: string }>;
-
-          const normSubSub = (s: any) => (s == null ? "" : String(s));
-          if (action === "remove") {
-            newList = existing.filter(
-              (ac) => !(
-                ac.category === category &&
-                (ac.subcategory || "") === (subcategory || "") &&
-                normSubSub(ac.subSubcategory) === normSubSub(subSubcategory)
-              )
-            );
-          } else {
-            const alreadyExists = existing.some(
-              (ac) => ac.category === category &&
-                (ac.subcategory || "") === (subcategory || "") &&
-                normSubSub(ac.subSubcategory) === normSubSub(subSubcategory)
-            );
-            if (alreadyExists) {
-              updated++;
-              continue;
-            }
-            newList = [...existing, {
-              category,
-              subcategory: subcategory || "",
-              ...(subSubcategory ? { subSubcategory: String(subSubcategory) } : {}),
-            }];
-          }
-
-          await storage.updateProduct(id, { additionalCategories: newList } as any);
-          updated++;
-        } catch (err) {
-          console.error(`[Admin] Failed to update additional category for product ${id}:`, err);
-        }
-      }
-
-      console.log(`[Admin] Bulk ${action || "add"} additional category: ${category}/${subcategory || "none"}/${subSubcategory || "none"} for ${updated} products`);
-      res.json({ success: true, updated, category, subcategory, subSubcategory: subSubcategory || null });
-    } catch (err) {
-      console.error("[Admin] Bulk additional category error:", err);
-      res.status(500).json({ success: false, message: "Update failed" });
-    }
-  });
-
-  // Update product (admin only)
-  app.patch("/api/admin/products/:id", async (req, res) => {
-    const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const id = parseInt(req.params.id);
-      const product = await storage.getProduct(id);
-      if (!product) {
-        return res.status(404).json({ error: "Product not found" });
-      }
-      
-      const { 
-        name, description, price, category, subcategory, subSubcategory, additionalCategories,
-        sizes, colors, composition, careInstructions, note, delivery, returnPolicy,
-        measurements, measurementSections, images, imageUrl, sku, color, wholesalePrice, wholesaleDiscountPercent,
-        isNew, badgeText, lookProducts, lookCategory, lookSubcategory,
-        preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate,
-        stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl, disabledNotifySizes,
-        seoTitle, seoDescription, seoBody, seoJsonLd, specsHtml, imageAlts, featureBadgeIds,
-        isHidden, autoHideOverride, inStock
-      } = req.body;
-      
-      const updateData: any = {};
-      
-      if (name !== undefined) updateData.name = name;
-      if (description !== undefined) updateData.description = description;
-      if (price !== undefined) updateData.price = parseInt(price);
-      if (isHidden !== undefined) updateData.isHidden = isHidden === true;
-      if (autoHideOverride !== undefined) updateData.autoHideOverride = autoHideOverride === true;
-      if (inStock !== undefined) updateData.inStock = inStock === true;
-      if (category !== undefined) updateData.category = category;
-      if (subcategory !== undefined) updateData.subcategory = subcategory;
-      if (subSubcategory !== undefined) updateData.subSubcategory = subSubcategory || null;
-      if (additionalCategories !== undefined) {
-        updateData.additionalCategories = Array.isArray(additionalCategories) ? additionalCategories : [];
-      }
-      if (sizes !== undefined) {
-        updateData.sizes = sizes;
-        const existingCharIds = ((product as any).sizeCharacteristicIds || {}) as Record<string, string>;
-        const newCharIds: Record<string, string> = {};
-        for (const s of (sizes as string[])) {
-          newCharIds[s] = existingCharIds[s] || crypto.randomUUID();
-        }
-        updateData.sizeCharacteristicIds = newCharIds;
-        if (!(product as any).externalId) {
-          updateData.externalId = crypto.randomUUID();
-        }
-      }
-      if (colors !== undefined) updateData.colors = colors;
-      if (composition !== undefined) updateData.composition = composition;
-      if (careInstructions !== undefined) updateData.careInstructions = careInstructions;
-      if (note !== undefined) updateData.note = note;
-      if (delivery !== undefined) updateData.delivery = delivery;
-      if (returnPolicy !== undefined) updateData.returnPolicy = returnPolicy;
-      if (measurements !== undefined) updateData.measurements = measurements;
-      if (measurementSections !== undefined) updateData.measurementSections = Array.isArray(measurementSections) ? measurementSections : [];
-      if (sku !== undefined) updateData.sku = sku;
-      if (color !== undefined) updateData.color = color;
-      if (wholesalePrice !== undefined) updateData.wholesalePrice = parseInt(wholesalePrice);
-      if (wholesaleDiscountPercent !== undefined) {
-        const wdp = parseInt(wholesaleDiscountPercent);
-        updateData.wholesaleDiscountPercent = isNaN(wdp) || wdp <= 0 ? 0 : Math.min(wdp, 99);
-      }
-      if (discountPercent !== undefined) {
-        const dp = parseInt(discountPercent);
-        updateData.discountPercent = isNaN(dp) || dp <= 0 ? 0 : Math.min(dp, 99);
-      }
-      if (salePrice !== undefined) {
-        const sp = parseInt(salePrice);
-        updateData.salePrice = (isNaN(sp) || sp <= 0) ? 0 : sp;
-      }
-      if (isNew !== undefined) updateData.isNew = isNew;
-      if (badgeText !== undefined) updateData.badgeText = badgeText || null;
-      if (lookProducts !== undefined) {
-        const validLookProducts = Array.isArray(lookProducts) 
-          ? lookProducts.filter((id: any) => typeof id === 'number' && id > 0).slice(0, 6)
-          : [];
-        updateData.lookProducts = [...new Set(validLookProducts)];
-        console.log(`[Admin] lookProducts update for product ${id}: received=${JSON.stringify(lookProducts)}, saved=${JSON.stringify(updateData.lookProducts)}`);
-      }
-      if (lookCategory !== undefined) {
-        updateData.lookCategory = lookCategory || null;
-        console.log(`[Admin] lookCategory update for product ${id}: ${lookCategory}`);
-      }
-      if (lookSubcategory !== undefined) {
-        updateData.lookSubcategory = lookSubcategory || null;
-        console.log(`[Admin] lookSubcategory update for product ${id}: ${lookSubcategory}`);
-      }
-      if (stock !== undefined) {
-        const parsedStock = parseInt(stock);
-        updateData.stock = isNaN(parsedStock) || parsedStock < 0 ? 0 : parsedStock;
-        console.log(`[Admin] Stock update for product ${id}: ${updateData.stock}`);
-      }
-      if (sizeStock !== undefined && typeof sizeStock === 'object') {
-        const cleanedSizeStock: Record<string, number> = {};
-        for (const [k, v] of Object.entries(sizeStock)) {
-          const num = parseInt(String(v));
-          const canonicalKey = canonicalizeSizeKey(k);
-          cleanedSizeStock[canonicalKey] = Math.max(cleanedSizeStock[canonicalKey] ?? 0, isNaN(num) || num < 0 ? 0 : num);
-        }
-        updateData.sizeStock = cleanedSizeStock;
-        console.log(`[Admin] SizeStock update for product ${id}: ${JSON.stringify(cleanedSizeStock)}`);
-      }
-      // Единый источник остатка: если у товара есть остатки по размерам,
-      // «Общий остаток» не хранится как независимое число — всегда равен сумме
-      // размеров. Исключает расхождение двух полей в админке и «молчаливое»
-      // скрытие товара при ненулевых остатках по размерам.
-      const finalSizeStock: Record<string, number> = (updateData.sizeStock !== undefined && updateData.sizeStock !== null)
-        ? updateData.sizeStock
-        : (((product as any).sizeStock as Record<string, number> | null) || {});
-      if (
-        Object.keys(finalSizeStock).length > 0 &&
-        (updateData.stock !== undefined || updateData.sizeStock !== undefined)
-      ) {
-        updateData.stock = Object.values(finalSizeStock).reduce((sum, v) => sum + (Number(v) || 0), 0);
-        console.log(`[Admin] Stock recomputed from sizeStock for product ${id}: ${updateData.stock}`);
-      }
-      if (sizeDiscounts !== undefined && typeof sizeDiscounts === 'object') {
-        const cleanedSizeDiscounts: Record<string, number> = {};
-        for (const [k, v] of Object.entries(sizeDiscounts)) {
-          const num = parseInt(String(v));
-          if (!isNaN(num) && num > 0 && num <= 99) {
-            cleanedSizeDiscounts[k] = num;
-          }
-        }
-        updateData.sizeDiscounts = cleanedSizeDiscounts;
-        console.log(`[Admin] SizeDiscounts update for product ${id}: ${JSON.stringify(cleanedSizeDiscounts)}`);
-      }
-      if (disabledNotifySizes !== undefined && Array.isArray(disabledNotifySizes)) {
-        updateData.disabledNotifySizes = disabledNotifySizes.filter((s: any) => typeof s === 'string');
-        console.log(`[Admin] DisabledNotifySizes update for product ${id}: ${JSON.stringify(updateData.disabledNotifySizes)}`);
-      }
-      if (preorderEnabled !== undefined) updateData.preorderEnabled = preorderEnabled;
-      if (preorderGoal !== undefined) updateData.preorderGoal = parseInt(preorderGoal) || 0;
-      if (preorderDeadline !== undefined) updateData.preorderDeadline = preorderDeadline || null;
-      if (preorderProductionDate !== undefined) updateData.preorderProductionDate = preorderProductionDate || null;
-      if (preorderShippingDate !== undefined) updateData.preorderShippingDate = preorderShippingDate || null;
-      if (req.body.preorderGroup !== undefined) updateData.preorderGroup = req.body.preorderGroup || null;
-      if (preorderEnabled && !product.preorderStatus) updateData.preorderStatus = "collecting";
-      if (preorderEnabled && product.isHidden) {
-        updateData.isHidden = false;
-        console.log(`[Admin] Auto-showing product ${id} because preorder was enabled`);
-      }
-      if (slug !== undefined) {
-        updateData.slug = slug;
-      } else if (!(product as any).slug) {
-        // Product has no slug — auto-generate from current (or new) name
-        const currentName = name || product.name;
-        const { generateUniqueSlug } = await import("./slugify");
-        const allProducts = await storage.getProducts();
-        const existingSlugs = allProducts.map((p: any) => p.slug).filter(Boolean);
-        updateData.slug = generateUniqueSlug(currentName, existingSlugs);
-        console.log(`[Admin] Auto-generated slug for product ${id}: ${updateData.slug}`);
-      }
-      if (noSize !== undefined) updateData.noSize = noSize;
-      if (videoUrl !== undefined) updateData.videoUrl = videoUrl || null;
-      if (seoTitle !== undefined) updateData.seoTitle = seoTitle || '';
-      if (seoDescription !== undefined) updateData.seoDescription = seoDescription || '';
-      if (seoBody !== undefined) updateData.seoBody = sanitizeHtmlBlock(seoBody || '');
-      if (seoJsonLd !== undefined) updateData.seoJsonLd = sanitizeJsonLd(seoJsonLd || '');
-      if (specsHtml !== undefined) updateData.specsHtml = sanitizeHtmlBlock(specsHtml || '');
-      if (imageAlts !== undefined) updateData.imageAlts = Array.isArray(imageAlts) ? imageAlts : [];
-      if (featureBadgeIds !== undefined) updateData.featureBadgeIds = Array.isArray(featureBadgeIds) ? featureBadgeIds : [];
-      if (req.body.artistSlug !== undefined) {
-        // Normalize: trim whitespace and lowercase to prevent casing/spacing variants
-        const rawSlug = req.body.artistSlug;
-        updateData.artistSlug = rawSlug ? rawSlug.trim().toLowerCase() : null;
-        console.log(`[Admin] product ${id} artistSlug from request: "${rawSlug}" → stored as: "${updateData.artistSlug}"`);
-      }
-
-      // Handle images
-      if (images !== undefined) {
-        // Find images removed from the array → delete from Object Storage
-        const oldImages: string[] = Array.isArray((product as any).images) ? (product as any).images : (product.imageUrl ? [product.imageUrl] : []);
-        const newImageSet = new Set(images);
-        const removedImages = oldImages.filter(url => !newImageSet.has(url));
-        if (removedImages.length > 0 && process.env.YANDEX_STORAGE_BUCKET_NAME) {
-          const bucketBase = `https://storage.yandexcloud.net/${process.env.YANDEX_STORAGE_BUCKET_NAME}/`;
-          for (const url of removedImages) {
-            if (url.startsWith(bucketBase)) {
-              const key = url.slice(bucketBase.length);
-              deleteFromYandexStorage(key).then(ok => {
-                console.log(`[Admin] Deleted image from storage: ${key} → ${ok}`);
-              }).catch(() => {});
-              // Also delete _thumb version
-              const thumbKey = key.replace(/\.webp$/i, '_thumb.webp');
-              if (thumbKey !== key) {
-                deleteFromYandexStorage(thumbKey).then(ok => {
-                  console.log(`[Admin] Deleted thumb from storage: ${thumbKey} → ${ok}`);
-                }).catch(() => {});
-              }
-            }
-          }
-        }
-
-        updateData.images = images;
-        if (images.length > 0) {
-          updateData.imageUrl = images[0];
-          const firstImg = images[0];
-          updateData.thumbnailUrl = (firstImg && firstImg.includes('.webp') && !firstImg.includes('_thumb.webp'))
-            ? firstImg.replace('.webp', '_thumb.webp')
-            : firstImg;
-          const secondImg = images.length > 1 ? images[1] : null;
-          updateData.hoverThumbnailUrl = secondImg && secondImg.includes('.webp') && !secondImg.includes('_thumb.webp')
-            ? secondImg.replace('.webp', '_thumb.webp')
-            : secondImg;
-        } else {
-          updateData.imageUrl = '';
-          updateData.thumbnailUrl = '';
-          updateData.hoverThumbnailUrl = null;
-        }
-      }
-      if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
-      
-      await storage.updateProduct(id, updateData);
-      storage.clearCache();
-      const updated = await storage.getProduct(id);
-      
-      if (product) {
-        const oldStock = (product as any).stock ?? 0;
-        const oldSizeStock = (product as any).sizeStock || null;
-        const newStock = updateData.stock !== undefined ? updateData.stock : oldStock;
-        const newSizeStock = updateData.sizeStock || null;
-        
-        const prodImages = Array.isArray((product as any).images) && (product as any).images.length > 0 ? (product as any).images[0] : undefined;
-        const prodSlug = (product as any).slug || undefined;
-        if (newSizeStock && typeof newSizeStock === 'object') {
-          processStockNotifications(id, product.name, oldSizeStock, newSizeStock as Record<string, number>, prodImages, prodSlug).catch(() => {});
-        } else if (newStock > 0 && oldStock <= 0 && !newSizeStock) {
-          const notifySize = product.sizes?.length > 0 ? product.sizes[0] : "one-size";
-          processStockNotifications(id, product.name, { [notifySize]: 0 }, { [notifySize]: newStock }, prodImages, prodSlug).catch(() => {});
-        }
-
-        // Preorder notifications — ставим в очередь при включении предзаказа (дайджест раз в 5 часов)
-        if (preorderEnabled === true && !(product as any).preorderEnabled) {
-          enqueuePreorderProduct(id).catch(() => {});
-        }
-
-        // Price drop notifications — учитываем и прямое изменение цены, и скидку процентом
-        const oldBasePrice = product.price || 0;
-        const oldDiscountPct = (product as any).discountPercent || 0;
-        const oldEffectivePrice = oldDiscountPct > 0 ? Math.round(oldBasePrice * (1 - oldDiscountPct / 100)) : oldBasePrice;
-
-        const newBasePrice = updateData.price !== undefined ? updateData.price : oldBasePrice;
-        const newDiscountPct = updateData.discountPercent !== undefined ? updateData.discountPercent : oldDiscountPct;
-        const newEffectivePrice = newDiscountPct > 0 ? Math.round(newBasePrice * (1 - newDiscountPct / 100)) : newBasePrice;
-
-        console.log(`[PriceDrop] old effective=${oldEffectivePrice} (base=${oldBasePrice}, disc=${oldDiscountPct}%), new effective=${newEffectivePrice} (base=${newBasePrice}, disc=${newDiscountPct}%)`);
-
-        if (newEffectivePrice < oldEffectivePrice) {
-          console.log(`[PriceDrop] Price dropped from ${oldEffectivePrice} to ${newEffectivePrice} for product ${id}`);
-          (async () => {
-            try {
-              const subscribers = await storage.getPriceDropSubscribersByProduct(id);
-              console.log(`[PriceDrop] Found ${subscribers.length} subscribers for product ${id}`);
-              const eligible = subscribers.filter(s => s.priceAtSubscription > newEffectivePrice);
-              console.log(`[PriceDrop] ${eligible.length} eligible (subscribed at > ${newEffectivePrice})`);
-              if (eligible.length === 0) return;
-              const baseUrl = process.env.SITE_URL || 'https://www.booomerangs.ru';
-              const prodSlugForUrl = (updated as any)?.slug || id;
-              const productUrl = `${baseUrl}/${prodSlugForUrl}`;
-              const notifiedIds: string[] = [];
-              for (const sub of eligible) {
-                try {
-                  await sendPriceDropEmail(sub.email, product.name, oldEffectivePrice, newEffectivePrice, productUrl, (product as any).imageUrl || undefined);
-                  notifiedIds.push(sub.id);
-                  console.log(`[PriceDrop] Email sent to ${sub.email}`);
-                } catch (e) {
-                  console.error(`[PriceDrop] Failed to send email to ${sub.email}:`, e);
-                }
-              }
-              if (notifiedIds.length > 0) {
-                await storage.markPriceDropSubscriptionsNotified(notifiedIds, newEffectivePrice);
-                console.log(`[PriceDrop] Notified ${notifiedIds.length} subscribers for product ${id}`);
-              }
-            } catch (e) {
-              console.error("[PriceDrop] Notification error:", e);
-            }
-          })();
-        }
-      }
-      
-      console.log(`[Admin] Updated product ${id}: ${updated?.name}`);
-      res.json({ success: true, product: updated });
-    } catch (error) {
-      console.error("[Admin] Error updating product:", error);
-      res.status(500).json({ error: "Failed to update product" });
-    }
-  });
-
-  // Upload product image (admin only)
-  app.post("/api/admin/products/:id/images", async (req, res) => {
-    const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const rawId = req.params.id;
-      const id = parseInt(rawId);
-      const isNewProduct = rawId === "new" || isNaN(id);
-
-      if (!isNewProduct) {
-        const product = await storage.getProduct(id);
-        if (!product) {
-          return res.status(404).json({ error: "Product not found" });
-        }
-      }
-      
-      // Expect base64 image data in body
-      const { imageData, filename, index } = req.body;
-      if (!imageData) {
-        return res.status(400).json({ error: "Missing imageData" });
-      }
-      
-      // Convert base64 to buffer
-      const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
-      const buffer = Buffer.from(base64Data, 'base64');
-      
-      // Convert to WebP using sharp
-      const sharp = await import('sharp');
-      const webpBuffer = await sharp.default(buffer)
-        .resize(2000, 2600, { fit: 'inside', withoutEnlargement: true })
-        .webp({ quality: 92 })
-        .toBuffer();
-      
-      // Generate unique filename
-      const timestamp = Date.now();
-      const fileId = isNewProduct ? `new_${timestamp}` : id;
-      const safeFilename = `admin_${fileId}_${index || 0}_${timestamp}.webp`;
-      
-      // Upload to S3
-      const url = await uploadToYandexStorage(webpBuffer, safeFilename, 'image/webp');
-      
-      if (!url) {
-        return res.status(500).json({ error: "Failed to upload image to storage" });
-      }
-      
-      // Also generate and upload thumbnail (used in product cards)
-      const thumbBuffer = await sharp.default(buffer)
-        .resize(800, null, { withoutEnlargement: true, kernel: 'lanczos3' })
-        .sharpen()
-        .webp({ quality: 88 })
-        .toBuffer();
-      const thumbFilename = safeFilename.replace('.webp', '_thumb.webp');
-      await uploadToYandexStorage(thumbBuffer, thumbFilename, 'image/webp');
-      
-      console.log(`[Admin] Uploaded image for product ${rawId}: ${url}`);
-      res.json({ success: true, url, thumbnailUrl: url.replace('.webp', '_thumb.webp') });
-    } catch (error) {
-      console.error("[Admin] Error uploading image:", error);
-      res.status(500).json({ error: "Failed to upload image" });
-    }
-  });
-
-  // Get single product for editing (admin only)
-  app.get("/api/admin/products/:id", async (req, res) => {
-    const expectedKey = getAdminKey();
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const id = parseInt(req.params.id);
-      const product = await storage.getProduct(id);
-      if (!product) {
-        return res.status(404).json({ error: "Product not found" });
-      }
-      res.json(product);
-    } catch (error) {
-      console.error("[Admin] Error getting product:", error);
-      res.status(500).json({ error: "Failed to get product" });
-    }
-  });
+  // Admin products management (server/routes/admin-products.ts)
+  registerAdminProductsRoutes(app, getAdminKey, processStockNotifications);
 
   // ============ END ADMIN PRODUCT MANAGEMENT ============
 
@@ -7978,7 +6671,7 @@ ${faqSection}
   app.post("/api/update-thumbnail-urls", async (req, res) => {
     const expectedKey = getAdminKey();
     if (!expectedKey) {
-      console.error("[Thumbnails] SYNC_API_KEY not configured");
+      logError("[Thumbnails] SYNC_API_KEY not configured");
       return res.status(503).json({ error: "Service misconfigured: SYNC_API_KEY required" });
     }
     const apiKey = req.headers["x-api-key"];
@@ -7990,7 +6683,7 @@ ${faqSection}
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
       const offset = parseInt(req.query.offset as string) || 0;
       const force = req.query.force === "true";
-      console.log(`[Thumbnails] Regenerating product thumbnails (limit: ${limit}, offset: ${offset}, force: ${force})...`);
+      logInfo(`[Thumbnails] Regenerating product thumbnails (limit: ${limit}, offset: ${offset}, force: ${force})...`);
       
       const products = await storage.getProducts();
       const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || "bmg";
@@ -8014,7 +6707,7 @@ ${faqSection}
       const toProcess = products.filter(needsThumb).slice(offset, offset + limit);
       const totalNeedingUpdate = products.filter(needsThumb).length;
       
-      console.log(`[Thumbnails] ${totalNeedingUpdate} products need thumbnails, processing ${toProcess.length} from offset ${offset}`);
+      logInfo(`[Thumbnails] ${totalNeedingUpdate} products need thumbnails, processing ${toProcess.length} from offset ${offset}`);
       
       let generated = 0;
       let failed = 0;
@@ -8047,7 +6740,7 @@ ${faqSection}
             if (result) {
               updateData.thumbnailUrl = result.thumbUrl;
               thumbsCreated++;
-              console.log(`[Thumbnails] Main OK: ${product.name?.slice(0, 40)}`);
+              logInfo(`[Thumbnails] Main OK: ${product.name?.slice(0, 40)}`);
             }
           }
           
@@ -8075,7 +6768,7 @@ ${faqSection}
                     updateData.hoverThumbnailUrl = result.thumbUrl;
                   }
                   
-                  console.log(`[Thumbnails] Image ${i + 1}/${webpImages.length} OK: ${product.name?.slice(0, 30)}`);
+                  logInfo(`[Thumbnails] Image ${i + 1}/${webpImages.length} OK: ${product.name?.slice(0, 30)}`);
                 }
               }
             }
@@ -8091,7 +6784,7 @@ ${faqSection}
           }
           
         } catch (err: any) {
-          console.error(`[Thumbnails] Failed for ${product.name}: ${err.message}`);
+          logError(`[Thumbnails] Failed for ${product.name}: ${err.message}`);
           failed++;
         }
       }
@@ -8099,7 +6792,7 @@ ${faqSection}
       const remaining = Math.max(0, totalNeedingUpdate - offset - limit);
       if (generated > 0) storage.clearCache();
       
-      console.log(`[Thumbnails] Batch done: ${generated} products updated, ${thumbsCreated} thumbnails created, ${failed} failed, ~${remaining} remaining`);
+      logInfo(`[Thumbnails] Batch done: ${generated} products updated, ${thumbsCreated} thumbnails created, ${failed} failed, ~${remaining} remaining`);
       res.json({
         success: true,
         message: `Regenerated thumbnails for ${generated} products (${thumbsCreated} thumbnails created)`,
@@ -8107,7 +6800,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[Thumbnails] Error:", error);
+      logError("[Thumbnails] Error:", error);
       res.status(500).json({ error: "Update failed", details: String(error) });
     }
   });
@@ -8121,7 +6814,7 @@ ${faqSection}
     }
     
     try {
-      console.log("[Fix Thumbnails] Starting to fix .jpg thumbnailUrls -> .webp...");
+      logInfo("[Fix Thumbnails] Starting to fix .jpg thumbnailUrls -> .webp...");
       
       const products = await storage.getProducts();
       let updated = 0;
@@ -8137,7 +6830,7 @@ ${faqSection}
             thumbnailUrl: newThumbnailUrl 
           } as any);
           
-          console.log(`[Fix Thumbnails] Fixed: ${product.name?.slice(0, 40)} | ${product.thumbnailUrl?.slice(-50)} -> .webp`);
+          logInfo(`[Fix Thumbnails] Fixed: ${product.name?.slice(0, 40)} | ${product.thumbnailUrl?.slice(-50)} -> .webp`);
           updated++;
           
           // Throttle to prevent YDB overload
@@ -8149,7 +6842,7 @@ ${faqSection}
         }
       }
       
-      console.log(`[Fix Thumbnails] Complete: ${updated} fixed, ${skipped} skipped`);
+      logInfo(`[Fix Thumbnails] Complete: ${updated} fixed, ${skipped} skipped`);
       storage.clearCache();
       
       res.json({
@@ -8159,7 +6852,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[Fix Thumbnails] Error:", error);
+      logError("[Fix Thumbnails] Error:", error);
       res.status(500).json({ error: "Fix failed", details: String(error) });
     }
   });
@@ -8170,13 +6863,13 @@ ${faqSection}
     
     const apiKey = req.headers["x-api-key"];
     if (apiKey !== expectedKey) {
-      console.log(`[Categories] Auth failed`);
+      logInfo(`[Categories] Auth failed`);
 
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      console.log("[Categories] Starting category backfill...");
+      logInfo("[Categories] Starting category backfill...");
       
       const products = await storage.getProducts();
       let updated = 0;
@@ -8200,7 +6893,7 @@ ${faqSection}
         if (product.category !== category || product.subcategory !== subcategory || product.onSale !== onSale) {
           const oldCat = `${product.category}/${product.subcategory || "none"}`;
           const newCat = `${category}/${subcategory || "none"}`;
-          console.log(`[Categories] UPDATING ${product.id} (${product.sku}): ${oldCat} -> ${newCat}`);
+          logInfo(`[Categories] UPDATING ${product.id} (${product.sku}): ${oldCat} -> ${newCat}`);
           
           await storage.updateProduct(product.id, { 
             category,
@@ -8222,11 +6915,11 @@ ${faqSection}
         }
       }
       
-      console.log(`[Categories] Complete: ${updated} products updated`);
+      logInfo(`[Categories] Complete: ${updated} products updated`);
       storage.clearCache();
       
       // Clear TanStack Query cache on frontend might be needed, but server-side cache is handled
-      console.log("[Cache] Cleared all cached data via storage.clearCache()");
+      logInfo("[Cache] Cleared all cached data via storage.clearCache()");
       
       res.json({
         success: true,
@@ -8235,7 +6928,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[Categories] Error:", error);
+      logError("[Categories] Error:", error);
       res.status(500).json({ error: "Backfill failed", details: String(error) });
     }
   });
@@ -8249,7 +6942,7 @@ ${faqSection}
     }
     
     try {
-      console.log("[Images] Starting images backfill...");
+      logInfo("[Images] Starting images backfill...");
       
       const products = await storage.getProducts();
       let updated = 0;
@@ -8264,13 +6957,13 @@ ${faqSection}
             } as any);
             await throttle(); // Prevent YDB overload
             updated++;
-            console.log(`[Images] Initialized images for product ${product.id}: [${product.imageUrl}]`);
+            logInfo(`[Images] Initialized images for product ${product.id}: [${product.imageUrl}]`);
           }
         }
       }
       
       storage.clearCache();
-      console.log(`[Images] Complete: ${updated} products updated`);
+      logInfo(`[Images] Complete: ${updated} products updated`);
       
       res.json({
         success: true,
@@ -8279,7 +6972,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[Images] Error:", error);
+      logError("[Images] Error:", error);
       res.status(500).json({ error: "Backfill failed", details: String(error) });
     }
   });
@@ -8293,7 +6986,7 @@ ${faqSection}
     }
 
     try {
-      console.log("[SALE] Starting move to SALE category...");
+      logInfo("[SALE] Starting move to SALE category...");
       
       // Keywords from 1C SALE group (from screenshots)
       const saleKeywords = [
@@ -8324,7 +7017,7 @@ ${faqSection}
       ];
       
       const products = await storage.getProducts();
-      console.log(`[SALE] Total products to check: ${products.length}`);
+      logInfo(`[SALE] Total products to check: ${products.length}`);
       let updated = 0;
       const movedProducts: string[] = [];
       
@@ -8333,7 +7026,7 @@ ${faqSection}
         
         // Debug: log products with sale-related keywords
         if (nameLower.includes("бини") || nameLower.includes("электроник") || nameLower.includes("тетрис")) {
-          console.log(`[SALE] Checking: ${product.name} | category: ${product.category}`);
+          logInfo(`[SALE] Checking: ${product.name} | category: ${product.category}`);
         }
         
         // Check if product matches any SALE keyword
@@ -8353,7 +7046,7 @@ ${faqSection}
         }
         
         if (matchesSale && product.category !== "sale") {
-          console.log(`[SALE] Moving to SALE: ${product.name}`);
+          logInfo(`[SALE] Moving to SALE: ${product.name}`);
           await storage.updateProduct(product.id, {
             category: "sale",
             subcategory: "Распродажа",
@@ -8365,14 +7058,14 @@ ${faqSection}
         }
       }
       
-      console.log(`[SALE] Moved ${updated} products to SALE category`);
+      logInfo(`[SALE] Moved ${updated} products to SALE category`);
       res.json({ 
         success: true, 
         message: `Moved ${updated} products to SALE`,
         products: movedProducts
       });
     } catch (error) {
-      console.error("[SALE] Error:", error);
+      logError("[SALE] Error:", error);
       res.status(500).json({ error: "Failed to move products to SALE" });
     }
   });
@@ -8386,7 +7079,7 @@ ${faqSection}
     }
     
     try {
-      console.log("[Colors] Starting color backfill...");
+      logInfo("[Colors] Starting color backfill...");
       
       const { extractColorFromName } = await import("./categoryMapper");
       const products = await storage.getProducts();
@@ -8402,12 +7095,12 @@ ${faqSection}
           await throttleBulk(); // Use shorter delay for bulk operations
           updated++;
           colorStats[extractedColor] = (colorStats[extractedColor] || 0) + 1;
-          console.log(`[Colors] ${product.id}: "${currentColor || 'null'}" -> "${extractedColor}"`);
+          logInfo(`[Colors] ${product.id}: "${currentColor || 'null'}" -> "${extractedColor}"`);
         }
       }
       
       storage.clearCache(); // Clear cache once at the end
-      console.log(`[Colors] Complete: ${updated} products updated`);
+      logInfo(`[Colors] Complete: ${updated} products updated`);
       
       res.json({
         success: true,
@@ -8416,7 +7109,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[Colors] Error:", error);
+      logError("[Colors] Error:", error);
       res.status(500).json({ error: "Backfill failed", details: String(error) });
     }
   });
@@ -8430,7 +7123,7 @@ ${faqSection}
     }
     
     try {
-      console.log("[Sizes] Starting sizes backfill...");
+      logInfo("[Sizes] Starting sizes backfill...");
       
       const { extractSizesFromName } = await import("./categoryMapper");
       const products = await storage.getProducts();
@@ -8449,12 +7142,12 @@ ${faqSection}
           for (const size of extractedSizes) {
             sizeStats[size] = (sizeStats[size] || 0) + 1;
           }
-          console.log(`[Sizes] ${product.id} "${product.name}": [${currentSizes.join(', ')}] -> [${extractedSizes.join(', ')}]`);
+          logInfo(`[Sizes] ${product.id} "${product.name}": [${currentSizes.join(', ')}] -> [${extractedSizes.join(', ')}]`);
         }
       }
       
       storage.clearCache(); // Clear cache once at the end
-      console.log(`[Sizes] Complete: ${updated} products updated`);
+      logInfo(`[Sizes] Complete: ${updated} products updated`);
       
       res.json({
         success: true,
@@ -8463,7 +7156,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[Sizes] Error:", error);
+      logError("[Sizes] Error:", error);
       res.status(500).json({ error: "Backfill failed", details: String(error) });
     }
   });
@@ -8477,7 +7170,7 @@ ${faqSection}
     }
     
     try {
-      console.log("[Backfill Stock] Starting in_stock sync...");
+      logInfo("[Backfill Stock] Starting in_stock sync...");
       const products = await storage.getProducts();
       let updated = 0;
       
@@ -8491,7 +7184,7 @@ ${faqSection}
         if (shouldBeOutOfStock && currentInStock !== false) {
           await storage.updateProduct(product.id, { inStock: false } as any);
           updated++;
-          console.log(`[Backfill Stock] Set in_stock=false for "${product.name}"`);
+          logInfo(`[Backfill Stock] Set in_stock=false for "${product.name}"`);
           await new Promise(r => setTimeout(r, 150)); // Throttle
         }
       }
@@ -8499,7 +7192,7 @@ ${faqSection}
       // Clear cache after bulk update
       storage.clearCache();
       
-      console.log(`[Backfill Stock] Updated ${updated} products`);
+      logInfo(`[Backfill Stock] Updated ${updated} products`);
       res.json({
         success: true,
         message: `Synced in_stock for ${updated} products`,
@@ -8507,7 +7200,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[Backfill Stock] Error:", error);
+      logError("[Backfill Stock] Error:", error);
       res.status(500).json({ error: "Backfill failed", details: String(error) });
     }
   });
@@ -8548,10 +7241,10 @@ ${faqSection}
       }
 
       storage.clearCache();
-      console.log(`[CleanupSizes] Cleaned ${updated} products`, changes);
+      logInfo(`[CleanupSizes] Cleaned ${updated} products`, changes);
       return res.json({ success: true, updated, changes });
     } catch (error) {
-      console.error("[CleanupSizes] Error:", error);
+      logError("[CleanupSizes] Error:", error);
       return res.status(500).json({ error: String(error) });
     }
   });
@@ -8565,7 +7258,7 @@ ${faqSection}
     }
     
     try {
-      console.log("[UpdateSizes] Starting sizes update from offers.xml...");
+      logInfo("[UpdateSizes] Starting sizes update from offers.xml...");
       
       // Download offers.xml from storage
       const offersXml = await downloadFromYandexStorage("products/offers.xml");
@@ -8573,7 +7266,7 @@ ${faqSection}
         return res.status(404).json({ error: "offers.xml not found in storage" });
       }
       
-      console.log("[UpdateSizes] Downloaded offers.xml, parsing...");
+      logInfo("[UpdateSizes] Downloaded offers.xml, parsing...");
       
       const parser = new XMLParser({
         ignoreAttributes: false,
@@ -8611,7 +7304,7 @@ ${faqSection}
         }
       }
       
-      console.log(`[UpdateSizes] Found ${totalOffers} offers, ${allProductSizes.size} products with sizes`);
+      logInfo(`[UpdateSizes] Found ${totalOffers} offers, ${allProductSizes.size} products with sizes`);
       
       // Update products in database
       let updated = 0;
@@ -8624,7 +7317,7 @@ ${faqSection}
           if (sizes.length > 0) {
             const currentSizes = product.sizes || [];
             if (JSON.stringify(sizes) !== JSON.stringify(currentSizes)) {
-              console.log(`[UpdateSizes] ${product.name}: [${currentSizes.join(', ')}] -> [${sizes.join(', ')}]`);
+              logInfo(`[UpdateSizes] ${product.name}: [${currentSizes.join(', ')}] -> [${sizes.join(', ')}]`);
               await storage.updateProduct(product.id, { sizes, skipCacheClear: true } as any);
               await throttleBulk(); // Use shorter delay for bulk operations
               updated++;
@@ -8637,7 +7330,7 @@ ${faqSection}
       }
       
       storage.clearCache();
-      console.log(`[UpdateSizes] Complete: ${updated} products updated`);
+      logInfo(`[UpdateSizes] Complete: ${updated} products updated`);
       
       res.json({
         success: true,
@@ -8651,7 +7344,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[UpdateSizes] Error:", error);
+      logError("[UpdateSizes] Error:", error);
       res.status(500).json({ error: "Update sizes failed", details: String(error) });
     }
   });
@@ -8665,14 +7358,14 @@ ${faqSection}
     }
     
     try {
-      console.log("[UpdateStock] Starting stock update from offers.xml...");
+      logInfo("[UpdateStock] Starting stock update from offers.xml...");
       
       const offersXml = await downloadFromYandexStorage("products/offers.xml");
       if (!offersXml) {
         return res.status(404).json({ error: "offers.xml not found in storage" });
       }
       
-      console.log("[UpdateStock] Downloaded offers.xml, parsing...");
+      logInfo("[UpdateStock] Downloaded offers.xml, parsing...");
       
       const parser = new XMLParser({
         ignoreAttributes: false,
@@ -8696,14 +7389,14 @@ ${faqSection}
         const priceTypesMap = buildPriceTypesMap(offersData);
         const productPrices = collectPricesFromOffers(offersArray, priceTypesMap);
         
-        console.log(`[UpdateStock] Processing ${productPrices.size} products...`);
+        logInfo(`[UpdateStock] Processing ${productPrices.size} products...`);
         
         updated = await updateProductPricesFromOffers(productPrices);
       }
       
       storage.clearCache();
       
-      console.log(`[UpdateStock] Updated stock for ${updated} products`);
+      logInfo(`[UpdateStock] Updated stock for ${updated} products`);
       
       res.json({
         success: true,
@@ -8712,7 +7405,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[UpdateStock] Error:", error);
+      logError("[UpdateStock] Error:", error);
       res.status(500).json({ error: "Update stock failed", details: String(error) });
     }
   });
@@ -8726,7 +7419,7 @@ ${faqSection}
     }
     
     try {
-      console.log("[Admin] Deleting all products from database...");
+      logInfo("[Admin] Deleting all products from database...");
       
       const products = await storage.getProducts();
       let deleted = 0;
@@ -8738,7 +7431,7 @@ ${faqSection}
       }
       
       storage.clearCache();
-      console.log(`[Admin] Deleted ${deleted} products`);
+      logInfo(`[Admin] Deleted ${deleted} products`);
       
       res.json({
         success: true,
@@ -8747,7 +7440,7 @@ ${faqSection}
       });
       
     } catch (error) {
-      console.error("[Admin] Error deleting products:", error);
+      logError("[Admin] Error deleting products:", error);
       res.status(500).json({ error: "Delete failed", details: String(error) });
     }
   });
@@ -8810,154 +7503,36 @@ ${faqSection}
     res.json(CATEGORIES);
   });
 
-  // Admin: Save categories config
-  app.post("/api/admin/categories", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const { categories } = req.body;
-      if (!categories || typeof categories !== 'object') {
-        return res.status(400).json({ error: "Invalid categories data" });
-      }
-      const slugRegex = /^[a-z0-9_-]+$/;
-      const slugsSeen = new Set<string>();
-      for (const [slug, cat] of Object.entries(categories)) {
-        const c = cat as any;
-        if (!slug || !slugRegex.test(slug)) {
-          return res.status(400).json({ error: `Invalid slug: "${slug}". Use lowercase Latin letters, numbers, hyphens, and underscores.` });
-        }
-        if (slugsSeen.has(slug)) {
-          return res.status(400).json({ error: `Duplicate slug: "${slug}"` });
-        }
-        slugsSeen.add(slug);
-        if (!c.name || typeof c.name !== 'string' || c.name.trim().length === 0) {
-          return res.status(400).json({ error: `Category "${slug}" must have a non-empty name` });
-        }
-        if (!Array.isArray(c.subcategories)) {
-          return res.status(400).json({ error: `Category "${slug}" subcategories must be an array` });
-        }
-        const normalizedSubs: SubcategoryConfig[] = [];
-        const subSlugsSeen = new Set<string>();
-        for (const s of c.subcategories) {
-          let subName: string;
-          let subSlug: string;
-          if (typeof s === 'string') {
-            subName = s.trim();
-            subSlug = transliterateToSlug(subName);
-          } else if (s && typeof s === 'object' && s.name) {
-            subName = s.name.trim();
-            subSlug = (s.slug && slugRegex.test(s.slug)) ? s.slug : transliterateToSlug(subName);
-          } else {
-            continue;
-          }
-          if (!subName) continue;
-          if (subSlugsSeen.has(subSlug)) {
-            let counter = 2;
-            while (subSlugsSeen.has(`${subSlug}-${counter}`)) counter++;
-            subSlug = `${subSlug}-${counter}`;
-          }
-          subSlugsSeen.add(subSlug);
-          // Normalize sub-subcategories
-          const normalizedSubSubs: SubSubcategoryConfig[] = [];
-          if (Array.isArray((s as any).subSubcategories)) {
-            const ssSlugsSeen = new Set<string>();
-            for (const ss of (s as any).subSubcategories) {
-              let ssName: string;
-              let ssSlug: string;
-              if (typeof ss === 'string') {
-                ssName = ss.trim();
-                ssSlug = transliterateToSlug(ssName);
-              } else if (ss && typeof ss === 'object' && ss.name) {
-                ssName = ss.name.trim();
-                ssSlug = (ss.slug && slugRegex.test(ss.slug)) ? ss.slug : transliterateToSlug(ssName);
-              } else continue;
-              if (!ssName) continue;
-              if (ssSlugsSeen.has(ssSlug)) {
-                let counter = 2;
-                while (ssSlugsSeen.has(`${ssSlug}-${counter}`)) counter++;
-                ssSlug = `${ssSlug}-${counter}`;
-              }
-              ssSlugsSeen.add(ssSlug);
-              normalizedSubSubs.push({ name: ssName, slug: ssSlug });
-            }
-          }
-          normalizedSubs.push({ name: subName, slug: subSlug, ...(normalizedSubSubs.length > 0 ? { subSubcategories: normalizedSubSubs } : {}) });
-        }
-        (categories as any)[slug] = { name: c.name.trim(), slug, subcategories: normalizedSubs };
-      }
-      if (Object.keys(categories).length === 0) {
-        return res.status(400).json({ error: "At least one category is required" });
-      }
-      await storage.setPageSectionSettings("site_config", "categories_data", categories);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Get categories config (returns current dynamic or hardcoded + product counts)
-  app.get("/api/admin/categories", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      let cats: any = CATEGORIES;
-      let source = "default";
-      const dynamicConfig = await storage.getPageSettings("site_config");
-      if (dynamicConfig?.categories_data) {
-        const parsed = typeof dynamicConfig.categories_data === 'string'
-          ? JSON.parse(dynamicConfig.categories_data)
-          : dynamicConfig.categories_data;
-        if (parsed && Object.keys(parsed).length > 0) {
-          cats = normalizeCategories(parsed);
-          source = "dynamic";
-        }
-      }
-      const products = await storage.getProducts();
-      const productCounts: Record<string, number> = {};
-      for (const p of products) {
-        if (p.category) {
-          productCounts[p.category] = (productCounts[p.category] || 0) + 1;
-        }
-      }
-      res.json({ categories: cats, source, productCounts });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Admin categories config (server/routes/categories-admin.ts)
+  registerCategoriesAdminRoutes(app, getAdminKey);
 
   // CRITICAL: Need separate express.raw() for POST handler to ensure body is parsed correctly
   // The app.all() middleware parses body but Express may not preserve it across next() calls in all cases
   app.post("/api/1c-exchange", express.raw({ type: '*/*', limit: '500mb' }), async (req, res) => {
     if (!is1CSyncEnabled) {
-      console.log(`[1C] Sync disabled — rejecting POST request`);
+      logInfo(`[1C] Sync disabled — rejecting POST request`);
       return res.status(403).send("failure\n1C sync is disabled");
     }
     
     const { type, mode, filename } = req.query;
     const bodySize = Buffer.isBuffer(req.body) ? req.body.length : 0;
-    console.log(`[1C EXCHANGE] POST Type: ${type}, Mode: ${mode}, Filename: ${filename}, BodySize: ${bodySize} bytes`);
+    logInfo(`[1C EXCHANGE] POST Type: ${type}, Mode: ${mode}, Filename: ${filename}, BodySize: ${bodySize} bytes`);
     
-    console.log(`[1C DEBUG] POST request for mode: ${mode}`);
+    logInfo(`[1C DEBUG] POST request for mode: ${mode}`);
 
     // Handle file uploads for both catalog and sale types
     if ((type === "catalog" || type === "sale") && mode === "file") {
       const filenameStr = path.basename(filename as string);
       const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(filenameStr);
-      console.log(`[1C FILE] Processing file: ${filenameStr}, isImage: ${isImage}, hasBody: ${!!req.body}, bodyLength: ${req.body?.length || 0}`);
+      logInfo(`[1C FILE] Processing file: ${filenameStr}, isImage: ${isImage}, hasBody: ${!!req.body}, bodyLength: ${req.body?.length || 0}`);
       
       // Upload images to Object Storage with retry mechanism
       if (isImage && process.env.YANDEX_STORAGE_BUCKET_NAME) {
-        console.log(`[1C IMAGE] *** RECEIVED: ${filenameStr}, bodySize: ${req.body?.length || 0} ***`);
+        logInfo(`[1C IMAGE] *** RECEIVED: ${filenameStr}, bodySize: ${req.body?.length || 0} ***`);
         
         const imageBuffer = req.body;
         if (!imageBuffer || imageBuffer.length === 0) {
-          console.error(`[1C IMAGE] ERROR: Empty body for ${filenameStr}`);
+          logError(`[1C IMAGE] ERROR: Empty body for ${filenameStr}`);
           return res.send("failure\nEmpty file body");
         }
         
@@ -8971,66 +7546,66 @@ ${faqSection}
         
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
           try {
-            console.log(`[1C IMAGE] Upload attempt ${attempt}/${MAX_RETRIES}: ${finalFilename}, size: ${imageBuffer.length}`);
+            logInfo(`[1C IMAGE] Upload attempt ${attempt}/${MAX_RETRIES}: ${finalFilename}, size: ${imageBuffer.length}`);
             const s3Url = await uploadToYandexStorage(imageBuffer, finalFilename, contentType);
             
             if (s3Url) {
               existingFilesCache.add(`products/${finalFilename}`);
-              console.log(`[1C IMAGE] *** SUCCESS (attempt ${attempt}): ${filenameStr} -> ${s3Url} ***`);
+              logInfo(`[1C IMAGE] *** SUCCESS (attempt ${attempt}): ${filenameStr} -> ${s3Url} ***`);
               return res.send("success");
             } else {
               lastError = "uploadToYandexStorage returned null";
-              console.error(`[1C IMAGE] Attempt ${attempt} failed: returned null`);
+              logError(`[1C IMAGE] Attempt ${attempt} failed: returned null`);
             }
           } catch (err: any) {
             lastError = err.message || err;
-            console.error(`[1C IMAGE] Attempt ${attempt} exception: ${lastError}`);
+            logError(`[1C IMAGE] Attempt ${attempt} exception: ${lastError}`);
           }
           
           // Wait before retry (exponential backoff)
           if (attempt < MAX_RETRIES) {
             const delay = 1000 * attempt;
-            console.log(`[1C IMAGE] Waiting ${delay}ms before retry...`);
+            logInfo(`[1C IMAGE] Waiting ${delay}ms before retry...`);
             await new Promise(r => setTimeout(r, delay));
           }
         }
         
         // All retries failed
-        console.error(`[1C IMAGE] *** FAILED after ${MAX_RETRIES} attempts: ${filenameStr}, error: ${lastError} ***`);
+        logError(`[1C IMAGE] *** FAILED after ${MAX_RETRIES} attempts: ${filenameStr}, error: ${lastError} ***`);
         return res.send("failure\nUpload failed after retries: " + lastError);
       }
       
       // For XML files, save to Object Storage AND locally for parsing
       const isXml = /\.(xml)$/i.test(filenameStr);
       
-      console.log(`\n========== XML FILE RECEIVED ==========`);
-      console.log(`[1C XML] File: ${filenameStr}, isXml: ${isXml}, size: ${req.body?.length || 0}`);
-      console.log(`========================================\n`);
+      logInfo(`\n========== XML FILE RECEIVED ==========`);
+      logInfo(`[1C XML] File: ${filenameStr}, isXml: ${isXml}, size: ${req.body?.length || 0}`);
+      logInfo(`========================================\n`);
       
       // Upload XML to S3 so it persists across serverless container instances
       if (isXml && process.env.YANDEX_STORAGE_BUCKET_NAME) {
         try {
           const xmlBuffer = req.body;
           if (!xmlBuffer || xmlBuffer.length === 0) {
-            console.error(`[1C XML] ERROR: Empty body for XML ${filenameStr}`);
+            logError(`[1C XML] ERROR: Empty body for XML ${filenameStr}`);
             return res.send("failure\nEmpty file body");
           }
           
           // Save as products/import.xml or products/offers.xml (keep original name, no flattening)
           // Important: don't flatten slashes for XML - they need to match download path exactly
           const s3Filename = filenameStr;
-          console.log(`[1C XML] *** UPLOADING TO S3: ${s3Filename}, size: ${xmlBuffer.length} ***`);
+          logInfo(`[1C XML] *** UPLOADING TO S3: ${s3Filename}, size: ${xmlBuffer.length} ***`);
           const s3Url = await uploadToYandexStorage(xmlBuffer, s3Filename, 'application/xml');
           if (s3Url) {
-            console.log(`[1C XML] *** SUCCESS: ${filenameStr} -> ${s3Url} ***`);
+            logInfo(`[1C XML] *** SUCCESS: ${filenameStr} -> ${s3Url} ***`);
           } else {
-            console.error(`[1C XML] ERROR: uploadToYandexStorage returned null for XML ${filenameStr}`);
+            logError(`[1C XML] ERROR: uploadToYandexStorage returned null for XML ${filenameStr}`);
           }
         } catch (err: any) {
-          console.error(`[1C XML] UPLOAD ERROR for ${filenameStr}:`, err.message || err);
+          logError(`[1C XML] UPLOAD ERROR for ${filenameStr}:`, err.message || err);
         }
       } else {
-        console.log(`[1C XML] Skipping S3 upload: isXml=${isXml}, bucket=${!!process.env.YANDEX_STORAGE_BUCKET_NAME}`);
+        logInfo(`[1C XML] Skipping S3 upload: isXml=${isXml}, bucket=${!!process.env.YANDEX_STORAGE_BUCKET_NAME}`);
       }
       
       // Also save locally for immediate parsing (in case same container processes import)
@@ -9042,10 +7617,10 @@ ${faqSection}
           fs.mkdirSync(dir, { recursive: true });
         }
         fs.writeFileSync(uploadPath, req.body);
-        console.log(`[1C] Saved file locally: ${filenameStr}`);
+        logInfo(`[1C] Saved file locally: ${filenameStr}`);
         return res.send("success");
       } catch (err) {
-        console.error(`[1C] Failed to save file ${filenameStr}:`, err);
+        logError(`[1C] Failed to save file ${filenameStr}:`, err);
         return res.send("failure\nError saving file");
       }
     }
@@ -9060,9 +7635,9 @@ ${faqSection}
         const filenameStr = typeof filename === 'string' ? filename : `import_${timestamp}.xml`;
         const s3Key = `xml_logs/${filenameStr.replace(/\//g, '_')}`;
         await uploadToYandexStorage(Buffer.from(xmlData), s3Key, 'application/xml');
-        console.log(`[1C] Saved XML to Object Storage: ${s3Key}`);
+        logInfo(`[1C] Saved XML to Object Storage: ${s3Key}`);
       } catch (xmlSaveErr) {
-        console.error(`[1C] Failed to save XML to storage:`, xmlSaveErr);
+        logError(`[1C] Failed to save XML to storage:`, xmlSaveErr);
       }
       
       // Load existing files from Object Storage before parsing XML
@@ -9080,7 +7655,7 @@ ${faqSection}
       
       try {
         const result = parser.parse(xmlData);
-        console.log(`[1C] Parsing XML for mode=import, filename: ${filename}`);
+        logInfo(`[1C] Parsing XML for mode=import, filename: ${filename}`);
         
         // Basic CommerceML parsing logic
         const catalog = result?.["КоммерческаяИнформация"]?.["Классификатор"] || result?.["КоммерческаяИнформация"]?.["ПакетПредложений"];
@@ -9117,7 +7692,7 @@ ${faqSection}
               const sku = item["Артикул"] || "";
               
               if (!externalId || !name) {
-                console.warn(`[1C] Skipping product without externalId or name`);
+                logWarn(`[1C] Skipping product without externalId or name`);
                 productsFailed++;
                 continue;
               }
@@ -9143,7 +7718,7 @@ ${faqSection}
               
               // DETAILED LOGGING FOR IMAGE DEBUGGING
               const imgDataCount = Array.isArray(imgData) ? imgData.length : (imgData ? 1 : 0);
-              console.log(`[1C IMG DEBUG] Product: ${name?.slice(0,40)}, imgData count: ${imgDataCount}, type: ${typeof imgData}, isArray: ${Array.isArray(imgData)}`);
+              logInfo(`[1C IMG DEBUG] Product: ${name?.slice(0,40)}, imgData count: ${imgDataCount}, type: ${typeof imgData}, isArray: ${Array.isArray(imgData)}`);
               
               const extractPath = (img: any): string | null => {
                 if (typeof img === 'string' && img.trim()) return img.trim();
@@ -9156,29 +7731,29 @@ ${faqSection}
                 for (let i = 0; i < imgData.length; i++) {
                   const img = imgData[i];
                   const path = extractPath(img);
-                  console.log(`[1C IMG DEBUG]   [${i}] raw: ${JSON.stringify(img)?.slice(0,100)}, path: ${path?.slice(0,60)}`);
+                  logInfo(`[1C IMG DEBUG]   [${i}] raw: ${JSON.stringify(img)?.slice(0,100)}, path: ${path?.slice(0,60)}`);
                   if (path) {
                     const url = getImageUrl(path, existingFilesCache);
-                    console.log(`[1C IMG DEBUG]   [${i}] url: ${url?.slice(0,80)}, isFallback: ${url === fallbackUrl}`);
+                    logInfo(`[1C IMG DEBUG]   [${i}] url: ${url?.slice(0,80)}, isFallback: ${url === fallbackUrl}`);
                     if (url && url !== fallbackUrl) allImages.push(url);
                   }
                 }
               } else if (imgData) {
                 // Fallback for single value (shouldn't happen with isArray)
                 const path = extractPath(imgData);
-                console.log(`[1C IMG DEBUG]   single raw: ${JSON.stringify(imgData)?.slice(0,100)}, path: ${path?.slice(0,60)}`);
+                logInfo(`[1C IMG DEBUG]   single raw: ${JSON.stringify(imgData)?.slice(0,100)}, path: ${path?.slice(0,60)}`);
                 if (path) {
                   const url = getImageUrl(path, existingFilesCache);
-                  console.log(`[1C IMG DEBUG]   single url: ${url?.slice(0,80)}, isFallback: ${url === fallbackUrl}`);
+                  logInfo(`[1C IMG DEBUG]   single url: ${url?.slice(0,80)}, isFallback: ${url === fallbackUrl}`);
                   if (url && url !== fallbackUrl) allImages.push(url);
                 }
               }
               
-              console.log(`[1C IMG DEBUG] Result: ${allImages.length} valid images for ${name?.slice(0,30)}`);
+              logInfo(`[1C IMG DEBUG] Result: ${allImages.length} valid images for ${name?.slice(0,30)}`);
               
               // Log if no images found
               if (allImages.length === 0) {
-                console.warn(`[1C] WARNING: No images found for product ${name} (${sku}), imgData type: ${typeof imgData}, isArray: ${Array.isArray(imgData)}`);
+                logWarn(`[1C] WARNING: No images found for product ${name} (${sku}), imgData type: ${typeof imgData}, isArray: ${Array.isArray(imgData)}`);
               }
               
               const imageUrl = allImages.length > 0 ? allImages[0] : fallbackUrl;
@@ -9187,7 +7762,7 @@ ${faqSection}
               const { category, subcategory } = mapProductCategory(sku, name);
               const onSale = isOnSale(name, 0);
               
-              console.log(`[1C] Processing: ${name} (SKU: ${sku}, extId: ${externalId}, images: ${images.length})`);
+              logInfo(`[1C] Processing: ${name} (SKU: ${sku}, extId: ${externalId}, images: ${images.length})`);
               
               const existing = cachedByExtId.get(externalId);
               const hasRealNewImages = allImages.length > 0 && !allImages.every(img => img.includes(fallbackUrl));
@@ -9203,7 +7778,7 @@ ${faqSection}
                     updateData.images = images;
                   }
                   
-                  console.log(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead. hasRealNewImages: ${hasRealNewImages}`);
+                  logInfo(`[1C] SKU ${sku} already exists for product ${existingBySku.id}, updating by SKU instead. hasRealNewImages: ${hasRealNewImages}`);
                   await storage.updateProduct(existingBySku.id, updateData);
                   productsUpdated++;
                   await throttle(); // Prevent YDB overload
@@ -9220,12 +7795,12 @@ ${faqSection}
                       updateData.images = images;
                     }
                     if (sku) updateData.sku = sku;
-                    console.log(`[1C] Same product by name "${name}" already exists (id ${existingByName.id}) — updating instead of creating`);
+                    logInfo(`[1C] Same product by name "${name}" already exists (id ${existingByName.id}) — updating instead of creating`);
                     await storage.updateProduct(existingByName.id, updateData);
                     productsUpdated++;
                     await throttle(); // Prevent YDB overload
                   } else {
-                    console.log(`[1C] Creating new product: ${name} (${externalId})`);
+                    logInfo(`[1C] Creating new product: ${name} (${externalId})`);
                     const created1cV2 = await storage.createProduct({
                       externalId,
                       sku,
@@ -9261,18 +7836,18 @@ ${faqSection}
                   updateData.images = images;
                 }
                 
-                console.log(`[1C] Updating existing product: ${name} (${externalId}), hasRealNewImages: ${hasRealNewImages}, updateImages: ${hasRealNewImages}`);
+                logInfo(`[1C] Updating existing product: ${name} (${externalId}), hasRealNewImages: ${hasRealNewImages}, updateImages: ${hasRealNewImages}`);
                 await storage.updateProduct(existing.id, updateData);
                 productsUpdated++;
                 await throttleBulk(); // Use shorter delay for bulk operations
               }
             } catch (itemErr: any) {
-              console.error(`[1C] Failed to process product:`, itemErr.message || itemErr);
+              logError(`[1C] Failed to process product:`, itemErr.message || itemErr);
               productsFailed++;
             }
           }
           
-          console.log(`[1C] Products import: ${productsCreated} created, ${productsUpdated} updated, ${productsFailed} failed`);
+          logInfo(`[1C] Products import: ${productsCreated} created, ${productsUpdated} updated, ${productsFailed} failed`);
         }
 
         // Handle Offers (Prices + Sizes)
@@ -9282,7 +7857,7 @@ ${faqSection}
           
           // Build price types map from XML header
           const priceTypesMap = buildPriceTypesMap(result);
-          console.log(`[1C] Price types found: ${Array.from(priceTypesMap.values()).join(', ') || 'none'}`);
+          logInfo(`[1C] Price types found: ${Array.from(priceTypesMap.values()).join(', ') || 'none'}`);
           
           // Collect sizes and prices from offers (deduplicated by baseId)
           const productSizes = await processOffersSizes(offersArray);
@@ -9293,14 +7868,14 @@ ${faqSection}
           
           // Update sizes for products
           const sizesUpdated = await updateProductSizesFromOffers(productSizes, productPrices);
-          console.log(`[1C] Sizes updated for ${sizesUpdated} products`);
+          logInfo(`[1C] Sizes updated for ${sizesUpdated} products`);
         }
         
-        console.log("[1C] Import successful");
+        logInfo("[1C] Import successful");
         storage.clearCache(); // Clear cache once at the end
         return res.send("success");
       } catch (err) {
-        console.error("[1C] Import failed:", err);
+        logError("[1C] Import failed:", err);
         return res.send("failure\nError parsing XML");
       }
     }
@@ -9625,235 +8200,8 @@ ${faqSection}
     }
   });
 
-  // GET /api/artists/:slug/promo — public: promo code for artist page display
-  app.get("/api/artists/:slug/promo", async (req, res) => {
-    try {
-      const { slug } = req.params;
-      if (!slug) return res.json({ promoCode: null });
-      const partner = await storage.getPartnerBySlug(slug);
-      if (!partner || !partner.isArtist) return res.json({ promoCode: null });
-      const promo = await storage.getPartnerPromoCode(partner.id);
-      if (!promo || !promo.isActive) return res.json({ promoCode: null });
-      res.set("Cache-Control", "public, max-age=120");
-      res.json({ promoCode: { code: promo.code, discountPercent: promo.discountPercent } });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // GET /api/artists/:slug/likes — public: get like count
-  app.get("/api/artists/:slug/likes", async (req, res) => {
-    try {
-      const { slug } = req.params;
-      if (!slug) return res.json({ likes: 0 });
-      const key = `artist_likes_${slug}`;
-      const raw = await storage.getBonusSetting(key);
-      const likes = raw ? parseInt(raw, 10) : 0;
-      res.set("Cache-Control", "public, max-age=10");
-      res.json({ likes: isNaN(likes) ? 0 : likes });
-    } catch {
-      res.json({ likes: 0 });
-    }
-  });
-
-  // POST /api/artists/:slug/like — public: increment like count
-  app.post("/api/artists/:slug/like", async (req, res) => {
-    try {
-      const { slug } = req.params;
-      if (!slug) return res.json({ likes: 0 });
-      const key = `artist_likes_${slug}`;
-      const raw = await storage.getBonusSetting(key);
-      const current = raw ? parseInt(raw, 10) : 0;
-      const newCount = (isNaN(current) ? 0 : current) + 1;
-      await storage.setBonusSetting(key, String(newCount));
-      res.json({ likes: newCount });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // POST /api/artists/:slug/view — public: increment page view counter (fire-and-forget)
-  app.post("/api/artists/:slug/view", async (req, res) => {
-    try {
-      const { slug } = req.params;
-      if (slug) {
-        const key = `artist_page_views_${slug}`;
-        const raw = await storage.getBonusSetting(key);
-        const current = raw ? parseInt(raw, 10) : 0;
-        await storage.setBonusSetting(key, String((isNaN(current) ? 0 : current) + 1));
-      }
-      res.json({ ok: true });
-    } catch {
-      res.json({ ok: true });
-    }
-  });
-
-  // ─── Artist Tracks API ──────────────────────────────────────────────────────
-
-  // GET /api/artists/all-tracks — public: all active tracks grouped by artist
-  app.get("/api/artists/all-tracks", async (req, res) => {
-    try {
-      const artists = await storage.getArtistPartners();
-      const result = await Promise.all(
-        artists
-          .map(async a => {
-            const tracks = await storage.getArtistTracks(a.partnerSlug, false);
-            if (tracks.length === 0) return null;
-            return {
-              slug: a.partnerSlug,
-              name: a.storeName || a.contactName || a.partnerSlug,
-              tracks,
-            };
-          })
-      );
-      res.json({ artists: result.filter(Boolean) });
-    } catch (err: any) {
-      console.error("[all-tracks] error:", err.message);
-      res.json({ artists: [] });
-    }
-  });
-
-  // GET /api/artists/:slug/tracks — public: get active tracks
-  app.get("/api/artists/:slug/tracks", async (req, res) => {
-    try {
-      const { slug } = req.params;
-      const tracks = await storage.getArtistTracks(slug, false);
-      res.json({ tracks });
-    } catch (err: any) {
-      console.error("[tracks] get error:", err.message);
-      res.json({ tracks: [] });
-    }
-  });
-
-  // GET /api/admin/artists/:slug/tracks — admin: get all tracks (incl. inactive)
-  app.get("/api/admin/artists/:slug/tracks", requireAdminOrApiKey, async (req, res) => {
-    try {
-      const { slug } = req.params;
-      const tracks = await storage.getArtistTracks(slug, true);
-      res.json({ tracks });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // POST /api/admin/artists/:slug/tracks — admin: create track (JSON body with URLs)
-  app.post("/api/admin/artists/:slug/tracks", requireAdminOrApiKey, async (req, res) => {
-    try {
-      const { slug } = req.params;
-      const { title, subtitle, audioUrl, coverUrl, duration, trackOrder } = req.body || {};
-      if (!title || !audioUrl) return res.status(400).json({ error: "title and audioUrl required" });
-      const track = await storage.createArtistTrack({
-        artistSlug: slug,
-        title: String(title),
-        subtitle: String(subtitle || ""),
-        audioUrl: String(audioUrl),
-        coverUrl: String(coverUrl || ""),
-        duration: Number(duration) || 0,
-        trackOrder: Number(trackOrder) || 0,
-      });
-      res.json({ track });
-    } catch (err: any) {
-      console.error("[tracks] create error:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // PATCH /api/admin/artists/tracks/:id — admin: update track metadata
-  app.patch("/api/admin/artists/tracks/:id", requireAdminOrApiKey, async (req, res) => {
-    try {
-      const id = Number(req.params.id);
-      if (!id) return res.status(400).json({ error: "Invalid id" });
-      const { title, subtitle, audioUrl, coverUrl, duration, trackOrder, isActive } = req.body || {};
-      await storage.updateArtistTrack(id, { title, subtitle, audioUrl, coverUrl, duration, trackOrder, isActive });
-      res.json({ ok: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // DELETE /api/admin/artists/tracks/:id — admin: delete track
-  app.delete("/api/admin/artists/tracks/:id", requireAdminOrApiKey, async (req, res) => {
-    try {
-      const id = Number(req.params.id);
-      if (!id) return res.status(400).json({ error: "Invalid id" });
-      await storage.deleteArtistTrack(id);
-      res.json({ ok: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // POST /api/artists/tracks/:id/play — public: batch-increment play count
-  app.post("/api/artists/tracks/:id/play", async (req, res) => {
-    try {
-      const id = Number(req.params.id);
-      const count = Math.min(Math.max(Number(req.body?.count) || 1, 1), 100);
-      if (id > 0) await storage.incrementTrackPlays(id, count);
-      res.json({ ok: true });
-    } catch {
-      res.json({ ok: true });
-    }
-  });
-
-  // POST /api/admin/artists/:slug/presign-audio — admin: get presigned URL for direct S3 upload
-  app.post("/api/admin/artists/:slug/presign-audio", requireAdminOrApiKey, async (req, res) => {
-    try {
-      const { slug } = req.params;
-      const { filename, contentType } = req.body || {};
-      if (!filename || !contentType) return res.status(400).json({ error: "filename and contentType required" });
-      const { generateAudioPresignedUrl } = await import("./lib/storage-s3");
-      const result = await generateAudioPresignedUrl(slug, filename, contentType);
-      if (!result) return res.status(500).json({ error: "Failed to generate presigned URL — check YOS credentials" });
-      res.json(result);
-    } catch (err: any) {
-      console.error("[presign-audio]", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // POST /api/admin/artists/:slug/upload-audio — admin: upload MP3/M4A to YOS (legacy, kept for compatibility)
-  app.post("/api/admin/artists/:slug/upload-audio", requireAdminOrApiKey, async (req, res) => {
-    try {
-      const { slug } = req.params;
-      const contentType = (req.headers["content-type"] || "audio/mpeg").split(";")[0].trim();
-      const rawFilename = (req.headers["x-filename"] as string) || `audio_${Date.now()}.mp3`;
-      const filename = (() => { try { return decodeURIComponent(rawFilename); } catch { return rawFilename; } })();
-
-      const chunks: Buffer[] = [];
-      for await (const chunk of req) chunks.push(Buffer.from(chunk));
-      const buffer = Buffer.concat(chunks);
-      if (buffer.length === 0) return res.status(400).json({ error: "Empty file" });
-
-      const { uploadAudioToYOS } = await import("./lib/storage-s3");
-      const url = await uploadAudioToYOS(buffer, slug, filename, contentType);
-      if (!url) return res.status(500).json({ error: "Upload failed — check YOS credentials" });
-      res.json({ url });
-    } catch (err: any) {
-      console.error("[upload-audio]", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // POST /api/admin/artists/:slug/upload-track-cover — admin: upload track cover to YOS
-  app.post("/api/admin/artists/:slug/upload-track-cover", requireAdminOrApiKey, async (req, res) => {
-    try {
-      const { slug } = req.params;
-      const contentType = (req.headers["content-type"] || "image/jpeg").split(";")[0].trim();
-
-      const chunks: Buffer[] = [];
-      for await (const chunk of req) chunks.push(Buffer.from(chunk));
-      const buffer = Buffer.concat(chunks);
-      if (buffer.length === 0) return res.status(400).json({ error: "Empty file" });
-
-      const { uploadTrackCoverToYOS } = await import("./lib/storage-s3");
-      const url = await uploadTrackCoverToYOS(buffer, slug, contentType);
-      if (!url) return res.status(500).json({ error: "Upload failed — check YOS credentials" });
-      res.json({ url });
-    } catch (err: any) {
-      console.error("[upload-track-cover]", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Artists / tracks API (server/routes/artists.ts)
+  registerArtistsRoutes(app, requireAdminOrApiKey);
 
   app.get("/api/products/by-ids", async (req, res) => {
     try {
@@ -9899,7 +8247,7 @@ ${faqSection}
       res.set('Cache-Control', 'no-cache, no-store');
       res.json(results);
     } catch (error) {
-      console.error("[API] Error getting products by ids:", error);
+      logError("[API] Error getting products by ids:", error);
       res.status(500).json({ message: "Failed to get products by ids" });
     }
   });
@@ -10357,7 +8705,7 @@ ${faqSection}
       // Prefer SKU from name if available (more reliable than field which may have errors)
       const productSkuParsed = skuFromNameParsed || skuFromField;
       // Debug logging (can be enabled for troubleshooting)
-      // console.log(`[Variants] Product: "${product.name}" -> model: "${productModelName}", brand: "${productBrandPrefix}", skuParsed: ${JSON.stringify(productSkuParsed)}`);
+      // logInfo(`[Variants] Product: "${product.name}" -> model: "${productModelName}", brand: "${productBrandPrefix}", skuParsed: ${JSON.stringify(productSkuParsed)}`);
       
       // Get all products
       const allProducts = await storage.getProducts();
@@ -10388,7 +8736,7 @@ ${faqSection}
           const pArticle = extractArticleCode(p.name);
           return pArticle === productArticle;
         });
-        console.log(`[Variants] Found ${articleVariants.length} variants by quoted model "${productModelName}" + article "${productArticle}"`);
+        logInfo(`[Variants] Found ${articleVariants.length} variants by quoted model "${productModelName}" + article "${productArticle}"`);
         articleVariants.forEach(v => {
           if (!variantIds.has(v.id)) {
             variants.push(v);
@@ -10420,7 +8768,7 @@ ${faqSection}
           return pSkuParsed.styleGroup === productSkuParsed.styleGroup && 
                  pSkuParsed.number === productSkuParsed.number;
         });
-        console.log(`[Variants] Found ${skuVariants.length} variants by socks model "${productModelName}" + style "${productSkuParsed.styleGroup}" + number "${productSkuParsed.number}"`);
+        logInfo(`[Variants] Found ${skuVariants.length} variants by socks model "${productModelName}" + style "${productSkuParsed.styleGroup}" + number "${productSkuParsed.number}"`);
         skuVariants.forEach(v => {
           if (!variantIds.has(v.id)) {
             variants.push(v);
@@ -10442,7 +8790,7 @@ ${faqSection}
           // Must match model AND article
           return pModelName === productModelName && pArticle === productArticle;
         });
-        console.log(`[Variants] Fallback 1: Found ${combinedVariants.length} variants by model "${productModelName}" + article "${productArticle}"`);
+        logInfo(`[Variants] Fallback 1: Found ${combinedVariants.length} variants by model "${productModelName}" + article "${productArticle}"`);
         combinedVariants.forEach(v => {
           if (!variantIds.has(v.id)) {
             variants.push(v);
@@ -10461,7 +8809,7 @@ ${faqSection}
           const pArticle = extractArticleCode(p.name);
           return pArticle === productArticle;
         });
-        console.log(`[Variants] Fallback 2: Found ${articleVariants.length} variants by article "${productArticle}"`);
+        logInfo(`[Variants] Fallback 2: Found ${articleVariants.length} variants by article "${productArticle}"`);
         articleVariants.forEach(v => {
           if (!variantIds.has(v.id)) {
             variants.push(v);
@@ -10481,7 +8829,7 @@ ${faqSection}
           
           return pModelName === productModelName;
         });
-        console.log(`[Variants] Fallback 3: Found ${nameVariants.length} variants by model name "${productModelName}"`);
+        logInfo(`[Variants] Fallback 3: Found ${nameVariants.length} variants by model name "${productModelName}"`);
         nameVariants.forEach(v => {
           if (!variantIds.has(v.id)) {
             variants.push(v);
@@ -10506,7 +8854,7 @@ ${faqSection}
               const pBaseName = p.name.replace(/\s*\([^)]+\)\s*/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
               return pBaseName === productBaseName;
             });
-            console.log(`[Variants] Fallback 4: Found ${baseNameVariants.length} variants by base name "${productBaseName}"`);
+            logInfo(`[Variants] Fallback 4: Found ${baseNameVariants.length} variants by base name "${productBaseName}"`);
             baseNameVariants.forEach(v => {
               if (!variantIds.has(v.id)) {
                 variants.push(v);
@@ -10543,7 +8891,7 @@ ${faqSection}
             const pStripped = stripColorsFromName(p.name);
             return pStripped === productStripped;
           });
-          console.log(`[Variants] Fallback 5: Found ${strippedVariants.length} variants by stripped name "${productStripped}"`);
+          logInfo(`[Variants] Fallback 5: Found ${strippedVariants.length} variants by stripped name "${productStripped}"`);
           strippedVariants.forEach(v => {
             if (!variantIds.has(v.id)) {
               variants.push(v);
@@ -10607,7 +8955,7 @@ ${faqSection}
       res.set('Cache-Control', 'public, max-age=60');
       res.json(dedupedVariants);
     } catch (error) {
-      console.error("[API] Error getting color variants:", error);
+      logError("[API] Error getting color variants:", error);
       res.status(500).json({ message: "Failed to get variants" });
     }
   });
@@ -10654,16 +9002,16 @@ ${faqSection}
       let categoryProducts: any[] = [];
       if (lookCategory) {
         const allProducts = await storage.getProducts();
-        console.log(`[Look] Product ${product.id}: lookCategory=${lookCategory}, lookSubcategory=${lookSubcategory}`);
+        logInfo(`[Look] Product ${product.id}: lookCategory=${lookCategory}, lookSubcategory=${lookSubcategory}`);
         const matchingAll = allProducts.filter((p: any) => p.category === lookCategory && !p.isHidden && !addedIds.has(p.id) && p.stock > 0);
-        console.log(`[Look] Products in category "${lookCategory}": ${matchingAll.length}`);
+        logInfo(`[Look] Products in category "${lookCategory}": ${matchingAll.length}`);
         if (lookSubcategory) {
           const matchingSub = matchingAll.filter((p: any) => p.subcategory === lookSubcategory);
-          console.log(`[Look] Products with subcategory "${lookSubcategory}": ${matchingSub.length}`);
+          logInfo(`[Look] Products with subcategory "${lookSubcategory}": ${matchingSub.length}`);
           if (matchingSub.length > 0) {
-            console.log(`[Look] Sample subcategories: ${matchingAll.slice(0, 5).map((p: any) => `"${p.subcategory}"`).join(', ')}`);
+            logInfo(`[Look] Sample subcategories: ${matchingAll.slice(0, 5).map((p: any) => `"${p.subcategory}"`).join(', ')}`);
           } else {
-            console.log(`[Look] Available subcategories in category: ${[...new Set(matchingAll.map((p: any) => p.subcategory))].join(', ')}`);
+            logInfo(`[Look] Available subcategories in category: ${[...new Set(matchingAll.map((p: any) => p.subcategory))].join(', ')}`);
           }
         }
         const catProds = allProducts
@@ -10704,7 +9052,7 @@ ${faqSection}
         lookSubcategory,
       });
     } catch (error) {
-      console.error("[API] Error getting look products:", error);
+      logError("[API] Error getting look products:", error);
       res.status(500).json({ message: "Failed to get look products" });
     }
   });
@@ -10724,7 +9072,7 @@ ${faqSection}
       res.set("Cache-Control", "public, max-age=120");
       res.json(products);
     } catch (err: any) {
-      console.error("[API] Recommendations error:", err?.message);
+      logError("[API] Recommendations error:", err?.message);
       res.status(500).json({ message: "Failed to get recommendations" });
     }
   });
@@ -10733,7 +9081,7 @@ ${faqSection}
   app.post("/api/sync/products", async (req, res) => {
     const expectedKey = process.env.SYNC_API_KEY;
     if (!expectedKey) {
-      console.error("[Sync] SYNC_API_KEY not configured");
+      logError("[Sync] SYNC_API_KEY not configured");
       return res.status(503).json({ message: "Service misconfigured: SYNC_API_KEY required" });
     }
     const apiKey = req.headers["x-api-key"];
@@ -10777,7 +9125,7 @@ ${faqSection}
   app.get("/api/sync/orders", async (req, res) => {
     const expectedKey = process.env.SYNC_API_KEY;
     if (!expectedKey) {
-      console.error("[Sync] SYNC_API_KEY not configured");
+      logError("[Sync] SYNC_API_KEY not configured");
       return res.status(503).json({ message: "Service misconfigured: SYNC_API_KEY required" });
     }
     const apiKey = req.headers["x-api-key"];
@@ -10792,7 +9140,7 @@ ${faqSection}
   app.patch("/api/sync/orders/:id", async (req, res) => {
     const expectedKey = process.env.SYNC_API_KEY;
     if (!expectedKey) {
-      console.error("[Sync] SYNC_API_KEY not configured");
+      logError("[Sync] SYNC_API_KEY not configured");
       return res.status(503).json({ message: "Service misconfigured: SYNC_API_KEY required" });
     }
     const apiKey = req.headers["x-api-key"];
@@ -10809,17 +9157,17 @@ ${faqSection}
       // Лояльность: списываем total_spent при возврате/отмене оплаченного заказа
       if ((status === "cancelled" || status === "refunded") && prevOrder && isLoyaltyCountedStatus(prevOrder.status)) {
         storage.revokeOrderLoyalty(orderId).then(r => {
-          if (r.revoked) console.log(`[Sync] Loyalty revoked for order ${orderId} (${status}), discount: ${r.discount}%`);
-        }).catch(err => console.error(`[Sync] Loyalty revoke failed for order ${orderId}:`, err?.message));
+          if (r.revoked) logInfo(`[Sync] Loyalty revoked for order ${orderId} (${status}), discount: ${r.discount}%`);
+        }).catch(err => logError(`[Sync] Loyalty revoke failed for order ${orderId}:`, err?.message));
       }
 
       storage.getOrderBitrixDealId(orderId).then(dealId => {
         if (!dealId) return;
         syncOrderStatusToBitrix(orderId, status, dealId).catch(err =>
-          console.error(`[Order Status] Bitrix sync failed for order ${orderId}:`, err?.message || err)
+          logError(`[Order Status] Bitrix sync failed for order ${orderId}:`, err?.message || err)
         );
       }).catch(err =>
-        console.error(`[Order Status] getOrderBitrixDealId failed for order ${orderId}:`, err?.message || err)
+        logError(`[Order Status] getOrderBitrixDealId failed for order ${orderId}:`, err?.message || err)
       );
 
       // Partner commission status sync: delivered → confirmed; cancelled/refunded → cancelled
@@ -10829,10 +9177,10 @@ ${faqSection}
           if (!commission) return;
           if (status === "delivered" && commission.status === "pending") {
             await storage.updateCommissionStatus(commission.id, "confirmed");
-            console.log(`[Partner] Commission ${commission.id} confirmed (order ${orderId} delivered)`);
+            logInfo(`[Partner] Commission ${commission.id} confirmed (order ${orderId} delivered)`);
           } else if ((status === "cancelled" || status === "refunded") && commission.status !== "cancelled" && commission.status !== "paid") {
             await storage.updateCommissionStatus(commission.id, "cancelled");
-            console.log(`[Partner] Commission ${commission.id} cancelled (order ${orderId} ${status})`);
+            logInfo(`[Partner] Commission ${commission.id} cancelled (order ${orderId} ${status})`);
 
             // Пересчёт месячной шкалы вниз для обычных реф-партнёров
             try {
@@ -10845,18 +9193,18 @@ ${faqSection}
                 const monthlyTotal = remaining.reduce((s, c) => s + c.orderItemsTotal, 0);
                 const newPercent = getProgressiveCommissionRate(monthlyTotal);
                 await storage.recalcMonthlyCommissions(commission.partnerId, commYear, commMonth, newPercent);
-                console.log(`[Partner] Monthly recalc after cancel: partner=${commission.partnerId} remainingTotal=${monthlyTotal/100}₽ newPercent=${newPercent}%`);
+                logInfo(`[Partner] Monthly recalc after cancel: partner=${commission.partnerId} remainingTotal=${monthlyTotal/100}₽ newPercent=${newPercent}%`);
               }
             } catch (recalcErr: any) {
-              console.error('[Partner] Monthly recalc failed after cancel:', recalcErr?.message);
+              logError('[Partner] Monthly recalc failed after cancel:', recalcErr?.message);
             }
           }
-        }).catch(err => console.error(`[Partner] Commission sync failed for order ${orderId}:`, err.message));
+        }).catch(err => logError(`[Partner] Commission sync failed for order ${orderId}:`, err.message));
       }
 
       if (status === "paid") {
         createCdekWaybillForOrder(orderId).catch(err => 
-          console.error(`[Sync] CDEK waybill error for order ${orderId}:`, err.message)
+          logError(`[Sync] CDEK waybill error for order ${orderId}:`, err.message)
         );
       }
 
@@ -10870,7 +9218,7 @@ ${faqSection}
   app.post("/api/sync/inventory", async (req, res) => {
     const expectedKey = process.env.SYNC_API_KEY;
     if (!expectedKey) {
-      console.error("[Sync] SYNC_API_KEY not configured");
+      logError("[Sync] SYNC_API_KEY not configured");
       return res.status(503).json({ message: "Service misconfigured: SYNC_API_KEY required" });
     }
     const apiKey = req.headers["x-api-key"];
@@ -11140,10 +9488,10 @@ ${faqSection}
         }
       }
       await storage.clearCart(fromSessionId);
-      console.log(`[Cart] Merged ${merged} items from guest ${fromSessionId} to user ${toSessionId}`);
+      logInfo(`[Cart] Merged ${merged} items from guest ${fromSessionId} to user ${toSessionId}`);
       res.status(200).json({ merged });
     } catch (err: any) {
-      console.error("[Cart] Merge error:", err.message);
+      logError("[Cart] Merge error:", err.message);
       res.status(500).json({ error: "Failed to merge carts" });
     }
   });
@@ -11170,7 +9518,7 @@ ${faqSection}
       
       const isWholesale = req.body.isWholesale === true;
       const clientDeliveryCost = Number(req.body.deliveryCost) || 0;
-      console.log(`[Order] Creating order, isWholesale: ${isWholesale}, transportCompany: ${transportCompany}, userId: ${userId}, cdekPoint: ${cdekPointCode}, cdekTariff: ${cdekTariffCode}, deliveryService: ${deliveryService}, clientDeliveryCost: ${clientDeliveryCost/100}`);
+      logInfo(`[Order] Creating order, isWholesale: ${isWholesale}, transportCompany: ${transportCompany}, userId: ${userId}, cdekPoint: ${cdekPointCode}, cdekTariff: ${cdekTariffCode}, deliveryService: ${deliveryService}, clientDeliveryCost: ${clientDeliveryCost/100}`);
       
       // Calculate total and get items from cart
       const cartItems = await storage.getCartItems(input.sessionId);
@@ -11278,20 +9626,20 @@ ${faqSection}
               verifiedDeliveryCost = clientDeliveryCost;
             } else {
               verifiedDeliveryCost = serverDeliveryCost;
-              console.warn(`[Order] CDEK delivery cost mismatch beyond 20% tolerance! client=${clientDeliveryCost/100}, server=${serverDeliveryCost/100}. Using server value.`);
+              logWarn(`[Order] CDEK delivery cost mismatch beyond 20% tolerance! client=${clientDeliveryCost/100}, server=${serverDeliveryCost/100}. Using server value.`);
             }
-            console.log(`[Order] CDEK delivery cost verified: client=${clientDeliveryCost/100}, server=${serverDeliveryCost/100}, used=${verifiedDeliveryCost/100} RUB`);
+            logInfo(`[Order] CDEK delivery cost verified: client=${clientDeliveryCost/100}, server=${serverDeliveryCost/100}, used=${verifiedDeliveryCost/100} RUB`);
           } else {
             verifiedDeliveryCost = clientDeliveryCost;
-            console.log(`[Order] CDEK tariffs not available, using client delivery cost: ${clientDeliveryCost/100} RUB`);
+            logInfo(`[Order] CDEK tariffs not available, using client delivery cost: ${clientDeliveryCost/100} RUB`);
           }
         } catch (cdekErr: any) {
           verifiedDeliveryCost = clientDeliveryCost;
-          console.log(`[Order] CDEK calculation failed, using client delivery cost: ${clientDeliveryCost/100} RUB. Error: ${cdekErr.message}`);
+          logInfo(`[Order] CDEK calculation failed, using client delivery cost: ${clientDeliveryCost/100} RUB. Error: ${cdekErr.message}`);
         }
       } else if (!isWholesale && clientDeliveryCost > 0 && deliveryService === "ozon") {
         verifiedDeliveryCost = clientDeliveryCost;
-        console.log(`[Order] Non-CDEK delivery (${deliveryService}), using client delivery cost: ${clientDeliveryCost/100} RUB`);
+        logInfo(`[Order] Non-CDEK delivery (${deliveryService}), using client delivery cost: ${clientDeliveryCost/100} RUB`);
       }
 
       // Pre-payment Ozon availability check: verify items are deliverable before charging the customer
@@ -11308,7 +9656,7 @@ ${faqSection}
             customerPhone: input.customerPhone,
           });
           if (!ozonCheckResult.success) {
-            console.warn(`[Order] Ozon pre-payment checkoutDelivery failed: ${ozonCheckResult.error}`);
+            logWarn(`[Order] Ozon pre-payment checkoutDelivery failed: ${ozonCheckResult.error}`);
             return res.status(400).json({
               message: ozonCheckResult.unavailableItems?.length
                 ? "Некоторые товары недоступны для доставки Ozon. Выберите другой ПВЗ или способ доставки."
@@ -11317,10 +9665,10 @@ ${faqSection}
               unavailableItems: ozonCheckResult.unavailableItems,
             });
           }
-          console.log(`[Order] Ozon pre-payment checkoutDelivery OK${ozonCheckResult.checkoutId ? `, checkout_id=${ozonCheckResult.checkoutId}` : ""}`);
+          logInfo(`[Order] Ozon pre-payment checkoutDelivery OK${ozonCheckResult.checkoutId ? `, checkout_id=${ozonCheckResult.checkoutId}` : ""}`);
         } catch (ozonCheckErr: any) {
           // Network/API error during availability check — block order to avoid charging customer when delivery cannot be confirmed
-          console.error(`[Order] Ozon checkoutDelivery check threw error: ${ozonCheckErr?.message}`);
+          logError(`[Order] Ozon checkoutDelivery check threw error: ${ozonCheckErr?.message}`);
           return res.status(400).json({
             message: "Сервис доставки Ozon временно недоступен. Попробуйте позже или выберите другой способ доставки.",
             code: "OZON_DELIVERY_UNAVAILABLE",
@@ -11331,7 +9679,7 @@ ${faqSection}
       // Free shipping for retail orders >= 5000 RUB
       const FREE_SHIPPING_THRESHOLD = 500000;
       if (!isWholesale && orderSubtotal >= FREE_SHIPPING_THRESHOLD && verifiedDeliveryCost > 0) {
-        console.log(`[Order] Free shipping applied: subtotal=${orderSubtotal/100} RUB >= ${FREE_SHIPPING_THRESHOLD/100} RUB threshold. Delivery cost zeroed (was ${verifiedDeliveryCost/100} RUB)`);
+        logInfo(`[Order] Free shipping applied: subtotal=${orderSubtotal/100} RUB >= ${FREE_SHIPPING_THRESHOLD/100} RUB threshold. Delivery cost zeroed (was ${verifiedDeliveryCost/100} RUB)`);
         verifiedDeliveryCost = 0;
       }
 
@@ -11344,13 +9692,13 @@ ${faqSection}
         if (appliedPromo && appliedPromo.isActive) {
           // Safety net: block wholesale users from using non-wholesale promo codes
           if (isWholesale && !appliedPromo.allowForWholesale) {
-            console.warn(`[Order] Promo ${promoCode} blocked — not allowed for wholesale user ${input.customerEmail}`);
+            logWarn(`[Order] Promo ${promoCode} blocked — not allowed for wholesale user ${input.customerEmail}`);
             appliedPromo = null;
           }
           // Safety net: block reuse of promo by the same email
           const promoAlreadyUsed = appliedPromo ? await storage.isPromoUsedByEmail(input.customerEmail, promoCode) : false;
           if (promoAlreadyUsed) {
-            console.warn(`[Order] Promo ${promoCode} blocked — already used by ${input.customerEmail}`);
+            logWarn(`[Order] Promo ${promoCode} blocked — already used by ${input.customerEmail}`);
             appliedPromo = null;
           } else if (appliedPromo) {
             // Determine eligible subtotal: items matching category (if restricted) AND without a product-level discount
@@ -11386,16 +9734,16 @@ ${faqSection}
               return sum + (item.price * item.quantity);
             }, 0);
             if (promoApplicableCategories && promoApplicableCategories.length > 0) {
-              console.log(`[Order] Promo ${promoCode} restricted to categories [${promoApplicableCategories.join(', ')}]: eligibleSubtotal=${eligibleSubtotal/100} RUB`);
+              logInfo(`[Order] Promo ${promoCode} restricted to categories [${promoApplicableCategories.join(', ')}]: eligibleSubtotal=${eligibleSubtotal/100} RUB`);
             }
-            console.log(`[Order] Promo ${promoCode}: eligibleSubtotal after excluding sale items=${eligibleSubtotal/100} RUB`);
+            logInfo(`[Order] Promo ${promoCode}: eligibleSubtotal after excluding sale items=${eligibleSubtotal/100} RUB`);
             if (appliedPromo.discountPercent) {
               promoDiscount = Math.round(eligibleSubtotal * (appliedPromo.discountPercent / 100));
             } else if (appliedPromo.discountAmount) {
               promoDiscount = appliedPromo.discountAmount;
             }
             promoDiscount = Math.min(promoDiscount, orderSubtotal);
-            console.log(`[Order] Applied promo ${promoCode}: -${promoDiscount / 100} RUB`);
+            logInfo(`[Order] Applied promo ${promoCode}: -${promoDiscount / 100} RUB`);
           }
         }
       }
@@ -11411,9 +9759,9 @@ ${faqSection}
           if (canApplyLoyalty) {
             loyaltyDiscountApplied = Math.round(orderSubtotal * (loyaltyPercent / 100));
             loyaltyPercentApplied = loyaltyPercent;
-            console.log(`[Order] Applied loyalty discount: ${loyaltyPercent}% = -${loyaltyDiscountApplied / 100} RUB`);
+            logInfo(`[Order] Applied loyalty discount: ${loyaltyPercent}% = -${loyaltyDiscountApplied / 100} RUB`);
           } else {
-            console.log(`[Order] Loyalty discount skipped - promo code does not allow combination`);
+            logInfo(`[Order] Loyalty discount skipped - promo code does not allow combination`);
           }
         }
       }
@@ -11428,9 +9776,9 @@ ${faqSection}
           const newBalance = giftCard.balance - giftCardApplied;
           const newStatus = newBalance === 0 ? 'used' : 'active';
           await storage.updateGiftCard(giftCard.id, { balance: newBalance, status: newStatus });
-          console.log(`[Order] Applied gift card ${giftCardCode}: -${giftCardApplied/100} RUB, new balance: ${newBalance/100} RUB`);
+          logInfo(`[Order] Applied gift card ${giftCardCode}: -${giftCardApplied/100} RUB, new balance: ${newBalance/100} RUB`);
         } else {
-          console.log(`[Order] Gift card ${giftCardCode} not valid or insufficient balance`);
+          logInfo(`[Order] Gift card ${giftCardCode} not valid or insufficient balance`);
         }
       }
 
@@ -11438,7 +9786,7 @@ ${faqSection}
       const amountToPay = Math.max(0, orderSubtotal + verifiedDeliveryCost - promoDiscount - loyaltyDiscountApplied - giftCardApplied);
       // Save the final total including delivery and discounts for correct display in emails/receipts
       const finalOrderTotal = amountToPay;
-      console.log(`[Order] Payment calculation: subtotal=${orderSubtotal/100}, delivery=${verifiedDeliveryCost/100}, promoDiscount=${promoDiscount/100}, loyaltyDiscount=${loyaltyDiscountApplied/100}, giftCard=${giftCardApplied/100}, amountToPay=${amountToPay/100} RUB`);
+      logInfo(`[Order] Payment calculation: subtotal=${orderSubtotal/100}, delivery=${verifiedDeliveryCost/100}, promoDiscount=${promoDiscount/100}, loyaltyDiscount=${loyaltyDiscountApplied/100}, giftCard=${giftCardApplied/100}, amountToPay=${amountToPay/100} RUB`);
 
       const discountDetails = {
         subtotal: orderSubtotal,
@@ -11480,14 +9828,14 @@ ${faqSection}
                 if (!userId || promoPartner.userId !== userId) {
                   attributedPartnerId = promoPartner.id;
                   attributedPartner = promoPartner;
-                  console.log(`[Order] Partner attribution via promo code: code=${appliedPromo.code} partnerId=${promoPartner.id}`);
+                  logInfo(`[Order] Partner attribution via promo code: code=${appliedPromo.code} partnerId=${promoPartner.id}`);
                 } else {
-                  console.log(`[Order] Skipping promo-code partner attribution: self-purchase by partner ${promoPartner.id}`);
+                  logInfo(`[Order] Skipping promo-code partner attribution: self-purchase by partner ${promoPartner.id}`);
                 }
               }
             }
           } catch (e: any) {
-            console.error('[Order] Partner promo attribution lookup failed:', e?.message);
+            logError('[Order] Partner promo attribution lookup failed:', e?.message);
           }
         }
 
@@ -11504,14 +9852,14 @@ ${faqSection}
                 if (!userId || partner.userId !== userId) {
                   attributedPartnerId = partner.id;
                   attributedPartner = partner;
-                  console.log(`[Order] Partner attribution matched: slug=${refSlugRaw} partnerId=${partner.id} source=${bodyRefRaw ? 'body' : 'cookie'}`);
+                  logInfo(`[Order] Partner attribution matched: slug=${refSlugRaw} partnerId=${partner.id} source=${bodyRefRaw ? 'body' : 'cookie'}`);
                 } else {
-                  console.log(`[Order] Skipping partner attribution: self-purchase by partner ${partner.id}`);
+                  logInfo(`[Order] Skipping partner attribution: self-purchase by partner ${partner.id}`);
                 }
               }
             }
           } catch (e: any) {
-            console.error('[Order] Partner attribution lookup failed:', e?.message);
+            logError('[Order] Partner attribution lookup failed:', e?.message);
           }
         }
       }
@@ -11579,7 +9927,7 @@ ${faqSection}
                 commissionAmount: nonOwnAmount,
                 commissionType: 'referral',
               });
-              console.log(`[Order] Artist non-own ref commission: order=${order.id} partner=${attributedPartnerId} base=${nonOwnBase/100} percent=${refRate} (${refRateSource}) amount=${nonOwnAmount/100}`);
+              logInfo(`[Order] Artist non-own ref commission: order=${order.id} partner=${attributedPartnerId} base=${nonOwnBase/100} percent=${refRate} (${refRateSource}) amount=${nonOwnAmount/100}`);
             }
 
           } else if (attributedPartner.commissionOverride != null) {
@@ -11593,7 +9941,7 @@ ${faqSection}
               commissionAmount,
               commissionType: 'referral',
             });
-            console.log(`[Order] Partner commission created: order=${order.id} partner=${attributedPartnerId} base=${commissionBase/100} percent=${attributedPartner.commissionOverride} (override) amount=${commissionAmount/100}`);
+            logInfo(`[Order] Partner commission created: order=${order.id} partner=${attributedPartnerId} base=${commissionBase/100} percent=${attributedPartner.commissionOverride} (override) amount=${commissionAmount/100}`);
 
           } else {
             // Обычный реф-партнёр: прогрессивная накопительная шкала за текущий месяц
@@ -11610,11 +9958,11 @@ ${faqSection}
               commissionAmount,
               commissionType: 'referral',
             });
-            console.log(`[Order] Partner commission created: order=${order.id} partner=${attributedPartnerId} base=${commissionBase/100} percent=${effectivePercent} (${percentSource}) amount=${commissionAmount/100}`);
+            logInfo(`[Order] Partner commission created: order=${order.id} partner=${attributedPartnerId} base=${commissionBase/100} percent=${effectivePercent} (${percentSource}) amount=${commissionAmount/100}`);
             await storage.recalcMonthlyCommissions(attributedPartnerId, monthlyYear, monthlyMonth, effectivePercent);
           }
         } catch (e: any) {
-          console.error('[Order] Failed to create partner commission:', e?.message);
+          logError('[Order] Failed to create partner commission:', e?.message);
         }
       }
 
@@ -11649,21 +9997,21 @@ ${faqSection}
               commissionAmount,
               commissionType: 'artist',
             });
-            console.log(`[Order] Artist commission created: order=${order.id} artist=${artistSlug} base=${totalAmount/100} percent=${artist.artistRate} amount=${commissionAmount/100}`);
+            logInfo(`[Order] Artist commission created: order=${order.id} artist=${artistSlug} base=${totalAmount/100} percent=${artist.artistRate} amount=${commissionAmount/100}`);
           }
         } catch (e: any) {
-          console.error('[Order] Artist commission error:', e?.message);
+          logError('[Order] Artist commission error:', e?.message);
         }
       }
 
       if (isWholesale) {
         await storage.updateOrderStatus(order.id, 'pending');
-        console.log(`[Order] Wholesale order #${order.id} status set to 'pending'`);
+        logInfo(`[Order] Wholesale order #${order.id} status set to 'pending'`);
       }
 
       // Send invoice email only for wholesale orders with "invoice" payment method
       if (isWholesale && paymentMethod === "invoice") {
-        console.log(`[Order] Sending invoice for wholesale order #${order.id}`);
+        logInfo(`[Order] Sending invoice for wholesale order #${order.id}`);
         
         let vatRate = 5;
         let vatMode: 'included' | 'on_top' = 'included';
@@ -11678,7 +10026,7 @@ ${faqSection}
         } catch (e) {}
         
         const invoiceNum = getNextInvoiceNumber();
-        storage.saveOrderInvoiceNumber(order.id, invoiceNum).catch(err => console.error('[Order] Failed to save invoice number:', err));
+        storage.saveOrderInvoiceNumber(order.id, invoiceNum).catch(err => logError('[Order] Failed to save invoice number:', err));
         sendInvoiceEmail({
           invoiceNumber: invoiceNum,
           date: new Date(),
@@ -11696,7 +10044,7 @@ ${faqSection}
             quantity: item.quantity,
             price: item.price,
           })),
-        }).catch(err => console.error('[Order] Failed to send invoice:', err));
+        }).catch(err => logError('[Order] Failed to send invoice:', err));
       }
 
       const bitrixOrderData: any = {
@@ -11768,10 +10116,10 @@ ${faqSection}
           try {
             await storage.updateOrderBitrixDealId(order.id, result.dealId);
           } catch (e: any) {
-            console.warn(`[Bitrix24] Failed to save deal ID for order #${order.id}:`, e.message);
+            logWarn(`[Bitrix24] Failed to save deal ID for order #${order.id}:`, e.message);
           }
         }
-      }).catch(err => console.error(`[Bitrix24] Failed to send order #${order.id}:`, err.message));
+      }).catch(err => logError(`[Bitrix24] Failed to send order #${order.id}:`, err.message));
 
       // Create payment if payment method is specified
       let paymentUrl: string | undefined;
@@ -11779,22 +10127,22 @@ ${faqSection}
       
       // Skip payment if gift card covers entire order
       if (amountToPay === 0) {
-        console.log(`[Order] Gift card covers entire order, skipping payment`);
+        logInfo(`[Order] Gift card covers entire order, skipping payment`);
         await storage.updateOrderStatus(order.id, 'paid');
         
         setTimeout(() => {
           storage.getOrderBitrixDealId(order.id).then(dealId => {
             if (!dealId) return;
             syncOrderStatusToBitrix(order.id, 'paid', dealId).catch(err =>
-              console.error(`[Order GiftCard] Bitrix sync failed for order ${order.id}:`, err?.message || err)
+              logError(`[Order GiftCard] Bitrix sync failed for order ${order.id}:`, err?.message || err)
             );
           }).catch(err =>
-            console.error(`[Order GiftCard] getOrderBitrixDealId failed for order ${order.id}:`, err?.message || err)
+            logError(`[Order GiftCard] getOrderBitrixDealId failed for order ${order.id}:`, err?.message || err)
           );
         }, 5000);
 
         createCdekWaybillForOrder(order.id).catch(err => 
-          console.error(`[Order] CDEK waybill error for gift-card order ${order.id}:`, err.message)
+          logError(`[Order] CDEK waybill error for gift-card order ${order.id}:`, err.message)
         );
       } else if (paymentMethod === "tbank" && paymentService.isTBankEnabled()) {
         const baseUrl = process.env.APP_DOMAIN || `https://${req.get('host')}`;
@@ -11822,9 +10170,9 @@ ${faqSection}
             await storage.updateOrderPaymentId(order.id, paymentResult.paymentId);
             orderPaymentIds.set(String(order.id), paymentResult.paymentId); // backup in-memory
           }
-          console.log(`[Payment] T-Bank payment created for order ${order.id}: ${paymentUrl}`);
+          logInfo(`[Payment] T-Bank payment created for order ${order.id}: ${paymentUrl}`);
         } else {
-          console.error(`[Payment] T-Bank payment failed:`, paymentResult.error);
+          logError(`[Payment] T-Bank payment failed:`, paymentResult.error);
           notifyError('Оплата T-Bank', `Заказ #${order.id} — не удалось создать платёж`, `Клиент: ${input.customerEmail} | Сумма: ${(amountToPay/100).toFixed(0)} ₽ | Ошибка: ${paymentResult.error}`);
         }
       } else if (paymentMethod === "yookassa" && paymentService.isYooKassaEnabled()) {
@@ -11843,21 +10191,21 @@ ${faqSection}
           if (paymentResult.paymentId) {
             await storage.updateOrderPaymentId(order.id, paymentResult.paymentId);
           }
-          console.log(`[Payment] YooKassa widget payment created for order ${order.id}`);
+          logInfo(`[Payment] YooKassa widget payment created for order ${order.id}`);
         } else if (paymentResult.success && paymentResult.confirmationUrl) {
           paymentUrl = paymentResult.confirmationUrl;
           if (paymentResult.paymentId) {
             await storage.updateOrderPaymentId(order.id, paymentResult.paymentId);
           }
-          console.log(`[Payment] YooKassa redirect payment created for order ${order.id}: ${paymentUrl}`);
+          logInfo(`[Payment] YooKassa redirect payment created for order ${order.id}: ${paymentUrl}`);
         } else {
-          console.error(`[Payment] YooKassa payment failed:`, paymentResult.error);
+          logError(`[Payment] YooKassa payment failed:`, paymentResult.error);
           notifyError('Оплата YooKassa', `Заказ #${order.id} — не удалось создать платёж`, `Клиент: ${input.customerEmail} | Сумма: ${(amountToPay/100).toFixed(0)} ₽ | Ошибка: ${paymentResult.error}`);
         }
       }
 
       if (amountToPay > 0 && !paymentUrl && !confirmationToken && (paymentMethod === "yookassa" || paymentMethod === "tbank")) {
-        console.error(`[Payment] No payment info generated for order ${order.id}, method: ${paymentMethod}`);
+        logError(`[Payment] No payment info generated for order ${order.id}, method: ${paymentMethod}`);
         notifyError('Платёж не создан', `Заказ #${order.id} удалён — платёжный URL не получен`, `Метод: ${paymentMethod} | Клиент: ${input.customerEmail} | Сумма: ${(amountToPay/100).toFixed(0)} ₽`);
         // Delete the created order to avoid orphaned unpaid orders
         try { await storage.deleteOrder(order.id); } catch {}
@@ -11917,7 +10265,7 @@ ${faqSection}
         statuses: cdekInfo.cdekStatuses || [],
       });
     } catch (err: any) {
-      console.error("[Track] Error:", err.message);
+      logError("[Track] Error:", err.message);
       res.status(500).json({ error: "Ошибка отслеживания" });
     }
   });
@@ -11984,7 +10332,7 @@ ${faqSection}
         }
 
         if (paymentStatus) {
-          console.log(`[Orders] ${paymentProvider} status for order ${orderId}:`, paymentStatus);
+          logInfo(`[Orders] ${paymentProvider} status for order ${orderId}:`, paymentStatus);
           
           if (paymentStatus.paid && order.status !== "paid") {
             await storage.updateOrderStatus(order.id, "paid");
@@ -11992,23 +10340,23 @@ ${faqSection}
             if (order.userId && !order.isWholesale) {
               try {
                 const lr = await storage.accrueOrderLoyalty(order.id);
-                if (lr.accrued) console.log(`[Loyalty] Updated user ${order.userId}: +${order.total / 100} RUB, discount: ${lr.discount}%`);
+                if (lr.accrued) logInfo(`[Loyalty] Updated user ${order.userId}: +${order.total / 100} RUB, discount: ${lr.discount}%`);
               } catch (loyaltyErr) {
-                console.error(`[Loyalty] Error updating user ${order.userId}:`, loyaltyErr);
+                logError(`[Loyalty] Error updating user ${order.userId}:`, loyaltyErr);
               }
             }
             
             createCdekWaybillForOrder(order.id).catch(err => 
-              console.error(`[Orders] CDEK waybill error for order ${order.id}:`, err.message)
+              logError(`[Orders] CDEK waybill error for order ${order.id}:`, err.message)
             );
 
             storage.getOrderBitrixDealId(order.id).then(dealId => {
               if (!dealId) return;
               syncOrderStatusToBitrix(order.id, 'paid', dealId).catch(err =>
-                console.error(`[Payment Poll] Bitrix paid-sync failed for order ${order.id}:`, err?.message || err)
+                logError(`[Payment Poll] Bitrix paid-sync failed for order ${order.id}:`, err?.message || err)
               );
             }).catch(err =>
-              console.error(`[Payment Poll] getOrderBitrixDealId failed for order ${order.id}:`, err?.message || err)
+              logError(`[Payment Poll] getOrderBitrixDealId failed for order ${order.id}:`, err?.message || err)
             );
 
             let productIds: number[] = [];
@@ -12028,10 +10376,10 @@ ${faqSection}
             storage.getOrderBitrixDealId(order.id).then(dealId => {
               if (!dealId) return;
               syncOrderStatusToBitrix(order.id, 'cancelled', dealId).catch(err =>
-                console.error(`[Payment Poll] Bitrix cancelled-sync failed for order ${order.id}:`, err?.message || err)
+                logError(`[Payment Poll] Bitrix cancelled-sync failed for order ${order.id}:`, err?.message || err)
               );
             }).catch(err =>
-              console.error(`[Payment Poll] getOrderBitrixDealId failed for order ${order.id}:`, err?.message || err)
+              logError(`[Payment Poll] getOrderBitrixDealId failed for order ${order.id}:`, err?.message || err)
             );
 
             return res.json({ 
@@ -12057,7 +10405,7 @@ ${faqSection}
         productIds,
       });
     } catch (err: any) {
-      console.error("[Orders] Status check error:", err.message);
+      logError("[Orders] Status check error:", err.message);
       res.status(500).json({ error: "Ошибка проверки статуса" });
     }
   });
@@ -12091,7 +10439,7 @@ ${faqSection}
           if (promo) promoCode = promo.code;
         }
       } catch (e) {
-        console.warn('[Newsletter] Could not fetch configured promo codes, using defaults');
+        logWarn('[Newsletter] Could not fetch configured promo codes, using defaults');
       }
       
       // Check if already subscribed
@@ -12110,7 +10458,7 @@ ${faqSection}
         promoCodeGiven: promoCode
       });
       
-      console.log(`[Newsletter] New subscriber: ${email} from ${source || 'unknown'}. Promo: ${promoCode}`);
+      logInfo(`[Newsletter] New subscriber: ${email} from ${source || 'unknown'}. Promo: ${promoCode}`);
       
       res.status(201).json({ 
         success: true, 
@@ -12118,75 +10466,12 @@ ${faqSection}
         promoCode 
       });
     } catch (err) {
-      console.error("[Newsletter] Error:", err);
+      logError("[Newsletter] Error:", err);
       res.status(500).json({ success: false, message: "Ошибка сервера" });
     }
   });
 
-  // ─── Web Push Notifications ─────────────────────────────────────────────────
-  // Функции getPushSubs / savePushSubs / sendPushToAll импортированы из push-service.ts
-
-  // Публичный — отдаём VAPID public key браузеру
-  app.get('/api/push/vapid-public-key', (_req, res) => {
-    const key = process.env.VAPID_PUBLIC_KEY;
-    if (!key) return res.status(503).json({ error: 'Push не настроен' });
-    res.json({ publicKey: key });
-  });
-
-  // Сохраняем подписку браузера
-  app.post('/api/push/subscribe', async (req, res) => {
-    if (!acquirePushLock('client')) {
-      return res.status(429).json({ error: 'Подождите, идёт сохранение подписки' });
-    }
-    try {
-      const { subscription } = req.body;
-      if (!subscription?.endpoint || !subscription?.keys) {
-        return res.status(400).json({ error: 'Некорректная подписка' });
-      }
-
-      // Принимаем подписки только с продакшн-домена
-      const origin = req.headers['origin'] || req.headers['referer'] || '';
-      const isProduction = origin.includes('booomerangs.ru');
-      if (origin && !isProduction) {
-        console.warn(`[WebPush] Blocked subscription from non-production origin: ${origin}`);
-        return res.json({ success: true }); // не сохраняем, но не ругаемся
-      }
-
-      const subs = await getPushSubs();
-      const idx = subs.findIndex((s: any) => s.endpoint === subscription.endpoint);
-      const userId = (req as any).user?.id || null;
-      const entry = { ...subscription, userId, origin: 'https://booomerangs.ru', createdAt: Date.now() };
-      if (idx >= 0) subs[idx] = entry; else subs.push(entry);
-      await savePushSubs(subs);
-      console.log(`[WebPush] Subscription saved. Total: ${subs.length}`);
-      res.json({ success: true });
-    } catch (err: any) {
-      console.error('[WebPush] Subscribe error:', err.message);
-      res.status(500).json({ error: 'Ошибка сервера' });
-    } finally {
-      releasePushLock('client');
-    }
-  });
-
-  // Удаляем подписку (отписка)
-  app.delete('/api/push/unsubscribe', async (req, res) => {
-    if (!acquirePushLock('client')) {
-      return res.status(429).json({ error: 'Подождите, идёт обновление подписок' });
-    }
-    try {
-      const { endpoint } = req.body;
-      if (!endpoint) return res.status(400).json({ error: 'endpoint обязателен' });
-      const subs = await getPushSubs();
-      await savePushSubs(subs.filter((s: any) => s.endpoint !== endpoint));
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: 'Ошибка сервера' });
-    } finally {
-      releasePushLock('client');
-    }
-  });
-
-  // Middleware: сессия admin ИЛИ API-ключ (для push-роутов)
+  // Middleware: сессия admin ИЛИ API-ключ (для admin-роутов)
   function requireAdminOrApiKey(req: AuthRequest, res: any, next: any) {
     const apiKey = req.headers['x-api-key'] as string;
     if (checkAdminKey(apiKey)) return next();
@@ -12194,178 +10479,8 @@ ${faqSection}
     return res.status(401).json({ error: 'Требуется авторизация' });
   }
 
-  // Admin: разослать пуш всем подписчикам
-  app.post('/api/admin/push/send', requireAdminOrApiKey, async (req, res) => {
-    if (!process.env.VAPID_PUBLIC_KEY) return res.status(503).json({ error: 'Push не настроен (нет VAPID ключей)' });
-    try {
-      const { title, body, url, tag, image } = req.body;
-      if (!title || !body) return res.status(400).json({ error: 'title и body обязательны' });
-      const subs = await getPushSubs();
-      const total = subs.length;
-      if (total === 0) return res.json({ sent: 0, failed: 0, total: 0 });
-      const result = await _sendPushToAllSvc({ title, body, url, tag, image });
-      res.json({ sent: result.sent, failed: result.failed, total });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: статистика подписчиков
-  app.get('/api/admin/push/stats', requireAdminOrApiKey, async (_req, res) => {
-    try {
-      const subs = await getPushSubs();
-      res.json({ total: subs.length });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: загрузить push-баннер в S3 (фиксированный ключ push/push-banner.png)
-  app.post('/api/admin/push/upload-banner', requireAdminOrApiKey, async (req, res) => {
-    try {
-      const chunks: Buffer[] = [];
-      for await (const chunk of req) chunks.push(Buffer.from(chunk));
-      const buffer = Buffer.concat(chunks);
-      if (buffer.length === 0) return res.status(400).json({ error: 'Пустой файл' });
-
-      const sharp = (await import('sharp')).default;
-      // Оптимальный размер push-баннера: ширина 1080px, соотношение ~2:1, PNG
-      const pngBuffer = await sharp(buffer)
-        .resize(1080, null, { withoutEnlargement: true, kernel: 'lanczos3' })
-        .png({ quality: 90, compressionLevel: 8 })
-        .toBuffer();
-
-      const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || 'bmg';
-      const s3Key = 'push/push-banner.png'; // фиксированный ключ — каждая загрузка перезаписывает
-
-      const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
-      const s3 = new S3Client({
-        region: 'ru-central1',
-        endpoint: 'https://storage.yandexcloud.net',
-        credentials: {
-          accessKeyId: process.env.YANDEX_STORAGE_ACCESS_KEY || '',
-          secretAccessKey: process.env.YANDEX_STORAGE_SECRET_KEY || '',
-        },
-      });
-
-      await s3.send(new PutObjectCommand({
-        Bucket: bucketName,
-        Key: s3Key,
-        Body: pngBuffer,
-        ContentType: 'image/png',
-        ACL: 'public-read',
-        CacheControl: 'public, max-age=3600',
-      }));
-
-      // Добавляем cache-buster чтобы браузер не отдавал старый кэш
-      const url = `https://storage.yandexcloud.net/${bucketName}/${s3Key}?v=${Date.now()}`;
-      console.log(`[WebPush] Banner uploaded: ${url}`);
-      res.json({ url, success: true });
-    } catch (err: any) {
-      console.error('[WebPush] Banner upload error:', err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: история последних рассылок (in-memory, max 20)
-  app.get('/api/admin/push/history', requireAdminOrApiKey, (_req, res) => {
-    res.json(getPushHistory());
-  });
-
-  // Admin: тест-пуш только на admin-браузеры (не трогает клиентов)
-  app.post('/api/admin/push/test', requireAdminOrApiKey, async (req, res) => {
-    if (!process.env.VAPID_PUBLIC_KEY) return res.status(503).json({ error: 'Push не настроен (нет VAPID ключей)' });
-    try {
-      const { title, body, url, image } = req.body;
-      if (!title || !body) return res.status(400).json({ error: 'title и body обязательны' });
-      const result = await _sendPushToAdminsSvc({
-        title: `[ТЕСТ] ${title}`,
-        body,
-        url: url || 'https://booomerangs.ru',
-        image,
-        tag: 'booom-push-test',
-      });
-      res.json({ sent: result.sent, failed: result.failed });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // ─── Admin Push (owner devices) ──────────────────────────────────────────────
-  // Отдельный список подписок для владельцев/администраторов сайта.
-  // Используется автономным агентом для алертов (низкий сток, дайджест, очередь).
-
-  // Подписать браузер администратора
-  app.post('/api/admin/push/admin-subscribe', requireAdminOrApiKey, async (req, res) => {
-    if (!acquirePushLock('admin')) {
-      return res.status(429).json({ error: 'Подождите, идёт сохранение подписки' });
-    }
-    try {
-      const { subscription } = req.body;
-      if (!subscription?.endpoint || !subscription?.keys) {
-        return res.status(400).json({ error: 'Некорректная подписка' });
-      }
-      const subs = await getAdminPushSubs();
-      const idx = subs.findIndex((s: any) => s.endpoint === subscription.endpoint);
-      const entry = { ...subscription, createdAt: Date.now() };
-      if (idx >= 0) subs[idx] = entry; else subs.push(entry);
-      await saveAdminPushSubs(subs);
-      console.log(`[WebPush] Admin subscription saved. Total admins: ${subs.length}`);
-      res.json({ success: true });
-    } catch (err: any) {
-      console.error('[WebPush] Admin subscribe error:', err.message);
-      res.status(500).json({ error: 'Ошибка сервера' });
-    } finally {
-      releasePushLock('admin');
-    }
-  });
-
-  // Отписать браузер администратора
-  app.delete('/api/admin/push/admin-unsubscribe', requireAdminOrApiKey, async (req, res) => {
-    if (!acquirePushLock('admin')) {
-      return res.status(429).json({ error: 'Подождите, идёт обновление подписок' });
-    }
-    try {
-      const { endpoint } = req.body;
-      if (!endpoint) return res.status(400).json({ error: 'endpoint обязателен' });
-      const subs = await getAdminPushSubs();
-      await saveAdminPushSubs(subs.filter((s: any) => s.endpoint !== endpoint));
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: 'Ошибка сервера' });
-    } finally {
-      releasePushLock('admin');
-    }
-  });
-
-  // Статистика подписок администраторов
-  app.get('/api/admin/push/admin-stats', requireAdminOrApiKey, async (_req, res) => {
-    try {
-      const subs = await getAdminPushSubs();
-      res.json({ total: subs.length });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Очистка кривых подписок (не с booomerangs.ru)
-  app.post('/api/admin/push/clean-dev-subs', requireAdminOrApiKey, async (_req, res) => {
-    try {
-      const subs = await getPushSubs();
-      const before = subs.length;
-      // Оставляем только те, у которых origin = booomerangs.ru или origin не задан (старые легаси)
-      const cleaned = subs.filter((s: any) => {
-        if (!s.origin) return true; // легаси без поля — оставляем
-        return s.origin.includes('booomerangs.ru');
-      });
-      await savePushSubs(cleaned);
-      const removed = before - cleaned.length;
-      console.log(`[WebPush] Cleaned ${removed} dev subscriptions. Remaining: ${cleaned.length}`);
-      res.json({ before, after: cleaned.length, removed });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Web Push: публичные + admin-рассылки (вынесено в server/routes/push.ts)
+  registerPushRoutes(app, requireAdminOrApiKey);
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -12414,7 +10529,7 @@ ${faqSection}
       const sub = all.find((s: any) => (s.email || '').toLowerCase().trim() === email);
       if (sub) {
         await storage.deleteNewsletterSubscription(Number(sub.id));
-        console.log(`[Newsletter] Unsubscribed via token: ${email}`);
+        logInfo(`[Newsletter] Unsubscribed via token: ${email}`);
       }
       res.send(`<!DOCTYPE html>
 <html lang="ru">
@@ -12451,7 +10566,7 @@ ${faqSection}
         return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна или устарела</h2></body></html>');
       }
       await storage.updatePreorderSubscriberStatus(email, false);
-      console.log(`[PreorderNotifier] Unsubscribed via token: ${email}`);
+      logInfo(`[PreorderNotifier] Unsubscribed via token: ${email}`);
       res.send(`<!DOCTYPE html>
 <html lang="ru">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Вы отписались</title></head>
@@ -12487,7 +10602,7 @@ ${faqSection}
         return res.status(400).send('<html><body style="font-family:Arial;text-align:center;padding:60px"><h2>Ссылка недействительна или устарела</h2></body></html>');
       }
       await addAbandonedCartUnsub(email);
-      console.log(`[AbandonedCart] Unsubscribed via token: ${email}`);
+      logInfo(`[AbandonedCart] Unsubscribed via token: ${email}`);
       res.send(`<!DOCTYPE html>
 <html lang="ru">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Вы отписались</title></head>
@@ -12509,277 +10624,17 @@ ${faqSection}
     }
   });
 
-  // Preorder subscribers
-  app.post("/api/preorder-subscribers/subscribe", async (req, res) => {
-    try {
-      const { email, name } = req.body;
-      if (!email) return res.status(400).json({ error: "email is required" });
-      const existing = await storage.getPreorderSubscriberByEmail(String(email).toLowerCase().trim());
-      if (existing) {
-        if (!existing.isActive) {
-          await storage.updatePreorderSubscriberStatus(String(email).toLowerCase().trim(), true);
-        }
-        return res.json({ success: true, alreadySubscribed: true });
-      }
-      await storage.addPreorderSubscriber(String(email).toLowerCase().trim(), name || undefined);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Preorder subscribers + related (server/routes/preorder-subscribers.ts)
+  registerPreorderSubscribersRoutes(app, getAdminKey);
 
-  app.get("/api/preorder-subscribers/my-status", async (req, res) => {
-    try {
-      const email = String(req.query.email || '').toLowerCase().trim();
-      if (!email) return res.json({ subscribed: false, isActive: false });
-      const sub = await storage.getPreorderSubscriberByEmail(email);
-      res.json({ subscribed: !!sub, isActive: sub ? sub.isActive : false });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.get("/api/preorder-subscribers/count", async (req, res) => {
-    try {
-      const all = await storage.getAllPreorderSubscribers();
-      const count = all.filter(s => s.isActive).length;
-      res.json({ count });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.delete("/api/preorder-subscribers/unsubscribe", async (req, res) => {
-    try {
-      const { email } = req.body;
-      if (!email) return res.status(400).json({ error: "email is required" });
-      await storage.updatePreorderSubscriberStatus(String(email).toLowerCase().trim(), false);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.get("/api/admin/preorder-subscribers", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const all = await storage.getAllPreorderSubscribers();
-      res.json({ subscribers: all, count: all.length });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin API - Delete newsletter subscription
-  app.delete("/api/admin/newsletter-subscriptions/:id", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-
-    if (!expectedKey) {
-      return res.status(503).json({ message: "Admin API not configured" });
-    }
-
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const id = Number(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid subscription ID" });
-      }
-      
-      const success = await storage.deleteNewsletterSubscription(id);
-      if (success) {
-        res.json({ success: true, message: `Subscription ${id} deleted` });
-      } else {
-        res.status(404).json({ success: false, message: "Subscription not found" });
-      }
-    } catch (err) {
-      console.error("[Admin] Delete subscription error:", err);
-      res.status(500).json({ success: false, message: "Delete failed" });
-    }
-  });
-
-  // Admin API - List artist-only products
-  app.get("/api/admin/artist-only-products", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (!expectedKey || apiKey !== expectedKey) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    try {
-      const raw = (storage as any).getRawProductsCache?.() as any[] | undefined;
-      let all: any[];
-      if (raw && raw.length > 0) {
-        all = raw;
-      } else {
-        const { fetchProductsFromYdb } = storage as any;
-        all = fetchProductsFromYdb ? await fetchProductsFromYdb.call(storage) : await storage.getProducts();
-      }
-      const artistOnly = all.filter((p: any) => p.artistOnly === true);
-      res.json({ products: artistOnly });
-    } catch (err) {
-      console.error("[Admin] artist-only-products error:", err);
-      res.status(500).json({ message: "Failed" });
-    }
-  });
-
-  // Admin API - Delete single product
-  app.delete("/api/admin/products/:id", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-
-    if (!expectedKey) {
-      console.error("[Admin] SYNC_API_KEY not configured");
-      return res.status(503).json({ message: "Admin API not configured" });
-    }
-
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const id = Number(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid product ID" });
-      }
-      
-      // Capture slug BEFORE deletion so we can record it for HTTP 410
-      const { getCachedProductSlugById } = await import("./storage");
-      const slugToRecord = getCachedProductSlugById(id);
-
-      const success = await storage.deleteProduct(id);
-      if (success) {
-        console.log(`[Admin] Deleted product ${id}`);
-        // Fire-and-forget: record slug so bots get 410 instead of 200 for this URL
-        if (slugToRecord) storage.addDeletedProductSlug(slugToRecord).catch(() => {});
-        res.json({ success: true, message: `Product ${id} deleted` });
-      } else {
-        res.status(404).json({ success: false, message: "Product not found" });
-      }
-    } catch (err) {
-      console.error("[Admin] Delete product error:", err);
-      res.status(500).json({ success: false, message: "Delete failed" });
-    }
-  });
+  // Admin product delete (server/routes/admin-products.ts)
+  registerAdminProductDeleteRoutes(app, getAdminKey);
 
 
-  // Admin API - Fix colors for all products
-  app.post("/api/admin/fix-colors", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
+  // Admin product fixes: colors, sizeStock normalization (server/routes/product-fixes.ts)
+  registerProductFixesRoutes(app, getAdminKey);
 
-    if (!expectedKey) {
-      return res.status(503).json({ message: "Admin API not configured" });
-    }
 
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const allProducts = await storage.getProducts();
-      let colorsFixed = 0;
-      const fixed: string[] = [];
-      
-      // Known invalid colors that should be replaced
-      const invalidColors = ['боковой карман', 'default', 'null', 'резинка', 'тактик', 'tube'];
-      
-      for (const product of allProducts) {
-        const extractedColor = extractColorFromName(product.name);
-        const currentColorLower = (product.color || '').toLowerCase();
-        
-        // Update if: no color, Default/null, or current color is in invalid list
-        const needsUpdate = extractedColor && (
-          !product.color || 
-          product.color === 'Default' || 
-          product.color === 'null' ||
-          invalidColors.includes(currentColorLower) ||
-          (extractedColor !== product.color && currentColorLower.includes('карман'))
-        );
-        
-        if (needsUpdate) {
-          await storage.updateProduct(product.id, { color: extractedColor });
-          fixed.push(`${product.name}: "${product.color}" => "${extractedColor}"`);
-          colorsFixed++;
-        }
-      }
-      
-      storage.clearCache();
-      console.log(`[Admin] Fixed colors for ${colorsFixed} products`);
-      res.json({ success: true, count: colorsFixed, fixed: fixed.slice(0, 50) });
-    } catch (err) {
-      console.error("[Admin] Fix colors error:", err);
-      res.status(500).json({ success: false, message: "Fix colors failed" });
-    }
-  });
-
-  // Admin API - Normalize sizeStock keys (clean up legacy "One Size", "(OneSize)" etc.)
-  app.post("/api/admin/fix-sizestock", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (!expectedKey) return res.status(503).json({ message: "Admin API not configured" });
-    if (apiKey !== expectedKey) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const allProducts = await storage.getProducts();
-      let fixed = 0;
-      const details: string[] = [];
-
-      for (const product of allProducts) {
-        const sizeStock = (product as any).sizeStock as Record<string, number> | null;
-        if (!sizeStock || Object.keys(sizeStock).length === 0) continue;
-
-        // Group keys by normalized form, keep max stock per group
-        const normalized: Record<string, number> = {};
-        for (const [key, val] of Object.entries(sizeStock)) {
-          const canonical = canonicalizeSizeKey(key);
-          normalized[canonical] = Math.max(normalized[canonical] ?? 0, Number(val));
-        }
-
-        const oldKeys = Object.keys(sizeStock).sort().join(',');
-        const newKeys = Object.keys(normalized).sort().join(',');
-        if (oldKeys !== newKeys) {
-          await storage.updateProduct(product.id, { sizeStock: normalized } as any);
-          details.push(`${product.name} (${product.id}): {${oldKeys}} → {${newKeys}}`);
-          fixed++;
-        }
-      }
-
-      storage.clearCache();
-      console.log(`[Admin] Fixed sizeStock keys for ${fixed} products`);
-      res.json({ success: true, count: fixed, details: details.slice(0, 100) });
-    } catch (err) {
-      console.error("[Admin] Fix sizeStock error:", err);
-      res.status(500).json({ success: false, message: String(err) });
-    }
-  });
-
-  // Admin API - Delete all products
-  app.delete("/api/admin/products", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-
-    if (!expectedKey) {
-      console.error("[Admin] SYNC_API_KEY not configured");
-      return res.status(503).json({ message: "Admin API not configured" });
-    }
-
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const count = await storage.deleteAllProducts();
-      console.log(`[Admin] Deleted all products (${count} items)`);
-      res.json({ success: true, message: `Deleted ${count} products`, count });
-    } catch (err) {
-      console.error("[Admin] Delete all products error:", err);
-      res.status(500).json({ success: false, message: "Delete failed" });
-    }
-  });
 
   // ============ Gift Cards API ============
 
@@ -12814,7 +10669,7 @@ ${faqSection}
       
       res.json({ giftCards: matchingCards });
     } catch (err: any) {
-      console.error("[GiftCards] Batch fetch error:", err);
+      logError("[GiftCards] Batch fetch error:", err);
       res.status(500).json({ error: "Ошибка получения сертификатов" });
     }
   });
@@ -13328,40 +11183,8 @@ ${faqSection}
     }
   });
 
-  // Get bonus settings (admin)
-  app.get("/api/bonus-settings", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (!expectedKey || apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const settings = await storage.getAllBonusSettings();
-      res.json(settings);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Update bonus setting (admin)
-  app.post("/api/bonus-settings", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (!expectedKey || apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const parsed = insertBonusSettingSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: "Validation error", details: parsed.error.errors });
-      }
-      await storage.setBonusSetting(parsed.data.key, parsed.data.value);
-      invalidateSubscriptionPromosCache();
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Bonus settings admin (server/routes/bonus-settings.ts)
+  registerBonusSettingsRoutes(app, getAdminKey, invalidateSubscriptionPromosCache);
 
   // Get available payment methods
   app.get("/api/payment-methods", (req, res) => {
@@ -13458,7 +11281,7 @@ ${faqSection}
             message: payment.confirmationToken ? undefined : "Перенаправление на страницу оплаты...",
           });
         } else {
-          console.error("[GiftCards] Payment creation failed:", payment.error);
+          logError("[GiftCards] Payment creation failed:", payment.error);
         }
       }
       
@@ -13475,7 +11298,7 @@ ${faqSection}
         message: "Подарочные карты созданы. Оплата временно недоступна.",
       });
     } catch (err: any) {
-      console.error("[GiftCards] Create error:", err);
+      logError("[GiftCards] Create error:", err);
       if (err.name === "ZodError") {
         return res.status(400).json({ error: err.errors[0]?.message || "Ошибка валидации" });
       }
@@ -13514,7 +11337,7 @@ ${faqSection}
         expiresAt: giftCard.expiresAt,
       });
     } catch (err: any) {
-      console.error("[GiftCards] Validate error:", err);
+      logError("[GiftCards] Validate error:", err);
       res.status(500).json({ error: "Ошибка проверки карты" });
     }
   });
@@ -13541,1897 +11364,32 @@ ${faqSection}
         status: updatedCard.status,
       });
     } catch (err: any) {
-      console.error("[GiftCards] Redeem error:", err);
+      logError("[GiftCards] Redeem error:", err);
       res.status(400).json({ error: err.message || "Ошибка использования карты" });
     }
   });
 
-  // ===== ADMIN ORDERS MANAGEMENT =====
-  
-  // Get all orders (admin)
-  app.get("/api/admin/orders", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const orders = await storage.getOrders();
-      res.json(orders);
-    } catch (err: any) {
-      console.error("[Admin] Get orders error:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Admin orders management (server/routes/admin-orders.ts)
+  registerAdminOrdersRoutes(app, getAdminKey);
 
-  // Order analytics (admin)
-  app.get("/api/admin/analytics/orders", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const data = await storage.getOrderAnalytics();
-      res.json(data);
-    } catch (err: any) {
-      console.error("[Admin] Analytics error:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Admin content: gift cards, reviews, stock notifications, email image upload (server/routes/admin-content.ts)
+  registerAdminContentRoutes(app, getAdminKey);
 
-  app.get("/api/admin/analytics/artists", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const data = await storage.getArtistAnalytics();
-      res.json(data);
-    } catch (err: any) {
-      console.error("[Admin] Artist analytics error:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Temporary: get artist stats by slug (for testing)
-  app.get("/api/admin/test-artist-stats/:slug", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const stats = await storage.getArtistStatsBySlug(req.params.slug);
-      res.json(stats);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Get draft/expired orders (admin)
-  app.get("/api/admin/draft-orders", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const drafts = await storage.getDraftOrders();
-      res.json(drafts);
-    } catch (err: any) {
-      console.error("[Admin] getDraftOrders error:", err.message);
-      res.status(500).json({ error: "Ошибка сервера" });
-    }
-  });
-
-  // Delete a specific draft/expired order (admin)
-  app.delete("/api/admin/draft-orders/:id", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const id = Number(req.params.id);
-      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
-      await storage.deleteOrder(id);
-      res.json({ success: true });
-    } catch (err: any) {
-      console.error("[Admin] deleteDraftOrder error:", err.message);
-      res.status(500).json({ error: "Ошибка сервера" });
-    }
-  });
-
-  // Update order status (admin)
-  app.patch("/api/admin/orders/:id/status", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const { status } = req.body;
-      if (!status) {
-        return res.status(400).json({ error: "Status required" });
-      }
-      const orderId = Number(req.params.id);
-      const prevOrder = await storage.getOrder(orderId);
-      const order = await storage.updateOrderStatus(orderId, status);
-
-      // Лояльность: списываем total_spent при возврате/отмене оплаченного заказа
-      if ((status === "cancelled" || status === "refunded") && prevOrder && isLoyaltyCountedStatus(prevOrder.status)) {
-        storage.revokeOrderLoyalty(orderId).then(r => {
-          if (r.revoked) console.log(`[Admin] Loyalty revoked for order ${orderId} (${status}), discount: ${r.discount}%`);
-        }).catch(err => console.error(`[Admin] Loyalty revoke failed for order ${orderId}:`, err?.message));
-      }
-
-      // Push-уведомление пользователю о смене статуса
-      if (prevOrder?.userId) {
-        const pushData = orderStatusPushPayload(orderId, status);
-        if (pushData) sendPushToUser(String(prevOrder.userId), pushData).catch(() => {});
-      }
-
-      // Email клиенту: заказ привезён в пункт самовывоза
-      if (status === "ready_for_pickup" && prevOrder?.status !== "ready_for_pickup") {
-        try {
-          const customerEmail = prevOrder?.customerEmail;
-          if (customerEmail) {
-            let isPickup = /^самовывоз:/i.test(String(prevOrder?.address || ""));
-            try {
-              const d = typeof prevOrder?.cdekData === "string" ? JSON.parse(prevOrder.cdekData) : prevOrder?.cdekData;
-              if (d?.deliveryService === "pickup") isPickup = true;
-            } catch { /* ignore malformed cdekData */ }
-            if (isPickup) {
-              const pickupPoint = String(prevOrder?.address || "").replace(/^Самовывоз:\s*/i, "").trim() || undefined;
-              const ok = await sendEmail({
-                to: customerEmail,
-                subject: `Заказ #${orderId} готов к выдаче — BOOOMERANGS`,
-                html: getOrderReadyForPickupEmailHtml({
-                  id: orderId,
-                  customerName: prevOrder?.customerName || "Покупатель",
-                  pickupPoint,
-                }),
-              });
-              console.log(`[Pickup] Ready-for-pickup email for order #${orderId} -> ${customerEmail}: ${ok ? "sent" : "failed/disabled"}`);
-            } else {
-              console.log(`[Pickup] Status ready_for_pickup set for order #${orderId}, but order is not pickup — email skipped`);
-            }
-          }
-        } catch (emailErr: any) {
-          console.error(`[Pickup] Failed to send ready-for-pickup email for order #${orderId}:`, emailErr?.message);
-        }
-      }
-
-      storage.getOrderBitrixDealId(orderId).then(dealId => {
-        if (!dealId) return;
-        syncOrderStatusToBitrix(orderId, status, dealId).catch(err =>
-          console.error(`[Order Status] Bitrix sync failed for order ${orderId}:`, err?.message || err)
-        );
-      }).catch(err =>
-        console.error(`[Order Status] getOrderBitrixDealId failed for order ${orderId}:`, err?.message || err)
-      );
-
-      // Partner commission status sync: delivered → confirmed; cancelled/refunded → cancelled
-      // After cancellation, monthly progressive scale is recalculated downward for ref-partners.
-      if (status === "delivered" || status === "cancelled" || status === "refunded") {
-        storage.getCommissionByOrderId(orderId).then(async (commission) => {
-          if (!commission) return;
-          if (status === "delivered" && commission.status === "pending") {
-            await storage.updateCommissionStatus(commission.id, "confirmed");
-            console.log(`[Partner] Commission ${commission.id} confirmed (order ${orderId} delivered)`);
-          } else if ((status === "cancelled" || status === "refunded") && commission.status !== "cancelled" && commission.status !== "paid") {
-            await storage.updateCommissionStatus(commission.id, "cancelled");
-            console.log(`[Partner] Commission ${commission.id} cancelled (order ${orderId} ${status})`);
-
-            // Пересчёт месячной шкалы вниз для обычных реф-партнёров
-            try {
-              const partner = await storage.getPartnerById(commission.partnerId);
-              if (partner && !partner.isArtist && partner.commissionOverride == null) {
-                const commCreatedAt = commission.createdAt ?? new Date();
-                const commYear = commCreatedAt.getUTCFullYear();
-                const commMonth = commCreatedAt.getUTCMonth() + 1;
-                const remaining = await storage.getMonthlyRefCommissions(commission.partnerId, commYear, commMonth);
-                const monthlyTotal = remaining.reduce((s, c) => s + c.orderItemsTotal, 0);
-                const newPercent = getProgressiveCommissionRate(monthlyTotal);
-                await storage.recalcMonthlyCommissions(commission.partnerId, commYear, commMonth, newPercent);
-                console.log(`[Partner] Monthly recalc after cancel: partner=${commission.partnerId} remainingTotal=${monthlyTotal/100}₽ newPercent=${newPercent}%`);
-              }
-            } catch (recalcErr: any) {
-              console.error('[Partner] Monthly recalc failed after cancel:', recalcErr?.message);
-            }
-          }
-        }).catch(err => console.error(`[Partner] Commission sync failed for order ${orderId}:`, err.message));
-      }
-
-      if (status === "paid") {
-        createCdekWaybillForOrder(orderId).catch(err => 
-          console.error(`[Admin] CDEK waybill error for order ${orderId}:`, err.message)
-        );
-      }
-
-      res.json(order);
-    } catch (err: any) {
-      console.error("[Admin] Update order status error:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Delete order (admin)
-  app.delete("/api/admin/orders/:id", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const deleted = await storage.deleteOrder(Number(req.params.id));
-      if (deleted) {
-        res.json({ success: true });
-      } else {
-        res.status(404).json({ error: "Order not found" });
-      }
-    } catch (err: any) {
-      console.error("[Admin] Delete order error:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post("/api/admin/orders/:id/cdek-retry", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const orderId = Number(req.params.id);
-      const order = await storage.getOrder(orderId);
-      if (!order) {
-        return res.status(404).json({ error: "Order not found" });
-      }
-
-      await recreateCdekWaybillForOrder(orderId);
-      res.json({ success: true });
-    } catch (err: any) {
-      console.error("[Admin] CDEK retry error:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.get("/api/admin/orders/:id/cdek-status", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const orderId = Number(req.params.id);
-      const order = await storage.getOrder(orderId);
-      if (!order) {
-        return res.status(404).json({ error: "Order not found" });
-      }
-
-      let cdekInfo: any = {};
-      if (order.cdekData) {
-        try { cdekInfo = JSON.parse(order.cdekData); } catch {}
-      }
-
-      let cdekOrderStatus = null;
-      if (cdekInfo.orderUuid) {
-        try {
-          cdekOrderStatus = await cdekService.getOrderStatus(cdekInfo.orderUuid);
-        } catch (e: any) {
-          cdekOrderStatus = { error: e.message };
-        }
-      }
-
-      res.json({
-        orderId,
-        isWholesale: order.isWholesale,
-        cdekData: cdekInfo,
-        cdekOrderStatus,
-      });
-    } catch (err: any) {
-      console.error("[Admin] CDEK status error:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: update order items (no notifications sent to customer)
-  app.patch("/api/admin/orders/:id/items", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const orderId = Number(req.params.id);
-      if (!orderId) return res.status(400).json({ error: "Invalid order id" });
-      const { items } = req.body;
-      if (!Array.isArray(items)) return res.status(400).json({ error: "items must be an array" });
-      // Recalculate total from items (price in kopeks * quantity)
-      const totalKopeks = items.reduce((sum: number, item: any) => {
-        return sum + Math.round((item.price || 0) * (item.quantity || 1));
-      }, 0);
-      await storage.updateOrderItems(orderId, items, totalKopeks);
-      console.log(`[Admin] Order #${orderId} items updated by admin: ${items.length} items, total ${totalKopeks} kopeks`);
-      res.json({ success: true, total: totalKopeks });
-    } catch (err: any) {
-      console.error("[Admin] Update order items error:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.patch("/api/admin/orders/:id/cdek-data", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const orderId = Number(req.params.id);
-      const { pointAddress, cdekNumber, deliveryCost } = req.body;
-      const order = await storage.getOrder(orderId);
-      if (!order) return res.status(404).json({ error: "Order not found" });
-      let cdekInfo: any = {};
-      if (order.cdekData) { try { cdekInfo = JSON.parse(order.cdekData); } catch {} }
-      if (pointAddress !== undefined) cdekInfo.pointAddress = pointAddress;
-      if (cdekNumber !== undefined) cdekInfo.cdekNumber = cdekNumber;
-      if (deliveryCost !== undefined) cdekInfo.deliveryCost = deliveryCost;
-      await storage.updateOrderCdekData(orderId, JSON.stringify(cdekInfo));
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Get all gift cards (admin)
-  app.get("/api/admin/gift-cards", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const cards = await storage.getGiftCards();
-      res.json(cards);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Update gift card (admin)
-  app.patch("/api/admin/gift-cards/:id", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const card = await storage.updateGiftCard(Number(req.params.id), req.body);
-      res.json(card);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Delete gift card (admin)
-  app.delete("/api/admin/gift-cards/:id", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      await storage.deleteGiftCard(Number(req.params.id));
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Reviews
-  app.get("/api/admin/reviews", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const reviews = await storage.getAllReviews();
-      res.json(reviews);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.patch("/api/admin/reviews/:id", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const id = parseInt(req.params.id);
-      const review = await storage.updateReview(id, req.body);
-      // Отзыв одобрен → автоматически выдаём покупателю промокод «за отзыв»
-      if (req.body?.isApproved === true) {
-        onReviewApproved(id).catch((e: any) => console.error('[ReviewPromo] hook error (admin):', e?.message));
-      }
-      res.json(review);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.delete("/api/admin/reviews/:id", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const id = parseInt(req.params.id);
-      await storage.deleteReview(id);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post("/api/admin/migrate-reviews", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const result = await storage.migrateReviewsTable();
-      res.json(result);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Newsletter subscription stats
-  app.get("/api/admin/stock-notifications", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const notifications = await storage.getAllStockNotifications();
-      res.json(notifications);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Upload image for email editor
-  app.post("/api/admin/upload-email-image", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const buffer = req.body as Buffer;
-      if (!buffer || buffer.length === 0) {
-        return res.status(400).json({ error: "No file data" });
-      }
-      const mimeType = (req.headers["content-type"] || "image/jpeg").split(";")[0].trim();
-      const ext = mimeType === "image/png" ? "png" : mimeType === "image/gif" ? "gif" : mimeType === "image/webp" ? "webp" : "jpg";
-      const filename = `email_images/email_img_${Date.now()}.${ext}`;
-      const url = await uploadToYandexStorage(buffer, filename, mimeType);
-      if (!url) {
-        return res.status(500).json({ error: "Failed to upload image" });
-      }
-      console.log(`[Admin] Uploaded email image: ${url}`);
-      res.json({ url });
-    } catch (error) {
-      console.error("[Admin] Error uploading email image:", error);
-      res.status(500).json({ error: "Upload failed" });
-    }
-  });
-
-  app.get("/api/admin/newsletter-stats", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const subscriptions = await storage.getAllNewsletterSubscriptions();
-      res.json({ 
-        subscriptions: subscriptions || [], 
-        count: subscriptions?.length || 0 
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: New-products queue status
-  app.get("/api/admin/newsletter-queue-status", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const status = await getNewProductsQueueStatus();
-      res.json(status);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Force-send new-products newsletter now (ignore debounce timer)
-  app.post("/api/admin/newsletter-trigger-now", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const result = await triggerNewProductsNotifierNow();
-      res.json({ success: true, ...result });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Preorder queue status
-  app.get("/api/admin/preorder-queue-status", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const status = await getPreorderQueueStatus();
-      res.json(status);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Force-send preorder newsletter now
-  app.post("/api/admin/preorder-trigger-now", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const result = await triggerPreorderNotifierNow();
-      res.json({ success: true, ...result });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Remove a product from new-products queue
-  app.delete("/api/admin/newsletter-queue-item", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const { productId } = req.body;
-      if (!productId || typeof productId !== "number") return res.status(400).json({ error: "productId required" });
-      await removeFromNewProductsQueue(productId);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Add a product to new-products queue manually
-  app.post("/api/admin/newsletter-queue-item", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const { productId } = req.body;
-      if (!productId || typeof productId !== "number") return res.status(400).json({ error: "productId required" });
-      await addToNewProductsQueueManual(productId);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Remove a product from preorder queue
-  app.delete("/api/admin/preorder-queue-item", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const { productId } = req.body;
-      if (!productId || typeof productId !== "number") return res.status(400).json({ error: "productId required" });
-      await removeFromPreorderQueue(productId);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Add a product to preorder queue manually
-  app.post("/api/admin/preorder-queue-item", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const { productId } = req.body;
-      if (!productId || typeof productId !== "number") return res.status(400).json({ error: "productId required" });
-      await addToPreorderQueueManual(productId);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Get mailings enabled/disabled settings
-  app.get("/api/admin/mailings-settings", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const [npRaw, preRaw] = await Promise.all([
-        storage.getBonusSetting('newsletter_new_products_enabled'),
-        storage.getBonusSetting('newsletter_preorder_enabled'),
-      ]);
-      res.json({
-        newProductsEnabled: npRaw !== 'false',
-        preorderEnabled: preRaw !== 'false',
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Save mailings enabled/disabled settings
-  app.patch("/api/admin/mailings-settings", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const { newProductsEnabled, preorderEnabled } = req.body;
-      const ops: Promise<void>[] = [];
-      if (typeof newProductsEnabled === 'boolean') {
-        ops.push(storage.setBonusSetting('newsletter_new_products_enabled', String(newProductsEnabled)));
-      }
-      if (typeof preorderEnabled === 'boolean') {
-        ops.push(storage.setBonusSetting('newsletter_preorder_enabled', String(preorderEnabled)));
-      }
-      await Promise.all(ops);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Send test new-products newsletter to a single email (preview only)
-  app.post("/api/admin/newsletter-preview", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const { email } = req.body;
-      if (!email) return res.status(400).json({ error: "email is required" });
-      // берём 5 последних видимых товаров из кэша
-      const allProducts = await storage.getProducts();
-      const visible = allProducts.filter((p: any) => !p.isHidden && p.imageUrl);
-      const sample = visible.slice(0, 5);
-      if (sample.length === 0) return res.status(400).json({ error: "No products found" });
-      const html = getNewProductsNewsletterHtml(sample, sample.length);
-      const ok = await sendEmail({ to: email, subject: '[ПРЕВЬЮ] Смотри, что появилось 🆕', html: html(email) });
-      res.json({ success: ok, sentTo: email, productsCount: sample.length });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Review-request email — candidates (read-only)
-  app.get("/api/admin/review-requests/candidates", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const candidates = await getReviewRequestCandidates();
-      res.json({ candidates, count: candidates.length });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Send review-request emails now (manual; optionally only selected orders)
-  app.post("/api/admin/review-requests/send", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const orderIds = Array.isArray(req.body?.orderIds) ? req.body.orderIds : undefined;
-      const message = {
-        subject: typeof req.body?.subject === "string" ? req.body.subject : undefined,
-        body: typeof req.body?.body === "string" ? req.body.body : undefined,
-      };
-      const result = await sendReviewRequestsNow(orderIds, message);
-      res.json({ success: true, ...result });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Send review-request email preview to a single address
-  app.post("/api/admin/review-requests/preview", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const { email } = req.body;
-      if (!email) return res.status(400).json({ error: "email is required" });
-      const message = {
-        subject: typeof req.body?.subject === "string" ? req.body.subject : undefined,
-        body: typeof req.body?.body === "string" ? req.body.body : undefined,
-      };
-      const result = await sendReviewRequestPreview(email, message);
-      res.json(result);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Generate a review-request draft without sending any email
-  app.post("/api/admin/review-requests/generate", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const text = await generateReviewRequestDraft();
-      res.json({ text });
-    } catch (err: any) {
-      const message = err?.message || "AI generation failed";
-      const status = message === "AI service not configured" ? 503 : 502;
-      res.status(status).json({ error: message });
-    }
-  });
-
-  // Admin: Send broadcast email to newsletter subscribers
-  app.post("/api/admin/newsletter-broadcast", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const { subject, html, emails } = req.body;
-      if (!subject || !html || !emails || !Array.isArray(emails) || emails.length === 0) {
-        return res.status(400).json({ error: "subject, html и emails обязательны" });
-      }
-
-      const { sendEmail } = await import('./email');
-      let sent = 0;
-      let failed = 0;
-      const errors: string[] = [];
-
-      for (const email of emails) {
-        try {
-          const success = await sendEmail({ to: email, subject, html });
-          if (success) {
-            sent++;
-          } else {
-            failed++;
-            errors.push(email);
-          }
-        } catch (e: any) {
-          failed++;
-          errors.push(email);
-        }
-      }
-
-      res.json({ sent, failed, total: emails.length, errors });
-    } catch (err: any) {
-      console.error("[Newsletter Broadcast] Error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Mailings + review-requests admin (server/routes/mailings.ts)
+  registerMailingsRoutes(app, getAdminKey);
 
   // Page settings API (public read, admin write)
-  app.get("/api/page-settings/:pageName", async (req, res) => {
-    try {
-      const settings = await storage.getPageSettings(req.params.pageName);
-      res.set('Cache-Control', 'public, max-age=60, s-maxage=120');
-      res.json(settings);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Page settings (server/routes/page-settings.ts)
+  registerPageSettingsRoutes(app, getAdminKey, autoAddSubcategory);
 
-  app.post("/api/admin/page-settings/:pageName/:sectionId", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const { pageName, sectionId } = req.params;
-      const incoming = req.body;
-      const existing = await storage.getPageSettings(pageName);
-      const merged = { ...(existing[sectionId] || {}), ...incoming };
-      await storage.setPageSectionSettings(pageName, sectionId, merged);
+  // Admin SEO + media upload (server/routes/admin-seo.ts)
+  registerAdminSeoRoutes(app, getAdminKey);
 
-      // Auto-sync: when an artist/festival page is saved, add it as a subcategory in "merch"
-      if (pageName === "artist_pages") {
-        const displayName: string = (merged.name && String(merged.name).trim()) || sectionId;
-        autoAddSubcategory("merch", displayName, storage).catch(() => {});
-      }
+  // Admin users + loyalty (server/routes/admin-users.ts)
+  registerAdminUsersRoutes(app, getAdminKey);
 
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.delete("/api/admin/page-settings/:pageName/:sectionId", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const { pageName, sectionId } = req.params;
-      await storage.deletePageSectionSettings(pageName, sectionId);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: SEO audit — technical health check for structured data and meta coverage
-  app.get("/api/admin/seo-audit", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const all = getCachedProductsForSeoAudit();
-      const visible = all.filter(p => !p.isHidden && !p.artistOnly && p.price > 0);
-      const hidden = all.filter(p => p.isHidden || p.artistOnly || p.price === 0);
-
-      const withSeoTitle = visible.filter(p => p.hasSeoTitle).length;
-      const withSeoDesc = visible.filter(p => p.hasSeoDesc).length;
-      const withSeoBody = visible.filter(p => p.hasSeoBody).length;
-      const withImage = visible.filter(p => p.hasImage).length;
-
-      const missingTitle = visible.filter(p => !p.hasSeoTitle).slice(0, 50).map(p => ({ id: p.id, slug: p.slug, name: p.name, category: p.category }));
-      const missingDesc = visible.filter(p => !p.hasSeoDesc).slice(0, 50).map(p => ({ id: p.id, slug: p.slug, name: p.name, category: p.category }));
-      const missingBody = visible.filter(p => !p.hasSeoBody).slice(0, 50).map(p => ({ id: p.id, slug: p.slug, name: p.name, category: p.category }));
-
-      res.json({
-        products: {
-          total: all.length,
-          visible: visible.length,
-          hidden: hidden.length,
-          withSeoTitle,
-          withSeoDesc,
-          withSeoBody,
-          withImage,
-          pctTitle: visible.length ? Math.round(withSeoTitle / visible.length * 100) : 0,
-          pctDesc: visible.length ? Math.round(withSeoDesc / visible.length * 100) : 0,
-          pctBody: visible.length ? Math.round(withSeoBody / visible.length * 100) : 0,
-          missingTitle,
-          missingDesc,
-          missingBody,
-        },
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: SEO section — aggregated list of every editable page with its
-  // current effective title/description (admin override merged over the
-  // hardcoded/default value) so the admin can see & edit real current SEO text.
-  app.get("/api/admin/seo/pages", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const seoOverrides = await storage.getPageSettings("seo");
-
-      const field = (defaultTitle: string | undefined, defaultDescription: string | undefined, override: any) => ({
-        title: { default: defaultTitle || "", value: (typeof override?.title === "string" && override.title.trim()) ? override.title : (defaultTitle || "") },
-        description: { default: defaultDescription || "", value: (typeof override?.description === "string" && override.description.trim()) ? override.description : (defaultDescription || "") },
-      });
-
-      const pages: any[] = [];
-
-      // --- Home ---
-      const homeSettings = await storage.getPageSettings("home");
-      const homeHero = homeSettings?.hero || {};
-      const homeHeroSlide = Array.isArray(homeHero.slides) && homeHero.slides.length > 0 ? homeHero.slides[0] : homeHero;
-      pages.push({
-        type: "home",
-        key: "home",
-        label: "Главная страница",
-        fields: field(HOME_SEO_DEFAULT.title, HOME_SEO_DEFAULT.description, seoOverrides["home"]),
-        hero: {
-          heroImage: homeHeroSlide?.heroImage || "",
-          heroImageMobile: homeHeroSlide?.heroImageMobile || "",
-          heroImageAlt: homeHeroSlide?.heroImageAlt || "",
-          note: Array.isArray(homeHero.slides) && homeHero.slides.length > 1 ? `Слайдер из ${homeHero.slides.length} слайдов — здесь редактируется только 1-й (главный) слайд. Остальные слайды и их картинки — в разделе «Страницы» → Hero.` : undefined,
-        },
-      });
-
-      // --- Concept / Pre-drop ---
-      let conceptSettings: Record<string, any> = {};
-      try { conceptSettings = await storage.getPageSettings("concept"); } catch { /* none yet */ }
-      const conceptHero = conceptSettings?.hero || {};
-      pages.push({
-        type: "concept",
-        key: "concept",
-        label: "Pre-drop (предзаказ)",
-        fields: field(CONCEPT_SEO_DEFAULT.title, CONCEPT_SEO_DEFAULT.description, seoOverrides["concept"]),
-        hero: {
-          heroImage: conceptHero.heroImage || "",
-          heroImageMobile: conceptHero.heroImageMobile || "",
-          heroImageAlt: conceptHero.heroImageAlt || "",
-        },
-      });
-
-      // --- Merch na zakaz (custom merch landing) ---
-      const MERCH_ORDER_DEFAULT_FAQ: Array<{ question: string; answer: string }> = [
-        { question: "Какой минимальный тираж для создания мерча на заказ?", answer: "Минимальный тираж зависит от типа продукции: носки - от 50 пар, футболки и худи - от 1 штуки, аксессуары - от 30 единиц." },
-        { question: "Сколько стоит мерч на заказ?", answer: "Стоимость зависит от типа изделия, тиража и сложности принта. Точный расчёт делаем индивидуально - после того, как вы расскажете о задаче." },
-        { question: "Вы помогаете с разработкой дизайна?", answer: "Да. Мы предоставляем полный цикл: от разработки концепции и дизайна до готовой продукции. Если у вас уже есть макет - адаптируем его под производство. Дизайнерская работа включена в стоимость заказа." },
-        { question: "Сколько времени занимает изготовление?", answer: "Одежда - от 3 дней. Носки - от 14 рабочих дней. Срочные заказы обсуждаются отдельно." },
-        { question: "Вы работаете с физическими лицами, блогерами и артистами?", answer: "Да. Работаем с физлицами, ИП, ООО, блогерами, музыкантами и организаторами мероприятий. Опыт: Гудтаймс, Молодость внутри, Дикая Мята, Драгни, МультFильмы." },
-        { question: "Можно ли заказать мерч с моим логотипом или фирменным стилем?", answer: "Конечно. Предоставьте логотип в векторном формате (AI, EPS, SVG) или в хорошем разрешении - подготовим макет. Если фирменного стиля нет - разработаем с нуля." },
-        { question: "Как выглядит качество продукции?", answer: "Носки — хлопок 75%, полиамид 17%, эластан 8%. Одежда выпускается из различных тканей на выбор — уточняйте у менеджера. Перед отгрузкой — контроль качества каждой партии." },
-        { question: "Вы доставляете в другие города и регионы?", answer: "Да, отправляем по всей России. Работаем с СДЭК, ПЭК, Почтой России, Байкал Сервисом. По другим перевозчикам — уточняйте у менеджера." },
-        { question: "Что происходит, если в партии окажется брак?", answer: "Мы несём полную ответственность за качество. Если обнаружен брак - перевыпускаем бракованные позиции за наш счёт или компенсируем стоимость. Перед отгрузкой каждая партия проходит контроль качества." },
-      ];
-      let merchOrderSettings: Record<string, any> = {};
-      try { merchOrderSettings = await storage.getPageSettings("merch_order"); } catch { /* none yet */ }
-      const merchOrderHero = merchOrderSettings?.hero || {};
-      const merchOrderContent = (merchOrderSettings?.content as Record<string, any>) || {};
-      pages.push({
-        type: "merch_order",
-        key: "merch_order",
-        label: "Мерч на заказ",
-        fields: field(MERCH_ORDER_SEO_DEFAULT.title, MERCH_ORDER_SEO_DEFAULT.description, seoOverrides["merch_order"]),
-        hero: {
-          heroImage: merchOrderHero.heroImage || "",
-          heroImageMobile: merchOrderHero.heroImageMobile || "",
-          heroImageAlt: merchOrderHero.heroImageAlt || "",
-        },
-        content: {
-          h1: (merchOrderContent.h1 as string) || "",
-          introParagraph: (merchOrderContent.introParagraph as string) || "",
-          techText: (merchOrderContent.techText as string) || "",
-          b2bText: (merchOrderContent.b2bText as string) || "",
-          faqItems: Array.isArray(merchOrderContent.faqItems) && merchOrderContent.faqItems.length > 0
-            ? merchOrderContent.faqItems as Array<{ question: string; answer: string }>
-            : MERCH_ORDER_DEFAULT_FAQ,
-        },
-      });
-
-      // --- Partner register (become-a-partner landing) ---
-      let partnerRegisterSettings: Record<string, any> = {};
-      try { partnerRegisterSettings = await storage.getPageSettings("partner_register"); } catch { /* none yet */ }
-      const partnerRegisterHero = partnerRegisterSettings?.hero || {};
-      pages.push({
-        type: "partner_register",
-        key: "partner_register",
-        label: "Страница партнёра",
-        fields: field(PARTNER_REGISTER_SEO_DEFAULT.title, PARTNER_REGISTER_SEO_DEFAULT.description, seoOverrides["partner_register"]),
-        hero: {
-          heroImage: partnerRegisterHero.heroImage || "",
-          heroImageMobile: partnerRegisterHero.heroImageMobile || "",
-          heroImageAlt: partnerRegisterHero.heroImageAlt || "",
-          note: "Редактируется только 1-й слайд hero-баннера (реклама программы). 2-й слайд («Создавай вместе с BOOOMERANGS») остаётся неизменным.",
-        },
-      });
-
-      // --- Categories & subcategories (dynamic config with hardcoded fallback) ---
-      let cats: Record<string, CategoryConfig> = CATEGORIES;
-      try {
-        const siteConfig = await storage.getPageSettings("site_config");
-        if (siteConfig?.categories_data) {
-          const raw = typeof siteConfig.categories_data === 'string'
-            ? JSON.parse(siteConfig.categories_data)
-            : siteConfig.categories_data;
-          const normalized = normalizeCategories(raw);
-          if (normalized && Object.keys(normalized).length > 0) cats = normalized;
-        }
-      } catch { /* keep hardcoded fallback */ }
-
-      for (const [slug, cat] of Object.entries(cats)) {
-        const seoDefault = (SEO_CATEGORY_DEFAULTS as any)[slug];
-        pages.push({
-          type: "category",
-          key: slug,
-          label: cat.name,
-          fields: field(seoDefault?.title || `${cat.name} — купить в BMGBRAND`, seoDefault?.desc, seoOverrides[`category:${slug}`]),
-        });
-        for (const sub of cat.subcategories || []) {
-          const subKey = `${slug}:${sub.slug}`;
-          pages.push({
-            type: "subcategory",
-            key: subKey,
-            label: `${cat.name} → ${sub.name}`,
-            fields: field(undefined, undefined, seoOverrides[`subcategory:${subKey}`]),
-          });
-          for (const subSub of (sub.subSubcategories || [])) {
-            const subSubKey = `${slug}:${sub.slug}:${subSub.slug}`;
-            pages.push({
-              type: "subsubcategory",
-              key: subSubKey,
-              label: `${cat.name} → ${sub.name} → ${subSub.name}`,
-              fields: field(
-                `${subSub.name} — купить в BMGBRAND | ${sub.name}, ${cat.name}`,
-                undefined,
-                seoOverrides[`subsubcategory:${subSubKey}`]
-              ),
-            });
-          }
-        }
-      }
-
-      // --- Static / informational pages ---
-      const staticPageDefs = [
-        { key: "catalog",            label: "Каталог (/products)",                        defaultTitle: "Каталог — одежда и аксессуары | BMGBRAND",                                              defaultDesc: "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России." },
-        { key: "about",              label: "О нас (/about)",                              defaultTitle: "О бренде BOOOMERANGS — история, производство, команда | BMGBRAND",                     defaultDesc: "BOOOMERANGS (BMGBRAND) — российский бренд одежды из Тулы. Основан в 2006 году, своё производство с 2019 года." },
-        { key: "faq",                label: "FAQ — Вопросы и ответы (/faq)",               defaultTitle: "Вопросы и ответы | BMGBRAND",                                                          defaultDesc: "Ответы на частые вопросы о заказах, доставке, оплате и возврате в интернет-магазине BMGBRAND." },
-        { key: "blog",               label: "Блог (/blog)",                                defaultTitle: "Блог BMGBRAND",                                                                        defaultDesc: "Новости, статьи и истории бренда BMGBRAND." },
-        { key: "vacancies",          label: "Вакансии (/vacancies)",                       defaultTitle: "Вакансии — BMGBRAND",                                                                  defaultDesc: "Открытые вакансии в команду BMGBRAND." },
-        { key: "terms",              label: "Пользовательское соглашение (/terms)",        defaultTitle: "Пользовательское соглашение | BMGBRAND",                                               defaultDesc: "Условия использования сайта BMGBRAND." },
-        { key: "privacy",            label: "Политика конфиденциальности (/privacy)",      defaultTitle: "Политика конфиденциальности | BMGBRAND",                                               defaultDesc: "Политика обработки персональных данных BMGBRAND." },
-        { key: "care",               label: "Уход за изделиями (/care)",                   defaultTitle: "Уход за изделиями | BMGBRAND",                                                         defaultDesc: "Рекомендации по уходу за одеждой и аксессуарами BMGBRAND." },
-        { key: "links",              label: "Ссылки (/links)",                             defaultTitle: "BMGBRAND — Ссылки",                                                                    defaultDesc: "Официальные ссылки и соцсети бренда BMGBRAND." },
-        { key: "gift_cards",         label: "Подарочные карты (/gift-cards)",              defaultTitle: "Подарочные карты BMGBRAND",                                                            defaultDesc: "Подарочные карты интернет-магазина BMGBRAND — идеальный подарок." },
-        { key: "wholesale_register", label: "Оптовая программа (/wholesale/register)",     defaultTitle: "Оптовая программа BMGBRAND",                                                           defaultDesc: "Стать оптовым партнёром BMGBRAND — условия сотрудничества и регистрация." },
-      ];
-      for (const sp of staticPageDefs) {
-        pages.push({
-          type: "static",
-          key: sp.key,
-          label: sp.label,
-          fields: field(sp.defaultTitle, sp.defaultDesc, seoOverrides[`static:${sp.key}`]),
-        });
-      }
-
-      // --- Artists ---
-      let artistPages: Record<string, any> = {};
-      try { artistPages = await storage.getPageSettings("artist_pages"); } catch { /* none yet */ }
-      const artistSlugs = new Set<string>([...Object.keys(SEO_ARTIST_DEFAULTS), ...Object.keys(artistPages)]);
-      for (const slug of artistSlugs) {
-        const seoDefault = (SEO_ARTIST_DEFAULTS as any)[slug];
-        const settings = artistPages[slug] || {};
-        const name = settings.name || seoDefault?.name || slug;
-        pages.push({
-          type: "artist",
-          key: slug,
-          label: `Мерч ${name}`,
-          fields: field(
-            `Мерч ${name} — купить официальный мерч | BMGBRAND`,
-            seoDefault?.desc,
-            { title: settings.seoTitle, description: settings.seoDescription },
-          ),
-          hero: {
-            heroImage: settings.heroImage || "",
-            heroImageMobile: settings.heroImageMobile || "",
-            heroImageAlt: settings.heroImageAlt || "",
-          },
-        });
-      }
-
-      res.json({ pages });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: SEO tab — save hero image/alt for the home page without clobbering
-  // the multi-slide carousel (updates slide 0 only; other slides untouched).
-  app.post("/api/admin/seo/home-hero", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const { heroImage, heroImageMobile, heroImageAlt } = req.body;
-      const homeSettings = await storage.getPageSettings("home");
-      const hero = { ...(homeSettings?.hero || {}) };
-      if (Array.isArray(hero.slides) && hero.slides.length > 0) {
-        const newSlides = [...hero.slides];
-        newSlides[0] = { ...newSlides[0], heroImage, heroImageMobile, heroImageAlt };
-        hero.slides = newSlides;
-      } else {
-        hero.heroImage = heroImage;
-        hero.heroImageMobile = heroImageMobile;
-        hero.heroImageAlt = heroImageAlt;
-      }
-      await storage.setPageSectionSettings("home", "hero", hero);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Upload image for page settings
-  app.post("/api/admin/upload-image", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const contentType = req.headers["content-type"] || "image/webp";
-      const rawFilename = (req.headers["x-filename"] as string) || `upload_${Date.now()}.webp`;
-      const filename = (() => { try { return decodeURIComponent(rawFilename); } catch { return rawFilename; } })();
-      
-      const chunks: Buffer[] = [];
-      for await (const chunk of req) {
-        chunks.push(Buffer.from(chunk));
-      }
-      const buffer = Buffer.concat(chunks);
-      
-      if (buffer.length === 0) {
-        return res.status(400).json({ error: "Empty file" });
-      }
-      
-      const sharp = (await import("sharp")).default;
-      const webpBuffer = await sharp(buffer)
-        .webp({ quality: 85 })
-        .toBuffer();
-
-      const thumbBuffer = await sharp(buffer)
-        .resize(800, null, { withoutEnlargement: true, kernel: 'lanczos3' })
-        .sharpen()
-        .webp({ quality: 88 })
-        .toBuffer();
-      
-      const ts = Date.now();
-      const cleanName = filename.replace(/\.[^.]+$/, ".webp").replace(/[^a-zA-Z0-9._-]/g, "_");
-      
-      const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || "bmg";
-      const s3Key = `site/${ts}_${cleanName}`;
-      const s3ThumbKey = s3Key.replace('.webp', '_thumb.webp');
-      
-      const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
-      const s3 = new S3Client({
-        region: "ru-central1",
-        endpoint: "https://storage.yandexcloud.net",
-        credentials: {
-          accessKeyId: process.env.YANDEX_STORAGE_ACCESS_KEY || "",
-          secretAccessKey: process.env.YANDEX_STORAGE_SECRET_KEY || "",
-        },
-      });
-      
-      await s3.send(new PutObjectCommand({
-        Bucket: bucketName,
-        Key: s3Key,
-        Body: webpBuffer,
-        ContentType: "image/webp",
-        ACL: "public-read",
-        CacheControl: "public, max-age=31536000, immutable",
-      }));
-
-      await s3.send(new PutObjectCommand({
-        Bucket: bucketName,
-        Key: s3ThumbKey,
-        Body: thumbBuffer,
-        ContentType: "image/webp",
-        ACL: "public-read",
-        CacheControl: "public, max-age=31536000, immutable",
-      }));
-      
-      const url = `https://storage.yandexcloud.net/${bucketName}/${s3Key}`;
-      console.log(`[Upload] Image uploaded: ${url}`);
-      
-      res.json({ url, success: true });
-    } catch (err: any) {
-      console.error("[Upload] Error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Upload video file
-  app.post("/api/admin/upload-video", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const contentType = req.headers["content-type"] || "video/mp4";
-      const rawFilenameVideo = (req.headers["x-filename"] as string) || `video_${Date.now()}.mp4`;
-      const filename = (() => { try { return decodeURIComponent(rawFilenameVideo); } catch { return rawFilenameVideo; } })();
-
-      const chunks: Buffer[] = [];
-      for await (const chunk of req) {
-        chunks.push(Buffer.from(chunk));
-      }
-      const buffer = Buffer.concat(chunks);
-
-      if (buffer.length === 0) {
-        return res.status(400).json({ error: "Empty file" });
-      }
-
-      if (buffer.length > 100 * 1024 * 1024) {
-        return res.status(400).json({ error: "File too large (max 100MB)" });
-      }
-
-      const ts = Date.now();
-      const ext = filename.match(/\.(mp4|webm|mov|avi)$/i)?.[0] || ".mp4";
-      const cleanName = filename.replace(/\.[^.]+$/, ext).replace(/[^a-zA-Z0-9._-]/g, "_");
-
-      const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || "bmg";
-      const s3Key = `site/video/${ts}_${cleanName}`;
-
-      const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
-      const s3 = new S3Client({
-        region: "ru-central1",
-        endpoint: "https://storage.yandexcloud.net",
-        credentials: {
-          accessKeyId: process.env.YANDEX_STORAGE_ACCESS_KEY || "",
-          secretAccessKey: process.env.YANDEX_STORAGE_SECRET_KEY || "",
-        },
-      });
-
-      await s3.send(new PutObjectCommand({
-        Bucket: bucketName,
-        Key: s3Key,
-        Body: buffer,
-        ContentType: contentType,
-        ACL: "public-read",
-        CacheControl: "public, max-age=31536000, immutable",
-      }));
-
-      const url = `https://storage.yandexcloud.net/${bucketName}/${s3Key}`;
-      console.log(`[Upload] Video uploaded: ${url} (${(buffer.length / 1024 / 1024).toFixed(1)}MB)`);
-
-      res.json({ url, success: true });
-    } catch (err: any) {
-      console.error("[Upload] Video error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Extract video thumbnail via ffmpeg (server-side, no CORS issues)
-  app.post("/api/admin/extract-video-thumbnail", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const { videoUrl } = req.body as { videoUrl?: string };
-      if (!videoUrl || typeof videoUrl !== "string") {
-        return res.status(400).json({ error: "videoUrl required" });
-      }
-
-      const { exec } = await import("child_process");
-      const { promisify } = await import("util");
-      const { mkdtemp, readFile, rm } = await import("fs/promises");
-      const { tmpdir } = await import("os");
-      const { join } = await import("path");
-      const { createHash } = await import("crypto");
-      const execAsync = promisify(exec);
-
-      const tmpDir = await mkdtemp(join(tmpdir(), "vthumb-"));
-      const outPath = join(tmpDir, "thumb.jpg");
-
-      try {
-        // ffmpeg читает видео по URL напрямую, берёт 1 кадр на 0.5с
-        // -ss перед -i для быстрого seek; timeout 30s
-        await execAsync(
-          `ffmpeg -y -ss 0.5 -i "${videoUrl.replace(/"/g, '\\"')}" -vframes 1 -q:v 3 "${outPath}"`,
-          { timeout: 30000 }
-        );
-
-        const jpegBuffer = await readFile(outPath);
-
-        // Конвертируем в WebP через sharp — 400px достаточно для кружка 80–96px
-        const sharp = (await import("sharp")).default;
-        const webpBuffer = await sharp(jpegBuffer)
-          .resize(400, null, { withoutEnlargement: true })
-          .webp({ quality: 82 })
-          .toBuffer();
-
-        // Детерминированное имя: MD5 от videoUrl — один файл на видео,
-        // повторное извлечение перезаписывает тот же объект, мусора нет
-        const urlHash = createHash("md5").update(videoUrl).digest("hex").slice(0, 16);
-        const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || "bmg";
-        const s3Key = `site/thumb_${urlHash}.webp`;
-
-        const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
-        const s3 = new S3Client({
-          region: "ru-central1",
-          endpoint: "https://storage.yandexcloud.net",
-          credentials: {
-            accessKeyId: process.env.YANDEX_STORAGE_ACCESS_KEY || "",
-            secretAccessKey: process.env.YANDEX_STORAGE_SECRET_KEY || "",
-          },
-        });
-
-        await s3.send(new PutObjectCommand({
-          Bucket: bucketName,
-          Key: s3Key,
-          Body: webpBuffer,
-          ContentType: "image/webp",
-          ACL: "public-read",
-          CacheControl: "public, max-age=31536000, immutable",
-        }));
-
-        const url = `https://storage.yandexcloud.net/${bucketName}/${s3Key}`;
-        console.log(`[Thumbnail] Extracted from video: ${url}`);
-        res.json({ url, success: true });
-      } finally {
-        await rm(tmpDir, { recursive: true, force: true });
-      }
-    } catch (err: any) {
-      console.error("[Thumbnail] ffmpeg error:", err.message);
-      res.status(500).json({ error: "Не удалось извлечь кадр: " + err.message });
-    }
-  });
-
-  // Admin: Get users with loyalty data
-  app.get("/api/admin/loyalty-users", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const users = await storage.getUsersWithLoyalty();
-      res.json({ users: users || [] });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Полный пересчёт лояльности по истории заказов
-  app.post("/api/admin/loyalty/recalculate-all", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const result = await storage.recalculateAllUsersLoyalty();
-      res.json({ success: true, ...result });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Get all users' favorites
-  app.get("/api/admin/favorites", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const allFavorites = await authStorage.getAllFavorites();
-      
-      const userFavoritesMap: Record<number, { productIds: number[], count: number }> = {};
-      const productFavoritesCount: Record<number, number> = {};
-      
-      for (const fav of allFavorites) {
-        if (!userFavoritesMap[fav.userId]) {
-          userFavoritesMap[fav.userId] = { productIds: [], count: 0 };
-        }
-        userFavoritesMap[fav.userId].productIds.push(fav.productId);
-        userFavoritesMap[fav.userId].count++;
-        
-        productFavoritesCount[fav.productId] = (productFavoritesCount[fav.productId] || 0) + 1;
-      }
-
-      const usersWithFavorites = await Promise.all(
-        Object.entries(userFavoritesMap).map(async ([userId, data]) => {
-          const user = await authStorage.getUserById(Number(userId));
-          return {
-            userId: Number(userId),
-            userName: user?.name || user?.email || "Unknown",
-            userEmail: user?.email || "",
-            productIds: data.productIds,
-            count: data.count,
-          };
-        })
-      );
-
-      const popularProducts = Object.entries(productFavoritesCount)
-        .map(([productId, count]) => ({ productId: Number(productId), count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 20);
-
-      res.json({
-        users: usersWithFavorites.sort((a, b) => b.count - a.count),
-        popularProducts,
-        totalFavorites: allFavorites.length,
-        totalUsers: usersWithFavorites.length,
-      });
-    } catch (err: any) {
-      console.error("[Admin] Get favorites error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Список всех розничных клиентов
-  app.get("/api/admin/users", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const users = await authStorage.getAllRetailUsers();
-      const allOrders = await storage.getOrders();
-      const allFavorites = await authStorage.getAllFavorites();
-
-      const favCountByUser: Record<number, number> = {};
-      for (const f of allFavorites) {
-        favCountByUser[f.userId] = (favCountByUser[f.userId] || 0) + 1;
-      }
-
-      const ordersByUser: Record<number, any[]> = {};
-      for (const o of allOrders) {
-        if (o.status === 'awaiting_payment') continue;
-        if (o.userId) {
-          if (!ordersByUser[o.userId]) ordersByUser[o.userId] = [];
-          ordersByUser[o.userId].push(o);
-        }
-      }
-      // Также индексируем по email для заказов без userId
-      const ordersByEmail: Record<string, any[]> = {};
-      for (const o of allOrders) {
-        if (o.status === 'awaiting_payment') continue;
-        if (o.customerEmail) {
-          const key = o.customerEmail.toLowerCase();
-          if (!ordersByEmail[key]) ordersByEmail[key] = [];
-          ordersByEmail[key].push(o);
-        }
-      }
-
-      const result = users.map(u => {
-        const byId = ordersByUser[u.id] || [];
-        const byEmail = u.email ? (ordersByEmail[u.email.toLowerCase()] || []) : [];
-        const seen = new Set<number>();
-        const userOrders: any[] = [];
-        for (const o of [...byId, ...byEmail]) {
-          if (!seen.has(o.id)) { seen.add(o.id); userOrders.push(o); }
-        }
-        const lastOrder = userOrders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-        const paidOrders = userOrders.filter((o: any) => !['cancelled', 'awaiting_payment'].includes(o.status));
-        const computedTotalSpent = paidOrders.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
-        return {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          phone: u.phone || null,
-          createdAt: u.createdAt,
-          totalSpent: computedTotalSpent,
-          loyaltyDiscount: u.loyaltyDiscount || 0,
-          orderCount: userOrders.length,
-          lastOrderAt: lastOrder?.createdAt || null,
-          favoritesCount: favCountByUser[u.id] || 0,
-          emailVerified: u.emailVerified,
-        };
-      });
-
-      res.json({ users: result });
-    } catch (err: any) {
-      console.error("[Admin] Get users error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Карточка конкретного клиента
-  app.get("/api/admin/users/:id", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const userId = Number(req.params.id);
-      if (!userId) return res.status(400).json({ error: "Invalid id" });
-
-      const [user, ordersByUserId, ordersByEmail, favoriteIds, cartItems] = await Promise.all([
-        authStorage.getUserById(userId),
-        storage.getOrdersByUserId(userId),
-        (async () => {
-          const u = await authStorage.getUserById(userId);
-          if (!u?.email) return [];
-          return storage.getOrdersByEmail(u.email);
-        })(),
-        authStorage.getFavorites(userId),
-        storage.getCartByUserId(userId),
-      ]);
-
-      // Объединяем заказы по id (убираем дубликаты)
-      const ordersMap = new Map<number, any>();
-      for (const o of [...ordersByUserId, ...ordersByEmail]) {
-        ordersMap.set(o.id, o);
-      }
-      const orders = Array.from(ordersMap.values()).sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-
-      if (!user) return res.status(404).json({ error: "User not found" });
-
-      // Промокоды использованные этим пользователем (из заказов)
-      const usedPromoCodes = orders
-        .filter((o: any) => o.promoCode)
-        .map((o: any) => ({ code: o.promoCode, orderId: o.id, orderDate: o.createdAt, orderTotal: o.total }));
-
-      // Подписка на рассылку
-      let newsletterSubscribed = false;
-      try {
-        const newsletters = await storage.getAllNewsletterSubscriptions();
-        newsletterSubscribed = newsletters.some((s: any) => s.email?.toLowerCase() === user.email?.toLowerCase());
-      } catch { }
-
-      // Подписки на снижение цены
-      let priceDropSubs: any[] = [];
-      try {
-        priceDropSubs = await storage.getPriceDropSubscriptionsByEmail(user.email);
-      } catch { }
-
-      // Товары из избранного с деталями
-      const favoriteProducts = await Promise.all(
-        favoriteIds.slice(0, 50).map(async (pid: number) => {
-          const p = await storage.getProduct(pid);
-          return p ? { id: p.id, name: p.name, price: p.price, thumbnailUrl: p.thumbnailUrl || p.imageUrl } : null;
-        })
-      ).then(r => r.filter(Boolean));
-
-      const paidOrders = orders.filter((o: any) => !['cancelled', 'awaiting_payment'].includes(o.status));
-      const computedTotalSpent = paidOrders.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
-
-      res.json({
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone || null,
-          createdAt: user.createdAt,
-          emailVerified: user.emailVerified,
-          totalSpent: computedTotalSpent,
-          loyaltyDiscount: user.loyaltyDiscount || 0,
-        },
-        orders: orders.slice(0, 100),
-        favorites: favoriteProducts,
-        cart: cartItems.map(ci => ({
-          productId: ci.productId,
-          name: ci.product?.name || "",
-          price: ci.product?.price || 0,
-          thumbnailUrl: ci.product?.thumbnailUrl || ci.product?.imageUrl || "",
-          size: ci.size,
-          color: ci.color,
-          quantity: ci.quantity,
-        })),
-        usedPromoCodes,
-        newsletterSubscribed,
-        priceDropSubs,
-      });
-    } catch (err: any) {
-      console.error("[Admin] Get user detail error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Список оптовых клиентов с их статистикой заказов
-  app.get("/api/admin/wholesale-users", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const [wholesaleUsers, allOrders] = await Promise.all([
-        authStorage.getWholesaleUsers(),
-        storage.getOrders(),
-      ]);
-
-      const wholesaleOrders = allOrders.filter((o: any) => o.isWholesale && o.status !== 'awaiting_payment');
-
-      const ordersByUserId: Record<number, any[]> = {};
-      const ordersByEmail: Record<string, any[]> = {};
-      for (const o of wholesaleOrders) {
-        if (o.userId) {
-          if (!ordersByUserId[o.userId]) ordersByUserId[o.userId] = [];
-          ordersByUserId[o.userId].push(o);
-        }
-        if (o.customerEmail) {
-          const key = o.customerEmail.toLowerCase();
-          if (!ordersByEmail[key]) ordersByEmail[key] = [];
-          ordersByEmail[key].push(o);
-        }
-      }
-
-      const result = wholesaleUsers.map(u => {
-        const byId = ordersByUserId[u.id] || [];
-        const byEmail = u.email ? (ordersByEmail[u.email.toLowerCase()] || []) : [];
-        const seen = new Set<number>();
-        const userOrders: any[] = [];
-        for (const o of [...byId, ...byEmail]) {
-          if (!seen.has(o.id)) { seen.add(o.id); userOrders.push(o); }
-        }
-        const totalSpent = userOrders.reduce((s, o) => s + (o.total || 0), 0);
-        const lastOrder = userOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-        return {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          companyName: u.companyName,
-          inn: u.inn,
-          kpp: u.kpp,
-          legalAddress: u.legalAddress,
-          storeName: u.storeName,
-          storeAddress: u.storeAddress,
-          contactPerson: u.contactPerson,
-          contactPhone: u.contactPhone,
-          wholesaleApproved: u.wholesaleApproved,
-          wholesaleDiscount: u.wholesaleDiscount,
-          wholesaleMarkup: u.wholesaleMarkup,
-          createdAt: u.createdAt,
-          orderCount: userOrders.length,
-          totalSpent,
-          lastOrderAt: lastOrder?.createdAt || null,
-        };
-      });
-
-      res.json({ users: result });
-    } catch (err: any) {
-      console.error("[Admin] Get wholesale users error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Детальная карточка оптового клиента
-  app.get("/api/admin/wholesale-users/:id", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const userId = Number(req.params.id);
-      if (!userId) return res.status(400).json({ error: "Invalid id" });
-
-      const users = await authStorage.getWholesaleUsers();
-      const user = users.find(u => u.id === userId);
-      if (!user) return res.status(404).json({ error: "User not found" });
-
-      const [ordersByUserId, ordersByEmail] = await Promise.all([
-        storage.getOrdersByUserId(userId),
-        user.email ? storage.getOrdersByEmail(user.email) : Promise.resolve([]),
-      ]);
-
-      const ordersMap = new Map<number, any>();
-      for (const o of [...ordersByUserId, ...ordersByEmail]) {
-        if (o.isWholesale) ordersMap.set(o.id, o);
-      }
-      const orders = Array.from(ordersMap.values()).sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-
-      res.json({ user, orders });
-    } catch (err: any) {
-      console.error("[Admin] Get wholesale user detail error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Сменить пароль оптовику вручную
-  app.post("/api/admin/wholesale-users/:id/set-password", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const userId = Number(req.params.id);
-      if (!userId) return res.status(400).json({ error: "Invalid id" });
-      const { password } = req.body;
-      if (!password || typeof password !== "string" || password.length < 6) {
-        return res.status(400).json({ error: "Пароль должен быть не менее 6 символов" });
-      }
-      const bcrypt = await import("bcryptjs");
-      const passwordHash = await bcrypt.hash(password, 10);
-      const ok = await authStorage.updatePassword(userId, passwordHash);
-      if (!ok) return res.status(404).json({ error: "Пользователь не найден" });
-      console.log(`[Admin] Password changed for wholesale user ${userId}`);
-      res.json({ success: true });
-    } catch (err: any) {
-      console.error("[Admin] Set wholesale password error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Все оптовые предзаказы (заявки)
-  // Выставить финальный счёт (оставшиеся 50%) по оптовому предзаказу
-  app.post("/api/admin/wholesale-orders/:id/final-invoice", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const orderId = Number(req.params.id);
-      const order = await storage.getOrder(orderId);
-      if (!order) return res.status(404).json({ error: "Заказ не найден" });
-      if (!order.isWholesale) return res.status(400).json({ error: "Не оптовый заказ" });
-
-      // Данные покупателя
-      const customerEmail = order.customerEmail;
-      const customerName = order.customerName;
-      const customerPhone = order.customerPhone || "";
-
-      // Получаем ИНН из профиля оптовика если есть
-      let customerInn: string | undefined;
-      try {
-        const wholesaleUsers = await authStorage.getWholesaleUsers();
-        const wUser = wholesaleUsers.find(u =>
-          u.id === (order as any).userId || u.email.toLowerCase() === customerEmail.toLowerCase()
-        );
-        customerInn = wUser?.inn || undefined;
-      } catch {}
-
-      // НДС
-      let vatRate = 5;
-      let vatMode: 'included' | 'on_top' = 'included';
-      try {
-        const vatSetting = await storage.getBonusSetting("invoice_vat_rate");
-        if (vatSetting) { const p = parseFloat(vatSetting); if (!isNaN(p)) vatRate = p; }
-        const modeSetting = await storage.getBonusSetting("invoice_vat_mode");
-        if (modeSetting === 'on_top' || modeSetting === 'included') vatMode = modeSetting;
-      } catch {}
-
-      const remainingAmount = Math.round(order.total / 2);
-      const invoiceNum = getNextInvoiceNumber();
-      const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
-
-      const invoiceItems = items.map((item: any) => ({
-        name: `[Финал] ${item.productName || item.name || "Товар"}${item.size && item.size !== "One Size" ? ` (${item.size})` : ""}`,
-        sku: item.sku || "",
-        quantity: item.quantity || 1,
-        price: Math.round((item.price || 0) / 2),
-      }));
-
-      const invoiceData = {
-        invoiceNumber: invoiceNum,
-        date: new Date(),
-        customerName,
-        customerPhone,
-        customerEmail,
-        customerInn,
-        transportCompany: order.transportCompany || "cdek",
-        vatRate,
-        vatMode,
-        subjectOverride: `Финальный счёт (50%) — Оптовый предзаказ #${orderId} — BMGBRAND`,
-        noteText: `Это финальный счёт на <strong>оставшиеся 50%</strong> оплаты по предзаказу #${orderId}.<br>Спасибо за ожидание — товар готов к отгрузке! 🚀`,
-        items: invoiceItems,
-      };
-
-      await sendInvoiceEmail(invoiceData);
-
-      // Сохраняем номер финального счёта в заказ чтобы показать в ЛК
-      await storage.updateOrderPreorderFields(orderId, { preorderPaymentId: `final:${invoiceNum}` });
-
-      res.json({ ok: true, invoiceNumber: invoiceNum, remainingAmount });
-    } catch (err: any) {
-      console.error("[Wholesale] Final invoice error:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Скачать финальный счёт (PDF) — для оптового покупателя в ЛК
-  app.get("/api/auth/orders/:orderId/final-invoice-pdf", authMiddleware, async (req: any, res) => {
-    try {
-      const orderId = Number(req.params.orderId);
-      const order = await storage.getOrder(orderId);
-      if (!order) return res.status(404).json({ error: "Заказ не найден" });
-      if ((order as any).userId !== req.user.id && order.customerEmail !== req.user.email) {
-        return res.status(403).json({ error: "Нет доступа" });
-      }
-      const preorderPaymentId = (order as any).preorderPaymentId || "";
-      if (!preorderPaymentId.startsWith("final:")) {
-        return res.status(404).json({ error: "Финальный счёт ещё не выставлен" });
-      }
-      const invoiceNum = Number(preorderPaymentId.replace("final:", ""));
-
-      let customerInn: string | undefined;
-      try {
-        const wholesaleUsers = await authStorage.getWholesaleUsers();
-        const wUser = wholesaleUsers.find(u =>
-          u.id === (order as any).userId || u.email.toLowerCase() === order.customerEmail.toLowerCase()
-        );
-        customerInn = wUser?.inn || undefined;
-      } catch {}
-
-      let vatRate = 5;
-      let vatMode: 'included' | 'on_top' = 'included';
-      try {
-        const vatSetting = await storage.getBonusSetting("invoice_vat_rate");
-        if (vatSetting) { const p = parseFloat(vatSetting); if (!isNaN(p)) vatRate = p; }
-        const modeSetting = await storage.getBonusSetting("invoice_vat_mode");
-        if (modeSetting === 'on_top' || modeSetting === 'included') vatMode = modeSetting;
-      } catch {}
-
-      const items = typeof order.items === 'string' ? JSON.parse(order.items as string) : (order.items || []);
-      const pdfBuffer = await generateInvoicePDF({
-        invoiceNumber: invoiceNum,
-        date: new Date(),
-        customerName: order.customerName,
-        customerPhone: order.customerPhone || "",
-        customerEmail: order.customerEmail,
-        customerInn,
-        transportCompany: order.transportCompany || "cdek",
-        vatRate,
-        vatMode,
-        subjectOverride: `Финальный счёт (50%) — Оптовый предзаказ #${orderId} — BMGBRAND`,
-        noteText: `Это финальный счёт на оставшиеся 50% оплаты по предзаказу #${orderId}.`,
-        items: items.map((item: any) => ({
-          name: `[Финал] ${item.productName || item.name || "Товар"}${item.size && item.size !== "One Size" ? ` (${item.size})` : ""}`,
-          sku: item.sku || "",
-          quantity: item.quantity || 1,
-          price: Math.round((item.price || 0) / 2),
-        })),
-      });
-
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="final-invoice-${invoiceNum}.pdf"`);
-      res.send(pdfBuffer);
-    } catch (err: any) {
-      console.error("[Wholesale] Download final invoice error:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Переключение типа оптового заказа (предзаказ / обычный заказ)
-  app.patch("/api/admin/wholesale-orders/:id/type", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const id = Number(req.params.id);
-      const { isPreorder } = req.body;
-      if (typeof isPreorder !== "boolean") return res.status(400).json({ error: "isPreorder must be boolean" });
-      await storage.updateOrderPreorderFields(id, { isPreorder });
-      res.json({ ok: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Одноразовая миграция: проставляем isPreorder=true всем оптовым заказам без этого флага
-  app.post("/api/admin/wholesale-preorder/migrate-ispreorder", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      // Используем специальный метод без фильтра статуса — иначе awaiting_payment заказы невидимы
-      const wholesaleOrders = await storage.getAllWholesaleOrdersIncludingDrafts();
-      const toMarkPreorder = wholesaleOrders.filter((o: any) => o.isPreorder !== true);
-      const toFixStatus = wholesaleOrders.filter((o: any) => o.status === 'awaiting_payment');
-      await Promise.all([
-        ...toMarkPreorder.map((o: any) => storage.updateOrderPreorderFields(o.id, { isPreorder: true })),
-        ...toFixStatus.map((o: any) => storage.updateOrderStatus(o.id, 'pending')),
-      ]);
-      res.json({ migrated: toMarkPreorder.length, statusFixed: toFixStatus.length, ids: wholesaleOrders.map((o: any) => o.id) });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.get("/api/admin/wholesale-preorder/orders", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const [allOrders, wholesaleUsers] = await Promise.all([
-        storage.getOrders(),
-        authStorage.getWholesaleUsers(),
-      ]);
-
-      const userMap = new Map(wholesaleUsers.map(u => [u.id, u]));
-      const emailMap = new Map(wholesaleUsers.map(u => [u.email.toLowerCase(), u]));
-
-      const wholesaleOrders = allOrders
-        .filter((o: any) => o.isWholesale && o.status !== 'awaiting_payment')
-        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .map((o: any) => {
-          const wUser = (o.userId && userMap.get(o.userId)) ||
-            (o.customerEmail && emailMap.get(o.customerEmail.toLowerCase())) || null;
-          const items = typeof o.items === 'string' ? (() => { try { return JSON.parse(o.items); } catch { return []; } })() : (o.items || []);
-          return {
-            id: o.id,
-            createdAt: o.createdAt,
-            status: o.status,
-            total: o.total,
-            items,
-            isPreorder: o.isPreorder === true,
-            invoiceNumber: o.invoiceNumber || null,
-            transportCompany: o.transportCompany || null,
-            trackingNumber: o.trackingNumber || null,
-            shippingAddress: o.address || null,
-            comment: o.comment || null,
-            customer: {
-              id: wUser?.id || o.userId || null,
-              name: wUser?.name || o.customerName || "—",
-              email: wUser?.email || o.customerEmail || "—",
-              companyName: wUser?.companyName || null,
-              contactPerson: wUser?.contactPerson || null,
-              contactPhone: wUser?.contactPhone || o.customerPhone || null,
-              wholesaleDiscount: wUser?.wholesaleDiscount || 0,
-              wholesaleMarkup: wUser?.wholesaleMarkup || 0,
-            },
-          };
-        });
-
-      res.json({ orders: wholesaleOrders, total: wholesaleOrders.length });
-    } catch (err: any) {
-      console.error("[Admin] Get wholesale preorder orders error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Wholesale admin (server/routes/wholesale.ts)
+  registerWholesaleAdminRoutes(app, getAdminKey, authMiddleware);
 
   // Public: Get subscription promo settings (for homepage/popup display)
   app.get("/api/subscription-promos", async (req, res) => {
@@ -15502,106 +11460,8 @@ ${faqSection}
     }
   });
 
-  // Admin: Get popup promo settings
-  app.get("/api/admin/popup-promo", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const popupPromoId = await storage.getBonusSetting("popup_promo_id");
-      const homepagePromoId = await storage.getBonusSetting("homepage_promo_id");
-      const popupEnabled = (await storage.getBonusSetting("popup_enabled")) || "true";
-      
-      const allPromos = await storage.getPromoCodes();
-      
-      const popupPromo = popupPromoId 
-        ? allPromos.find((p: any) => String(p.id) === popupPromoId)
-        : allPromos.find((p: any) => p.code === "WELCOME10");
-      const homepagePromo = homepagePromoId 
-        ? allPromos.find((p: any) => String(p.id) === homepagePromoId)
-        : allPromos.find((p: any) => p.code === "WELCOME7");
-      
-      const settings = {
-        enabled: popupEnabled === "true",
-        title: (await storage.getBonusSetting("popup_title")) || "ЭКСКЛЮЗИВНОЕ ПРЕДЛОЖЕНИЕ",
-        subtitle: (await storage.getBonusSetting("popup_subtitle")) || "NEW_MEMBER_BONUS",
-        description: (await storage.getBonusSetting("popup_description")) || "Скидка на первый заказ при подписке на рассылку. Будьте первыми, кто узнаёт о новых дропах.",
-        buttonText: (await storage.getBonusSetting("popup_button_text")) || "ПОЛУЧИТЬ СКИДКУ",
-        successTitle: (await storage.getBonusSetting("popup_success_title")) || "ДОБРО ПОЖАЛОВАТЬ!",
-        successText: (await storage.getBonusSetting("popup_success_text")) || "Ваш промокод на скидку",
-        delay: parseInt((await storage.getBonusSetting("popup_delay")) || "4000"),
-        placeholder: (await storage.getBonusSetting("popup_placeholder")) || "Ваш email",
-        closeText: (await storage.getBonusSetting("popup_close_text")) || "Продолжить покупки",
-      };
-
-      res.json({ 
-        popup: popupPromo || null, 
-        homepage: homepagePromo || null,
-        settings
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: Update popup promo code settings
-  app.put("/api/admin/popup-promo", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    try {
-      const { popup, homepage, settings } = req.body;
-      
-      // Update popup promo by ID (not by code - code may have been changed)
-      if (popup && popup.id) {
-        await storage.updatePromoCode(popup.id, {
-          code: popup.code,
-          discountPercent: popup.discountPercent,
-          isActive: popup.isActive,
-        });
-      }
-      
-      // Update homepage promo by ID
-      if (homepage && homepage.id) {
-        await storage.updatePromoCode(homepage.id, {
-          code: homepage.code,
-          discountPercent: homepage.discountPercent,
-          isActive: homepage.isActive,
-        });
-      }
-
-      if (settings) {
-        const settingKeys = {
-          enabled: "popup_enabled",
-          title: "popup_title",
-          subtitle: "popup_subtitle",
-          description: "popup_description",
-          buttonText: "popup_button_text",
-          successTitle: "popup_success_title",
-          successText: "popup_success_text",
-          delay: "popup_delay",
-          placeholder: "popup_placeholder",
-          closeText: "popup_close_text"
-        };
-
-        for (const [key, value] of Object.entries(settings)) {
-          const dbKey = settingKeys[key as keyof typeof settingKeys];
-          if (dbKey) {
-            await storage.setBonusSetting(dbKey, String(value));
-          }
-        }
-      }
-
-      invalidateSubscriptionPromosCache();
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Admin popup-promo (server/routes/admin-promo.ts)
+  registerAdminPromoRoutes(app, getAdminKey, invalidateSubscriptionPromosCache);
 
   // Get user's gift cards (by email)
   app.get("/api/gift-cards/my", async (req, res) => {
@@ -15622,479 +11482,19 @@ ${faqSection}
         createdAt: card.createdAt,
       })));
     } catch (err: any) {
-      console.error("[GiftCards] Get my cards error:", err);
+      logError("[GiftCards] Get my cards error:", err);
       res.status(500).json({ error: "Ошибка получения карт" });
     }
   });
 
-  // Admin: Activate gift card after payment confirmation
-  app.post("/api/gift-cards/:id/activate", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (!expectedKey || apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const id = parseInt(req.params.id);
-      const { paymentId, paymentMethod } = req.body;
-      
-      const card = await storage.getGiftCardById(id);
-      if (!card) {
-        return res.status(404).json({ error: "Карта не найдена" });
-      }
-      
-      const updated = await storage.updateGiftCard(id, {
-        status: "active",
-        paymentId: paymentId || null,
-        paymentMethod: paymentMethod || null,
-      });
-      
-      console.log(`[GiftCards] Activated card ${card.code} for ${card.amount / 100} RUB`);
-      
-      if (card.purchaserEmail) {
-        try {
-          const purchaserHtml = getGiftCardPaidEmailHtml(
-            card.purchaserName || 'Покупатель',
-            card.code,
-            card.amount,
-            card.recipientName,
-            card.recipientEmail,
-            card.message,
-            (card as any).cardColor || 'black'
-          );
-          await sendEmail({
-            to: card.purchaserEmail,
-            subject: `Подарочная карта BOOOMERANGS на ${(card.amount / 100).toLocaleString('ru-RU')} ₽ оплачена`,
-            html: purchaserHtml
-          });
-          if (card.recipientEmail && card.recipientEmail !== card.purchaserEmail) {
-            const recipientHtml = getGiftCardReceivedEmailHtml(
-              card.recipientName || 'Друг',
-              card.purchaserName || 'Друг',
-              card.code,
-              card.amount,
-              card.message,
-              (card as any).cardColor || 'black'
-            );
-            await sendEmail({
-              to: card.recipientEmail,
-              subject: `Вам подарили подарочную карту BOOOMERANGS на ${(card.amount / 100).toLocaleString('ru-RU')} ₽!`,
-              html: recipientHtml
-            });
-          }
-        } catch (emailErr: any) {
-          console.error(`[GiftCards] Failed to send activation email:`, emailErr.message);
-          notifyError('Email активация сертификата', `Не удалось отправить письмо получателю`, `${card.recipientEmail} | ${emailErr.message}`);
-        }
-      }
-      
-      res.json({ success: true, card: updated });
-    } catch (err: any) {
-      console.error("[GiftCards] Activate error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Admin gift-cards activate/resend (server/routes/admin-giftcards.ts)
+  registerAdminGiftCardRoutes(app, getAdminKey);
 
-  app.post("/api/gift-cards/:id/resend-email", async (req, res) => {
-    const apiKey = req.headers["x-api-key"];
-    const expectedKey = getAdminKey();
-    if (!expectedKey || apiKey !== expectedKey) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const id = parseInt(req.params.id);
-      const card = await storage.getGiftCardById(id);
-      if (!card) {
-        return res.status(404).json({ error: "Карта не найдена" });
-      }
-      if (card.status !== "active") {
-        return res.status(400).json({ error: "Карта не активна" });
-      }
-      
-      const sent: string[] = [];
-      if (card.purchaserEmail) {
-        const purchaserHtml = getGiftCardPaidEmailHtml(
-          card.purchaserName || 'Покупатель',
-          card.code,
-          card.amount,
-          card.recipientName,
-          card.recipientEmail,
-          card.message,
-          (card as any).cardColor || 'black'
-        );
-        await sendEmail({
-          to: card.purchaserEmail,
-          subject: `Подарочная карта BOOOMERANGS на ${(card.amount / 100).toLocaleString('ru-RU')} ₽ оплачена`,
-          html: purchaserHtml
-        });
-        sent.push(card.purchaserEmail);
-      }
-      if (card.recipientEmail && card.recipientEmail !== card.purchaserEmail) {
-        const recipientHtml = getGiftCardReceivedEmailHtml(
-          card.recipientName || 'Друг',
-          card.purchaserName || 'Друг',
-          card.code,
-          card.amount,
-          card.message,
-          (card as any).cardColor || 'black'
-        );
-        await sendEmail({
-          to: card.recipientEmail,
-          subject: `Вам подарили подарочную карту BOOOMERANGS на ${(card.amount / 100).toLocaleString('ru-RU')} ₽!`,
-          html: recipientHtml
-        });
-        sent.push(card.recipientEmail);
-      }
-      
-      console.log(`[GiftCards] Resent emails for card ${card.code} to: ${sent.join(', ')}`);
-      res.json({ success: true, sentTo: sent });
-    } catch (err: any) {
-      console.error("[GiftCards] Resend email error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Wholesale XML feed + preorder slides (server/routes/wholesale.ts)
+  registerWholesaleFeedRoutes(app, authMiddleware);
+  registerWholesaleSlidesRoutes(app);
 
-  // ==================== Wholesale XML Feed Routes ====================
-
-  // Helper: ensure user is approved wholesaler
-  function isApprovedWholesale(user: any): boolean {
-    if (!user || user.role !== "wholesale") return false;
-    return user.wholesaleApproved === true || user.approved === true;
-  }
-
-  // GET selected products + token
-  app.get("/api/wholesale/feed-products", authMiddleware, async (req: any, res) => {
-    try {
-      const user = req.user;
-      if (!isApprovedWholesale(user)) {
-        return res.status(403).json({ error: "Доступ только для одобренных оптовых покупателей" });
-      }
-      const [productIds, token] = await Promise.all([
-        storage.getWholesaleFeedProductIds(user.id),
-        storage.getOrCreateWholesaleFeedToken(user.id),
-      ]);
-      const baseUrl = process.env.SITE_URL || "https://www.booomerangs.ru";
-      res.json({
-        productIds,
-        token,
-        feedUrl: `${baseUrl}/api/wholesale/feed/${token}`,
-      });
-    } catch (err: any) {
-      console.error("[WholesaleFeed] get-products error:", err);
-      res.status(500).json({ error: "Ошибка получения списка товаров" });
-    }
-  });
-
-  // POST add product to feed
-  app.post("/api/wholesale/feed-products", authMiddleware, async (req: any, res) => {
-    try {
-      const user = req.user;
-      if (!isApprovedWholesale(user)) {
-        return res.status(403).json({ error: "Доступ только для одобренных оптовых покупателей" });
-      }
-      const productId = Number(req.body?.productId);
-      if (!Number.isFinite(productId) || productId <= 0) {
-        return res.status(400).json({ error: "Некорректный productId" });
-      }
-      const product = await storage.getProduct(productId);
-      if (!product) return res.status(404).json({ error: "Товар не найден" });
-      await storage.addWholesaleFeedProduct(user.id, productId);
-      res.json({ success: true });
-    } catch (err: any) {
-      console.error("[WholesaleFeed] add error:", err);
-      res.status(500).json({ error: "Ошибка добавления товара" });
-    }
-  });
-
-  // DELETE remove product from feed
-  app.delete("/api/wholesale/feed-products/:productId", authMiddleware, async (req: any, res) => {
-    try {
-      const user = req.user;
-      if (!isApprovedWholesale(user)) {
-        return res.status(403).json({ error: "Доступ только для одобренных оптовых покупателей" });
-      }
-      const productId = Number(req.params.productId);
-      if (!Number.isFinite(productId) || productId <= 0) {
-        return res.status(400).json({ error: "Некорректный productId" });
-      }
-      await storage.removeWholesaleFeedProduct(user.id, productId);
-      res.json({ success: true });
-    } catch (err: any) {
-      console.error("[WholesaleFeed] delete error:", err);
-      res.status(500).json({ error: "Ошибка удаления товара" });
-    }
-  });
-
-  // PUBLIC XML feed (YML format — compatible with Bitrix, WooCommerce import plugins, Yandex.Market)
-  app.get("/api/wholesale/feed/:token", async (req, res) => {
-    try {
-      const token = String(req.params.token || "").trim();
-      if (!token) return res.status(404).type("text").send("Not found");
-
-      const userId = await storage.getUserIdByWholesaleFeedToken(token);
-      if (!userId) return res.status(404).type("text").send("Not found");
-
-      const productIds = await storage.getWholesaleFeedProductIds(userId);
-      const allProducts = productIds.length > 0 ? await storage.getProducts() : [];
-      const idSet = new Set(productIds);
-      const products = allProducts.filter(p => idSet.has(p.id) && !p.isHidden);
-
-      const escape = (s: any): string =>
-        String(s ?? "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&apos;");
-
-      const baseUrl = process.env.SITE_URL || "https://www.booomerangs.ru";
-      const now = new Date();
-      const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-
-      // Collect categories
-      const categoryMap = new Map<string, string>();
-      for (const p of products) {
-        if (p.category && !categoryMap.has(p.category)) {
-          categoryMap.set(p.category, p.category);
-        }
-      }
-
-      const categoriesXml = Array.from(categoryMap.entries())
-        .map(([slug, name], idx) => `      <category id="${idx + 1}">${escape(name)}</category>`)
-        .join("\n");
-
-      const slugToCatId = new Map<string, number>();
-      Array.from(categoryMap.keys()).forEach((slug, idx) => slugToCatId.set(slug, idx + 1));
-
-      const offersXml = products.map(p => {
-        const priceKopeks = p.price;
-        const priceRub = (priceKopeks / 100).toFixed(2);
-        const productUrl = p.slug ? `${baseUrl}/${p.slug}` : `${baseUrl}/products`;
-        const catId = slugToCatId.get(p.category) || 1;
-        const images = Array.isArray(p.images) && p.images.length > 0 ? p.images : [p.imageUrl].filter(Boolean);
-        const picturesXml = images
-          .filter(Boolean)
-          .slice(0, 10)
-          .map(url => `      <picture>${escape(url)}</picture>`)
-          .join("\n");
-        const sizes = Array.isArray(p.sizes) ? p.sizes.filter(Boolean) : [];
-        const colors = Array.isArray(p.colors) ? p.colors.filter(Boolean) : [];
-        const params: string[] = [];
-        if (p.color) params.push(`      <param name="Цвет">${escape(p.color)}</param>`);
-        if (sizes.length > 0) params.push(`      <param name="Размеры">${escape(sizes.join(", "))}</param>`);
-        if (colors.length > 0 && !p.color) params.push(`      <param name="Цвета">${escape(colors.join(", "))}</param>`);
-        if (p.composition) params.push(`      <param name="Состав">${escape(p.composition)}</param>`);
-        if (p.careInstructions) params.push(`      <param name="Уход">${escape(p.careInstructions)}</param>`);
-
-        return `    <offer id="${p.id}" available="true">
-      <url>${escape(productUrl)}</url>
-      <price>${priceRub}</price>
-      <currencyId>RUB</currencyId>
-      <categoryId>${catId}</categoryId>
-${picturesXml}
-      <name>${escape(p.name)}</name>${p.sku ? `\n      <vendorCode>${escape(p.sku)}</vendorCode>` : ""}
-      <description><![CDATA[${(p.description || "").replace(/\]\]>/g, "]]]]><![CDATA[>")}]]></description>
-${params.join("\n")}
-    </offer>`;
-      }).join("\n");
-
-      const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<yml_catalog date="${dateStr}">
-  <shop>
-    <name>BMGBRAND</name>
-    <company>BMGBRAND</company>
-    <url>${baseUrl}</url>
-    <currencies>
-      <currency id="RUB" rate="1"/>
-    </currencies>
-    <categories>
-${categoriesXml}
-    </categories>
-    <offers>
-${offersXml}
-    </offers>
-  </shop>
-</yml_catalog>`;
-
-      res.set("Content-Type", "application/xml; charset=utf-8");
-      res.set("Cache-Control", "public, max-age=300"); // 5 минут кэш
-      res.send(xml);
-    } catch (err: any) {
-      console.error("[WholesaleFeed] xml error:", err);
-      res.status(500).type("text").send("Internal error");
-    }
-  });
-
-  // ==================== Wholesale Preorder Routes ====================
-
-  app.get("/api/wholesale-preorder/slides", async (_req, res) => {
-    try {
-      const raw = await storage.getBonusSetting("wholesale_slides");
-      const slides: string[] = raw ? JSON.parse(raw) : [];
-      res.json({ slides });
-    } catch (err: any) {
-      console.error("[WholesalePreorder] Get slides error:", err.message);
-      res.status(500).json({ error: "Failed to get slides" });
-    }
-  });
-
-  app.post("/api/admin/wholesale-preorder/slides", async (req: any, res) => {
-    try {
-      const apiKey = req.headers["x-api-key"];
-      if (apiKey !== process.env.ADMIN_API_KEY) return res.status(403).json({ error: "Forbidden" });
-      const { fileData } = req.body;
-      if (!fileData) return res.status(400).json({ error: "Missing fileData" });
-
-      const match = fileData.match(/^data:(image\/[a-z]+);base64,/);
-      const mimeType = match ? match[1] : "image/jpeg";
-      const base64Data = fileData.replace(/^data:image\/[a-z]+;base64,/, "");
-      const buffer = Buffer.from(base64Data, "base64");
-      const ext = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
-      const filename = `wholesale_slide_${Date.now()}.${ext}`;
-      const url = await uploadToYandexStorage(buffer, `products/${filename}`, mimeType);
-      if (!url) return res.status(500).json({ error: "Failed to upload image" });
-
-      const raw = await storage.getBonusSetting("wholesale_slides");
-      const slides: string[] = raw ? JSON.parse(raw) : [];
-      slides.push(url);
-      await storage.setBonusSetting("wholesale_slides", JSON.stringify(slides));
-      console.log(`[Admin] Wholesale slide uploaded: ${url}`);
-      res.json({ success: true, url, slides });
-    } catch (err: any) {
-      console.error("[Admin] Upload slide error:", err.message);
-      res.status(500).json({ error: "Failed to upload slide" });
-    }
-  });
-
-  app.delete("/api/admin/wholesale-preorder/slides/:index", async (req: any, res) => {
-    try {
-      const apiKey = req.headers["x-api-key"];
-      if (apiKey !== process.env.ADMIN_API_KEY) return res.status(403).json({ error: "Forbidden" });
-      const idx = parseInt(req.params.index);
-      const raw = await storage.getBonusSetting("wholesale_slides");
-      const slides: string[] = raw ? JSON.parse(raw) : [];
-      if (idx < 0 || idx >= slides.length) return res.status(400).json({ error: "Invalid index" });
-      slides.splice(idx, 1);
-      await storage.setBonusSetting("wholesale_slides", JSON.stringify(slides));
-      res.json({ success: true, slides });
-    } catch (err: any) {
-      res.status(500).json({ error: "Failed to delete slide" });
-    }
-  });
-
-  app.put("/api/admin/wholesale-preorder/slides/reorder", async (req: any, res) => {
-    try {
-      const apiKey = req.headers["x-api-key"];
-      if (apiKey !== process.env.ADMIN_API_KEY) return res.status(403).json({ error: "Forbidden" });
-      const { slides } = req.body;
-      if (!Array.isArray(slides)) return res.status(400).json({ error: "slides must be array" });
-      await storage.setBonusSetting("wholesale_slides", JSON.stringify(slides));
-      res.json({ success: true, slides });
-    } catch (err: any) {
-      res.status(500).json({ error: "Failed to reorder slides" });
-    }
-  });
-
-  // Dadata proxy routes (address and party/INN autocomplete)
-  app.post("/api/dadata/address", async (req, res) => {
-    try {
-      const apiKey = process.env.DADATA_API_KEY;
-      if (!apiKey) return res.status(503).json({ error: "Dadata not configured" });
-      const { query, count = 7 } = req.body;
-      const response = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Authorization": `Token ${apiKey}`,
-        },
-        body: JSON.stringify({ query, count }),
-      });
-      const data = await response.json();
-      res.json(data);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Подсказка городов для выбора ПВЗ Ozon (возвращает упрощённый список)
-  app.post("/api/dadata/city-suggest", async (req, res) => {
-    try {
-      const apiKey = process.env.DADATA_API_KEY;
-      if (!apiKey) return res.json({ suggestions: [] });
-      const { query } = req.body;
-      if (!query || String(query).trim().length < 2) return res.json({ suggestions: [] });
-      const response = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Authorization": `Token ${apiKey}`,
-        },
-        body: JSON.stringify({
-          query: String(query).trim(),
-          count: 12,
-          from_bound: { value: "city" },
-          to_bound: { value: "city" },
-          locations: [{ country: "*" }],
-        }),
-      });
-      const data: any = await response.json();
-      const suggestions = (data.suggestions ?? []).map((s: any) => ({
-        value: s.value,
-        city: s.data?.city ?? s.data?.settlement ?? s.data?.region_with_type ?? s.value,
-        region: s.data?.region_with_type ?? "",
-      }));
-      res.json({ suggestions });
-    } catch (err: any) {
-      res.json({ suggestions: [] });
-    }
-  });
-
-  app.post("/api/dadata/party", async (req, res) => {
-    try {
-      const apiKey = process.env.DADATA_API_KEY;
-      if (!apiKey) return res.status(503).json({ error: "Dadata not configured" });
-      const { query, count = 5 } = req.body;
-      const response = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Authorization": `Token ${apiKey}`,
-        },
-        body: JSON.stringify({ query, count }),
-      });
-      const data = await response.json();
-      res.json(data);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Подсказка банка по БИК (для автозаполнения банковских реквизитов партнёра)
-  app.post("/api/dadata/bank", async (req, res) => {
-    try {
-      const apiKey = process.env.DADATA_API_KEY;
-      if (!apiKey) return res.status(503).json({ error: "Dadata not configured" });
-      const { query, count = 5 } = req.body;
-      const response = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/bank", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Authorization": `Token ${apiKey}`,
-        },
-        body: JSON.stringify({ query, count }),
-      });
-      const data = await response.json();
-      res.json(data);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
+  registerDadataRoutes(app);
 
   // Public endpoint: текст активной версии юридического документа.
   // Используется на странице регистрации партнёра и admin-просмотрщиком.
@@ -16114,46 +11514,13 @@ ${offersXml}
         createdAt: doc.createdAt,
       });
     } catch (e: any) {
-      console.error("[Legal Public]", e);
+      logError("[Legal Public]", e);
       res.status(500).json({ error: e?.message || "Ошибка загрузки документа" });
     }
   });
 
-  app.get("/api/wholesale-preorder/products", async (_req, res) => {
-    try {
-      const products = await storage.getWholesalePreorderProducts();
-      res.json(products);
-    } catch (err: any) {
-      console.error("[WholesalePreorder] Get products error:", err.message);
-      res.status(500).json({ error: "Failed to get wholesale preorder products" });
-    }
-  });
-
-  app.post("/api/admin/wholesale-preorder/products/:id/toggle", async (req: any, res) => {
-    try {
-      const apiKey = req.headers["x-api-key"];
-      if (apiKey !== process.env.ADMIN_API_KEY) {
-        return res.status(403).json({ error: "Forbidden" });
-      }
-      const id = Number(req.params.id);
-      const { enabled, preorderDeadline, preorderShippingDate, preorderProductionDate, wholesalePreorderSizes, wholesalePreorderRrp, wholesalePreorderPrice, wholesalePrice } = req.body;
-      await storage.updateProduct(id, {
-        wholesalePreorderEnabled: enabled,
-        ...(preorderDeadline !== undefined ? { preorderDeadline } : {}),
-        ...(preorderShippingDate !== undefined ? { preorderShippingDate } : {}),
-        ...(preorderProductionDate !== undefined ? { preorderProductionDate } : {}),
-        ...(wholesalePreorderSizes !== undefined ? { wholesalePreorderSizes } : {}),
-        ...(wholesalePreorderRrp !== undefined ? { wholesalePreorderRrp } : {}),
-        ...(wholesalePreorderPrice !== undefined ? { wholesalePreorderPrice } : {}),
-        ...(wholesalePrice !== undefined ? { wholesalePrice } : {}),
-      } as any);
-      storage.clearProductCache(id);
-      res.json({ ok: true });
-    } catch (err: any) {
-      console.error("[WholesalePreorder] Toggle error:", err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
+  // Wholesale preorder products admin (server/routes/wholesale.ts)
+  registerWholesalePreorderProductsRoutes(app);
 
   // ==================== Preorder Routes ====================
 
@@ -16166,7 +11533,7 @@ ${offersXml}
         : products;
       res.json(result);
     } catch (err: any) {
-      console.error("[Preorder] Get products error:", err.message);
+      logError("[Preorder] Get products error:", err.message);
       res.status(500).json({ error: "Failed to get preorder products" });
     }
   });
@@ -16213,7 +11580,7 @@ ${offersXml}
 
       res.json(campaigns.filter((c) => c.visible));
     } catch (err: any) {
-      console.error("[Preorder] Get campaigns error:", err.message);
+      logError("[Preorder] Get campaigns error:", err.message);
       res.status(500).json({ error: "Failed to get campaigns" });
     }
   });
@@ -16265,7 +11632,7 @@ ${offersXml}
 
       res.json(campaigns);
     } catch (err: any) {
-      console.error("[Preorder] Admin get campaigns error:", err.message);
+      logError("[Preorder] Admin get campaigns error:", err.message);
       res.status(500).json({ error: "Failed to get campaigns" });
     }
   });
@@ -16315,7 +11682,7 @@ ${offersXml}
 
       res.json({ success: true, slug });
     } catch (err: any) {
-      console.error("[Preorder] Create campaign error:", err.message);
+      logError("[Preorder] Create campaign error:", err.message);
       res.status(500).json({ error: err.message });
     }
   });
@@ -16347,14 +11714,14 @@ ${offersXml}
         const allProducts = await storage.getProducts();
         const bound = allProducts.filter((p: any) => p.preorderGroup === slug);
         await Promise.all(bound.map((p: any) => storage.updateProduct(p.id, { preorderGroup: "" } as any)));
-        if (bound.length > 0) console.log(`[Preorder] Cleared preorderGroup for ${bound.length} products`);
+        if (bound.length > 0) logInfo(`[Preorder] Cleared preorderGroup for ${bound.length} products`);
       } catch (clearErr: any) {
-        console.warn("[Preorder] Could not clear product bindings:", clearErr.message);
+        logWarn("[Preorder] Could not clear product bindings:", clearErr.message);
       }
 
       res.json({ success: true });
     } catch (err: any) {
-      console.error("[Preorder] Delete campaign error:", err.message);
+      logError("[Preorder] Delete campaign error:", err.message);
       res.status(500).json({ error: err.message });
     }
   });
@@ -16412,10 +11779,10 @@ ${offersXml}
             const serverCost = (matchingTariff?.delivery_sum || cheapest.delivery_sum) * 100;
             const tolerance = Math.round(serverCost * 0.20);
             deliveryCost = Math.abs(Number(cdekDeliverySum) - serverCost) <= tolerance ? Number(cdekDeliverySum) : serverCost;
-            console.log(`[Preorder] CDEK delivery verified: client=${Number(cdekDeliverySum)/100}, server=${serverCost/100}, used=${deliveryCost/100} RUB`);
+            logInfo(`[Preorder] CDEK delivery verified: client=${Number(cdekDeliverySum)/100}, server=${serverCost/100}, used=${deliveryCost/100} RUB`);
           }
         } catch (err: any) {
-          console.log(`[Preorder] CDEK verification failed, no delivery charge: ${err.message}`);
+          logInfo(`[Preorder] CDEK verification failed, no delivery charge: ${err.message}`);
           deliveryCost = 0;
         }
       }
@@ -16522,13 +11889,13 @@ ${offersXml}
       }
 
       if (!paymentUrl && !preorderConfirmationToken) {
-        console.error("[Preorder] Payment not generated for order", order.id);
+        logError("[Preorder] Payment not generated for order", order.id);
         return res.status(500).json({ error: "Не удалось инициировать оплату. Попробуйте позже." });
       }
 
       res.status(201).json({ orderId: order.id, paymentUrl, confirmationToken: preorderConfirmationToken, isPreorder: true });
     } catch (err: any) {
-      console.error("[Preorder] Create order error:", err.message);
+      logError("[Preorder] Create order error:", err.message);
       res.status(500).json({ error: "Произошла ошибка при создании предзаказа. Попробуйте позже." });
     }
   });
@@ -16596,7 +11963,7 @@ ${offersXml}
       if (!paymentUrl && !remainConfirmationToken) return res.status(500).json({ error: "Payment creation failed" });
       res.json({ paymentUrl, confirmationToken: remainConfirmationToken, remainingAmount });
     } catch (err: any) {
-      console.error("[Preorder] Pay remaining error:", err.message);
+      logError("[Preorder] Pay remaining error:", err.message);
       res.status(500).json({ error: "Failed to create remaining payment" });
     }
   });
@@ -16638,7 +12005,7 @@ ${offersXml}
 
       res.set('Cache-Control', 'no-store').json(enrichedOrders);
     } catch (err: any) {
-      console.error("[Preorder] My orders error:", err.message);
+      logError("[Preorder] My orders error:", err.message);
       res.status(500).json({ error: "Failed to get preorder orders" });
     }
   });
@@ -16650,7 +12017,7 @@ ${offersXml}
       const points = await storage.getRetailPickupPoints();
       res.json(points);
     } catch (err: any) {
-      console.error("[RetailPickupPoints] Get error:", err.message);
+      logError("[RetailPickupPoints] Get error:", err.message);
       res.status(500).json({ error: "Failed to get retail pickup points" });
     }
   });
@@ -16718,7 +12085,7 @@ ${offersXml}
       const points = await storage.getPickupPoints();
       res.json(points);
     } catch (err: any) {
-      console.error("[PickupPoints] Get error:", err.message);
+      logError("[PickupPoints] Get error:", err.message);
       res.status(500).json({ error: "Failed to get pickup points" });
     }
   });
@@ -16888,10 +12255,10 @@ ${offersXml}
             const serverCost = (matchingTariff?.delivery_sum || cheapest.delivery_sum) * 100;
             const tolerance = Math.round(serverCost * 0.20);
             deliveryCost = Math.abs(Number(cdekDeliverySum) - serverCost) <= tolerance ? Number(cdekDeliverySum) : serverCost;
-            console.log(`[Preorder Multi] CDEK delivery verified: client=${Number(cdekDeliverySum)/100}, server=${serverCost/100}, used=${deliveryCost/100} RUB`);
+            logInfo(`[Preorder Multi] CDEK delivery verified: client=${Number(cdekDeliverySum)/100}, server=${serverCost/100}, used=${deliveryCost/100} RUB`);
           }
         } catch (err: any) {
-          console.log(`[Preorder Multi] CDEK verification failed, no delivery charge: ${err.message}`);
+          logInfo(`[Preorder Multi] CDEK verification failed, no delivery charge: ${err.message}`);
           deliveryCost = 0;
         }
       }
@@ -16958,7 +12325,7 @@ ${offersXml}
         } catch {}
 
         const invoiceNum = getNextInvoiceNumber();
-        storage.saveOrderInvoiceNumber(order.id, invoiceNum).catch(err => console.error('[Preorder Multi] Failed to save invoice number:', err));
+        storage.saveOrderInvoiceNumber(order.id, invoiceNum).catch(err => logError('[Preorder Multi] Failed to save invoice number:', err));
         sendInvoiceEmail({
           invoiceNumber: invoiceNum,
           date: new Date(),
@@ -16978,7 +12345,7 @@ ${offersXml}
             quantity: i.quantity,
             price: i.price,
           })),
-        }).catch(err => console.error('[Preorder Multi] Failed to send invoice:', err));
+        }).catch(err => logError('[Preorder Multi] Failed to send invoice:', err));
 
         // Telegram и VK — уведомления менеджерам с меткой [ОПТОВЫЙ ПРЕДЗАКАЗ]
         const user = req.user;
@@ -17015,7 +12382,7 @@ ${offersXml}
           inn: user?.inn,
         });
 
-        console.log(`[Preorder Multi] Wholesale invoice order ${order.id} created, ${orderItems.length} items, total ${totalPrice}`);
+        logInfo(`[Preorder Multi] Wholesale invoice order ${order.id} created, ${orderItems.length} items, total ${totalPrice}`);
         return res.status(201).json({ orderId: order.id, invoiceSent: true, isPreorder: true });
       }
 
@@ -17062,181 +12429,20 @@ ${offersXml}
       }
 
       if (!paymentUrl && !confirmationToken) {
-        console.error("[Preorder Multi] Payment not generated for order", order.id);
+        logError("[Preorder Multi] Payment not generated for order", order.id);
         return res.status(500).json({ error: "Не удалось инициировать оплату. Попробуйте позже." });
       }
 
-      console.log(`[Preorder Multi] Order ${order.id} created, ${orderItems.length} items, total ${totalPrice}`);
+      logInfo(`[Preorder Multi] Order ${order.id} created, ${orderItems.length} items, total ${totalPrice}`);
       res.status(201).json({ orderId: order.id, paymentUrl, confirmationToken, isPreorder: true });
     } catch (err: any) {
-      console.error("[Preorder Multi] Create order error:", err.message);
+      logError("[Preorder Multi] Create order error:", err.message);
       res.status(500).json({ error: "Произошла ошибка при создании предзаказа. Попробуйте позже." });
     }
   });
 
-  // ==================== Wholesale Preorder Route ====================
-
-  app.post("/api/wholesale-preorder/order", authMiddleware, async (req: any, res) => {
-    try {
-      const user = req.user;
-      if (!user) return res.status(401).json({ error: "Необходима авторизация" });
-      if (user.role !== "wholesale") return res.status(403).json({ error: "Доступ только для оптовых покупателей" });
-
-      const isApproved = user.wholesaleApproved === true || user.approved === true;
-      if (!isApproved) return res.status(403).json({ error: "Ваш аккаунт ещё не одобрен администратором" });
-
-      const { items, transportCompany, deliveryAddress, comment, customerPhone: phoneOverride, customerEmail: emailOverride } = req.body;
-      if (!Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ error: "Список товаров не может быть пустым" });
-      }
-
-      for (const item of items) {
-        if (!item.productId || !item.size || !item.quantity || item.quantity < 1) {
-          return res.status(400).json({ error: "Некорректные данные в списке товаров" });
-        }
-      }
-
-      const customerName = user.name || user.email || "Оптовый покупатель";
-      const customerEmail = (typeof emailOverride === "string" && emailOverride.trim()) ? emailOverride.trim() : (user.email || "");
-      const customerPhone = (typeof phoneOverride === "string" && phoneOverride.trim()) ? phoneOverride.trim() : (user.phone || "");
-
-      const total = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
-
-      const productIds = [...new Set(items.map((item: any) => item.productId))];
-      const productMap = new Map<number, any>();
-      for (const pid of productIds) {
-        try {
-          const prod = await storage.getProduct(pid);
-          if (prod) productMap.set(pid, prod);
-        } catch {}
-      }
-
-      // Минимум 2 пары на размер для носков в оптовом заказе (категория берётся из БД)
-      for (const item of items) {
-        const prod = productMap.get(item.productId);
-        if (prod?.category === "socks" && item.quantity < 2) {
-          return res.status(400).json({ error: `Носки заказываются минимум по 2 пары на размер (${item.productName || prod?.name || "товар"}, размер ${item.size})` });
-        }
-      }
-
-      const orderItems = items.map((item: any) => {
-        const prod = productMap.get(item.productId);
-        const sizeCharIds = prod?.sizeCharacteristicIds as Record<string, string> | null | undefined;
-        const sizeCharGuid = (item.size && sizeCharIds) ? (sizeCharIds[item.size] || null) : null;
-        return {
-          productId: item.productId,
-          productName: item.productName || prod?.name || "Товар",
-          productExternalId: prod?.externalId || String(item.productId),
-          sku: item.sku || prod?.sku || "",
-          quantity: item.quantity,
-          price: item.price,
-          size: item.size,
-          color: item.color || prod?.color || null,
-          sizeCharacteristicId: sizeCharGuid || undefined,
-          imageUrl: prod?.thumbnailUrl || (prod?.images && prod.images[0]) || null,
-        };
-      });
-
-      const sessionId = req.sessionID || `wholesale-preorder-${Date.now()}`;
-
-      const resolvedAddress = deliveryAddress || user.legalAddress || user.storeAddress || "Оптовый предзаказ";
-
-      const order = await storage.createOrder({
-        sessionId,
-        userId: user.id,
-        customerName,
-        customerEmail,
-        customerPhone,
-        address: resolvedAddress,
-        total,
-        items: orderItems,
-        isWholesale: true,
-        transportCompany: transportCompany || "cdek",
-      });
-
-      // Помечаем как предзаказ и сразу переводим в pending (иначе фильтруется из личного кабинета)
-      await storage.updateOrderPreorderFields(order.id, { isPreorder: true });
-      await storage.updateOrderStatus(order.id, "pending");
-
-      console.log(`[Wholesale Preorder] Created order #${order.id} for user ${user.id} (${customerEmail}), total: ${total / 100} ₽`);
-
-      let vatRate = 5;
-      let vatMode: 'included' | 'on_top' = 'included';
-      try {
-        const vatSetting = await storage.getBonusSetting("invoice_vat_rate");
-        if (vatSetting) {
-          const parsed = parseFloat(vatSetting);
-          if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) vatRate = parsed;
-        }
-        const modeSetting = await storage.getBonusSetting("invoice_vat_mode");
-        if (modeSetting === 'on_top' || modeSetting === 'included') vatMode = modeSetting;
-      } catch (e) {}
-
-      const preorderInvoiceNum = getNextInvoiceNumber();
-      storage.saveOrderInvoiceNumber(order.id, preorderInvoiceNum).catch(err => console.error('[Wholesale Preorder] Failed to save invoice number:', err));
-      sendInvoiceEmail({
-        invoiceNumber: preorderInvoiceNum,
-        date: new Date(),
-        customerName,
-        customerPhone,
-        customerEmail,
-        customerInn: user.inn || undefined,
-        transportCompany: transportCompany || "cdek",
-        vatRate,
-        vatMode,
-        depositPercent: 50,
-        subjectOverride: `Счет на предоплату 50% — Оптовый предзаказ #${order.id} — BMGBRAND`,
-        noteText: `Спасибо за ваш предзаказ! 🎉<br>Это счёт на <strong>предоплату 50%</strong> от суммы заказа. Оставшиеся 50% выставим перед отгрузкой.${deliveryAddress ? `<br><br><strong>Адрес доставки:</strong> ${deliveryAddress}` : ""}${comment ? `<br><strong>Комментарий:</strong> ${comment}` : ""}`,
-        items: orderItems.map((item: any) => ({
-          name: `[Предзаказ] ${item.productName}${item.size && item.size !== "One Size" ? ` (${item.size})` : ""}`,
-          sku: item.sku || "",
-          quantity: item.quantity,
-          price: item.price,
-        })),
-      }).catch(err => console.error("[Wholesale Preorder] Failed to send invoice:", err));
-
-      const tgAddress = [
-        `[ОПТОВЫЙ ПРЕДЗАКАЗ]`,
-        resolvedAddress,
-        comment ? `💬 ${comment}` : null,
-      ].filter(Boolean).join("\n");
-
-      const itemsForNotify = await enrichItemsWithProductColor(orderItems);
-      notifyNewOrder({
-        orderId: order.id,
-        customerName,
-        customerEmail,
-        customerPhone,
-        address: tgAddress,
-        total,
-        items: itemsForNotify,
-        paymentMethod: "invoice",
-        isWholesale: true,
-        transportCompany: transportCompany || "cdek",
-        companyName: user.companyName || undefined,
-        inn: user.inn || undefined,
-      });
-      vkNotifyNewOrder({
-        orderId: order.id,
-        customerName,
-        customerEmail,
-        customerPhone,
-        address: tgAddress,
-        total,
-        items: itemsForNotify,
-        paymentMethod: "invoice",
-        isWholesale: true,
-        transportCompany: transportCompany || "cdek",
-        companyName: user.companyName || undefined,
-        inn: user.inn || undefined,
-      });
-
-      return res.json({ success: true, orderId: order.id });
-    } catch (err: any) {
-      console.error("[Wholesale Preorder] Error:", err.message);
-      return res.status(500).json({ error: "Не удалось создать заявку. Попробуйте ещё раз." });
-    }
-  });
+  // Wholesale preorder order creation (server/routes/wholesale.ts)
+  registerWholesalePreorderOrderRoute(app, authMiddleware, enrichItemsWithProductColor);
 
   app.get("/api/admin/preorder/orders", async (req: any, res) => {
     const apiKey = req.headers["x-api-key"];
@@ -17276,7 +12482,7 @@ ${offersXml}
       }));
       const failedProducts = productResults.filter(r => r.status === 'rejected');
       if (failedProducts.length) {
-        console.warn(`[Preorder] ${failedProducts.length}/${productResults.length} product lookups failed`);
+        logWarn(`[Preorder] ${failedProducts.length}/${productResults.length} product lookups failed`);
       }
 
       await Promise.all(uniqueUserIds.map(async (uid) => {
@@ -17338,7 +12544,7 @@ ${offersXml}
         depositOnly: enriched.filter(o => o.depositPaid && o.status !== "paid").length,
       });
     } catch (err: any) {
-      console.error("[Admin] Get preorder orders error:", err);
+      logError("[Admin] Get preorder orders error:", err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -17411,7 +12617,7 @@ ${offersXml}
       res.setHeader("Content-Disposition", `attachment; filename="${fileLabel}.xlsx"`);
       res.send(buf);
     } catch (err: any) {
-      console.error("[Admin] Preorder XLSX error:", err);
+      logError("[Admin] Preorder XLSX error:", err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -17591,7 +12797,7 @@ ${offersXml}
       res.setHeader("Content-Disposition", `attachment; filename="sales-report-${suffix}.xlsx"`);
       res.send(buf);
     } catch (err: any) {
-      console.error("[Admin] Monthly sales report error:", err);
+      logError("[Admin] Monthly sales report error:", err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -17639,15 +12845,15 @@ ${offersXml}
           cancelled: `Предзаказ отменён — ${productName}`,
         };
         sendEmail({ to: order.customerEmail, subject: subjectMap[status], html })
-          .then(ok => console.log(`[Preorder] Per-order status email to ${order.customerEmail}: ${ok ? 'OK' : 'FAIL'}`))
-          .catch(err => console.error(`[Preorder] Per-order email error:`, err.message));
+          .then(ok => logInfo(`[Preorder] Per-order status email to ${order.customerEmail}: ${ok ? 'OK' : 'FAIL'}`))
+          .catch(err => logError(`[Preorder] Per-order email error:`, err.message));
       }
 
       // If shipping — create CDEK waybill for this order only
       if (status === "shipping") {
         createCdekWaybillForOrder(orderId).then(r => {
-          console.log(`[Preorder] Per-order waybill #${orderId}: ${r.success ? 'OK uuid=' + r.uuid : 'FAIL ' + r.error}`);
-        }).catch(err => console.error(`[Preorder] Per-order waybill error:`, err.message));
+          logInfo(`[Preorder] Per-order waybill #${orderId}: ${r.success ? 'OK uuid=' + r.uuid : 'FAIL ' + r.error}`);
+        }).catch(err => logError(`[Preorder] Per-order waybill error:`, err.message));
       }
 
       // Also update order status to "processing" when shipping starts
@@ -17655,10 +12861,10 @@ ${offersXml}
         await storage.updateOrderStatus(orderId, "processing");
       }
 
-      console.log(`[Preorder] Per-order status set for order #${orderId}: ${status}`);
+      logInfo(`[Preorder] Per-order status set for order #${orderId}: ${status}`);
       res.json({ success: true, orderId, status });
     } catch (err: any) {
-      console.error("[Preorder] Per-order status error:", err.message);
+      logError("[Preorder] Per-order status error:", err.message);
       res.status(500).json({ error: err.message });
     }
   });
@@ -17716,7 +12922,7 @@ ${offersXml}
             pointAddress: cdekInfo?.pointAddress || undefined,
           });
         }
-        console.log(`[Preorder] Queued status emails for ${seenEmails.size} unique customers (${productOrders.length} total orders), status=${status}`);
+        logInfo(`[Preorder] Queued status emails for ${seenEmails.size} unique customers (${productOrders.length} total orders), status=${status}`);
       }
 
       if (status === "shipping") {
@@ -17724,21 +12930,21 @@ ${offersXml}
         for (const o of productOrders) {
           if (o.status === "paid") {
             await storage.updateOrderStatus(o.id, "processing");
-            console.log(`[Preorder] Order #${o.id} status updated: paid → processing`);
+            logInfo(`[Preorder] Order #${o.id} status updated: paid → processing`);
           }
         }
-        console.log(`[Preorder] Triggering CDEK waybills for ${productOrders.length} orders of product ${productId}`);
+        logInfo(`[Preorder] Triggering CDEK waybills for ${productOrders.length} orders of product ${productId}`);
         for (const o of productOrders) {
           createCdekWaybillForOrder(o.id).then(r => {
-            console.log(`[Preorder] Waybill for order #${o.id}: ${r.success ? 'OK uuid=' + r.uuid : 'FAIL ' + r.error}`);
-          }).catch(err => console.error(`[Preorder] Waybill error for order #${o.id}:`, err.message));
+            logInfo(`[Preorder] Waybill for order #${o.id}: ${r.success ? 'OK uuid=' + r.uuid : 'FAIL ' + r.error}`);
+          }).catch(err => logError(`[Preorder] Waybill error for order #${o.id}:`, err.message));
         }
       }
 
-      console.log(`[Preorder] Status changed for product ${productId}: ${oldStatus} -> ${status}`);
+      logInfo(`[Preorder] Status changed for product ${productId}: ${oldStatus} -> ${status}`);
       res.json({ success: true, oldStatus, newStatus: status });
     } catch (err: any) {
-      console.error("[Preorder] Status update error:", err.message);
+      logError("[Preorder] Status update error:", err.message);
       res.status(500).json({ error: "Failed to update preorder status" });
     }
   });
@@ -17811,7 +13017,7 @@ ${offersXml}
       res.set("Cache-Control", "public, max-age=300");
       res.type("html").send(html);
     } catch (err: any) {
-      console.error("[App] Deep link error:", err.message);
+      logError("[App] Deep link error:", err.message);
       res.redirect("/");
     }
   });
@@ -17843,14 +13049,14 @@ ${offersXml}
       for (const email of ADMIN_EMAILS) {
         try {
           const ok = await authStorage.setUserRoleByEmail(email, 'admin');
-          if (ok) console.log(`[Admin] Role 'admin' set for ${email}`);
+          if (ok) logInfo(`[Admin] Role 'admin' set for ${email}`);
         } catch (err: any) {
-          console.error(`[Admin] Failed to set role for ${email}:`, err.message);
+          logError(`[Admin] Failed to set role for ${email}:`, err.message);
         }
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     } catch (err: any) {
-      console.error("[Admin] Init error:", err.message);
+      logError("[Admin] Init error:", err.message);
     }
   })();
 

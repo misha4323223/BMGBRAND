@@ -1,4 +1,5 @@
 import { type Express } from "express";
+import { logError } from "./logger";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
 import viteConfig from "../vite.config";
@@ -213,7 +214,7 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
       });
     }
   } catch (e) {
-    console.error("[Vite] Meta injection error:", e);
+    logError("[Vite] Meta injection error:", e);
   }
 
   return html;

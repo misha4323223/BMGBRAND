@@ -1,4 +1,5 @@
 import { storage } from './storage';
+import { logError } from "./logger";
 import { sendEmail, getPreorderNewsletterHtml } from './email';
 
 const QUEUE_KEY = 'preorder_notify_queue';
@@ -28,7 +29,7 @@ async function writeQueue(state: QueueState | null): Promise<void> {
   try {
     await storage.setBonusSetting(QUEUE_KEY, state ? JSON.stringify(state) : JSON.stringify({ productIds: [], firstAddedAt: '', lastAddedAt: '' }));
   } catch (err: any) {
-    console.error('[PreorderNotifier] Failed to write queue:', err?.message);
+    logError('[PreorderNotifier] Failed to write queue:', err?.message);
   }
 }
 
@@ -47,7 +48,7 @@ export async function enqueuePreorderProduct(productId: number): Promise<void> {
     }
     console.log(`[PreorderNotifier] Enqueued product ${productId}, queue size: ${(existing?.productIds.length || 0) + 1}`);
   } catch (err: any) {
-    console.error('[PreorderNotifier] enqueuePreorderProduct error:', err?.message);
+    logError('[PreorderNotifier] enqueuePreorderProduct error:', err?.message);
   }
 }
 
@@ -125,7 +126,7 @@ export async function runPreorderNotifierCheck(): Promise<void> {
 
     console.log(`[PreorderNotifier] Done. Sent: ${sent}, failed: ${failed}, products in digest: ${products.length} (of ${productIds.length} total)`);
   } catch (err: any) {
-    console.error('[PreorderNotifier] Job crashed:', err?.message);
+    logError('[PreorderNotifier] Job crashed:', err?.message);
   }
 }
 
@@ -183,7 +184,7 @@ export async function removeFromPreorderQueue(productId: number): Promise<void> 
     await writeQueue(existing);
     console.log(`[PreorderNotifier] Removed product ${productId}, queue size: ${existing.productIds.length}`);
   } catch (err: any) {
-    console.error('[PreorderNotifier] removeFromPreorderQueue error:', err?.message);
+    logError('[PreorderNotifier] removeFromPreorderQueue error:', err?.message);
   }
 }
 

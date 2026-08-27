@@ -1,4 +1,5 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import { logError } from "./logger";
 import { z } from "zod";
 import { storage } from "./storage";
 import { paymentService } from "./payments";
@@ -46,13 +47,13 @@ export async function processAddonOrderPaid(
 ): Promise<void> {
   const order = await storage.getOrder(orderId);
   if (!order) {
-    console.error(`${logPrefix} processAddonOrderPaid: order ${orderId} not found`);
+    logError(`${logPrefix} processAddonOrderPaid: order ${orderId} not found`);
     return;
   }
 
   const addonData = parseAddonData((order as any).addonData);
   if (!addonData) {
-    console.error(`${logPrefix} processAddonOrderPaid: no addonData on order ${orderId}`);
+    logError(`${logPrefix} processAddonOrderPaid: no addonData on order ${orderId}`);
     return;
   }
   if (addonData.status === "paid") {
@@ -71,7 +72,7 @@ export async function processAddonOrderPaid(
     await storage.appendOrderItems(orderId, addonData.items, addonData.addedTotal);
     console.log(`${logPrefix} Appended ${addonData.items.length} items to order ${orderId}`);
   } catch (err: any) {
-    console.error(`${logPrefix} appendOrderItems failed for order ${orderId}:`, err.message);
+    logError(`${logPrefix} appendOrderItems failed for order ${orderId}:`, err.message);
   }
 
   try {
@@ -86,7 +87,7 @@ export async function processAddonOrderPaid(
       addonData.addedTotal
     );
   } catch (err: any) {
-    console.error(`${logPrefix} Telegram notify failed:`, err.message);
+    logError(`${logPrefix} Telegram notify failed:`, err.message);
   }
 
   try {
@@ -101,7 +102,7 @@ export async function processAddonOrderPaid(
       addonData.addedTotal
     );
   } catch (err: any) {
-    console.error(`${logPrefix} VK notify failed:`, err.message);
+    logError(`${logPrefix} VK notify failed:`, err.message);
   }
 
   try {
@@ -120,7 +121,7 @@ export async function processAddonOrderPaid(
       console.log(`${logPrefix} Addon email sent to ${order.customerEmail}`);
     }
   } catch (err: any) {
-    console.error(`${logPrefix} Email notify failed:`, err.message);
+    logError(`${logPrefix} Email notify failed:`, err.message);
   }
 }
 
@@ -163,7 +164,7 @@ export function registerAddonOrderRoutes(app: Express): void {
 
       return res.json({ eligible: true, addonPending: false });
     } catch (err: any) {
-      console.error("[AddonOrder] eligible error:", err.message);
+      logError("[AddonOrder] eligible error:", err.message);
       return res.status(500).json({ eligible: false, reason: "server_error" });
     }
   });
@@ -270,7 +271,7 @@ export function registerAddonOrderRoutes(app: Express): void {
       });
 
       if (!paymentResult.success) {
-        console.error(`[AddonOrder] Payment failed for order #${orderId}:`, paymentResult.error);
+        logError(`[AddonOrder] Payment failed for order #${orderId}:`, paymentResult.error);
         return res.status(500).json({ error: "payment_failed", details: paymentResult.error });
       }
 
@@ -285,7 +286,7 @@ export function registerAddonOrderRoutes(app: Express): void {
         addedTotal,
       });
     } catch (err: any) {
-      console.error("[AddonOrder] initiate error:", err.message);
+      logError("[AddonOrder] initiate error:", err.message);
       return res.status(500).json({ error: "server_error" });
     } finally {
       addonInitiateLocks.delete(orderId);
@@ -325,7 +326,7 @@ export function registerAddonOrderRoutes(app: Express): void {
         paidAt: addonData.paidAt,
       });
     } catch (err: any) {
-      console.error("[AddonOrder] status error:", err.message);
+      logError("[AddonOrder] status error:", err.message);
       return res.status(500).json({ error: "server_error" });
     }
   });

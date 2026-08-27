@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { logError, logWarn } from "./logger";
 import { z } from "zod";
 import { storage } from "./storage";
 import { isWorthSavingAiQuestion, normalizeAiQuestion } from "./ai-questions-lib";
@@ -323,7 +324,7 @@ export async function migrateAiKnowledgeDefaults(): Promise<void> {
     await Promise.all(
       AI_KNOWLEDGE_KEYS.map((k) =>
         storage.setBonusSetting(k, AI_KNOWLEDGE_DEFAULTS[k]).catch((e) =>
-          console.error(`[AI Knowledge] Failed to migrate ${k}:`, e.message)
+          logError(`[AI Knowledge] Failed to migrate ${k}:`, e.message)
         )
       )
     );
@@ -331,7 +332,7 @@ export async function migrateAiKnowledgeDefaults(): Promise<void> {
     console.log(`[AI Knowledge] Migration complete — all ${AI_KNOWLEDGE_KEYS.length} blocks updated.`);
     invalidateAiKnowledgeCache();
   } catch (e: any) {
-    console.error("[AI Knowledge] Migration error:", e.message);
+    logError("[AI Knowledge] Migration error:", e.message);
   }
 }
 
@@ -966,7 +967,7 @@ export function registerAiChatRoute(app: Express): void {
           userContextStr = "\n\n" + lines.join("\n");
           userContextStr += "\n\nОбращайся к пользователю по имени. Называй конкретные номера заказов и их статусы. НЕ раскрывай email пользователя в ответе.";
         } catch (e: any) {
-          console.error("[AI Chat] User context error:", e?.message);
+          logError("[AI Chat] User context error:", e?.message);
         }
       }
 
@@ -989,10 +990,10 @@ export function registerAiChatRoute(app: Express): void {
             question: normalizeAiQuestion(rawQ),
             originalText: rawQ,
             askedAt: Date.now(),
-          }).catch((e: any) => console.error('[AI Chat] saveAiQuestion failed:', e?.message));
+          }).catch((e: any) => logError('[AI Chat] saveAiQuestion failed:', e?.message));
         }
       } catch (e: any) {
-        console.error('[AI Chat] saveAiQuestion error:', e?.message);
+        logError('[AI Chat] saveAiQuestion error:', e?.message);
       }
       let systemPrompt = getAiKnowledgeCached('ai_prompt_base');
       const assortmentBlock = getAiKnowledgeCached('ai_block_assortment');
@@ -1078,14 +1079,14 @@ export function registerAiChatRoute(app: Express): void {
           if (streamRes.ok && streamRes.body) break;
           lastStatus = streamRes.status;
           if (streamRes.status === 429) {
-            console.warn("[AI Chat] 429 on key, trying next...");
+            logWarn("[AI Chat] 429 on key, trying next...");
             continue;
           }
           break; // non-429 error -> don't retry
         }
 
         if (!streamRes || !streamRes.ok || !streamRes.body) {
-          console.error(`[AI Chat] Groq stream error: status=${lastStatus}`);
+          logError(`[AI Chat] Groq stream error: status=${lastStatus}`);
           const errCode = lastStatus === 429 ? "rate_limit" : "ai_unavailable";
           res.write(`data: ${JSON.stringify({ error: errCode })}`);
           res.end();
@@ -1234,7 +1235,7 @@ export function registerAiChatRoute(app: Express): void {
             }).catch(() => {});
           }
         } catch (streamErr: any) {
-          console.error("[AI Chat] Stream read error:", streamErr.message);
+          logError("[AI Chat] Stream read error:", streamErr.message);
         }
 
         const finalProductCards = aiSelectedProducts.length > 0 ? aiSelectedProducts.map(toCard) : productCards;
@@ -1253,7 +1254,7 @@ export function registerAiChatRoute(app: Express): void {
         });
         if (response.ok) break;
         if (response.status === 429) {
-          console.warn("[AI Chat] 429 on key, trying next...");
+          logWarn("[AI Chat] 429 on key, trying next...");
           continue;
         }
         break;
@@ -1261,7 +1262,7 @@ export function registerAiChatRoute(app: Express): void {
 
       if (!response || !response.ok) {
         const errText = response ? await response.text() : "";
-        console.error("[AI Chat] Groq API error:", response?.status, errText);
+        logError("[AI Chat] Groq API error:", response?.status, errText);
         if (response?.status === 429) {
           return res.status(429).json({ error: "rate_limit" });
         }
@@ -1312,7 +1313,7 @@ export function registerAiChatRoute(app: Express): void {
 
       res.json({ reply, products: nonStreamCards });
     } catch (err: any) {
-      console.error("[AI Chat] Error:", err.message);
+      logError("[AI Chat] Error:", err.message);
       res.status(500).json({ error: "Internal error" });
     }
   });
@@ -1654,9 +1655,9 @@ export function registerProductInfoRoute(app: Express): void {
           });
         } catch (fetchErr: any) {
           if (fetchErr.name === "AbortError") {
-            console.error("[ProductInfo] Groq timed out after", PRODUCT_INFO_TIMEOUT_MS, "ms");
+            logError("[ProductInfo] Groq timed out after", PRODUCT_INFO_TIMEOUT_MS, "ms");
           } else {
-            console.error("[ProductInfo] Fetch error:", fetchErr.message);
+            logError("[ProductInfo] Fetch error:", fetchErr.message);
           }
           return { ok: false, chars: 0 };
         } finally {
@@ -1696,7 +1697,7 @@ export function registerProductInfoRoute(app: Express): void {
             }
           }
         } catch (e: any) {
-          console.error("[ProductInfo] Stream read error:", e.message);
+          logError("[ProductInfo] Stream read error:", e.message);
         }
 
         return { ok: true, chars };
@@ -1712,14 +1713,14 @@ export function registerProductInfoRoute(app: Express): void {
 
         if (!result.ok) {
           if (result.status === 429) {
-            console.warn("[ProductInfo] 429 on key, trying fallback key");
+            logWarn("[ProductInfo] 429 on key, trying fallback key");
             continue; // try next key
           }
           break; // unrecoverable network error
         }
 
         if (result.chars === 0) {
-          console.warn("[ProductInfo] Empty response (think-only) on attempt, trying next key if available");
+          logWarn("[ProductInfo] Empty response (think-only) on attempt, trying next key if available");
           continue; // try next key — might produce output with different key/context
         }
 
@@ -1729,10 +1730,10 @@ export function registerProductInfoRoute(app: Express): void {
 
       if (!attempted || finalChars === 0) {
         if (finalChars === 0 && attempted) {
-          console.warn("[ProductInfo] All keys returned empty — sending empty_response");
+          logWarn("[ProductInfo] All keys returned empty — sending empty_response");
           res.write(`data: ${JSON.stringify({ error: "empty_response" })}\n\n`);
         } else {
-          console.error("[ProductInfo] All keys failed — sending ai_unavailable");
+          logError("[ProductInfo] All keys failed — sending ai_unavailable");
           res.write(`data: ${JSON.stringify({ error: "ai_unavailable" })}\n\n`);
         }
       } else {
@@ -1742,7 +1743,7 @@ export function registerProductInfoRoute(app: Express): void {
       res.write("data: [DONE]\n\n");
       res.end();
     } catch (err: any) {
-      console.error("[ProductInfo] Unhandled error:", err.message);
+      logError("[ProductInfo] Unhandled error:", err.message);
       if (!res.headersSent) {
         res.status(500).json({ error: "Internal error" });
       } else if (!res.writableEnded) {
@@ -1772,7 +1773,7 @@ export function registerAdminAgentRoutes(
       const result = await processAdminCommand(command, history || []);
       res.json(result);
     } catch (e: any) {
-      console.error("[AdminAgent] chat error:", e?.message);
+      logError("[AdminAgent] chat error:", e?.message);
       res.status(500).json({ error: e?.message || "Agent error" });
     }
   });
@@ -1787,7 +1788,7 @@ export function registerAdminAgentRoutes(
       const result = await executeWriteTool(tool, params || {});
       res.json({ result });
     } catch (e: any) {
-      console.error("[AdminAgent] execute error:", e?.message);
+      logError("[AdminAgent] execute error:", e?.message);
       res.status(500).json({ error: e?.message || "Execute error" });
     }
   });
@@ -1971,18 +1972,18 @@ export function registerAgentQueueRoutes(
     res.json({ ok: true, message: "Запущено в фоне" });
 
     const label = `[AutonomousAgent] manual ${job} error:`;
-    if (job === "seo")                  runSeoJob().catch(e => console.error(label, e?.message));
-    else if (job === "alerts")          runAlertsJob().catch(e => console.error(label, e?.message));
-    else if (job === "digest")          runWeeklyDigest(true).catch(e => console.error(label, e?.message));
-    else if (job === "descriptions")    runDescriptionJob().catch(e => console.error(label, e?.message));
-    else if (job === "cart_analysis")   runCartAnalysisJob().catch(e => console.error(label, e?.message));
-    else if (job === "favorites_analysis") runFavoritesAnalysisJob().catch(e => console.error(label, e?.message));
-    else if (job === "price_drop_analysis") runPriceDropAnalysisJob(true).catch(e => console.error(label, e?.message));
-    else if (job === "stale_products")  runStaleProductsJob().catch(e => console.error(label, e?.message));
-    else if (job === "chat_gap")        runChatGapAnalysisJob().catch(e => console.error(label, e?.message));
-    else if (job === "chat_conversion") runChatConversionAnalysisJob().catch(e => console.error(label, e?.message));
-    else if (job === "retention")       runPredictiveRetentionJob().catch(e => console.error(label, e?.message));
-    else if (job === "all")             runAutonomousAgent().catch(e => console.error(label, e?.message));
+    if (job === "seo")                  runSeoJob().catch(e => logError(label, e?.message));
+    else if (job === "alerts")          runAlertsJob().catch(e => logError(label, e?.message));
+    else if (job === "digest")          runWeeklyDigest(true).catch(e => logError(label, e?.message));
+    else if (job === "descriptions")    runDescriptionJob().catch(e => logError(label, e?.message));
+    else if (job === "cart_analysis")   runCartAnalysisJob().catch(e => logError(label, e?.message));
+    else if (job === "favorites_analysis") runFavoritesAnalysisJob().catch(e => logError(label, e?.message));
+    else if (job === "price_drop_analysis") runPriceDropAnalysisJob(true).catch(e => logError(label, e?.message));
+    else if (job === "stale_products")  runStaleProductsJob().catch(e => logError(label, e?.message));
+    else if (job === "chat_gap")        runChatGapAnalysisJob().catch(e => logError(label, e?.message));
+    else if (job === "chat_conversion") runChatConversionAnalysisJob().catch(e => logError(label, e?.message));
+    else if (job === "retention")       runPredictiveRetentionJob().catch(e => logError(label, e?.message));
+    else if (job === "all")             runAutonomousAgent().catch(e => logError(label, e?.message));
   });
 }
 // ─── End Autonomous Agent Queue Routes ────────────────────────────────────────
@@ -2151,7 +2152,7 @@ export function registerTelegramChatWebhook(
             }
           } catch (e: any) {
             await answerCallbackQuery(callbackId, '❌ Ошибка', retailToken);
-            console.error('[Telegram] Agent approve error:', e.message);
+            logError('[Telegram] Agent approve error:', e.message);
           }
         } else if (data.startsWith('agent_reject:')) {
           const itemId = data.slice('agent_reject:'.length);
@@ -2167,7 +2168,7 @@ export function registerTelegramChatWebhook(
             }
           } catch (e: any) {
             await answerCallbackQuery(callbackId, '❌ Ошибка', retailToken);
-            console.error('[Telegram] Agent reject error:', e.message);
+            logError('[Telegram] Agent reject error:', e.message);
           }
         }
         return;
@@ -2189,7 +2190,7 @@ export function registerTelegramChatWebhook(
       // Find which chat session this reply belongs to
       const sessionId = await storage.getSessionIdByTgMessageId(replyToId);
       if (!sessionId) {
-        console.warn(`[Chat] Session not found for tgMessageId=${replyToId} — message may have been saved without tgMessageId`);
+        logWarn(`[Chat] Session not found for tgMessageId=${replyToId} — message may have been saved without tgMessageId`);
         return;
       }
       // Save admin reply
@@ -2205,7 +2206,7 @@ export function registerTelegramChatWebhook(
       chatCacheInvalidate(sessionId);
       console.log(`[Chat] Admin reply saved for session ${sessionId.slice(0, 8)}, from: ${adminName}`);
     } catch (err: any) {
-      console.error("[Chat] Webhook error:", err.message);
+      logError("[Chat] Webhook error:", err.message);
     }
   });
 }

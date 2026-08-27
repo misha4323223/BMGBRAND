@@ -1,4 +1,5 @@
 import { transportCompanyName } from '../shared/transport-companies';
+import { logError, logWarn } from "./logger";
 
 const TG_MAX_LENGTH = 4000;
 
@@ -38,14 +39,14 @@ async function sendMessageToChat(chatId: string, text: string, botToken?: string
 
     if (!response.ok) {
       const err = await response.text();
-      console.error(`[Telegram] Send error to ${chatId}:`, response.status, err);
+      logError(`[Telegram] Send error to ${chatId}:`, response.status, err);
       return false;
     }
 
     console.log(`[Telegram] Notification sent to ${chatId}`);
     return true;
   } catch (error: any) {
-    console.error("[Telegram] Failed to send:", error.message);
+    logError("[Telegram] Failed to send:", error.message);
     return false;
   }
 }
@@ -77,7 +78,7 @@ async function sendMessageWithInlineKeyboard(
 
     if (!response.ok) {
       const err = await response.text();
-      console.error(`[Telegram] Send with buttons error:`, response.status, err);
+      logError(`[Telegram] Send with buttons error:`, response.status, err);
       return null;
     }
 
@@ -85,7 +86,7 @@ async function sendMessageWithInlineKeyboard(
     console.log(`[Telegram] Notification with buttons sent to ${chatId}`);
     return data?.result?.message_id ?? null;
   } catch (error: any) {
-    console.error("[Telegram] Failed to send with buttons:", error.message);
+    logError("[Telegram] Failed to send with buttons:", error.message);
     return null;
   }
 }
@@ -101,7 +102,7 @@ export async function answerCallbackQuery(callbackQueryId: string, text: string,
       body: JSON.stringify({ callback_query_id: callbackQueryId, text, show_alert: false }),
     });
   } catch (error: any) {
-    console.error("[Telegram] answerCallbackQuery failed:", error.message);
+    logError("[Telegram] answerCallbackQuery failed:", error.message);
   }
 }
 
@@ -123,7 +124,7 @@ export async function editMessageText(chatId: string, messageId: number, text: s
       }),
     });
   } catch (error: any) {
-    console.error("[Telegram] editMessageText failed:", error.message);
+    logError("[Telegram] editMessageText failed:", error.message);
   }
 }
 
@@ -156,10 +157,10 @@ export async function registerWholesaleWebhook(webhookUrl: string): Promise<void
     if (data.ok) {
       console.log("[Telegram] Wholesale webhook registered:", webhookUrl);
     } else {
-      console.error("[Telegram] Failed to register wholesale webhook:", data);
+      logError("[Telegram] Failed to register wholesale webhook:", data);
     }
   } catch (error: any) {
-    console.error("[Telegram] registerWholesaleWebhook failed:", error.message);
+    logError("[Telegram] registerWholesaleWebhook failed:", error.message);
   }
 }
 
@@ -327,7 +328,7 @@ export function notifyNewOrder(order: OrderNotification): void {
   const fullText = header + separator + itemLines.join("\n") + separator + footer;
 
   if (fullText.length <= TG_MAX_LENGTH) {
-    sender(fullText).catch(err => console.error("[Telegram] notifyNewOrder failed:", err));
+    sender(fullText).catch(err => logError("[Telegram] notifyNewOrder failed:", err));
     return;
   }
 
@@ -349,7 +350,7 @@ export function notifyNewOrder(order: OrderNotification): void {
   current += separator + footer;
   messages.push(current);
 
-  sendLongMessage(sender, messages).catch(err => console.error("[Telegram] notifyNewOrder failed:", err));
+  sendLongMessage(sender, messages).catch(err => logError("[Telegram] notifyNewOrder failed:", err));
 }
 
 interface PreorderNotification {
@@ -395,7 +396,7 @@ export function notifyPreorderDeposit(data: PreorderNotification): void {
     } catch {}
   }
 
-  sendRetailMessage(text).catch(err => console.error("[Telegram] notifyPreorderDeposit failed:", err));
+  sendRetailMessage(text).catch(err => logError("[Telegram] notifyPreorderDeposit failed:", err));
 }
 
 export function notifyPreorderGoalReached(productName: string, goal: number, productId: number): void {
@@ -403,7 +404,7 @@ export function notifyPreorderGoalReached(productName: string, goal: number, pro
   text += `${esc(productName)} (ID: ${productId})\n`;
   text += `\u0421\u043E\u0431\u0440\u0430\u043D\u043E: ${goal}/${goal} \u2014 \u043F\u0435\u0440\u0435\u0445\u043E\u0434 \u0432 \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0441\u0442\u0432\u043E`;
 
-  sendRetailMessage(text).catch(err => console.error("[Telegram] notifyPreorderGoalReached failed:", err));
+  sendRetailMessage(text).catch(err => logError("[Telegram] notifyPreorderGoalReached failed:", err));
 }
 
 export function notifyPreorderStatusChange(productName: string, productId: number, oldStatus: string, newStatus: string): void {
@@ -414,7 +415,7 @@ export function notifyPreorderStatusChange(productName: string, productId: numbe
   text += `${esc(productName)} (ID: ${productId})\n`;
   text += `${s[oldStatus] || oldStatus} \u2192 <b>${s[newStatus] || newStatus}</b>`;
 
-  sendRetailMessage(text).catch(err => console.error("[Telegram] notifyPreorderStatusChange failed:", err));
+  sendRetailMessage(text).catch(err => logError("[Telegram] notifyPreorderStatusChange failed:", err));
 }
 
 interface WholesaleRegistration {
@@ -437,7 +438,7 @@ export async function sendChatNotification(sessionId: string, text: string, user
   const botType = isWholesale ? 'wholesale' : 'retail';
 
   if (!token || !chatId) {
-    console.warn(`[Telegram] sendChatNotification: ${botType} bot not configured (token=${!!token}, chatId=${!!chatId})`);
+    logWarn(`[Telegram] sendChatNotification: ${botType} bot not configured (token=${!!token}, chatId=${!!chatId})`);
     return null;
   }
 
@@ -462,7 +463,7 @@ export async function sendChatNotification(sessionId: string, text: string, user
         console.log(`[Telegram] sendPhoto OK, tgMessageId=${data.result.message_id}`);
         return data?.result?.message_id ?? null;
       }
-      console.warn(`[Telegram] sendPhoto failed (${botType}): ${data.error_code} — ${data.description}, falling back to sendMessage`);
+      logWarn(`[Telegram] sendPhoto failed (${botType}): ${data.error_code} — ${data.description}, falling back to sendMessage`);
     }
 
     const msgText = `${prefix}${displayName}</b>\n<code>${sessionId.slice(0, 8)}</code>\n\n${esc(text)}${footer}`;
@@ -474,13 +475,13 @@ export async function sendChatNotification(sessionId: string, text: string, user
     });
     const data: any = await response.json();
     if (!data.ok) {
-      console.error(`[Telegram] sendMessage failed (${botType}): ${data.error_code} — ${data.description}`);
+      logError(`[Telegram] sendMessage failed (${botType}): ${data.error_code} — ${data.description}`);
       return null;
     }
     console.log(`[Telegram] sendMessage OK (${botType}), tgMessageId=${data.result.message_id}`);
     return data?.result?.message_id ?? null;
   } catch (err: any) {
-    console.error(`[Telegram] sendChatNotification exception (${botType}):`, err.message);
+    logError(`[Telegram] sendChatNotification exception (${botType}):`, err.message);
     return null;
   }
 }
@@ -508,10 +509,10 @@ export async function registerChatWebhook(webhookUrl: string): Promise<void> {
     if (data.ok) {
       console.log("[Telegram] Chat webhook registered:", webhookUrl);
     } else {
-      console.error("[Telegram] Failed to register chat webhook:", data);
+      logError("[Telegram] Failed to register chat webhook:", data);
     }
   } catch (error: any) {
-    console.error("[Telegram] registerChatWebhook failed:", error.message);
+    logError("[Telegram] registerChatWebhook failed:", error.message);
   }
 }
 
@@ -533,7 +534,7 @@ export function notifyWholesaleRegistration(data: WholesaleRegistration): void {
   ]];
 
   sendMessageWithInlineKeyboard(wholesaleChatId, text, buttons, token)
-    .catch(err => console.error("[Telegram] notifyWholesaleRegistration failed:", err));
+    .catch(err => logError("[Telegram] notifyWholesaleRegistration failed:", err));
 }
 
 export function notifyPartnerRegistration(data: {
@@ -577,7 +578,7 @@ export function notifyPartnerRegistration(data: {
   text += `\n\n<i>Партнёр ещё не подтвердил email — заявка на модерации</i>`;
 
   sendMessageToChat(wholesaleChatId, text, token)
-    .catch(err => console.error("[Telegram] notifyPartnerRegistration failed:", err));
+    .catch(err => logError("[Telegram] notifyPartnerRegistration failed:", err));
 }
 
 export function notifyPayoutInvoiceUploaded(data: {
@@ -600,7 +601,7 @@ export function notifyPayoutInvoiceUploaded(data: {
   text += `\n<i>Выплата #${data.payoutId} — требуется оплата</i>`;
 
   sendMessageToChat(wholesaleChatId, text, token)
-    .catch(err => console.error("[Telegram] notifyPayoutInvoiceUploaded failed:", err));
+    .catch(err => logError("[Telegram] notifyPayoutInvoiceUploaded failed:", err));
 }
 
 export function notifyMerchOrder(data: {
@@ -626,7 +627,7 @@ export function notifyMerchOrder(data: {
     messageLine;
 
   sendMessageToChat(chatId, text, token)
-    .catch(err => console.error("[Telegram] notifyMerchOrder failed:", err));
+    .catch(err => logError("[Telegram] notifyMerchOrder failed:", err));
 }
 
 export function notifyNewReview(data: {
@@ -655,7 +656,7 @@ export function notifyNewReview(data: {
   // Модерация отзывов — только через админку сайта (кнопки в Telegram убраны).
   const moderationNote = `\n\n✅ Модерация отзыва — в админке сайта (раздел «Отзывы»).`;
   sendMessageWithInlineKeyboard(chatId, text + moderationNote, [], token)
-    .catch(err => console.error("[Telegram] notifyNewReview failed:", err));
+    .catch(err => logError("[Telegram] notifyNewReview failed:", err));
 }
 
 export function notifyPartnerFeedback(data: {
@@ -683,7 +684,7 @@ export function notifyPartnerFeedback(data: {
     `📝 ${data.message}`;
 
   sendMessageToChat(chatId, text, token)
-    .catch(err => console.error("[Telegram] notifyPartnerFeedback failed:", err));
+    .catch(err => logError("[Telegram] notifyPartnerFeedback failed:", err));
 }
 
 // ── Autonomous Agent notifications ─────────────────────────────────────────
@@ -796,7 +797,7 @@ export function notifyAddonOrderPaid(order: {
     text = header + `…сообщение обрезано, ${addonItems.length} позиций…` + footer;
   }
 
-  sendRetailMessage(text).catch(err => console.error("[Telegram] notifyAddonOrderPaid failed:", err));
+  sendRetailMessage(text).catch(err => logError("[Telegram] notifyAddonOrderPaid failed:", err));
 }
 
 export async function sendAgentAlert(text: string): Promise<void> {

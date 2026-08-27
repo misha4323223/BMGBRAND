@@ -1,4 +1,5 @@
 import { storage } from './storage';
+import { logError, logWarn } from "./logger";
 import { sendEmail, getPostPurchaseEmailHtml } from './email';
 import { getRecommendations } from './recommendations';
 
@@ -32,7 +33,7 @@ async function writeQueue(queue: PPEmailQueueItem[]): Promise<void> {
   try {
     await storage.setBonusSetting(QUEUE_KEY, JSON.stringify(queue));
   } catch (err: any) {
-    console.error('[PPEmail] Failed to write queue:', err?.message);
+    logError('[PPEmail] Failed to write queue:', err?.message);
   }
 }
 
@@ -69,7 +70,7 @@ export async function schedulePostPurchaseEmail(
     await writeQueue(queue);
     console.log(`[PPEmail] Scheduled for order ${orderId}, will send at ${new Date(Date.now() + DELAY_MS).toISOString()}`);
   } catch (err: any) {
-    console.error(`[PPEmail] Failed to schedule for order ${orderId}:`, err?.message);
+    logError(`[PPEmail] Failed to schedule for order ${orderId}:`, err?.message);
   }
 }
 
@@ -90,7 +91,7 @@ async function generatePromoCode(orderId: number): Promise<{ code: string; disco
     console.log(`[PPEmail] Promo code created: ${code} for order ${orderId}`);
     return { code, discountPercent: PROMO_DISCOUNT };
   } catch (err: any) {
-    console.error(`[PPEmail] Failed to create promo code for order ${orderId}:`, err?.message);
+    logError(`[PPEmail] Failed to create promo code for order ${orderId}:`, err?.message);
     return null;
   }
 }
@@ -132,7 +133,7 @@ ${firstName ? `Обращайся по имени: ${firstName}.` : ''}
     text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
     return text;
   } catch (err: any) {
-    console.error('[PPEmail] Groq error:', err?.message);
+    logError('[PPEmail] Groq error:', err?.message);
     return '';
   }
 }
@@ -172,7 +173,7 @@ async function processQueue(): Promise<void> {
 
       const promo = await generatePromoCode(item.orderId);
       if (!promo) {
-        console.warn(`[PPEmail] Could not create promo for order ${item.orderId}, will retry next cycle`);
+        logWarn(`[PPEmail] Could not create promo for order ${item.orderId}, will retry next cycle`);
         continue;
       }
 
@@ -198,10 +199,10 @@ async function processQueue(): Promise<void> {
         if (idx !== -1) updatedQueue[idx].sent = true;
         console.log(`[PPEmail] Sent to ${item.customerEmail} for order ${item.orderId}`);
       } else {
-        console.warn(`[PPEmail] sendEmail returned false for order ${item.orderId}`);
+        logWarn(`[PPEmail] sendEmail returned false for order ${item.orderId}`);
       }
     } catch (err: any) {
-      console.error(`[PPEmail] Error processing order ${item.orderId}:`, err?.message);
+      logError(`[PPEmail] Error processing order ${item.orderId}:`, err?.message);
     }
   }
 
@@ -214,10 +215,10 @@ export async function initPostPurchaseEmailJob(): Promise<void> {
   console.log('[PPEmail] Job initialized, interval: 3 min');
 
   setTimeout(async () => {
-    await processQueue().catch(err => console.error('[PPEmail] Initial check failed:', err?.message));
+    await processQueue().catch(err => logError('[PPEmail] Initial check failed:', err?.message));
   }, 15_000);
 
   setInterval(async () => {
-    await processQueue().catch(err => console.error('[PPEmail] Check failed:', err?.message));
+    await processQueue().catch(err => logError('[PPEmail] Check failed:', err?.message));
   }, CHECK_INTERVAL_MS);
 }

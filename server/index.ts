@@ -9,6 +9,7 @@ for (const key of Object.keys(process.env)) {
 }
 
 import express, { type Request, Response, NextFunction } from "express";
+import { logError, logInfo, logWarn } from "./logger";
 import cookieParser from "cookie-parser";
 import compression from "compression";
 import helmet from "helmet";
@@ -21,7 +22,7 @@ import { migrateAiQuestionsTable } from "./ai-questions-store";
 import { serveStatic } from "./static";
 import { botSsrMiddleware } from "./bot-ssr";
 import { createServer } from "http";
-import { reconnectYdb, shouldReconnectYdb } from "./db";
+import { reconnectYdb, shouldReconnectYdb, waitForDriver } from "./db";
 import { startAbandonedCartJob } from "./abandoned-cart";
 import { initPostPurchaseEmailJob } from "./post-purchase-email";
 import { initAutonomousAgent } from "./autonomous-agent";
@@ -38,13 +39,13 @@ import { notifyError } from "./error-monitor";
 // while the SDK keeps retrying internally.
 process.on('unhandledRejection', (reason: any) => {
   const message = reason?.message || String(reason);
-  console.error('[Process] Unhandled rejection:', message);
+  logError('[Process] Unhandled rejection:', message);
 
   if (shouldReconnectYdb(reason)) {
-    console.log('[Process] Detected YDB transport/auth failure → triggering reconnect');
+    logInfo('[Process] Detected YDB transport/auth failure → triggering reconnect');
     reconnectYdb().catch(err => {
       const errMsg = err?.message || String(err);
-      console.error('[Process] YDB reconnect from unhandledRejection failed:', errMsg);
+      logError('[Process] YDB reconnect from unhandledRejection failed:', errMsg);
       notifyError('YDB: сбой переподключения', errMsg);
     });
   } else {
@@ -54,7 +55,7 @@ process.on('unhandledRejection', (reason: any) => {
 });
 
 process.on('uncaughtException', (err: Error) => {
-  console.error('[Process] Uncaught exception:', err.message, err.stack);
+  logError('[Process] Uncaught exception:', err.message, err.stack);
   notifyError('💥 Критический сбой', err.message, err.stack?.slice(0, 400));
   // Даём 2 секунды чтобы уведомление успело отправиться, потом завершаем процесс
   setTimeout(() => process.exit(1), 2000);
@@ -96,6 +97,41 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// ── Health check ──────────────────────────────────────────────────────────
+// GET /healthz: лёгкий эндпоинт для load-balancer / uptime-мониторинга.
+// Делает реальный ping в YDB (SELECT 1) с таймаутом 3 c и отдаёт 200/503.
+// Сторонних эффектов нет: reconnect не триггерим — только диагностика.
+async function pingYdbHealth(): Promise<{ ok: boolean; ms: number; error?: string }> {
+  const d = await waitForDriver();
+  if (!d) return { ok: false, ms: 0, error: "driver not initialized" };
+  const start = Date.now();
+  try {
+    await Promise.race([
+      d.tableClient.withSession(async (session) => {
+        await session.executeQuery("SELECT 1");
+      }),
+      new Promise((_resolve, reject) =>
+        setTimeout(() => reject(new Error("ping timeout")), 3000)
+      ),
+    ]);
+    return { ok: true, ms: Date.now() - start };
+  } catch (e: any) {
+    return { ok: false, ms: Date.now() - start, error: String(e?.message || e).slice(0, 200) };
+  }
+}
+
+app.get("/healthz", async (_req: Request, res: Response) => {
+  const mem = process.memoryUsage();
+  const ydb = await pingYdbHealth();
+  res.status(ydb.ok ? 200 : 503).json({
+    status: ydb.ok ? "ok" : "degraded",
+    ydb,
+    uptimeSec: Math.round(process.uptime()),
+    memory: { rss: mem.rss, heapUsed: mem.heapUsed, heapTotal: mem.heapTotal },
+    timestamp: new Date().toISOString(),
+  });
+});
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
@@ -123,7 +159,7 @@ app.use(cors({
     ) {
       callback(null, true);
     } else {
-      console.log(`[CORS] Blocked origin: ${origin}`);
+      logInfo(`[CORS] Blocked origin: ${origin}`);
       callback(null, false);
     }
   },
@@ -206,14 +242,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 app.use((req, res, next) => {
   if (req.method === 'PATCH' || req.method === 'PUT' || req.method === 'DELETE') {
-    console.log(`[RAW] ${req.method} ${req.url} Content-Length: ${req.headers['content-length']} Content-Type: ${req.headers['content-type']}`);
+    logInfo(`[RAW] ${req.method} ${req.url} Content-Length: ${req.headers['content-length']} Content-Type: ${req.headers['content-type']}`);
   }
   const origRedirect = res.redirect.bind(res);
   (res as any).redirect = function(statusOrUrl: any, url?: string) {
     const target = url || statusOrUrl;
     const status = url ? statusOrUrl : 302;
     if ((req.url.includes('/product/') || req.url.match(/^\/[a-z0-9-]+$/)) && !req.url.startsWith('/api/')) {
-      console.log(`[DEBUG-REDIRECT] ${req.method} ${req.url} → ${status} ${target}`);
+      logInfo(`[DEBUG-REDIRECT] ${req.method} ${req.url} → ${status} ${target}`);
     }
     return url !== undefined ? origRedirect(statusOrUrl, url as any) : origRedirect(statusOrUrl);
   };
@@ -232,14 +268,7 @@ app.use(
 app.use(express.urlencoded({ extended: false }));
 
 export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  console.log(`${formattedTime} [${source}] ${message}`);
+  logInfo(`[${source}] ${message}`);
 }
 
 app.use((req, res, next) => {
@@ -393,7 +422,7 @@ async function seedDefaultLegalDocuments() {
           body: tpl.body,
           createdBy: 'system:seed',
         });
-        console.log(`[Legal Seed] Создан документ по умолчанию: ${slug} v${version}`);
+        logInfo(`[Legal Seed] Создан документ по умолчанию: ${slug} v${version}`);
       } else if (slug === 'offer' && (existing.version === '1.0.0' || existing.version === '1.1.0')) {
         // Авто-миграция: обновляем оферту до актуальной версии с Разделом 7 для медийных партнёров
         const tpl = DEFAULT_LEGAL_DOCS['offer'];
@@ -404,11 +433,11 @@ async function seedDefaultLegalDocuments() {
           body: tpl.body,
           createdBy: `system:migrate-${OFFER_CURRENT_VERSION}`,
         });
-        console.log(`[Legal Seed] Оферта обновлена: ${existing.version} → ${OFFER_CURRENT_VERSION} (Раздел 7 — медийные партнёры)`);
+        logInfo(`[Legal Seed] Оферта обновлена: ${existing.version} → ${OFFER_CURRENT_VERSION} (Раздел 7 — медийные партнёры)`);
 
       }
     } catch (e: any) {
-      console.error(`[Legal Seed] Ошибка для ${slug}:`, e?.message);
+      logError(`[Legal Seed] Ошибка для ${slug}:`, e?.message);
     }
   }
 }
@@ -416,21 +445,15 @@ async function seedDefaultLegalDocuments() {
 (async () => {
   await initYdb();
   // Засеиваем дефолтные тексты юридических документов (только если активной версии нет)
-  await seedDefaultLegalDocuments().catch((e) => console.error('[Legal Seed] failed:', e?.message));
+  await seedDefaultLegalDocuments().catch((e) => logError('[Legal Seed] failed:', e?.message));
   await registerRoutes(httpServer, app);
   registerVirtualTryOnRoutes(app);
   registerAiQuestionsRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-
-    // Уведомляем только о серверных ошибках (5xx), клиентские (4xx) игнорируем
-    if (status >= 500) {
-      notifyError('Express 500', message, err.stack?.slice(0, 400));
-    }
+  // Несуществующие API-эндпоинты отвечают JSON 404, а не SPA HTML
+  // (раньше неизвестный /api/* проваливался в catch-all и отдавал index.html).
+  app.use("/api", (_req: Request, res: Response) => {
+    res.status(404).json({ message: "Not Found" });
   });
 
   // Bot SSR middleware — intercept known crawlers before the SPA catch-all.
@@ -448,6 +471,25 @@ async function seedDefaultLegalDocuments() {
     await setupVite(httpServer, app);
   }
 
+  // Единый обработчик ошибок — регистрируется ПОСЛЕДНИМ в стеке, чтобы
+  // ловить ошибки из всех слоёв: API-роутов, bot-SSR, статики и Vite.
+  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) return next(err);
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    const path = _req.path || "";
+
+    if (status >= 500) {
+      logError("[Express] Unhandled error", { status, path, message, stack: err.stack?.slice(0, 400) });
+      // Уведомляем только о серверных ошибках (5xx), клиентские (4xx) игнорируем
+      notifyError('Express 500', message, err.stack?.slice(0, 400));
+    } else {
+      logWarn("[Express] Request error", { status, path, message });
+    }
+
+    res.status(status).json({ message });
+  });
+
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
@@ -462,29 +504,29 @@ async function seedDefaultLegalDocuments() {
     () => {
       log(`serving on port ${port}`);
       import("./storage").then(async ({ storage, warmRatingsCache, warmReviewsCache }) => {
-        console.log(`[Migration] old_price: Column already exists`);
-        console.log(`[Migration] seo_json_ld: Column already exists`);
+        logInfo(`[Migration] old_price: Column already exists`);
+        logInfo(`[Migration] seo_json_ld: Column already exists`);
         try {
           const products = await storage.getProducts();
           log(`Cache warmup: loaded ${products.length} products`);
         } catch (err) {
-          console.error("[Warmup] Failed to preload products:", err);
+          logError("[Warmup] Failed to preload products:", err);
         }
         try {
           const { buildCoPurchaseIndex } = await import("./recommendations");
           await buildCoPurchaseIndex(storage);
         } catch (err: any) {
-          console.error("[Warmup] Failed to build co-purchase index:", err?.message);
+          logError("[Warmup] Failed to build co-purchase index:", err?.message);
         }
         try {
           await warmRatingsCache(storage as any);
         } catch (err) {
-          console.error("[Warmup] Failed to warm ratings cache:", err);
+          logError("[Warmup] Failed to warm ratings cache:", err);
         }
         try {
           await warmReviewsCache(storage as any);
         } catch (err) {
-          console.error("[Warmup] Failed to warm reviews cache:", err);
+          logError("[Warmup] Failed to warm reviews cache:", err);
         }
         const criticalPages = ["home", "navbar", "footer", "artist_pages", "seo", "static_pages", "product_feature_templates", "deleted_slugs", "site_config"];
         for (const page of criticalPages) {
@@ -493,14 +535,14 @@ async function seedDefaultLegalDocuments() {
             const settings = await storage.getPageSettings(page);
             log(`Cache warmup: loaded pageSettings(${page}) with ${Object.keys(settings).length} sections`);
           } catch (err) {
-            console.error(`[Warmup] Failed to preload pageSettings(${page}):`, err);
+            logError(`[Warmup] Failed to preload pageSettings(${page}):`, err);
           }
         }
         // Sync all existing artist/festival pages as merch subcategories
         try {
           await syncArtistPagesToMerchSubcategories(storage);
         } catch (err) {
-          console.error("[Warmup] Failed to sync artist pages to merch subcategories:", err);
+          logError("[Warmup] Failed to sync artist pages to merch subcategories:", err);
         }
       });
       startAbandonedCartJob();
@@ -512,8 +554,8 @@ async function seedDefaultLegalDocuments() {
       startOrderNotifyWatcher();
       migrateAiKnowledgeDefaults();
       migrateAiQuestionsTable()
-        .then(r => console.log(`[AiQuestions] ${r.message}`))
-        .catch((e: any) => console.error("[AiQuestions] migration failed:", e?.message));
+        .then(r => logInfo(`[AiQuestions] ${r.message}`))
+        .catch((e: any) => logError("[AiQuestions] migration failed:", e?.message));
     },
   );
 })();

@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import { logError } from "./logger";
 import { sendEmail } from './email';
 import path from 'path';
 import fs from 'fs';
@@ -130,7 +131,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   try {
     qrImageBuffer = await QRCode.toBuffer(qrPayload, { type: 'png', width: 110, margin: 1 });
   } catch (e) {
-    console.error('[Invoice] QR generation failed:', e);
+    logError('[Invoice] QR generation failed:', e);
   }
 
   return new Promise((resolve, reject) => {
@@ -443,7 +444,7 @@ export async function sendInvoiceEmail(data: InvoiceData): Promise<boolean> {
     console.log(`[Invoice] Sent invoice #${data.invoiceNumber} to ${data.customerEmail}`);
     return true;
   } catch (error) {
-    console.error('[Invoice] Failed to send:', error);
+    logError('[Invoice] Failed to send:', error);
     return false;
   }
 }

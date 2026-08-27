@@ -1,4 +1,5 @@
 import { storage } from './storage';
+import { logError, logWarn } from "./logger";
 import { sendEmail, getNewProductsNewsletterHtml } from './email';
 
 const QUEUE_KEY = 'newsletter_new_product_queue';
@@ -46,7 +47,7 @@ async function writeQueue(state: QueueState | null): Promise<void> {
   try {
     await storage.setBonusSetting(QUEUE_KEY, state ? JSON.stringify(state) : JSON.stringify({ productIds: [], firstAddedAt: '', lastAddedAt: '' }));
   } catch (err: any) {
-    console.error('[NewProductsNotifier] Failed to write queue:', err?.message);
+    logError('[NewProductsNotifier] Failed to write queue:', err?.message);
   }
 }
 
@@ -66,7 +67,7 @@ async function writeJob(job: SendJob | null): Promise<void> {
   try {
     await storage.setBonusSetting(JOB_KEY, job ? JSON.stringify(job) : '');
   } catch (err: any) {
-    console.error('[NewProductsNotifier] Failed to write job:', err?.message);
+    logError('[NewProductsNotifier] Failed to write job:', err?.message);
   }
 }
 
@@ -85,7 +86,7 @@ export async function enqueueNewProduct(productId: number): Promise<void> {
     }
     console.log(`[NewProductsNotifier] Enqueued product ${productId}, queue size: ${(existing?.productIds.length || 0) + 1}`);
   } catch (err: any) {
-    console.error('[NewProductsNotifier] enqueueNewProduct error:', err?.message);
+    logError('[NewProductsNotifier] enqueueNewProduct error:', err?.message);
   }
 }
 
@@ -162,7 +163,7 @@ async function finalizeJob(job: SendJob): Promise<void> {
       await writeQueue(null);
     }
   } catch (err: any) {
-    console.error('[NewProductsNotifier] Failed to clean queue on finish:', err?.message);
+    logError('[NewProductsNotifier] Failed to clean queue on finish:', err?.message);
   }
   await writeJob(null);
   console.log(`[NewProductsNotifier] Job finished. Remaining failed emails: ${job.failed.length}`);
@@ -181,7 +182,7 @@ export async function continueSendJob(): Promise<{
   // Страховка: контейнер мог «спать» дольше суток — не даём заданию висеть вечно.
   const updatedAt = new Date(job.updatedAt).getTime();
   if (!Number.isNaN(updatedAt) && Date.now() - updatedAt > JOB_MAX_AGE_MS) {
-    console.warn('[NewProductsNotifier] Job stalled >24h, finishing with remaining emails unsent');
+    logWarn('[NewProductsNotifier] Job stalled >24h, finishing with remaining emails unsent');
     await finalizeJob(job);
     return { status: 'done', sent: 0, failed: 0, offset: job.emails.length, total: job.emails.length };
   }
@@ -288,7 +289,7 @@ export async function removeFromNewProductsQueue(productId: number): Promise<voi
     await writeQueue(existing);
     console.log(`[NewProductsNotifier] Removed product ${productId}, queue size: ${existing.productIds.length}`);
   } catch (err: any) {
-    console.error('[NewProductsNotifier] removeFromNewProductsQueue error:', err?.message);
+    logError('[NewProductsNotifier] removeFromNewProductsQueue error:', err?.message);
   }
 }
 
@@ -366,7 +367,7 @@ export async function runNewProductsNotifierCheck(): Promise<void> {
     const result = await triggerNewProductsNotifierNow();
     console.log(`[NewProductsNotifier] Digest started via job: ${JSON.stringify({ started: result.started, alreadyRunning: result.alreadyRunning, totalEmails: result.totalEmails, products: result.products })}`);
   } catch (err: any) {
-    console.error('[NewProductsNotifier] Job crashed:', err?.message);
+    logError('[NewProductsNotifier] Job crashed:', err?.message);
   }
 }
 
@@ -381,11 +382,11 @@ export function startNewProductsNotifierJob(): void {
   // он доводит начатую рассылку до конца пачками по BATCH_SIZE (иначе контейнер
   // не успел бы разослать все письма за один запрос).
   setTimeout(() => {
-    continueSendJob().catch((err: any) => console.error('[NewProductsNotifier] Batch worker first run failed:', err?.message));
+    continueSendJob().catch((err: any) => logError('[NewProductsNotifier] Batch worker first run failed:', err?.message));
   }, FIRST_RUN_DELAY_MS);
 
   setInterval(() => {
-    continueSendJob().catch((err: any) => console.error('[NewProductsNotifier] Batch worker run failed:', err?.message));
+    continueSendJob().catch((err: any) => logError('[NewProductsNotifier] Batch worker run failed:', err?.message));
   }, JOB_TICK_MS);
 
   console.log(`[NewProductsNotifier] Batch worker started (${BATCH_SIZE} emails per tick, tick every ${JOB_TICK_MS / 1000}s). Auto-digest DISABLED: manual send only.`);

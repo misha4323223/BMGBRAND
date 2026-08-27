@@ -13,6 +13,7 @@
  */
 
 import { Request, Response, NextFunction } from "express";
+import { logError } from "./logger";
 import crypto from "node:crypto";
 import {
   getCachedProductMetaBySlug,
@@ -415,47 +416,21 @@ function trimDesc(s: string, max = 155): string {
  * Absolute product image URL for listing JSON-LD (Google Merchant requires "image").
  * Falls back to thumbnail, then first gallery image; returns undefined if none.
  */
-function productImageUrl(p: any): string | undefined {
-  const img = p.imageUrl || p.thumbnailUrl || (Array.isArray(p.images) ? p.images[0] : null);
-  if (!img) return undefined;
-  return img.startsWith("http") ? img : `${SITE_URL}${img}`;
-}
-
 /**
- * Полная Product-сущность для листингов (ItemList / CollectionPage).
- * Google Merchant требует в каждом offers поля hasMerchantReturnPolicy и
- * shippingDetails, а в самом Product — description. Раньше листинги отдавали
- * «лёгкий» Product без этих полей, из-за чего Search Console ругался на
- * /remni, /products/accessories и другие страницы-каталоги.
+ * Ссылка на карточку товара для листингов (ItemList / CollectionPage).
+ * Google рекомендует размещать полную Product-разметку только на страницах
+ * отдельного товара (product rich results поддерживают одну страницу товара
+ * или его вариантов). Product без aggregateRating/review на листинге даёт в
+ * Search Console «Отсутствует поле aggregateRating / review» — поэтому
+ * листинги отдают ссылку на карточку (@id), где Product уже полный.
+ * URL карточки: /<product-slug> (корень сайта, не /products/…).
  */
 function buildListingProductItem(
   p: any,
-  opts: { availability?: string; url?: string } = {},
+  opts: { url?: string } = {},
 ): Record<string, any> {
-  const url = opts.url || `${SITE_URL}/${p.slug}`;
-  const availability = opts.availability || cardStatus(p).availability;
-  const rawDesc = p.description || p.seoDescription || "";
-  const description = rawDesc
-    ? trimDesc(stripHtml(String(rawDesc)), 160)
-    : `Купить ${p.name} в интернет-магазине BMGBRAND. Доставка по России.`;
-  return {
-    "@type": "Product",
-    "name": p.name,
-    "description": description,
-    "image": productImageUrl(p),
-    "sku": p.article || p.sku || String(p.id),
-    "brand": { "@type": "Brand", "name": "BMGBRAND" },
-    "url": url,
-    "offers": {
-      "@type": "Offer",
-      "priceCurrency": "RUB",
-      "price": (p.price / 100).toFixed(2),
-      "availability": availability,
-      "url": url,
-      "hasMerchantReturnPolicy": buildMerchantReturnPolicy(),
-      "shippingDetails": buildShippingDetails(),
-    },
-  };
+  const url = opts.url || (p.slug ? `${SITE_URL}/${p.slug}` : `${SITE_URL}/`);
+  return { "@id": url };
 }
 
 function baseHead(opts: {
@@ -2140,7 +2115,7 @@ function renderConceptCampaign(slug: string): string | null {
       "itemListElement": campaignProducts.slice(0, 20).map((p: any, i: number) => ({
         "@type": "ListItem",
         "position": i + 1,
-        "item": buildListingProductItem(p, { availability: "https://schema.org/PreOrder", url: p.slug ? `${SITE_URL}/${p.slug}` : `${SITE_URL}/concept/${slug}` }),
+        "item": buildListingProductItem(p, { url: p.slug ? `${SITE_URL}/${p.slug}` : `${SITE_URL}/concept/${slug}` }),
       })),
     }] : []),
   ]);
@@ -2830,7 +2805,7 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
               }
             } catch (err: any) {
               // Never break the site — on DB errors fall through to the SPA as before.
-              console.error("[BotSSR] YDB slug lookup failed:", slug, err?.message);
+              logError("[BotSSR] YDB slug lookup failed:", slug, err?.message);
             }
           }
           if (dbHidden) {
@@ -2883,7 +2858,7 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
     res.send(html);
   } catch (err: any) {
     // Never break the site for real users — just pass through
-    console.error("[BotSSR] Error rendering for bot:", reqPath, err?.message);
+    logError("[BotSSR] Error rendering for bot:", reqPath, err?.message);
     next();
   }
 }

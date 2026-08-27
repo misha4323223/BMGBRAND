@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { logError } from "./logger";
 
 const OZON_PAY_API = "https://payapi.ozon.ru";
 
@@ -215,11 +216,11 @@ class OzonPayService {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error(
+        logError(
           "[OzonPay] createOrder error:",
           JSON.stringify(data, null, 2),
         );
-        console.error(
+        logError(
           "[OzonPay] Request body was:",
           JSON.stringify(body, null, 2),
         );
@@ -230,7 +231,7 @@ class OzonPayService {
       const ozonOrderId = data.order?.id;
 
       if (!payLink) {
-        console.error("[OzonPay] No payLink in response:", data);
+        logError("[OzonPay] No payLink in response:", data);
         return { success: false, error: "No payLink returned from Ozon Pay" };
       }
 
@@ -238,7 +239,7 @@ class OzonPayService {
       return { success: true, payLink, ozonOrderId };
     } catch (err: any) {
       const cause = err?.cause ? ` cause=${err.cause.code || err.cause.message || err.cause}` : "";
-      console.error(`[OzonPay] createOrder network error: ${err.message}${cause}`);
+      logError(`[OzonPay] createOrder network error: ${err.message}${cause}`);
       return { success: false, error: err.message };
     }
   }
@@ -270,7 +271,7 @@ class OzonPayService {
       return { status: data.status };
     } catch (err: any) {
       const cause = err?.cause ? ` cause=${err.cause.code || err.cause.message || err.cause}` : "";
-      console.error(`[OzonPay] getOrderStatus network error: ${err.message}${cause}`);
+      logError(`[OzonPay] getOrderStatus network error: ${err.message}${cause}`);
       return { error: err.message };
     }
   }
@@ -304,7 +305,7 @@ class OzonPayService {
       return { success: false, error: data.message };
     } catch (err: any) {
       const cause = err?.cause ? ` cause=${err.cause.code || err.cause.message || err.cause}` : "";
-      console.error(`[OzonPay] cancelOrder network error: ${err.message}${cause}`);
+      logError(`[OzonPay] cancelOrder network error: ${err.message}${cause}`);
       return { success: false, error: err.message };
     }
   }
@@ -346,7 +347,7 @@ class OzonPayService {
       return { success: false, error: data.message };
     } catch (err: any) {
       const cause = err?.cause ? ` cause=${err.cause.code || err.cause.message || err.cause}` : "";
-      console.error(`[OzonPay] refundOrder network error: ${err.message}${cause}`);
+      logError(`[OzonPay] refundOrder network error: ${err.message}${cause}`);
       return { success: false, error: err.message };
     }
   }

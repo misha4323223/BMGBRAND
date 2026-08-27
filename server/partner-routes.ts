@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { logError, logWarn } from "./logger";
 import multer from 'multer';
 import { storage } from './storage';
 import { authMiddleware, requirePartnerRole, AuthRequest } from './auth-routes';
@@ -148,7 +149,7 @@ export async function getGlobalPartnerHoldDaysCached(): Promise<number> {
     globalHoldDaysCache = { value, ts: now };
     return value;
   } catch (e) {
-    console.error('[Partner] getGlobalPartnerHoldDaysCached error:', (e as any)?.message);
+    logError('[Partner] getGlobalPartnerHoldDaysCached error:', (e as any)?.message);
     return PARTNER_DEFAULT_HOLD_DAYS;
   }
 }
@@ -170,7 +171,7 @@ export async function getApprovedPartnerCached(slug: string): Promise<any | null
     partner = (p && p.status === 'approved') ? p : null;
   } catch (e) {
     // On error, don't cache — let next call retry
-    console.error('[Partner] getApprovedPartnerCached error:', (e as any)?.message);
+    logError('[Partner] getApprovedPartnerCached error:', (e as any)?.message);
     return null;
   }
   partnerObjectCache.set(slug, { partner, ts: now });
@@ -190,7 +191,7 @@ export async function getGlobalPartnerCommissionPercentCached(): Promise<number>
     globalCommissionPercentCache = { value, ts: now };
     return value;
   } catch (e) {
-    console.error('[Partner] getGlobalPartnerCommissionPercentCached error:', (e as any)?.message);
+    logError('[Partner] getGlobalPartnerCommissionPercentCached error:', (e as any)?.message);
     return PARTNER_DEFAULT_COMMISSION_PERCENT;
   }
 }
@@ -215,7 +216,7 @@ async function setRefCookieIfApproved(req: Request, res: Response, slug: string)
 
   res.cookie(PARTNER_COOKIE_NAME, slug, refCookieOptions(isSecureRequest(req)));
   storage.incrementPartnerClicksBySlug(slug).catch(err => {
-    console.error('[Partner] click increment error:', err);
+    logError('[Partner] click increment error:', err);
   });
   return true;
 }
@@ -231,7 +232,7 @@ export async function partnerRefQueryMiddleware(req: Request, res: Response, nex
       }
     }
   } catch (err) {
-    console.error('[Partner] ref query middleware error:', err);
+    logError('[Partner] ref query middleware error:', err);
   }
   next();
 }
@@ -299,7 +300,7 @@ router.get('/me', authMiddleware, requirePartnerRole, async (req: AuthRequest, r
       payoutMinKopeks: PARTNER_PAYOUT_MIN_KOPEKS,
     });
   } catch (error) {
-    console.error('[Partner] me error:', error);
+    logError('[Partner] me error:', error);
     res.status(500).json({ error: 'Ошибка получения данных партнёра' });
   }
 });
@@ -314,7 +315,7 @@ router.get('/stats', authMiddleware, requirePartnerRole, async (req: AuthRequest
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json(stats);
   } catch (error) {
-    console.error('[Partner] stats error:', error);
+    logError('[Partner] stats error:', error);
     res.status(500).json({ error: 'Ошибка получения статистики' });
   }
 });
@@ -376,7 +377,7 @@ router.get('/commissions', authMiddleware, requirePartnerRole, async (req: AuthR
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ commissions: visible });
   } catch (error) {
-    console.error('[Partner] commissions error:', error);
+    logError('[Partner] commissions error:', error);
     res.status(500).json({ error: 'Ошибка получения комиссий' });
   }
 });
@@ -400,7 +401,7 @@ router.post('/commissions/:id/hide', authMiddleware, requirePartnerRole, async (
     }
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[Partner] hideCommission error:', error);
+    logError('[Partner] hideCommission error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка скрытия' });
   }
 });
@@ -412,7 +413,7 @@ router.get('/payouts', authMiddleware, requirePartnerRole, async (req: AuthReque
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ payouts });
   } catch (error: any) {
-    console.error('[Partner] payouts list error:', error);
+    logError('[Partner] payouts list error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка получения выплат' });
   }
 });
@@ -446,7 +447,7 @@ router.patch('/payout-details', authMiddleware, requirePartnerRole, async (req: 
 
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[Partner] payout-details update error:', error);
+    logError('[Partner] payout-details update error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка сохранения реквизитов' });
   }
 });
@@ -589,11 +590,11 @@ router.post('/payout/request', authMiddleware, requirePartnerRole, async (req: A
             status:            'invoice_uploaded',
           });
         } else {
-          console.warn(`[Partner] payout #${payout.id}: S3 not configured, invoice not saved. Staying at awaiting_invoice.`);
+          logWarn(`[Partner] payout #${payout.id}: S3 not configured, invoice not saved. Staying at awaiting_invoice.`);
         }
       } catch (invoiceErr: any) {
         // Генерация/загрузка счёта не должна ломать создание выплаты
-        console.error(`[Partner] payout #${payout.id}: invoice generation failed:`, invoiceErr?.message);
+        logError(`[Partner] payout #${payout.id}: invoice generation failed:`, invoiceErr?.message);
       }
     }
 
@@ -602,7 +603,7 @@ router.post('/payout/request', authMiddleware, requirePartnerRole, async (req: A
 
     res.json({ success: true, payoutId: payout.id, message: 'Карточка выплаты создана.' });
   } catch (error: any) {
-    console.error('[Partner] payout request error:', error);
+    logError('[Partner] payout request error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка создания заявки' });
   } finally {
     releasePayoutRequestLock(partnerId);
@@ -667,7 +668,7 @@ router.post(
         const ext = PAYOUT_DOC_EXT_BY_MIME[file.mimetype] || 'pdf';
         const key = await uploadPayoutDocument(file.buffer, payoutId, partnerId, 'invoice', ext, file.mimetype);
         if (!key) {
-          console.error('[Partner] invoice upload failed: S3 not configured (YC_OBJECT_STORAGE_* env vars missing)');
+          logError('[Partner] invoice upload failed: S3 not configured (YC_OBJECT_STORAGE_* env vars missing)');
           return res.status(500).json({ error: 'Не удалось сохранить файл: хранилище документов не настроено. Сообщите администратору.' });
         }
 
@@ -691,13 +692,13 @@ router.post(
             invoiceNumber,
           });
         } catch (notifyErr: any) {
-          console.error('[Partner] notifyPayoutInvoiceUploaded error:', notifyErr?.message);
+          logError('[Partner] notifyPayoutInvoiceUploaded error:', notifyErr?.message);
         }
       } finally {
         releasePayoutLock(payoutId, 'invoice');
       }
     } catch (error: any) {
-      console.error('[Partner] invoice upload error:', error);
+      logError('[Partner] invoice upload error:', error);
       const msg = error?.message || 'Ошибка загрузки счёта';
       // multer LIMIT_FILE_SIZE / fileFilter
       if (error?.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: `Файл слишком большой (макс ${PAYOUT_DOC_MAX_SIZE_LABEL})` });
@@ -747,7 +748,7 @@ router.post(
         const ext = PAYOUT_DOC_EXT_BY_MIME[file.mimetype] || 'pdf';
         const key = await uploadPayoutDocument(file.buffer, payoutId, partnerId, 'receipt', ext, file.mimetype);
         if (!key) {
-          console.error('[Partner] receipt upload failed: S3 not configured (YC_OBJECT_STORAGE_* env vars missing)');
+          logError('[Partner] receipt upload failed: S3 not configured (YC_OBJECT_STORAGE_* env vars missing)');
           return res.status(500).json({ error: 'Не удалось сохранить файл: хранилище документов не настроено. Сообщите администратору.' });
         }
 
@@ -762,7 +763,7 @@ router.post(
         releasePayoutLock(payoutId, 'receipt');
       }
     } catch (error: any) {
-      console.error('[Partner] receipt upload error:', error);
+      logError('[Partner] receipt upload error:', error);
       if (error?.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: `Файл слишком большой (макс ${PAYOUT_DOC_MAX_SIZE_LABEL})` });
       res.status(400).json({ error: error?.message || 'Ошибка загрузки чека' });
     }
@@ -789,7 +790,7 @@ router.get(
       res.setHeader('Content-Disposition', `inline; filename="invoice-${payoutId}"`);
       res.send(file.buffer);
     } catch (error: any) {
-      console.error('[Partner] invoice download error:', error);
+      logError('[Partner] invoice download error:', error);
       res.status(500).json({ error: error?.message || 'Ошибка' });
     }
   },
@@ -836,7 +837,7 @@ router.post(
         const ext = PAYOUT_DOC_EXT_BY_MIME[file.mimetype] || 'pdf';
         const key = await uploadPayoutDocument(file.buffer, payoutId, partnerId, 'act', ext, file.mimetype);
         if (!key) {
-          console.error('[Partner] act upload failed: S3 not configured (YC_OBJECT_STORAGE_* env vars missing)');
+          logError('[Partner] act upload failed: S3 not configured (YC_OBJECT_STORAGE_* env vars missing)');
           return res.status(500).json({ error: 'Не удалось сохранить файл: хранилище документов не настроено. Сообщите администратору.' });
         }
 
@@ -851,7 +852,7 @@ router.post(
         releasePayoutLock(payoutId, 'act');
       }
     } catch (error: any) {
-      console.error('[Partner] act upload error:', error);
+      logError('[Partner] act upload error:', error);
       if (error?.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: `Файл слишком большой (макс ${PAYOUT_DOC_MAX_SIZE_LABEL})` });
       res.status(400).json({ error: error?.message || 'Ошибка загрузки акта' });
     }
@@ -878,7 +879,7 @@ router.get(
       res.setHeader('Content-Disposition', `inline; filename="receipt-${payoutId}"`);
       res.send(file.buffer);
     } catch (error: any) {
-      console.error('[Partner] receipt download error:', error);
+      logError('[Partner] receipt download error:', error);
       res.status(500).json({ error: error?.message || 'Ошибка' });
     }
   },
@@ -904,7 +905,7 @@ router.get(
       res.setHeader('Content-Disposition', `inline; filename="act-${payoutId}"`);
       res.send(file.buffer);
     } catch (error: any) {
-      console.error('[Partner] act download error:', error);
+      logError('[Partner] act download error:', error);
       res.status(500).json({ error: error?.message || 'Ошибка' });
     }
   },
@@ -919,7 +920,7 @@ router.get('/products', authMiddleware, requirePartnerRole, async (req: AuthRequ
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ productIds: ids });
   } catch (error: any) {
-    console.error('[Partner] products list error:', error);
+    logError('[Partner] products list error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка получения списка товаров' });
   }
 });
@@ -934,7 +935,7 @@ router.post('/products', authMiddleware, requirePartnerRole, async (req: AuthReq
     await storage.addPartnerProduct(req.user!.partnerId!, productId);
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[Partner] add product error:', error);
+    logError('[Partner] add product error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка добавления товара' });
   }
 });
@@ -949,7 +950,7 @@ router.delete('/products/:productId', authMiddleware, requirePartnerRole, async 
     await storage.removePartnerProduct(req.user!.partnerId!, productId);
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[Partner] remove product error:', error);
+    logError('[Partner] remove product error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка удаления товара' });
   }
 });
@@ -995,7 +996,7 @@ router.get('/public/:slug', async (req: Request, res: Response) => {
       products,
     });
   } catch (error: any) {
-    console.error('[Partner] public page error:', error);
+    logError('[Partner] public page error:', error);
     res.status(500).json({ error: 'Ошибка загрузки страницы партнёра' });
   }
 });
@@ -1008,7 +1009,7 @@ router.get('/promo-code', authMiddleware, requirePartnerRole, async (req: AuthRe
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ promoCode: promo || null });
   } catch (error: any) {
-    console.error('[Partner] get promo-code error:', error);
+    logError('[Partner] get promo-code error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка получения промокода' });
   }
 });
@@ -1031,7 +1032,7 @@ router.post('/promo-code', authMiddleware, requirePartnerRole, async (req: AuthR
     const promo = await storage.setPartnerPromoCode(partnerId, code.trim(), Math.round(pct));
     res.json({ success: true, promoCode: promo });
   } catch (error: any) {
-    console.error('[Partner] set promo-code error:', error);
+    logError('[Partner] set promo-code error:', error);
     res.status(400).json({ error: error?.message || 'Ошибка сохранения промокода' });
   }
 });
@@ -1043,7 +1044,7 @@ router.delete('/promo-code', authMiddleware, requirePartnerRole, async (req: Aut
     await storage.deletePartnerPromoCode(partnerId);
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[Partner] delete promo-code error:', error);
+    logError('[Partner] delete promo-code error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка удаления промокода' });
   }
 });
@@ -1076,7 +1077,7 @@ router.get('/artist/products', authMiddleware, requirePartnerRole, async (req: A
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ products });
   } catch (error: any) {
-    console.error('[Artist] products error:', error);
+    logError('[Artist] products error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка получения товаров' });
   }
 });
@@ -1106,7 +1107,7 @@ router.get('/artist/stats', authMiddleware, requirePartnerRole, async (req: Auth
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json(stats);
   } catch (error: any) {
-    console.error('[Artist] stats error:', error);
+    logError('[Artist] stats error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка получения статистики' });
   }
 });
@@ -1173,7 +1174,7 @@ router.post('/artist/upload-image', authMiddleware, requirePartnerRole, async (r
     console.log(`[Artist Upload] ${partner.partnerSlug}: ${url}`);
     res.json({ url, success: true });
   } catch (error: any) {
-    console.error('[Artist Upload] error:', error);
+    logError('[Artist Upload] error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка загрузки' });
   }
 });
@@ -1245,7 +1246,7 @@ router.post('/artist/upload-logo', authMiddleware, requirePartnerRole, async (re
     console.log(`[Artist Logo Upload] ${partner.partnerSlug}: ${url}`);
     res.json({ url, success: true });
   } catch (error: any) {
-    console.error('[Artist Logo Upload] error:', error);
+    logError('[Artist Logo Upload] error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка загрузки' });
   }
 });
@@ -1301,7 +1302,7 @@ router.post('/artist/upload-video', authMiddleware, requirePartnerRole, async (r
     console.log(`[Artist Video Upload] ${partner.partnerSlug}: ${url} (${(buffer.length / 1024 / 1024).toFixed(1)} MB)`);
     res.json({ url, success: true });
   } catch (error: any) {
-    console.error('[Artist Video Upload] error:', error);
+    logError('[Artist Video Upload] error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка загрузки видео' });
   }
 });
@@ -1318,7 +1319,7 @@ router.get('/artist/page', authMiddleware, requirePartnerRole, async (req: AuthR
     res.set('Cache-Control', 'no-store');
     res.json(page);
   } catch (error: any) {
-    console.error('[Artist] page get error:', error);
+    logError('[Artist] page get error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка получения настроек страницы' });
   }
 });
@@ -1372,13 +1373,13 @@ router.put('/artist/page', authMiddleware, requirePartnerRole, async (req: AuthR
           console.log(`[Artist] updated homepage card for ${partner.partnerSlug}`);
         }
       } catch (e: any) {
-        console.error('[Artist] homepage card update error:', e?.message);
+        logError('[Artist] homepage card update error:', e?.message);
       }
     }
 
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[Artist] page save error:', error);
+    logError('[Artist] page save error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка сохранения страницы' });
   }
 });
@@ -1394,7 +1395,7 @@ router.get('/artist/views', authMiddleware, requirePartnerRole, async (req: Auth
     const views = raw ? parseInt(raw, 10) : 0;
     res.json({ views: isNaN(views) ? 0 : views });
   } catch (error: any) {
-    console.error('[Artist] views error:', error);
+    logError('[Artist] views error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка' });
   }
 });
@@ -1450,7 +1451,7 @@ router.post('/my-products/upload-image', authMiddleware, requirePartnerRole, asy
       res.json({ url: b64, thumbUrl: b64 });
     }
   } catch (error: any) {
-    console.error('[ArtistProduct Upload]', error);
+    logError('[ArtistProduct Upload]', error);
     res.status(500).json({ error: error?.message || 'Ошибка загрузки' });
   }
 });
@@ -1501,7 +1502,7 @@ router.post('/my-products', authMiddleware, requirePartnerRole, async (req: Auth
     });
     res.json(product);
   } catch (error: any) {
-    console.error('[ArtistProduct] create error:', error);
+    logError('[ArtistProduct] create error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка создания товара' });
   }
 });
@@ -1529,7 +1530,7 @@ router.put('/my-products/:id', authMiddleware, requirePartnerRole, async (req: A
     const product = await storage.updateArtistProduct(productId, partner.partnerSlug, data);
     res.json(product);
   } catch (error: any) {
-    console.error('[ArtistProduct] update error:', error);
+    logError('[ArtistProduct] update error:', error);
     res.status(error?.message?.includes('нет доступа') ? 403 : 500).json({ error: error?.message || 'Ошибка обновления' });
   }
 });
@@ -1546,7 +1547,7 @@ router.delete('/my-products/:id', authMiddleware, requirePartnerRole, async (req
     await storage.deleteArtistProduct(productId, partner.partnerSlug);
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[ArtistProduct] delete error:', error);
+    logError('[ArtistProduct] delete error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка удаления' });
   }
 });
@@ -1574,7 +1575,7 @@ router.delete('/artist/linked-products/:id', authMiddleware, requirePartnerRole,
     console.log(`[Artist] Unlinked catalog product ${productId} from partner ${partner.partnerSlug}`);
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[Artist] unlink product error:', error);
+    logError('[Artist] unlink product error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка отвязки товара' });
   }
 });
@@ -1595,7 +1596,7 @@ router.patch('/settings', authMiddleware, requirePartnerRole, async (req: AuthRe
     const partner = await storage.getPartnerById(partnerId);
     res.json({ success: true, partner });
   } catch (error: any) {
-    console.error('[Partner] settings update error:', error);
+    logError('[Partner] settings update error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка обновления данных' });
   }
 });
@@ -1625,7 +1626,7 @@ router.post('/feedback', authMiddleware, requirePartnerRole, async (req: AuthReq
 
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[Partner] feedback error:', error);
+    logError('[Partner] feedback error:', error);
     res.status(500).json({ error: 'Ошибка отправки' });
   }
 });

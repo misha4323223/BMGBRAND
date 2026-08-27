@@ -1,4 +1,5 @@
 import { storage } from "./storage";
+import { logError } from "./logger";
 
 const QUEUE_KEY = "agent_queue";
 const LOG_KEY = "agent_log";
@@ -141,7 +142,7 @@ export async function addLogEntry(
       JSON.stringify(log.slice(0, MAX_LOG_ENTRIES))
     );
   } catch (e: any) {
-    console.error("[AgentQueue] addLogEntry failed:", e?.message);
+    logError("[AgentQueue] addLogEntry failed:", e?.message);
   }
 }
 

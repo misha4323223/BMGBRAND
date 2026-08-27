@@ -160,6 +160,8 @@ export function ChatWidget() {
   });
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  // Локальная модель (Ollama) — ВРЕМЕННО СКРЫТА: переключатель убран из UI,
+  // провайдер на сервере (server/ollama.ts) сохранён для будущего включения.
   const [productPageCtx, setProductPageCtx] = useState<ProductPageContext | null>(null);
   const [artistPageCtx, setArtistPageCtx] = useState<ArtistPageContext | null>(null);
 
@@ -210,9 +212,10 @@ export function ChatWidget() {
   const [btnExpanded, setBtnExpanded] = useState(false);
   const btnExpandRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Persist AI chat messages to localStorage
+  // Persist AI chat messages to localStorage (только по окончании стрима — не каждый тик)
   useEffect(() => {
     try {
+      if (aiMessages.some(m => m.streaming)) return; // стрим идёт — писать нечего, ждём финал
       const toSave = aiMessages.filter(m => !m.streaming).slice(-30);
       localStorage.setItem(`ai_chat_${sessionId.current}`, JSON.stringify(toSave));
     } catch {}
@@ -268,7 +271,7 @@ export function ChatWidget() {
 
   useEffect(() => {
     if (open) { setBtnExpanded(false); return; }
-    // First pulse after 5s, then every 18s (10s open + 8s closed)
+    // First pulse after 5s, then every 60s (10s open + 50s closed) — реже, меньше перерисовок
     const initial = setTimeout(() => {
       setBtnExpanded(true);
       setTimeout(() => setBtnExpanded(false), 10000);
@@ -276,7 +279,7 @@ export function ChatWidget() {
     btnExpandRef.current = setInterval(() => {
       setBtnExpanded(true);
       setTimeout(() => setBtnExpanded(false), 10000);
-    }, 18000);
+    }, 60000);
     return () => {
       clearTimeout(initial);
       if (btnExpandRef.current) clearInterval(btnExpandRef.current);
@@ -548,7 +551,7 @@ export function ChatWidget() {
       let finalProducts: ProductCard[] = [];
       let hasError = false;
       const TICK_MS = 32;   // ms between display ticks
-      const CHARS_PER_TICK = 2; // chars revealed per tick → ~62 chars/sec
+      const CHARS_PER_TICK = 8; // chars revealed per tick → ~250 chars/sec
 
       const drainHandle = setInterval(() => {
         if (hasError) { clearInterval(drainHandle); return; }
@@ -558,7 +561,10 @@ export function ChatWidget() {
           setAiMessages(prev => prev.map(m =>
             m.id === streamMsgId ? { ...m, content: m.content + toShow } : m
           ));
-          if (displayBuf.length % 20 === 0) scrollAiToBottom();
+          if (displayBuf.length % 20 === 0) {
+            // instant scroll во время печати — smooth конфликтует сам с собой и дёргает скролл
+            aiBottomRef.current?.scrollIntoView();
+          }
         } else if (sseFinished) {
           clearInterval(drainHandle);
           setAiMessages(prev => prev.map(m =>
@@ -701,7 +707,10 @@ export function ChatWidget() {
           setAiMessages(prev => prev.map(m =>
             m.id === streamMsgId ? { ...m, content: m.content + toShow } : m
           ));
-          if (displayBuf.length % 20 === 0) scrollAiToBottom();
+          if (displayBuf.length % 20 === 0) {
+            // instant scroll во время печати — smooth конфликтует сам с собой и дёргает скролл
+            aiBottomRef.current?.scrollIntoView();
+          }
         } else if (sseFinished) {
           clearInterval(drainHandle);
           setAiMessages(prev => prev.map(m =>

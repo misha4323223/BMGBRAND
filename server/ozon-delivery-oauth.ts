@@ -18,6 +18,7 @@
  */
 
 import crypto from "crypto";
+import { logError } from "./logger";
 import { config } from "./config";
 
 const OZON_TOKEN_URL = "https://xapi.ozon.ru/oauth/token";
@@ -153,7 +154,7 @@ class OzonDeliveryOAuthService {
       const data = await resp.json() as any;
 
       if (!resp.ok) {
-        console.error("[OzonDelivery OAuth] Ошибка обмена кода:", data);
+        logError("[OzonDelivery OAuth] Ошибка обмена кода:", data);
         return { success: false, error: data?.message || `HTTP ${resp.status}` };
       }
 
@@ -170,7 +171,7 @@ class OzonDeliveryOAuthService {
       console.log(`[OzonDelivery OAuth] Токены получены, expires_in=${expiresIn}s`);
       return { success: true, tokenData };
     } catch (err: any) {
-      console.error("[OzonDelivery OAuth] Сетевая ошибка при обмене кода:", err.message);
+      logError("[OzonDelivery OAuth] Сетевая ошибка при обмене кода:", err.message);
       return { success: false, error: err.message };
     }
   }
@@ -202,7 +203,7 @@ class OzonDeliveryOAuthService {
       const data = await resp.json() as any;
 
       if (!resp.ok) {
-        console.error("[OzonDelivery OAuth] Ошибка refresh:", data);
+        logError("[OzonDelivery OAuth] Ошибка refresh:", data);
         cachedToken = null;
         // Очищаем протухшие токены из YDB, чтобы после рестарта они не подгрузились
         if (this.persistCallback) {
@@ -226,12 +227,12 @@ class OzonDeliveryOAuthService {
       // Персистим новые токены в БД (если callback зарегистрирован)
       if (this.persistCallback) {
         this.persistCallback(tokenData.accessToken, tokenData.refreshToken, tokenData.expiresAt)
-          .catch(e => console.error("[OzonDelivery OAuth] Ошибка сохранения токенов:", e.message));
+          .catch(e => logError("[OzonDelivery OAuth] Ошибка сохранения токенов:", e.message));
       }
 
       return { success: true, tokenData };
     } catch (err: any) {
-      console.error("[OzonDelivery OAuth] Сетевая ошибка при refresh:", err.message);
+      logError("[OzonDelivery OAuth] Сетевая ошибка при refresh:", err.message);
       return { success: false, error: err.message };
     }
   }
@@ -273,7 +274,7 @@ class OzonDeliveryOAuthService {
     if (msUntilExpiry <= 0) {
       // Уже истёк — обновляем немедленно в фоне
       this.refreshAccessToken().catch(e =>
-        console.error("[OzonDelivery OAuth] Фоновый refresh провалился:", e.message)
+        logError("[OzonDelivery OAuth] Фоновый refresh провалился:", e.message)
       );
       return;
     }
@@ -300,7 +301,7 @@ class OzonDeliveryOAuthService {
       // Осталось < 5 минут — обновляем
       console.log("[OzonDelivery OAuth] Плановое обновление токена...");
       await this.refreshAccessToken().catch(e =>
-        console.error("[OzonDelivery OAuth] Плановый refresh провалился:", e.message)
+        logError("[OzonDelivery OAuth] Плановый refresh провалился:", e.message)
       );
     }, delayMs);
   }

@@ -10,6 +10,7 @@
  * read/approve/reject/discount/password operations. This module adds CREATE.
  */
 import { Router, Request, Response } from 'express';
+import { logError } from "./logger";
 import bcrypt from 'bcryptjs';
 import { authStorage } from './auth-storage';
 
@@ -99,7 +100,7 @@ router.post('/wholesale-users', adminGuard, async (req: Request, res: Response) 
       },
     });
   } catch (error: any) {
-    console.error('[Admin] Create wholesale user error:', error);
+    logError('[Admin] Create wholesale user error:', error);
     res.status(500).json({ error: 'Ошибка создания оптового покупателя' });
   }
 });

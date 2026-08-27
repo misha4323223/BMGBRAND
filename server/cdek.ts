@@ -1,3 +1,4 @@
+import { logError } from "./logger";
 const CDEK_TEST_URL = "https://api.edu.cdek.ru/v2";
 const CDEK_PROD_URL = "https://api.cdek.ru/v2";
 
@@ -154,7 +155,7 @@ export class CdekService {
       citiesCacheLoadedAt = Date.now();
       console.log(`[CDEK] Cities cache loaded: ${citiesCache.length} cities`);
     } catch (error) {
-      console.error("[CDEK] Failed to load cities cache:", error);
+      logError("[CDEK] Failed to load cities cache:", error);
     }
   }
 
@@ -199,7 +200,7 @@ export class CdekService {
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("[CDEK] Auth error:", error);
+      logError("[CDEK] Auth error:", error);
       throw new Error(`CDEK auth failed: ${response.status}`);
     }
 
@@ -233,7 +234,7 @@ export class CdekService {
     const responseText = await response.text();
     
     if (!response.ok) {
-      console.error(`[CDEK] API error ${endpoint} (${response.status}):`, responseText);
+      logError(`[CDEK] API error ${endpoint} (${response.status}):`, responseText);
       throw new Error(`CDEK API error: ${response.status}`);
     }
 
@@ -244,7 +245,7 @@ export class CdekService {
     try {
       return JSON.parse(responseText) as T;
     } catch (e) {
-      console.error(`[CDEK] Failed to parse response for ${endpoint}:`, responseText.slice(0, 200));
+      logError(`[CDEK] Failed to parse response for ${endpoint}:`, responseText.slice(0, 200));
       throw new Error('CDEK API returned invalid JSON');
     }
   }
@@ -269,7 +270,7 @@ export class CdekService {
       console.log(`[CDEK] Found ${result.tariff_codes?.length || 0} tariffs`);
       return result.tariff_codes || [];
     } catch (error) {
-      console.error("[CDEK] Calculate tariffs error:", error);
+      logError("[CDEK] Calculate tariffs error:", error);
       return [];
     }
   }
@@ -292,7 +293,7 @@ export class CdekService {
       );
       return result;
     } catch (error) {
-      console.error("[CDEK] Calculate tariff error:", error);
+      logError("[CDEK] Calculate tariff error:", error);
       return null;
     }
   }
@@ -322,7 +323,7 @@ export class CdekService {
       console.log(`[CDEK] Found ${result?.length || 0} delivery points`);
       return result || [];
     } catch (error) {
-      console.error("[CDEK] Get delivery points error:", error);
+      logError("[CDEK] Get delivery points error:", error);
       return [];
     }
   }
@@ -350,7 +351,7 @@ export class CdekService {
       console.log(`[CDEK] Found ${result?.length || 0} cities`);
       return result || [];
     } catch (error) {
-      console.error("[CDEK] Get cities error:", error);
+      logError("[CDEK] Get cities error:", error);
       return [];
     }
   }
@@ -391,14 +392,14 @@ export class CdekService {
         
         if (errors.length > 0) {
           const errorMessages = errors.map((e: any) => `${e.code}: ${e.message}`).join('; ');
-          console.error(`[CDEK] Order creation validation errors: ${errorMessages}`);
+          logError(`[CDEK] Order creation validation errors: ${errorMessages}`);
           result._validationErrors = errorMessages;
         }
       }
 
       return result;
     } catch (error) {
-      console.error("[CDEK] Create order error:", error);
+      logError("[CDEK] Create order error:", error);
       throw error;
     }
   }
@@ -410,7 +411,7 @@ export class CdekService {
       const result = await this.request<any>("GET", `/orders/${uuid}`);
       return result;
     } catch (error) {
-      console.error("[CDEK] Get order status error:", error);
+      logError("[CDEK] Get order status error:", error);
       return null;
     }
   }
@@ -427,7 +428,7 @@ export class CdekService {
       console.log(`[CDEK] Delete order response (${response.status}):`, text);
       return response.ok;
     } catch (error) {
-      console.error("[CDEK] Delete order error:", error);
+      logError("[CDEK] Delete order error:", error);
       return false;
     }
   }
@@ -460,7 +461,7 @@ export class CdekService {
       }
       return { success: true };
     } catch (error: any) {
-      console.error("[CDEK] Patch order error:", error);
+      logError("[CDEK] Patch order error:", error);
       return { success: false, error: error.message };
     }
   }

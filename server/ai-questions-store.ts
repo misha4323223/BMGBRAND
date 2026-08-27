@@ -6,6 +6,7 @@
  * safeQuery/extractTypedValue patterns as server/storage.ts.
  */
 import { driver, isAuthError, reconnectYdb } from "./db";
+import { logError } from "./logger";
 import ydb from "ydb-sdk";
 
 export interface AiQuestionRow {
@@ -49,7 +50,7 @@ async function safeQuery<T>(
         continue;
       }
 
-      console.error("[AiQuestions YDB Error]:", err.message || err);
+      logError("[AiQuestions YDB Error]:", err.message || err);
       return null;
     }
   }
@@ -105,7 +106,7 @@ export async function migrateAiQuestionsTable(): Promise<{ success: boolean; mes
     if (err.message?.includes("already exists")) {
       return { success: true, message: "Table already exists" };
     }
-    console.error("[AiQuestions Migration Error]:", err.message);
+    logError("[AiQuestions Migration Error]:", err.message);
     return { success: false, message: err.message || String(err) };
   }
 }

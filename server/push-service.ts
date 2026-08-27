@@ -1,4 +1,5 @@
 import { storage } from './storage';
+import { logError } from "./logger";
 import webpush from 'web-push';
 
 const CLIENT_PUSH_KEY = 'push_subscriptions';
@@ -172,7 +173,7 @@ export async function sendPushToAll(payload: PushPayload): Promise<{ sent: numbe
     addToHistory(payload, result, subs.length);
     return result;
   } catch (err: any) {
-    console.error('[WebPush] sendPushToAll error:', err?.message);
+    logError('[WebPush] sendPushToAll error:', err?.message);
     return { sent: 0, failed: 0 };
   }
 }
@@ -209,7 +210,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
       await savePushSubs(allSubs.filter((s: any) => !toRemove.includes(s.endpoint)));
     }
   } catch (err: any) {
-    console.error('[WebPush] sendPushToUser error:', err?.message);
+    logError('[WebPush] sendPushToUser error:', err?.message);
   }
 }
 
@@ -247,7 +248,7 @@ export async function sendPushToAdmins(payload: PushPayload): Promise<{ sent: nu
     }
     return result;
   } catch (err: any) {
-    console.error('[WebPush] sendPushToAdmins error:', err?.message);
+    logError('[WebPush] sendPushToAdmins error:', err?.message);
     return { sent: 0, failed: 0 };
   }
 }

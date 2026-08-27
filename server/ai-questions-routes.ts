@@ -5,6 +5,7 @@
  * Guard: x-api-key (same rule as other admin AI routes).
  */
 import type { Express, Request, Response } from "express";
+import { logError } from "./logger";
 import { storage } from "./storage";
 import {
   listAiQuestions,
@@ -120,7 +121,7 @@ export function registerAiQuestionsRoutes(app: Express): void {
       await setAiQuestionDraft(question, draft, "draft");
       res.json({ draft, status: "draft" });
     } catch (err: any) {
-      console.error("[AiQuestions] regenerate error:", err?.message || err);
+      logError("[AiQuestions] regenerate error:", err?.message || err);
       res.status(502).json({ message: err.message || "AI недоступен" });
     }
   });

@@ -13,6 +13,7 @@
  */
 
 import { ozonDeliveryOAuth } from "./ozon-delivery-oauth";
+import { logError, logWarn } from "./logger";
 
 const OZON_SELLER_API = "https://api-seller.ozon.ru";
 
@@ -190,7 +191,7 @@ class OzonDeliveryService {
       // Если 401 — токен мог быть отозван или истечь раньше сохранённого expiresAt.
       // Пробуем принудительный рефреш и один повтор.
       if (status === 401) {
-        console.warn(`[OzonDelivery] ${path} → 401, принудительный refresh токена...`);
+        logWarn(`[OzonDelivery] ${path} → 401, принудительный refresh токена...`);
         const refreshResult = await ozonDeliveryOAuth.refreshAccessToken();
         const newToken = refreshResult.success ? await ozonDeliveryOAuth.getAccessToken() : null;
         if (newToken) {
@@ -198,26 +199,26 @@ class OzonDeliveryService {
           const retryResp = await this.doRequest(path, body, newToken);
           if (!retryResp.ok) {
             const errMsg = retryResp.data?.message || retryResp.data?.error || `HTTP ${retryResp.status}`;
-            console.error(`[OzonDelivery] ${path} error after refresh ${retryResp.status}:`, JSON.stringify(retryResp.data));
+            logError(`[OzonDelivery] ${path} error after refresh ${retryResp.status}:`, JSON.stringify(retryResp.data));
             return { success: false, error: String(errMsg) };
           }
           return { success: true, data: retryResp.data as T };
         } else {
           const reason = refreshResult.error || "refresh_token истёк — переавторизуйтесь в Admin → Интеграции";
-          console.error(`[OzonDelivery] ${path} refresh failed:`, reason);
+          logError(`[OzonDelivery] ${path} refresh failed:`, reason);
           return { success: false, error: reason };
         }
       }
 
       if (!ok) {
         const errMsg = data?.message || data?.error?.message || data?.error || `HTTP ${status}`;
-        console.error(`[OzonDelivery] ${path} error ${status}:`, JSON.stringify(data));
+        logError(`[OzonDelivery] ${path} error ${status}:`, JSON.stringify(data));
         return { success: false, error: String(errMsg) };
       }
 
       return { success: true, data: data as T };
     } catch (err: any) {
-      console.error(`[OzonDelivery] ${path} network error:`, err.message);
+      logError(`[OzonDelivery] ${path} network error:`, err.message);
       return { success: false, error: err.message };
     }
   }
@@ -235,7 +236,7 @@ class OzonDeliveryService {
     console.log("[OzonDelivery] Загружаем все ПВЗ (может занять несколько секунд)...");
     const result = await this.request<any>("/v1/delivery/point/list", { limit: 999999 });
     if (!result.success) {
-      console.error("[OzonDelivery] Не удалось загрузить список ПВЗ:", result.error);
+      logError("[OzonDelivery] Не удалось загрузить список ПВЗ:", result.error);
       return pvzCache?.points ?? [];
     }
     const raw: any[] = result.data?.points ?? result.data?.result ?? (Array.isArray(result.data) ? result.data : []);
@@ -549,7 +550,7 @@ class OzonDeliveryService {
 
     if (!result.available) {
       const err = result.error ?? "Доставка Ozon недоступна для этого номера телефона";
-      console.warn(`[OzonDelivery] checkoutDelivery: недоступно — ${err}`);
+      logWarn(`[OzonDelivery] checkoutDelivery: недоступно — ${err}`);
       return { success: false, error: err, unavailableItems: [] };
     }
 
@@ -565,7 +566,7 @@ class OzonDeliveryService {
   async cancelOrder(ozonOrderId: string): Promise<{ success: boolean; error?: string }> {
     const result = await this.request<any>("/v1/order/cancel", { order_id: ozonOrderId });
     if (!result.success) {
-      console.error(`[OzonDelivery] cancelOrder ${ozonOrderId} failed:`, result.error);
+      logError(`[OzonDelivery] cancelOrder ${ozonOrderId} failed:`, result.error);
       return { success: false, error: result.error };
     }
     console.log(`[OzonDelivery] Order ${ozonOrderId} cancelled`);

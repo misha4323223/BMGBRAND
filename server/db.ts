@@ -1,4 +1,5 @@
 import ydb, { getSACredentialsFromJson } from "ydb-sdk";
+import { logError, logWarn } from "./logger";
 import * as schema from "@shared/schema";
 import * as fs from "fs";
 import * as os from "os";
@@ -333,11 +334,11 @@ export async function initYdb() {
         console.log("[YDB] Driver is ready!");
         await initUsersTable();
       } else {
-        console.error(`[YDB] Driver not ready after ${timeout}ms`);
+        logError(`[YDB] Driver not ready after ${timeout}ms`);
         driver = null;
       }
     } catch (error) {
-      console.error("[YDB] Failed to initialize driver:", error);
+      logError("[YDB] Failed to initialize driver:", error);
     }
   } else {
     console.log("[YDB] Running in Local Dev mode. Database connections disabled to prevent crashes.");
@@ -357,7 +358,7 @@ async function initUsersTable() {
         await session.describeTable("artist_tracks");
         console.log("[YDB] artist_tracks table OK");
       } catch {
-        console.warn("[YDB] artist_tracks table not found — run CREATE TABLE from docs");
+        logWarn("[YDB] artist_tracks table not found — run CREATE TABLE from docs");
       }
 
       // ─── orders.partner_id: должен оставаться Utf8 ──────────────────────
@@ -370,7 +371,7 @@ async function initUsersTable() {
           const typeStr = JSON.stringify(partnerIdCol.type ?? {});
           const looksLikeUtf8 = typeStr.includes('"UTF8"') || typeStr.includes('"Utf8"') || typeStr.toLowerCase().includes("utf8");
           if (!looksLikeUtf8) {
-            console.error(
+            logError(
               "[YDB] ⚠ ВНИМАНИЕ: orders.partner_id больше НЕ Utf8! " +
               "Ожидался legacy-тип Utf8?, но обнаружен другой. " +
               "СРОЧНО проверить serializeOrderPartnerId/deserializeOrderPartnerId в server/storage.ts. " +
@@ -381,11 +382,11 @@ async function initUsersTable() {
           }
         }
       } catch (err: any) {
-        console.warn("[YDB] orders.partner_id self-check skipped:", err.message?.substring(0, 120));
+        logWarn("[YDB] orders.partner_id self-check skipped:", err.message?.substring(0, 120));
       }
     });
   } catch (err) {
-    console.error("[YDB] Failed to run schema checks:", err);
+    logError("[YDB] Failed to run schema checks:", err);
   }
 }
 

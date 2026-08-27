@@ -13,6 +13,7 @@
  * Интервал: раз в час (первый проход — через 15 секунд после старта сервера).
  */
 import { storage } from "./storage";
+import { logError, logWarn } from "./logger";
 import { vkNotifyNewOrder } from "./vk";
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;  // проверка каждый час
@@ -44,7 +45,7 @@ async function enrichColor(items: any[]): Promise<any[]> {
         return { ...it, color: productColor };
       }
     } catch (err: any) {
-      console.warn(`[VK Watcher] enrich color: failed to load product ${pid}:`, err?.message);
+      logWarn(`[VK Watcher] enrich color: failed to load product ${pid}:`, err?.message);
     }
     return it;
   }));
@@ -107,7 +108,7 @@ async function sendPendingVkNotifications(): Promise<void> {
       console.log(`[VK Watcher] Done, ${sent} order(s) notified`);
     }
   } catch (err: any) {
-    console.error("[VK Watcher] Error:", err?.message);
+    logError("[VK Watcher] Error:", err?.message);
   } finally {
     watcherRunning = false;
   }
@@ -121,13 +122,13 @@ export function startOrderNotifyWatcher(): void {
 
   setTimeout(() => {
     sendPendingVkNotifications().catch((err: any) =>
-      console.error("[VK Watcher] First run failed:", err?.message)
+      logError("[VK Watcher] First run failed:", err?.message)
     );
   }, FIRST_RUN_DELAY_MS);
 
   setInterval(() => {
     sendPendingVkNotifications().catch((err: any) =>
-      console.error("[VK Watcher] Run failed:", err?.message)
+      logError("[VK Watcher] Run failed:", err?.message)
     );
   }, CHECK_INTERVAL_MS);
 }

@@ -1,5 +1,6 @@
 // Admin endpoints for partner program: moderation, commissions, payouts, global %
 import { Router, Response } from 'express';
+import { logError, logWarn } from "./logger";
 import bcrypt from 'bcryptjs';
 import PDFDocument from 'pdfkit';
 import { createHash } from 'crypto';
@@ -123,7 +124,7 @@ router.get('/partners', authMiddleware, adminMiddleware, async (req: AuthRequest
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ partners: partnersWithStats });
   } catch (error: any) {
-    console.error('[Admin Partners] list error:', error);
+    logError('[Admin Partners] list error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка получения списка' });
   }
 });
@@ -166,11 +167,11 @@ router.patch('/partners/:id/status', authMiddleware, adminMiddleware, async (req
           }
         }
       } catch (emailErr: any) {
-        console.error('[Admin Partners] status email error:', emailErr?.message);
+        logError('[Admin Partners] status email error:', emailErr?.message);
       }
     }
   } catch (error: any) {
-    console.error('[Admin Partners] status error:', error);
+    logError('[Admin Partners] status error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка изменения статуса' });
   }
 });
@@ -193,7 +194,7 @@ router.patch('/partners/:id/commission', authMiddleware, adminMiddleware, async 
     const updated = await storage.getPartnerById(id);
     res.json({ success: true, partner: updated });
   } catch (error: any) {
-    console.error('[Admin Partners] commission override error:', error);
+    logError('[Admin Partners] commission override error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка обновления процента' });
   }
 });
@@ -213,7 +214,7 @@ router.get('/partner-commissions', authMiddleware, adminMiddleware, async (req: 
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ commissions });
   } catch (error: any) {
-    console.error('[Admin Partners] commissions error:', error);
+    logError('[Admin Partners] commissions error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка получения комиссий' });
   }
 });
@@ -251,7 +252,7 @@ router.post('/partner-commissions/confirm', authMiddleware, adminMiddleware, asy
     const okCount = results.filter(r => r.ok).length;
     res.json({ success: true, count: okCount, results });
   } catch (error: any) {
-    console.error('[Admin Partners] confirm error:', error);
+    logError('[Admin Partners] confirm error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка подтверждения' });
   }
 });
@@ -268,7 +269,7 @@ router.post('/partner-commissions/:id/cancel', authMiddleware, adminMiddleware, 
     await storage.updateCommissionStatus(id, 'cancelled');
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[Admin Partners] cancel error:', error);
+    logError('[Admin Partners] cancel error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка отмены' });
   }
 });
@@ -284,7 +285,7 @@ router.delete('/partner-commissions/:id', authMiddleware, adminMiddleware, async
     await storage.deleteCommission(id);
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[Admin Partners] deleteCommission error:', error);
+    logError('[Admin Partners] deleteCommission error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка удаления' });
   }
 });
@@ -312,7 +313,7 @@ router.post('/partner-commissions/mark-paid', authMiddleware, adminMiddleware, a
 
     res.json({ success: true, count: ids.length });
   } catch (error: any) {
-    console.error('[Admin Partners] mark-paid error:', error);
+    logError('[Admin Partners] mark-paid error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка отметки выплаты' });
   }
 });
@@ -390,7 +391,7 @@ router.post('/partner-commissions/payout', authMiddleware, adminMiddleware, asyn
     });
     res.json({ success: true, payout, count: commissionIds.length });
   } catch (error: any) {
-    console.error('[Admin Partners] payout error:', error);
+    logError('[Admin Partners] payout error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка создания выплаты' });
   } finally {
     // Замок снимаем ВСЕГДА — и при успехе, и при 4xx-ответе валидации,
@@ -407,7 +408,7 @@ router.get('/partner-payouts', authMiddleware, adminMiddleware, async (req: Auth
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ payouts });
   } catch (error: any) {
-    console.error('[Admin Partners] payouts list error:', error);
+    logError('[Admin Partners] payouts list error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка получения выплат' });
   }
 });
@@ -428,7 +429,7 @@ router.get('/partner-payouts/:id/invoice', authMiddleware, adminMiddleware, asyn
     res.setHeader('Content-Disposition', `inline; filename="invoice-${id}"`);
     res.send(file.buffer);
   } catch (error: any) {
-    console.error('[Admin Partners] invoice download error:', error);
+    logError('[Admin Partners] invoice download error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка' });
   }
 });
@@ -449,7 +450,7 @@ router.get('/partner-payouts/:id/act', authMiddleware, adminMiddleware, async (r
     res.setHeader('Content-Disposition', `inline; filename="act-${id}"`);
     res.send(file.buffer);
   } catch (error: any) {
-    console.error('[Admin Partners] act download error:', error);
+    logError('[Admin Partners] act download error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка' });
   }
 });
@@ -469,7 +470,7 @@ router.get('/partner-payouts/:id/receipt', authMiddleware, adminMiddleware, asyn
     res.setHeader('Content-Disposition', `inline; filename="receipt-${id}"`);
     res.send(file.buffer);
   } catch (error: any) {
-    console.error('[Admin Partners] receipt download error:', error);
+    logError('[Admin Partners] receipt download error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка' });
   }
 });
@@ -526,10 +527,10 @@ router.post('/partner-payouts/:id/mark-paid', authMiddleware, adminMiddleware, a
         });
       }
     } catch (notifyErr: any) {
-      console.error('[Admin Partners] mark-paid email error:', notifyErr?.message);
+      logError('[Admin Partners] mark-paid email error:', notifyErr?.message);
     }
   } catch (error: any) {
-    console.error('[Admin Partners] mark-paid error:', error);
+    logError('[Admin Partners] mark-paid error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка' });
   }
 });
@@ -572,7 +573,7 @@ router.post('/partner-payouts/:id/complete', authMiddleware, adminMiddleware, as
         }
       }
     } catch (e: any) {
-      console.error('[Admin Partners] complete: markCommissionsPaid error:', e?.message);
+      logError('[Admin Partners] complete: markCommissionsPaid error:', e?.message);
     }
 
     auditPayout(req, 'complete', id, {
@@ -597,10 +598,10 @@ router.post('/partner-payouts/:id/complete', authMiddleware, adminMiddleware, as
         });
       }
     } catch (notifyErr: any) {
-      console.error('[Admin Partners] complete email error:', notifyErr?.message);
+      logError('[Admin Partners] complete email error:', notifyErr?.message);
     }
   } catch (error: any) {
-    console.error('[Admin Partners] complete error:', error);
+    logError('[Admin Partners] complete error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка' });
   }
 });
@@ -658,12 +659,12 @@ router.post('/partner-payouts/:id/reject', authMiddleware, adminMiddleware, asyn
               await storage.updateCommissionStatus(n, 'confirmed');
               revertedIds.push(n);
             } catch (e: any) {
-              console.error(`[Admin Partners] reject: failed to revert commission #${n}:`, e?.message);
+              logError(`[Admin Partners] reject: failed to revert commission #${n}:`, e?.message);
             }
           }
         }
       } catch (e: any) {
-        console.error('[Admin Partners] reject: failed to parse commissionIds JSON:', e?.message);
+        logError('[Admin Partners] reject: failed to parse commissionIds JSON:', e?.message);
       }
     }
 
@@ -702,10 +703,10 @@ router.post('/partner-payouts/:id/reject', authMiddleware, adminMiddleware, asyn
         });
       }
     } catch (notifyErr: any) {
-      console.error('[Admin Partners] reject email error:', notifyErr?.message);
+      logError('[Admin Partners] reject email error:', notifyErr?.message);
     }
   } catch (error: any) {
-    console.error('[Admin Partners] reject error:', error);
+    logError('[Admin Partners] reject error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка' });
   }
 });
@@ -719,7 +720,7 @@ router.get('/partner-settings', authMiddleware, adminMiddleware, async (_req: Au
     ]);
     res.json({ globalPercent, holdDays });
   } catch (error: any) {
-    console.error('[Admin Partners] settings get error:', error);
+    logError('[Admin Partners] settings get error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка получения настроек' });
   }
 });
@@ -759,7 +760,7 @@ router.patch('/partner-settings', authMiddleware, adminMiddleware, async (req: A
     ]);
     res.json({ success: true, globalPercent, holdDays, updated: updates });
   } catch (error: any) {
-    console.error('[Admin Partners] settings set error:', error);
+    logError('[Admin Partners] settings set error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка обновления настроек' });
   }
 });
@@ -786,7 +787,7 @@ router.get('/legal-documents', authMiddleware, adminMiddleware, async (req: Auth
     }));
     res.json({ items: slim });
   } catch (e: any) {
-    console.error('[Admin Legal] list error:', e);
+    logError('[Admin Legal] list error:', e);
     res.status(500).json({ error: e?.message || 'Ошибка загрузки документов' });
   }
 });
@@ -797,7 +798,7 @@ router.get('/legal-documents/:id', authMiddleware, adminMiddleware, async (req: 
     if (!doc) return res.status(404).json({ error: 'Документ не найден' });
     res.json({ document: doc });
   } catch (e: any) {
-    console.error('[Admin Legal] get error:', e);
+    logError('[Admin Legal] get error:', e);
     res.status(500).json({ error: e?.message || 'Ошибка' });
   }
 });
@@ -826,7 +827,7 @@ router.post('/legal-documents', authMiddleware, adminMiddleware, async (req: Aut
     });
     res.json({ document: created });
   } catch (e: any) {
-    console.error('[Admin Legal] create error:', e);
+    logError('[Admin Legal] create error:', e);
     res.status(500).json({ error: e?.message || 'Ошибка публикации документа' });
   }
 });
@@ -843,7 +844,7 @@ router.get('/partners/:id/consent-signatures', authMiddleware, adminMiddleware, 
     }));
     res.json({ signatures });
   } catch (e: any) {
-    console.error('[Admin Legal] signatures error:', e);
+    logError('[Admin Legal] signatures error:', e);
     res.status(500).json({ error: e?.message || 'Ошибка' });
   }
 });
@@ -881,10 +882,10 @@ router.get('/partners/:id/legal-pdf', authMiddleware, adminMiddleware, async (re
         }
         doc.font('Cyr');
       } else {
-        console.warn('[Admin Legal PDF] Кириллический шрифт не найден:', regular);
+        logWarn('[Admin Legal PDF] Кириллический шрифт не найден:', regular);
       }
     } catch (e) {
-      console.warn('[Admin Legal PDF] Ошибка загрузки шрифта:', (e as any)?.message);
+      logWarn('[Admin Legal PDF] Ошибка загрузки шрифта:', (e as any)?.message);
     }
 
     // Шапка
@@ -943,7 +944,7 @@ router.get('/partners/:id/legal-pdf', authMiddleware, adminMiddleware, async (re
 
     doc.end();
   } catch (e: any) {
-    console.error('[Admin Legal PDF] error:', e);
+    logError('[Admin Legal PDF] error:', e);
     if (!res.headersSent) {
       res.status(500).json({ error: e?.message || 'Ошибка генерации PDF' });
     }
@@ -970,7 +971,7 @@ router.get('/partners/artists', authMiddleware, adminMiddleware, async (req: Aut
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.json({ artists });
   } catch (error: any) {
-    console.error('[Admin Artists] list error:', error);
+    logError('[Admin Artists] list error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка получения списка артистов' });
   }
 });
@@ -1029,7 +1030,7 @@ router.patch('/partners/:id/homepage', authMiddleware, adminMiddleware, async (r
     console.log(`[Admin Artists] Partner ${slug} homepage visibility set to ${visible} by ${req.user?.email || 'api-key'}`);
     res.json({ success: true, items: updatedItems });
   } catch (error: any) {
-    console.error('[Admin Artists] homepage toggle error:', error);
+    logError('[Admin Artists] homepage toggle error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка обновления видимости на главной' });
   }
 });
@@ -1050,7 +1051,7 @@ router.patch('/partners/:id/artist-rate', authMiddleware, adminMiddleware, async
     const updated = await storage.getPartnerById(id);
     res.json({ success: true, partner: updated });
   } catch (error: any) {
-    console.error('[Admin Artists] artist-rate error:', error);
+    logError('[Admin Artists] artist-rate error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка обновления процента артиста' });
   }
 });
@@ -1070,7 +1071,7 @@ router.patch('/partners/:id/artist', authMiddleware, adminMiddleware, async (req
     const updated = await storage.getPartnerById(id);
     res.json({ success: true, partner: updated });
   } catch (error: any) {
-    console.error('[Admin Artists] toggle error:', error);
+    logError('[Admin Artists] toggle error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка обновления статуса артиста' });
   }
 });
@@ -1165,7 +1166,7 @@ router.post('/partners/create-artist', authMiddleware, adminMiddleware, async (r
     const updated = await storage.getPartnerById(partner.id);
     res.json({ success: true, partner: updated });
   } catch (error: any) {
-    console.error('[Admin Artists] create-artist error:', error);
+    logError('[Admin Artists] create-artist error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка создания артиста' });
   }
 });
@@ -1182,7 +1183,7 @@ router.delete('/partners/:id', authMiddleware, adminMiddleware, async (req: Auth
     console.log(`[Admin Partners] Partner ${id} (${partner.partnerSlug}) deleted by ${req.user?.email || 'api-key'}`);
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[Admin Partners] delete error:', error);
+    logError('[Admin Partners] delete error:', error);
     res.status(500).json({ error: error?.message || 'Ошибка удаления партнёра' });
   }
 });

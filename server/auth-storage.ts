@@ -1,4 +1,5 @@
 import { driver } from "./db";
+import { logError } from "./logger";
 import { type User, type InsertUser } from "@shared/schema";
 import ydb from "ydb-sdk";
 
@@ -120,7 +121,7 @@ export class YdbAuthStorage implements IAuthStorage {
           continue;
         }
         
-        console.error("[YDB Auth Error]:", err.message || err);
+        logError("[YDB Auth Error]:", err.message || err);
         return null;
       }
     }
@@ -819,7 +820,7 @@ export class YdbAuthStorage implements IAuthStorage {
               console.log(`[Migration] Column ${col.name} already exists`);
             } else {
               results.push(`Error adding ${col.name}: ${msg}`);
-              console.error(`[Migration] Error adding ${col.name}:`, msg);
+              logError(`[Migration] Error adding ${col.name}:`, msg);
             }
           }
         }
@@ -827,7 +828,7 @@ export class YdbAuthStorage implements IAuthStorage {
 
       return { success: true, message: results.join('; ') };
     } catch (error) {
-      console.error('[Migration] Error:', error);
+      logError('[Migration] Error:', error);
       return { success: false, message: String(error) };
     }
   }

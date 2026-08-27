@@ -8,7 +8,9 @@
     "build": "node_modules/.bin/tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.966.0",
@@ -146,7 +148,8 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.22.5",
     "typescript": "^5.9.3",
-    "vite": "^7.3.6"
+    "vite": "^7.3.6",
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "axios": "^1.8.2",

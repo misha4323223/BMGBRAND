@@ -1,4 +1,5 @@
 import YooKassa from "yookassa";
+import { logError, logWarn } from "./logger";
 import crypto from "crypto";
 import { Agent } from "undici";
 
@@ -113,13 +114,13 @@ class PaymentService {
     if (method === "yookassa") {
       const result = await this.createYooKassaPayment(params);
       if (!result.success) {
-        console.error("[Payments] YooKassa payment failed:", result.error);
+        logError("[Payments] YooKassa payment failed:", result.error);
       }
       return result;
     } else if (method === "tbank") {
       const result = await this.createTBankPayment(params);
       if (!result.success) {
-        console.error("[Payments] T-Bank payment failed:", result.error);
+        logError("[Payments] T-Bank payment failed:", result.error);
       }
       return result;
     }
@@ -168,7 +169,7 @@ class PaymentService {
 
       return result;
     } catch (err: any) {
-      console.error("[YooKassa] Payment error:", err.message);
+      logError("[YooKassa] Payment error:", err.message);
       return { success: false, error: err.message };
     }
   }
@@ -301,7 +302,7 @@ class PaymentService {
       return { success: false, error: data.Message || data.Details || "T-Bank payment error" };
     } catch (err: any) {
       const cause = (err as any)?.cause;
-      console.error("[T-Bank] Payment error:", err.message,
+      logError("[T-Bank] Payment error:", err.message,
         cause ? `| cause: ${cause.message} (code=${cause.code})` : "");
       return { success: false, error: err.message };
     }
@@ -319,7 +320,7 @@ class PaymentService {
           metadata: payment.metadata,
         };
       } catch (err: any) {
-        console.error("[YooKassa] Get payment error:", err.message);
+        logError("[YooKassa] Get payment error:", err.message);
         return null;
       }
     }
@@ -361,9 +362,9 @@ class PaymentService {
             };
           }
 
-          console.warn(`[T-Bank] GetState returned Success=false for ${paymentId}: ${data.Message || data.Details || "unknown error"}`);
+          logWarn(`[T-Bank] GetState returned Success=false for ${paymentId}: ${data.Message || data.Details || "unknown error"}`);
         } catch (err: any) {
-          console.error(`[T-Bank] Get status error (attempt ${attempt}/3):`, err.message);
+          logError(`[T-Bank] Get status error (attempt ${attempt}/3):`, err.message);
         }
 
         if (attempt < 3) {
@@ -382,7 +383,7 @@ class PaymentService {
 
     // В dev-режиме whitelist отключён — иначе локальное тестирование невозможно
     if (process.env.NODE_ENV !== "production") {
-      console.warn("[YooKassa Webhook] Dev mode: IP whitelist skipped, ip=" + ip);
+      logWarn("[YooKassa Webhook] Dev mode: IP whitelist skipped, ip=" + ip);
       return true;
     }
 
@@ -402,7 +403,7 @@ class PaymentService {
     const ipInt = ipToInt(cleanIp);
 
     if (ipInt === null) {
-      console.warn("[YooKassa Webhook] Cannot parse IP:", ip);
+      logWarn("[YooKassa Webhook] Cannot parse IP:", ip);
       return false;
     }
 

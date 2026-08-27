@@ -9,6 +9,7 @@
  */
 
 import { Express, Request, Response } from 'express';
+import { logError } from "./logger";
 import multer from 'multer';
 import { storage } from './storage';
 
@@ -292,7 +293,7 @@ export function registerVirtualTryOnRoutes(app: Express): void {
         res.json({ resultUrl });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error('[VirtualTryOn] Ошибка:', msg);
+        logError('[VirtualTryOn] Ошибка:', msg);
 
         if (msg.includes('aborted') || msg.includes('abort')) {
           res.status(504).json({ error: 'Превышено время ожидания. HF Space, возможно, перегружен — попробуйте позже.' });

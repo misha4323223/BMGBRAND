@@ -1,3 +1,4 @@
+import { logError } from "./logger";
 type ProductId = number;
 
 // ── Co-purchase index ──────────────────────────────────────────────────────
@@ -103,7 +104,7 @@ export async function buildCoPurchaseIndex(storage: any): Promise<void> {
       `${pairCount} pairs from ${paidOrders.length} paid orders`
     );
   } catch (err: any) {
-    console.error('[Recommendations] Failed to build co-purchase index:', err?.message);
+    logError('[Recommendations] Failed to build co-purchase index:', err?.message);
   }
 }
 

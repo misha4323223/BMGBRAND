@@ -1,4 +1,5 @@
 import { storage } from "./storage";
+import { logError, logWarn } from "./logger";
 import { authStorage } from "./auth-storage";
 import {
   addToQueue,
@@ -36,7 +37,7 @@ async function acquireJobLock(key: string, windowMs: number): Promise<boolean> {
     await (storage as any).setBonusSetting(key, new Date().toISOString());
     return true;
   } catch (err: any) {
-    console.warn(`[AutonomousAgent] Job lock "${key}" error (proceeding anyway):`, err?.message);
+    logWarn(`[AutonomousAgent] Job lock "${key}" error (proceeding anyway):`, err?.message);
     return true; // fail-open: не блокируем джоб если YDB недоступна
   }
 }
@@ -125,7 +126,7 @@ async function groqComplete(
       if (err?.status === 429) {
         const waitMs = GROQ_429_WAIT_MS;
         lastError = new Error(`Groq 429 rate limit — stopping run until tomorrow`);
-        console.warn(`[AutonomousAgent] Groq 429 (attempt ${attempt + 1}/3) — waiting ${Math.round(waitMs / 1000)}s…`);
+        logWarn(`[AutonomousAgent] Groq 429 (attempt ${attempt + 1}/3) — waiting ${Math.round(waitMs / 1000)}s…`);
         await sleep(waitMs);
         requestsThisMinute = 0;
         minuteWindowStart = Date.now();
@@ -279,13 +280,13 @@ ${isPrint ? "ВАЖНО: это товар с авторским принтом,
         const jsonMatch = raw.match(/\{[\s\S]*?\}/);
         parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
       } catch {
-        console.warn(`[AutonomousAgent] SEO JSON parse failed for ${product.id}, raw: ${raw.slice(0, 100)}`);
+        logWarn(`[AutonomousAgent] SEO JSON parse failed for ${product.id}, raw: ${raw.slice(0, 100)}`);
         errors++;
         continue;
       }
 
       if (!parsed.seoTitle && !parsed.seoDescription) {
-        console.warn(`[AutonomousAgent] SEO empty result for ${product.id}`);
+        logWarn(`[AutonomousAgent] SEO empty result for ${product.id}`);
         errors++;
         continue;
       }
@@ -304,7 +305,7 @@ ${isPrint ? "ВАЖНО: это товар с авторским принтом,
         isAuto: true,
       });
     } catch (e: any) {
-      console.error(`[AutonomousAgent] SEO error for product ${product.id}:`, e?.message);
+      logError(`[AutonomousAgent] SEO error for product ${product.id}:`, e?.message);
       errors++;
     }
   }
@@ -426,7 +427,7 @@ export async function runStaleProductsJob(): Promise<void> {
 
       await sleep(500);
     } catch (e: any) {
-      console.error(`[AutonomousAgent] Stale queue error for ${p.id}:`, e?.message);
+      logError(`[AutonomousAgent] Stale queue error for ${p.id}:`, e?.message);
     }
   }
 
@@ -510,7 +511,7 @@ export async function runDescriptionJob(): Promise<void> {
 
       queued++;
     } catch (e: any) {
-      console.error(`[AutonomousAgent] Description error for ${product.id}:`, e?.message);
+      logError(`[AutonomousAgent] Description error for ${product.id}:`, e?.message);
     }
   }
 
@@ -652,7 +653,7 @@ export async function runWeeklyDigest(force = false): Promise<void> {
         `Критический остаток (1 шт.): ${criticalStock} товаров.`;
       aiComment = await groqComplete(digestSummaryForAi, DIGEST_AI_SYSTEM, 1500);
     } catch (aiErr: any) {
-      console.warn("[AutonomousAgent] Weekly digest: AI comment failed —", aiErr?.message);
+      logWarn("[AutonomousAgent] Weekly digest: AI comment failed —", aiErr?.message);
     }
 
     const dateStr = new Date().toLocaleDateString("ru-RU", {
@@ -702,7 +703,7 @@ export async function runWeeklyDigest(force = false): Promise<void> {
       isAuto: true,
     });
   } catch (e: any) {
-    console.error("[AutonomousAgent] Weekly digest error:", e?.message);
+    logError("[AutonomousAgent] Weekly digest error:", e?.message);
   }
 }
 
@@ -785,7 +786,7 @@ export async function runCartAnalysisJob(): Promise<void> {
         }
         await sleep(80);
       } catch (e: any) {
-        console.warn(`[AutonomousAgent] Cart analysis: error reading session ${sessionId}:`, e?.message);
+        logWarn(`[AutonomousAgent] Cart analysis: error reading session ${sessionId}:`, e?.message);
       }
     }
 
@@ -948,7 +949,7 @@ export async function runCartAnalysisJob(): Promise<void> {
 
     console.log(`[AutonomousAgent] Cart analysis done. Sessions: ${sessions.length}, products: ${cartMap.size}, promo targets: ${promoTargets.length}`);
   } catch (e: any) {
-    console.error("[AutonomousAgent] Cart analysis error:", e?.message);
+    logError("[AutonomousAgent] Cart analysis error:", e?.message);
   }
 }
 
@@ -991,7 +992,7 @@ export async function runAutonomousAgent(): Promise<void> {
       lastRun: new Date().toISOString(),
       lastResult: `Ошибка: ${e?.message}`,
     };
-    console.error("[AutonomousAgent] Master run error:", e?.message);
+    logError("[AutonomousAgent] Master run error:", e?.message);
   }
 }
 
@@ -1079,7 +1080,7 @@ export async function runChatGapAnalysisJob(): Promise<void> {
         });
         queued++;
       } catch (e: any) {
-        console.error(`[AutonomousAgent] Chat gap draft error for "${word}":`, e?.message);
+        logError(`[AutonomousAgent] Chat gap draft error for "${word}":`, e?.message);
       }
     }
 
@@ -1101,7 +1102,7 @@ export async function runChatGapAnalysisJob(): Promise<void> {
 
     console.log(`[AutonomousAgent] Chat gap done. Unmatched: ${recent.length}, queued: ${queued}`);
   } catch (e: any) {
-    console.error("[AutonomousAgent] Chat gap analysis error:", e?.message);
+    logError("[AutonomousAgent] Chat gap analysis error:", e?.message);
   }
 }
 
@@ -1205,7 +1206,7 @@ export async function runChatConversionAnalysisJob(): Promise<void> {
 
     console.log(`[AutonomousAgent] Chat conversion done. Sessions: ${totalChatSessions}, rate: ${conversionRate}%`);
   } catch (e: any) {
-    console.error("[AutonomousAgent] Chat conversion analysis error:", e?.message);
+    logError("[AutonomousAgent] Chat conversion analysis error:", e?.message);
   }
 }
 
@@ -1332,7 +1333,7 @@ export async function runPredictiveRetentionJob(): Promise<void> {
 
     console.log(`[AutonomousAgent] Retention done: ${totalUsers} users in ${segments.length} segments.`);
   } catch (e: any) {
-    console.error("[AutonomousAgent] Retention job error:", e?.message);
+    logError("[AutonomousAgent] Retention job error:", e?.message);
   }
 }
 
@@ -1540,7 +1541,7 @@ export async function runFavoritesAnalysisJob(): Promise<void> {
 
     console.log(`[AutonomousAgent] Favorites analysis done. Users: ${userFavMap.size}, promo targets: ${promoTargets.length}`);
   } catch (e: any) {
-    console.error("[AutonomousAgent] Favorites analysis error:", e?.message);
+    logError("[AutonomousAgent] Favorites analysis error:", e?.message);
   }
 }
 
@@ -1732,7 +1733,7 @@ export async function runPriceDropAnalysisJob(force = false): Promise<void> {
 
     console.log(`[AutonomousAgent] Price drop analysis done. Products: ${top.length}, subscribers: ${totalSubs}`);
   } catch (e: any) {
-    console.error("[AutonomousAgent] Price drop analysis error:", e?.message);
+    logError("[AutonomousAgent] Price drop analysis error:", e?.message);
   }
 }
 
@@ -1750,7 +1751,7 @@ export function initAutonomousAgent(): void {
 
   const runSeoSafe = () =>
     runAutonomousAgent().catch((e: any) =>
-      console.error("[AutonomousAgent] SEO job unhandled error:", e?.message)
+      logError("[AutonomousAgent] SEO job unhandled error:", e?.message)
     );
 
   setTimeout(() => {
@@ -1769,7 +1770,7 @@ export function initAutonomousAgent(): void {
     runAlertsJob()
       .then(() => runWeeklyDigest())
       .catch((e: any) =>
-        console.error("[AutonomousAgent] Monday job unhandled error:", e?.message)
+        logError("[AutonomousAgent] Monday job unhandled error:", e?.message)
       );
 
   setTimeout(() => {
@@ -1787,7 +1788,7 @@ export function initAutonomousAgent(): void {
 
   const runCartSafe = () =>
     runCartAnalysisJob().catch((e: any) =>
-      console.error("[AutonomousAgent] Sunday cart analysis unhandled error:", e?.message)
+      logError("[AutonomousAgent] Sunday cart analysis unhandled error:", e?.message)
     );
 
   setTimeout(() => {
@@ -1804,7 +1805,7 @@ export function initAutonomousAgent(): void {
 
   const runStaleSafe = () =>
     runStaleProductsJob().catch((e: any) =>
-      console.error("[AutonomousAgent] Sunday stale products unhandled error:", e?.message)
+      logError("[AutonomousAgent] Sunday stale products unhandled error:", e?.message)
     );
 
   setTimeout(() => {
@@ -1821,7 +1822,7 @@ export function initAutonomousAgent(): void {
 
   const runGapSafe = () =>
     runChatGapAnalysisJob().catch((e: any) =>
-      console.error("[AutonomousAgent] Chat gap analysis unhandled error:", e?.message)
+      logError("[AutonomousAgent] Chat gap analysis unhandled error:", e?.message)
     );
 
   setTimeout(() => {
@@ -1839,7 +1840,7 @@ export function initAutonomousAgent(): void {
 
   const runRetentionSafe = () =>
     runPredictiveRetentionJob().catch((e: any) =>
-      console.error("[AutonomousAgent] Retention job unhandled error:", e?.message)
+      logError("[AutonomousAgent] Retention job unhandled error:", e?.message)
     );
 
   setTimeout(() => {
@@ -1857,7 +1858,7 @@ export function initAutonomousAgent(): void {
 
   const runConversionSafe = () =>
     runChatConversionAnalysisJob().catch((e: any) =>
-      console.error("[AutonomousAgent] Chat conversion unhandled error:", e?.message)
+      logError("[AutonomousAgent] Chat conversion unhandled error:", e?.message)
     );
 
   setTimeout(() => {
@@ -1875,7 +1876,7 @@ export function initAutonomousAgent(): void {
 
   const runFavoritesSafe = () =>
     runFavoritesAnalysisJob().catch((e: any) =>
-      console.error("[AutonomousAgent] Favorites analysis unhandled error:", e?.message)
+      logError("[AutonomousAgent] Favorites analysis unhandled error:", e?.message)
     );
 
   setTimeout(() => {
@@ -1893,7 +1894,7 @@ export function initAutonomousAgent(): void {
 
   const runPriceDropSafe = () =>
     runPriceDropAnalysisJob().catch((e: any) =>
-      console.error("[AutonomousAgent] Price drop analysis unhandled error:", e?.message)
+      logError("[AutonomousAgent] Price drop analysis unhandled error:", e?.message)
     );
 
   setTimeout(() => {

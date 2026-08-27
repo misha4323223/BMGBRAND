@@ -15,6 +15,7 @@
  */
 
 import { storage } from "./storage";
+import { logError } from "./logger";
 import { queuePreorderStatusEmail } from "./lib/preorder-email-buffer";
 import { notifyPreorderStatusChange } from "./telegram";
 import { vkNotifyPreorderStatusChange } from "./vk";
@@ -147,12 +148,12 @@ export async function runPreorderStatusCheck(): Promise<void> {
         for (const o of productOrders) {
           createCdekWaybillForOrder(o.id)
             .then(r => console.log(`[PreorderScheduler] Waybill #${o.id}: ${r.success ? "OK uuid=" + r.uuid : "FAIL " + r.error}`))
-            .catch(err => console.error(`[PreorderScheduler] Waybill error #${o.id}:`, err.message));
+            .catch(err => logError(`[PreorderScheduler] Waybill error #${o.id}:`, err.message));
         }
       }
     }
   } catch (err: any) {
-    console.error("[PreorderScheduler] Unexpected error in runPreorderStatusCheck:", err.message);
+    logError("[PreorderScheduler] Unexpected error in runPreorderStatusCheck:", err.message);
   }
 }
 

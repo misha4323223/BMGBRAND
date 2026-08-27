@@ -1,4 +1,5 @@
 import { storage } from './storage';
+import { logError } from "./logger";
 import { authStorage } from './auth-storage';
 import { sendEmail, getReviewPromoEmailHtml } from './email';
 
@@ -56,7 +57,7 @@ async function findRewardableOrder(userId: number, email: string, productId: num
     const byUser = await storage.getOrdersByUserId(userId);
     if (Array.isArray(byUser)) orders.push(...byUser);
   } catch (e: any) {
-    console.error('[ReviewPromo] getOrdersByUserId failed:', e?.message);
+    logError('[ReviewPromo] getOrdersByUserId failed:', e?.message);
   }
   try {
     const byEmail = await storage.getOrdersByEmail(email);
@@ -66,7 +67,7 @@ async function findRewardableOrder(userId: number, email: string, productId: num
       }
     }
   } catch (e: any) {
-    console.error('[ReviewPromo] getOrdersByEmail failed:', e?.message);
+    logError('[ReviewPromo] getOrdersByEmail failed:', e?.message);
   }
 
   // getOrdersBy* уже сортируют по created_at DESC — берём первый подходящий
@@ -158,9 +159,9 @@ export async function onReviewApproved(
           expiresAt,
         }),
       });
-      if (!ok) console.error(`[ReviewPromo] Email failed for ${email} (code ${code})`);
+      if (!ok) logError(`[ReviewPromo] Email failed for ${email} (code ${code})`);
     } catch (e: any) {
-      console.error(`[ReviewPromo] Email error for ${email}:`, e?.message);
+      logError(`[ReviewPromo] Email error for ${email}:`, e?.message);
     }
 
     console.log(
@@ -168,7 +169,7 @@ export async function onReviewApproved(
     );
     return { issued: true, reason: 'ok', code };
   } catch (e: any) {
-    console.error(`[ReviewPromo] Failed for review ${reviewId}:`, e?.message);
+    logError(`[ReviewPromo] Failed for review ${reviewId}:`, e?.message);
     return { issued: false, reason: 'error' };
   }
 }
@@ -190,7 +191,7 @@ export async function canEarnReviewPromo(
     if (await storage.getBonusSetting(orderKey)) return false;
     return true;
   } catch (e: any) {
-    console.error('[ReviewPromo] canEarnReviewPromo failed:', e?.message);
+    logError('[ReviewPromo] canEarnReviewPromo failed:', e?.message);
     return false;
   }
 }

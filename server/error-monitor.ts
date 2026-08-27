@@ -1,4 +1,5 @@
 import { sendAgentAlert } from "./telegram";
+import { logError } from "./logger";
 import { vkNotifyAgentAlert } from "./vk";
 
 // Rate limiter: не спамим одной и той же ошибкой чаще раза в 5 минут
@@ -52,7 +53,7 @@ export function notifyError(category: string, message: string, details?: string)
 
   // Telegram
   sendAgentAlert(text).catch(err =>
-    console.error("[ErrorMonitor] TG send failed:", err?.message)
+    logError("[ErrorMonitor] TG send failed:", err?.message)
   );
 
   // VK (plain text — VK не поддерживает HTML)

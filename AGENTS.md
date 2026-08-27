@@ -117,6 +117,16 @@
 - Merch sub-subcategory slugs repeat across parents (`futbolki`, `noski`,
   `xudi`, `shorts`, `aksessuary`). That is fine — they are scoped per parent
   subcategory, not globally unique.
+- **`bonus_settings` накапливает дубли строк**: старая версия `setBonusSetting`
+  писала новые строки с id = Date.now() (каждое сохранение = новая строка),
+  текущая пишет в детерминированную строку с id = hash(key). Поэтому у одного ключа
+  могут лежать десятки копий. `getBonusSetting` берёт `ORDER BY updated_at DESC LIMIT 1`
+  (свежая строка — правильно), а `getAllBonusSettings` (`SELECT key, value`) показывает
+  произвольную старую копию — расхождение вида «панель показывает мёртвый ID, а сайт работает».
+  Чистка: `DELETE FROM bonus_settings WHERE key = "..."` (остаётся пусто → фолбэк/инициализатор).
+- `popup_promo_id`/`homepage_promo_id` (2026-08-26) были вычищены от дублей и сейчас
+  пустые → сайт берёт фолбэк WELCOME10/WELCOME7; при рестарте инициализатор (routes.ts)
+  сам записывает валидные ID первого здорового кода.
 
 ## Preview / dev server (как запускать с переменными)
 - Preview-раннер Freebuff выполняет сервер ТАК (подтверждено по логам):

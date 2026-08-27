@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { logError } from "./logger";
 import { storage } from "./storage";
 
 const SITE_URL = process.env.SITE_URL || "https://www.booomerangs.ru";
@@ -39,7 +40,7 @@ export function generateActionLink(act: string, id: number): string {
 export function verifyActionLink(act: string, id: string, exp: string, sig: string): boolean {
   const { secret } = getConfig();
   if (!secret) {
-    console.error("[VK] VK_ACTION_SECRET not configured — rejecting action link");
+    logError("[VK] VK_ACTION_SECRET not configured — rejecting action link");
     return false;
   }
   const now = Math.floor(Date.now() / 1000);
@@ -78,19 +79,19 @@ async function sendVkMessage(text: string): Promise<boolean> {
     try {
       data = JSON.parse(raw);
     } catch {
-      console.error("[VK] Non-JSON response:", raw.slice(0, 120));
+      logError("[VK] Non-JSON response:", raw.slice(0, 120));
       return false;
     }
 
     if (data.error) {
-      console.error("[VK] Send error:", data.error.error_msg);
+      logError("[VK] Send error:", data.error.error_msg);
       return false;
     }
 
     console.log("[VK] Notification sent, message_id:", data.response);
     return true;
   } catch (error: any) {
-    console.error("[VK] Failed to send:", error.message);
+    logError("[VK] Failed to send:", error.message);
     return false;
   }
 }
@@ -259,7 +260,7 @@ export async function vkNotifyNewOrder(order: OrderNotification): Promise<boolea
   markOrderVkNotified(order.orderId).catch(() => {});
   return true;
   } catch (err: any) {
-    console.error("[VK] vkNotifyNewOrder failed:", err?.message);
+    logError("[VK] vkNotifyNewOrder failed:", err?.message);
     return false;
   }
 }
@@ -284,7 +285,7 @@ export async function markOrderVkNotified(orderId: number | string): Promise<voi
     }
     await storage.updateOrderAddonData(nid, JSON.stringify({ ...existing, vkNotifiedAt: new Date().toISOString() }));
   } catch (err: any) {
-    console.error(`[VK] Failed to save vkNotifiedAt for order ${orderId}:`, err?.message);
+    logError(`[VK] Failed to save vkNotifiedAt for order ${orderId}:`, err?.message);
   }
 }
 
@@ -331,12 +332,12 @@ export function vkNotifyPreorderDeposit(data: PreorderNotification): void {
     } catch {}
   }
 
-  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyPreorderDeposit failed:", err));
+  sendVkMessage(text).catch(err => logError("[VK] vkNotifyPreorderDeposit failed:", err));
 }
 
 export function vkNotifyPreorderGoalReached(productName: string, goal: number, productId: number): void {
   const text = `🎉 ЦЕЛЬ ПРЕДЗАКАЗА ДОСТИГНУТА!\n${productName} (ID: ${productId})\nСобрано: ${goal}/${goal} — переход в производство`;
-  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyPreorderGoalReached failed:", err));
+  sendVkMessage(text).catch(err => logError("[VK] vkNotifyPreorderGoalReached failed:", err));
 }
 
 export function vkNotifyPreorderStatusChange(productName: string, productId: number, oldStatus: string, newStatus: string): void {
@@ -344,7 +345,7 @@ export function vkNotifyPreorderStatusChange(productName: string, productId: num
     collecting: "Сбор", funded: "Цель", production: "Производство", shipping: "Отправка", shipped: "Отправлено", cancelled: "Отмена",
   };
   const text = `🔄 Статус предзаказа\n${productName} (ID: ${productId})\n${s[oldStatus] || oldStatus} → ${s[newStatus] || newStatus}`;
-  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyPreorderStatusChange failed:", err));
+  sendVkMessage(text).catch(err => logError("[VK] vkNotifyPreorderStatusChange failed:", err));
 }
 
 interface WholesaleRegistration {
@@ -371,7 +372,7 @@ export function vkNotifyWholesaleRegistration(data: WholesaleRegistration): void
   text += `\n\n✅ Принять:\n${generateActionLink("wh_approve", data.userId)}`;
   text += `\n\n❌ Отклонить:\n${generateActionLink("wh_reject", data.userId)}`;
 
-  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyWholesaleRegistration failed:", err));
+  sendVkMessage(text).catch(err => logError("[VK] vkNotifyWholesaleRegistration failed:", err));
 }
 
 export function vkNotifyMerchOrder(data: {
@@ -393,7 +394,7 @@ export function vkNotifyMerchOrder(data: {
     `📞 Контакт: ${data.contact}` +
     messageLine;
 
-  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyMerchOrder failed:", err));
+  sendVkMessage(text).catch(err => logError("[VK] vkNotifyMerchOrder failed:", err));
 }
 
 export function vkNotifyNewReview(data: {
@@ -418,7 +419,7 @@ export function vkNotifyNewReview(data: {
   // линк-превью VK выполняет GET по таким ссылкам без участия человека.
   text += `\n\n✅ Модерация отзыва — в админке сайта (раздел «Отзывы»).`;
 
-  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyNewReview failed:", err));
+  sendVkMessage(text).catch(err => logError("[VK] vkNotifyNewReview failed:", err));
 }
 
 export function vkNotifyPartnerFeedback(data: {
@@ -438,7 +439,7 @@ export function vkNotifyPartnerFeedback(data: {
     `📌 Тип: ${label}\n\n` +
     `📝 ${data.message}`;
 
-  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyPartnerFeedback failed:", err));
+  sendVkMessage(text).catch(err => logError("[VK] vkNotifyPartnerFeedback failed:", err));
 }
 
 // ============================================
@@ -479,7 +480,7 @@ export async function sendVkChatNotification(
 
     const data = await response.json() as any;
     if (data.error) {
-      console.error("[VK Chat] Send error:", data.error.error_msg);
+      logError("[VK Chat] Send error:", data.error.error_msg);
       return null;
     }
 
@@ -487,7 +488,7 @@ export async function sendVkChatNotification(
     console.log(`[VK Chat] Sent for session ${sessionId.slice(0, 8)}, vk_message_id=${messageId}`);
     return messageId;
   } catch (err: any) {
-    console.error("[VK Chat] Failed:", err.message);
+    logError("[VK Chat] Failed:", err.message);
     return null;
   }
 }
@@ -505,7 +506,7 @@ export function startVkLongPoll(
   }
   longPollActive = true;
   runLongPoll(onReply).catch(err => {
-    console.error("[VK LongPoll] Fatal error:", err.message);
+    logError("[VK LongPoll] Fatal error:", err.message);
     longPollActive = false;
   });
 }
@@ -530,7 +531,7 @@ async function runLongPoll(
   try {
     lpParams = await getLongPollServer();
   } catch (err: any) {
-    console.error("[VK LongPoll] Could not get server params:", err.message);
+    logError("[VK LongPoll] Could not get server params:", err.message);
     longPollActive = false;
     return;
   }
@@ -557,7 +558,7 @@ async function runLongPoll(
           try {
             ({ key, server, ts } = await getLongPollServer());
           } catch (err: any) {
-            console.error("[VK LongPoll] getLongPollServer error:", err.message);
+            logError("[VK LongPoll] getLongPollServer error:", err.message);
             await new Promise(r => setTimeout(r, 5000));
           }
         }
@@ -617,11 +618,11 @@ async function runLongPoll(
           console.log(`[VK LongPoll] Reply to vk_msg_id=${replyMsg.id}: "${replyText.slice(0, 60)}"`);
           await onReply(replyMsg.id as number, replyText, adminName);
         } catch (err: any) {
-          console.error("[VK LongPoll] Error processing message:", err.message);
+          logError("[VK LongPoll] Error processing message:", err.message);
         }
       }
     } catch (err: any) {
-      console.error("[VK LongPoll] Poll error:", err.message);
+      logError("[VK LongPoll] Poll error:", err.message);
       await new Promise(r => setTimeout(r, 5000));
       try {
         ({ key, server, ts } = await getLongPollServer());
@@ -652,13 +653,13 @@ export function vkNotifyAddonOrderPaid(order: {
   });
   text += sep;
   text += `Доплата: ${(addedTotal / 100).toLocaleString('ru-RU')} ₽\n⚠️ Накладная CDEK обновляется`;
-  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyAddonOrderPaid failed:", err));
+  sendVkMessage(text).catch(err => logError("[VK] vkNotifyAddonOrderPaid failed:", err));
 }
 
 export function vkNotifyAgentAlert(text: string): void {
-  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyAgentAlert failed:", err));
+  sendVkMessage(text).catch(err => logError("[VK] vkNotifyAgentAlert failed:", err));
 }
 
 export function vkNotifyAgentDigest(text: string): void {
-  sendVkMessage(text).catch(err => console.error("[VK] vkNotifyAgentDigest failed:", err));
+  sendVkMessage(text).catch(err => logError("[VK] vkNotifyAgentDigest failed:", err));
 }

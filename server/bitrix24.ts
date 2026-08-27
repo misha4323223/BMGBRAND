@@ -1,4 +1,5 @@
 import { extractColorFromName } from './categoryMapper';
+import { logError, logWarn } from "./logger";
 
 const BITRIX24_WEBHOOK_URL = process.env.BITRIX24_WEBHOOK_URL || '';
 
@@ -87,13 +88,13 @@ async function callBitrix(method: string, params: Record<string, any> = {}): Pro
 
     if (!response.ok) {
       const text = await response.text();
-      console.error(`[Bitrix24] HTTP ${response.status}: ${text}`);
+      logError(`[Bitrix24] HTTP ${response.status}: ${text}`);
       return { error: `http_${response.status}`, error_description: text };
     }
 
     return response.json();
   } catch (err: any) {
-    console.error(`[Bitrix24] Network error calling ${method}:`, err.message);
+    logError(`[Bitrix24] Network error calling ${method}:`, err.message);
     return { error: 'network_error', error_description: err.message };
   }
 }
@@ -113,7 +114,7 @@ async function downloadImageAsBase64(imageUrl: string): Promise<{ base64: string
 
     return { base64, filename };
   } catch (err: any) {
-    console.warn(`[Bitrix24] Failed to download image: ${err.message}`);
+    logWarn(`[Bitrix24] Failed to download image: ${err.message}`);
     return null;
   }
 }
@@ -166,14 +167,14 @@ async function findOrCreateBitrixProduct(item: OrderItem): Promise<number | null
 
     return null;
   } catch (err: any) {
-    console.warn(`[Bitrix24] Error creating product: ${err.message}`);
+    logWarn(`[Bitrix24] Error creating product: ${err.message}`);
     return null;
   }
 }
 
 async function findOrCreateContact(name: string, email: string, phone: string): Promise<number | null> {
   if (!email && !phone) {
-    console.warn('[Bitrix24] No email or phone provided, skipping contact creation');
+    logWarn('[Bitrix24] No email or phone provided, skipping contact creation');
     return null;
   }
 
@@ -210,10 +211,10 @@ async function findOrCreateContact(name: string, email: string, phone: string): 
       return contactId;
     }
 
-    console.error('[Bitrix24] Failed to create contact:', createResult.error_description || createResult.error);
+    logError('[Bitrix24] Failed to create contact:', createResult.error_description || createResult.error);
     return null;
   } catch (err: any) {
-    console.error('[Bitrix24] Error in findOrCreateContact:', err.message);
+    logError('[Bitrix24] Error in findOrCreateContact:', err.message);
     return null;
   }
 }
@@ -251,7 +252,7 @@ interface WholesaleRegistration {
 
 export async function sendWholesaleRegistrationToBitrix(data: WholesaleRegistration): Promise<{ success: boolean; leadId?: number; error?: string }> {
   if (!BITRIX24_WEBHOOK_URL) {
-    console.warn('[Bitrix24] Webhook URL not configured, skipping wholesale registration notification');
+    logWarn('[Bitrix24] Webhook URL not configured, skipping wholesale registration notification');
     return { success: false, error: 'not_configured' };
   }
 
@@ -294,17 +295,17 @@ export async function sendWholesaleRegistrationToBitrix(data: WholesaleRegistrat
       return { success: true, leadId };
     }
 
-    console.error('[Bitrix24] Failed to create wholesale lead:', result.error_description || result.error);
+    logError('[Bitrix24] Failed to create wholesale lead:', result.error_description || result.error);
     return { success: false, error: result.error_description || result.error || 'unknown' };
   } catch (err: any) {
-    console.error('[Bitrix24] Error sending wholesale registration:', err.message);
+    logError('[Bitrix24] Error sending wholesale registration:', err.message);
     return { success: false, error: err.message };
   }
 }
 
 export async function sendOrderToBitrix(order: OrderForBitrix): Promise<{ success: boolean; dealId?: number; error?: string }> {
   if (!BITRIX24_WEBHOOK_URL) {
-    console.warn('[Bitrix24] Webhook URL not configured, skipping order sync');
+    logWarn('[Bitrix24] Webhook URL not configured, skipping order sync');
     return { success: false, error: 'not_configured' };
   }
 
@@ -345,7 +346,7 @@ export async function sendOrderToBitrix(order: OrderForBitrix): Promise<{ succes
 
       if (Object.keys(contactUpdate).length > 0) {
         await callBitrix('crm.contact.update', { id: contactId, fields: contactUpdate }).catch((err: any) => {
-          console.warn('[Bitrix24] Failed to update contact:', err.message);
+          logWarn('[Bitrix24] Failed to update contact:', err.message);
         });
         console.log(`[Bitrix24] Contact ID=${contactId} updated with wholesale data`);
       }
@@ -388,7 +389,7 @@ export async function sendOrderToBitrix(order: OrderForBitrix): Promise<{ succes
         if (existingCompany.result && existingCompany.result.length > 0) {
           companyId = Number(existingCompany.result[0].ID);
           await callBitrix('crm.company.update', { id: companyId, fields: companyFields }).catch((err: any) => {
-            console.warn('[Bitrix24] Failed to update company:', err.message);
+            logWarn('[Bitrix24] Failed to update company:', err.message);
           });
           console.log(`[Bitrix24] Company ID=${companyId} updated with wholesale data`);
         } else {
@@ -452,7 +453,7 @@ export async function sendOrderToBitrix(order: OrderForBitrix): Promise<{ succes
     const dealResult = await callBitrix('crm.deal.add', { fields: dealFields });
 
     if (!dealResult.result) {
-      console.error('[Bitrix24] Failed to create deal:', dealResult.error_description || dealResult.error);
+      logError('[Bitrix24] Failed to create deal:', dealResult.error_description || dealResult.error);
       return { success: false, error: dealResult.error_description || dealResult.error || 'unknown' };
     }
 
@@ -509,14 +510,14 @@ export async function sendOrderToBitrix(order: OrderForBitrix): Promise<{ succes
     });
 
     if (rowsResult.error) {
-      console.warn(`[Bitrix24] Product rows set warning for deal ${dealId}:`, rowsResult.error_description);
+      logWarn(`[Bitrix24] Product rows set warning for deal ${dealId}:`, rowsResult.error_description);
     } else {
       console.log(`[Bitrix24] Product rows added to deal ${dealId}: ${productRows.length} items`);
     }
 
     return { success: true, dealId };
   } catch (err: any) {
-    console.error(`[Bitrix24] Error sending order #${order.id}:`, err.message);
+    logError(`[Bitrix24] Error sending order #${order.id}:`, err.message);
     return { success: false, error: err.message };
   }
 }
@@ -534,7 +535,7 @@ export async function updateDealStage(dealId: number, stageId: string): Promise<
     }
     return !!result.result;
   } catch (err: any) {
-    console.error(`[Bitrix24] Error updating deal ${dealId} stage:`, err.message);
+    logError(`[Bitrix24] Error updating deal ${dealId} stage:`, err.message);
     return false;
   }
 }

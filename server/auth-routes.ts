@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { logError, logWarn } from "./logger";
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -128,7 +129,7 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
               (req as any).user.partnerStatus = partner.status;
             }
           } catch (err) {
-            console.error('[Auth] Failed to load partner data:', err);
+            logError('[Auth] Failed to load partner data:', err);
           }
         }
       }
@@ -216,7 +217,7 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
     try {
       await storage.mergeGuestOrdersToUser(user.id, email);
     } catch (mergeErr: any) {
-      console.error('[Auth] Guest order merge failed:', mergeErr?.message);
+      logError('[Auth] Guest order merge failed:', mergeErr?.message);
     }
     
     const verificationUrl = `${config.app.domain}/verify-email?token=${verificationToken}`;
@@ -231,7 +232,7 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
       requiresVerification: true,
     });
   } catch (error) {
-    console.error('[Auth] Register error:', error);
+    logError('[Auth] Register error:', error);
     res.status(500).json({ error: 'Ошибка регистрации' });
   }
 });
@@ -279,7 +280,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
       try {
         await storage.mergeGuestOrdersToUser(user.id, email);
       } catch (mergeErr: any) {
-        console.error('[Auth] Guest order merge failed:', mergeErr?.message);
+        logError('[Auth] Guest order merge failed:', mergeErr?.message);
       }
     }
 
@@ -308,7 +309,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('[Auth] Login error:', error);
+    logError('[Auth] Login error:', error);
     res.status(500).json({ error: 'Ошибка входа' });
   }
 });
@@ -325,7 +326,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
       req.user.loyaltyDiscount = recalculatedDiscount;
     }
   } catch (err) {
-    console.error(`[Auth] Loyalty recalc error for user ${req.user.id}:`, err);
+    logError(`[Auth] Loyalty recalc error for user ${req.user.id}:`, err);
   }
   
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -399,7 +400,7 @@ router.post('/wholesale/register', authLimiter, async (req: Request, res: Respon
       contactPerson,
       contactPhone,
     }).catch(err => {
-      console.error('[Auth] Failed to send wholesale registration to Bitrix24:', err);
+      logError('[Auth] Failed to send wholesale registration to Bitrix24:', err);
     });
 
     notifyWholesaleRegistration({
@@ -432,7 +433,7 @@ router.post('/wholesale/register', authLimiter, async (req: Request, res: Respon
       requiresVerification: true,
     });
   } catch (error) {
-    console.error('[Auth] Wholesale register error:', error);
+    logError('[Auth] Wholesale register error:', error);
     res.status(500).json({ error: 'Ошибка регистрации' });
   }
 });
@@ -496,7 +497,7 @@ async function getRequestSignatureContext(req: Request): Promise<{
         }
       }
     } catch (geoErr: any) {
-      console.warn('[Partner] GeoIP lookup failed (non-blocking):', geoErr?.message?.substring(0, 120));
+      logWarn('[Partner] GeoIP lookup failed (non-blocking):', geoErr?.message?.substring(0, 120));
     }
   }
   return { ip, remoteIp, userAgent, geoCountry, geoRegion, geoCity };
@@ -658,7 +659,7 @@ router.post('/partner/register', authLimiter, async (req: Request, res: Response
         html: getPartnerSignatureConfirmEmailHtml(contactName, confirmUrl),
       });
     } catch (e: any) {
-      console.error('[Partner Register] Не удалось отправить письмо-подтверждение', e?.message);
+      logError('[Partner Register] Не удалось отправить письмо-подтверждение', e?.message);
       // Не валим регистрацию: pending уже создан, пользователь увидит сообщение.
       // На прод-проверке придётся вручную пересоздать заявку.
     }
@@ -679,7 +680,7 @@ router.post('/partner/register', authLimiter, async (req: Request, res: Response
       expiresInMinutes: 60,
     });
   } catch (error) {
-    console.error('[Auth] Partner register error:', error);
+    logError('[Auth] Partner register error:', error);
     res.status(500).json({ error: 'Ошибка регистрации' });
   }
 });
@@ -872,7 +873,7 @@ router.post('/partner/confirm-signature', authLimiter, async (req: Request, res:
     if (!partner) {
       // Компенсирующий откат: убираем созданного user, чтобы заявку можно было подать заново
       try { await authStorage.deletePartnerUser(user.id); } catch (rb: any) {
-        console.error('[Partner Confirm] Откат учётки не удался, требуется ручная очистка users.id =', user.id, rb?.message);
+        logError('[Partner Confirm] Откат учётки не удался, требуется ручная очистка users.id =', user.id, rb?.message);
       }
       return res.status(500).json({ error: 'Ошибка создания партнёра' });
     }
@@ -901,7 +902,7 @@ router.post('/partner/confirm-signature', authLimiter, async (req: Request, res:
       contactName: String(p.contactName || ''),
     });
   } catch (error: any) {
-    console.error('[Auth] Partner confirm-signature error:', error);
+    logError('[Auth] Partner confirm-signature error:', error);
     res.status(500).json({ error: 'Ошибка подтверждения подписи' });
   }
 });
@@ -977,7 +978,7 @@ router.post('/partner/login', authLimiter, async (req: Request, res: Response) =
       },
     });
   } catch (error) {
-    console.error('[Auth] Partner login error:', error);
+    logError('[Auth] Partner login error:', error);
     res.status(500).json({ error: 'Ошибка входа' });
   }
 });
@@ -1009,7 +1010,7 @@ router.patch('/wholesale/profile', authMiddleware, async (req: AuthRequest, res:
     
     res.json({ message: 'Данные обновлены' });
   } catch (error) {
-    console.error('[Auth] Update wholesale profile error:', error);
+    logError('[Auth] Update wholesale profile error:', error);
     res.status(500).json({ error: 'Ошибка обновления профиля' });
   }
 });
@@ -1043,7 +1044,7 @@ router.post('/verify-email', async (req: Request, res: Response) => {
       token: authToken,
     });
   } catch (error) {
-    console.error('[Auth] Verify email error:', error);
+    logError('[Auth] Verify email error:', error);
     res.status(500).json({ error: 'Ошибка подтверждения email' });
   }
 });
@@ -1082,7 +1083,7 @@ router.post('/forgot-password', authLimiter, async (req: Request, res: Response)
     
     res.json({ message: 'Если email зарегистрирован, вы получите письмо.' });
   } catch (error) {
-    console.error('[Auth] Forgot password error:', error);
+    logError('[Auth] Forgot password error:', error);
     res.status(500).json({ error: 'Ошибка отправки письма' });
   }
 });
@@ -1108,7 +1109,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     
     res.json({ message: 'Пароль успешно изменён!' });
   } catch (error) {
-    console.error('[Auth] Reset password error:', error);
+    logError('[Auth] Reset password error:', error);
     res.status(500).json({ error: 'Ошибка сброса пароля' });
   }
 });
@@ -1142,7 +1143,7 @@ router.post('/resend-verification', async (req: Request, res: Response) => {
     
     res.json({ message: 'Письмо отправлено!' });
   } catch (error) {
-    console.error('[Auth] Resend verification error:', error);
+    logError('[Auth] Resend verification error:', error);
     res.status(500).json({ error: 'Ошибка отправки письма' });
   }
 });
@@ -1167,7 +1168,7 @@ router.get('/shipping-data', authMiddleware, async (req: AuthRequest, res: Respo
     }
     res.json({ shippingData: data });
   } catch (error) {
-    console.error('[Auth] Error getting shipping data:', error);
+    logError('[Auth] Error getting shipping data:', error);
     res.status(500).json({ error: 'Ошибка загрузки данных доставки' });
   }
 });
@@ -1201,7 +1202,7 @@ router.post('/shipping-data', authMiddleware, async (req: AuthRequest, res: Resp
       res.status(500).json({ error: 'Не удалось сохранить данные доставки' });
     }
   } catch (error) {
-    console.error('[Auth] Error saving shipping data:', error);
+    logError('[Auth] Error saving shipping data:', error);
     res.status(500).json({ error: 'Ошибка сохранения данных доставки' });
   }
 });
@@ -1231,7 +1232,7 @@ router.get('/orders', authMiddleware, async (req: AuthRequest, res: Response) =>
     console.log(`[Auth] orders for userId=${req.user.id} email=${req.user.email}: byId=${byUserId.length}, byEmail=${byEmail.length}, total=${orders.length}, ids: ${orders.map(o => o.id).join(', ')}`);
     res.json({ orders });
   } catch (error) {
-    console.error('[Auth] Get orders error:', error);
+    logError('[Auth] Get orders error:', error);
     res.status(500).json({ error: 'Ошибка получения заказов' });
   }
 });
@@ -1284,13 +1285,13 @@ router.post('/orders/:id/cancel', authMiddleware, async (req: AuthRequest, res: 
         to: adminEmail,
         subject: `Заказ #${orderId} отменён покупателем`,
         html: emailHtml,
-      }).catch(err => console.error(`[Email] Failed to notify ${adminEmail} about cancel:`, err));
+      }).catch(err => logError(`[Email] Failed to notify ${adminEmail} about cancel:`, err));
     }
     
     console.log(`[Auth] User ${req.user.id} cancelled order #${orderId}`);
     res.json({ success: true, message: 'Заказ отменён' });
   } catch (error) {
-    console.error('[Auth] Cancel order error:', error);
+    logError('[Auth] Cancel order error:', error);
     res.status(500).json({ error: 'Ошибка отмены заказа' });
   }
 });
@@ -1345,7 +1346,7 @@ router.post('/orders/:id/pay', authMiddleware, async (req: AuthRequest, res: Res
     });
 
     if (!paymentResult.success) {
-      console.error(`[Auth] Pay order #${orderId} payment failed:`, paymentResult.error);
+      logError(`[Auth] Pay order #${orderId} payment failed:`, paymentResult.error);
       return res.status(500).json({ error: paymentResult.error || 'Не удалось создать платёж' });
     }
 
@@ -1359,7 +1360,7 @@ router.post('/orders/:id/pay', authMiddleware, async (req: AuthRequest, res: Res
       confirmationToken: paymentResult.confirmationToken,
     });
   } catch (error: any) {
-    console.error('[Auth] Pay order error:', error);
+    logError('[Auth] Pay order error:', error);
     res.status(500).json({ error: 'Ошибка при оплате' });
   }
 });
@@ -1438,7 +1439,7 @@ router.get('/orders/:id/invoice', authMiddleware, async (req: AuthRequest, res: 
     res.setHeader('Content-Disposition', `attachment; filename="Schet_${invoiceNum}_zakaz_${orderId}.pdf"`);
     res.send(pdfBuffer);
   } catch (error) {
-    console.error('[Auth] Download invoice error:', error);
+    logError('[Auth] Download invoice error:', error);
     res.status(500).json({ error: 'Ошибка генерации документа' });
   }
 });
@@ -1473,7 +1474,7 @@ router.get('/orders/:id/upd', authMiddleware, async (req: AuthRequest, res: Resp
     res.setHeader('Content-Disposition', `attachment; filename="UPD_${invoiceNum}_zakaz_${orderId}.pdf"`);
     res.send(pdfBuffer);
   } catch (error) {
-    console.error('[Auth] Download UPD error:', error);
+    logError('[Auth] Download UPD error:', error);
     res.status(500).json({ error: 'Ошибка генерации документа' });
   }
 });
@@ -1508,7 +1509,7 @@ router.get('/orders/:id/torg12', authMiddleware, async (req: AuthRequest, res: R
     res.setHeader('Content-Disposition', `attachment; filename="TORG12_${invoiceNum}_zakaz_${orderId}.pdf"`);
     res.send(pdfBuffer);
   } catch (error) {
-    console.error('[Auth] Download TORG12 error:', error);
+    logError('[Auth] Download TORG12 error:', error);
     res.status(500).json({ error: 'Ошибка генерации документа' });
   }
 });
@@ -1594,7 +1595,7 @@ router.post('/orders/:id/refresh-tracking', authMiddleware, async (req: AuthRequ
       status: order.status,
     });
   } catch (error: any) {
-    console.error('[Auth] Refresh tracking error:', error.message);
+    logError('[Auth] Refresh tracking error:', error.message);
     res.status(500).json({ error: 'Ошибка обновления трекинга' });
   }
 });
@@ -1622,7 +1623,7 @@ router.patch('/profile', authMiddleware, async (req: AuthRequest, res: Response)
     }
     res.json({ success: true, message: 'Профиль обновлён' });
   } catch (error) {
-    console.error('[Auth] Update profile error:', error);
+    logError('[Auth] Update profile error:', error);
     res.status(500).json({ error: 'Ошибка обновления профиля' });
   }
 });
@@ -1655,7 +1656,7 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res: Re
     }
     res.json({ success: true, message: 'Пароль изменён' });
   } catch (error) {
-    console.error('[Auth] Change password error:', error);
+    logError('[Auth] Change password error:', error);
     res.status(500).json({ error: 'Ошибка смены пароля' });
   }
 });
@@ -1669,7 +1670,7 @@ router.get('/addresses', authMiddleware, async (req: AuthRequest, res: Response)
     const addresses = await authStorage.getSavedAddresses(req.user.id);
     res.json({ addresses });
   } catch (error) {
-    console.error('[Auth] Get addresses error:', error);
+    logError('[Auth] Get addresses error:', error);
     res.status(500).json({ error: 'Ошибка получения адресов' });
   }
 });
@@ -1714,7 +1715,7 @@ router.put('/addresses', authMiddleware, async (req: AuthRequest, res: Response)
     }
     res.json({ success: true, addresses: validated });
   } catch (error) {
-    console.error('[Auth] Update addresses error:', error);
+    logError('[Auth] Update addresses error:', error);
     res.status(500).json({ error: 'Ошибка сохранения адресов' });
   }
 });
@@ -1739,10 +1740,19 @@ router.get('/my-gift-cards', authMiddleware, async (req: AuthRequest, res: Respo
       createdAt: card.createdAt,
     })));
   } catch (error) {
-    console.error('[Auth] Get gift cards error:', error);
+    logError('[Auth] Get gift cards error:', error);
     res.status(500).json({ error: 'Ошибка получения сертификатов' });
   }
 });
+
+// YDB хранит expires_at как Optional<Datetime> — parseResultSet отдаёт число
+// (unix-секунды), а не Date, поэтому .toISOString() на нём падает.
+// Нормализуем в ISO-строку или null.
+function normalizePromoExpiresAt(v: unknown): string | null {
+  if (!v) return null;
+  const d = v instanceof Date ? v : new Date(v as any);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
 
 // Get user's promo codes (from newsletter subscription and used in orders)
 router.get('/my-promo-codes', authMiddleware, async (req: AuthRequest, res: Response) => {
@@ -1785,7 +1795,7 @@ router.get('/my-promo-codes', authMiddleware, async (req: AuthRequest, res: Resp
           discountAmount: resolvedPromo.discountAmount ?? undefined,
           source: 'subscription',
           isActive: resolvedPromo.isActive ?? true,
-          expiresAt: resolvedPromo.expiresAt ? resolvedPromo.expiresAt.toISOString() : null,
+          expiresAt: normalizePromoExpiresAt(resolvedPromo.expiresAt),
           usedByMe,
         });
       }
@@ -1810,7 +1820,7 @@ router.get('/my-promo-codes', authMiddleware, async (req: AuthRequest, res: Resp
               discountAmount: promo.discountAmount ?? undefined,
               source: 'order',
               isActive: promo.isActive ?? true,
-              expiresAt: promo.expiresAt ? promo.expiresAt.toISOString() : null,
+              expiresAt: normalizePromoExpiresAt(promo.expiresAt),
               usedByMe: true,
             });
           }
@@ -1841,17 +1851,17 @@ router.get('/my-promo-codes', authMiddleware, async (req: AuthRequest, res: Resp
           discountAmount: promo.discountAmount ?? undefined,
           source: 'review',
           isActive: promo.isActive ?? true,
-          expiresAt: promo.expiresAt ? promo.expiresAt.toISOString() : null,
+          expiresAt: normalizePromoExpiresAt(promo.expiresAt),
           usedByMe,
         });
       }
     } catch (e) {
-      console.error('[Auth] Get review promo codes error:', e);
+      logError('[Auth] Get review promo codes error:', e);
     }
     
     res.json(promoCodes);
   } catch (error) {
-    console.error('[Auth] Get promo codes error:', error);
+    logError('[Auth] Get promo codes error:', error);
     res.status(500).json({ error: 'Ошибка получения промокодов' });
   }
 });
@@ -1877,7 +1887,7 @@ router.get('/admin/wholesale', adminMiddleware, async (req: Request, res: Respon
     const users = await authStorage.getWholesaleUsers();
     res.json({ users });
   } catch (error) {
-    console.error('[Admin] Get wholesale users error:', error);
+    logError('[Admin] Get wholesale users error:', error);
     res.status(500).json({ error: 'Ошибка получения списка оптовиков' });
   }
 });
@@ -1911,10 +1921,10 @@ router.post('/admin/wholesale/:id/approve', adminMiddleware, async (req: Request
         });
       }
     } catch (emailErr: any) {
-      console.error('[Admin] Wholesale approve email error:', emailErr?.message);
+      logError('[Admin] Wholesale approve email error:', emailErr?.message);
     }
   } catch (error) {
-    console.error('[Admin] Approve wholesale error:', error);
+    logError('[Admin] Approve wholesale error:', error);
     res.status(500).json({ error: 'Ошибка подтверждения оптовика' });
   }
 });
@@ -1944,10 +1954,10 @@ router.post('/admin/wholesale/:id/reject', adminMiddleware, async (req: Request,
         });
       }
     } catch (emailErr: any) {
-      console.error('[Admin] Wholesale reject email error:', emailErr?.message);
+      logError('[Admin] Wholesale reject email error:', emailErr?.message);
     }
   } catch (error) {
-    console.error('[Admin] Reject wholesale error:', error);
+    logError('[Admin] Reject wholesale error:', error);
     res.status(500).json({ error: 'Ошибка отклонения оптовика' });
   }
 });
@@ -1993,7 +2003,7 @@ router.patch('/admin/wholesale/:id/discount', adminMiddleware, async (req: Reque
     
     res.json({ message: discount > 0 ? 'Скидка обновлена' : markup > 0 ? 'Наценка установлена' : 'Скидка/наценка сброшены', userId, discount, markup });
   } catch (error) {
-    console.error('[Admin] Update discount error:', error);
+    logError('[Admin] Update discount error:', error);
     res.status(500).json({ error: 'Ошибка обновления' });
   }
 });
@@ -2012,7 +2022,7 @@ router.delete('/admin/wholesale/:id', adminMiddleware, async (req: Request, res:
     
     res.json({ message: 'Оптовик удалён', userId });
   } catch (error) {
-    console.error('[Admin] Delete wholesale error:', error);
+    logError('[Admin] Delete wholesale error:', error);
     res.status(500).json({ error: 'Ошибка удаления оптовика' });
   }
 });
@@ -2031,7 +2041,7 @@ router.post('/admin/wholesale/:id/verify-email', adminMiddleware, async (req: Re
     
     res.json({ message: 'Email подтверждён', userId });
   } catch (error) {
-    console.error('[Admin] Verify email error:', error);
+    logError('[Admin] Verify email error:', error);
     res.status(500).json({ error: 'Ошибка подтверждения email' });
   }
 });
@@ -2085,7 +2095,7 @@ router.post('/admin/fix-wholesale-order-userids', adminMiddleware, async (req: R
     console.log(`[Admin] Migration complete: ${updated} updated, ${failed} failed/skipped`);
     res.json({ message: `Обновлено: ${updated}, не удалось: ${failed}`, updated, failed, details });
   } catch (error) {
-    console.error('[Admin] Fix wholesale order userids error:', error);
+    logError('[Admin] Fix wholesale order userids error:', error);
     res.status(500).json({ error: 'Ошибка миграции заказов' });
   }
 });
@@ -2108,12 +2118,12 @@ router.get('/favorites', authMiddleware, async (req: AuthRequest, res: Response)
     if (deletedIds.length > 0) {
       console.log(`[Auth] Cleaning up ${deletedIds.length} deleted-product favorites for user ${req.user.id}: [${deletedIds.join(', ')}]`);
       Promise.all(deletedIds.map(id => authStorage.removeFavorite(req.user!.id, id))).catch(err => {
-        console.error('[Auth] Failed to clean deleted favorites:', err);
+        logError('[Auth] Failed to clean deleted favorites:', err);
       });
     }
     res.json(validIds);
   } catch (error) {
-    console.error('[Auth] Get favorites error:', error);
+    logError('[Auth] Get favorites error:', error);
     res.status(500).json({ error: 'Ошибка загрузки избранного' });
   }
 });
@@ -2130,7 +2140,7 @@ router.post('/favorites/:productId', authMiddleware, async (req: AuthRequest, re
     await authStorage.addFavorite(req.user.id, productId);
     res.json({ success: true });
   } catch (error) {
-    console.error('[Auth] Add favorite error:', error);
+    logError('[Auth] Add favorite error:', error);
     res.status(500).json({ error: 'Ошибка добавления в избранное' });
   }
 });
@@ -2147,7 +2157,7 @@ router.delete('/favorites/:productId', authMiddleware, async (req: AuthRequest, 
     await authStorage.removeFavorite(req.user.id, productId);
     res.json({ success: true });
   } catch (error) {
-    console.error('[Auth] Remove favorite error:', error);
+    logError('[Auth] Remove favorite error:', error);
     res.status(500).json({ error: 'Ошибка удаления из избранного' });
   }
 });
@@ -2210,10 +2220,10 @@ router.post('/telegram/webhook', async (req: Request, res: Response) => {
             });
           }
         } catch (emailErr: any) {
-          console.error('[Telegram] Wholesale approve email error:', emailErr?.message);
+          logError('[Telegram] Wholesale approve email error:', emailErr?.message);
         }
       } else {
-        console.error(`[Telegram] Failed to approve wholesale user ${userId}`);
+        logError(`[Telegram] Failed to approve wholesale user ${userId}`);
         await answerCallbackQuery(callbackId, '❌ Ошибка — попробуйте ещё раз');
         await editMessageText(chatId, messageId, originalText + '\n\n⚠️ <b>Ошибка при подтверждении — повторите</b>');
       }
@@ -2237,16 +2247,16 @@ router.post('/telegram/webhook', async (req: Request, res: Response) => {
             });
           }
         } catch (emailErr: any) {
-          console.error('[Telegram] Wholesale reject email error:', emailErr?.message);
+          logError('[Telegram] Wholesale reject email error:', emailErr?.message);
         }
       } else {
-        console.error(`[Telegram] Failed to reject wholesale user ${userId}`);
+        logError(`[Telegram] Failed to reject wholesale user ${userId}`);
         await answerCallbackQuery(callbackId, '❌ Ошибка — попробуйте ещё раз');
         await editMessageText(chatId, messageId, originalText + '\n\n⚠️ <b>Ошибка при отклонении — повторите</b>');
       }
     }
   } catch (error: any) {
-    console.error('[Telegram] Webhook handler error:', error.message);
+    logError('[Telegram] Webhook handler error:', error.message);
   }
 });
 
@@ -2290,7 +2300,7 @@ router.get('/yandex/callback', async (req: Request, res: Response) => {
     });
 
     if (!tokenRes.ok) {
-      console.error('[Yandex OAuth] Token exchange failed:', await tokenRes.text());
+      logError('[Yandex OAuth] Token exchange failed:', await tokenRes.text());
       return res.redirect('/?auth_error=yandex_token');
     }
 
@@ -2374,7 +2384,7 @@ router.get('/yandex/callback', async (req: Request, res: Response) => {
     res.cookie('auth_token', token, authCookieOptions(isSecure));
     res.redirect('/');
   } catch (err: any) {
-    console.error('[Yandex OAuth] Error:', err.message);
+    logError('[Yandex OAuth] Error:', err.message);
     res.redirect('/?auth_error=yandex_server');
   }
 });
@@ -2438,7 +2448,7 @@ router.post('/mobile-login', authLimiter, async (req: Request, res: Response) =>
       },
     });
   } catch (error) {
-    console.error('[Auth] Mobile login error:', error);
+    logError('[Auth] Mobile login error:', error);
     res.status(500).json({ error: 'Ошибка входа' });
   }
 });
@@ -2487,7 +2497,7 @@ router.post('/mobile-register', authLimiter, async (req: Request, res: Response)
       },
     });
   } catch (error) {
-    console.error('[Auth] Mobile register error:', error);
+    logError('[Auth] Mobile register error:', error);
     res.status(500).json({ error: 'Ошибка регистрации' });
   }
 });

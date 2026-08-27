@@ -1,4 +1,5 @@
 import { config } from './config';
+import { logError } from "./logger";
 import { createHmac } from 'crypto';
 
 interface EmailOptions {
@@ -44,7 +45,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     console.log(`[Email] Server response: messageId=${info.messageId}, response=${info.response}`);
     return true;
   } catch (error) {
-    console.error('[Email] Failed to send:', error);
+    logError('[Email] Failed to send:', error);
     return false;
   }
 }
@@ -1545,7 +1546,7 @@ export async function sendPreorderNotifications(productName: string, subscribers
         html,
       });
     } catch (e) {
-      console.error(`[PreorderNotify] Failed to send to ${sub.email}:`, e);
+      logError(`[PreorderNotify] Failed to send to ${sub.email}:`, e);
     }
   }
 }

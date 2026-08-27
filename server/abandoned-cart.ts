@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { logError } from "./logger";
 import { createHmac } from 'crypto';
 import { storage } from './storage';
 import { sendEmail, getAbandonedCartEmailHtml } from './email';
@@ -24,7 +25,7 @@ export async function addAbandonedCartUnsub(email: string): Promise<void> {
       await (storage as any).setBonusSetting(UNSUB_KEY, JSON.stringify(list));
     }
   } catch (err: any) {
-    console.error('[AbandonedCart] addAbandonedCartUnsub error:', err?.message);
+    logError('[AbandonedCart] addAbandonedCartUnsub error:', err?.message);
   }
 }
 
@@ -135,12 +136,12 @@ export async function runAbandonedCartCheck(): Promise<void> {
         // Пауза между отправками чтобы не перегружать SMTP
         await new Promise(r => setTimeout(r, 600));
       } catch (err: any) {
-        console.error(`[AbandonedCart] Error for session ${sessionId}:`, err.message);
+        logError(`[AbandonedCart] Error for session ${sessionId}:`, err.message);
       }
     }
 
     console.log(`[AbandonedCart] Done. Sent: ${sent}, cooldown: ${cooldown}, tooFresh: ${tooFresh}, emptyCart: ${emptyCart}, noEmail: ${noEmail}, total sessions: ${sessions.length}`);
   } catch (err: any) {
-    console.error('[AbandonedCart] Job crashed:', err.message);
+    logError('[AbandonedCart] Job crashed:', err.message);
   }
 }

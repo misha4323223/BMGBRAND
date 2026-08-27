@@ -1,4 +1,5 @@
 import { storage } from './storage';
+import { logError } from "./logger";
 import { sendEmail } from './email';
 import { groqCompleteStream } from './groq-utils';
 
@@ -86,7 +87,7 @@ async function markReviewRequestSent(orderId: number): Promise<void> {
       JSON.stringify({ ...existing, reviewRequestSentAt: new Date().toISOString() }),
     );
   } catch (err: any) {
-    console.error(`[ReviewRequest] Failed to mark order ${orderId}:`, err?.message);
+    logError(`[ReviewRequest] Failed to mark order ${orderId}:`, err?.message);
   }
 }
 
