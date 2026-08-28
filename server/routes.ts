@@ -120,6 +120,7 @@ async function enrichItemsWithProductColor(items: any[]): Promise<any[]> {
 
 // Извлекает из заказа данные товарных позиций для Я.Метрики e-commerce purchase.
 // Возвращает ТОЛЬКО товарные данные (id/название/цена/размер/цвет/кол-во) — без PII покупателя.
+// Фильтрует служебные записи (_discountDetails и пустые позиции без идентификатора товара).
 function orderItemsToEcommerceItems(order: any): Record<string, unknown>[] {
   let raw: any[] = [];
   try {
@@ -128,7 +129,9 @@ function orderItemsToEcommerceItems(order: any): Record<string, unknown>[] {
   } catch {
     return [];
   }
-  return raw.map((i: any) => {
+  return raw
+    .filter((i: any) => !!i && !i._discountDetails && !!(i.sku || i.productId || i.id))
+    .map((i: any) => {
     const out: Record<string, unknown> = {
       id: String(i.sku || i.productId || (i.id ?? "")),
       name: i.productName || i.name || `Товар #${i.productId ?? ""}`,
