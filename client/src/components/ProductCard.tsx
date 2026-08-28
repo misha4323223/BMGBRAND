@@ -15,6 +15,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useColorVariants, ColorVariant } from "@/hooks/use-products";
 import { DolyameWidget } from "@/components/DolyameWidget";
+import { usePreorderCart } from "@/context/PreorderCartContext";
+import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 
 function toThumbUrl(url: string): string {
   if (!url) return url;
@@ -88,6 +90,11 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
   const [notifySubmitted, setNotifySubmitted] = useState<Set<string>>(new Set());
   const [notifySize, setNotifySize] = useState<string | null>(null);
   const [notifyConsent, setNotifyConsent] = useState(false);
+  // Pre-order size + quantity selection inside the quick-view modal so a
+  // "collecting" pre-order can be added to the pre-order cart right from the modal.
+  const [preorderQuantities, setPreorderQuantities] = useState<Record<string, number>>({});
+  const { addOrUpdateItem: addPreorderItem, items: preorderCartItems } = usePreorderCart();
+  const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
 
   const isSocks = product.category === 'socks';
   const showWholesaleOverlay = isWholesale && isSocks;
@@ -121,9 +128,13 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
 
   const sizeStockData = (product as any).sizeStock;
   const hasSizeStockData = sizeStockData && Object.keys(sizeStockData).length > 0;
+  // Product is only out of stock when BOTH the aggregate stock and every per-size stock
+  // are <= 0. If sizeStock is stale/all-zero but the aggregate is positive, keep it on
+  // sale rather than falsely showing an out-of-stock state.
+  const aggregateStock = Number(product.stock) || 0;
   const isProductOutOfStock = hasSizeStockData
-    ? Object.values(sizeStockData).every((v: any) => v <= 0)
-    : (product.stock !== undefined && product.stock !== null && product.stock <= 0);
+    ? aggregateStock <= 0 && Object.values(sizeStockData).every((v: any) => Number(v) <= 0)
+    : (aggregateStock <= 0);
   const sizeStockKeys = hasSizeStockData ? Object.keys(sizeStockData as Record<string, number>) : [];
   const sizeStockTotal = sizeStockKeys.reduce((sum: number, k: string) => sum + (Number((sizeStockData as Record<string, number>)[k]) || 0), 0);
   const singleSockSize = sizeStockKeys.length === 1 ? sizeStockKeys[0] : undefined;
@@ -799,7 +810,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                     </div>
                   )}
 
-                  {!isEffectivelyNoSize(activeProduct) && (activeProduct.sizes?.length > 0 || hasActiveSizeStockData) && (
+                  {!isEffectivelyNoSize(activeProduct) && (activeProduct.sizes?.length > 0 || hasActiveSizeStockData) && !isModalPreorderCollecting && (
                     <div className="space-y-1 sm:space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="text-[9px] font-medium text-black/40 uppercase tracking-widest">Размер</span>
@@ -1024,17 +1035,114 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
                       product={{ ...(activeProduct as any), artistSlug: (product as any).artistSlug ?? (activeProduct as any).artistSlug }}
                       resetKey={isModalOpen ? String(activeProduct.id) : "closed"}
                     />
-                    {/* Кнопка: "Перейти к предзаказу" только при сборе, иначе нейтральная */}
+                    {/* Кнопка: при сборе заявок — сразу выбрать размеры/кол-во и добавить в корзину предзаказа, иначе нейтральная */}
                     {((activeProduct as any).preorderStatus === "collecting" || !(activeProduct as any).preorderStatus) ? (
-                      <Link
-                        href={`/${activeProduct.slug || activeProduct.id}`}
-                        onClick={() => setIsModalOpen(false)}
-                        className="flex items-center justify-center gap-1.5 w-full h-9 sm:h-12 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white text-xs sm:text-sm font-semibold tracking-widest uppercase transition-all rounded-none"
-                        data-testid={`button-modal-go-preorder-${activeProduct.id}`}
-                      >
-                        Перейти к предзаказу
-                        <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                      </Link>
+                      (() => {
+                        const preorderSizesRaw = (() => {
+                          const stock = (activeProduct as any).sizeStock && Object.keys((activeProduct as any).sizeStock).length > 0
+                            ? Object.keys((activeProduct as any).sizeStock)
+                            : [];
+                          const fromSizes = activeProduct.sizes?.length > 0 ? activeProduct.sizes : [];
+                          return Array.from(new Set([...fromSizes, ...stock]));
+                        })();
+                        const sizeOrder = ["XXS","XS","S","M","L","XL","XXL","2XL","3XL","4XL","5XL","OneSize"];
+                        const preorderSizes = preorderSizesRaw.slice().sort((a, b) => {
+                          const ia = sizeOrder.indexOf(a), ib = sizeOrder.indexOf(b);
+                          if (ia !== -1 && ib !== -1) return ia - ib;
+                          if (ia !== -1) return -1;
+                          if (ib !== -1) return 1;
+                          return a.localeCompare(b);
+                        });
+                        const preorderItemsQty = Object.values(preorderQuantities).reduce((s, q) => s + q, 0);
+                        const basePrice = Number((activeProduct as any).price) || 0;
+                        const salePriceNum = Number((activeProduct as any).salePrice) || 0;
+                        const preorderPrice = salePriceNum > 0 && salePriceNum < basePrice ? salePriceNum : basePrice;
+                        const changePreorderQty = (size: string, delta: number) => {
+                          setPreorderQuantities(prev => {
+                            const cur = prev[size] || 0;
+                            const next = Math.max(0, cur + delta);
+                            const upd = { ...prev, [size]: next };
+                            if (next === 0) delete upd[size];
+                            return upd;
+                          });
+                        };
+                        const alreadyInPreorder = preorderCartItems.some(i => i.productId === activeProduct.id);
+                        const handleAddPreorder = () => {
+                          if (preorderSizes.length === 0) {
+                            addPreorderItem({
+                              productId: activeProduct.id,
+                              productName: activeProduct.name,
+                              price: preorderPrice,
+                              imageUrl: activeProduct.thumbnailUrl || activeProduct.imageUrl || "",
+                              selectedSizes: { "ONE SIZE": 1 },
+                              selectedColor: selectedColor || undefined,
+                            });
+                            openPreorderCartDrawer();
+                            return;
+                          }
+                          if (preorderItemsQty === 0) {
+                            if (alreadyInPreorder) {
+                              openPreorderCartDrawer();
+                            } else {
+                              toast({ title: "Выберите размер и количество", variant: "destructive" });
+                            }
+                            return;
+                          }
+                          addPreorderItem({
+                            productId: activeProduct.id,
+                            productName: activeProduct.name,
+                            price: preorderPrice,
+                            imageUrl: activeProduct.thumbnailUrl || activeProduct.imageUrl || "",
+                            selectedSizes: { ...preorderQuantities },
+                            selectedColor: selectedColor || undefined,
+                          });
+                          setPreorderQuantities({});
+                          openPreorderCartDrawer();
+                        };
+                        return (
+                          <div className="space-y-2">
+                            {preorderSizes.length > 0 && (
+                              <div className="space-y-1">
+                                <span className="text-[10px] font-bold text-black/70 uppercase tracking-widest">Размер и количество</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {preorderSizes.map(size => {
+                                    const qty = preorderQuantities[size] || 0;
+                                    return (
+                                      <div key={size} className={`relative flex items-center justify-between gap-2 py-2.5 px-3 rounded-xl border transition-all ${qty > 0 ? "border-primary bg-primary/5 shadow-sm" : "border-black/10 bg-white hover:border-black/30"}`}>
+                                        <span className={`text-sm font-bold tracking-wide leading-none ${qty > 0 ? "text-primary" : "text-black"}`}>{size}</span>
+                                        <div className="flex items-center gap-1.5">
+                                          <button
+                                            type="button"
+                                            onClick={() => changePreorderQty(size, -1)}
+                                            disabled={qty === 0}
+                                            className="w-7 h-7 flex items-center justify-center rounded-full border border-black/15 text-black/70 transition-all disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/5"
+                                          >−</button>
+                                          <span className="w-4 text-center text-sm font-bold leading-none tabular-nums text-black">{qty}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => changePreorderQty(size, 1)}
+                                            className={`w-7 h-7 flex items-center justify-center rounded-full transition-all ${qty > 0 ? "bg-primary text-white shadow-sm" : "border border-black/15 bg-white text-black/70 hover:bg-black/5"}`}
+                                          >+</button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            <button
+                              onClick={handleAddPreorder}
+                              className="flex items-center justify-center gap-1.5 w-full h-10 sm:h-12 rounded-full bg-primary hover:bg-primary/90 active:scale-[0.98] text-primary-foreground text-xs sm:text-sm font-bold tracking-wide transition-all shadow-sm"
+                              data-testid={`button-modal-add-preorder-${activeProduct.id}`}
+                            >
+                              <ShoppingCart className="w-4 h-4" />
+                              {preorderItemsQty > 0
+                                ? `В предзаказ — ${(preorderItemsQty * preorderPrice / 100).toLocaleString("ru-RU")} ₽`
+                                : (preorderSizes.length === 0 ? "Добавить в предзаказ" : (alreadyInPreorder ? "Открыть корзину предзаказа" : "Выберите размер и количество"))}
+                            </button>
+                          </div>
+                        );
+                      })()
                     ) : (
                       <Link
                         href={`/${activeProduct.slug || activeProduct.id}`}

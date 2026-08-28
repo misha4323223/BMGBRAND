@@ -131,3 +131,68 @@ export function makeCategoryFromSlugs(
   const name = (CATEGORIES as Record<string, { name?: string }>)[categorySlug]?.name ?? categorySlug;
   return makeCategory(name, subcategory);
 }
+
+/**
+ * ID счётчика Яндекс.Метрики. Должен совпадать с инициализацией в client/index.html.
+ */
+export const YANDEX_METRIKA_COUNTER_ID = 107182693;
+
+declare global {
+  interface Window {
+    ym?: any;
+  }
+}
+
+/**
+ * Принудительно загружает счётчик Метрики немедленно (если ещё не загружен).
+ * На обычных страницах Метрика грузится лениво (после первого действия или 5с) —
+ * на checkout/success её можно подтянуть сразу, чтобы события воронки и purchase
+ * надёжно уходили даже при быстрых переходах и возврате с платёжки.
+ * Идемпотентно: повторные вызовы ничего не ломают.
+ */
+export function ensureMetrikaLoaded(): void {
+  if (typeof window === "undefined") return;
+  // Если скрипт tag.js уже загружен — ничего не делаем (счётчик инициализируется в onload).
+  const win = window as any;
+  if (win.__bmMetrikaLoaded || (win.ym && win.ym.a)) return;
+  win.__bmMetrikaLoaded = true;
+
+  // Создаём шум-шим как в index.html на случай, если скрипт ещё не добрался.
+  if (typeof win.ym !== "function") {
+    win.ym = win.ym || function () {
+      (win.ym.a = win.ym.a || []).push(arguments);
+    };
+    win.ym.l = Date.now();
+  }
+
+  const s = document.createElement("script");
+  s.async = true;
+  s.src = "https://mc.yandex.ru/metrika/tag.js";
+  s.onload = () => {
+    win.ym(YANDEX_METRIKA_COUNTER_ID, "init", {
+      id: YANDEX_METRIKA_COUNTER_ID,
+      clickmap: true,
+      trackLinks: true,
+      accurateTrackBounce: true,
+      webvisor: true,
+      ecommerce: "dataLayer",
+    });
+  };
+  document.head.appendChild(s);
+}
+
+/**
+ * Отправка цели (goal) в Яндекс.Метрику: ym(<id>, 'reachGoal', <goalId>).
+ * Целевые идентификаторы должны быть созданы в кабинете счётчика (Цели → JavaScript-событие).
+ * Безопасно, если Метрика ещё не загружена (шум-шим накопит вызов).
+ */
+export function reachGoal(goalId: string, params?: Record<string, unknown>): void {
+  if (typeof window === "undefined") return;
+  const win = window as any;
+  if (typeof win.ym !== "function") return;
+  if (params) {
+    win.ym(YANDEX_METRIKA_COUNTER_ID, "reachGoal", goalId, params);
+  } else {
+    win.ym(YANDEX_METRIKA_COUNTER_ID, "reachGoal", goalId);
+  }
+}

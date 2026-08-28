@@ -2145,9 +2145,13 @@ export default function ProductDetail() {
             {(() => {
               const sizeStockData = (product as any).sizeStock;
               const hasSizeStockData = sizeStockData && Object.keys(sizeStockData).length > 0;
-              const allSizesOutOfStock = hasSizeStockData 
-                ? Object.values(sizeStockData).every((v: any) => v <= 0)
-                : ((product.stock ?? 0) <= 0);
+              // Available if the aggregate `stock` is positive OR any size has stock.
+              // If `sizeStock` is stale / all-zero but the aggregate is positive, we must
+              // NOT hide real stock — the product is only truly sold out when BOTH are <= 0.
+              const aggregateStock = Number(product.stock) || 0;
+              const allSizesOutOfStock = hasSizeStockData
+                ? aggregateStock <= 0 && Object.values(sizeStockData).every((v: any) => Number(v) <= 0)
+                : aggregateStock <= 0;
               // Normalize size lookup: legacy data may contain variant keys like
               // "(OneSize)", "One Size", "OneSize" for the same size — take the max
               // among all keys that normalize to the same form instead of an exact match.
@@ -3198,42 +3202,39 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
       {availableSizes.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-medium text-foreground uppercase tracking-wide shrink-0">Размер и количество</p>
+            <p className="text-[10px] font-bold text-foreground uppercase tracking-widest shrink-0">Размер и количество</p>
             {totalItems > 0 && (
               <div className="text-right">
-                <div className="text-xs font-medium text-foreground">
+                <div className="text-xs font-semibold text-primary">
                   {Object.entries(sizeQuantities).filter(([,q]) => q > 0).map(([size, qty]) => `${size} × ${qty}`).join(", ")}
                 </div>
                 <div className="text-xs text-foreground">{totalItems} шт. · {(totalItems * salePrice / 100).toLocaleString("ru-RU")} ₽</div>
               </div>
             )}
           </div>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {availableSizes.map((size) => {
               const qty = sizeQuantities[size] || 0;
               return (
                 <div
                   key={size}
-                  className={`relative flex flex-col items-center gap-2.5 py-3 px-2 rounded-2xl border-2 transition-all ${qty > 0 ? "border-primary bg-primary/8 shadow-sm" : "border-border/60 bg-muted/30 hover:border-border"}`}
+                  className={`relative flex items-center justify-between gap-2 py-2.5 px-3 rounded-xl border transition-all ${qty > 0 ? "border-primary bg-primary/5 shadow-sm" : "border-border/70 bg-card hover:border-foreground/30"}`}
                   data-testid={`size-qty-${size}`}
                 >
-                  {qty > 0 && (
-                    <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shadow-sm">{qty}</span>
-                  )}
                   <span className={`text-sm font-bold tracking-wide leading-none ${qty > 0 ? "text-primary" : "text-foreground"}`}>{size}</span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => changeQty(size, -1)}
                       disabled={qty === 0}
-                      className={`w-6 h-6 flex items-center justify-center rounded-full text-base font-medium leading-none transition-all disabled:opacity-20 ${qty > 0 ? "bg-primary/15 text-primary hover:bg-primary/25" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                      className={`w-7 h-7 flex items-center justify-center rounded-full border transition-all disabled:opacity-25 disabled:cursor-not-allowed ${qty > 0 ? "border-primary/40 text-primary hover:bg-primary/10" : "border-border text-muted-foreground hover:bg-muted/60"}`}
                       data-testid={`button-qty-minus-${size}`}
                     >−</button>
-                    <span className={`w-5 text-center text-sm font-bold leading-none tabular-nums ${qty > 0 ? "text-primary" : "text-muted-foreground"}`}>{qty}</span>
+                    <span className={`w-5 text-center text-sm font-bold leading-none tabular-nums ${qty > 0 ? "text-primary" : "text-foreground"}`}>{qty}</span>
                     <button
                       type="button"
                       onClick={() => changeQty(size, 1)}
-                      className={`w-6 h-6 flex items-center justify-center rounded-full text-base font-medium leading-none transition-all ${qty > 0 ? "bg-primary/15 text-primary hover:bg-primary/25" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                      className={`w-7 h-7 flex items-center justify-center rounded-full transition-all ${qty > 0 ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90" : "border border-border bg-card text-muted-foreground hover:bg-muted/60"}`}
                       data-testid={`button-qty-plus-${size}`}
                     >+</button>
                   </div>

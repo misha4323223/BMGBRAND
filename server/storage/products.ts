@@ -324,6 +324,15 @@ DatabaseStorage.prototype.createProduct = async function (this: DatabaseStorage,
       return product;
     }
 
+    // Single choke point: keep the aggregate `stock` derived from per-size stock
+    // so the two can never drift apart on creation either.
+    if ((p as any).sizeStock !== undefined && (p as any).sizeStock !== null &&
+        typeof (p as any).sizeStock === "object" && !Array.isArray((p as any).sizeStock)) {
+      const sum = Object.values((p as any).sizeStock as Record<string, unknown>)
+        .reduce((acc: number, v: unknown) => acc + (Number.isFinite(Number(v)) ? Number(v) : 0), 0);
+      (p as any).stock = sum;
+    }
+
     await this.safeQuery(async (session) => {
       const { TypedValues, Types } = await import("ydb-sdk");
       // Match actual YDB table schema with correct types: price=Double, images/sizes/colors=Json
@@ -451,6 +460,16 @@ DatabaseStorage.prototype.updateProduct = async function (this: DatabaseStorage,
         return devProducts[index];
       }
       return { id } as Product;
+    }
+
+    // Single choke point: whenever per-size stock is written, the aggregate `stock`
+    // is derived from it so the two can never drift apart (this was the source of
+    // "admin shows stock, but the site shows out-of-stock").
+    if ((p as any).sizeStock !== undefined && (p as any).sizeStock !== null &&
+        typeof (p as any).sizeStock === "object" && !Array.isArray((p as any).sizeStock)) {
+      const sum = Object.values((p as any).sizeStock as Record<string, unknown>)
+        .reduce((acc: number, v: unknown) => acc + (Number.isFinite(Number(v)) ? Number(v) : 0), 0);
+      (p as any).stock = sum;
     }
 
     await this.safeQuery(async (session) => {

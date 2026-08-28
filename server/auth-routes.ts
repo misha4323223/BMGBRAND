@@ -2272,7 +2272,7 @@ router.get('/yandex', (req: Request, res: Response) => {
     response_type: 'code',
     client_id: YANDEX_CLIENT_ID,
     redirect_uri: YANDEX_REDIRECT_URI,
-    scope: 'login:email login:info',
+    scope: 'login:email login:info login:phone',
     force_confirm: 'no',
   });
   res.redirect(`https://oauth.yandex.ru/authorize?${params.toString()}`);

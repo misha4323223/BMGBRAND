@@ -84,6 +84,54 @@ export function canonicalizeSizeKey(s: string): string {
   return s;
 }
 
+// Sizes that must NEVER be written to a product. XXS is not sold on the
+// storefront and the admin UI doesn't offer it — if it appears, it's a stale
+// 1C/backfill artifact, so it's stripped here as a single choke point.
+export const FORBIDDEN_SIZES: ReadonlySet<string> = new Set(['XXS']);
+
+// Sanitize a raw size list before persisting:
+//  - dedupes keeping first occurrence order
+//  - canonicalizes every one-size variant to a single "OneSize"
+//  - strips forbidden sizes (XXS)
+export function sanitizeSizes(raw: unknown): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      const s = String(item ?? '').trim();
+      if (!s) continue;
+      const canon = canonicalizeSizeKey(s);
+      const norm = normalizeSizeKey(canon);
+      if (FORBIDDEN_SIZES.has(norm.toUpperCase())) continue;
+      if (seen.has(norm)) continue;
+      seen.add(norm);
+      result.push(canon);
+    }
+  }
+  return result;
+}
+
+// Sanitize a size->stock map before persisting. Applies the same rules as
+// sanitizeSizes to the keys (strip forbidden XXS, canonicalize one-size to
+// "OneSize"), merges stock when two keys normalize to the same size, and
+// drops zero-stock forbidden/legacy keys.
+export function sanitizeSizeStock(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      const s = String(k ?? '').trim();
+      if (!s) continue;
+      const canon = canonicalizeSizeKey(s);
+      const norm = normalizeSizeKey(canon);
+      if (FORBIDDEN_SIZES.has(norm.toUpperCase())) continue;
+      const num = Number(v);
+      const qty = Number.isFinite(num) ? num : 0;
+      out[canon] = (out[canon] ?? 0) + qty;
+    }
+  }
+  return out;
+}
+
 // Resolve available stock for a given size string from sizeStock map.
 // Handles legacy key variants like "One Size", "(OneSize)", "OneSize" by normalizing.
 // Returns the maximum stock found among all keys that normalize to the same form.

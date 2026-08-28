@@ -10,7 +10,7 @@ import { z } from "zod";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useCart, useUpdateCartQuantity, useRemoveFromCart } from "@/hooks/use-cart";
 import { useCreateOrder } from "@/hooks/use-orders";
-import { makeVariant } from "@/lib/ecommerce";
+import { makeVariant, ensureMetrikaLoaded, reachGoal } from "@/lib/ecommerce";
 import { useSession } from "@/hooks/use-session";
 import { useAuth, useWholesalePrice } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
@@ -127,6 +127,16 @@ export default function Checkout() {
   const [widgetToken, setWidgetToken] = useState<string | null>(null);
   const [widgetOrderId, setWidgetOrderId] = useState<number | null>(null);
   const { toast } = useToast();
+
+  // Яндекс.Метрика: цель «начало оформления» + подгрузка счётчика (на checkout Метрика
+  // нужна сразу). Срабатывает один раз за открытие страницы (guard по ref).
+  const checkoutGoalFired = useRef(false);
+  useEffect(() => {
+    if (checkoutGoalFired.current) return;
+    checkoutGoalFired.current = true;
+    ensureMetrikaLoaded();
+    reachGoal("begin_checkout");
+  }, []);
 
   const { data: stockValidation } = useQuery<{ valid: boolean; issues: { productName: string; size?: string; requested: number; available: number }[] }>({
     queryKey: ["/api/cart/validate", sessionId],

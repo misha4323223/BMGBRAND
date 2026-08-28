@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { logError, logInfo } from "../logger";
 import { storage } from "../storage";
 import { uploadToYandexStorage, deleteFromYandexStorage } from "../lib/storage-s3";
-import { sanitizeHtmlBlock, sanitizeJsonLd, canonicalizeSizeKey } from "../lib/product-utils";
+import { sanitizeHtmlBlock, sanitizeJsonLd, sanitizeSizes, sanitizeSizeStock } from "../lib/product-utils";
 import { enqueueNewProduct } from "../new-products-notifier";
 import { enqueuePreorderProduct } from "../preorder-notifier";
 import { sendPriceDropEmail } from "../email";
@@ -46,7 +46,7 @@ export function registerAdminProductsRoutes(
       const existingSlugs = allProducts.map((p: any) => p.slug).filter(Boolean);
       const autoSlug = req.body.slug || generateUniqueSlug(name, existingSlugs);
 
-      const sizesArray: string[] = Array.isArray(sizes) ? sizes : [];
+      const sizesArray: string[] = sanitizeSizes(sizes);
       const generatedExternalId = crypto.randomUUID();
       const generatedSizeCharIds: Record<string, string> = {};
       for (const s of sizesArray) {
@@ -81,7 +81,7 @@ export function registerAdminProductsRoutes(
         inStock: true,
         isHidden: false,
         stock: stock !== undefined ? parseInt(stock) : 0,
-        sizeStock: sizeStock || {},
+        sizeStock: sanitizeSizeStock(sizeStock),
         slug: autoSlug,
         wholesalePrice: wholesalePrice ? parseInt(wholesalePrice) : null,
         wholesaleDiscountPercent: wholesaleDiscountPercent ? parseInt(wholesaleDiscountPercent) : 0,
@@ -375,10 +375,10 @@ export function registerAdminProductsRoutes(
         updateData.additionalCategories = Array.isArray(additionalCategories) ? additionalCategories : [];
       }
       if (sizes !== undefined) {
-        updateData.sizes = sizes;
+        updateData.sizes = sanitizeSizes(sizes);
         const existingCharIds = ((product as any).sizeCharacteristicIds || {}) as Record<string, string>;
         const newCharIds: Record<string, string> = {};
-        for (const s of (sizes as string[])) {
+        for (const s of (updateData.sizes as string[])) {
           newCharIds[s] = existingCharIds[s] || crypto.randomUUID();
         }
         updateData.sizeCharacteristicIds = newCharIds;
@@ -432,14 +432,8 @@ export function registerAdminProductsRoutes(
         logInfo(`[Admin] Stock update for product ${id}: ${updateData.stock}`);
       }
       if (sizeStock !== undefined && typeof sizeStock === 'object') {
-        const cleanedSizeStock: Record<string, number> = {};
-        for (const [k, v] of Object.entries(sizeStock)) {
-          const num = parseInt(String(v));
-          const canonicalKey = canonicalizeSizeKey(k);
-          cleanedSizeStock[canonicalKey] = Math.max(cleanedSizeStock[canonicalKey] ?? 0, isNaN(num) || num < 0 ? 0 : num);
-        }
-        updateData.sizeStock = cleanedSizeStock;
-        logInfo(`[Admin] SizeStock update for product ${id}: ${JSON.stringify(cleanedSizeStock)}`);
+        updateData.sizeStock = sanitizeSizeStock(sizeStock);
+        logInfo(`[Admin] SizeStock update for product ${id}: ${JSON.stringify(updateData.sizeStock)}`);
       }
       // Единый источник остатка: если у товара есть остатки по размерам,
       // «Общий остаток» не хранится как независимое число — всегда равен сумме

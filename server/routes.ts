@@ -14,7 +14,7 @@ import { createCdekWaybillForOrder, recreateCdekWaybillForOrder } from "./lib/cd
 import { queuePreorderStatusEmail } from "./lib/preorder-email-buffer";
 import { resolveItemPrice } from "./lib/pricing";
 import { computePromoEligibleSubtotal, computePromoDiscount } from "./lib/checkout";
-import { SIZE_ORDER, STANDARD_CLOTHING_SIZES, sanitizeHtmlBlock, sanitizeJsonLd, sortSizes, normalizeSizeKey, canonicalizeSizeKey, resolveSizeStock } from "./lib/product-utils";
+import { SIZE_ORDER, STANDARD_CLOTHING_SIZES, sanitizeHtmlBlock, sanitizeJsonLd, sortSizes, normalizeSizeKey, canonicalizeSizeKey, resolveSizeStock, sanitizeSizes, sanitizeSizeStock } from "./lib/product-utils";
 import { registerDadataRoutes } from "./routes/dadata";
 import { registerReviewsRoutes } from "./routes/reviews";
 import { registerPushRoutes } from "./routes/push";
@@ -23,6 +23,7 @@ import { registerArtistsRoutes } from "./routes/artists";
 import { registerAdminContentRoutes } from "./routes/admin-content";
 import { registerProductFixesRoutes } from "./routes/product-fixes";
 import { registerAnalyticsRoutes } from "./routes/analytics";
+import { registerYandexMetrikaRoutes } from "./routes/yandex-metrika";
 import { registerPreorderSubscribersRoutes } from "./routes/preorder-subscribers";
 import { registerOzonRoutes } from "./routes/ozon";
 import { registerCategoriesAdminRoutes } from "./routes/categories-admin";
@@ -420,7 +421,7 @@ async function updateProductSizesFromOffers(
         return true; // No price data available — include all (backward compat)
       });
 
-      const sizes = sortSizes(filteredSizes);
+      const sizes = sortSizes(sanitizeSizes(filteredSizes));
       if (sizes.length > 0) {
         logInfo(`[Sizes] Updating ${product.name}: ${sizes.join(', ')}`);
         await storage.updateProduct(product.id, { sizes, skipCacheClear: true } as any);
@@ -616,7 +617,7 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
         // чистим sizeStock, чтобы в админке не висели устаревшие положительные
         // остатки по размерам при скрытом товаре («товар скрыт, а по размерам 5 шт»).
         if (Object.keys(priceData.sizeStock).length > 0) {
-          updateData.sizeStock = priceData.sizeStock;
+          updateData.sizeStock = sanitizeSizeStock(priceData.sizeStock);
         } else if (shouldBeHidden) {
           updateData.sizeStock = {};
         }
@@ -5137,7 +5138,7 @@ ${faqSection}
                 const extractedSizes = extractSizesFromName(name);
                 
                 // Use extracted sizes if XML didn't provide them
-                const finalSizes = sizes.length > 0 ? sizes : extractedSizes;
+                const finalSizes = sanitizeSizes(sizes.length > 0 ? sizes : extractedSizes);
                 
                 try {
                   if (!existing) {
@@ -5335,6 +5336,7 @@ ${faqSection}
             }
           }
           
+          sizes = sanitizeSizes(sizes);
           const imgData = item["Картинка"];
           // Parse ALL images from 1C
           let allImages: string[] = [];
@@ -7160,7 +7162,7 @@ ${faqSection}
       const sizeStats: Record<string, number> = {};
       
       for (const product of products) {
-        const extractedSizes = extractSizesFromName(product.name);
+        const extractedSizes = sanitizeSizes(extractSizesFromName(product.name));
         const currentSizes = product.sizes || [];
         
         // Update if we found sizes and they're different from current
@@ -7251,14 +7253,14 @@ ${faqSection}
         const sizeStock: Record<string, number> = (product as any).sizeStock || {};
         if (currentSizes.length === 0) continue;
 
-        const cleanSizes = currentSizes.filter(size => {
+        const cleanSizes = sanitizeSizes(currentSizes.filter(size => {
           const canonSize = canonicalizeSizeKey(size);
           const stock = sizeStock[canonSize] ?? sizeStock[size] ?? 0;
           if (stock > 0) return true;
           // Stock = 0: keep only standard clothing sizes (XS, S, M, L, XL, XXL, XXXL, etc.)
           return STANDARD_CLOTHING_SIZES.has(canonSize.toUpperCase()) ||
                  STANDARD_CLOTHING_SIZES.has(size.toUpperCase());
-        });
+        }));
 
         if (cleanSizes.length !== currentSizes.length) {
           const removed = currentSizes.filter(s => !cleanSizes.includes(s));
@@ -7738,6 +7740,7 @@ ${faqSection}
                    if (prop["Наименование"] === "Цвет") colors.push(prop["Значение"]);
                  }
               }
+              sizes = sanitizeSizes(sizes);
 
               // Image parsing - use Object Storage URL, parse ALL images
               // With isArray option, imgData should always be an array now
@@ -11402,6 +11405,8 @@ ${faqSection}
 
   // Admin orders management (server/routes/admin-orders.ts)
   registerAdminOrdersRoutes(app, getAdminKey);
+
+  registerYandexMetrikaRoutes(app, getAdminKey);
 
   // Admin content: gift cards, reviews, stock notifications, email image upload (server/routes/admin-content.ts)
   registerAdminContentRoutes(app, getAdminKey);

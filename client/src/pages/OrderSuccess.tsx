@@ -8,7 +8,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
 import AddonOrderDialog from "@/components/AddonOrderDialog";
-import { pushEcommercePurchase } from "@/lib/ecommerce";
+import { pushEcommercePurchase, ensureMetrikaLoaded, reachGoal } from "@/lib/ecommerce";
 
 interface OrderStatus {
   orderId: number;
@@ -67,6 +67,10 @@ export default function OrderSuccess() {
               quantity: Number(it.quantity) || 1,
             })));
           }
+          // Метрика на success-page нужна сразу (после возврата с платёжки), плюс цель
+          // успешной оплаты отдельно от purchase для воронки. Идемпотентно.
+          ensureMetrikaLoaded();
+          reachGoal("payment_success");
           if (intervalId) {
             clearInterval(intervalId);
           }

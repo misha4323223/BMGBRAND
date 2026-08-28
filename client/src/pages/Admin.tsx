@@ -54,6 +54,7 @@ import { FeatureBadgeTemplatesManager } from "@/components/admin/FeatureBadgeTem
 import { ConceptPageEditor } from "@/components/admin/ConceptPageEditor";
 import { AbandonedCartTriggerButton } from "@/components/admin/AbandonedCartTriggerButton";
 import { SecurityTab } from "@/components/admin/SecurityTab";
+import { YandexMetrikaPanel } from "@/components/admin/YandexMetrikaPanel";
 
 interface WholesaleUser {
   id: number;
@@ -11578,7 +11579,7 @@ export default function Admin() {
                                                 ? (p as any).wholesalePreorderSizes
                                                 : (Array.isArray(p.sizes) && p.sizes.length > 0
                                                     ? p.sizes as string[]
-                                                    : ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"])),
+                                                    : ["XS", "S", "M", "L", "XL", "XXL", "XXXL"])),
                                           wholesalePreorderRrp: _prices?.rrp ? Math.round(parseFloat(_prices.rrp) * 100) : undefined,
                                           wholesalePrice: _prices?.wholesale ? Math.round(parseFloat(_prices.wholesale) * 100) : undefined,
                                           wholesalePreorderPrice: _prices?.preorder ? Math.round(parseFloat(_prices.preorder) * 100) : undefined,
@@ -11672,7 +11673,7 @@ export default function Admin() {
                                     {(() => {
                                       const productSizes: string[] = Array.isArray(p.sizes) && p.sizes.length > 0
                                         ? (p.sizes as string[])
-                                        : ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+                                        : ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
                                       const savedSizes: string[] = (p as any).wholesalePreorderSizes?.length > 0
                                         ? (p as any).wholesalePreorderSizes
                                         : productSizes;
@@ -11741,7 +11742,7 @@ export default function Admin() {
                                                   ? (p as any).wholesalePreorderSizes
                                                   : (Array.isArray(p.sizes) && p.sizes.length > 0
                                                       ? p.sizes as string[]
-                                                      : ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"])),
+                                                      : ["XS", "S", "M", "L", "XL", "XXL", "XXXL"])),
                                             wholesalePreorderRrp: _prices.rrp ? Math.round(parseFloat(_prices.rrp) * 100) : undefined,
                                             wholesalePrice: _prices.wholesale ? Math.round(parseFloat(_prices.wholesale) * 100) : undefined,
                                             wholesalePreorderPrice: _prices.preorder ? Math.round(parseFloat(_prices.preorder) * 100) : undefined,
@@ -13215,7 +13216,10 @@ export default function Admin() {
         )}
 
         {activeTab === "analytics" && (
-          <AnalyticsTab apiKey={apiKey} />
+          <div className="space-y-4">
+            <AnalyticsTab apiKey={apiKey} />
+            <YandexMetrikaPanel apiKey={apiKey} />
+          </div>
         )}
 
         {activeTab === "partners" && (
