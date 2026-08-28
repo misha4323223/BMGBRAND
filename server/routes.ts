@@ -118,6 +118,31 @@ async function enrichItemsWithProductColor(items: any[]): Promise<any[]> {
   }));
 }
 
+// Извлекает из заказа данные товарных позиций для Я.Метрики e-commerce purchase.
+// Возвращает ТОЛЬКО товарные данные (id/название/цена/размер/цвет/кол-во) — без PII покупателя.
+function orderItemsToEcommerceItems(order: any): Record<string, unknown>[] {
+  let raw: any[] = [];
+  try {
+    const it = typeof order?.items === "string" ? JSON.parse(order.items) : order?.items;
+    if (Array.isArray(it)) raw = it;
+  } catch {
+    return [];
+  }
+  return raw.map((i: any) => {
+    const out: Record<string, unknown> = {
+      id: String(i.sku || i.productId || (i.id ?? "")),
+      name: i.productName || i.name || `Товар #${i.productId ?? ""}`,
+      price: Math.round(Number(i.price) || 0),
+      quantity: Number(i.quantity) || 1,
+    };
+    const size = i.size && String(i.size).toLowerCase() !== "one size" ? String(i.size) : null;
+    const color = i.color && String(i.color).toLowerCase() !== "default" ? String(i.color) : null;
+    const variant = size && color ? `${color} / ${size}` : color || size;
+    if (variant) out.variant = variant;
+    return out;
+  });
+}
+
 function getSyncKey(): string | undefined {
   return process.env.SYNC_API_KEY;
 }
@@ -10299,6 +10324,7 @@ ${faqSection}
           status: order.status,
           paid: order.status === "paid",
           productIds,
+          items: orderItemsToEcommerceItems(order),
         });
       }
 
@@ -10370,6 +10396,7 @@ ${faqSection}
               status: "paid",
               paid: true,
               productIds,
+              items: orderItemsToEcommerceItems(order),
             });
           } else if (paymentStatus.status === "canceled") {
             await storage.updateOrderStatus(order.id, "cancelled");

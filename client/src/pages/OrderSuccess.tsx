@@ -8,12 +8,14 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
 import AddonOrderDialog from "@/components/AddonOrderDialog";
+import { pushEcommercePurchase } from "@/lib/ecommerce";
 
 interface OrderStatus {
   orderId: number;
   status: string;
   paid: boolean;
   productIds?: number[];
+  items?: Array<{ id: string; name: string; price: number; quantity?: number; variant?: string }>;
 }
 
 export default function OrderSuccess() {
@@ -53,6 +55,18 @@ export default function OrderSuccess() {
         
         // Stop polling if payment confirmed
         if (data.paid || data.status === "paid") {
+          // Яндекс.Метрика e-commerce: purchase — ТОЛЬКО после подтверждённой оплаты.
+          // Дедуп по orderId в localStorage (защита от повторов при обновлении страницы).
+          const items: any[] = Array.isArray((data as any).items) ? (data as any).items : [];
+          if (items.length > 0) {
+            pushEcommercePurchase(orderId, items.map((it: any) => ({
+              id: it.id,
+              name: it.name,
+              priceCents: Number(it.price) || 0,
+              variant: it.variant,
+              quantity: Number(it.quantity) || 1,
+            })));
+          }
           if (intervalId) {
             clearInterval(intervalId);
           }
