@@ -15628,7 +15628,7 @@ function AdminPreordersTab({ apiKey }: { apiKey: string }) {
             <Card className="p-6 text-center">
               <MapPin className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">Нет точек выдачи</p>
-              <p className="text-xs text-muted-foreground mt-1">Добавьте точки для самовывоза на фестивалях</p>
+              <p className="text-xs text-muted-foreground mt-1">Добавьте точки самовывоза</p>
             </Card>
           ) : (
             <div className="space-y-2">

@@ -510,7 +510,7 @@ export default function PreorderCheckout() {
                     >
                       <Store className={`w-5 h-5 shrink-0 ${deliveryType === "pickup" ? "text-primary" : "text-muted-foreground"}`} />
                       <div>
-                        <p className="font-semibold text-sm">Самовывоз на фестивале</p>
+                        <p className="font-semibold text-sm">Самовывоз</p>
                         <p className="text-xs text-muted-foreground">Бесплатно</p>
                       </div>
                     </button>
