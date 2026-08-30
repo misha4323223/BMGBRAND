@@ -987,6 +987,27 @@ setTimeout(() => {
   setInterval(autoConfirmExpiredHolds, 60 * 60 * 1000);
 }, 5 * 1000);
 
+// Promo codes: авто-деактивация просроченных (удаление — вручную в админке).
+// Гибрид: истёкшие коды перестают работать автоматически (is_active = false),
+// но строка остаётся для истории/ссылок, пока админ не удалит её массово.
+const PROMO_EXPIRY_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // раз в 6 часов
+async function deactivateExpiredPromos() {
+  try {
+    const count = await storage.deactivateExpiredPromoCodes();
+    if (count > 0) {
+      logInfo(`[Promo Cleanup] Deactivated ${count} expired promo code(s)`);
+      invalidateSubscriptionPromosCache();
+    }
+  } catch (err: any) {
+    logError(`[Promo Cleanup] Error:`, err.message);
+  }
+}
+// Первый запуск через минуту после старта, дальше — каждые 6 часов
+setTimeout(() => {
+  deactivateExpiredPromos();
+  setInterval(deactivateExpiredPromos, PROMO_EXPIRY_CHECK_INTERVAL);
+}, 60 * 1000);
+
 const autoAddedSubcategoriesCache = new Set<string>();
 
 export async function syncArtistPagesToMerchSubcategories(storageRef: any): Promise<void> {
@@ -10959,7 +10980,19 @@ ${faqSection}
       return res.status(401).json({ error: "Unauthorized" });
     }
     try {
-      const code = await storage.updatePromoCode(Number(req.params.id), req.body);
+      const updates: any = { ...(req.body || {}) };
+      for (const k of ["startsAt", "expiresAt"]) {
+        if (k in updates) {
+          const v = updates[k];
+          if (v == null || v === "") {
+            updates[k] = null;
+          } else {
+            const d = new Date(v);
+            updates[k] = isNaN(d.getTime()) ? null : d;
+          }
+        }
+      }
+      const code = await storage.updatePromoCode(Number(req.params.id), updates);
       invalidateSubscriptionPromosCache();
       res.json(code);
     } catch (err: any) {
@@ -10978,6 +11011,37 @@ ${faqSection}
       await storage.deletePromoCode(Number(req.params.id));
       invalidateSubscriptionPromosCache();
       res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Batch delete promo codes (admin)
+  app.post("/api/promo-codes/batch-delete", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    const expectedKey = getAdminKey();
+    if (!expectedKey || apiKey !== expectedKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const raw = Array.isArray(req.body?.ids) ? (req.body.ids as number[]) : [];
+      const ids = [...new Set(raw.filter((v) => typeof v === "number" && v > 0))];
+      if (ids.length === 0) {
+        return res.status(400).json({ error: "ids не указаны" });
+      }
+      const deleted = await storage.deletePromoCodes(ids);
+      // Если удалили промокод, на который ссылается попап/главная — чистим ссылку,
+      // чтобы следующий запрос подхватил фолбэк WELCOME10/WELCOME7, а рестарт-инициализатор
+      // записал валидный ID заново.
+      for (const key of ["popup_promo_id", "homepage_promo_id"]) {
+        const ref = await storage.getBonusSetting(key);
+        if (ref && ids.includes(Number(ref))) {
+          await storage.setBonusSetting(key, "");
+          logInfo(`[Promo] Cleared ${key} (referenced deleted promo)`);
+        }
+      }
+      invalidateSubscriptionPromosCache();
+      res.json({ success: true, deleted });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

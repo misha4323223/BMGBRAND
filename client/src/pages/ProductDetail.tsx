@@ -3124,6 +3124,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
   const { toast } = useToast();
   const { addOrUpdateItem, items: preorderCartItems } = usePreorderCart();
   const { openDrawer: openPreorderCartDrawer } = usePreorderCartDrawer();
+  const { isWholesale, getWholesalePrice } = useWholesalePrice();
   const [sizeQuantities, setSizeQuantities] = useState<Record<string, number>>({});
   const [justAdded, setJustAdded] = useState(false);
 
@@ -3146,6 +3147,10 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
   const salePrice = productFixedPrice > 0 && productFixedPrice < product.price
     ? productFixedPrice
     : (discountPct > 0 ? Math.round(product.price * (1 - discountPct / 100)) : product.price);
+  // Цена, которая попадает в корзину предзаказа: оптовику — оптовая (как и показана на карточке), иначе розничная
+  const addPrice = isWholesale
+    ? (getWholesalePrice(product.price, (product as any).wholesalePrice ?? null, (product as any).wholesaleDiscountPercent ?? null) ?? salePrice)
+    : salePrice;
 
   function changeQty(size: string, delta: number) {
     setSizeQuantities(prev => {
@@ -3165,7 +3170,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
       addOrUpdateItem({
         productId: product.id,
         productName: product.name,
-        price: salePrice,
+        price: addPrice,
         imageUrl: product.thumbnailUrl || product.imageUrl || "",
         selectedSizes: { "ONE SIZE": 1 },
         selectedColor: selectedColor || undefined,
@@ -3186,7 +3191,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
     addOrUpdateItem({
       productId: product.id,
       productName: product.name,
-      price: salePrice,
+      price: addPrice,
       imageUrl: product.thumbnailUrl || product.imageUrl || "",
       selectedSizes: { ...sizeQuantities },
       selectedColor: selectedColor || undefined,
@@ -3208,7 +3213,7 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
                 <div className="text-xs font-semibold text-primary">
                   {Object.entries(sizeQuantities).filter(([,q]) => q > 0).map(([size, qty]) => `${size} × ${qty}`).join(", ")}
                 </div>
-                <div className="text-xs text-foreground">{totalItems} шт. · {(totalItems * salePrice / 100).toLocaleString("ru-RU")} ₽</div>
+                <div className="text-xs text-foreground">{totalItems} шт. · {(totalItems * addPrice / 100).toLocaleString("ru-RU")} ₽</div>
               </div>
             )}
           </div>
@@ -3258,8 +3263,8 @@ function PreorderButton({ product, selectedSize, selectedColor }: { product: any
           <>
             <ShoppingCart className="w-4 h-4 mr-2" />
             {alreadyInCart
-              ? `Добавить ещё ${totalItems} шт. — ${(totalItems * salePrice / 100).toLocaleString("ru-RU")} ₽`
-              : `В корзину предзаказов — ${(totalItems * salePrice / 100).toLocaleString("ru-RU")} ₽`}
+              ? `Добавить ещё ${totalItems} шт. — ${(totalItems * addPrice / 100).toLocaleString("ru-RU")} ₽`
+              : `В корзину предзаказов — ${(totalItems * addPrice / 100).toLocaleString("ru-RU")} ₽`}
           </>
         ) : alreadyInCart ? (
           <>

@@ -966,6 +966,7 @@ export default function ConceptPage() {
                 const salePrice = productFixedPrice > 0 && productFixedPrice < product.price
                   ? productFixedPrice
                   : (discountPct && discountPct > 0 ? Math.round(product.price * (1 - discountPct / 100)) : product.price);
+                const effectivePrice = getEffectivePrice(product);
 
                 return (
                   <Link
@@ -1141,7 +1142,7 @@ export default function ConceptPage() {
                                       addOrUpdateItem({
                                         productId: product.id,
                                         productName: product.name,
-                                        price: salePrice,
+                                        price: effectivePrice,
                                         imageUrl,
                                         selectedSizes: { ...popupSizeQty },
                                       });

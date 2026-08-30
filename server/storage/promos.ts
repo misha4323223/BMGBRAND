@@ -16,6 +16,8 @@ declare module "./core" {
     createPromoCode(promo: InsertPromoCode): Promise<PromoCode>;
     updatePromoCode(id: number, updates: Partial<PromoCode>): Promise<PromoCode>;
     deletePromoCode(id: number): Promise<boolean>;
+    deletePromoCodes(ids: number[]): Promise<number>;
+    deactivateExpiredPromoCodes(): Promise<number>;
     incrementPromoCodeUsage(code: string): Promise<void>;
     isPromoUsedByEmail(email: string, code: string): Promise<boolean>;
     getPartnerPromoCode(partnerId: number): Promise<(PromoCode & { partnerId?: number }) | undefined>;
@@ -333,10 +335,20 @@ DatabaseStorage.prototype.updatePromoCode = async function (this: DatabaseStorag
       setParts.push('applicable_categories = $ac');
       params['$ac'] = acStr ? ydb.TypedValues.optional(ydb.TypedValues.utf8(acStr)) : ydb.TypedValues.optionalNull(ydb.Types.UTF8);
     }
+    if ('startsAt' in updates) {
+      const sa = updates.startsAt;
+      setParts.push('starts_at = $sa');
+      params['$sa'] = sa ? ydb.TypedValues.optional(ydb.TypedValues.datetime(sa)) : ydb.TypedValues.optionalNull(ydb.Types.DATETIME);
+    }
+    if ('expiresAt' in updates) {
+      const ea = updates.expiresAt;
+      setParts.push('expires_at = $ea');
+      params['$ea'] = ea ? ydb.TypedValues.optional(ydb.TypedValues.datetime(ea)) : ydb.TypedValues.optionalNull(ydb.Types.DATETIME);
+    }
     
     if (setParts.length > 0) {
       const declares = Object.entries(params).map(([k, v]) => {
-        const type = k === '$id' ? 'Uint64' : k === '$code' ? 'Utf8' : k === '$ccl' || k === '$ia' || k === '$afw' ? 'Bool' : k === '$ac' ? 'Optional<Utf8>' : 'Int32';
+        const type = k === '$id' ? 'Uint64' : k === '$code' ? 'Utf8' : k === '$ccl' || k === '$ia' || k === '$afw' || k === '$ao' ? 'Bool' : k === '$ac' ? 'Optional<Utf8>' : k === '$sa' || k === '$ea' ? 'Optional<Datetime>' : 'Int32';
         return `DECLARE ${k} AS ${type};`;
       }).join('\n');
       
@@ -357,6 +369,49 @@ DatabaseStorage.prototype.deletePromoCode = async function (this: DatabaseStorag
       );
     });
     return true;
+  }
+;
+
+DatabaseStorage.prototype.deletePromoCodes = async function (this: DatabaseStorage, ids: number[]): Promise<number> {
+    const uniqueIds = ids ? [...new Set(ids.map(Number).filter(Boolean))] : [];
+    if (uniqueIds.length === 0) return 0;
+    await this.safeQuery(async (session) => {
+      const params: Record<string, any> = {};
+      const declares: string[] = [];
+      uniqueIds.forEach((id, i) => {
+        const k = `$id${i}`;
+        params[k] = ydb.TypedValues.uint64(id);
+        declares.push(`DECLARE ${k} AS Uint64;`);
+      });
+      await session.executeQuery(`${declares.join('\n')}\nDELETE FROM promo_codes WHERE id IN (${Object.keys(params).join(', ')})`, params);
+    });
+    return uniqueIds.length;
+  }
+;
+
+DatabaseStorage.prototype.deactivateExpiredPromoCodes = async function (this: DatabaseStorage): Promise<number> {
+    const expired = await this.safeQuery(async (session) => {
+      const { resultSets } = await session.executeQuery(
+        `DECLARE $now AS Datetime;
+         SELECT id FROM promo_codes
+         WHERE expires_at IS NOT NULL AND expires_at < $now AND is_active = true`,
+        { '$now': ydb.TypedValues.datetime(new Date()) }
+      );
+      return this.parseResultSet<{ id: number }>(resultSets[0]);
+    });
+    const ids = (expired || []).map(r => Number(r.id));
+    if (ids.length === 0) return 0;
+    await this.safeQuery(async (session) => {
+      const params: Record<string, any> = {};
+      const declares: string[] = [];
+      ids.forEach((id, i) => {
+        const k = `$id${i}`;
+        params[k] = ydb.TypedValues.uint64(id);
+        declares.push(`DECLARE ${k} AS Uint64;`);
+      });
+      await session.executeQuery(`${declares.join('\n')}\nUPDATE promo_codes SET is_active = false WHERE id IN (${Object.keys(params).join(', ')})`, params);
+    });
+    return ids.length;
   }
 ;
 

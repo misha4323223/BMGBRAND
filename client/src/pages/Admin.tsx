@@ -2008,6 +2008,57 @@ export default function Admin() {
     },
   });
 
+  const updatePromoMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const { id, ...promo } = payload;
+      // Parse applicableCategories from comma-separated string to JSON array
+      const cats = promo.applicableCategories
+        ? promo.applicableCategories.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : [];
+      const formattedPromo = {
+        ...promo,
+        discountPercent: Number(promo.discountPercent) || 0,
+        discountAmount: Number(promo.discountAmount) || 0,
+        minOrderAmount: Number(promo.minOrderAmount) || 0,
+        maxUses: Number(promo.maxUses) || 0,
+        startsAt: promo.startsAt ? new Date(promo.startsAt).toISOString() : null,
+        expiresAt: promo.expiresAt ? new Date(promo.expiresAt).toISOString() : null,
+        applicableCategories: cats.length > 0 ? JSON.stringify(cats) : null,
+      };
+      return adminFetch(`/api/promo-codes/${id}`, apiKey, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formattedPromo),
+      });
+    },
+    onSuccess: () => {
+      promoCodesQuery.refetch();
+      toast({ title: "Промокод обновлен" });
+      resetPromoForm();
+    },
+    onError: (err: any) => {
+      toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deletePromosMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      return adminFetch("/api/promo-codes/batch-delete", apiKey, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+    },
+    onSuccess: () => {
+      promoCodesQuery.refetch();
+      setSelectedPromoIds(new Set());
+      toast({ title: "Промокоды удалены" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+    },
+  });
+
   const deleteNewsletterMutation = useMutation({
     mutationFn: async (id: number) => {
       return adminFetch(`/api/admin/newsletter-subscriptions/${id}`, apiKey, { method: "DELETE" });
@@ -2056,6 +2107,83 @@ export default function Admin() {
     applicableCategories: "",
   });
   const [promoCatOpen, setPromoCatOpen] = useState(false);
+  const [editingPromoId, setEditingPromoId] = useState<number | null>(null);
+
+  const resetPromoForm = () => {
+    setNewPromo({
+      code: "",
+      discountPercent: 0,
+      discountAmount: 0,
+      minOrderAmount: 0,
+      maxUses: 0,
+      isActive: true,
+      allowForWholesale: false,
+      appOnly: false,
+      startsAt: "",
+      expiresAt: "",
+      applicableCategories: "",
+    });
+    setEditingPromoId(null);
+  };
+
+  const startEditPromo = (promo: any) => {
+    const fmtDate = (d: any) => {
+      if (!d) return "";
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return "";
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+    };
+    let cats: string[] = [];
+    try {
+      const parsed = typeof promo.applicableCategories === "string"
+        ? JSON.parse(promo.applicableCategories)
+        : promo.applicableCategories;
+      cats = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      cats = [];
+    }
+    setNewPromo({
+      code: promo.code || "",
+      discountPercent: Number(promo.discountPercent) || 0,
+      discountAmount: Number(promo.discountAmount) || 0,
+      minOrderAmount: Number(promo.minOrderAmount) || 0,
+      maxUses: Number(promo.maxUses) || 0,
+      isActive: promo.isActive !== false,
+      allowForWholesale: !!promo.allowForWholesale,
+      appOnly: !!promo.appOnly,
+      startsAt: fmtDate(promo.startsAt),
+      expiresAt: fmtDate(promo.expiresAt),
+      applicableCategories: cats.join(", "),
+    });
+    setEditingPromoId(promo.id);
+  };
+
+  const [selectedPromoIds, setSelectedPromoIds] = useState<Set<number>>(new Set());
+
+  const togglePromoSelected = (id: number) => {
+    setSelectedPromoIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+  const toggleAllPromos = (promos: any[]) => {
+    setSelectedPromoIds(prev => {
+      if (promos.length > 0 && promos.every(p => prev.has(p.id))) {
+        return new Set<number>();
+      }
+      return new Set(promos.map(p => p.id));
+    });
+  };
+  const selectExpiredPromos = (promos: any[]) => {
+    const now = Date.now();
+    setSelectedPromoIds(new Set(promos.filter(p => p.expiresAt && new Date(p.expiresAt).getTime() < now).map(p => p.id)));
+  };
 
   // Filter by category/subcategory/subSubcategory first, then by search
   const filteredProducts = products.filter(p => {
@@ -3370,7 +3498,7 @@ export default function Admin() {
               <div className="space-y-6">
                 <Card className="bg-zinc-900 border-zinc-800 text-white">
                   <CardHeader>
-                    <CardTitle>Создать новый промокод</CardTitle>
+                    <CardTitle>{editingPromoId ? `Редактировать промокод ${newPromo.code}` : "Создать новый промокод"}</CardTitle>
                   </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -3465,6 +3593,17 @@ export default function Admin() {
                       Только в мобильном приложении
                     </label>
                   </div>
+                  <div className="flex items-center gap-3 py-1">
+                    <Checkbox
+                      id="promo-is-active"
+                      checked={newPromo.isActive}
+                      onCheckedChange={(v) => setNewPromo({...newPromo, isActive: !!v})}
+                      className="border-zinc-500"
+                    />
+                    <label htmlFor="promo-is-active" className="text-sm text-zinc-300 cursor-pointer select-none">
+                      Промокод активен
+                    </label>
+                  </div>
                   <div className="space-y-2 sm:col-span-2">
                     <label className="text-sm text-zinc-400">Применять только к категориям (пусто = на весь заказ)</label>
                     {(() => {
@@ -3554,14 +3693,19 @@ export default function Admin() {
                       );
                     })()}
                   </div>
-                  <div className="flex items-end">
+                  <div className="flex items-end gap-2">
                     <Button 
-                      onClick={() => createPromoMutation.mutate(newPromo)} 
-                      disabled={createPromoMutation.isPending || !newPromo.code}
+                      onClick={() => editingPromoId ? updatePromoMutation.mutate({ id: editingPromoId, ...newPromo }) : createPromoMutation.mutate(newPromo)} 
+                      disabled={(editingPromoId ? updatePromoMutation.isPending : createPromoMutation.isPending) || !newPromo.code}
                       className="w-full"
                     >
-                      Создать
+                      {editingPromoId ? "Сохранить" : "Создать"}
                     </Button>
+                    {editingPromoId && (
+                      <Button variant="outline" onClick={resetPromoForm} className="shrink-0">
+                        Отмена
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -3572,43 +3716,107 @@ export default function Admin() {
                 <CardTitle>Список промокодов</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="promo-select-all"
+                      checked={(promoCodesQuery.data?.promoCodes?.length ?? 0) > 0 && (promoCodesQuery.data?.promoCodes ?? []).every(p => selectedPromoIds.has(p.id))}
+                      onCheckedChange={() => toggleAllPromos(promoCodesQuery.data?.promoCodes ?? [])}
+                      className="border-zinc-500"
+                    />
+                    <label htmlFor="promo-select-all" className="text-sm text-zinc-300 cursor-pointer select-none">
+                      Выбрать все
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      disabled={!(promoCodesQuery.data?.promoCodes ?? []).some(p => p.expiresAt && new Date(p.expiresAt).getTime() < Date.now())}
+                      onClick={() => selectExpiredPromos(promoCodesQuery.data?.promoCodes ?? [])}
+                    >
+                      Выбрать просроченные
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="h-8"
+                      disabled={selectedPromoIds.size === 0}
+                      onClick={() => {
+                        if (confirm(`Удалить выбранные промокоды (${selectedPromoIds.size})?`)) {
+                          deletePromosMutation.mutate([...selectedPromoIds]);
+                        }
+                      }}
+                    >
+                      Удалить выбранные ({selectedPromoIds.size})
+                    </Button>
+                  </div>
+                </div>
                 <div className="space-y-4">
-                  {promoCodesQuery.data?.promoCodes?.map((promo: any) => (
-                    <div key={promo.id} className="flex items-center justify-between p-3 border border-zinc-800 rounded-md hover:bg-zinc-800/50 transition-colors">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <div className="font-bold text-lg text-white">{promo.code}</div>
-                          {promo.allowForWholesale && (
-                            <span className="text-xs bg-blue-600/30 text-blue-300 border border-blue-600/40 px-1.5 py-0.5 rounded">Опт</span>
-                          )}
-                          {promo.appOnly && (
-                            <span className="text-xs bg-emerald-600/30 text-emerald-300 border border-emerald-600/40 px-1.5 py-0.5 rounded">Приложение</span>
-                          )}
-                        </div>
-                        <div className="text-sm text-zinc-400">
-                          {promo.discountPercent ? `${promo.discountPercent}%` : `${promo.discountAmount / 100} ₽`} скидка
-                          {promo.minOrderAmount > 0 && ` • от ${promo.minOrderAmount / 100} ₽`}
-                          {promo.maxUses > 0 && ` • использовано: ${promo.usedCount || 0}/${promo.maxUses}`}
-                          {promo.applicableCategories && (() => {
-                            try {
-                              const cats: string[] = typeof promo.applicableCategories === 'string'
-                                ? JSON.parse(promo.applicableCategories)
-                                : promo.applicableCategories;
-                              return cats.length > 0 ? ` • только: ${cats.join(', ')}` : null;
-                            } catch { return null; }
-                          })()}
+                  {promoCodesQuery.data?.promoCodes?.map((promo: any) => {
+                    const isExpired = promo.expiresAt && new Date(promo.expiresAt).getTime() < Date.now();
+                    return (
+                    <div key={promo.id} className={`flex items-center justify-between p-3 border rounded-md transition-colors ${isExpired ? "border-red-500/40 bg-red-500/5" : "border-zinc-800 hover:bg-zinc-800/50"}`}>
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={selectedPromoIds.has(promo.id)}
+                          onCheckedChange={() => togglePromoSelected(promo.id)}
+                          className="border-zinc-500"
+                        />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <div className={`font-bold text-lg ${promo.isActive ? "text-white" : "text-zinc-500"}`}>{promo.code}</div>
+                            {promo.allowForWholesale && (
+                              <span className="text-xs bg-blue-600/30 text-blue-300 border border-blue-600/40 px-1.5 py-0.5 rounded">Опт</span>
+                            )}
+                            {promo.appOnly && (
+                              <span className="text-xs bg-emerald-600/30 text-emerald-300 border border-emerald-600/40 px-1.5 py-0.5 rounded">Приложение</span>
+                            )}
+                            {isExpired && (
+                              <span className="text-xs bg-red-500/30 text-red-300 border border-red-500/40 px-1.5 py-0.5 rounded">Просрочен</span>
+                            )}
+                            {!promo.isActive && (
+                              <span className="text-xs bg-zinc-500/30 text-zinc-300 border border-zinc-500/40 px-1.5 py-0.5 rounded">Неактивен</span>
+                            )}
+                          </div>
+                          <div className="text-sm text-zinc-400">
+                            {promo.discountPercent ? `${promo.discountPercent}%` : `${promo.discountAmount / 100} ₽`} скидка
+                            {promo.minOrderAmount > 0 && ` • от ${promo.minOrderAmount / 100} ₽`}
+                            {promo.maxUses > 0 && ` • использовано: ${promo.usedCount || 0}/${promo.maxUses}`}
+                            {promo.applicableCategories && (() => {
+                              try {
+                                const cats: string[] = typeof promo.applicableCategories === 'string'
+                                  ? JSON.parse(promo.applicableCategories)
+                                  : promo.applicableCategories;
+                                return cats.length > 0 ? ` • только: ${cats.join(', ')}` : null;
+                              } catch { return null; }
+                            })()}
+                          </div>
                         </div>
                       </div>
-                      <Button 
-                        variant="destructive" 
-                        size="icon" 
-                        onClick={() => confirm("Удалить промокод?") && deletePromoMutation.mutate(promo.id)}
-                        className="h-8 w-8"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => startEditPromo(promo)}
+                          className="h-8 w-8"
+                          title="Редактировать промокод"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          size="icon" 
+                          onClick={() => confirm("Удалить промокод?") && deletePromoMutation.mutate(promo.id)}
+                          className="h-8 w-8"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  ))}
+                    );
+                  })}
                   {(!promoCodesQuery.data?.promoCodes || promoCodesQuery.data.promoCodes.length === 0) && !promoCodesQuery.isLoading && (
                     <div className="text-center py-8 text-zinc-500">Промокоды не найдены</div>
                   )}
