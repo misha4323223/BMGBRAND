@@ -1,3 +1,6 @@
+// ⚠️ НЕ ИСПОЛЬЗУЕТСЯ (2026-08-30): «чисто оптовый предзаказ» отключён.
+// Опт и розница работают через ОБЩИЙ предзаказ (PreorderCheckout → /api/preorder/order-multi):
+// розница платит 100% онлайн, оптовикам выставляется счёт на предоплату 50%, вторая половина — вручную при отгрузке.
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";

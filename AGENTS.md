@@ -74,6 +74,15 @@
   `sortProductCategoryPaths` (самый глубокий путь первым) в bot-ssr, static, vite
   и клиенте ProductDetail. `ProductMetaForSsr` теперь несёт subcategory/
   subSubcategory/additionalCategories. Бот-футер/нав содержат ссылки на все категории.
+- **Предзаказы (актуальная модель, 2026-08-30)**: один ОБЩИЙ предзаказ для розницы и опта
+  (`PreorderCheckout` → `/api/preorder/order-multi`). Розница оплачивает 100% онлайн;
+  оптовикам при заказе выставляется счёт на предоплату 50% (invoice, `depositPercent: 50`),
+  вторые 50% владелец выставляет вручную при отгрузке. «Чисто оптовый предзаказ»
+  (`wholesalePreorderEnabled`, страница `/wholesale/preorder`, `server/routes/wholesale.ts`,
+  секция «Товары для оптового предзаказа» в админке) **НЕ ИСПОЛЬЗУЕТСЯ** — помечен, не трогать.
+  Вебхуки оплат: успех одиночного `PREORDER-{id}` обрабатывается (`settlePreorderDepositPaid`),
+  предзаказы НЕ удаляются при отмене/сбое оплаты, успех `PREORDER-REMAINING-{id}` обнуляет
+  `remaining_amount`.
 
 ## Mailings / newsletter (new-products)
 - `server/new-products-notifier.ts` — РАССЫЛКА НОВИНОК идёт ПАЧКАМИ (batch), не одним потоком.

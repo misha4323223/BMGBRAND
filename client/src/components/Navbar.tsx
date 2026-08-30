@@ -10,6 +10,7 @@ import { useCart } from "@/hooks/use-cart";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useAuth, useLogout, useWholesalePrice } from "@/hooks/use-auth";
+import { getTrackCoverThumb } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const SearchModal = lazy(() => import("./SearchModal").then(m => ({ default: m.SearchModal })));
@@ -79,7 +80,7 @@ function MobileMusicList({ onClose }: { onClose: () => void }) {
                   data-testid={`mobile-track-${track.id}`}
                 >
                   {track.coverUrl ? (
-                    <img src={track.coverUrl} alt={track.title} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" loading="lazy" />
+                    <img src={getTrackCoverThumb(track.coverUrl) || track.coverUrl} alt={track.title} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" loading="lazy" />
                   ) : (
                     <div className="w-8 h-8 rounded-lg bg-muted flex-shrink-0" />
                   )}

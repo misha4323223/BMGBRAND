@@ -11728,6 +11728,7 @@ export default function Admin() {
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   <Package className="w-5 h-5" />
                   Товары для оптового предзаказа
+                  <Badge variant="destructive" className="text-xs shrink-0">Не используется</Badge>
                 </h2>
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
@@ -11740,7 +11741,12 @@ export default function Admin() {
                   />
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">Включите товары, которые должны отображаться на странице <code>/wholesale/preorder</code>. Розничный предзаказ — отдельная настройка в карточке товара.</p>
+              <p className="text-sm text-muted-foreground">
+                ⚠️ <strong>Чисто оптовый предзаказ не используется.</strong> Опт и розница работают через общий
+                предзаказ (PreorderCheckout): розница платит 100%, оптовикам выставляется счёт на предоплату 50%,
+                вторая половина — вручную при отгрузке. Включать товары здесь и использовать страницу{" "}
+                <code>/wholesale/preorder</code> не нужно.
+              </p>
               {isLoading ? (
                 <div className="text-sm text-muted-foreground">Загрузка...</div>
               ) : (

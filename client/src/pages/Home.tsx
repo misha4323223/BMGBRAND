@@ -73,6 +73,16 @@ function LazyVideo({ src, className }: { src: string; className?: string }) {
   );
 }
 
+// Меняет 800px _thumb.webp на лёгкий ~200px _thumb_small.webp для маленьких карточек.
+// Вызывается через getOptimizedImageUrl(..., 'small') — только в строке артистов на главной.
+function getOptimizedImageSmallUrl(url: string): string {
+  if (!url) return url;
+  if (url.includes('_thumb_small.webp')) return url;
+  const smallUrl = url.replace(/\.webp(\?.*)?$/i, '_thumb_small.webp$1');
+  if (smallUrl !== url) return smallUrl;
+  return url;
+}
+
 function getOptimizedImageUrl(url: string): string {
   if (!url) return url;
   if (url.includes('_thumb.webp')) return url;
@@ -1005,20 +1015,27 @@ export default function Home() {
                             }}
                           >
                             {/* Фото */}
-                            <div className="relative overflow-hidden" style={{ width: 86, height: 110 }}>
-                              <img
-                                src={getOptimizedImageUrl(artist.image)}
+                            <div className="relative overflow-hidden" style={{ width: 86, height: 110 }}>                              <img
+                                src={getOptimizedImageSmallUrl(getOptimizedImageUrl(artist.image))}
                                 alt={artist.name}
-                                loading={idx < 2 ? "eager" : "lazy"}
-                                // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
+                                loading={idx < 2 ? "eager" : "lazy"}                                // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
                                 fetchpriority={idx < 2 ? "high" : "auto"}
                                 decoding="async"
                                 width={86}
                                 height={110}
+                                data-stage="small"
                                 onError={(e) => {
                                   const el = e.currentTarget;
+                                  const thumb = getOptimizedImageUrl(artist.image);
                                   const original = artist.image;
-                                  if (original && el.src !== original) el.src = original;
+                                  // small → 800px thumb → оригинал
+                                  if (thumb && el.getAttribute('data-stage') === 'small') {
+                                    el.setAttribute('data-stage', 'thumb');
+                                    el.src = thumb;
+                                  } else if (original && el.src !== original) {
+                                    el.setAttribute('data-stage', 'original');
+                                    el.src = original;
+                                  }
                                 }}
                                 className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
                               />

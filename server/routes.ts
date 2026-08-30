@@ -3597,6 +3597,83 @@ ${faqSection}
   // PAYMENT WEBHOOKS
   // ============================================
 
+  // Settle a single preorder after its deposit payment is confirmed.
+  // Mirrors the PREORDER-MULTI- success handling: marks the order paid,
+  // bumps the preorder counter, sends Telegram/VK notifications and email.
+  async function settlePreorderDepositPaid(
+    preorderOrderId: number,
+    paymentMethod: string,
+    logPrefix: string,
+  ): Promise<void> {
+    const order = await storage.getOrder(preorderOrderId);
+    if (!order) {
+      logError(`${logPrefix} Paid preorder callback references missing order ${preorderOrderId}`);
+      return;
+    }
+    if (order.status === "paid") {
+      logInfo(`${logPrefix} Preorder ${preorderOrderId} already paid; skipping duplicate callback side effects`);
+      return;
+    }
+    await storage.updateOrderStatus(preorderOrderId, "paid");
+    await storage.updateOrderPreorderFields(preorderOrderId, { depositPaid: true, remainingAmount: 0 });
+    const items = typeof order.items === 'string' ? JSON.parse(order.items) : (Array.isArray(order.items) ? order.items : []);
+    const uniqueProductIds = [...new Set(items.map((i: any) => i.productId).filter(Boolean))];
+    for (const pid of uniqueProductIds) {
+      await storage.incrementPreorderCurrent(pid as number);
+    }
+    logInfo(`${logPrefix} Preorder paid: order ${preorderOrderId}, products: [${uniqueProductIds.join(', ')}]`);
+    const productNames = [...new Set(items.map((i: any) => i.productName).filter(Boolean))].join(", ");
+    const deliveryInfo = (() => {
+      try {
+        const cd = order.cdekData ? JSON.parse(order.cdekData as string) : null;
+        if (!cd) return order.address || "—";
+        if (cd.deliveryType === "pickup") return "Самовывоз";
+        if (cd.pointAddress) return `СДЭК: ${cd.pointAddress}`;
+        if (cd.deliveryType === "cdek") return "СДЭК";
+        return order.address || "—";
+      } catch { return order.address || "—"; }
+    })();
+    const notifData = {
+      orderId: preorderOrderId,
+      productName: productNames || "Предзаказ",
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      depositAmount: order.total,
+      totalAmount: order.total,
+      items: items.map((i: any) => ({ name: i.productName, size: i.size, color: i.color, quantity: i.quantity || 1 })),
+      shippingDate: null,
+      paymentMethod,
+      deliveryInfo,
+    };
+    notifyPreorderDeposit(notifData);
+    vkNotifyPreorderDeposit(notifData);
+    if (order.customerEmail) {
+      try {
+        const cdForEmail = order.cdekData ? (() => { try { return JSON.parse(order.cdekData as string); } catch { return null; } })() : null;
+        const deliveryTypeForEmail = cdForEmail?.deliveryType || 'cdek';
+        const deliveryAddressForEmail = deliveryTypeForEmail === 'pickup'
+          ? (order.address || '').replace(/^Самовывоз:\s*/i, '')
+          : (cdForEmail?.pointAddress || '');
+        const emailHtml = getPreorderPaidEmailHtml({
+          id: order.id,
+          customerName: order.customerName,
+          total: order.total,
+          items,
+          deliveryType: deliveryTypeForEmail,
+          deliveryAddress: deliveryAddressForEmail,
+        });
+        await sendEmail({
+          to: order.customerEmail,
+          subject: `Предзаказ #${order.id} оформлен — BOOOMERANGS`,
+          html: emailHtml,
+        });
+        logInfo(`${logPrefix} Preorder email sent to ${order.customerEmail}`);
+      } catch (emailErr: any) {
+        logError(`${logPrefix} Failed to send preorder email:`, emailErr.message);
+      }
+    }
+  }
+
   app.post("/api/webhooks/yookassa", async (req, res) => {
     logInfo("[YooKassa Webhook] Received webhook:", JSON.stringify(req.body?.event), "payment:", req.body?.object?.id);
     // Anti-spoof (30.04.2026): полагаемся ТОЛЬКО на req.ip (последний хоп XFF после trust proxy=1).
@@ -3803,6 +3880,18 @@ ${faqSection}
                 }
               }
             }
+          }
+        } else if (orderId.startsWith("PREORDER-REMAINING-")) {
+          const remainingOrderId = Number(orderId.replace("PREORDER-REMAINING-", ""));
+          if (!isNaN(remainingOrderId)) {
+            await storage.updateOrderPreorderFields(remainingOrderId, { remainingAmount: 0 });
+            logInfo(`[YooKassa Webhook] Preorder remaining paid: order ${remainingOrderId}, paymentId=${paymentId}`);
+          }
+        } else if (orderId.startsWith("PREORDER-") && !orderId.startsWith("PREORDER-REMAINING-")) {
+          const preorderOrderId = Number(orderId.replace("PREORDER-", ""));
+          if (!isNaN(preorderOrderId)) {
+            logInfo(`[YooKassa Webhook] Preorder deposit paid: ${preorderOrderId}, paymentId=${paymentId}`);
+            await settlePreorderDepositPaid(preorderOrderId, "ЮКасса", "[YooKassa Webhook]");
           }
         } else if (orderId.startsWith("ADDON-")) {
           const addonOrderId = Number(orderId.replace("ADDON-", ""));
@@ -4029,23 +4118,9 @@ ${faqSection}
         } else if (orderId.startsWith("PREORDER-REMAINING-")) {
           logInfo(`[YooKassa Webhook] Preorder remaining payment canceled for ${orderId}, keeping order`);
         } else if (orderId.startsWith("PREORDER-MULTI-")) {
-          const multiOrderId = Number(orderId.replace("PREORDER-MULTI-", ""));
-          if (!isNaN(multiOrderId)) {
-            const multiOrder = await storage.getOrder(multiOrderId);
-            if (multiOrder && multiOrder.status === "awaiting_payment") {
-              await storage.deleteOrder(multiOrderId);
-              logInfo(`[YooKassa Webhook] Deleted draft multi-preorder ${multiOrderId} after cancel`);
-            }
-          }
+          logInfo(`[YooKassa Webhook] Preorder (multi) payment canceled for ${orderId}, keeping order`);
         } else if (orderId.startsWith("PREORDER-")) {
-          const preorderOrderId = Number(orderId.replace("PREORDER-", ""));
-          if (!isNaN(preorderOrderId)) {
-            const order = await storage.getOrder(preorderOrderId);
-            if (order && order.status === "awaiting_payment") {
-              await storage.deleteOrder(preorderOrderId);
-              logInfo(`[YooKassa Webhook] Deleted draft preorder ${preorderOrderId} after payment cancellation`);
-            }
-          }
+          logInfo(`[YooKassa Webhook] Preorder payment canceled for ${orderId}, keeping order`);
         } else if (orderId.startsWith("ADDON-")) {
           logInfo(`[YooKassa Webhook] Addon payment canceled for ${orderId}, no action needed`);
         } else {
@@ -4261,6 +4336,18 @@ ${faqSection}
                 }
               }
             }
+          }
+        } else if (OrderId.startsWith("PREORDER-REMAINING-")) {
+          const remainingOrderId = Number(OrderId.replace("PREORDER-REMAINING-", ""));
+          if (!isNaN(remainingOrderId)) {
+            await storage.updateOrderPreorderFields(remainingOrderId, { remainingAmount: 0 });
+            logInfo(`[T-Bank Webhook] Preorder remaining paid: order ${remainingOrderId}, paymentId=${PaymentId}`);
+          }
+        } else if (OrderId.startsWith("PREORDER-") && !OrderId.startsWith("PREORDER-REMAINING-")) {
+          const preorderOrderId = Number(OrderId.replace("PREORDER-", ""));
+          if (!isNaN(preorderOrderId)) {
+            logInfo(`[T-Bank Webhook] Preorder deposit paid: ${preorderOrderId}, paymentId=${PaymentId}`);
+            await settlePreorderDepositPaid(preorderOrderId, "Т-Банк", "[T-Bank Webhook]");
           }
         } else if (OrderId.startsWith("ADDON-")) {
           const addonOrderId = Number(OrderId.replace("ADDON-", ""));
@@ -4554,14 +4641,7 @@ ${faqSection}
         } else if (OrderId.startsWith("PREORDER-REMAINING-")) {
           logInfo(`[T-Bank Webhook] Preorder remaining payment failed for ${OrderId}, keeping order`);
         } else if (OrderId.startsWith("PREORDER-")) {
-          const preorderOrderId = Number(OrderId.replace("PREORDER-", ""));
-          if (!isNaN(preorderOrderId)) {
-            const order = await storage.getOrder(preorderOrderId);
-            if (order && order.status === "awaiting_payment") {
-              await storage.deleteOrder(preorderOrderId);
-              logInfo(`[T-Bank Webhook] Deleted draft preorder ${preorderOrderId} after payment failure`);
-            }
-          }
+          logInfo(`[T-Bank Webhook] Preorder payment failed for ${OrderId}, keeping order`);
         } else {
           const numericId = Number(OrderId);
           if (!isNaN(numericId)) {
@@ -12968,6 +13048,49 @@ ${faqSection}
       res.json({ success: true, orderId, status });
     } catch (err: any) {
       logError("[Preorder] Per-order status error:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Re-dispatch preorder-deposit notifications (VK + Telegram) for an existing paid order.
+  // Used after manual restoration of an order whose payment webhook was lost (e.g. deleted order).
+  app.post("/api/admin/preorder/order/:orderId/resend-deposit-notification", async (req: any, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const orderId = Number(req.params.orderId);
+      const order = await storage.getOrder(orderId);
+      if (!order) return res.status(404).json({ error: "Order not found" });
+
+      const items = typeof order.items === 'string' ? (() => { try { return JSON.parse(order.items); } catch { return []; } })() : (Array.isArray(order.items) ? order.items : []);
+      const productNames = [...new Set(items.map((i: any) => i.productName).filter(Boolean))].join(", ") || "Предзаказ";
+      const cdekDeliveryInfo = (() => {
+        try {
+          const cd = order.cdekData ? JSON.parse(typeof order.cdekData === 'string' ? order.cdekData : JSON.stringify(order.cdekData)) : null;
+          if (!cd) return order.address || "—";
+          if (cd.pointAddress) return `СДЭК: ${cd.pointAddress}`;
+          if (cd.deliveryType === "pickup") return "Самовывоз";
+          return order.address || "—";
+        } catch { return order.address || "—"; }
+      })();
+      const notifData = {
+        orderId,
+        productName: productNames,
+        customerName: order.customerName || "",
+        customerEmail: order.customerEmail || "",
+        depositAmount: order.total,
+        totalAmount: order.total,
+        items: items.map((i: any) => ({ name: i.productName, size: i.size, color: i.color, quantity: i.quantity || 1 })),
+        shippingDate: null,
+        paymentMethod: "Ручное восстановление",
+        deliveryInfo: cdekDeliveryInfo,
+      };
+      notifyPreorderDeposit(notifData);
+      vkNotifyPreorderDeposit(notifData);
+      logInfo(`[Preorder] Deposit notification re-dispatched for order #${orderId}`);
+      res.json({ success: true, orderId });
+    } catch (err: any) {
+      logError("[Preorder] Resend-deposit-notification error:", err.message);
       res.status(500).json({ error: err.message });
     }
   });

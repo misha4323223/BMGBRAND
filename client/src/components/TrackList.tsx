@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { usePlayer, type ArtistTrack } from "@/context/PlayerContext";
 import { extractDominantColor } from "@/lib/color";
+import { getTrackCoverThumb } from "@/lib/utils";
 import { Play, Pause, Music, Eye } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -117,7 +118,7 @@ export function TrackList({ artistSlug, artistName, accentColor, textColor, bgCo
                   >
                     {track.coverUrl ? (
                       <img
-                        src={track.coverUrl}
+                        src={getTrackCoverThumb(track.coverUrl) || track.coverUrl}
                         alt={track.title}
                         className="w-full h-full object-cover"
                         loading="lazy"

@@ -392,6 +392,7 @@ class PaymentService {
       { base: ipToInt("185.71.76.0")!,  bits: 27 },
       { base: ipToInt("185.71.77.0")!,  bits: 27 },
       { base: ipToInt("77.75.153.0")!,  bits: 25 },
+      { base: ipToInt("77.75.154.128")!, bits: 25 },
     ];
     const YOOKASSA_EXACT: number[] = [
       ipToInt("77.75.156.11")!,

@@ -132,6 +132,7 @@ function Router() {
         <Route path="/wholesale" component={WholesaleLanding} />
         <Route path="/wholesale/register" component={WholesaleRegister} />
         <Route path="/wholesale/profile" component={WholesaleProfile} />
+        {/* Чисто оптовый предзаказ НЕ ИСПОЛЬЗУЕТСЯ (2026-08-30): опт работает через общий предзаказ (счёт 50%). Роут оставлен для совместимости. */}
         <Route path="/wholesale/preorder" component={WholesalePreorder} />
         <Route path="/partner/login" component={PartnerLogin} />
         <Route path="/partner/register" component={PartnerRegister} />

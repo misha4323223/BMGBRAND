@@ -1135,12 +1135,15 @@ router.post('/artist/upload-image', authMiddleware, requirePartnerRole, async (r
     const webpBuffer = await sharp(buffer).webp({ quality: 88 }).toBuffer();
     // Thumbnail (800px) — нужен для getOptimizedImageUrl на главной
     const thumbBuffer = await sharp(buffer).resize(800, null, { withoutEnlargement: true }).webp({ quality: 88 }).toBuffer();
+    // Small thumbnail (~200px) — для маленьких карточек артистов на главной (Perfomance/LCP)
+    const smallBuffer = await sharp(buffer).resize(200, null, { withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
 
     const ts = Date.now();
     const cleanName = filename.replace(/\.[^.]+$/, '.webp').replace(/[^a-zA-Z0-9._-]/g, '_');
     const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME || 'bmg';
     const s3Key = `site/artist/${partner.partnerSlug}/${ts}_${cleanName}`;
     const s3ThumbKey = s3Key.replace('.webp', '_thumb.webp');
+    const s3SmallKey = s3Key.replace('.webp', '_thumb_small.webp');
 
     const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
     const s3 = new S3Client({
@@ -1164,6 +1167,14 @@ router.post('/artist/upload-image', authMiddleware, requirePartnerRole, async (r
         Bucket: bucketName,
         Key: s3ThumbKey,
         Body: thumbBuffer,
+        ContentType: 'image/webp',
+        ACL: 'public-read',
+        CacheControl: 'public, max-age=31536000, immutable',
+      })),
+      s3.send(new PutObjectCommand({
+        Bucket: bucketName,
+        Key: s3SmallKey,
+        Body: smallBuffer,
         ContentType: 'image/webp',
         ACL: 'public-read',
         CacheControl: 'public, max-age=31536000, immutable',

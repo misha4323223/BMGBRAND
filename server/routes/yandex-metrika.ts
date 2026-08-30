@@ -21,6 +21,23 @@ async function metrikaRequest(path: string, token: string, params: Record<string
   return body;
 }
 
+const METRIKA_DELAY_MS = 300;
+const GOALS_CACHE_TTL_MS = 60_000;
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// goals-stats делает подряд несколько запросов к Метрике. Чтобы не превышать
+// квоту на токен (общую для всех инструментов владельца), перед каждым
+// обращением держим паузу и кэшируем готовый результат на 60 с.
+async function pacedMetrikaRequest(path: string, token: string, params: Record<string, string>) {
+  await sleep(METRIKA_DELAY_MS);
+  return metrikaRequest(path, token, params);
+}
+
+let goalsCache: { key: string; at: number; output: { ok: true; goals: { id: number; name: string; reaches: number }[] } } | null = null;
+
 // Метрика записывает «undefined» для purchase-событий, где название товара не
 // попало в dataLayer. Такие строки не несут информации — убираем их из выдачи,
 // чтобы в панели показывались только реальные товары.
@@ -156,7 +173,7 @@ export function registerYandexMetrikaRoutes(
   // ограничивать число метрик в одном запросе); при ошибке батча цель
   // переспрашивается отдельным запросом. Сортировка по reaches, убывание.
   app.get("/api/admin/yandex-metrika/goals-stats", (req, res) =>
-    route(req, res, `/management/v1/counter/${COUNTER_ID}/goals`, {}, undefined, async (token) => {
+    route(req, res, `/management/v1/counter/${COUNTER_ID}/goals`, {    }, undefined, async (token) => {
       const from = String(req.query.from || "7daysAgo");
       const to = String(req.query.to || "today");
       const toNum = (v: unknown): number => {
@@ -164,15 +181,22 @@ export function registerYandexMetrikaRoutes(
         return Number.isFinite(n) ? n : 0;
       };
 
-      const goalsBody = await metrikaRequest(`/management/v1/counter/${COUNTER_ID}/goals`, token, {});
+      // Кэш на 60 с снимает повторные обращения к Метрике при активной панели.
+      const key = `${from}|${to}`;
+      const now = Date.now();
+      if (goalsCache && goalsCache.key === key && now - goalsCache.at < GOALS_CACHE_TTL_MS) {
+        return goalsCache.output;
+      }
+
+      const goalsBody = await pacedMetrikaRequest(`/management/v1/counter/${COUNTER_ID}/goals`, token, {});
       const goals: Array<{ id: number; name: string }> = Array.isArray(goalsBody?.goals) ? goalsBody.goals : [];
 
       const reachesById = new Map<number, number>();
-      const BATCH_SIZE = 10;
+      const BATCH_SIZE = 5;
       for (let i = 0; i < goals.length; i += BATCH_SIZE) {
         const chunk = goals.slice(i, i + BATCH_SIZE);
         try {
-          const stat = await metrikaRequest("/stat/v1/data", token, {
+          const stat = await pacedMetrikaRequest("/stat/v1/data", token, {
             ids: COUNTER_ID,
             lang: "ru",
             metrics: chunk.map((goal) => `ym:s:goal${goal.id}reaches`).join(","),
@@ -191,7 +215,7 @@ export function registerYandexMetrikaRoutes(
       const missing = goals.filter((goal) => !reachesById.has(goal.id));
       for (const goal of missing) {
         try {
-          const stat = await metrikaRequest("/stat/v1/data", token, {
+          const stat = await pacedMetrikaRequest("/stat/v1/data", token, {
             ids: COUNTER_ID,
             lang: "ru",
             metrics: `ym:s:goal${goal.id}reaches`,
@@ -207,7 +231,8 @@ export function registerYandexMetrikaRoutes(
       const result = goals
         .map((goal) => ({ id: goal.id, name: goal.name, reaches: reachesById.get(goal.id) ?? 0 }))
         .sort((a, b) => b.reaches - a.reaches);
-      return { ok: true, goals: result };
+      goalsCache = { key, at: Date.now(), output: { ok: true, goals: result } };
+      return goalsCache.output;
     }),
   );
 }
