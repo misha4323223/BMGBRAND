@@ -57,6 +57,8 @@ jobs:
             YANDEX_CLIENT_ID=${{ secrets.YANDEX_CLIENT_ID }}
             YANDEX_CLIENT_SECRET=${{ secrets.YANDEX_CLIENT_SECRET }}
             YANDEX_METRIKA_OAUTH_TOKEN=${{ secrets.YANDEX_METRIKA_OAUTH_TOKEN }}
+            OLLAMA_BASE_URL=${{ secrets.OLLAMA_BASE_URL }}
+            OLLAMA_MODEL=${{ secrets.OLLAMA_MODEL }}
             YOOKASSA_SHOP_ID=${{ secrets.YOOKASSA_SHOP_ID }}
             YOOKASSA_SECRET_KEY=${{ secrets.YOOKASSA_SECRET_KEY }}
             TBANK_TERMINAL_KEY=${{ secrets.TBANK_TERMINAL_KEY }}

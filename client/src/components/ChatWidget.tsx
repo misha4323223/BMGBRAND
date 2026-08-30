@@ -3,6 +3,22 @@ import { useLocation } from "wouter";
 import { X, Send, ArrowRight, ImagePlus, Loader2, Bot, UserRound, Sparkles, Ruler, BrainCog, Mic, MicOff } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 
+// Миниатюра для карточек товаров в чате: грузим _thumb.webp с CDN вместо полного
+// оригинала (карточка всего 44px, оригинал весит сотни КБ). Та же логика, что на
+// главной (getOptimizedImageUrl). Если миниатюры нет — остаётся оригинал.
+function chatThumbUrl(url: string | null): string {
+  if (!url) return "";
+  if (url.includes("_thumb.webp")) return url;
+  if (
+    url.includes("storage.yandexcloud.net/bmg/products/") ||
+    url.includes("storage.yandexcloud.net/bmg/site/")
+  ) {
+    const thumb = url.replace(/\.(webp|jpg|jpeg|png)(\?.*)?$/i, "_thumb.webp$2");
+    if (thumb !== url) return thumb;
+  }
+  return url;
+}
+
 // Detects if AI response is redirecting user to manager
 function hasManagerRedirect(text: string): boolean {
   const t = text.toLowerCase();
@@ -52,7 +68,7 @@ function AiMessageContent({ text, streaming }: { text: string; streaming?: boole
   );
 }
 
-type ChatMode = "ai" | "manager";
+type ChatMode = "ai" | "local" | "manager";
 
 interface SizeAdvisorProduct {
   id: number;
@@ -148,6 +164,16 @@ export function ChatWidget() {
   const [location] = useLocation();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ChatMode>("ai");
+  // Облачный AI-чат (Groq) показывается, только если админ включил его в Интеграциях.
+  const [aiEnabled, setAiEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem("ai_chat_enabled");
+    return saved === null ? true : saved !== "false";
+  });
+  // «BOOM AI» (локальная модель) показывается только если админ включил её в Интеграциях.
+  const [localEnabled, setLocalEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem("booom_ai_enabled");
+    return saved === null ? true : saved !== "false";
+  });
 
   // AI state — persisted in localStorage across page reloads
   const [aiMessages, setAiMessages] = useState<AiMessage[]>(() => {
@@ -160,8 +186,16 @@ export function ChatWidget() {
   });
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-  // Локальная модель (Ollama) — ВРЕМЕННО СКРЫТА: переключатель убран из UI,
-  // провайдер на сервере (server/ollama.ts) сохранён для будущего включения.
+  // Локальная модель (Ollama) — через /api/ollama/chat (server/ollama.ts)
+  const [localMessages, setLocalMessages] = useState<AiMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem("local_chat_messages");
+      if (saved) return JSON.parse(saved) as AiMessage[];
+    } catch {}
+    return [];
+  });
+  const [localInput, setLocalInput] = useState("");
+  const [localLoading, setLocalLoading] = useState(false);
   const [productPageCtx, setProductPageCtx] = useState<ProductPageContext | null>(null);
   const [artistPageCtx, setArtistPageCtx] = useState<ArtistPageContext | null>(null);
 
@@ -192,6 +226,8 @@ export function ChatWidget() {
   const aiBottomRef = useRef<HTMLDivElement>(null);
   const managerBottomRef = useRef<HTMLDivElement>(null);
   const aiInputRef = useRef<HTMLInputElement>(null);
+  const localInputRef = useRef<HTMLInputElement>(null);
+  const localBottomRef = useRef<HTMLDivElement>(null);
   const managerInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastTsRef = useRef<number>(0);
@@ -220,6 +256,15 @@ export function ChatWidget() {
       localStorage.setItem(`ai_chat_${sessionId.current}`, JSON.stringify(toSave));
     } catch {}
   }, [aiMessages]);
+
+  // Persist local model chat messages
+  useEffect(() => {
+    try {
+      if (localMessages.some(m => m.streaming)) return;
+      const toSave = localMessages.filter(m => !m.streaming).slice(-30);
+      localStorage.setItem("local_chat_messages", JSON.stringify(toSave));
+    } catch {}
+  }, [localMessages]);
 
   // Hide button on scroll down, show on scroll up (like navbar)
   const [btnHidden, setBtnHidden] = useState(false);
@@ -257,6 +302,40 @@ export function ChatWidget() {
     const handler = () => { setMode("manager"); setOpen(true); };
     window.addEventListener("open-booom-manager", handler);
     return () => window.removeEventListener("open-booom-manager", handler);
+  }, []);
+
+  // Сверяемся с флагами из админки (Интеграции): облачный AI-чат и «BOOM AI».
+  // Если выключен AI — на его место встаёт BOOM AI; если выключены оба —
+  // остаётся только менеджер. Приводим текущий режим к доступному.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [aiRes, localRes] = await Promise.all([
+          fetch("/api/ai-chat/status").then(r => r.json()).catch(() => ({ enabled: true })),
+          fetch("/api/booom-ai/status").then(r => r.json()).catch(() => ({ enabled: true })),
+        ]);
+        if (cancelled) return;
+        const ai = aiRes?.enabled !== false;
+        const local = localRes?.enabled !== false;
+        setAiEnabled(ai);
+        setLocalEnabled(local);
+        try {
+          localStorage.setItem("ai_chat_enabled", ai ? "true" : "false");
+          localStorage.setItem("booom_ai_enabled", local ? "true" : "false");
+        } catch {}
+        // Приводим текущий режим к доступному: AI → BOOM AI → менеджер.
+        setMode(m => {
+          if (m === "manager") return m;
+          if (m === "ai" && ai) return m;
+          if (m === "local" && local) return m;
+          return ai ? "ai" : local ? "local" : "manager";
+        });
+      } catch {
+        // сеть недоступна — оставляем текущее состояние
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Hide floating button when MerchNavbar is mounted (it has its own chat buttons)
@@ -419,6 +498,7 @@ export function ChatWidget() {
 
   const scrollAiToBottom = () => setTimeout(() => aiBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
   const scrollManagerToBottom = () => setTimeout(() => managerBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
+  const scrollLocalToBottom = () => setTimeout(() => localBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
 
   // --- Size advisor: listen for open event from product page ---
   useEffect(() => {
@@ -639,6 +719,93 @@ export function ChatWidget() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAiMessage(aiInput); }
   };
 
+  // --- Local model (Ollama) logic ---
+  const sendLocalMessage = async (text: string) => {
+    if (!text.trim() || localLoading) return;
+    const userMsg: AiMessage = { id: `u-${Date.now()}`, role: "user", content: text.trim() };
+    const newMessages = [...localMessages, userMsg];
+    setLocalMessages(newMessages);
+    setLocalInput("");
+    setLocalLoading(true);
+    scrollLocalToBottom();
+
+    const streamMsgId = `a-${Date.now()}`;
+
+    try {
+      const res = await fetch("/api/ollama/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })) }),
+      });
+      if (!res.ok || !res.body) {
+        setLocalMessages(prev => [...prev, { id: `err-${Date.now()}`, role: "assistant", content: "Ошибка подключения к локальной модели." }]);
+        return;
+      }
+
+      setLocalMessages(prev => [...prev, { id: streamMsgId, role: "assistant", content: "", streaming: true }]);
+      setLocalLoading(false);
+      scrollLocalToBottom();
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = "";
+      let textAcc = "";
+      let streamError = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split("\n");
+        sseBuffer = lines.pop() ?? "";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const payload = trimmed.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
+          try {
+            const evt = JSON.parse(payload);
+            if (evt.error) { streamError = true; break; }
+            if (evt.chunk) {
+              textAcc += evt.chunk;
+              setLocalMessages(prev => prev.map(m => m.id === streamMsgId ? { ...m, content: textAcc } : m));
+              scrollLocalToBottom();
+            }
+          } catch {}
+        }
+        if (streamError) break;
+      }
+      setLocalMessages(prev => prev.map(m =>
+        m.id === streamMsgId
+          ? {
+              ...m,
+              streaming: false,
+              content: streamError && !textAcc
+                ? "Модель сейчас недоступна (туннель или Ollama выключены на вашем ПК)."
+                : streamError
+                  ? `${m.content}\n\n⚠️ Соединение прервалось — ответ неполный. Попробуйте ещё раз.`
+                  : m.content,
+            }
+          : m
+      ));
+    } catch {
+      setLocalMessages(prev => {
+        const hasPlaceholder = prev.some(m => m.id === streamMsgId);
+        if (hasPlaceholder) {
+          return prev.map(m => m.id === streamMsgId ? { ...m, streaming: false, content: "Ошибка сети." } : m);
+        }
+        return [...prev, { id: `err-${Date.now()}`, role: "assistant", content: "Ошибка сети." }];
+      });
+    } finally {
+      setLocalLoading(false);
+      scrollLocalToBottom();
+    }
+  };
+
+  const handleLocalKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendLocalMessage(localInput); }
+  };
+
   // --- Size advisor submit ---
   const sendSizeAdvisorMessage = async () => {
     const needsHips = sizeAdvisorProduct?.hasSections || sizeAdvisorProduct?.isPants;
@@ -830,6 +997,9 @@ export function ChatWidget() {
     if (open && mode === "ai") {
       setTimeout(() => aiInputRef.current?.focus(), 200);
     }
+    if (open && mode === "local") {
+      setTimeout(() => localInputRef.current?.focus(), 200);
+    }
   }, [open, mode, loadMessages]);
 
   useEffect(() => {
@@ -840,6 +1010,7 @@ export function ChatWidget() {
 
   useEffect(() => { if (open && mode === "manager") scrollManagerToBottom(); }, [messages, open, mode]);
   useEffect(() => { if (open && mode === "ai") scrollAiToBottom(); }, [aiMessages, open, mode]);
+  useEffect(() => { if (open && mode === "local") scrollLocalToBottom(); }, [localMessages, open, mode]);
 
   const handleSetName = () => {
     const name = nameInput.trim() || "Гость";
@@ -1010,31 +1181,45 @@ export function ChatWidget() {
               <div className="absolute top-0 left-8 right-8 h-[1px] bg-gradient-to-r from-transparent via-red-500/60 to-transparent" />
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-red-600 flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_rgba(229,57,53,0.4)]">
-                  {mode === "ai" ? <BrainCog className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} /> : <ChatIcon />}
+                  {mode === "ai" ? <BrainCog className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} /> : mode === "local" ? <Bot className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} /> : <ChatIcon />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm leading-tight">
-                    {mode === "ai" ? "BOOOM AI" : "Онлайн-чат"}
+                    {mode === "ai" ? "BOOOM AI" : mode === "local" ? "BOOM AI" : "Онлайн-чат"}
                   </p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${mode === "ai" ? "bg-red-400 animate-pulse" : "bg-emerald-400 animate-pulse"}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${mode === "ai" ? "bg-red-400 animate-pulse" : mode === "local" ? "bg-blue-400 animate-pulse" : "bg-emerald-400 animate-pulse"}`} />
                     <p className="text-[10px] text-white/50">
-                      {mode === "ai" ? "Ассистент BOOOMERANGS · мгновенно" : "Менеджер · пн–пт 11:00–19:00"}
+                      {mode === "ai" ? "Ассистент BOOOMERANGS · мгновенно" : mode === "local" ? "qwen2.5-coder · на вашем ПК" : "Менеджер · пн–пт 11:00–19:00"}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
+                {localEnabled && aiEnabled && (
                   <button
-                    onClick={() => setMode(m => m === "ai" ? "manager" : "ai")}
+                    onClick={() => setMode(m => m === "local" ? "ai" : "local")}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] transition-all active:scale-95 ${mode === "local" ? "bg-red-600 text-white" : "bg-white/8 hover:bg-white/15 text-white/70 hover:text-white"}`}
+                    data-testid="button-chat-switch-local"
+                  >
+                    <Bot className="w-3 h-3" /> BOOM AI
+                  </button>
+                )}
+                {(aiEnabled || localEnabled) && (
+                  <button
+                    onClick={() => setMode(m => m === "manager" ? (aiEnabled ? "ai" : "local") : "manager")}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/8 hover:bg-white/15 text-[11px] text-white/70 hover:text-white transition-all active:scale-95"
                     data-testid="button-chat-switch-mode"
                   >
-                    {mode === "ai" ? (
-                      <><UserRound className="w-3 h-3" /> Менеджер</>
+                    {mode === "manager" ? (
+                      aiEnabled ? (
+                        <><BrainCog className="w-3 h-3" /> AI</>
+                      ) : (
+                        <><Bot className="w-3 h-3" /> BOOM AI</>
+                      )
                     ) : (
-                      <><BrainCog className="w-3 h-3" /> AI</>
+                      <><UserRound className="w-3 h-3" /> Менеджер</>
                     )}
                   </button>
+                )}
                   <button
                     onClick={() => setOpen(false)}
                     className="w-8 h-8 rounded-lg bg-white/8 hover:bg-white/15 flex items-center justify-center flex-shrink-0 active:scale-90 transition-all"
@@ -1044,7 +1229,6 @@ export function ChatWidget() {
                   </button>
                 </div>
               </div>
-            </div>
 
             {/* AI mode */}
             {mode === "ai" && (
@@ -1164,17 +1348,25 @@ export function ChatWidget() {
                               Написать менеджеру
                             </button>
                           </div>
-                        ) : (
-                          <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words shadow-sm
-                            ${msg.role === "user"
-                              ? "bg-red-600 text-white rounded-br-md shadow-[0_2px_10px_rgba(229,57,53,0.3)]"
-                              : "bg-[#1e1e1e] text-white/90 rounded-bl-md border border-white/8"
-                            }`}>
-                            {msg.role === "user"
-                              ? <p className="leading-snug">{msg.content}</p>
-                              : <AiMessageContent text={msg.content} streaming={msg.streaming} />
-                            }
-                          </div>
+                        ) : (                            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words shadow-sm
+                              ${msg.role === "user"
+                                ? "bg-red-600 text-white rounded-br-md shadow-[0_2px_10px_rgba(229,57,53,0.3)]"
+                                : "bg-[#1e1e1e] text-white/90 rounded-bl-md border border-white/8"
+                              }`}>
+                              {msg.role === "user"
+                                ? <p className="leading-snug">{msg.content}</p>
+                                : msg.streaming && !msg.content
+                                  ? (
+                                    <span className="flex items-center gap-1.5 py-0.5">
+                                      <span className="text-xs text-white/50">Думаю</span>
+                                      <span className="w-1 h-1 bg-white/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                                      <span className="w-1 h-1 bg-white/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                                      <span className="w-1 h-1 bg-white/50 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                                    </span>
+                                  )
+                                  : <AiMessageContent text={msg.content} streaming={msg.streaming} />
+                              }
+                            </div>
                         )}
                       </div>
                       {msg.role === "assistant" && !msg.streaming && hasManagerRedirect(msg.content) && (
@@ -1200,7 +1392,20 @@ export function ChatWidget() {
                               className="flex items-center gap-2.5 bg-[#1a1a1a] border border-white/10 rounded-xl px-3 py-2 hover:border-red-500/30 hover:bg-[#222] transition-all group text-left no-underline"
                             >
                               {p.imageUrl ? (
-                                <img src={p.imageUrl} alt={p.name} className="w-11 h-11 object-cover rounded-lg flex-shrink-0 bg-gray-100" />
+                                <img
+                                  src={chatThumbUrl(p.imageUrl)}
+                                  alt={p.name}
+                                  loading="lazy"
+                                  decoding="async"
+                                  width={44}
+                                  height={44}
+                                  onError={(e) => {
+                                    const el = e.currentTarget;
+                                    const original = p.imageUrl;
+                                    if (original && el.src !== original) el.src = original;
+                                  }}
+                                  className="w-11 h-11 object-cover rounded-lg flex-shrink-0 bg-gray-100"
+                                />
                               ) : (
                                 <div className="w-11 h-11 rounded-lg bg-gray-100 flex-shrink-0" />
                               )}
@@ -1282,6 +1487,82 @@ export function ChatWidget() {
                   >
                     {(aiLoading || aiMessages.some(m => m.streaming)) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   </button>
+                </div>
+              </>
+            )}
+
+            {/* Local model mode */}
+            {mode === "local" && (
+              <>
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0 bg-[#0f0f0f]">
+                  {localMessages.length === 0 && (
+                        <div className="flex flex-col items-center gap-3 pt-2 pb-1">
+                          <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white">
+                            <Bot className="w-6 h-6" />
+                          </div>
+                          <div className="text-center">
+                            <p className="font-bold text-sm text-white">BOOM AI</p>
+                            <p className="text-xs text-white/40 mt-1">Общайтесь напрямую с вашей моделью<br />без облачного ИИ</p>
+                          </div>
+                        </div>
+                      )}
+                      {localMessages.map(msg => (
+                        <div key={msg.id} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                          <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full`}>
+                            {msg.role === "assistant" && (
+                              <div className="w-7 h-7 rounded-full bg-white/15 text-white flex items-center justify-center mr-2 flex-shrink-0 mt-auto mb-0.5">
+                                <Bot className="w-3.5 h-3.5" />
+                              </div>
+                            )}
+                            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm break-words shadow-sm
+                              ${msg.role === "user"
+                                ? "bg-red-600 text-white rounded-br-md shadow-[0_2px_10px_rgba(229,57,53,0.3)]"
+                                : "bg-[#1e1e1e] text-white/90 rounded-bl-md border border-white/8"
+                              }`}>
+                              {msg.role === "user"
+                                ? <p className="leading-snug">{msg.content}</p>
+                                : <AiMessageContent text={msg.content} streaming={msg.streaming} />
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {localLoading && !localMessages.some(m => m.streaming) && (
+                        <div className="flex justify-start">
+                          <div className="w-7 h-7 rounded-full bg-white/15 text-white flex items-center justify-center mr-2 flex-shrink-0">
+                            <Bot className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="bg-[#1e1e1e] border border-white/8 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                            <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                            <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                          </div>
+                        </div>
+                      )}
+                      <div ref={localBottomRef} />
+                </div>
+
+                <div className="flex-shrink-0 bg-[#111111] border-t border-white/8 flex items-center gap-1.5"
+                  style={{ padding: "10px 12px", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}>
+                    <input
+                      ref={localInputRef}
+                      placeholder="Спросите локальную модель..."
+                      value={localInput}
+                      onChange={e => setLocalInput(e.target.value)}
+                      onKeyDown={handleLocalKeyDown}
+                      disabled={localLoading || localMessages.some(m => m.streaming)}
+                      className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-white/10 text-sm text-white placeholder-white/30 bg-[#1a1a1a] outline-none focus:border-red-500/50 transition-colors disabled:opacity-50"
+                      data-testid="input-local-message"
+                      style={{ fontSize: "16px" }}
+                    />
+                    <button
+                      onClick={() => sendLocalMessage(localInput)}
+                      disabled={!localInput.trim() || localLoading || localMessages.some(m => m.streaming)}
+                      className="w-9 h-9 rounded-xl bg-red-600 text-white flex items-center justify-center hover:bg-red-700 active:scale-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 shadow-[0_2px_8px_rgba(229,57,53,0.35)]"
+                      data-testid="button-local-send"
+                    >
+                      {(localLoading || localMessages.some(m => m.streaming)) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    </button>
                 </div>
               </>
             )}

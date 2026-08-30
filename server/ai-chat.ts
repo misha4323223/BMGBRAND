@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { logError, logWarn } from "./logger";
+import { logError, logInfo, logWarn } from "./logger";
 import { z } from "zod";
 import { storage } from "./storage";
 import { isWorthSavingAiQuestion, normalizeAiQuestion } from "./ai-questions-lib";
@@ -445,7 +445,41 @@ function buildMRowCompact(m: any): string {
 
 // ─── AI Chat Route ────────────────────────────────────────────────────────────
 
-export function registerAiChatRoute(app: Express): void {
+// Флаг видимости облачного AI-чата в виджете. Управляется из админки (Интеграции).
+// ВАЖНО: эндпоинт /api/ai/chat НЕ гваридим этим флагом — его используют и другие
+// фичи (подбор размера, proactive-триггеры) за пределами чат-виджета. Флаг читает
+// только виджет через /api/ai-chat/status и сам скрывает режим «AI».
+const AI_CHAT_ENABLED_KEY = "ai_chat_enabled";
+
+export async function isAiChatEnabled(): Promise<boolean> {
+  try {
+    const raw = await storage.getBonusSetting(AI_CHAT_ENABLED_KEY);
+    if (raw === undefined) return true; // не настраивалось — включено
+    return raw !== "false";
+  } catch {
+    return true;
+  }
+}
+
+export function registerAiChatRoute(app: Express, requireAdminRole?: (req: any, res: any, next: any) => void): void {
+  // Публичный статус для чат-виджета: включён ли облачный AI-чат.
+  app.get("/api/ai-chat/status", async (_req, res) => {
+    res.json({ enabled: await isAiChatEnabled() });
+  });
+
+  // Админские настройки (Интеграции) — включить/выключить AI-чат в виджете.
+  if (requireAdminRole) {
+    app.get("/api/admin/ai-chat/settings", authMiddleware, requireAdminRole, async (_req, res) => {
+      res.json({ enabled: await isAiChatEnabled() });
+    });
+    app.post("/api/admin/ai-chat/settings", authMiddleware, requireAdminRole, async (req, res) => {
+      const { enabled } = (req.body || {}) as { enabled: boolean };
+      await storage.setBonusSetting(AI_CHAT_ENABLED_KEY, enabled ? "true" : "false").catch(() => {});
+      logInfo(`[AiChat] AI-чат ${enabled ? "включён" : "отключён"} администратором`);
+      res.json({ success: true, enabled });
+    });
+  }
+
   app.post("/api/ai/chat", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const { messages, productId: sizeProductId, pageContext, visitedProducts } = req.body;

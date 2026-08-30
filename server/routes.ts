@@ -3145,9 +3145,9 @@ ${faqSection}
     }
   });
 
-  registerAiChatRoute(app);
+  registerAiChatRoute(app, requireAdminRole);
   registerProductInfoRoute(app);
-  registerOllamaRoutes(app);
+  registerOllamaRoutes(app, authMiddleware, requireAdminRole);
 
   // ─── Proactive chat stats ────────────────────────────────────────────────────
   registerProactiveStatsRoutes(app, checkAdminKey);
@@ -13010,7 +13010,7 @@ ${faqSection}
         ? `Ваша ${discountDesc.toLowerCase()} ждёт в приложении BOOOMERANGS`
         : "Скачайте приложение BOOOMERANGS";
       const desc = discountDesc
-        ? `Промокод ${esc(promoCode)} на ${discountDesc.toLowerCase()} уже ждёт вас. Скачайте приложение и скидка применится автоматически.`
+        ? `Промокод ${esc(promoCode)} на ${discountDesc.toLowerCase().replace(/^скидка/, "скидку")} уже ждёт вас. Скачайте приложение и скидка применится автоматически.`
         : "Скачайте официальное приложение BOOOMERANGS в RuStore.";
 
       const rustoreUrl = "https://www.rustore.ru/catalog/app/ru.booomerangs.mobile";

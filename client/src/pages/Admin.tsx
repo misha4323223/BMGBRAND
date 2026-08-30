@@ -48,6 +48,8 @@ import { FEATURE_BADGE_ICONS, getFeatureBadgeIcon, type FeatureBadgeTemplate } f
 import { adminFetch } from "@/lib/admin-fetch";
 import { isPickupOrder, downloadOrderExcel } from "@/lib/admin-orders";
 import { OzonDeliveryIntegration } from "@/components/admin/OzonDeliveryIntegration";
+import { BooomaAiIntegration } from "@/components/admin/BoomAiIntegration";
+import { AiChatIntegration } from "@/components/admin/AiChatIntegration";
 import { InvoiceVatSettings } from "@/components/admin/InvoiceVatSettings";
 import { VacanciesEditor } from "@/components/admin/VacanciesEditor";
 import { FeatureBadgeTemplatesManager } from "@/components/admin/FeatureBadgeTemplatesManager";
@@ -13242,6 +13244,8 @@ export default function Admin() {
         {activeTab === "integrations" && (
           <div className="space-y-4 p-4">
             <VirtualTryOnToggle apiKey={apiKey} />
+            <AiChatIntegration apiKey={apiKey} />
+            <BooomaAiIntegration apiKey={apiKey} />
             <OzonDeliveryIntegration apiKey={apiKey} />
           </div>
         )}
