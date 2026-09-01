@@ -4,7 +4,7 @@ import { InsertCartItem } from "@shared/schema";
 import { useSession } from "./use-session";
 import { useToast } from "@/hooks/use-toast";
 import { useCartDrawer } from "@/components/CartDrawer";
-import { pushEcommerce, type EcommerceProductInput } from "@/lib/ecommerce";
+import { pushEcommerce, vkReachGoal, type EcommerceProductInput } from "@/lib/ecommerce";
 
 export function useCart() {
   const sessionId = useSession();
@@ -55,6 +55,10 @@ export function useAddToCart() {
     onSuccess: (result: any, variables: AddToCartInput) => {
       if (variables.ecommerce) {
         pushEcommerce("add", [{ ...variables.ecommerce, quantity: variables.quantity }]);
+        // VK Реклама: добавление в корзину (add_to_cart) — по фактическому действию
+        const itemValue =
+          (Number(variables.ecommerce.priceCents) || 0) * (Number(variables.quantity) || 1) / 100;
+        vkReachGoal("add_to_cart", itemValue);
       }
       queryClient.invalidateQueries({ queryKey: [api.cart.list.path] });
       openDrawer();

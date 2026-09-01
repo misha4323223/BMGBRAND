@@ -475,7 +475,9 @@ function baseHead(opts: {
     `  <meta name="twitter:title" content="${t}">`,
     `  <meta name="twitter:description" content="${d}">`,
     `  <meta name="twitter:image" content="${esc(ogImage)}">`,
-    `  <link rel="icon" type="image/png" href="/favicon.png">`,
+    `  <link rel="icon" type="image/svg+xml" href="/favicon.svg">`,
+    `  <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png">`,
+    `  <link rel="icon" type="image/x-icon" href="/favicon.ico">`,
     jsonLd ? `  <script type="application/ld+json">${jsonLd}</script>` : "",
     `  <style>${CSS}</style>`,
   ].filter(Boolean).join("\n");

@@ -9,8 +9,14 @@ import { PreorderCartDrawerProvider } from "@/components/PreorderCartDrawer";
 import { captureRefFromUrl } from "@/lib/partner-ref";
 import { PreorderCartProvider } from "@/context/PreorderCartContext";
 import { PlayerProvider } from "@/context/PlayerContext";
-import { GlobalPlayer } from "@/components/GlobalPlayer";
 import { BrandLoader } from "@/components/BrandLoader"; // ⬅️ добавлен импорт
+
+// GlobalPlayer тянул framer-motion (116 КБ) в критический путь каждой страницы,
+// хотя видим плеер только когда пользователь запустил трек. Леним целиком:
+// чанк vendor-motion докачается только при первом включении музыки.
+const GlobalPlayer = lazy(() =>
+  import("@/components/GlobalPlayer").then((m) => ({ default: m.GlobalPlayer })),
+);
 
 const CookieConsent = lazy(() =>
   import("@/components/CookieConsent").then((m) => ({ default: m.CookieConsent })),
@@ -210,7 +216,9 @@ function App() {
                 <Toaster />
                 <DeferredComponents />
                 <Router />
-                <GlobalPlayer />
+                <Suspense fallback={null}>
+                  <GlobalPlayer />
+                </Suspense>
               </PreorderCartDrawerProvider>
             </PreorderCartProvider>
           </PlayerProvider>

@@ -8,7 +8,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import SEO from "@/components/SEO";
 import AddonOrderDialog from "@/components/AddonOrderDialog";
-import { pushEcommercePurchase, ensureMetrikaLoaded, reachGoal } from "@/lib/ecommerce";
+import { pushEcommercePurchase, vkReachGoalPurchase, ensureMetrikaLoaded, reachGoal } from "@/lib/ecommerce";
 
 interface OrderStatus {
   orderId: number;
@@ -66,6 +66,12 @@ export default function OrderSuccess() {
               variant: it.variant,
               quantity: Number(it.quantity) || 1,
             })));
+            // VK Реклама: покупка (purchase) — только после подтверждённой оплаты,
+            // стоимость заказа в рублях, один раз на заказ (дедуп в localStorage).
+            const vkTotalRub = items.reduce(
+              (s: number, it: any) => s + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0
+            ) / 100;
+            vkReachGoalPurchase(orderId, vkTotalRub);
           }
           // Метрика на success-page нужна сразу (после возврата с платёжки), плюс цель
           // успешной оплаты отдельно от purchase для воронки. Идемпотентно.

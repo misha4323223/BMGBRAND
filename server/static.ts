@@ -678,8 +678,22 @@ export function serveStatic(app: Express) {
 
     // Admin-only heavy chunks — never preload for regular users
     const neverPreloadPrefixes = ['vendor-editor', 'vendor-charts', 'vendor-pdf'];
+    // Lazy-only modules (loaded on demand via React.lazy / user interaction):
+    // preloading them in <head> forces the browser to download AND parse them
+    // on every page even though the first screen doesn't need them.
+    const lazyChunkPrefixes = [
+      'vendor-motion', // загружается только при первом включении музыки / drawer
+      'GlobalPlayer', 'MusicDrawer',
+      'Footer', // рендерится ниже первого экрана, React сам докачает
+      'AuthModal', 'SearchModal', 'ChatWidget',
+      'ProgramInfoDialog', 'WholesaleLanding', 'AddonOrderDialog',
+      'PreorderSubscribeWidget', 'DolyameWidget', 'YooKassaWidget',
+      'TransportCompanyCards', 'PromoBanner', 'FeaturedDrop', 'BrandLoader',
+      'CookieConsent', 'NewsletterPopup', 'FullScreenPlayer',
+    ];
     const isNeverPreload = (name: string) =>
-      neverPreloadPrefixes.some(prefix => name.startsWith(prefix));
+      neverPreloadPrefixes.some(prefix => name.startsWith(prefix)) ||
+      lazyChunkPrefixes.some(prefix => name.startsWith(prefix));
 
     allJsChunks = files
       .filter((f: string) => f.endsWith(".js") && f !== jsFileName && !isPageChunk(f) && !isNeverPreload(f))
@@ -693,8 +707,11 @@ export function serveStatic(app: Express) {
       .slice(0, 15);
   } catch {}
 
-  const criticalChunks = allJsChunks.slice(0, 6);
-  const secondaryChunks = allJsChunks.slice(6);
+  const criticalChunks = allJsChunks.slice(0, 8);
+  // ВАЖНО: secondaryChunks больше не прелоадятся — modulepreload в <head>
+  // заставляет браузер качать и парсить чанки ещё до первого рендера.
+  // React сам подтянет их через import(), когда они реально понадобятся.
+  const secondaryChunks: string[] = [];
 
   let cachedHtml = "";
   try {

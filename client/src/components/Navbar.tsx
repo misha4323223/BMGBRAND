@@ -2,9 +2,16 @@ import { Link, useLocation } from "wouter";
 import { ShoppingBag, Menu, X, ArrowLeft, Search, User, LogOut, LogIn, Gift, Heart, ChevronDown, ChevronRight, Briefcase, TrendingUp, Shirt, PackageOpen, Headphones, Music, Play, Pause } from "lucide-react";
 import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 import { usePartnerBanner, PartnerBannerContent } from "./PartnerBanner";
-import { MusicDrawer } from "./MusicDrawer";
 import { usePlayer } from "@/context/PlayerContext";
 import { useState, useRef, useEffect, useMemo, lazy, Suspense } from "react";
+
+// MusicDrawer тянет framer-motion (116 КБ). Открывается только по клику —
+// грузим его лениво, чтобы motion не попадал в критический путь каждой страницы.
+// ВАЖНО: объявление стоит ПОСЛЕ import { lazy } — до импорта lazy недоступен
+// (в dev-режиме Vite бросает "Cannot access 'lazy' before initialization").
+const MusicDrawer = lazy(() =>
+  import("./MusicDrawer").then((m) => ({ default: m.MusicDrawer })),
+);
 import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/hooks/use-cart";
 import { usePreorderCart } from "@/context/PreorderCartContext";
@@ -1099,7 +1106,9 @@ export function Navbar() {
     </nav>
     {/* MusicDrawer MUST stay outside <nav>: nav has CSS transform + backdrop-filter which
         create a new containing block for position:fixed children, breaking viewport anchoring */}
-    <MusicDrawer open={isMusicDrawerOpen} onClose={() => setIsMusicDrawerOpen(false)} />
+    <Suspense fallback={null}>
+      <MusicDrawer open={isMusicDrawerOpen} onClose={() => setIsMusicDrawerOpen(false)} />
+    </Suspense>
     {searchEverOpened && (
       <Suspense fallback={null}>
         <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />

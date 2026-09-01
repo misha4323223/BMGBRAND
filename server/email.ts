@@ -1940,104 +1940,183 @@ export function getNewProductsNewsletterHtml(
 export function getPreorderNewsletterHtml(
   products: any[],
   totalNewCount: number
-): (email: string) => string {
-  const MAX = 3;
-  const siteUrl = 'https://www.booomerangs.ru';
+): (email: string, name?: string) => string {
+  const siteUrl = (process.env.SITE_URL || "https://booomerangs.ru").replace(/\/$/, "");
+  const MAX = 6;
   const displayProducts = products.slice(0, MAX);
-  const hasMore = totalNewCount > MAX;
+
+  // Кампания предзаказа (по preorderGroup первого товара): ведём на страницу кампании.
+  const campaignProduct = products.find((p: any) => p && p.preorderGroup);
+  const campaignSlug = campaignProduct ? String(campaignProduct.preorderGroup) : null;
+  const catalogUrl = campaignSlug ? `${siteUrl}/concept/${campaignSlug}` : `${siteUrl}/concept`;
+  const UTM = "utm_source=email&utm_medium=preorder_digest&utm_campaign=preorder";
+
+  // Даты предзаказа (deadline / производство / отправка) — из товаров очереди.
+  function pickDate(field: string): string | null {
+    for (const p of products) {
+      const v = (p as any)?.[field];
+      if (v) {
+        const d = new Date(String(v));
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+        }
+      }
+    }
+    return null;
+  }
+  const deadline = pickDate("preorderDeadline");
+  const production = pickDate("preorderProductionDate");
+  const shipping = pickDate("preorderShippingDate");
+
+  function escName(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
 
   function formatPrice(product: any): string {
     const price = Number(product.price || 0);
     const discount = Number(product.discountPercent || 0);
     const final = discount > 0 ? Math.round(price * (1 - discount / 100)) : price;
-    const formatNum = (n: number) => Math.round(n / 100).toLocaleString('ru-RU');
+    const formatNum = (n: number) => Math.round(n / 100).toLocaleString("ru-RU");
     if (discount > 0) {
-      return `<span style="text-decoration:line-through;color:#aaa;font-size:12px;">${formatNum(price)}&nbsp;&#8381;</span>&nbsp;<span style="color:#E53935;font-weight:700;">${formatNum(final)}&nbsp;&#8381;</span>`;
+      return `<span style="text-decoration:line-through;color:#a8a29e;font-size:12px;">${formatNum(price)}&#8381;</span>&nbsp;<span style="color:#E53935;font-weight:800;">${formatNum(final)}&#8381;</span>`;
     }
-    return `<span style="font-weight:700;color:#1C1C1C;">${formatNum(final)}&nbsp;&#8381;</span>`;
+    return `<span style="font-weight:800;color:#1C1C1C;">${formatNum(final)}&#8381;</span>`;
   }
 
-  function productRow(p: any): string {
+  function productCard(p: any): string {
     const slug = p.slug || String(p.id);
-    const productUrl = `${siteUrl}/products/${slug}`;
-    const rawImg = p.thumbnailUrl || p.imageUrl || '';
-    const imgSrc = rawImg.startsWith('http') ? rawImg : rawImg ? `${siteUrl}${rawImg}` : '';
+    // Карточка товара на сайте — корневой /{slug} (SlugResolver), НЕ /products/{slug} (это категория).
+    const productUrl = `${siteUrl}/${slug}?${UTM}`;
+    const rawImg = p.thumbnailUrl || p.imageUrl || "";
+    const imgSrc = rawImg.startsWith("http") ? rawImg : rawImg ? `${siteUrl}${rawImg}` : "";
     return `
+      <td width="50%" style="vertical-align:top;padding:8px;">
+        <a href="${productUrl}" style="text-decoration:none;display:block;">
+          ${imgSrc ? `<img src="${imgSrc}" width="100%" class="prod-img" style="border-radius:12px 12px 0 0;display:block;" alt="${escName(p.name || "")}" />` : `<div style="height:200px;background:#e7e2da;border-radius:12px 12px 0 0;"></div>`}
+        </a>
+        <div style="background:#FFFFFF;border-radius:0 0 12px 12px;padding:14px 16px 16px;border:1px solid #efebe4;border-top:none;">
+          <a href="${productUrl}" class="prod-name" style="font-size:13px;font-weight:700;color:#1C1C1C;text-decoration:none;display:block;line-height:1.35;min-height:36px;">${escName(p.name || "")}</a>
+          <div class="prod-price" style="font-size:15px;margin:8px 0 14px;">${formatPrice(p)}</div>
+          <a href="${productUrl}" class="prod-btn" style="display:block;text-align:center;padding:11px 0;background:#1C1C1C;color:#fff;text-decoration:none;font-weight:700;font-size:12px;letter-spacing:1px;text-transform:uppercase;border-radius:6px;">Выбрать</a>
+        </div>
+      </td>`;
+  }
+
+  // Без упоминания количества товаров — по требованию владельца.
+  const bodyText = "Новая коллекция уже открыта. Тираж ограничен — успей забронировать раньше всех.";
+
+  // Сетка карточек по 2 в ряд.
+  const grid: string[] = [];
+  for (let i = 0; i < displayProducts.length; i += 2) {
+    const a = productCard(displayProducts[i]);
+    const b = displayProducts[i + 1] ? productCard(displayProducts[i + 1]) : `<td width="50%" style="vertical-align:top;padding:8px;"></td>`;
+    grid.push(`<tr>${a}${b}</tr>`);
+  }
+
+  // Полоса дат: приём заявок → производство → отправка.
+  const datesBand = deadline || production || shipping ? `
       <tr>
-        <td style="padding:12px 0;border-bottom:1px solid #f0f0f0;">
-          <table width="100%" cellpadding="0" cellspacing="0">
+        <td style="background:#F6F1E9;padding:22px 24px;">
+          <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
             <tr>
-              ${imgSrc ? `<td width="72" style="vertical-align:top;padding-right:14px;">
-                <a href="${productUrl}"><img src="${imgSrc}" width="72" height="72" style="border-radius:8px;object-fit:cover;display:block;" /></a>
-              </td>` : ''}
-              <td style="vertical-align:middle;">
-                <a href="${productUrl}" style="font-size:14px;font-weight:700;color:#1C1C1C;text-decoration:none;display:block;margin-bottom:4px;line-height:1.3;">${p.name}</a>
-                <div style="font-size:13px;color:#555;margin-bottom:4px;">${formatPrice(p)}</div>
-                <span style="display:inline-block;background:#E53935;color:#fff;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:3px;">Предзаказ</span>
-              </td>
+              ${deadline ? `<td width="33%" align="center" style="padding:8px;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#E53935;margin-bottom:4px;">Приём заявок</div>
+                <div style="font-size:16px;font-weight:800;color:#1C1C1C;">до ${deadline}</div>
+              </td>` : ""}
+              ${production ? `<td width="33%" align="center" style="padding:8px;${deadline ? "border-left:1px solid #e0d8cc;" : ""}">
+                <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#B45309;margin-bottom:4px;">Производство</div>
+                <div style="font-size:16px;font-weight:800;color:#1C1C1C;">до ${production}</div>
+              </td>` : ""}
+              ${shipping ? `<td width="33%" align="center" style="padding:8px;${production ? "border-left:1px solid #e0d8cc;" : deadline ? "border-left:1px solid #e0d8cc;" : ""}">
+                <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#1C7D4D;margin-bottom:4px;">Отправка</div>
+                <div style="font-size:16px;font-weight:800;color:#1C1C1C;">с ${shipping}</div>
+              </td>` : ""}
             </tr>
           </table>
         </td>
-      </tr>`;
-  }
+      </tr>` : "";
 
-  const count = displayProducts.length;
-  const countWord = count === 1 ? 'предзаказ' : count < 5 ? 'предзаказа' : 'предзаказов';
-  const opened = count === 1 ? 'открылся' : 'открылось';
-  const bodyText = hasMore
-    ? `Открылось ${totalNewCount} новых предзаказов — вот несколько из них.`
-    : `В магазине ${opened} ${count} новых ${countWord}. Количество мест ограничено — успей забронировать раньше всех.`;
+  const firstProduct = displayProducts[0] as any;
+  const preheader = `Открылся предзаказ: ${firstProduct ? firstProduct.name : "новая коллекция"}. Тираж ограничен — успей забронировать.`;
 
-  return (email: string): string => {
-    const token = createHmac('sha256', config.jwt.secret).update(email.toLowerCase()).digest('hex').slice(0, 32);
+  return (email: string, name?: string): string => {
+    const token = createHmac("sha256", config.jwt.secret).update(email.toLowerCase()).digest("hex").slice(0, 32);
     const unsubUrl = `${siteUrl}/api/preorder/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`;
+    const firstName = (name || "").trim().split(/\s+/)[0] || "";
+    const greeting = firstName
+      ? `<div style="font-size:15px;color:#6b655c;margin:0 0 6px;">Привет, ${escName(firstName)}!</div>`
+      : "";
 
     return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${preheader}</title>
+  <style>
+    @media screen and (min-width: 520px) {
+      .bmg-logo { width: 340px !important; height: auto !important; }
+      .prod-img { width: 100% !important; height: auto !important; }
+      .prod-name { font-size: 16px !important; line-height: 1.35 !important; min-height: 44px !important; }
+      .prod-price { font-size: 19px !important; margin: 10px 0 18px !important; }
+      .prod-btn { font-size: 14px !important; padding: 14px 0 !important; }
+      td[style*="vertical-align:top;padding:8px"] { padding: 10px !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 0;">
-  <tr><td align="center">
-    <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fff;border-radius:12px;overflow:hidden;">
-      <tr>
-        <td style="background:#1C1C1C;padding:24px 32px;">
-          <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:2px;text-transform:uppercase;">
-            BOO<span style="color:#E53935;">O</span>MERANGS
-          </div>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:32px 32px 0;">
-          <div style="display:inline-block;background:#E53935;color:#fff;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:4px 10px;border-radius:3px;margin-bottom:16px;">Новый предзаказ</div>
-          <div style="font-size:22px;font-weight:800;color:#1C1C1C;margin-bottom:8px;">
-            Успей забронировать
-          </div>
-          <p style="font-size:14px;color:#555;margin:0 0 24px;">
-            ${bodyText}
-          </p>
-          <table width="100%" cellpadding="0" cellspacing="0">
-            ${displayProducts.map(productRow).join('')}
-          </table>
-          <div style="text-align:center;margin:28px 0;">
-            <a href="${siteUrl}/predrop" style="display:inline-block;padding:14px 40px;background:#1C1C1C;color:#fff;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:1px;text-transform:uppercase;border-radius:6px;">
-              Смотреть все предзаказы
-            </a>
-          </div>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:20px 32px;border-top:1px solid #eee;font-size:11px;color:#999;">
-          &copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.<br>
-          Вы получили это письмо, потому что подписались на уведомления о предзаказах на <a href="${siteUrl}" style="color:#999;">booomerangs.ru</a><br>
-          <a href="${unsubUrl}" style="color:#bbb;text-decoration:underline;">Отписаться</a>
-        </td>
-      </tr>
-    </table>
-  </td></tr>
-</table>
+<body style="margin:0;padding:0;background:#F0EDE8;font-family:Arial,Helvetica,sans-serif;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${preheader}</div>
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#F0EDE8;">
+    <!-- Шапка — на всю ширину -->
+    <tr>
+      <td style="background:#161616;padding:20px 32px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+          <tr>
+            <td>
+              <img src="https://storage.yandexcloud.net/bmg/site/bmg-logo-v2.png" alt="BMG BOOOMERANGS" width="180" height="72" class="bmg-logo" style="display:block;width:180px;height:auto;" />
+            </td>
+            <td align="right">
+              <span style="display:inline-block;background:transparent;border:1px solid rgba(245,245,240,0.65);color:#F5F5F0;font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;padding:6px 16px 6px 12px;border-radius:999px;"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#F5F5F0;margin-right:10px;vertical-align:middle;"></span>Новый предзаказ</span>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <!-- Заголовок + текст -->
+    <tr>
+      <td style="padding:32px 24px 10px;">
+        <div style="font-size:26px;font-weight:900;color:#1C1C1C;line-height:1.25;margin-bottom:12px;">
+          Успей забронировать
+        </div>
+        ${greeting}
+        <p style="font-size:15px;color:#555;line-height:1.6;margin:12px 0 0;">${bodyText}</p>
+      </td>
+    </tr>
+    ${datesBand}
+    <!-- Товары — сетка карточек -->
+    <tr>
+      <td style="padding:16px 16px 8px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+          ${grid.join("")}
+        </table>
+      </td>
+    </tr>
+    <!-- CTA -->
+    <tr>
+      <td align="center" style="padding:28px 24px;">
+        <a href="${catalogUrl}?${UTM}" style="display:inline-block;padding:16px 48px;background:#1C1C1C;color:#fff;text-decoration:none;font-weight:800;font-size:14px;letter-spacing:1px;text-transform:uppercase;border-radius:8px;">Смотреть все предзаказы</a>
+        <div style="font-size:12px;color:#8a837a;margin-top:14px;line-height:1.5;">Тираж фиксируется после дедлайна &middot; предоплата 100% онлайн &middot; доставка после производства</div>
+      </td>
+    </tr>
+    <!-- Футер — на всю ширину -->
+    <tr>
+      <td style="background:#161616;padding:24px 32px;font-size:11px;color:#9b958c;line-height:1.7;">
+        &copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.<br>
+        Вы получили это письмо, потому что подписались на уведомления о предзаказах на <a href="${siteUrl}" style="color:#c9c2b8;">booomerangs.ru</a><br>
+        <a href="${unsubUrl}" style="color:#8a837a;text-decoration:underline;">Отписаться от уведомлений о предзаказах</a>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
   };

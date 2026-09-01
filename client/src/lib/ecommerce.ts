@@ -196,3 +196,48 @@ export function reachGoal(goalId: string, params?: Record<string, unknown>): voi
     win.ym(YANDEX_METRIKA_COUNTER_ID, "reachGoal", goalId);
   }
 }
+
+/**
+ * Пиксель VK Рекламы (счётчик Top.Mail.Ru).
+ *
+ * Базовый счётчик инициализируется в client/index.html (pageView для id 3791024),
+ * здесь — только отправка событий интернет-магазина:
+ *   view_content / add_to_cart / initiate_checkout / purchase.
+ * Названия целей (goal) должны совпадать с событиями, созданными в кабинете
+ * VK Рекламы (Сайты → Настройка → События, условие «JS событие»).
+ */
+export const VK_ADS_PIXEL_ID = 3791024;
+
+const VK_PURCHASE_KEY = "bmg_vk_purchase_ids";
+
+/**
+ * Отправка события (цели) в пиксель VK Рекламы:
+ * _tmr.push({ type: "reachGoal", id, goal, value }).
+ * value — денежная ценность события в рублях (для purchase — стоимость заказа).
+ */
+export function vkReachGoal(goal: string, value?: number): void {
+  if (typeof window === "undefined") return;
+  const win = window as any;
+  const tmr = win._tmr || (win._tmr = []);
+  const hit: Record<string, unknown> = { type: "reachGoal", id: VK_ADS_PIXEL_ID, goal };
+  if (value != null && Number.isFinite(value)) hit.value = Math.round(value);
+  tmr.push(hit);
+}
+
+/**
+ * Покупка — ТОЛЬКО после подтверждённой оплаты, один раз на заказ
+ * (собственный localStorage-дедуп, как у Метрики).
+ */
+export function vkReachGoalPurchase(orderId: string | number, value?: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(VK_PURCHASE_KEY);
+    const ids: string[] = raw ? JSON.parse(raw) : [];
+    if (ids.includes(String(orderId))) return;
+    ids.push(String(orderId));
+    window.localStorage.setItem(VK_PURCHASE_KEY, JSON.stringify(ids.slice(-200)));
+  } catch {
+    /* ignore */
+  }
+  vkReachGoal("purchase", value);
+}

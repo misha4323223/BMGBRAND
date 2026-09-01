@@ -10,7 +10,7 @@ import { z } from "zod";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useCart, useUpdateCartQuantity, useRemoveFromCart } from "@/hooks/use-cart";
 import { useCreateOrder } from "@/hooks/use-orders";
-import { makeVariant, ensureMetrikaLoaded, reachGoal } from "@/lib/ecommerce";
+import { makeVariant, ensureMetrikaLoaded, reachGoal, vkReachGoal } from "@/lib/ecommerce";
 import { useSession } from "@/hooks/use-session";
 import { useAuth, useWholesalePrice } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
@@ -136,6 +136,8 @@ export default function Checkout() {
     checkoutGoalFired.current = true;
     ensureMetrikaLoaded();
     reachGoal("begin_checkout");
+    // VK Реклама: начало оформления заказа (initiate_checkout)
+    vkReachGoal("initiate_checkout");
   }, []);
 
   const { data: stockValidation } = useQuery<{ valid: boolean; issues: { productName: string; size?: string; requested: number; available: number }[] }>({

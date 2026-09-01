@@ -4,7 +4,7 @@ import YooKassaWidget from "@/components/YooKassaWidget";
 import { DolyameWidget } from "@/components/DolyameWidget";
 import { useProduct, useProductBySlug, useColorVariants, usePrefetchProduct } from "@/hooks/use-products";
 import { useAddToCart } from "@/hooks/use-cart";
-import { pushEcommerce, makeVariant, makeCategoryFromSlugs } from "@/lib/ecommerce";
+import { pushEcommerce, makeVariant, makeCategoryFromSlugs, vkReachGoal } from "@/lib/ecommerce";
 import { useWholesalePrice, useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
@@ -529,6 +529,8 @@ export default function ProductDetail() {
       category: makeCategoryFromSlugs(product.category, (product as any).subcategory),
       variant: makeVariant(selectedSize, detailColor || product.color),
     }]);
+    // VK Реклама: просмотр карточки товара (view_content)
+    vkReachGoal("view_content", Math.round(product.price / 100));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
   
