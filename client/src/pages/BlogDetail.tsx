@@ -8,6 +8,7 @@ import { ArrowLeft, Calendar, User, Tag, Share2, Quote, ChevronLeft, ChevronRigh
 import { BrandLoader } from "@/components/BrandLoader";
 import { Button } from "@/components/ui/button";
 import SEO from "@/components/SEO";
+import { useWholesalePrice } from "@/hooks/use-auth";
 import { useState } from "react";
 import { transliterateToSlug } from "@shared/schema";
 
@@ -161,6 +162,7 @@ export default function BlogDetail() {
   const { id } = useParams();
   const postIndex = parseInt(id || "0");
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const { isWholesale } = useWholesalePrice();
 
   const blogPagesQuery = useQuery<Record<string, any>>({
     queryKey: ["/api/page-settings/blog_pages"],
@@ -237,7 +239,10 @@ export default function BlogDetail() {
     enabled: linkedProductIds.length > 0,
   });
 
-  const products = productsData?.products || [];
+  // Оптовикам товары без оптовой цены не показываем (правило бизнеса)
+  const products = (productsData?.products || []).filter(
+    (p: any) => !isWholesale || (p.wholesalePrice && p.wholesalePrice > 0)
+  );
   const linkedProducts = linkedProductsData || [];
 
   const badgeColors: Record<string, { bg: string; text: string }> = {

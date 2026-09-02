@@ -61,7 +61,9 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     };
   }, [isOpen, handleClose]);
 
-  const products = data?.products || [];
+  const products = (data?.products || []).filter(
+    (p) => !isWholesale || ((p as any).wholesalePrice && (p as any).wholesalePrice > 0)
+  );
 
   const [mounted, setMounted] = useState(false);
   const [animating, setAnimating] = useState(false);

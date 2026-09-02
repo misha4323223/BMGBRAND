@@ -109,6 +109,7 @@ export default function Profile() {
   const [hiddenOrders, setHiddenOrders] = useState<number[]>([]);
   const [hiddenPreorders, setHiddenPreorders] = useState<number[]>([]);
   const [deletePreorderConfirmId, setDeletePreorderConfirmId] = useState<number | null>(null);
+  const [cancelPreorderConfirmId, setCancelPreorderConfirmId] = useState<number | null>(null);
   const [certificatesExpanded, setCertificatesExpanded] = useState(false);
   const [preordersExpanded, setPreordersExpanded] = useState(true);
   const [promoCodesExpanded, setPromoCodesExpanded] = useState(false);
@@ -438,6 +439,29 @@ export default function Profile() {
     },
   });
 
+  // Отмена предзаказа: разрешена, только пока идёт сбор (см. canCancelPreorder).
+  // Возврат денег менеджер делает вручную — об этом напоминает тост и VK-алерт.
+  const cancelPreorderMutation = useMutation({
+    mutationFn: async (orderId: number) => {
+      const res = await apiRequest("POST", `/api/auth/orders/${orderId}/cancel`);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Ошибка отмены');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/preorder/my-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/orders"] });
+      setCancelPreorderConfirmId(null);
+      toast({ title: "Предзаказ отменён", description: "Возврат средств согласуем с вами вручную" });
+    },
+    onError: () => {
+      setCancelPreorderConfirmId(null);
+      toast({ title: "Не удалось отменить предзаказ", description: "Сбор, возможно, уже завершён — напишите в поддержку", variant: "destructive" });
+    },
+  });
+
   const refreshTrackingMutation = useMutation({
     mutationFn: async (orderId: number) => {
       const res = await apiRequest("POST", `/api/auth/orders/${orderId}/refresh-tracking`);
@@ -491,6 +515,15 @@ export default function Profile() {
   };
   
   const visibleOrders = (ordersData?.orders || []).filter(o => !hiddenOrders.includes(o.id));
+
+  // Предзаказ можно отменить, только пока идёт сбор: статус заказа paid/pending,
+  // заказ ещё не отменён и кампания товара в статусе collecting.
+  const canCancelPreorder = (order: any) => {
+    if (!order || order.status === 'cancelled') return false;
+    if (!['pending', 'paid'].includes(order.status)) return false;
+    const prodStatus = (order as any).orderPreorderStatus || order.productPreorder?.preorderStatus || 'collecting';
+    return prodStatus === 'collecting';
+  };
 
   const openRepeatDialog = (order: Order) => {
     setRepeatOrderId(order.id);
@@ -1056,7 +1089,9 @@ export default function Profile() {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-medium">{(order.total / 100).toLocaleString("ru-RU")} &#8381;</p>
-                            {["paid", "processing", "shipped", "delivered"].includes(status) ? (
+                            {status === "cancelled" ? (
+                              <Badge variant="destructive" className="text-xs mt-1">Отменён</Badge>
+                            ) : ["paid", "processing", "shipped", "delivered"].includes(status) ? (
                               <Badge variant="outline" className="text-xs border-green-500 text-green-600 mt-1">Оплачен</Badge>
                             ) : (
                               <Badge variant="outline" className="text-xs border-yellow-500 text-yellow-600 mt-1">Ожидает оплаты</Badge>
@@ -1072,11 +1107,12 @@ export default function Profile() {
                             { key: "shipped", label: "Отправлено" },
                           ];
                           const cancelledOrPaid = productStatus === "cancelled" || status === "paid";
+                          const orderCancelled = status === "cancelled";
                           const currentIdx = steps.findIndex(s => s.key === productStatus);
                           return (
                             <div className="mt-3 pt-3 border-t border-border">
-                              {productStatus === "cancelled" ? (
-                                <Badge variant="destructive" className="text-xs">Предзаказ отменён</Badge>
+                              {orderCancelled || productStatus === "cancelled" ? (
+                                <Badge variant="destructive" className="text-xs">{orderCancelled ? "Заказ отменён" : "Предзаказ отменён"}</Badge>
                               ) : (
                                 <div className="flex items-center gap-1 mb-3" data-testid={`preorder-steps-${order.id}`}>
                                   {steps.map((step, idx) => {
@@ -1095,7 +1131,7 @@ export default function Profile() {
                                   })}
                                 </div>
                               )}
-                              {productStatus === "collecting" && order.productPreorder.preorderDeadline && (
+                              {!orderCancelled && productStatus === "collecting" && order.productPreorder.preorderDeadline && (
                                 <p className="text-xs text-muted-foreground mb-2">
                                   Сбор до {new Date(order.productPreorder.preorderDeadline).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
                                 </p>
@@ -1237,7 +1273,43 @@ export default function Profile() {
                             </div>
                           );
                         })()}
-                        <div className="mt-3 pt-3 border-t border-border flex items-center">
+                        <div className="mt-3 pt-3 border-t border-border flex items-center gap-2 flex-wrap">
+                          {canCancelPreorder(order) && (
+                            cancelPreorderConfirmId === order.id ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">Отменить предзаказ? Возврат — вручную.</span>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  disabled={cancelPreorderMutation.isPending}
+                                  onClick={() => cancelPreorderMutation.mutate(order.id)}
+                                  data-testid={`button-confirm-cancel-preorder-${order.id}`}
+                                >
+                                  {cancelPreorderMutation.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null}
+                                  Да
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setCancelPreorderConfirmId(null)}
+                                  data-testid={`button-abort-cancel-preorder-${order.id}`}
+                                >
+                                  Нет
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setCancelPreorderConfirmId(order.id)}
+                                data-testid={`button-cancel-preorder-${order.id}`}
+                              >
+                                <X className="w-3.5 h-3.5 mr-1" />
+                                Отменить
+                              </Button>
+                            )
+                          )}
                           {deletePreorderConfirmId === order.id ? (
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-muted-foreground">Удалить предзаказ из списка?</span>
@@ -1263,7 +1335,7 @@ export default function Profile() {
                               variant="ghost" 
                               size="sm"
                               onClick={() => setDeletePreorderConfirmId(order.id)}
-                              className="text-muted-foreground"
+                              className="text-muted-foreground ml-auto"
                               data-testid={`button-delete-preorder-${order.id}`}
                             >
                               <Trash2 className="w-3.5 h-3.5 mr-1" />
@@ -2324,7 +2396,7 @@ export default function Profile() {
                             <RefreshCw className="w-3.5 h-3.5 mr-1" />
                             Повторить
                           </Button>
-                          {canCancelOrder(selectedOrder.status) && (
+                          {canCancelOrder(selectedOrder.status) && !(selectedOrder as any).isPreorder && (
                             <Button
                               variant="destructive"
                               size="sm"

@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useWholesalePrice } from "@/hooks/use-auth";
 import { BrandLoader } from "@/components/BrandLoader";
 import { useLocation } from "wouter";
 import { Navbar } from "@/components/Navbar";
@@ -54,6 +54,7 @@ export default function Favorites() {
   const { openDrawer } = useCartDrawer();
 
   const user = authData?.user;
+  const { isWholesale } = useWholesalePrice();
 
   const [isAddingAll, setIsAddingAll] = useState(false);
   const [localSubscribed, setLocalSubscribed] = useState<Set<number>>(new Set());
@@ -269,7 +270,8 @@ export default function Favorites() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4" data-testid="grid-favorites">
-            {favoriteProducts.map(product => {
+            {/* Оптовикам товары без оптовой цены не показываем (правило бизнеса) */}
+            {favoriteProducts.filter((p: any) => !isWholesale || (p.wholesalePrice && p.wholesalePrice > 0)).map(product => {
               const subscribed = subscribedProducts.has(product.id);
               return (
                 <div key={product.id} className="flex flex-col gap-1.5">

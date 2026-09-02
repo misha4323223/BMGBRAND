@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useWholesalePrice } from "@/hooks/use-auth";
 
 interface RecommendationBlockProps {
   productId: number;
@@ -26,7 +27,9 @@ export function RecommendationBlock({
 }: RecommendationBlockProps) {
   const excludeParam = exclude.length > 0 ? `&exclude=${exclude.join(',')}` : '';
 
-  const { data: products } = useQuery<any[]>({
+  const { isWholesale } = useWholesalePrice();
+
+  const { data: fetched } = useQuery<any[]>({
     queryKey: ['/api/products', productId, 'recommendations', exclude.join(',')],
     enabled: !!productId && productId > 0,
     staleTime: 10 * 60 * 1000,
@@ -36,6 +39,11 @@ export function RecommendationBlock({
       return res.json();
     },
   });
+
+  // Оптовикам товары без оптовой цены не показываем
+  const products = (fetched || []).filter(
+    (p: any) => !isWholesale || (p.wholesalePrice && p.wholesalePrice > 0)
+  );
 
   if (!products || products.length === 0) return null;
 

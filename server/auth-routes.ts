@@ -10,7 +10,7 @@ import { storage } from './storage';
 import { sendEmail, getVerificationEmailHtml, getPasswordResetEmailHtml, getOrderCancelledAdminEmailHtml, getWholesaleRegistrationEmailHtml, getPartnerSignatureConfirmEmailHtml, getWholesaleApprovedEmailHtml, getWholesaleRejectedEmailHtml } from './email';
 import { sendWholesaleRegistrationToBitrix, syncOrderStatusToBitrix } from './bitrix24';
 import { notifyWholesaleRegistration, notifyPartnerRegistration, answerCallbackQuery, editMessageText } from './telegram';
-import { vkNotifyWholesaleRegistration } from './vk';
+import { vkNotifyWholesaleRegistration, vkNotifyOrderCancelled } from './vk';
 import { cdekService } from './cdek';
 import { paymentService } from './payments';
 
@@ -1258,18 +1258,80 @@ router.post('/orders/:id/cancel', authMiddleware, async (req: AuthRequest, res: 
       return res.status(403).json({ error: 'Нет доступа к этому заказу' });
     }
     
-    const cancellableStatuses = ['pending', 'paid', 'processing'];
-    if (!cancellableStatuses.includes(order.status)) {
-      return res.status(400).json({ error: 'Заказ уже отправлен и не может быть отменён' });
-    }
-    
+    const isPreorder = order.isPreorder === true;
     const previousStatus = order.status;
+
+    // ── Правила отмены ─────────────────────────────────────────────────────
+    // Обычный заказ: как раньше (pending/paid/processing).
+    // Предзаказ: только пока идёт сбор заказов (товар в статусе collecting,
+    // у самого заказа нет пройденного per-order статуса) и заказ ещё не ушёл
+    // в производство/отправку. Возврат денег менеджеры делают вручную — поэтому
+    // при отмене шлём письмо админам + VK-алерт с пометкой «нужен ручной возврат».
+    let cancellableStatuses: string[] = ['pending', 'paid', 'processing'];
+    let notCancellableError = 'Заказ уже отправлен и не может быть отменён';
+    if (isPreorder) {
+      cancellableStatuses = ['pending', 'paid'];
+      notCancellableError = 'Сбор предзаказа завершён — отмена недоступна. Напишите в поддержку';
+
+      const itemsArr = typeof order.items === 'string' ? JSON.parse(order.items) : (Array.isArray(order.items) ? order.items : []);
+      const uniqueProductIds = [...new Set(itemsArr.map((i: any) => i.productId).filter(Boolean))];
+      // Кампания: каждый товар из заказа должен всё ещё собираться (статус не задан = collecting)
+      for (const pid of uniqueProductIds) {
+        try {
+          const product = await storage.getProduct(pid as number);
+          if (!product) continue;
+          const productPreorderStatus = String((product as any).preorderStatus || 'collecting');
+          if (productPreorderStatus !== 'collecting') {
+            return res.status(400).json({ error: notCancellableError });
+          }
+        } catch (err: any) {
+          logWarn(`[Auth] Cancel preorder: failed to load product ${pid}:`, err?.message);
+        }
+      }
+      // Индивидуальный статус заказа (cdekData.preorderStatus) не должен быть пройден
+      let cdekInfo: any = {};
+      try {
+        const raw = order.cdekData;
+        cdekInfo = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {};
+      } catch {
+        cdekInfo = {};
+      }
+      const orderPreorderStatus = cdekInfo?.preorderStatus;
+      if (orderPreorderStatus && orderPreorderStatus !== 'collecting') {
+        return res.status(400).json({ error: notCancellableError });
+      }
+    }
+
+    if (!cancellableStatuses.includes(previousStatus)) {
+      return res.status(400).json({ error: notCancellableError });
+    }
+
     await storage.updateOrderStatus(orderId, 'cancelled');
-    
+
+    // Оплаченный предзаказ ранее увеличивал preorderCurrent каждого товара (+1 за заказ)
+    // — при отмене возвращаем счётчик, чтобы цель сбора не завышалась.
+    const wasPaid = previousStatus === 'paid';
+    if (isPreorder && wasPaid) {
+      const itemsArr = typeof order.items === 'string' ? JSON.parse(order.items) : (Array.isArray(order.items) ? order.items : []);
+      const uniqueProductIds = [...new Set(itemsArr.map((i: any) => i.productId).filter(Boolean))];
+      for (const pid of uniqueProductIds) {
+        try {
+          const product = await storage.getProduct(pid as number);
+          if (!product) continue;
+          const current = Number((product as any).preorderCurrent) || 0;
+          if (current <= 0) continue;
+          await storage.updateProduct(pid as number, { preorderCurrent: current - 1 } as any);
+          console.log(`[Auth] Preorder #${orderId} cancelled: preorderCurrent ${current} → ${current - 1} for product ${pid}`);
+        } catch (err: any) {
+          logWarn(`[Auth] Cancel preorder: failed to decrement preorderCurrent for product ${pid}:`, err?.message);
+        }
+      }
+    }
+
     storage.getOrderBitrixDealId(orderId).then(dealId => {
       if (dealId) syncOrderStatusToBitrix(orderId, 'cancelled', dealId);
     }).catch(() => {});
-    
+
     const adminEmails = ['info@booomerangs.ru', 'dmitrij.sob@mail.ru'];
     const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
     const emailHtml = getOrderCancelledAdminEmailHtml({
@@ -1283,12 +1345,25 @@ router.post('/orders/:id/cancel', authMiddleware, async (req: AuthRequest, res: 
     for (const adminEmail of adminEmails) {
       sendEmail({
         to: adminEmail,
-        subject: `Заказ #${orderId} отменён покупателем`,
+        subject: isPreorder ? `Предзаказ #${orderId} отменён покупателем` : `Заказ #${orderId} отменён покупателем`,
         html: emailHtml,
       }).catch(err => logError(`[Email] Failed to notify ${adminEmail} about cancel:`, err));
     }
-    
-    console.log(`[Auth] User ${req.user.id} cancelled order #${orderId}`);
+
+    // VK-алерт менеджерам (возврат денег — вручную, помечаем оплаченные)
+    const vkItems = (Array.isArray(items) ? items : []).filter((i: any) => !i._discountDetails);
+    vkNotifyOrderCancelled({
+      orderId,
+      isPreorder,
+      customerName: order.customerName || req.user.name || 'Покупатель',
+      customerPhone: order.customerPhone || undefined,
+      customerEmail: order.customerEmail || req.user.email,
+      total: order.total || 0,
+      wasPaid,
+      items: vkItems,
+    });
+
+    console.log(`[Auth] User ${req.user.id} cancelled ${isPreorder ? 'preorder' : 'order'} #${orderId}`);
     res.json({ success: true, message: 'Заказ отменён' });
   } catch (error) {
     logError('[Auth] Cancel order error:', error);
@@ -1896,7 +1971,8 @@ router.get('/admin/wholesale', adminMiddleware, async (req: Request, res: Respon
 router.post('/admin/wholesale/:id/approve', adminMiddleware, async (req: Request, res: Response) => {
   try {
     const userId = parseInt(req.params.id);
-    const { discount = 30 } = req.body;
+    // Скидка по умолчанию при приёме оптовика — 0, назначается вручную отдельным полем
+    const { discount = 0 } = req.body;
     
     const success = await authStorage.approveWholesale(userId, true, discount);
     if (!success) {
@@ -2203,7 +2279,8 @@ router.post('/telegram/webhook', async (req: Request, res: Response) => {
       const userId = parseInt(data.split(':')[1]);
       if (isNaN(userId)) return;
 
-      const success = await authStorage.approveWholesale(userId, true, 30);
+      // Скидка по умолчанию при приёме оптовика — 0, назначается вручную
+      const success = await authStorage.approveWholesale(userId, true, 0);
       if (success) {
         await authStorage.verifyEmailAdmin(userId);
         console.log(`[Telegram] Wholesale user ${userId} approved via Telegram button`);

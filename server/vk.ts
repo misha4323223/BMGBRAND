@@ -348,6 +348,52 @@ export function vkNotifyPreorderStatusChange(productName: string, productId: num
   sendVkMessage(text).catch(err => logError("[VK] vkNotifyPreorderStatusChange failed:", err));
 }
 
+interface OrderCancelledNotification {
+  orderId: number | string;
+  isPreorder?: boolean;
+  customerName: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  total: number;
+  wasPaid: boolean;
+  items?: Array<{ productName?: string; quantity?: number; size?: string; color?: string }>;
+}
+
+/**
+ * Уведомление менеджерам в VK-чат о том, что покупатель сам отменил заказ/предзаказ.
+ * Возврат денег менеджеры делают вручную — поэтому для оплаченных заказов явно
+ * помечаем «⚠️ Оплачен — нужен ручной возврат».
+ */
+export function vkNotifyOrderCancelled(data: OrderCancelledNotification): void {
+  const label = data.isPreorder ? "🚫 ПРЕДЗАКАЗ ОТМЕНЁН" : "❌ ЗАКАЗ ОТМЕНЁН";
+  let text = `${label} #${data.orderId}\n`;
+  text += `👤 ${data.customerName || "Покупатель"}`;
+  if (data.customerPhone) text += `  |  ${data.customerPhone}`;
+  if (data.customerEmail) text += `  |  ${data.customerEmail}`;
+
+  const items = (data.items || []).filter((i: any) => i && i.productName);
+  if (items.length > 0) {
+    text += "\n────────────────────\n";
+    items.forEach((it: any, idx: number) => {
+      const meta = [cleanMeta(it.size), cleanMeta(it.color)].filter(Boolean).join("/");
+      let line = `${idx + 1}. ${shortName(it.productName || "")}`;
+      if (meta) line += ` (${meta})`;
+      line += ` ×${it.quantity || 1}`;
+      text += line + "\n";
+    });
+    text += "────────────────────\n";
+  }
+
+  text += `Сумма: ${price(data.total)}`;
+  if (data.wasPaid) {
+    text += "\n⚠️ Оплачен — нужен ручной возврат";
+  } else {
+    text += "\nНе оплачен";
+  }
+
+  sendVkMessage(text).catch(err => logError("[VK] vkNotifyOrderCancelled failed:", err));
+}
+
 interface WholesaleRegistration {
   userId: number;
   email: string;

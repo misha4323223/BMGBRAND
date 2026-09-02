@@ -522,7 +522,7 @@ export class YdbAuthStorage implements IAuthStorage {
         $contact_person: TypedValues.fromNative(Types.UTF8, user.contactPerson),
         $contact_phone: TypedValues.fromNative(Types.UTF8, user.contactPhone),
         $wholesale_approved: TypedValues.fromNative(Types.BOOL, false),
-        $wholesale_discount: TypedValues.fromNative(Types.UINT32, 30),
+        $wholesale_discount: TypedValues.fromNative(Types.UINT32, 0),
         $wholesale_markup: TypedValues.fromNative(Types.UINT32, 0),
         $created_at: TypedValues.fromNative(Types.TIMESTAMP, new Date()),
       });
@@ -679,7 +679,8 @@ export class YdbAuthStorage implements IAuthStorage {
     return result === true;
   }
 
-  async approveWholesale(userId: number, approved: boolean, discount: number = 30, markup: number = 0): Promise<boolean> {
+  // Дефолтная скидка при приёме оптовика — 0 (назначается вручную)
+  async approveWholesale(userId: number, approved: boolean, discount: number = 0, markup: number = 0): Promise<boolean> {
     const result = await this.safeQuery(async (session) => {
       const { TypedValues, Types } = await import("ydb-sdk");
       const query = `

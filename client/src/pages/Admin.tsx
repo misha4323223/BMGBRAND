@@ -11676,7 +11676,8 @@ export default function Admin() {
                               <Button
                                 variant="default"
                                 size="sm"
-                                onClick={() => approveWholesaleMutation.mutate({ userId: user.id, discount: 30 })}
+                                // Скидка по умолчанию при приёме оптовика — 0 (назначается вручную отдельным полем)
+                                onClick={() => approveWholesaleMutation.mutate({ userId: user.id, discount: 0 })}
                                 disabled={approveWholesaleMutation.isPending}
                                 data-testid={`button-approve-${user.id}`}
                               >

@@ -11,6 +11,7 @@ import { BrandLoader } from "@/components/BrandLoader";
 import { transliterateToSlug } from "@shared/schema";
 import SEO from "@/components/SEO";
 import { useAddToCart } from "@/hooks/use-cart";
+import { useWholesalePrice } from "@/hooks/use-auth";
 import { makeVariant, makeCategoryFromSlugs } from "@/lib/ecommerce";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
@@ -769,6 +770,7 @@ export default function ArtistPage() {
   const heroOpacity = settings.heroOpacity || artistHeroSSR?.heroOpacity || "0.5";
   const heroImageAlt = settings.heroImageAlt || artistHeroSSR?.imgAlt || artistName;
 
+  const { isWholesale } = useWholesalePrice();
   const productsLimit = settings.productsLimit ?? 8;
 
   useEffect(() => {
@@ -784,7 +786,8 @@ export default function ArtistPage() {
     enabled: settings.productsVisible !== false && !!slug,
   });
 
-  const products = slugProducts || [];
+  // Оптовикам товары без оптовой цены не показываем (включая страницы артистов/коллабораций)
+  const products = (slugProducts || []).filter((p: any) => !isWholesale || (p.wholesalePrice && p.wholesalePrice > 0));
   const visibleProducts = products.slice(0, visibleCount || productsLimit);
 
   const productsQueryLoading = slugLoading;

@@ -734,6 +734,10 @@ export default function ProductDetail() {
   };
 
   const handleAddToCart = () => {
+    if (wholesaleBlocked) {
+      toast({ title: "Только в розницу", description: "У этого товара нет оптовой цены — он недоступен для оптовых заказов", variant: "destructive" });
+      return;
+    }
     // If product has sizes but none are selected, block
     // BUT if we have multiple size ranges in variants, size is auto-selected
     // Also skip size requirement if noSize flag is set
@@ -854,6 +858,18 @@ export default function ProductDetail() {
   const isPreorderCollecting = (product as any).preorderEnabled && (product as any).preorderStatus === "collecting";
   const showPreorderPriceLabels = isPreorderCollecting && !!hasDiscount;
   const showWholesaleBelow = isWholesale && !!wholesalePriceValue;
+  // Оптовикам товары без оптовой цены недоступны: покупка блокируется,
+  // а в блоке «Дополните образ» такие товары не показываем вообще.
+  // Правило привязано к оптовой цене самого товара, а не к персональной скидке
+  // (последняя не должна «оживлять» товар без оптовой цены).
+  const productWholesalePrice = (product as any).wholesalePrice;
+  const wholesaleBlocked = isWholesale && !(productWholesalePrice && productWholesalePrice > 0);
+  const lookVisibleProducts = isWholesale
+    ? (lookData?.products || []).filter((p: any) => p.wholesalePrice && p.wholesalePrice > 0)
+    : (lookData?.products || []);
+  const lookVisibleCategoryProducts = isWholesale
+    ? (lookData?.categoryProducts || []).filter((p: any) => p.wholesalePrice && p.wholesalePrice > 0)
+    : (lookData?.categoryProducts || []);
 
   const origin = window.location.origin;
   const productUrl = `${origin}/${product.slug || product.id}`;
@@ -2327,7 +2343,7 @@ export default function ProductDetail() {
                   (product.sizes?.length > 0 && !selectedSize && !hasMultipleSizeRanges && !isEffectivelyNoSize(product)) || 
                   (!hasColorVariants && product.colors?.length > 0 && !selectedColor) || 
                   addToCart.isPending ||
-                  !!selectedSizeOutOfStock
+                  !!selectedSizeOutOfStock || wholesaleBlocked
                 }
                 className={`flex-1 h-11 flex items-center justify-center gap-2 text-sm font-medium rounded-full transition-all ${
                   (product.sizes?.length > 0 && !selectedSize && !hasMultipleSizeRanges && !isEffectivelyNoSize(product)) || (!hasColorVariants && product.colors?.length > 0 && !selectedColor) || selectedSizeOutOfStock
@@ -2337,6 +2353,8 @@ export default function ProductDetail() {
               >
                 {addToCart.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
+                ) : wholesaleBlocked ? (
+                  "Только в розницу"
                 ) : selectedSizeOutOfStock ? (
                   "Нет в наличии"
                 ) : (
@@ -2956,7 +2974,7 @@ export default function ProductDetail() {
         )}
       </AnimatePresence>
 
-      {lookData && (lookData.products.length > 0 || lookData.categoryProducts.length > 0) && (
+      {lookData && (lookVisibleProducts.length > 0 || lookVisibleCategoryProducts.length > 0) && (
         <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14" data-testid="section-complete-look">
           <div className="mb-6 sm:mb-8">
             <h2 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight" data-testid="text-complete-look-title">
@@ -2965,9 +2983,9 @@ export default function ProductDetail() {
             <p className="text-sm text-foreground/70 mt-1">Сочетайте с этими вещами для цельного look</p>
           </div>
 
-          {lookData.products.length > 0 && (
+          {lookVisibleProducts.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
-              {lookData.products.map((item: any) => {
+              {lookVisibleProducts.map((item: any) => {
                 const itemPrice = isWholesale && item.wholesalePrice 
                   ? item.wholesalePrice 
                   : item.price;
@@ -3005,7 +3023,7 @@ export default function ProductDetail() {
             </div>
           )}
 
-          {lookData.categoryProducts.length > 0 && lookData.lookCategory && (
+          {lookVisibleCategoryProducts.length > 0 && lookData.lookCategory && (
             <div>
               <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
                 <h3 className="text-lg font-medium text-foreground">
@@ -3022,7 +3040,7 @@ export default function ProductDetail() {
                 </Link>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                {lookData.categoryProducts.map((item: any) => {
+                {lookVisibleCategoryProducts.map((item: any) => {
                   const itemPrice = isWholesale && item.wholesalePrice 
                     ? item.wholesalePrice 
                     : item.price;

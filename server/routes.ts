@@ -3252,11 +3252,12 @@ ${faqSection}
 
     try {
       if (act === "wh_approve") {
-        const success = await authStorage.approveWholesale(numId, true, 30);
+        // Скидка по умолчанию при приёме оптовика — 0, назначается вручную
+        const success = await authStorage.approveWholesale(numId, true, 0);
         if (!success) return res.send(htmlPage(false, "Не удалось найти пользователя или он уже обработан."));
         await authStorage.verifyEmailAdmin(numId);
         logInfo(`[VK Action] Wholesale user ${numId} approved`);
-        return res.send(htmlPage(true, "Клиент принят. Скидка 30% активирована, письмо отправлено."));
+        return res.send(htmlPage(true, "Клиент принят без скидки, письмо отправлено. Скидку при желании назначьте вручную."));
 
       } else if (act === "wh_reject") {
         const success = await authStorage.approveWholesale(numId, false, 0);
