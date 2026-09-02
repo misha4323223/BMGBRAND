@@ -421,10 +421,13 @@ async function updateProductSizesFromOffers(
         return true; // No price data available — include all (backward compat)
       });
 
-      const sizes = sortSizes(sanitizeSizes(filteredSizes));
-      if (sizes.length > 0) {
-        logInfo(`[Sizes] Updating ${product.name}: ${sizes.join(', ')}`);
-        await storage.updateProduct(product.id, { sizes, skipCacheClear: true } as any);
+      // Мержим с текущими размерами: 1С может прислать дельту (только изменившиеся
+      // предложения, например распроданный размер). Замена списка целиком стёрла бы
+      // остальные размеры из селектора до следующей полной выгрузки.
+      const mergedSizes = sortSizes(sanitizeSizes([...filteredSizes, ...existingSizes]));
+      if (mergedSizes.length > 0) {
+        logInfo(`[Sizes] Updating ${product.name}: ${mergedSizes.join(', ')} (incoming: ${filteredSizes.join(', ') || 'none'})`);
+        await storage.updateProduct(product.id, { sizes: mergedSizes, skipCacheClear: true } as any);
         await throttleBulk();
         updated++;
       }
@@ -583,7 +586,8 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
   
   let hidden = 0;
   let shown = 0;
-  const hiddenProducts: Array<{ id: number; name: string; stock: number }> = [];
+  const hiddenProducts: Array<{ id: number; name: string; stock: number; sizesText?: string }> = [];
+  const shownProducts: Array<{ id: number; name: string; stock: number; sizesText?: string }> = [];
   
   const allProducts = await storage.getProducts();
   const productsByExternalId = new Map<string, any>();
@@ -608,24 +612,41 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
       // Auto-hide products with zero or negative stock (only if we have explicit stock data)
       // BUT respect autoHideOverride - if admin manually showed the product, don't auto-hide it
       if (priceData.hasStockData) {
-        const shouldBeHidden = priceData.totalStock <= 0;
+        // МЕРЖИМ остатки по размерам с текущими, а не заменяем целиком:
+        // 1С может прислать в обмен только часть предложений (например, один
+        // распроданный размер — S:0). Размеры, которых нет в этой выгрузке,
+        // сохраняют свои остатки, поэтому «распродан один размер» больше не
+        // превращается в «распродан весь товар».
+        const incomingSizeStock = sanitizeSizeStock(priceData.sizeStock);
+        const oldSizeStock = sanitizeSizeStock((existing as any).sizeStock);
+        const hasIncomingSizes = Object.keys(incomingSizeStock).length > 0;
+        const mergedSizeStock: Record<string, number> = { ...oldSizeStock, ...incomingSizeStock };
+        const knownTotalStock = Object.values(mergedSizeStock).reduce((s, v) => s + v, 0);
+        const totalStockToSave = hasIncomingSizes ? knownTotalStock : priceData.totalStock;
+        // Скрываем товар только когда он РЕАЛЬНО закончился: нули прислала 1С
+        // И на сайте не осталось известных положительных остатков. Одиночная
+        // «дельта»-выгрузка с нулём по одному размеру целый товар не прячет.
+        const shouldBeHidden = priceData.totalStock <= 0 && totalStockToSave <= 0;
         // Update stock field with actual quantity
-        updateData.stock = priceData.totalStock;
+        updateData.stock = totalStockToSave;
         // Save stock per size for wholesale users
-        // Единый источник остатка: sizeStock всегда отражает последние данные 1С.
-        // Если товар распродан (totalStock <= 0) и размеров в выгрузке нет —
-        // чистим sizeStock, чтобы в админке не висели устаревшие положительные
-        // остатки по размерам при скрытом товаре («товар скрыт, а по размерам 5 шт»).
-        if (Object.keys(priceData.sizeStock).length > 0) {
-          updateData.sizeStock = sanitizeSizeStock(priceData.sizeStock);
+        // Единый источник остатка: пришедшие из 1С размеры перезаписывают,
+        // не пришедшие — сохраняют свои значения.
+        if (hasIncomingSizes) {
+          updateData.sizeStock = mergedSizeStock;
         } else if (shouldBeHidden) {
+          // чистим sizeStock, чтобы в админке не висели устаревшие положительные
+          // остатки по размерам при скрытом товаре («товар скрыт, а по размерам 5 шт»)
           updateData.sizeStock = {};
         }
         // Save characteristic GUIDs per size for 1C order export
         if (Object.keys(priceData.sizeCharacteristicIds).length > 0) {
-          updateData.sizeCharacteristicIds = priceData.sizeCharacteristicIds;
+          updateData.sizeCharacteristicIds = {
+            ...((existing as any).sizeCharacteristicIds || {}),
+            ...priceData.sizeCharacteristicIds,
+          };
         }
-        logInfo(`[Stock SAVE] Product "${existing.name}" (${existing.id}): stock=${priceData.totalStock}, sizeStock=${JSON.stringify(priceData.sizeStock)}, charIds=${JSON.stringify(priceData.sizeCharacteristicIds)}`);
+        logInfo(`[Stock SAVE] Product "${existing.name}" (${existing.id}): stock=${totalStockToSave}, sizeStock=${JSON.stringify(mergedSizeStock)}, incoming=${JSON.stringify(priceData.sizeStock)}, shouldBeHidden=${shouldBeHidden}`);
         
         const hasOverride = (existing as any).autoHideOverride === true;
         const isPreorder = (existing as any).preorderEnabled === true;
@@ -634,17 +655,24 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
           updateData.isHidden = true;
           updateData.inStock = false;
           hidden++;
-          hiddenProducts.push({ id: existing.id, name: existing.name, stock: priceData.totalStock });
-          logInfo(`[Stock] Hiding product "${existing.name}" (stock: ${priceData.totalStock})`);
+          const sizeBreakdown = hasIncomingSizes
+            ? `, размеры: ${Object.entries(incomingSizeStock).map(([s, q]) => `${s}:${q}`).join(' ')}`
+            : '';
+          hiddenProducts.push({ id: existing.id, name: existing.name, stock: totalStockToSave, sizesText: sizeBreakdown });
+          logInfo(`[Stock] Hiding product "${existing.name}" (stock: ${totalStockToSave}${sizeBreakdown})`);
         } else if (shouldBeHidden && (hasOverride || isPreorder)) {
           updateData.inStock = false;
-          logInfo(`[Stock] Product "${existing.name}" not auto-hiding (stock: ${priceData.totalStock}, override: ${hasOverride}, preorder: ${isPreorder})`);
+          logInfo(`[Stock] Product "${existing.name}" not auto-hiding (stock: ${totalStockToSave}, override: ${hasOverride}, preorder: ${isPreorder})`);
         } else if (!shouldBeHidden && existing.isHidden && !hasOverride) {
           // Re-show product if stock became positive (but was auto-hidden before, not manually overridden)
           updateData.isHidden = false;
           updateData.inStock = true;
           shown++;
-          logInfo(`[Stock] Showing product "${existing.name}" (stock: ${priceData.totalStock})`);
+          const sizeBreakdown = hasIncomingSizes
+            ? `, размеры: ${Object.entries(incomingSizeStock).map(([s, q]) => `${s}:${q}`).join(' ')}`
+            : '';
+          shownProducts.push({ id: existing.id, name: existing.name, stock: totalStockToSave, sizesText: sizeBreakdown });
+          logInfo(`[Stock] Showing product "${existing.name}" (stock: ${totalStockToSave}${sizeBreakdown})`);
         } else if (!shouldBeHidden) {
           // Stock > 0 and product is already visible — ensure inStock is true
           updateData.inStock = true;
@@ -665,15 +693,34 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
   }
   
   if (hiddenProducts.length > 0) {
-    const list = hiddenProducts.slice(0, 15).map(p => `• ${p.name} (id ${p.id}, остаток ${p.stock})`).join('\n');
+    const list = hiddenProducts.slice(0, 15).map(p => `• ${p.name} (id ${p.id}, остаток ${p.stock}${p.sizesText || ''})`).join('\n');
     const more = hiddenProducts.length > 15 ? `\n…и ещё ${hiddenProducts.length - 15} товар(ов)` : '';
     const alertText = `⚠️ 1С-синк скрыл ${hiddenProducts.length} товар(ов) — остаток 0:\n${list}${more}\n\nСкрытые товары: админка → «Скрытые товары».`;
     sendAgentAlert(alertText).catch(() => {});
     vkNotifyAgentAlert(alertText);
   }
 
+  if (shownProducts.length > 0) {
+    const list = shownProducts.slice(0, 15).map(p => `• ${p.name} (id ${p.id}, остаток ${p.stock}${p.sizesText || ''})`).join('\n');
+    const more = shownProducts.length > 15 ? `\n…и ещё ${shownProducts.length - 15} товар(ов)` : '';
+    const alertText = `🔄 1С-синк вернул на витрину ${shownProducts.length} товар(ов) — остаток снова > 0:\n${list}${more}`;
+    sendAgentAlert(alertText).catch(() => {});
+    vkNotifyAgentAlert(alertText);
+  }
+
   logInfo(`[Prices] Updated prices for ${updated} products, hidden: ${hidden}, shown: ${shown}`);
   return updated;
+}
+
+// Батч-алерт владельцу (Telegram-агент + VK) при появлении/возврате товаров 1С.
+// До 15 позиций в одном сообщении — как в алерте про скрытие.
+function sendProductsBatchAlert(title: string, lines: string[], footer?: string): void {
+  if (!lines.length) return;
+  const list = lines.slice(0, 15).map(l => `• ${l}`).join('\n');
+  const more = lines.length > 15 ? `\n…и ещё ${lines.length - 15} товар(ов)` : '';
+  const text = `${title}:\n${list}${more}${footer ? `\n\n${footer}` : ''}`;
+  sendAgentAlert(text).catch(() => {});
+  vkNotifyAgentAlert(text);
 }
 
 // Load list of existing files from Object Storage
@@ -5075,6 +5122,7 @@ ${faqSection}
               let createdCount = 0;
               let updatedCount = 0;
               let errorCount = 0;
+              const newProducts1c: Array<{ name: string; sku: string; slug: string }> = [];
               
               const { generateUniqueSlug } = await import("./slugify");
               const allProducts = await storage.getProducts();
@@ -5278,6 +5326,7 @@ ${faqSection}
                       artistSlug: getArtistSlugFromName(name) || undefined,
                     } as any);
                     enqueueNewProduct(created1c.id).catch(() => {});
+                    newProducts1c.push({ name, sku: sku || "", slug });
                     await throttle();
                     createdCount++;
                     logInfo(`[1C IMPORT] [${processedCount}/${productsArray.length}] CREATED: ${name} → ${slug} (${sku}) [Color: ${extractedColor || 'N/A'}, Sizes: ${finalSizes.join(',')}]`);
@@ -5316,6 +5365,14 @@ ${faqSection}
               logInfo(`[1C IMPORT] Created: ${createdCount}`);
               logInfo(`[1C IMPORT] Updated: ${updatedCount}`);
               logInfo(`[1C IMPORT] Errors: ${errorCount}`);
+              if (newProducts1c.length > 0) {
+                const siteUrl = process.env.SITE_URL || 'https://www.booomerangs.ru';
+                sendProductsBatchAlert(
+                  `🆕 1С-импорт добавил ${newProducts1c.length} товар(ов)`,
+                  newProducts1c.map(p => `${p.name}${p.sku ? ` (${p.sku})` : ''} — ${siteUrl}/${p.slug}`),
+                  'Новые товары уже в каталоге.'
+                );
+              }
               storage.clearCache();
             }
 
@@ -5417,6 +5474,7 @@ ${faqSection}
       
       let productsCreated = 0;
       let productsUpdated = 0;
+      const newProductsSync: Array<{ name: string; sku: string; id: number }> = [];
       
       // Parse products from import.xml
       const items = importResult?.["КоммерческаяИнформация"]?.["Каталог"]?.["Товары"]?.["Товар"];
@@ -5586,6 +5644,7 @@ ${faqSection}
                   badgeText: "NEW"
                 } as any);
                 enqueueNewProduct(createdSync2.id).catch(() => {});
+                newProductsSync.push({ name, sku: sku || "", id: createdSync2.id });
                 productsCreated++;
                 await throttle(); // Prevent YDB overload
               }
@@ -5607,6 +5666,15 @@ ${faqSection}
         }
       }
       
+      if (newProductsSync.length > 0) {
+        const siteUrl = process.env.SITE_URL || 'https://www.booomerangs.ru';
+        sendProductsBatchAlert(
+          `🆕 1С-синк добавил ${newProductsSync.length} товар(ов)`,
+          newProductsSync.map(p => `${p.name}${p.sku ? ` (${p.sku})` : ''} — ${siteUrl}/products/${p.id}`),
+          'Новые товары уже в каталоге.'
+        );
+      }
+
       // Download and parse offers.xml for prices and sizes
       logInfo("[Sync] Attempting to download offers.xml from products/offers.xml...");
       const offersXml = await downloadFromYandexStorage("products/offers.xml");
@@ -6709,12 +6777,11 @@ ${faqSection}
       
       if (!hidden) {
         // Admin is SHOWING the product - set inStock=true so public API shows it
+        // и ВСЕГДА защищаем его от автопрятания (1С-синк, auto-hide проблемных):
+        // показанный руками товар скрывается только вручную.
         updateData.inStock = true;
-        if (hasIssues) {
-          // Set override so auto-hide won't touch it
-          updateData.autoHideOverride = true;
-          logInfo(`[Admin] Product ${id} shown with autoHideOverride (has issues: noImage=${hasNoRealImage}, zeroPrice=${hasZeroPrice}, zeroStock=${hasZeroStock})`);
-        }
+        updateData.autoHideOverride = true;
+        logInfo(`[Admin] Product ${id} shown with autoHideOverride (issues: noImage=${hasNoRealImage}, zeroPrice=${hasZeroPrice}, zeroStock=${hasZeroStock}, hasIssues=${hasIssues})`);
       } else {
         // Admin is HIDING the product - remove override and set inStock=false
         updateData.autoHideOverride = false;
