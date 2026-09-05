@@ -115,6 +115,45 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+// Разбирает specsHtml вида <li><b>Название:</b> значение</li> на пары
+// «Имя → Значение» — отдельные PropertyValue, которые Яндекс/Google показывают
+// строками в товарной карточке. Если разобрать нечего (произвольный HTML),
+// возвращает пустой массив — вызывающий код падает на прежний вариант
+// «Характеристики» одним значением.
+function parseSpecPairs(html: string): Array<{ name: string; value: string }> {
+  const pairs: Array<{ name: string; value: string }> = [];
+  const liRe = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = liRe.exec(html)) !== null) {
+    const li = m[1].trim();
+    if (!li) continue;
+    let name = "";
+    let value = "";
+    const bm = li.match(/<(?:b|strong)[^>]*>([\s\S]*?)<\/(?:b|strong)>[\s:]*([\s\S]*)/i);
+    if (bm) {
+      name = stripHtml(bm[1]);
+      value = stripHtml(bm[2]);
+    } else {
+      const text = stripHtml(li);
+      const ci = text.indexOf(":");
+      if (ci <= 0) continue;
+      name = text.slice(0, ci);
+      value = text.slice(ci + 1);
+    }
+    name = name.replace(/^[-–—\s:]+/, "").replace(/[:：\s]+$/, "").replace(/\s+/g, " ").trim();
+    value = value.replace(/^[:：,\s]+/, "").replace(/\s+/g, " ").trim();
+    if (name && value) pairs.push({ name, value });
+    if (pairs.length >= 30) break;
+  }
+  const seen = new Set<string>();
+  return pairs.filter((p) => {
+    const k = p.name.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
 function formatPrice(kopecks: number): string {
   return Math.round(kopecks / 100).toLocaleString("ru-RU") + " ₽";
 }
@@ -490,6 +529,32 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
   const rating = getCachedRatingByProductId(meta.productId);
   const organizationSchema = buildOrganizationSchema(siteUrl);
 
+  const specsPairs = meta.specsHtml ? parseSpecPairs(meta.specsHtml) : [];
+  const specProps: Array<Record<string, string>> = [];
+  if (meta.specsHtml && specsPairs.length > 0) {
+    const hasComposition = specsPairs.some((p) => p.name.toLowerCase() === "состав");
+    const hasCare = specsPairs.some((p) => p.name.toLowerCase().startsWith("уход"));
+    for (const pair of specsPairs) {
+      specProps.push({ "@type": "PropertyValue", "name": pair.name, "value": pair.value });
+    }
+    if (meta.composition && !hasComposition) {
+      specProps.push({ "@type": "PropertyValue", "name": "Состав", "value": meta.composition });
+    }
+    if (meta.careInstructions && !hasCare) {
+      specProps.push({ "@type": "PropertyValue", "name": "Уход", "value": meta.careInstructions });
+    }
+  } else if (meta.specsHtml) {
+    const specsText = stripHtml(meta.specsHtml);
+    if (specsText) specProps.push({ "@type": "PropertyValue", "name": "Характеристики", "value": specsText });
+  } else {
+    if (meta.composition) specProps.push({ "@type": "PropertyValue", "name": "Состав", "value": meta.composition });
+    if (meta.careInstructions) specProps.push({ "@type": "PropertyValue", "name": "Уход", "value": meta.careInstructions });
+  }
+  const specsMaterial =
+    (specsPairs.find((p) => p.name.toLowerCase() === "состав")?.value) ||
+    meta.composition ||
+    "";
+
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -498,7 +563,7 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
     "image": meta.images.length > 0 ? meta.images : (meta.image ? meta.image : undefined),
     "url": productUrl,
     "sku": meta.sku,
-    "brand": { "@id": organizationSchema["@id"] },
+    "brand": { "@type": "Brand", "name": SITE_NAME },
     "offers": {
       "@type": "Offer",
       "priceCurrency": "RUB",
@@ -520,7 +585,7 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
     ...(meta.category ? { "category": meta.category } : {}),
     ...(meta.colors.length > 0 ? { "color": meta.colors.join(", ") } : {}),
     ...(meta.sizes.length > 0 ? { "size": meta.sizes.join(", ") } : {}),
-    ...(meta.specsHtml ? { "material": stripHtml(meta.specsHtml) } : meta.composition ? { "material": meta.composition } : {}),
+    ...(specsMaterial ? { "material": specsMaterial } : {}),
     "additionalProperty": [
       ...(meta.sizes.length > 0 ? [
         {
@@ -534,12 +599,7 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
           "value": "На странице доступен ИИ-подбор размера по параметрам покупателя",
         },
       ] : []),
-      ...(meta.specsHtml
-        ? [{ "@type": "PropertyValue", "name": "Характеристики", "value": stripHtml(meta.specsHtml) }]
-        : [
-            ...(meta.composition ? [{ "@type": "PropertyValue", "name": "Состав", "value": meta.composition }] : []),
-            ...(meta.careInstructions ? [{ "@type": "PropertyValue", "name": "Уход", "value": meta.careInstructions }] : []),
-          ]),
+      ...specProps,
     ],
   };
 

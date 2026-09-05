@@ -12,6 +12,20 @@ export function isPickupOrder(order: any): boolean {
   }
 }
 
+export function paymentMethodLabel(method?: string): string {
+  if (!method) return '';
+  const map: Record<string, string> = {
+    yookassa: 'ЮKassa',
+    tbank: 'Т-Банк',
+    ozon: 'Ozon Доставка',
+    cash: 'Наличные',
+    transfer: 'Перевод',
+    invoice: 'Счёт',
+    yandex: 'Яндекс (Кнопка «Купить»)',
+  };
+  return map[method] || method;
+}
+
 export function downloadOrderExcel(order: any) {
   const statusMap: Record<string, string> = {
     pending: 'Ожидает оплаты',
@@ -20,14 +34,6 @@ export function downloadOrderExcel(order: any) {
     ready_for_pickup: 'Готов к выдаче',
     delivered: 'Доставлен',
     cancelled: 'Отменён',
-  };
-  const paymentMap: Record<string, string> = {
-    yookassa: 'ЮKassa',
-    tbank: 'Т-Банк',
-    ozon: 'Ozon Доставка',
-    cash: 'Наличные',
-    transfer: 'Перевод',
-    invoice: 'Счёт',
   };
 
   // Разбираем cdekData для доставки
@@ -81,7 +87,7 @@ export function downloadOrderExcel(order: any) {
     ['ТК (опт)', transportCompanyName(order.transportCompany)],
     ['', ''],
     ['ОПЛАТА', ''],
-    ['Способ оплаты', paymentMap[(order as any).paymentMethod] || (order as any).paymentMethod || ''],
+    ['Способ оплаты', paymentMethodLabel((order as any).paymentMethod) || ''],
     ['', ''],
     ['ИТОГ', ''],
     ['Сумма заказа', Number((order.total / 100).toFixed(2))],

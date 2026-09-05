@@ -60,6 +60,7 @@ import { ozonDeliveryOAuth, OZON_OAUTH_KEYS } from "./ozon-delivery-oauth";
 import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PVZ_CODE, CDEK_DEFAULT_PACKAGE, CDEK_TARIFFS, isTariffToDoor, isTariffFromPvz } from "./cdek";
 
 import { sendInvoiceEmail, getNextInvoiceNumber } from "./invoice";
+import { registerYcpRoutes, isYcpBuyable } from "./ycp";
 import { addAbandonedCartUnsub } from "./abandoned-cart";
 import { enqueueNewProduct } from "./new-products-notifier";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml, getOrderPaidEmailHtml, getOrderShippedEmailHtml, getPreorderPaidEmailHtml, getPreorderStatusEmailHtml, getStockNotificationEmailHtml } from "./email";
@@ -2219,7 +2220,10 @@ ${faqSection}
         p.price && p.price > 0 &&
         // Real non-numeric slug only — `p.slug || p.id` would emit numeric-ID
         // URLs (/123) that don't resolve to product pages.
-        typeof p.slug === "string" && p.slug.trim().length > 0 && !/^\d+$/.test(p.slug.trim())
+        typeof p.slug === "string" && p.slug.trim().length > 0 && !/^\d+$/.test(p.slug.trim()) &&
+        // Кнопка «Купить» (YCP) не передаёт размер → в фид попадают только носки,
+        // товары с флагом noSize и товары без буквенных размеров (S/M/L/XL...).
+        isYcpBuyable(p)
       );
 
       const escXml = (s: string) => String(s)
@@ -2980,6 +2984,9 @@ ${faqSection}
   });
 
   registerReviewsRoutes(app);
+
+  // YCP — «Кнопка „Купить“» Яндекса: ping/cart/checkout/status (см. server/ycp.ts)
+  registerYcpRoutes(app);
 
   // Merch order form
   app.post("/api/merch-order", async (req, res) => {
@@ -10076,6 +10083,7 @@ ${faqSection}
         promoCode: input.promoCode ?? undefined,
         total: finalOrderTotal,
         isWholesale: isWholesale || false,
+        paymentMethod: paymentMethod,
         transportCompany: isWholesale ? transportCompany : undefined,
         items: itemsWithDiscounts,
         userId: userId || undefined,
@@ -12072,6 +12080,7 @@ ${faqSection}
 
       const order = await storage.createOrder({
         sessionId: req.sessionID || `preorder-${Date.now()}`,
+        paymentMethod: paymentMethod || (paymentService.isTBankEnabled() ? "tbank" : "yookassa"),
         customerName: finalName,
         customerEmail: finalEmail,
         customerPhone: finalPhone,
@@ -12532,6 +12541,7 @@ ${faqSection}
 
       const order = await storage.createOrder({
         sessionId: req.sessionID || `preorder-multi-${Date.now()}`,
+        paymentMethod: isWholesalePreorder ? "invoice" : (paymentMethod || (paymentService.isTBankEnabled() ? "tbank" : "yookassa")),
         customerName: fullName,
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone || "",

@@ -46,7 +46,7 @@ import EmailEditor from "@/components/EmailEditor";
 import { MediaUploadField, ImageUploadField, VideoUploadField } from "@/components/admin/MediaUploadField";
 import { FEATURE_BADGE_ICONS, getFeatureBadgeIcon, type FeatureBadgeTemplate } from "@/lib/featureBadgeIcons";
 import { adminFetch } from "@/lib/admin-fetch";
-import { isPickupOrder, downloadOrderExcel } from "@/lib/admin-orders";
+import { isPickupOrder, downloadOrderExcel, paymentMethodLabel } from "@/lib/admin-orders";
 import { OzonDeliveryIntegration } from "@/components/admin/OzonDeliveryIntegration";
 import { BooomaAiIntegration } from "@/components/admin/BoomAiIntegration";
 import { AiChatIntegration } from "@/components/admin/AiChatIntegration";
@@ -10188,6 +10188,9 @@ export default function Admin() {
                         <p className="text-[10px] text-muted-foreground mt-1">
                           Если заполнено — на странице товара блок «Характеристики» покажет этот HTML вместо «Состав»/«Уход». Тег &lt;h1&gt; станет &lt;h2&gt;, &lt;title&gt; будет удалён.
                         </p>
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">
+                          Для поисковиков (Яндекс, Google): каждая строка вида &lt;li&gt;&lt;b&gt;Название:&lt;/b&gt; значение&lt;/li&gt; выводится отдельной характеристикой в поиске — используйте такой формат, чтобы характеристики были видны в выдаче.
+                        </p>
                       </div>
 
                       {/* Note */}
@@ -14292,6 +14295,7 @@ export default function Admin() {
                               <p><strong>Клиент:</strong> {order.customerName || "—"}</p>
                               <p><strong>Email:</strong> {order.customerEmail || "—"}</p>
                               <p><strong>Телефон:</strong> {order.customerPhone || "—"}</p>
+                              <p><strong>Способ оплаты:</strong> {paymentMethodLabel(order.paymentMethod) || "—"}</p>
                               {order.paymentId && <p><strong>ID платежа:</strong> <span className="font-mono text-xs">{order.paymentId}</span></p>}
                               {order.createdAt && <p><strong>Создан:</strong> {new Date(order.createdAt).toLocaleString("ru-RU")}</p>}
                               {Array.isArray(order.items) && order.items.length > 0 && (
@@ -14477,6 +14481,7 @@ export default function Admin() {
                             <p><strong>Email:</strong> {order.customerEmail}</p>
                             <p><strong>Телефон:</strong> {order.customerPhone}</p>
                             <p><strong>Адрес:</strong> {order.address}</p>
+                            <p><strong>Способ оплаты:</strong> {paymentMethodLabel(order.paymentMethod) || "—"}</p>
                             {(() => {
                               if (!order.cdekData) return null;
                               // Оптовый заказ с ТК (не СДЭК): источник правды — transportCompany, блок СДЭК/ПВЗ не показываем

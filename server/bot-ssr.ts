@@ -302,6 +302,45 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+// Разбирает specsHtml вида <li><b>Название:</b> значение</li> на пары
+// «Имя → Значение» — отдельные PropertyValue, которые Яндекс/Google показывают
+// строками в товарной карточке. Если разобрать нечего (произвольный HTML),
+// возвращает пустой массив — вызывающий код падает на прежний вариант
+// «Характеристики» одним значением.
+function parseSpecPairs(html: string): Array<{ name: string; value: string }> {
+  const pairs: Array<{ name: string; value: string }> = [];
+  const liRe = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = liRe.exec(html)) !== null) {
+    const li = m[1].trim();
+    if (!li) continue;
+    let name = "";
+    let value = "";
+    const bm = li.match(/<(?:b|strong)[^>]*>([\s\S]*?)<\/(?:b|strong)>[\s:]*([\s\S]*)/i);
+    if (bm) {
+      name = stripHtml(bm[1]);
+      value = stripHtml(bm[2]);
+    } else {
+      const text = stripHtml(li);
+      const ci = text.indexOf(":");
+      if (ci <= 0) continue;
+      name = text.slice(0, ci);
+      value = text.slice(ci + 1);
+    }
+    name = name.replace(/^[-–—\s:]+/, "").replace(/[:：\s]+$/, "").replace(/\s+/g, " ").trim();
+    value = value.replace(/^[:：,\s]+/, "").replace(/\s+/g, " ").trim();
+    if (name && value) pairs.push({ name, value });
+    if (pairs.length >= 30) break;
+  }
+  const seen = new Set<string>();
+  return pairs.filter((p) => {
+    const k = p.name.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
 function esc(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -890,7 +929,7 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
     ...(productImageJsonLd ? { "image": productImageJsonLd } : {}),
     "url": `${SITE_URL}/${slug}`,
     "sku": meta.sku,
-    "brand": { "@id": organizationSchema["@id"] },
+    "brand": { "@type": "Brand", "name": SITE_NAME },
     ...(safeISODate(meta.createdAt) ? { "datePublished": safeISODate(meta.createdAt) } : {}),
     // dateModified — сигнал свежести карточки для Google/Яндекса. Берём updatedAt,
     // если товар когда-либо редактировался в админке; иначе падаем на createdAt.
@@ -946,7 +985,26 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
     const seoBodyText = stripHtml(meta.seoBody);
     if (seoBodyText) additionalProps.push({ "@type": "PropertyValue", "name": "Подробнее о товаре", "value": seoBodyText });
   }
-  if (meta.specsHtml) {
+  const specsPairs = meta.specsHtml ? parseSpecPairs(meta.specsHtml) : [];
+  if (meta.specsHtml && specsPairs.length > 0) {
+    // Каждая характеристика — отдельная PropertyValue-пара, чтобы Яндекс/Google
+    // показывали их строками «Название → значение» (один «блоб» они не разбирают).
+    const hasComposition = specsPairs.some((p) => p.name.toLowerCase() === "состав");
+    const hasCare = specsPairs.some((p) => p.name.toLowerCase().startsWith("уход"));
+    for (const pair of specsPairs) {
+      additionalProps.push({ "@type": "PropertyValue", "name": pair.name, "value": pair.value });
+      if (pair.name.toLowerCase() === "состав" && !productSchema.material) {
+        productSchema.material = pair.value;
+      }
+    }
+    if (meta.composition && !hasComposition) {
+      productSchema.material = meta.composition;
+      additionalProps.push({ "@type": "PropertyValue", "name": "Состав", "value": meta.composition });
+    }
+    if (meta.careInstructions && !hasCare) {
+      additionalProps.push({ "@type": "PropertyValue", "name": "Уход", "value": meta.careInstructions });
+    }
+  } else if (meta.specsHtml) {
     const specsText = stripHtml(meta.specsHtml);
     if (specsText) additionalProps.push({ "@type": "PropertyValue", "name": "Характеристики", "value": specsText });
   } else {

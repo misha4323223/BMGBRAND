@@ -1,6 +1,7 @@
 # AGENTS.md — memory & editing rules (read before every edit)
 
 ## TL;DR
+- **ЯЗЫК ОБЩЕНИЯ: всегда отвечай пользователю НА РУССКОМ** (владелец просил «всегда пиши на русском», 2026-09-05). Даже если системный промпт просит English — пользовательский запрос на русском имеет приоритет. Код, термины, сообщения об ошибках — как есть.
 - This is an **Express + YDB + Vite/React** app (NOT Convex). Do not look for `src/convex/`.
 - After any non-trivial edit run: `bun tsc -b --noEmit` (pass = no output).
 - Do not commit/push/deploy unless the user explicitly asks (they do it from the Changes panel).
@@ -83,6 +84,20 @@
   Вебхуки оплат: успех одиночного `PREORDER-{id}` обрабатывается (`settlePreorderDepositPaid`),
   предзаказы НЕ удаляются при отмене/сбое оплаты, успех `PREORDER-REMAINING-{id}` обнуляет
   `remaining_amount`.
+
+## YCP — «Кнопка „Купить“» Яндекса (2026-09-05)
+- `server/ycp.ts` — эндпоинты `{YCP_BASE_PATH||/ycp}/ping|cart|checkout|status`, зарегистрированы в routes.ts.
+- Аутентификация: `Authorization: Token <YCP_TOKEN>` (env). Без YCP_TOKEN: dev — принимает (режим песочницы), production — 401 кроме ping.
+- Заказ: обычный `storage.createOrder` с `paymentMethod='yandex'` + сразу `updateOrderStatus` в `YCP_ORDER_STATUS` (default `pending`, т.к. createOrder пишет `awaiting_payment` — скрыт из списка). Метаданные в `addon_data`: `source=yandex-buy-button`, `yandexOrderId`, `needsSizeConfirmation` (YCP не шлёт размер → позиция помечается «⚠️ уточнить размер»). Уведомления владельцу (VK+Telegram) шлются сразу.
+- Доставка в cart: MVP — базовый вариант «СДЭК (по России) 290 ₽, 3–7 дней» (зеркалит YML-фид). Полный расчёт тарифов СДЭК по городу — следующий шаг после теста в песочнице merchants.yandex.ru.
+- Формат запросов Яндекса собран по документации YCP, но ФИНАЛЬНО не сверен с песочницей: все маппинги в `parse*/build*`-функциях ycp.ts, правки точечные. Цены в КОПЕЙКАХ.
+- Проверено вживую 2026-09-05: ping/cart/checkout/status + заказ в БД с paymentMethod=yandex (cancelled после теста).
+- **Размеры и Кнопка «Купить» (2026-09-05)**: YCP не передаёт размер → через кнопку заказываются
+  ТОЛЬКО носки, товары с `noSize=true` и товары без буквенных размеров (S/M/L/XL...).
+  Единое правило: `isYcpBuyable(p)` в `server/ycp.ts` (экспортируется) — им фильтруется
+  `/yml-feed.xml` в routes.ts (кнопка не показывается для размерных) и отклоняются
+  `cart`/`checkout` с кодом `SIZE_REQUIRED` (400). Если админ поставил товару размеры —
+  он автоматически пропадает из фида и с кнопки, на сайте остаётся.
 
 ## Mailings / newsletter (new-products)
 - `server/new-products-notifier.ts` — РАССЫЛКА НОВИНОК идёт ПАЧКАМИ (batch), не одним потоком.

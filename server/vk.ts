@@ -211,7 +211,7 @@ export async function vkNotifyNewOrder(order: OrderNotification): Promise<boolea
 
   footer += `${totalQty} шт.  •  ${price(order.total)}`;
   if (order.paymentMethod) {
-    const m: Record<string, string> = { tbank: "T-Bank", yookassa: "ЮKassa", invoice: "Счёт" };
+    const m: Record<string, string> = { tbank: "T-Bank", yookassa: "ЮKassa", invoice: "Счёт", yandex: "Яндекс (Кнопка «Купить»)" };
     footer += `  •  ${m[order.paymentMethod] || order.paymentMethod}`;
   }
   if (!discountDetails && order.promoCode) footer += `  •  🏷 ${order.promoCode}`;

@@ -46,7 +46,7 @@ declare module "./core" {
     deleteOrder(id: number): Promise<boolean>;
     getDraftOrders(): Promise<any[]>;
     deleteExpiredDraftOrders(maxAgeMinutes: number): Promise<number>;
-    createOrder(order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string }, ozonPvzId?: string, ozonPvzAddress?: string }): Promise<Order>;
+    createOrder(order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string }, ozonPvzId?: string, ozonPvzAddress?: string, paymentMethod?: string }): Promise<Order>;
   }
 }
 
@@ -60,7 +60,7 @@ DatabaseStorage.prototype.getOrders = async function (this: DatabaseStorage, ): 
     console.log('[Storage] getOrders: Fetching orders from YDB...');
     const result = await this.safeQuery(async (session) => {
       const query = `
-        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, created_at, is_wholesale, transport_company, is_preorder, deposit_paid, remaining_amount, user_id, cdek_data, partner_id, promo_code
+        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, created_at, is_wholesale, transport_company, is_preorder, deposit_paid, remaining_amount, user_id, cdek_data, partner_id, promo_code, payment_method
         FROM orders
         WHERE status != 'awaiting_payment'
         ORDER BY created_at DESC
@@ -99,6 +99,7 @@ DatabaseStorage.prototype.getOrders = async function (this: DatabaseStorage, ): 
         // См. deserializeOrderPartnerId (вверху файла) — legacy Utf8 колонка.
         partnerId: deserializeOrderPartnerId(this.extractTypedValue(row.items[17])),
         promoCode: this.extractTypedValue(row.items[18]) || undefined,
+        paymentMethod: this.extractTypedValue(row.items[19]) || undefined,
       };
     }) as any;
   }
@@ -733,7 +734,7 @@ DatabaseStorage.prototype.getOrder = async function (this: DatabaseStorage, id: 
       const { TypedValues } = await import("ydb-sdk");
       const query = `
         DECLARE $id AS Uint64;
-        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, payment_id, created_at, is_wholesale, cdek_data, user_id, is_preorder, deposit_paid, remaining_amount, preorder_payment_id, invoice_number, partner_id, addon_data
+        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, payment_id, created_at, is_wholesale, cdek_data, user_id, is_preorder, deposit_paid, remaining_amount, preorder_payment_id, invoice_number, partner_id, addon_data, payment_method
         FROM orders WHERE id = $id LIMIT 1;
       `;
       return await session.executeQuery(query, {
@@ -793,6 +794,7 @@ DatabaseStorage.prototype.getOrder = async function (this: DatabaseStorage, id: 
       invoiceNumber: hasPreorderFields && this.extractTypedValue(row.items[18]) ? Number(this.extractTypedValue(row.items[18])) : null,
       partnerId,
       addonData: this.extractTypedValue(row.items[20]) || null,
+      paymentMethod: this.extractTypedValue(row.items[21]) || undefined,
     } as any;
   }
 ;
@@ -1213,7 +1215,7 @@ DatabaseStorage.prototype.getDraftOrders = async function (this: DatabaseStorage
     if (!driver) return [];
     const result = await this.safeQuery(async (session) => {
       const query = `
-        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, created_at, payment_id
+        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, created_at, payment_id, payment_method
         FROM orders
         WHERE status = 'awaiting_payment' OR status = 'expired'
         ORDER BY created_at DESC
@@ -1235,6 +1237,7 @@ DatabaseStorage.prototype.getDraftOrders = async function (this: DatabaseStorage
       status: this.extractTypedValue(row.items![8]),
       createdAt: (() => { const v = this.extractTypedValue(row.items![9]); if (!v) return null; const n = Number(v); return !isNaN(n) && n > 1e12 ? new Date(n / 1000).toISOString() : new Date(v).toISOString(); })(),
       paymentId: this.extractTypedValue(row.items![10]),
+      paymentMethod: this.extractTypedValue(row.items![11]) || undefined,
     }));
   }
 ;
@@ -1304,7 +1307,7 @@ DatabaseStorage.prototype.deleteExpiredDraftOrders = async function (this: Datab
   }
 ;
 
-DatabaseStorage.prototype.createOrder = async function (this: DatabaseStorage, order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string }, ozonPvzId?: string, ozonPvzAddress?: string }): Promise<Order> {
+DatabaseStorage.prototype.createOrder = async function (this: DatabaseStorage, order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string }, ozonPvzId?: string, ozonPvzAddress?: string, paymentMethod?: string }): Promise<Order> {
     if (!driver) {
       logError('[Storage] YDB driver not initialized for createOrder');
       throw new Error('Database not available');
@@ -1333,9 +1336,10 @@ DatabaseStorage.prototype.createOrder = async function (this: DatabaseStorage, o
           DECLARE $created_at AS Timestamp;
           ${order.userId ? 'DECLARE $user_id AS Uint64;' : ''}
           ${order.partnerId ? 'DECLARE $partner_id AS Utf8;' : ''}
+          ${order.paymentMethod ? 'DECLARE $payment_method AS Utf8;' : ''}
           
-          UPSERT INTO orders (id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, promo_code, is_wholesale, transport_company, cdek_data, user_id, partner_id, created_at)
-          VALUES ($id, $session_id, $customer_name, $customer_email, $customer_phone, $address, $total, $items, $status, $promo_code, $is_wholesale, $transport_company, $cdek_data, ${order.userId ? 'Just($user_id)' : 'NULL'}, ${order.partnerId ? 'Just($partner_id)' : 'NULL'}, $created_at);
+          UPSERT INTO orders (id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, promo_code, is_wholesale, transport_company, cdek_data, user_id, partner_id, payment_method, created_at)
+          VALUES ($id, $session_id, $customer_name, $customer_email, $customer_phone, $address, $total, $items, $status, $promo_code, $is_wholesale, $transport_company, $cdek_data, ${order.userId ? 'Just($user_id)' : 'NULL'}, ${order.partnerId ? 'Just($partner_id)' : 'NULL'}, ${order.paymentMethod ? 'Just($payment_method)' : 'NULL'}, $created_at);
         `;
         
         const cdekData = JSON.stringify({
@@ -1372,6 +1376,9 @@ DatabaseStorage.prototype.createOrder = async function (this: DatabaseStorage, o
         if (order.partnerId) {
           // См. serializeOrderPartnerId (вверху файла) — там расписан весь legacy-кейс.
           params['$partner_id'] = serializeOrderPartnerId(order.partnerId);
+        }
+        if (order.paymentMethod) {
+          params['$payment_method'] = ydb.TypedValues.utf8(order.paymentMethod);
         }
         
         console.log(`[Storage] Executing UPSERT for draft order ${orderId}...`);
@@ -1443,6 +1450,7 @@ DatabaseStorage.prototype.createOrder = async function (this: DatabaseStorage, o
         items: order.items,
         status: 'pending',
         promoCode: order.promoCode,
+        paymentMethod: order.paymentMethod,
         createdAt: createdAt.toISOString(),
       } as unknown as Order;
     } catch (error) {

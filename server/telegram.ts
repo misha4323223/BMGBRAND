@@ -305,7 +305,7 @@ export function notifyNewOrder(order: OrderNotification): void {
   footer += `\n<b>${totalQty} шт.  \u{2022}  ${price(order.total)}</b>`;
 
   if (order.paymentMethod) {
-    const m: Record<string, string> = { tbank: "T-Bank", yookassa: "\u042EKassa", invoice: "\u0421\u0447\u0451\u0442" };
+    const m: Record<string, string> = { tbank: "T-Bank", yookassa: "\u042EKassa", invoice: "\u0421\u0447\u0451\u0442", yandex: "Яндекс (Кнопка «Купить»)" };
     footer += `  \u{2022}  ${m[order.paymentMethod] || order.paymentMethod}`;
   }
   if (!discountDetails && order.promoCode) {

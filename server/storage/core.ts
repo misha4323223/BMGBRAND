@@ -634,7 +634,7 @@ export interface IStorage {
   updateOrderStatus(id: number, status: string, paymentId?: string): Promise<Order>;
   markOrderPaid(id: number, paymentId: string): Promise<Order>;
   updateOrderPaymentId(id: number, paymentId: string): Promise<void>;
-  createOrder(order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string }, ozonPvzId?: string, ozonPvzAddress?: string }): Promise<Order>;
+  createOrder(order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string }, ozonPvzId?: string, ozonPvzAddress?: string, paymentMethod?: string }): Promise<Order>;
   updateOrderCdekData(id: number, cdekData: string): Promise<void>;
   updateOrderBitrixDealId(id: number, dealId: number): Promise<void>;
   getOrderBitrixDealId(id: number): Promise<number | null>;
