@@ -99,3 +99,4 @@ jobs:
             APP_DOMAIN=${{ secrets.APP_DOMAIN }}
             HF_TOKEN=${{ secrets.HF_TOKEN }}
             HF_PROXY_URL=${{ secrets.HF_PROXY_URL }}
+            YCP_TOKEN=${{ secrets.YCP_TOKEN }}

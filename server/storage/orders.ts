@@ -24,6 +24,7 @@ declare module "./core" {
     getOrdersByEmail(email: string): Promise<Order[]>;
     getOrdersByUserId(userId: number): Promise<Order[]>;
     getOrder(id: number): Promise<Order | undefined>;
+    getOrderBySessionId(sessionId: string): Promise<Order | undefined>;
     updateOrderStatus(id: number, status: string): Promise<Order>;
     markOrderPaid(id: number, paymentId: string): Promise<Order>;
     updateOrderPaymentId(id: number, paymentId: string): Promise<void>;
@@ -796,6 +797,26 @@ DatabaseStorage.prototype.getOrder = async function (this: DatabaseStorage, id: 
       addonData: this.extractTypedValue(row.items[20]) || null,
       paymentMethod: this.extractTypedValue(row.items[21]) || undefined,
     } as any;
+  }
+;
+
+DatabaseStorage.prototype.getOrderBySessionId = async function (this: DatabaseStorage, sessionId: string): Promise<Order | undefined> {
+    if (!driver || !sessionId) return undefined;
+    const result = await this.safeQuery(async (session) => {
+      const { TypedValues } = await import("ydb-sdk");
+      const query = `
+        DECLARE $session_id AS Utf8;
+        SELECT id FROM orders WHERE session_id = $session_id ORDER BY id DESC LIMIT 1;
+      `;
+      return await session.executeQuery(query, {
+        $session_id: TypedValues.utf8(sessionId),
+      });
+    });
+    const row = result?.resultSets?.[0]?.rows?.[0];
+    if (!row || !row.items) return undefined;
+    const id = Number(this.extractTypedValue(row.items[0]));
+    if (!Number.isInteger(id) || id <= 0) return undefined;
+    return this.getOrder(id);
   }
 ;
 

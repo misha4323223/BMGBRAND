@@ -39,6 +39,16 @@ const YCP_TOKEN = (process.env.YCP_TOKEN || "").trim();
 // через env YCP_ORDER_STATUS, без правок кода.
 const YCP_ORDER_STATUS = process.env.YCP_ORDER_STATUS || "pending";
 
+// Данные основного склада для GET /api/v1/warehouses (переопределяются env-ом).
+const YCP_WAREHOUSE = {
+  id: "main",
+  title: process.env.YCP_WAREHOUSE_TITLE || "Основной склад BOOOMERANGS",
+  address: process.env.YCP_WAREHOUSE_ADDRESS || "Россия",
+  phone: process.env.YCP_WAREHOUSE_PHONE || "",
+  description: process.env.YCP_WAREHOUSE_DESCRIPTION || "",
+  selfPickup: (process.env.YCP_WAREHOUSE_SELF_PICKUP || "").toLowerCase() === "true",
+};
+
 let noTokenWarned = false;
 
 // ---------------------------------------------------------------------------
@@ -163,8 +173,30 @@ function isSellable(p: any): boolean {
 /** Буквенные размеры одежды, требующие выбора покупателем (регистронезависимо). */
 const LETTER_SIZES = new Set(["xxs", "xs", "s", "m", "l", "xl", "xxl", "xxxl", "xxxxl"]);
 
+/**
+ * Все размеры товара. ВАЖНО: у части товаров поле `sizes` пустое, а размеры
+ * лежат в `sizeStock`/`stockBySize` (ключи) — как у брюк «Classic»: sizes=[],
+ * sizeStock={XL:5}. Поэтому смотрим оба источника, иначе размерный товар
+ * ошибочно считается «безразмерным» и попадает в Кнопку «Купить».
+ */
+function collectSizes(p: any): string[] {
+  const out: string[] = [];
+  if (Array.isArray(p?.sizes)) {
+    for (const s of p.sizes) {
+      if (s !== undefined && s !== null && String(s).trim() !== "") out.push(String(s));
+    }
+  }
+  const ss = p?.sizeStock || p?.stockBySize;
+  if (ss && typeof ss === "object") {
+    for (const k of Object.keys(ss)) {
+      if (k && String(k).trim() !== "") out.push(String(k));
+    }
+  }
+  return out;
+}
+
 export function hasLetterSizes(p: any): boolean {
-  const sizes = Array.isArray(p?.sizes) ? p.sizes : [];
+  const sizes = collectSizes(p);
   // Нормализуем значение: убираем скобки/пробелы/дефисы и разбиваем по запятым,
   // чтобы ловить и такие записи из 1С, как "(XS)" или "S, M, L".
   for (const s of sizes) {
@@ -220,7 +252,7 @@ function readItems(body: any): RequestedItem[] {
   const out: RequestedItem[] = [];
   for (const it of src) {
     if (!it) continue;
-    const offerId = String(it.offerId ?? "").trim();
+    const offerId = String(it.offerId ?? it.id ?? "").trim();
     if (!offerId) continue;
     const count = Math.max(1, Math.min(99, Math.floor(Number(it.count) || 1)));
     out.push({
@@ -313,7 +345,7 @@ function buildDeliveryOptions(): Array<Record<string, unknown>> {
 function readCustomer(body: any): { name: string; email: string; phone: string } {
   const u = body?.user || body?.customer || {};
   const full =
-    pick(u, ["name", "fio", "contactName"]) ||
+    pick(u, ["name", "full_name", "fio", "contactName"]) ||
     ([pick(u, ["firstName"]), pick(u, ["lastName"])].filter(Boolean).join(" ") as string) ||
     "Покупатель (Кнопка «Купить», Яндекс)";
   return {
@@ -378,8 +410,10 @@ async function createYcpOrder(params: {
   deliveryCostKop: number;
   deliveryServiceName: string;
   yandexOrderId: string;
+  /** session_id из запроса Яндекса — кладётся в sessionId заказа (идемпотентность). */
+  ycpSessionId?: string;
 }): Promise<any> {
-  const { items, customerName, customerEmail, customerPhone, addressText, deliveryCostKop, yandexOrderId } = params;
+  const { items, customerName, customerEmail, customerPhone, addressText, deliveryCostKop, yandexOrderId, ycpSessionId } = params;
 
   const goodsTotal = items.reduce((s, it) => s + it.unitPriceKop * it.requested.count, 0);
   const total = goodsTotal + deliveryCostKop;
@@ -406,7 +440,7 @@ async function createYcpOrder(params: {
   }
 
   const order = await storage.createOrder({
-    sessionId: `ycp-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+    sessionId: ycpSessionId ? `ycp-${ycpSessionId}` : `ycp-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
     customerName: customerName || "Покупатель (Яндекс)",
     customerEmail: customerEmail || "",
     customerPhone: customerPhone || "",
@@ -427,6 +461,7 @@ async function createYcpOrder(params: {
       JSON.stringify({
         source: "yandex-buy-button",
         yandexOrderId: yandexOrderId || "",
+        ycpSessionId: ycpSessionId || "",
         needsSizeConfirmation,
         delivery: {
           serviceName: params.deliveryServiceName,
@@ -474,6 +509,271 @@ async function createYcpOrder(params: {
   );
 
   return { order, goodsTotal, orderItems, needsSizeConfirmation };
+}
+
+// ---------------------------------------------------------------------------
+// YCP v1 — методы, которые реально вызывает кабинет checkout.merchants.yandex.ru
+// ---------------------------------------------------------------------------
+// Кабинет ходит на «URL для API» из настроек + /api/v1/<метод>. Форматы собраны
+// по справке YCP и рабочей интеграции WooCommerce (perfinn/YCP-Yandex-Commerce-
+// Woocommerce), прошедшей проверку с кабинетом Яндекса. Цены — в РУБЛЯХ целыми,
+// габариты — в мм, вес — в граммах.
+
+function handleV1Warehouses(_req: Request, res: Response): void {
+  res.json({
+    warehouses: [
+      {
+        id: YCP_WAREHOUSE.id,
+        title: YCP_WAREHOUSE.title,
+        address: YCP_WAREHOUSE.address,
+        phone: YCP_WAREHOUSE.phone,
+        description: YCP_WAREHOUSE.description,
+        self_pickup_options: { enabled: YCP_WAREHOUSE.selfPickup },
+      },
+    ],
+    total_count: 1,
+  });
+}
+
+function stockNumber(p: any): number {
+  const direct = Number(p?.stock);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const ss = p?.sizeStock || p?.stockBySize;
+  if (ss && typeof ss === "object") {
+    const vals = Object.values(ss);
+    if (vals.length > 0) return vals.reduce((s: number, v: any) => s + (Number(v) || 0), 0);
+  }
+  return 0;
+}
+
+async function handleV1BasketCheck(req: Request, res: Response): Promise<void> {
+  const itemsIn = Array.isArray(req.body?.items) ? req.body.items : [];
+  const outItems: any[] = [];
+  for (const it of itemsIn) {
+    const id = String(it?.id ?? it?.offerId ?? "").trim();
+    if (!id) continue;
+    const qty = Math.max(1, Math.min(99, Math.floor(Number(it?.quantity) || 1)));
+    const p = await resolveOffer(id);
+    const entry: any = {
+      id,
+      name: "",
+      regular_price: 0,
+      final_price: 0,
+      warehouses: [{ id: YCP_WAREHOUSE.id, available_quantity: 0 }],
+      // Габариты по умолчанию (коробка), как в референс-интеграции: 32×22×13 см, 850 г.
+      width: 320,
+      height: 130,
+      depth: 220,
+      weight: 850,
+      characteristics: [],
+      variations: [],
+    };
+    if (p && isSellable(p) && isYcpBuyable(p)) {
+      const stock = stockNumber(p);
+      const final = Math.round(finalPriceKop(p) / 100);
+      const old = Math.round(oldPriceKop(p) / 100);
+      entry.name = String(p.name || "");
+      entry.regular_price = old > final ? old : final;
+      entry.final_price = final;
+      entry.warehouses = [
+        { id: YCP_WAREHOUSE.id, available_quantity: Math.max(0, stock > 0 ? stock : (hasStock(p) ? qty : 0)) },
+      ];
+      const img = (Array.isArray(p.images) && p.images[0]) || p.imageUrl || p.image;
+      if (img) entry.image = String(img);
+      const base = (process.env.SITE_URL || "https://booomerangs.ru").replace(/\/+$/, "");
+      entry.url = `${base}/${p.slug || p.id}`;
+    }
+    outItems.push(entry);
+  }
+  res.json({ items: outItems });
+}
+
+function handleV1DeliveryOptions(req: Request, res: Response): void {
+  const method = String(req.body?.delivery_method || "courier");
+  const options: any[] = [];
+  if (method === "pickup_point") {
+    options.push({
+      id: "pickup-default",
+      cost: 0,
+      delivery_date_interval: {
+        date_from: isoDateOffset(1),
+        date_to: isoDateOffset(2),
+        time_zone: 3,
+      },
+    });
+  } else {
+    options.push({
+      id: "courier-standard",
+      cost: 290,
+      delivery_date_interval: {
+        date_from: isoDateOffset(3),
+        date_to: isoDateOffset(7),
+        time_from: "10:00",
+        time_to: "22:00",
+        time_zone: 3,
+      },
+    });
+  }
+  res.json({ delivery_options: options });
+}
+
+function handleV1PickupPoints(_req: Request, res: Response): void {
+  // Своих ПВЗ нет — Яндекс предложит свои точки выдачи.
+  res.json({ pickup_points: [], total_count: 0 });
+}
+
+async function handleV1CheckoutCreate(req: Request, res: Response): Promise<void> {
+  const body = req.body || {};
+  const sessionId = String(body.session_id || "").trim();
+  if (!sessionId) {
+    ycpError(res, 400, "SESSION_REQUIRED", "session_id обязателен");
+    return;
+  }
+  // Идемпотентность: Яндекс шлёт checkout минимум один раз (at-least-once),
+  // при повторе с тем же session_id возвращаем уже созданный заказ.
+  const existing = await storage.getOrderBySessionId(`ycp-${sessionId}`);
+  if (existing) {
+    res.status(201).json({ order_number: String(existing.id) });
+    return;
+  }
+  const itemsIn = Array.isArray(body.items) ? body.items : [];
+  const requested: RequestedItem[] = itemsIn
+    .map((it: any) => ({
+      offerId: String(it?.id ?? it?.offerId ?? "").trim(),
+      count: Math.max(1, Math.min(99, Math.floor(Number(it?.quantity) || 1))),
+    }))
+    .filter((i: { offerId: string }) => i.offerId);
+  const resolved = await resolveItems(requested);
+  const customer = readCustomer(body);
+  const delivery = (body.delivery && typeof body.delivery === "object" ? body.delivery : {}) as any;
+  const addr = delivery.address && typeof delivery.address === "object" ? delivery.address : {};
+  const addressText =
+    joinParts([pick(addr, ["locality", "city"]), pick(addr, ["address", "street", "house"])]) ||
+    buildAddressText(delivery);
+  const deliveryCostKop = Math.round((Number(delivery.cost) || 0) * 100);
+  const { order } = await createYcpOrder({
+    items: resolved,
+    customerName: customer.name,
+    customerEmail: customer.email,
+    customerPhone: customer.phone,
+    addressText,
+    deliveryCostKop,
+    deliveryServiceName: String(delivery.delivery_method || "courier"),
+    yandexOrderId: String(body.order_id || ""),
+    ycpSessionId: sessionId,
+  });
+  res.status(201).json({ order_number: String(order.id) });
+}
+
+async function handleV1CheckoutPlaced(req: Request, res: Response): Promise<void> {
+  const body = req.body || {};
+  const sessionId = String(body.session_id || "").trim();
+  const order = await storage.getOrderBySessionId(`ycp-${sessionId}`);
+  if (!order) {
+    ycpError(res, 404, "ORDER_NOT_FOUND", "Заказ по session_id не найден");
+    return;
+  }
+  const payMethod = String(body.payment_method || "online");
+  const yandexOrderId = String(body.order_id || "");
+  // Онлайн-оплата (Яндекс Пэй и т.п.) → сразу paid; постоплата/COD → processing.
+  await storage.updateOrderStatus(order.id, payMethod === "online" ? "paid" : "processing");
+  try {
+    const prevRaw = order.addonData;
+    let prev: any = {};
+    if (prevRaw) {
+      try {
+        const parsed = JSON.parse(prevRaw);
+        if (parsed && typeof parsed === "object") prev = parsed;
+      } catch { /* ignore */ }
+    }
+    await storage.updateOrderAddonData(
+      order.id,
+      JSON.stringify({ ...prev, yandexOrderId, paymentMethod: payMethod, placedAt: new Date().toISOString() })
+    );
+  } catch (e: any) {
+    logError(`[YCP] Failed to save placed addon_data for order ${order.id}:`, e?.message);
+  }
+  res.json({ status: "ok" });
+}
+
+async function handleV1CheckoutCancel(req: Request, res: Response): Promise<void> {
+  const sessionId = String(req.body?.session_id || "").trim();
+  const order = await storage.getOrderBySessionId(`ycp-${sessionId}`);
+  if (!order) {
+    ycpError(res, 404, "ORDER_NOT_FOUND", "Заказ по session_id не найден");
+    return;
+  }
+  await storage.updateOrderStatus(order.id, "cancelled");
+  res.json({ status: "ok" });
+}
+
+function orderStatusTs(iso?: string | number | Date | null): number {
+  const d = new Date((iso as any) || Date.now());
+  const t = d.getTime();
+  return Number.isFinite(t) ? Math.floor(t / 1000) : Math.floor(Date.now() / 1000);
+}
+
+async function handleV1OrderGet(req: Request, res: Response): Promise<void> {
+  const raw = String(req.query?.order_id ?? req.query?.id ?? "").trim();
+  const id = Number(raw);
+  if (!Number.isInteger(id) || id <= 0) {
+    ycpError(res, 400, "ORDER_NOT_FOUND", "order_id обязателен");
+    return;
+  }
+  const order = await storage.getOrder(id);
+  if (!order) {
+    ycpError(res, 404, "ORDER_NOT_FOUND", `Заказ ${id} не найден`);
+    return;
+  }
+  const items = (Array.isArray(order.items) ? order.items : []).map((it: any) => ({
+    id: String(it.productId ?? ""),
+    quantity: Number(it.quantity) || 1,
+    refused_quantity: 0,
+  }));
+  const createdTs = orderStatusTs(order.createdAt as any);
+  const statuses: any[] = [{ status: "new", datetime: createdTs }];
+  const st = order.status;
+  if (st === "cancelled") {
+    statuses.push({ status: "cancelled", datetime: createdTs });
+  } else if (st === "delivered" || st === "ready_for_pickup") {
+    statuses.push({ status: "in_progress", datetime: createdTs });
+    statuses.push({ status: "delivered", datetime: createdTs });
+  } else if (st === "paid" || st === "processing" || st === "shipped") {
+    statuses.push({ status: "in_progress", datetime: createdTs });
+  }
+  res.json({ items, delivery_statuses: statuses });
+}
+
+async function handleV1OrderCancel(req: Request, res: Response): Promise<void> {
+  const raw = String(req.body?.order_id ?? req.query?.order_id ?? "").trim();
+  const id = Number(raw);
+  if (!Number.isInteger(id) || id <= 0) {
+    ycpError(res, 400, "ORDER_NOT_FOUND", "order_id обязателен");
+    return;
+  }
+  const order = await storage.getOrder(id);
+  if (!order) {
+    ycpError(res, 404, "ORDER_NOT_FOUND", `Заказ ${id} не найден`);
+    return;
+  }
+  await storage.updateOrderStatus(id, "cancelled");
+  res.json({ status: "ok" });
+}
+
+async function handleV1OrderDelivered(req: Request, res: Response): Promise<void> {
+  const raw = String(req.body?.order_id ?? req.query?.order_id ?? "").trim();
+  const id = Number(raw);
+  if (!Number.isInteger(id) || id <= 0) {
+    ycpError(res, 400, "ORDER_NOT_FOUND", "order_id обязателен");
+    return;
+  }
+  const order = await storage.getOrder(id);
+  if (!order) {
+    ycpError(res, 404, "ORDER_NOT_FOUND", `Заказ ${id} не найден`);
+    return;
+  }
+  await storage.updateOrderStatus(id, "delivered");
+  res.json({ status: "ok" });
 }
 
 // ---------------------------------------------------------------------------
@@ -614,4 +914,48 @@ export function registerYcpRoutes(app: Express): void {
       ycpError(res, 500, "INTERNAL_ERROR", e?.message || String(e));
     }
   });
+
+  // --- YCP v1: кабинет checkout.merchants.yandex.ru ходит на {URL}/api/v1/<метод> ---
+  // URL в кабинете может быть с /ycp (→ /ycp/api/v1/*) или без (→ /api/v1/*) —
+  // регистрируем оба набора. Методы v1 НЕ дублируются на {YCP_BASE}/checkout,
+  // чтобы не конфликтовать со старым POST {YCP_BASE}/checkout.
+  // Async-обёртка: ошибки v1-хендлеров (resolveItems кидает 400 SIZE_REQUIRED /
+  // OUT_OF_STOCK / UNKNOWN_OFFER и т.п.) должны вернуться Яндексу как JSON,
+  // а не уронить запрос в таймаут.
+  const wrapV1 =
+    (fn: (req: Request, res: Response) => Promise<void>) =>
+    async (req: Request, res: Response): Promise<void> => {
+      try {
+        await fn(req, res);
+      } catch (e: any) {
+        const status = e?.ycpStatus || 500;
+        const code = e?.ycpCode || "INTERNAL_ERROR";
+        ycpError(res, status, code, e?.message || String(e));
+      }
+    };
+
+  const mountV1 = (base: string): void => {
+    const p = (a: string) => `${base}/${a}`;
+    app.all(p("warehouses"), requireYcpAuth, handleV1Warehouses);
+    app.all(p("checkout/basket/check"), requireYcpAuth, wrapV1(handleV1BasketCheck));
+    app.all(p("checkout/delivery/options"), requireYcpAuth, handleV1DeliveryOptions);
+    app.all(p("checkout/delivery/pickup_points"), requireYcpAuth, handleV1PickupPoints);
+    app.all(p("checkout"), requireYcpAuth, wrapV1(handleV1CheckoutCreate));
+    app.all(p("checkout/placed"), requireYcpAuth, wrapV1(handleV1CheckoutPlaced));
+    app.all(p("checkout/cancel"), requireYcpAuth, wrapV1(handleV1CheckoutCancel));
+    app.all(p("order"), requireYcpAuth, wrapV1(handleV1OrderGet));
+    app.all(p("order/cancel"), requireYcpAuth, wrapV1(handleV1OrderCancel));
+    app.all(p("order/delivered"), requireYcpAuth, wrapV1(handleV1OrderDelivered));
+  };
+  mountV1(`${YCP_BASE}/api/v1`);
+  mountV1(`/api/v1`);
+
+  // Healthcheck на корне «URL для API» и на /ping (публичный, как GET {base}/ping).
+  const healthHandler = (_req: Request, res: Response): void => {
+    res.json({ status: "ok", service: "booomerangs-ycp", version: "1.0.0", time: new Date().toISOString() });
+  };
+  app.all(`${YCP_BASE}/`, healthHandler);
+  app.all(`${YCP_BASE}/healthcheck`, healthHandler);
+  app.all(`/ping`, healthHandler);
+  app.all(`/healthcheck`, healthHandler);
 }

@@ -86,7 +86,23 @@
   `remaining_amount`.
 
 ## YCP — «Кнопка „Купить“» Яндекса (2026-09-05)
-- `server/ycp.ts` — эндпоинты `{YCP_BASE_PATH||/ycp}/ping|cart|checkout|status`, зарегистрированы в routes.ts.
+- `server/ycp.ts` — эндпоинты `{YCP_BASE_PATH||/ycp}/ping|cart|checkout|status` (старая схема) ПЛЮС
+  **YCP v1** — методы, которые РЕАЛЬНО вызывает кабинет checkout.merchants.yandex.ru:
+  `{URL}/api/v1/warehouses`, `checkout/basket/check`, `checkout/delivery/options`,
+  `checkout/delivery/pickup_points`, `checkout`, `checkout/placed`, `checkout/cancel`,
+  `order`, `order/cancel`, `order/delivered` (зарегистрированы и на `{YCP_BASE}/api/v1/*`,
+  и на корневых `/api/v1/*` — URL в кабинете может быть с `/ycp` или без).
+  Форматы собраны по справке YCP + рабочей интеграции perfinn/YCP-Yandex-Commerce-
+  Woocommerce: цены в РУБЛЯХ целыми, габариты мм, вес г.
+- **Склады** (`GET /api/v1/warehouses`) отдают ОДИН склад из env:
+  `YCP_WAREHOUSE_TITLE/ADDRESS/PHONE/DESCRIPTION`, самовывоз — `YCP_WAREHOUSE_SELF_PICKUP=true`.
+  Ошибка кабинета «не удалось получить склады используя YCP: ресурс не найден» = у магазина
+  не было метода warehouses (404). «URL для API» в кабинете должен указывать на корень с
+  префиксом: рекомендуем `https://booomerangs.ru/ycp` (healthcheck отдаётся на `{URL}/` и `/ping`).
+- Идемпотентность v1 checkout — по `session_id`: `storage.getOrderBySessionId(sessionId)`
+  (ищет `orders.session_id`), наш sessionId заказа = `ycp-<session_id Яндекса>`.
+  Онлайн-оплата (placed `payment_method=online`) → статус `paid`, постоплата → `processing`,
+  отмены → `cancelled`. `order/delivered` → `delivered`.
 - Аутентификация: `Authorization: Token <YCP_TOKEN>` (env). Без YCP_TOKEN: dev — принимает (режим песочницы), production — 401 кроме ping.
 - Заказ: обычный `storage.createOrder` с `paymentMethod='yandex'` + сразу `updateOrderStatus` в `YCP_ORDER_STATUS` (default `pending`, т.к. createOrder пишет `awaiting_payment` — скрыт из списка). Метаданные в `addon_data`: `source=yandex-buy-button`, `yandexOrderId`, `needsSizeConfirmation` (YCP не шлёт размер → позиция помечается «⚠️ уточнить размер»). Уведомления владельцу (VK+Telegram) шлются сразу.
 - Доставка в cart: MVP — базовый вариант «СДЭК (по России) 290 ₽, 3–7 дней» (зеркалит YML-фид). Полный расчёт тарифов СДЭК по городу — следующий шаг после теста в песочнице merchants.yandex.ru.
@@ -96,8 +112,13 @@
   ТОЛЬКО носки, товары с `noSize=true` и товары без буквенных размеров (S/M/L/XL...).
   Единое правило: `isYcpBuyable(p)` в `server/ycp.ts` (экспортируется) — им фильтруется
   `/yml-feed.xml` в routes.ts (кнопка не показывается для размерных) и отклоняются
-  `cart`/`checkout` с кодом `SIZE_REQUIRED` (400). Если админ поставил товару размеры —
+  `cart`/`checkout`/v1-`checkout` с кодом `SIZE_REQUIRED` (400). Если админ поставил товару размеры —
   он автоматически пропадает из фида и с кнопки, на сайте остаётся.
+- **⚠️ Размеры ищем В ДВУХ местах (фикс 2026-09-05)**: у части товаров поле `sizes` ПУСТОЕ,
+  а размеры лежат в `sizeStock`/`stockBySize` (ключи) — напр. брюки Classic: sizes=[],
+  sizeStock={XL:5}. Смотреть только `sizes` НЕЛЬЗЯ: размерный товар (XL в sizeStock) проскочит
+  в фид и в кнопку (так и случилось: тестовые заказы брюк с XL). `hasLetterSizes` собирает
+  размеры и из `sizes`, и из ключей `sizeStock`/`stockBySize` (`collectSizes`).
 
 ## Mailings / newsletter (new-products)
 - `server/new-products-notifier.ts` — РАССЫЛКА НОВИНОК идёт ПАЧКАМИ (batch), не одним потоком.
