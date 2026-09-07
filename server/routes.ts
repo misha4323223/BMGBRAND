@@ -9729,8 +9729,20 @@ ${faqSection}
       const ozonPvzAddress = req.body.ozonPvzAddress || undefined;
       
       const deliveryService: "cdek" | "ozon" | "pickup" = req.body.deliveryService === "ozon" ? "ozon" : req.body.deliveryService === "pickup" ? "pickup" : "cdek";
-      
-      const isWholesale = req.body.isWholesale === true;
+
+      // Security: isWholesale arrives from the client, but wholesale pricing and
+      // the pending/notify-immediately wholesale flow may only be used by an
+      // APPROVED wholesale account. Guests/retail users sending isWholesale:true
+      // (price-tampering / wholesale bypass attempts) are rejected here.
+      const isWholesaleRequested = req.body.isWholesale === true;
+      if (isWholesaleRequested && !isApprovedWholesaleUser(req.user)) {
+        logWarn(`[Order] Rejected wholesale request for non-approved user: email=${input.customerEmail}, sessionId=${input.sessionId}, userId=${userId ?? 'guest'}`);
+        return res.status(403).json({
+          message: "Оптовый заказ доступен только одобренным оптовым покупателям. Войдите в оптовый аккаунт или оформите розничный заказ.",
+          code: "WHOLESALE_FORBIDDEN",
+        });
+      }
+      const isWholesale = isWholesaleRequested;
       const clientDeliveryCost = Number(req.body.deliveryCost) || 0;
       logInfo(`[Order] Creating order, isWholesale: ${isWholesale}, transportCompany: ${transportCompany}, userId: ${userId}, cdekPoint: ${cdekPointCode}, cdekTariff: ${cdekTariffCode}, deliveryService: ${deliveryService}, clientDeliveryCost: ${clientDeliveryCost/100}`);
       
@@ -10253,6 +10265,8 @@ ${faqSection}
           vatMode: vatMode,
           promoCode: promoCode || undefined,
           promoDiscount: promoDiscount > 0 ? promoDiscount : undefined,
+          subjectOverride: `Счет на оплату № ${invoiceNum} — оплата после подтверждения менеджером`,
+          managerApprovalRequired: true,
           items: orderItems.map(item => ({
             name: item.productName,
             sku: item.sku || '',

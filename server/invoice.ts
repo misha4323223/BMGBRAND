@@ -29,6 +29,8 @@ interface InvoiceData {
   subjectOverride?: string;
   noteText?: string;
   depositPercent?: number;
+  /** Оптовый заказ: в письме обычный абзац «Счёт пока оплачивать не нужно... менеджер подтвердит». PDF не меняется. */
+  managerApprovalRequired?: boolean;
 }
 
 // Company details from the example
@@ -414,6 +416,7 @@ export async function sendInvoiceEmail(data: InvoiceData): Promise<boolean> {
             <div class="logo">BMG<span style="color:#E53935">BRAND</span></div>
             <h2>Счет на оплату № ${data.invoiceNumber}</h2>
             <p>Здравствуйте, ${data.customerName}!</p>
+            ${data.managerApprovalRequired ? `<p><strong>Счёт пока оплачивать не нужно.</strong> В течение 1 рабочего дня с вами свяжется менеджер, подтвердит заказ и условия доставки — после этого счёт станет активным для оплаты.</p>` : ''}
             ${data.noteText ? `<div class="note">${data.noteText}</div>` : `<p>Благодарим вас за оптовый заказ в BMGBRAND.</p>`}
             <p>Во вложении счет на оплату. После оплаты мы отправим ваш заказ ${data.transportCompany ? `через ${transportCompanyName(data.transportCompany)}` : 'транспортной компанией'}.</p>
             ${(data.promoDiscount && data.promoDiscount > 0 && data.promoCode) ? `

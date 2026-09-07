@@ -85,6 +85,23 @@
   предзаказы НЕ удаляются при отмене/сбое оплаты, успех `PREORDER-REMAINING-{id}` обнуляет
   `remaining_amount`.
 
+## Оптовый заказ по счёту — письмо «оплата после подтверждения менеджером» (2026-09-06)
+- Только ОБЫЧНЫЙ оптовый заказ из корзины (`server/routes.ts`, `isWholesale && paymentMethod==="invoice"`,
+  ~строка 10245). Предзаказ (order-multi, ~12596) и `server/routes/wholesale.ts` НЕ трогать.
+- `sendInvoiceEmail` (server/invoice.ts) получил флаг `managerApprovalRequired?: boolean`:
+  при true в письме добавляется обычный абзац (без выделения/красного блока)
+  «Счёт пока оплачивать не нужно... менеджер свяжется, подтвердит заказ».
+  Строка про вложение НЕ меняется («Во вложении счет на оплату...» — без «активаций»,
+  формулировку убрали 2026-09-06), тема письма задаётся через `subjectOverride`.
+- PDF-счёт НЕ меняется (реквизиты, QR, условия — как были). Флаг включается ТОЛЬКО в оптовом заказе.
+- **Security-фикс (2026-09-07)**: сервер БОЛЬШЕ НЕ доверяет клиентскому `req.body.isWholesale` в
+  `POST /api/orders` (`server/routes.ts`, ~9737): `isWholesaleRequested=true` без одобренного оптового
+  аккаунта (`isApprovedWholesaleUser(req.user)`, гости → 403 `WHOLESALE_FORBIDDEN`). Раньше любой аноним
+  мог слать `isWholesale:true` и получать оптовую цену (~−50%) + статус pending с уведомлением владельцу
+  (это ловили «security-тестеры» серией заказов `bb.test@proton.me` / `SECURITY TEST *`, 07.09.2026).
+  Клиент (Checkout.tsx) шлёт `isWholesale:true` ТОЛЬКО для `role=wholesale && wholesaleApproved` —
+  совпадает с серверной проверкой. Других мест чтения `body.isWholesale` в сервере нет (проверено grep).
+
 ## YCP — «Кнопка „Купить“» Яндекса (2026-09-05)
 - `server/ycp.ts` — эндпоинты `{YCP_BASE_PATH||/ycp}/ping|cart|checkout|status` (старая схема) ПЛЮС
   **YCP v1** — методы, которые РЕАЛЬНО вызывает кабинет checkout.merchants.yandex.ru:
