@@ -28,6 +28,12 @@ import { logError, logInfo, logWarn } from "./logger";
 import { storage } from "./storage";
 import { vkNotifyNewOrder } from "./vk";
 import { notifyNewOrder } from "./telegram";
+import {
+  cdekService,
+  CDEK_SENDER_CITY_CODE,
+  CDEK_TARIFFS,
+  CDEK_DEFAULT_PACKAGE,
+} from "./cdek";
 
 const YCP_BASE = (process.env.YCP_BASE_PATH || "/ycp").replace(/\/+$/, "");
 const YCP_TOKEN = (process.env.YCP_TOKEN || "").trim();
@@ -51,6 +57,145 @@ const YCP_WAREHOUSE = {
 };
 
 let noTokenWarned = false;
+
+// ---------------------------------------------------------------------------
+// ПВЗ СДЭК для /checkout/delivery/pickup_points
+// Полный список ПВЗ по РФ (~25 тыс. точек) грузится из API СДЭК постранично
+// и кэшируется в памяти (TTL 12 ч). Яндекс сам фильтрует по карте/региону.
+// ---------------------------------------------------------------------------
+interface YcpPvz {
+  id: string;
+  name: string;
+  address: string;
+  has_fitting: boolean;
+  is_cash_available: boolean;
+  is_card_available: boolean;
+  working_hours: Record<string, string>;
+  coordinates: { lat: number; lon: number };
+  time_zone: number;
+  description: string;
+  display_service_type: string;
+  city_code?: number;
+  postal_code?: string;
+}
+
+const YCP_PVZ_CACHE_TTL = 12 * 60 * 60 * 1000;
+let ycpPvzCache: YcpPvz[] | null = null;
+let ycpPvzCacheAt = 0;
+let ycpPvzLoading: Promise<YcpPvz[]> | null = null;
+
+const YCP_PVZ_DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+/** Парсит строку СДЭК вида «Пн-Пт 10:00-19:00, Сб 10:00-16:00» в рабочие часы по дням. */
+function parseCdekWorkTime(workTime: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const dayIdx: Record<string, number> = { Пн: 1, Вт: 2, Ср: 3, Чт: 4, Пт: 5, Сб: 6, Вс: 7 };
+  for (const part of String(workTime || "").split(",")) {
+    const m = part
+      .trim()
+      .match(/^(Пн|Вт|Ср|Чт|Пт|Сб|Вс)(?:-(Пн|Вт|Ср|Чт|Пт|Сб|Вс))?\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/);
+    if (!m) continue;
+    const from = dayIdx[m[1]];
+    const to = dayIdx[m[2] || m[1]];
+    if (!from || !to) continue;
+    for (let d = from; ; d = d === 7 ? 1 : d + 1) {
+      out[YCP_PVZ_DAY_KEYS[d - 1]] = `${m[3]}-${m[4]}`;
+      if (d === to) break;
+    }
+  }
+  return out;
+}
+
+function cdekOfficeToYcpPvz(o: any): YcpPvz | null {
+  const loc = o?.location || {};
+  const lat = Number(loc.latitude);
+  const lon = Number(loc.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const wh: Record<string, string> = {};
+  for (const d of Array.isArray(o.work_time_list) ? o.work_time_list : []) {
+    const dayName = YCP_PVZ_DAY_KEYS[Number(d?.day) - 1];
+    if (!dayName) continue;
+    const t = String(d?.time || "");
+    const idx = t.indexOf("/");
+    if (idx > 0) wh[dayName] = `${t.slice(0, idx)}-${t.slice(idx + 1)}`;
+  }
+  if (Object.keys(wh).length === 0) Object.assign(wh, parseCdekWorkTime(o.work_time));
+  return {
+    id: `cdek-${String(o.code || "")}`,
+    name: String(o.name || o.code || "СДЭК"),
+    address: String(
+      loc.address_full || [loc.city, loc.address].filter(Boolean).join(", ") || ""
+    ),
+    has_fitting: !!o.is_dressing_room,
+    is_cash_available: !!o.have_cash,
+    is_card_available: !!o.have_cashless,
+    working_hours: wh,
+    coordinates: { lat, lon },
+    time_zone: 3,
+    description: "",
+    display_service_type: "cdek",
+    city_code: loc.city_code ? Number(loc.city_code) : undefined,
+    postal_code: loc.postal_code ? String(loc.postal_code) : undefined,
+  };
+}
+
+async function loadAllCdekPvz(): Promise<YcpPvz[]> {
+  const all: YcpPvz[] = [];
+  const PAGE_SIZE = 1000;
+  const CONCURRENCY = 5;
+  let page = 1;
+  outer: while (page <= 60) {
+    const batch: number[] = [];
+    for (let i = 0; i < CONCURRENCY && page <= 60; i++, page++) batch.push(page);
+    const results = await Promise.all(
+      batch.map((p) =>
+        cdekService
+          .getDeliveryPoints({ country_code: "RU", type: "PVZ", size: PAGE_SIZE, page: p })
+          .catch(() => [] as any[])
+      )
+    );
+    for (const raw of results) {
+      if (!raw || raw.length === 0) break outer;
+      for (const o of raw) {
+        const pt = cdekOfficeToYcpPvz(o);
+        if (pt) all.push(pt);
+      }
+      if (raw.length < PAGE_SIZE) break outer;
+    }
+  }
+  return all;
+}
+
+function ensureYcpPvz(): Promise<YcpPvz[]> {
+  if (ycpPvzCache && Date.now() - ycpPvzCacheAt < YCP_PVZ_CACHE_TTL) {
+    return Promise.resolve(ycpPvzCache);
+  }
+  if (!ycpPvzLoading) {
+    ycpPvzLoading = loadAllCdekPvz()
+      .then((list) => {
+        ycpPvzCache = list;
+        ycpPvzCacheAt = Date.now();
+        logInfo(`[YCP] PVZ cache loaded: ${list.length} points (CDEK)`);
+        return list;
+      })
+      .finally(() => {
+        ycpPvzLoading = null;
+      });
+  }
+  return ycpPvzLoading;
+}
+
+// Прогрев кэша ПВЗ в фоне при старте сервера (первый запрос Яндекса не ждёт).
+ensureYcpPvz().catch(() => {});
+
+/** Вес посылки для расчёта доставки: как в basket/check — 850 г на товар (минимум 500 г). */
+function estimateYcpPackageWeight(items: any[]): number {
+  const qty = (items || []).reduce(
+    (s, it) => s + Math.max(Number(it?.quantity) || 1, 1),
+    0
+  );
+  return Math.max(500, Math.min(qty * 850, 50000));
+}
 
 // ---------------------------------------------------------------------------
 // Вспомогательные функции
@@ -589,38 +734,131 @@ async function handleV1BasketCheck(req: Request, res: Response): Promise<void> {
   res.json({ items: outItems });
 }
 
-function handleV1DeliveryOptions(req: Request, res: Response): void {
-  const method = String(req.body?.delivery_method || "courier");
-  const options: any[] = [];
-  if (method === "pickup_point") {
-    options.push({
-      id: "pickup-default",
-      cost: 0,
-      delivery_date_interval: {
-        date_from: isoDateOffset(1),
-        date_to: isoDateOffset(2),
-        time_zone: 3,
-      },
-    });
-  } else {
-    options.push({
-      id: "courier-standard",
-      cost: 290,
-      delivery_date_interval: {
-        date_from: isoDateOffset(3),
-        date_to: isoDateOffset(7),
-        time_from: "10:00",
-        time_to: "22:00",
-        time_zone: 3,
-      },
-    });
-  }
-  res.json({ delivery_options: options });
+function ycpDeliveryOption(
+  id: string,
+  cost: number,
+  fromDays: number,
+  toDays: number
+): any {
+  return {
+    id,
+    cost,
+    delivery_date_interval: {
+      start_interval: { date: isoDateOffset(fromDays) },
+      end_interval: { date: isoDateOffset(toDays) },
+      time_zone: 3,
+    },
+  };
 }
 
-function handleV1PickupPoints(_req: Request, res: Response): void {
-  // Своих ПВЗ нет — Яндекс предложит свои точки выдачи.
-  res.json({ pickup_points: [], total_count: 0 });
+/**
+ * Считает стоимость доставки СДЭК на сервере по данным доставки из запроса Яндекса.
+ * ПВЗ → тариф «ПВЗ-ПВЗ» (136), курьер → «ПВЗ-дверь» (137). Возвращает null,
+ * если посчитать не удалось (вызывающий берёт фолбэк).
+ */
+async function computeYcpDeliveryCost(
+  delivery: any,
+  items: any[]
+): Promise<{ cost: number; fromDays: number; toDays: number; id: string } | null> {
+  const method = String(delivery?.delivery_method || "courier");
+  const address = delivery?.address && typeof delivery.address === "object" ? delivery.address : {};
+  const weight = estimateYcpPackageWeight(items);
+  try {
+    if (method === "pickup_point") {
+      const pid = String(address.pickup_point_id || "");
+      const pts = await ensureYcpPvz();
+      const pt = pid ? pts.find((p) => p.id === pid) : undefined;
+      if (pt?.city_code) {
+        const tariff = await cdekService.calculateTariff({
+          from_location: { code: CDEK_SENDER_CITY_CODE },
+          to_location: { code: pt.city_code },
+          packages: [{ ...CDEK_DEFAULT_PACKAGE, weight }],
+          tariff_code: CDEK_TARIFFS.PVZ_TO_PVZ, // 136 — из ПВЗ в ПВЗ
+        });
+        if (tariff && tariff.delivery_sum >= 0) {
+          return {
+            cost: tariff.delivery_sum,
+            fromDays: tariff.period_min || 1,
+            toDays: tariff.period_max || 7,
+            id: `pickup-${pt.id}`,
+          };
+        }
+      }
+      return null;
+    }
+
+    // Курьер: ищем город по locality.
+    const locality = String(address.locality || "").trim();
+    let cityCode: number | undefined;
+    if (locality) {
+      const cities = await cdekService.getCities({
+        country_codes: "RU",
+        city: locality,
+        size: 5,
+      });
+      const hit = (cities || []).find(
+        (c: any) => c?.city && String(c.city).toLowerCase().startsWith(locality.toLowerCase())
+      );
+      cityCode = hit ? Number(hit.code) : undefined;
+    }
+    if (cityCode) {
+      const tariff = await cdekService.calculateTariff({
+        from_location: { code: CDEK_SENDER_CITY_CODE },
+        to_location: { code: cityCode },
+        packages: [{ ...CDEK_DEFAULT_PACKAGE, weight }],
+        tariff_code: CDEK_TARIFFS.PVZ_TO_DOOR, // 137 — из ПВЗ до двери
+      });
+      if (tariff && tariff.delivery_sum >= 0) {
+        return {
+          cost: tariff.delivery_sum,
+          fromDays: tariff.period_min || 1,
+          toDays: tariff.period_max || 7,
+          id: "courier-standard",
+        };
+      }
+    }
+    return null;
+  } catch (e: any) {
+    logError("[YCP] delivery cost calculation error:", e?.message);
+    return null;
+  }
+}
+
+/**
+ * POST /checkout/delivery/options — реальный расчёт доставки СДЭК.
+ * В ответе: стоимость для покупателя и интервал дат доставки.
+ */
+async function handleV1DeliveryOptions(req: Request, res: Response): Promise<void> {
+  const body = req.body || {};
+  const target = body.delivery_target && typeof body.delivery_target === "object" ? body.delivery_target : {};
+  const delivery = {
+    ...target,
+    delivery_method: String(target.delivery_method || body.delivery_method || "courier"),
+  };
+  const items = Array.isArray(body.items) ? body.items : [];
+  const computed = await computeYcpDeliveryCost(delivery, items);
+  const option = computed
+    ? ycpDeliveryOption(computed.id, computed.cost, computed.fromDays, computed.toDays)
+    : delivery.delivery_method === "pickup_point"
+      ? ycpDeliveryOption("pickup-default", 290, 1, 7)
+      : ycpDeliveryOption("courier-standard", 290, 3, 7);
+  res.json({ delivery_options: [option] });
+}
+
+/**
+ * GET /checkout/delivery/pickup_points — реальные ПВЗ СДЭК по РФ (с пагинацией).
+ * Яндекс сам фильтрует точки по карте/региону покупателя.
+ */
+async function handleV1PickupPoints(req: Request, res: Response): Promise<void> {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 1000, 1), 1000);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+    const all = await ensureYcpPvz();
+    res.json({ pickup_points: all.slice(offset, offset + limit), total_count: all.length });
+  } catch (e: any) {
+    logError("[YCP] pickup_points error:", e?.message);
+    res.json({ pickup_points: [], total_count: 0 });
+  }
 }
 
 async function handleV1CheckoutCreate(req: Request, res: Response): Promise<void> {
@@ -648,10 +886,46 @@ async function handleV1CheckoutCreate(req: Request, res: Response): Promise<void
   const customer = readCustomer(body);
   const delivery = (body.delivery && typeof body.delivery === "object" ? body.delivery : {}) as any;
   const addr = delivery.address && typeof delivery.address === "object" ? delivery.address : {};
+  // Если покупатель выбрал ПВЗ — подставляем реальный адрес точки из кэша СДЭК,
+  // чтобы уведомление владельцу и админка показывали конкретный ПВЗ.
+  let pvzAddress = "";
+  const pickupPointId = String(addr.pickup_point_id || "").trim();
+  if (String(delivery.delivery_method || "") === "pickup_point" && pickupPointId) {
+    try {
+      const pts = await ensureYcpPvz();
+      const pt = pts.find((p) => p.id === pickupPointId);
+      if (pt) pvzAddress = `СДЭК ПВЗ (${pt.id}): ${pt.address}`;
+    } catch (e: any) {
+      logError("[YCP] pickup point lookup failed:", e?.message);
+    }
+  }
   const addressText =
+    pvzAddress ||
     joinParts([pick(addr, ["locality", "city"]), pick(addr, ["address", "street", "house"])]) ||
     buildAddressText(delivery);
-  const deliveryCostKop = Math.round((Number(delivery.cost) || 0) * 100);
+  // Стоимость доставки считаем НА СЕРВЕРЕ по тарифам СДЭК, а не берём на веру
+  // цену из запроса Яндекса: покупатель платит ровно по нашему расчёту, и в заказе
+  // (total = товары + доставка) сумма сходится с оплатой.
+  let deliveryCostKop = Math.round((Number(delivery.cost) || 0) * 100);
+  try {
+    const computed = await computeYcpDeliveryCost(delivery, itemsIn);
+    if (computed) {
+      const serverCostKop = Math.round(computed.cost * 100);
+      if (serverCostKop !== deliveryCostKop) {
+        logInfo(
+          `[YCP] Delivery cost overridden for session ${sessionId}: ` +
+            `${deliveryCostKop / 100} ₽ → ${serverCostKop / 100} ₽ (CDEK)`
+        );
+      }
+      deliveryCostKop = serverCostKop;
+    } else if (deliveryCostKop <= 0) {
+      // Посчитать не смогли и Яндекс цену не прислал — берём базовый тариф,
+      // чтобы доставка не ушла бесплатной.
+      deliveryCostKop = 29000;
+    }
+  } catch (e: any) {
+    logError("[YCP] Delivery cost recalc failed:", e?.message);
+  }
   const { order } = await createYcpOrder({
     items: resolved,
     customerName: customer.name,
@@ -659,7 +933,10 @@ async function handleV1CheckoutCreate(req: Request, res: Response): Promise<void
     customerPhone: customer.phone,
     addressText,
     deliveryCostKop,
-    deliveryServiceName: String(delivery.delivery_method || "courier"),
+    deliveryServiceName:
+      String(delivery.delivery_method || "courier") === "pickup_point"
+        ? "СДЭК (ПВЗ)"
+        : String(delivery.delivery_method || "courier"),
     yandexOrderId: String(body.order_id || ""),
     ycpSessionId: sessionId,
   });

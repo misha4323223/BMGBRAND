@@ -304,6 +304,7 @@ export class CdekService {
     type?: string;
     country_code?: string;
     size?: number;
+    page?: number;
   }): Promise<DeliveryPoint[]> {
     console.log("[CDEK] Getting delivery points:", params);
     
@@ -314,6 +315,7 @@ export class CdekService {
       if (params.type) queryParams.append("type", params.type);
       if (params.country_code) queryParams.append("country_codes", params.country_code);
       if (params.size) queryParams.append("size", String(params.size));
+      if (params.page) queryParams.append("page", String(params.page));
       
       const result = await this.request<DeliveryPoint[]>(
         "GET",
