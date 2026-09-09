@@ -43,8 +43,9 @@ const YCP_ORDER_STATUS = process.env.YCP_ORDER_STATUS || "pending";
 const YCP_WAREHOUSE = {
   id: "main",
   title: process.env.YCP_WAREHOUSE_TITLE || "Основной склад BOOOMERANGS",
-  address: process.env.YCP_WAREHOUSE_ADDRESS || "Россия",
-  phone: process.env.YCP_WAREHOUSE_PHONE || "",
+  address:
+    process.env.YCP_WAREHOUSE_ADDRESS || "Тульская область, Узловский район, село Каменка, дом 297",
+  phone: process.env.YCP_WAREHOUSE_PHONE || "+7 (960) 600-00-47",
   description: process.env.YCP_WAREHOUSE_DESCRIPTION || "",
   selfPickup: (process.env.YCP_WAREHOUSE_SELF_PICKUP || "").toLowerCase() === "true",
 };
