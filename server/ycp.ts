@@ -143,25 +143,46 @@ async function loadAllCdekPvz(): Promise<YcpPvz[]> {
   const all: YcpPvz[] = [];
   const PAGE_SIZE = 1000;
   const CONCURRENCY = 5;
-  let page = 1;
-  outer: while (page <= 60) {
+  const MAX_PAGES = 60;
+  // CDEK API v2 нумерует страницы С НУЛЯ (page=0 — первая). Начинать с 1
+  // нельзя: теряется первая тысяча точек, а если её не хватает до конца —
+  // остаётся огрызок (наблюдалось: кэш 411 точек вместо 1411).
+  let page = 0;
+  while (page < MAX_PAGES) {
     const batch: number[] = [];
-    for (let i = 0; i < CONCURRENCY && page <= 60; i++, page++) batch.push(page);
+    for (let i = 0; i < CONCURRENCY && page < MAX_PAGES; i++, page++) batch.push(page);
     const results = await Promise.all(
-      batch.map((p) =>
-        cdekService
-          .getDeliveryPoints({ country_code: "RU", type: "PVZ", size: PAGE_SIZE, page: p })
-          .catch(() => [] as any[])
-      )
+      batch.map(async (p) => {
+        // Ретраи: СДЭК отдаёт 429/5xx/пусто при перегрузке — пустой ответ от
+        // ошибки нельзя принимать за конец списка (иначе кэш обрезается).
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const raw = await cdekService
+            .getDeliveryPoints({ country_code: "RU", type: "PVZ", size: PAGE_SIZE, page: p })
+            .catch(() => null);
+          if (raw && raw.length > 0) return raw;
+          if (attempt < 3) await new Promise((r) => setTimeout(r, 300 * attempt));
+        }
+        return [] as any[];
+      })
     );
+    let emptyInBatch = 0;
+    let lastPageReached = false;
     for (const raw of results) {
-      if (!raw || raw.length === 0) break outer;
+      if (!raw || raw.length === 0) {
+        emptyInBatch++;
+        continue;
+      }
       for (const o of raw) {
         const pt = cdekOfficeToYcpPvz(o);
         if (pt) all.push(pt);
       }
-      if (raw.length < PAGE_SIZE) break outer;
+      if (raw.length < PAGE_SIZE) lastPageReached = true;
     }
+    // Все страницы батча пустые после ретраев — данные закончились.
+    if (emptyInBatch === results.length) break;
+    if (lastPageReached) break;
+    // Пауза между батчами, чтобы не упереться в rate-limit СДЭК.
+    await new Promise((r) => setTimeout(r, 150));
   }
   return all;
 }
@@ -173,10 +194,22 @@ function ensureYcpPvz(): Promise<YcpPvz[]> {
   if (!ycpPvzLoading) {
     ycpPvzLoading = loadAllCdekPvz()
       .then((list) => {
+        // Реальных ПВЗ СДЭК по РФ ~25 тыс. Если пришло подозрительно мало —
+        // это тестовый аккаунт/частичный ответ. НЕ кэшируем огрызок на 12 ч:
+        // следующий запрос чекаута перезагрузит список заново.
+        if (list.length < 10000) {
+          throw new Error(
+            `suspiciously small PVZ list (${list.length}), not caching (test credentials or partial response?)`
+          );
+        }
         ycpPvzCache = list;
         ycpPvzCacheAt = Date.now();
         logInfo(`[YCP] PVZ cache loaded: ${list.length} points (CDEK)`);
         return list;
+      })
+      .catch((e) => {
+        logError("[YCP] PVZ cache load failed:", e?.message || String(e));
+        throw e;
       })
       .finally(() => {
         ycpPvzLoading = null;
@@ -854,6 +887,7 @@ async function handleV1PickupPoints(req: Request, res: Response): Promise<void> 
     const limit = Math.min(Math.max(Number(req.query.limit) || 1000, 1), 1000);
     const offset = Math.max(Number(req.query.offset) || 0, 0);
     const all = await ensureYcpPvz();
+    logInfo(`[YCP] pickup_points offset=${offset} limit=${limit} total=${all.length}`);
     res.json({ pickup_points: all.slice(offset, offset + limit), total_count: all.length });
   } catch (e: any) {
     logError("[YCP] pickup_points error:", e?.message);

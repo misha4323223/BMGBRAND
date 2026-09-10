@@ -1,5 +1,5 @@
 import SEO from "@/components/SEO";
-import { ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Truck, Palette, Flag, Shirt, Pencil, Settings2, ShoppingBag, Globe, X } from "lucide-react";
+import { ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Truck, Palette, Flag, Shirt, X } from "lucide-react";
 
 declare global {
   interface Window {
@@ -26,6 +26,8 @@ import { useWholesalePrice } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import PromoBanner from "@/components/PromoBanner";
 import { FeaturedDropSection } from "@/components/FeaturedDropSection";
+import { CollabReviewsVault } from "@/components/CollabReviewsVault";
+import { EditorialStrip } from "@/components/EditorialStrip";
 import philosophyMobile from "@assets/generated_images/philosophy_mobile_new.webp";
 import clothingImg from "@assets/generated_images/streetwear_clothing_category.webp";
 import socksImg from "@assets/generated_images/designer_socks_category.webp";
@@ -73,31 +75,6 @@ function LazyVideo({ src, className }: { src: string; className?: string }) {
   );
 }
 
-// Меняет 800px _thumb.webp на лёгкий ~200px _thumb_small.webp для маленьких карточек.
-// Вызывается через getOptimizedImageUrl(..., 'small') — только в строке артистов на главной.
-function getOptimizedImageSmallUrl(url: string): string {
-  if (!url) return url;
-  if (url.includes('_thumb_small.webp')) return url;
-  const smallUrl = url.replace(/\.webp(\?.*)?$/i, '_thumb_small.webp$1');
-  if (smallUrl !== url) return smallUrl;
-  return url;
-}
-
-function getOptimizedImageUrl(url: string): string {
-  if (!url) return url;
-  if (url.includes('_thumb.webp')) return url;
-  // У артистов на CDN тоже есть _thumb.webp — применяем ту же замену, что и для товаров.
-  // Если миниатюра вдруг отсутствует, у <img> есть onError-фолбэк на оригинал.
-  if (
-    url.includes('storage.yandexcloud.net/bmg/products/') ||
-    url.includes('storage.yandexcloud.net/bmg/site/')
-  ) {
-    const thumbUrl = url.replace(/\.(webp|jpg|jpeg|png)(\?.*)?$/i, '_thumb.webp$2');
-    if (thumbUrl !== url) return thumbUrl;
-  }
-  return url;
-}
-
 const categories = [
   { name: "Одежда", slug: "clothing", image: clothingImg },
   { name: "Носки", slug: "socks", image: socksImg },
@@ -110,6 +87,14 @@ const benefits = [
   { icon: Flag, title: "Сделано в России", desc: "Собственное производство" },
   { icon: Palette, title: "Уникальные принты", desc: "Авторский дизайн" },
   { icon: Shirt, title: "Создаём мерч", desc: "Разработаем для вашего бренда" },
+];
+
+// Фолбэк-элементы «Ленты с разделителями» (если секция не настроена в админке)
+const defaultEditorialItems = [
+  { id: "es-clothing", image: clothingImg, label: "Одежда", link: "/products/clothing" },
+  { id: "es-socks", image: socksImg, label: "Носки", link: "/products/socks" },
+  { id: "es-accessories", image: accessoriesImg, label: "Аксессуары", link: "/products/accessories" },
+  { id: "es-merch", image: merchImg, label: "Мерч", link: "/products/merch" },
 ];
 
 const artists = [
@@ -240,50 +225,6 @@ function MarqueeSection({ text }: { text: string }) {
         </div>
       </div>
     </div>
-  );
-}
-
-function ReelPill({ item, onClick }: { item: any; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex flex-col items-center shrink-0 cursor-pointer group focus:outline-none"
-    >
-      {/* Внешнее кольцо — как в Telegram/Instagram: градиентный ободок + чёрный зазор перед превью */}
-      <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full p-[2.5px] bg-gradient-to-tr from-primary via-red-500 to-orange-400 group-active:scale-95 transition-transform duration-150">
-        <div className="relative w-full h-full rounded-full overflow-hidden ring-2 ring-black">
-          {/* В ленте показываем только картинку (thumbnailUrl) — видео монтируется в модалке по клику */}
-          {item.thumbnailUrl ? (
-            <img
-              src={item.thumbnailUrl}
-              alt={item.label || ""}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              decoding="async"
-            />
-          ) : (
-            <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-6 h-6 fill-zinc-600" aria-hidden="true">
-                <path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/>
-              </svg>
-            </div>
-          )}
-          {/* иконка play по центру */}
-          <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/25 transition-colors">
-            <div className="w-6 h-6 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-3 h-3 fill-white ml-0.5" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-            </div>
-          </div>
-        </div>
-      </div>
-      {item.label && (
-        <div className="mt-1.5 text-center w-20 sm:w-24">
-          <span className="text-[7px] font-bold uppercase tracking-[0.1em] text-zinc-400 leading-tight line-clamp-2 group-hover:text-zinc-200 transition-colors">
-            {item.label}
-          </span>
-        </div>
-      )}
-    </button>
   );
 }
 
@@ -551,12 +492,22 @@ export default function Home() {
     return <PromoBanner settings={promoBanner} />;
   };
 
-  const DEFAULT_SECTION_ORDER = ["hero", "reels", "categories", "popular", "featuredDrop", "benefits", "philosophy", "blog", "promo_banner", "newsletter", "marquee"];
+  const DEFAULT_SECTION_ORDER = ["hero", "reels", "editorialStrip", "categories", "popular", "featuredDrop", "benefits", "philosophy", "blog", "promo_banner", "newsletter", "marquee"];
   const FIXED_SECTIONS = new Set(DEFAULT_SECTION_ORDER);
   const rawOrder: string[] = (pageSettings?.sectionOrder?.order as string[]) || [];
   // Include fixed sections + custom sections (those that start with "custom_")
   const filteredOrder = rawOrder.filter((id: string) => FIXED_SECTIONS.has(id) || id.startsWith("custom_"));
-  DEFAULT_SECTION_ORDER.forEach(id => { if (!filteredOrder.includes(id)) filteredOrder.push(id); });
+  // Секции, которых нет в сохранённом порядке, вставляем на их каноническую позицию
+  // (например editorialStrip — сразу после reels), а не в конец списка.
+  DEFAULT_SECTION_ORDER.forEach((defId, defIdx) => {
+    if (filteredOrder.includes(defId)) return;
+    let insertAt = 0;
+    for (let i = filteredOrder.length - 1; i >= 0; i--) {
+      const pos = DEFAULT_SECTION_ORDER.indexOf(filteredOrder[i]);
+      if (pos !== -1 && pos < defIdx) { insertAt = i + 1; break; }
+    }
+    filteredOrder.splice(insertAt, 0, defId);
+  });
   const sectionOrder: string[] = filteredOrder.length > 0 ? filteredOrder : DEFAULT_SECTION_ORDER;
 
   const handleSubscribe = async (e: React.FormEvent) => {
@@ -959,196 +910,6 @@ export default function Home() {
           </div>
         )}
         {renderPromoBanner("after_hero")}
-        {(() => {
-          const stripItems: any[] = artistStripItems || pageSettings?.artists?.items || artists;
-          if (!stripItems || stripItems.length === 0) return null;
-          return (
-            <div className="w-full border-t-2 border-primary" style={{ background: "radial-gradient(ellipse 100% 60% at 50% 0%, #1c1c1c 0%, #0a0a0a 65%)" }}>
-              {/* ── Мобильный заголовок (только sm-) ── */}
-              <div className="flex sm:hidden items-center justify-between px-4 pt-4 pb-1">
-                <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-zinc-300">
-                  Коллаборации
-                </span>
-                <Link
-                  href={pageSettings?.artists?.linkUrl || "/products/merch"}
-                  className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-zinc-400 hover:text-white transition-colors"
-                  data-testid="link-all-artists-strip-mobile"
-                >
-                  <span>Все</span>
-                  <ArrowRight className="w-3 h-3" />
-                </Link>
-              </div>
-              {/* ── Лента коллабораций ── */}
-              <div className="flex items-stretch">
-                {/* Левый лейбл */}
-                <div className="hidden sm:flex shrink-0 items-center justify-center px-5 lg:px-7 border-r border-zinc-800">
-                  <span className="text-[11px] font-mono tracking-[0.3em] uppercase text-zinc-300 whitespace-nowrap" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
-                    Коллаборации
-                  </span>
-                </div>
-                {/* Лента карточек с fade-масками */}
-                <div className="flex-1 relative overflow-hidden">
-                  <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-12 bg-gradient-to-r from-zinc-950 to-transparent z-10 pointer-events-none" />
-                  <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-24 bg-gradient-to-l from-zinc-950 to-transparent z-10 pointer-events-none" />
-                  <div
-                    className="flex items-end gap-3 sm:gap-4 overflow-x-auto scrollbar-hide px-4 sm:px-6 py-5 sm:py-6"
-                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-                  >
-                    {stripItems.map((artist: any, idx: number) => {
-                      const rotations = [-2, 1.5, -1, 2, -1.5, 1];
-                      const rot = rotations[idx % rotations.length];
-                      return (
-                        <Link
-                          key={idx}
-                          href={artist.slug ? `/@${artist.slug}` : (artist.link || "/products/merch")}
-                          className="flex flex-col shrink-0 cursor-pointer group"
-                          style={{ transform: `rotate(${rot}deg)`, transition: "transform 0.35s cubic-bezier(.22,.68,0,1.2), box-shadow 0.35s ease" }}
-                          data-testid={`link-artist-strip-${idx}`}
-                        >
-                          {/* Поляроид */}
-                          <div
-                            className="bg-white shadow-lg group-hover:shadow-2xl"
-                            style={{
-                              padding: "6px 6px 0 6px",
-                              transform: "rotate(0deg)",
-                              transition: "transform 0.35s cubic-bezier(.22,.68,0,1.2)",
-                            }}
-                          >
-                            {/* Фото */}
-                            <div className="relative overflow-hidden" style={{ width: 86, height: 110 }}>                              <img
-                                src={getOptimizedImageSmallUrl(getOptimizedImageUrl(artist.image))}
-                                alt={artist.name}
-                                loading={idx < 2 ? "eager" : "lazy"}                                // @ts-ignore fetchpriority is valid on <img> but missing from current @types/react
-                                fetchpriority={idx < 2 ? "high" : "auto"}
-                                decoding="async"
-                                width={86}
-                                height={110}
-                                data-stage="small"
-                                onError={(e) => {
-                                  const el = e.currentTarget;
-                                  const thumb = getOptimizedImageUrl(artist.image);
-                                  const original = artist.image;
-                                  // small → 800px thumb → оригинал
-                                  if (thumb && el.getAttribute('data-stage') === 'small') {
-                                    el.setAttribute('data-stage', 'thumb');
-                                    el.src = thumb;
-                                  } else if (original && el.src !== original) {
-                                    el.setAttribute('data-stage', 'original');
-                                    el.src = original;
-                                  }
-                                }}
-                                className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
-                              />
-                            </div>
-                            {/* Белая полоска с именем */}
-                            <div className="flex items-center justify-center px-1 py-2" style={{ width: 86, minHeight: 32 }}>
-                              <span className="text-[7.5px] font-bold uppercase tracking-[0.1em] text-zinc-800 text-center leading-tight line-clamp-2">
-                                {artist.name}
-                              </span>
-                            </div>
-                          </div>
-                        </Link>
-                      );
-                    })}
-
-                    {/* ── Специальная карточка «× ваш мерч» ── */}
-                    <Link
-                      href="/merch-na-zakaz"
-                      className="flex flex-col shrink-0 cursor-pointer group"
-                      style={{ transform: "rotate(1.5deg)", transition: "transform 0.35s cubic-bezier(.22,.68,0,1.2)" }}
-                      data-testid="link-artist-strip-custom-merch"
-                    >
-                      <div
-                        className="bg-white shadow-lg group-hover:shadow-2xl"
-                        style={{ padding: "6px 6px 0 6px", transition: "transform 0.35s cubic-bezier(.22,.68,0,1.2)" }}
-                      >
-                        {/* Тёмный фон с логотипом */}
-                        <div
-                          className="relative overflow-hidden flex items-center justify-center"
-                          style={{ width: 86, height: 110, background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)" }}
-                        >
-                          <img
-                            src="/images/boomerangs-logo.webp"
-                            alt="Booomerangs"
-                            className="w-14 h-auto object-contain opacity-90 transition-transform duration-500 group-hover:scale-110"
-                          />
-                        </div>
-                        {/* Подпись */}
-                        <div className="flex items-center justify-center px-1 py-2" style={{ width: 86, minHeight: 32 }}>
-                          <span className="text-[7.5px] font-bold uppercase tracking-[0.1em] text-zinc-800 text-center leading-tight">
-                            × ваш мерч
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-
-                    <div className="shrink-0 w-10 sm:w-16" />
-                  </div>
-                </div>
-                {/* Правая ссылка "Все" */}
-                <Link
-                  href={pageSettings?.artists?.linkUrl || "/products/merch"}
-                  className="hidden sm:flex shrink-0 items-center gap-2 text-[11px] font-mono uppercase tracking-widest text-zinc-300 hover:text-white transition-all duration-200 px-5 lg:px-7 border-l border-zinc-800 group"
-                  data-testid="link-all-artists-strip"
-                >
-                  <span className="whitespace-nowrap">Все</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-              </div>
-
-              {/* ── CTA: Мерч на заказ — вшит в тот же тёмный блок ── */}
-              <div className="border-t border-zinc-800">
-                <Link href="/merch-na-zakaz" data-testid="merch-strip-banner" className="group block">
-                  <div className="flex items-center gap-3 sm:gap-0 px-4 sm:px-0">
-                    {/* Иконка + лейбл */}
-                    <div className="hidden sm:flex shrink-0 items-center gap-3 px-5 lg:px-7 py-4 border-r border-zinc-800">
-                      <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
-                        <Shirt className="w-3.5 h-3.5 text-white" />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.22em] text-white whitespace-nowrap">
-                        Мерч на заказ
-                      </span>
-                    </div>
-                    {/* Мобильная иконка */}
-                    <div className="sm:hidden w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
-                      <Shirt className="w-3.5 h-3.5 text-white" />
-                    </div>
-                    {/* Главный CTA-текст */}
-                    <div className="flex-1 px-0 sm:px-7 py-3.5">
-                      <p className="text-sm sm:text-base font-semibold text-white leading-tight">
-                        Создай свой мерч и присоединяйся к нашей платформе
-                      </p>
-                      {/* Шаги-иконки вместо текстовой подписи */}
-                      <div className="hidden sm:flex items-center gap-1.5 mt-1.5 flex-wrap">
-                        <Pencil className="w-3 h-3 text-zinc-300 shrink-0" />
-                        <span className="text-[10px] text-zinc-300">Идея</span>
-                        <ArrowRight className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
-                        <Settings2 className="w-3 h-3 text-zinc-300 shrink-0" />
-                        <span className="text-[10px] text-zinc-300">Производство</span>
-                        <ArrowRight className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
-                        <Globe className="w-3 h-3 text-zinc-300 shrink-0" />
-                        <span className="text-[10px] text-zinc-300">Платформа</span>
-                        <ArrowRight className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
-                        <ShoppingBag className="w-3 h-3 text-zinc-300 shrink-0" />
-                        <span className="text-[10px] text-zinc-300">Продажа</span>
-                        <ArrowRight className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
-                        <Truck className="w-3 h-3 text-zinc-300 shrink-0" />
-                        <span className="text-[10px] text-zinc-300">Доставка</span>
-                      </div>
-                    </div>
-                    {/* Красная кнопка */}
-                    <div className="shrink-0 px-4 sm:px-7 py-4">
-                      <div className="flex items-center gap-2 bg-primary px-4 py-2 rounded text-white text-[10px] sm:text-xs font-bold uppercase tracking-[0.15em] group-hover:bg-primary/90 transition-colors duration-200 whitespace-nowrap">
-                        <span>Заказать</span>
-                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              </div>
-            </div>
-          );
-        })()}
             </div>
           ) : null;
         }
@@ -1157,34 +918,41 @@ export default function Home() {
           if (!isSectionVisible("reels")) return null;
           const reelsSettings = pageSettings?.reels || {};
           const reelItems: any[] = reelsSettings.items || [];
-          if (reelItems.length === 0) return null;
+          const vaultArtists: any[] = artistStripItems || pageSettings?.artists?.items || artists;
+          if (reelItems.length === 0 && vaultArtists.length === 0) return null;
           return (
-            <div key="section-reels" className="w-full border-t-2 border-primary" style={{ background: "radial-gradient(ellipse 100% 60% at 50% 0%, #1c1c1c 0%, #0a0a0a 65%)" }}>
-              <div className="flex sm:hidden items-center px-4 pt-4 pb-1">
-                <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-zinc-300">
-                  {reelsSettings.title || "Обзоры"}
-                </span>
-              </div>
-              <div className="flex items-stretch">
-                <div className="hidden sm:flex shrink-0 items-center justify-center px-5 lg:px-7 border-r border-zinc-800">
-                  <span className="text-[11px] font-mono tracking-[0.3em] uppercase text-zinc-300 whitespace-nowrap" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
-                    {reelsSettings.title || "Обзоры"}
-                  </span>
-                </div>
-                <div className="flex-1 relative overflow-hidden">
-                  <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-12 bg-gradient-to-r from-zinc-950 to-transparent z-10 pointer-events-none" />
-                  <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-24 bg-gradient-to-l from-zinc-950 to-transparent z-10 pointer-events-none" />
-                  <div
-                    className="flex items-end gap-3 sm:gap-4 overflow-x-auto px-4 sm:px-6 py-5 sm:py-6"
-                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-                  >
-                    {reelItems.map((item: any, idx: number) => (
-                      <ReelPill key={item.id || idx} item={item} onClick={() => setActiveReel(item)} />
-                    ))}
-                    <div className="shrink-0 w-10 sm:w-16" />
-                  </div>
-                </div>
-              </div>
+            <div key="section-reels">
+              <CollabReviewsVault
+                artists={vaultArtists}
+                artistsLinkUrl={pageSettings?.artists?.linkUrl || "/products/merch"}
+                reels={reelItems}
+                reelsTitle={reelsSettings.title || "Обзоры"}
+                onReelClick={setActiveReel}
+              />
+              {renderPromoBanner("after_reels")}
+            </div>
+          );
+        }
+
+        case "editorialStrip": {
+          if (!isSectionVisible("editorialStrip")) return null;
+          const esSettings = pageSettings?.editorialStrip;
+          // Есть сохранённая конфигурация, но пустая → секцию скрываем;
+          // конфигурации нет вообще → показываем фолбэк, чтобы секция была видна сразу
+          const esItems: any[] = esSettings?.items?.length
+            ? esSettings.items
+            : esSettings
+              ? []
+              : defaultEditorialItems;
+          if (esItems.length === 0) return null;
+          return (
+            <div key="section-editorial-strip">
+              <EditorialStrip
+                title={esSettings?.title || "Избранное"}
+                subtitle={esSettings?.subtitle || "Смотреть больше"}
+                items={esItems}
+              />
+              {renderPromoBanner("after_editorial_strip")}
             </div>
           );
         }

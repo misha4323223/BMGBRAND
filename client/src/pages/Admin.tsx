@@ -177,6 +177,8 @@ export default function Admin() {
   const [pinnedSearchQuery, setPinnedSearchQuery] = useState("");
   const [addSectionDialog, setAddSectionDialog] = useState(false);
   const [customHitsPinnedSearch, setCustomHitsPinnedSearch] = useState("");
+  const [editorialCardPickerIdx, setEditorialCardPickerIdx] = useState<number | null>(null);
+  const [editorialPickerSearch, setEditorialPickerSearch] = useState("");
   
   // Static pages editor state
   const [staticPageTab, setStaticPageTab] = useState<string>("privacy");
@@ -5232,7 +5234,7 @@ export default function Admin() {
             )}
 
             {selectedPage === "home" && (() => {
-              const DEFAULT_SECTION_ORDER = ["hero", "reels", "categories", "popular", "featuredDrop", "benefits", "philosophy", "blog", "promo_banner", "newsletter", "marquee"];
+              const DEFAULT_SECTION_ORDER = ["hero", "reels", "editorialStrip", "categories", "popular", "featuredDrop", "benefits", "philosophy", "blog", "promo_banner", "newsletter", "marquee"];
 
               const CUSTOM_SECTION_TYPES: Record<string, { name: string; icon: any }> = {
                 custom_hits: { name: "Хиты продаж", icon: TrendingUp },
@@ -5252,6 +5254,7 @@ export default function Admin() {
                 newsletter: { name: "Подписка", icon: Mail },
                 marquee: { name: "Бегущая строка", icon: Type },
                 reels: { name: "Обзоры (Видео-рилсы)", icon: Play },
+                editorialStrip: { name: "Фото-лента (карусель)", icon: ImageIcon },
               };
               // Динамически добавляем кастомные секции из настроек страницы
               Object.keys(pageSettingsQuery.data || {}).forEach(id => {
@@ -5266,7 +5269,17 @@ export default function Admin() {
               const computeOrder = () => {
                 const saved: string[] = homeSectionOrder || pageSettingsQuery.data?.sectionOrder?.order || DEFAULT_SECTION_ORDER;
                 const filtered = saved.filter((id: string) => ALL_SECTIONS[id]);
-                DEFAULT_SECTION_ORDER.forEach(id => { if (!filtered.includes(id)) filtered.push(id); });
+                // Секции, которых нет в сохранённом порядке, вставляем на их каноническую
+                // позицию (например editorialStrip — сразу после reels), а не в конец списка.
+                DEFAULT_SECTION_ORDER.forEach((defId, defIdx) => {
+                  if (filtered.includes(defId)) return;
+                  let insertAt = 0;
+                  for (let i = filtered.length - 1; i >= 0; i--) {
+                    const pos = DEFAULT_SECTION_ORDER.indexOf(filtered[i]);
+                    if (pos !== -1 && pos < defIdx) { insertAt = i + 1; break; }
+                  }
+                  filtered.splice(insertAt, 0, defId);
+                });
                 return filtered;
               };
               const sectionOrder = computeOrder();
@@ -5370,6 +5383,7 @@ export default function Admin() {
                           newsletter: { title: "Подпишитесь на рассылку", subtitle: "Получайте первыми информацию о новых дропах и эксклюзивных акциях.", buttonText: "Подписаться", successText: "Спасибо за подписку!", visible: true },
                           marquee: { text: "Новая коллекция уже в продаже • Бесплатная доставка при заказе от 5000₽ •", visible: true },
                           reels: { title: "Обзоры", items: [], visible: true },
+                          editorialStrip: { title: "Избранное", subtitle: "Смотреть больше", items: [], visible: true },
                         };
                         const existing = pageSettingsQuery.data?.[sectionId] || {};
                         const merged = { ...(defaults[sectionId] || {}), ...existing };
@@ -5453,6 +5467,7 @@ export default function Admin() {
                             selectedSection === "newsletter" ? "Подписка" :
                             selectedSection === "marquee" ? "Бегущая строка" :
                             selectedSection === "reels" ? "Обзоры (Видео-рилсы)" :
+                            selectedSection === "editorialStrip" ? "Фото-лента (карусель)" :
                             (selectedSection?.startsWith("custom_") ? (sectionSettings.title || ALL_SECTIONS[selectedSection!]?.name || selectedSection) : selectedSection)}
                         </CardTitle>
                       </CardHeader>
@@ -6761,6 +6776,186 @@ export default function Admin() {
                                   });
                                   pageSettingsQuery.refetch();
                                   toast({ title: "Сохранено", description: "Настройки секции «Обзоры» сохранены" });
+                                } catch (err: any) {
+                                  toast({ title: "Ошибка", description: err.message, variant: "destructive" });
+                                }
+                              }}
+                            >
+                              <Save className="w-4 h-4 mr-2" /> Сохранить
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Editorial strip section editor (Фото-лента / карусель) */}
+                        {selectedSection === "editorialStrip" && (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={sectionSettings.visible !== false}
+                                onCheckedChange={(checked) => setSectionSettings({...sectionSettings, visible: checked})}
+                              />
+                              <Label className="text-sm">Показывать секцию</Label>
+                            </div>
+                            <div>
+                              <Label className="text-sm">Название секции</Label>
+                              <Input
+                                value={sectionSettings.title || ""}
+                                onChange={(e) => setSectionSettings({...sectionSettings, title: e.target.value})}
+                                placeholder="Избранное"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-sm">Подзаголовок</Label>
+                              <Input
+                                value={sectionSettings.subtitle || ""}
+                                onChange={(e) => setSectionSettings({...sectionSettings, subtitle: e.target.value})}
+                                placeholder="Смотреть больше"
+                              />
+                            </div>
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-sm font-medium">Карточки ({(sectionSettings.items || []).length})</Label>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    const items = [...(sectionSettings.items || [])];
+                                    items.push({ id: `editorial_${Date.now()}`, image: "", label: "", link: "" });
+                                    setSectionSettings({...sectionSettings, items});
+                                  }}
+                                >
+                                  <Plus className="w-3.5 h-3.5 mr-1" /> Добавить
+                                </Button>
+                              </div>
+                              {(sectionSettings.items || []).length === 0 && (
+                                <p className="text-sm text-muted-foreground text-center py-4">Нет карточек. Нажмите «Добавить».</p>
+                              )}
+                              {(sectionSettings.items || []).map((item: any, idx: number) => (
+                                <div key={item.id || idx} className="p-3 border rounded-md space-y-2">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs font-medium text-muted-foreground">Карточка {idx + 1}</span>
+                                    <button
+                                      className="p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors"
+                                      onClick={() => {
+                                        const items = (sectionSettings.items || []).filter((_: any, i: number) => i !== idx);
+                                        setSectionSettings({...sectionSettings, items});
+                                      }}
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs text-muted-foreground">Фото</Label>
+                                    <ImageUploadField
+                                      value={item.image || ""}
+                                      onChange={(url) => {
+                                        const items = [...(sectionSettings.items || [])];
+                                        items[idx] = { ...items[idx], image: url };
+                                        setSectionSettings({...sectionSettings, items});
+                                      }}
+                                      apiKey={apiKey}
+                                      placeholder="Квадратное фото товара или коллекции"
+                                      hint="Квадратное фото, лучше 800×800"
+                                    />
+                                  </div>
+                                  <Input
+                                    value={item.label || ""}
+                                    onChange={(e) => {
+                                      const items = [...(sectionSettings.items || [])];
+                                      items[idx] = { ...items[idx], label: e.target.value };
+                                      setSectionSettings({...sectionSettings, items});
+                                    }}
+                                    placeholder="Подпись (название товара/категории)"
+                                  />
+                                  <div className="space-y-1">
+                                    <Label className="text-xs text-muted-foreground">Ссылка (товар, категория или URL)</Label>
+                                    <div className="flex gap-2">
+                                      <Input
+                                        value={item.link || ""}
+                                        onChange={(e) => {
+                                          const items = [...(sectionSettings.items || [])];
+                                          items[idx] = { ...items[idx], link: e.target.value };
+                                          setSectionSettings({...sectionSettings, items});
+                                        }}
+                                        placeholder="/products/slug-tovara или /products/clothing"
+                                      />
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="shrink-0"
+                                        onClick={() => setEditorialCardPickerIdx(editorialCardPickerIdx === idx ? null : idx)}
+                                      >
+                                        <Search className="w-3.5 h-3.5 mr-1" /> Товар
+                                      </Button>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground leading-snug">
+                                      Ссылка на товар (<code className="text-foreground/70">/products/slug</code>), категорию
+                                      (<code className="text-foreground/70">/products/clothing</code>) или любой URL.
+                                      Кнопка «Товар» сама подставит фото, название и ссылку из каталога.
+                                    </p>
+                                    {editorialCardPickerIdx === idx && (
+                                      <div className="border rounded-md overflow-hidden max-h-52 overflow-y-auto bg-background">
+                                        <Input
+                                          autoFocus
+                                          value={editorialPickerSearch}
+                                          onChange={(e) => setEditorialPickerSearch(e.target.value)}
+                                          placeholder="Найти товар по названию..."
+                                          className="border-0 border-b rounded-none focus-visible:ring-0 h-9"
+                                        />
+                                        {(() => {
+                                          const q = editorialPickerSearch.toLowerCase();
+                                          const results = (data?.products || [])
+                                            .filter((p: any) => !p.isHidden && p.name?.toLowerCase().includes(q))
+                                            .slice(0, 8);
+                                          if (results.length === 0) {
+                                            return <div className="px-3 py-2 text-xs text-muted-foreground">Ничего не найдено</div>;
+                                          }
+                                          return results.map((p: any) => {
+                                            const img = p.images?.[0] || p.imageUrl;
+                                            return (
+                                              <div
+                                                key={p.id}
+                                                className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer border-b last:border-0"
+                                                onClick={() => {
+                                                  const items = [...(sectionSettings.items || [])];
+                                                  items[idx] = {
+                                                    ...items[idx],
+                                                    image: img || items[idx]?.image || "",
+                                                    label: p.name,
+                                                    link: `/${p.slug || p.id}`,
+                                                  };
+                                                  setSectionSettings({...sectionSettings, items});
+                                                  setEditorialCardPickerIdx(null);
+                                                  setEditorialPickerSearch("");
+                                                }}
+                                              >
+                                                {img && <img src={img} className="w-8 h-8 object-cover shrink-0" />}
+                                                <div className="flex-1 min-w-0">
+                                                  <div className="truncate text-xs font-medium">{p.name}</div>
+                                                  <div className="text-xs text-muted-foreground">{p.sku || `ID: ${p.id}`}</div>
+                                                </div>
+                                                <Plus className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                              </div>
+                                            );
+                                          });
+                                        })()}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <Button
+                              className="w-full"
+                              onClick={async () => {
+                                try {
+                                  await adminFetch(`/api/admin/page-settings/home/editorialStrip`, apiKey, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify(sectionSettings),
+                                  });
+                                  pageSettingsQuery.refetch();
+                                  toast({ title: "Сохранено", description: "Настройки секции «Фото-лента» сохранены" });
                                 } catch (err: any) {
                                   toast({ title: "Ошибка", description: err.message, variant: "destructive" });
                                 }

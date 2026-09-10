@@ -68,9 +68,12 @@ async function sendVkMessage(text: string): Promise<boolean> {
       v: "5.199",
     });
 
-    const response = await fetch(`https://api.vk.com/method/messages.send`, {
+    const response = await fetch(`https://api.vk.ru/method/messages.send`, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Bearer ${token}`,
+      },
       body: body.toString(),
     });
 
@@ -518,9 +521,12 @@ export async function sendVkChatNotification(
       v: "5.199",
     });
 
-    const response = await fetch(`https://api.vk.com/method/messages.send`, {
+    const response = await fetch(`https://api.vk.ru/method/messages.send`, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Bearer ${token}`,
+      },
       body: body.toString(),
     });
 
@@ -560,7 +566,8 @@ export function startVkLongPoll(
 async function getLongPollServer(): Promise<{ key: string; server: string; ts: string }> {
   const { token } = getConfig();
   const res = await fetch(
-    `https://api.vk.com/method/messages.getLongPollServer?access_token=${token}&v=5.199&lp_version=3`
+    `https://api.vk.ru/method/messages.getLongPollServer?access_token=${token}&v=5.199&lp_version=3`,
+    { headers: { Authorization: `Bearer ${token}` } }
   );
   const data = await res.json() as any;
   if (data.error) throw new Error(`messages.getLongPollServer: ${data.error.error_msg}`);
@@ -573,13 +580,19 @@ async function runLongPoll(
   const { token, peerId } = getConfig();
   console.log("[VK LongPoll] Starting...");
 
-  let lpParams: { key: string; server: string; ts: string };
-  try {
-    lpParams = await getLongPollServer();
-  } catch (err: any) {
-    logError("[VK LongPoll] Could not get server params:", err.message);
-    longPollActive = false;
-    return;
+  // Получение параметров сессии может временно падать (Flood control, сеть) —
+  // не умираем навсегда, а ретраим с нарастающей паузой (60с → 10мин).
+  let lpParams: { key: string; server: string; ts: string } | null = null;
+  let getServerAttempt = 0;
+  while (!lpParams) {
+    try {
+      lpParams = await getLongPollServer();
+    } catch (err: any) {
+      getServerAttempt++;
+      const delay = Math.min(60_000 * getServerAttempt, 600_000);
+      logError(`[VK LongPoll] Could not get server params (attempt ${getServerAttempt}):`, err.message, `retry in ${Math.round(delay / 1000)}s`);
+      await new Promise(r => setTimeout(r, delay));
+    }
   }
 
   let { key, server, ts } = lpParams;
@@ -636,7 +649,8 @@ async function runLongPoll(
 
         try {
           const msgRes = await fetch(
-            `https://api.vk.com/method/messages.getById?access_token=${token}&v=5.199&message_ids=${msgId}`
+            `https://api.vk.ru/method/messages.getById?access_token=${token}&v=5.199&message_ids=${msgId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
           );
           const msgData = await msgRes.json() as any;
           const msg = msgData?.response?.items?.[0];
