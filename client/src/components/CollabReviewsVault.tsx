@@ -2,6 +2,8 @@ import { Link } from "wouter";
 import {
   ArrowRight,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronsLeftRight,
   Shirt,
   Pencil,
@@ -10,7 +12,13 @@ import {
   ShoppingBag,
   Truck,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type TouchEvent as ReactTouchEvent,
+} from "react";
 
 // Меняет 800px _thumb.webp на лёгкий ~200px _thumb_small.webp для маленьких карточек.
 function getOptimizedImageSmallUrl(url: string): string {
@@ -34,6 +42,114 @@ function getOptimizedImageUrl(url: string): string {
     if (thumbUrl !== url) return thumbUrl;
   }
   return url;
+}
+
+/**
+ * Горизонтальная прокрутка ленты (карточки «Коллаборации» и «Обзоры»).
+ * Скроллбар лент скрыт, поэтому на десктопе без стрелок и колеса мыши
+ * карточки прокрутить невозможно.
+ */
+function useHScroll<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  // Ползунок мобильного индикатора двигаем напрямую через DOM — иначе каждый кадр
+  // скролла перерисовывал бы всю секцию с карточками.
+  const thumbRef = useRef<HTMLDivElement | null>(null);
+  const touchStartX = useRef(0);
+  const dragged = useRef(false);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+  const [canScroll, setCanScroll] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      const max = el.scrollWidth - el.clientWidth;
+      setCanLeft(el.scrollLeft > 4);
+      setCanRight(max > 4 && el.scrollLeft < max - 4);
+      setCanScroll(max > 4);
+      const thumb = thumbRef.current;
+      if (thumb) {
+        const pct = max > 0 ? Math.min(100, Math.max(12, (el.clientWidth / el.scrollWidth) * 100)) : 100;
+        const pos = max > 0 ? Math.min(1, Math.max(0, el.scrollLeft / max)) : 0;
+        thumb.style.width = `${pct}%`;
+        thumb.style.transform = `translateX(${((pos * (100 - pct)) / pct) * 100}%)`;
+      }
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    observer?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      observer?.disconnect();
+    };
+  }, []);
+
+  // Колесо мыши над лентой прокручивает её по горизонтали, а не страницу.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return;
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (!delta) return;
+      e.preventDefault();
+      el.scrollLeft += delta;
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  const scrollByPage = (dir: -1 | 1) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.max(240, el.clientWidth * 0.8), behavior: "smooth" });
+  };
+
+  // Свайп/скролл по ленте не должен превращаться в клик (иначе люк закрывается).
+  const dragGuard = {
+    onTouchStart: (e: ReactTouchEvent) => {
+      touchStartX.current = e.touches[0]?.clientX ?? 0;
+      dragged.current = false;
+    },
+    onTouchMove: (e: ReactTouchEvent) => {
+      const x = e.touches[0]?.clientX;
+      if (x != null && Math.abs(x - touchStartX.current) > 8) dragged.current = true;
+    },
+    onClickCapture: (e: ReactMouseEvent) => {
+      if (!dragged.current) return;
+      dragged.current = false;
+      e.stopPropagation();
+      e.preventDefault();
+    },
+  };
+
+  return { ref, thumbRef, canLeft, canRight, canScroll, scrollByPage, dragGuard };
+}
+
+/** Стрелка прокрутки ленты (десктоп). */
+function StripArrow({ dir, onClick }: { dir: "left" | "right"; onClick: () => void }) {
+  const Icon = dir === "left" ? ChevronLeft : ChevronRight;
+  return (
+    <div
+      role="button"
+      tabIndex={-1}
+      aria-label={dir === "left" ? "Прокрутить назад" : "Прокрутить вперёд"}
+      data-hscroll-control="1"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={`absolute top-1/2 -translate-y-1/2 z-20 hidden sm:flex w-8 h-8 items-center justify-center rounded-full bg-black/80 backdrop-blur-sm border border-zinc-700 text-zinc-200 hover:text-white hover:border-zinc-500 cursor-pointer transition-colors ${
+        dir === "left" ? "left-2 lg:left-3" : "right-2 lg:right-3"
+      }`}
+    >
+      <Icon className="w-4 h-4" />
+    </div>
+  );
 }
 
 function ReelPill({ item, onClick }: { item: any; onClick: () => void }) {
@@ -141,6 +257,14 @@ export function CollabReviewsVault({ artists, artistsLinkUrl, reels, reelsTitle,
 
   const hasArtists = Array.isArray(artists) && artists.length > 0;
   const hasReels = Array.isArray(reels) && reels.length > 0;
+  const artistsScroll = useHScroll<HTMLDivElement>();
+  const reelsScroll = useHScroll<HTMLDivElement>();
+
+  // Клик по карточке/обзору/стрелке не должен схлопывать люк (раньше закрывал).
+  const stopIfInteractive = (e: ReactMouseEvent) => {
+    const target = e.target as HTMLElement | null;
+    if (target && target.closest('a, button, [data-hscroll-control]')) e.stopPropagation();
+  };
 
   return (
     <section
@@ -149,12 +273,25 @@ export function CollabReviewsVault({ artists, artistsLinkUrl, reels, reelsTitle,
       data-testid="section-vault"
     >
       {/* ── Створки + содержимое (клик = открыть/закрыть) ── */}
-      <button
-        type="button"
+      {/*
+        Важно: это НЕ <button>. Внутри — живые ссылки, кнопки обзоров и
+        горизонтальные скролл-ленты; вложенные в <button> они становятся
+        инертными на мобильных (тап не проходит, а свайп засчитывается как
+        клик и дёргает люк). Поэтому клик по люку — на div с role="button".
+      */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={toggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggle();
+          }
+        }}
         aria-expanded={open}
         aria-controls="vault-content"
-        className="group w-full"
+        className="group w-full cursor-pointer select-none focus:outline-none"
         data-testid="vault-toggle"
       >
       <div className="relative min-h-[44px] sm:min-h-[52px]" id="vault-content">
@@ -190,9 +327,14 @@ export function CollabReviewsVault({ artists, artistsLinkUrl, reels, reelsTitle,
                     <div className="flex-1 relative overflow-hidden">
                       <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-12 bg-gradient-to-r from-zinc-950 to-transparent z-10 pointer-events-none" />
                       <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-24 bg-gradient-to-l from-zinc-950 to-transparent z-10 pointer-events-none" />
+                      {artistsScroll.canLeft && <StripArrow dir="left" onClick={() => artistsScroll.scrollByPage(-1)} />}
+                      {artistsScroll.canRight && <StripArrow dir="right" onClick={() => artistsScroll.scrollByPage(1)} />}
                       <div
+                        ref={artistsScroll.ref}
+                        {...artistsScroll.dragGuard}
+                        onClick={stopIfInteractive}
                         className="flex items-end gap-3 sm:gap-4 overflow-x-auto scrollbar-hide px-4 sm:px-6 py-5 sm:py-6"
-                        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                        style={{ scrollbarWidth: "none", msOverflowStyle: "none", overscrollBehaviorX: "contain" }}
                       >
                         {artists.map((artist: any, idx: number) => {
                           const rotations = [-2, 1.5, -1, 2, -1.5, 1];
@@ -297,6 +439,14 @@ export function CollabReviewsVault({ artists, artistsLinkUrl, reels, reelsTitle,
                       <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                     </Link>
                   </div>
+                  {/* Мобильный индикатор прокрутки (на десктопе вместо него стрелки) */}
+                  <div className={`sm:hidden mx-4 mb-4 h-[3px] rounded-full bg-zinc-800/80 overflow-hidden ${artistsScroll.canScroll ? "" : "hidden"}`}>
+                    <div
+                      ref={artistsScroll.thumbRef}
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: "20%", transition: "transform 80ms linear, width 150ms ease" }}
+                    />
+                  </div>
                 </div>
               )}
 
@@ -318,9 +468,14 @@ export function CollabReviewsVault({ artists, artistsLinkUrl, reels, reelsTitle,
                     <div className="flex-1 relative overflow-hidden">
                       <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-12 bg-gradient-to-r from-zinc-950 to-transparent z-10 pointer-events-none" />
                       <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-24 bg-gradient-to-l from-zinc-950 to-transparent z-10 pointer-events-none" />
+                      {reelsScroll.canLeft && <StripArrow dir="left" onClick={() => reelsScroll.scrollByPage(-1)} />}
+                      {reelsScroll.canRight && <StripArrow dir="right" onClick={() => reelsScroll.scrollByPage(1)} />}
                       <div
+                        ref={reelsScroll.ref}
+                        {...reelsScroll.dragGuard}
+                        onClick={stopIfInteractive}
                         className="flex items-end gap-3 sm:gap-4 overflow-x-auto px-4 sm:px-6 py-5 sm:py-6"
-                        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                        style={{ scrollbarWidth: "none", msOverflowStyle: "none", overscrollBehaviorX: "contain" }}
                       >
                         {reels.map((item: any, idx: number) => (
                           <ReelPill key={item.id || idx} item={item} onClick={() => onReelClick(item)} />
@@ -329,6 +484,14 @@ export function CollabReviewsVault({ artists, artistsLinkUrl, reels, reelsTitle,
                       </div>
                     </div>
                   </div>
+                  {/* Мобильный индикатор прокрутки (на десктопе вместо него стрелки) */}
+                  <div className={`sm:hidden mx-4 mb-4 h-[3px] rounded-full bg-zinc-800/80 overflow-hidden ${reelsScroll.canScroll ? "" : "hidden"}`}>
+                    <div
+                      ref={reelsScroll.thumbRef}
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: "20%", transition: "transform 80ms linear, width 150ms ease" }}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -336,7 +499,15 @@ export function CollabReviewsVault({ artists, artistsLinkUrl, reels, reelsTitle,
         </div>
 
         {/* ── Створки ── */}
-        <div className={`absolute inset-0 z-10 flex ${bladesAway ? "vault-blades-away" : ""}`} aria-hidden="true">
+        {/*
+          Когда люк открыт, створки уезжают в стороны, но сам контейнер остаётся
+          прозрачным слоем поверх содержимого и перехватывал бы все тапы/клики.
+          В открытом состоянии выключаем ему pointer-events.
+        */}
+        <div
+          className={`absolute inset-0 z-10 flex ${bladesAway ? "vault-blades-away pointer-events-none" : ""}`}
+          aria-hidden="true"
+        >
           {/* Левая створка */}
           <div className="vault-blade vault-blade-left relative w-1/2 h-full bg-[#101010] overflow-hidden flex items-center justify-center">
             {/* Текст + стрелка */}
@@ -372,7 +543,7 @@ export function CollabReviewsVault({ artists, artistsLinkUrl, reels, reelsTitle,
           </div>
         </div>
       </div>
-      </button>
+      </div>
 
       {/* ── CTA: Мерч на заказ — всегда виден под люком ── */}
       <div className="border-t border-zinc-800">
