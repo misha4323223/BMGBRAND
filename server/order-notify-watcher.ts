@@ -55,8 +55,11 @@ async function sendPendingVkNotifications(): Promise<void> {
   if (watcherRunning) return;
   watcherRunning = true;
   try {
-    const { VK_USER_TOKEN, VK_CHAT_PEER_ID } = process.env;
-    if (!VK_USER_TOKEN || !VK_CHAT_PEER_ID) {
+    // Токен сообщества (VK_GROUP_TOKEN) имеет приоритет над устаревшим VK_USER_TOKEN
+    // (см. server/vk.ts → getConfig). Проверяем оба, иначе при переходе на сообщество
+    // watcher молча выключился бы и оплаченные заказы не досылались в VK.
+    const { VK_USER_TOKEN, VK_GROUP_TOKEN, VK_CHAT_PEER_ID } = process.env;
+    if (!(VK_GROUP_TOKEN || VK_USER_TOKEN) || !VK_CHAT_PEER_ID) {
       console.log("[VK Watcher] VK not configured, skipping");
       return;
     }

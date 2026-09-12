@@ -7,8 +7,14 @@ const VK_MAX_LENGTH = 4000;
 const LINK_EXPIRY_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 function getConfig() {
+  const groupToken = process.env.VK_GROUP_TOKEN || "";
   return {
-    token: process.env.VK_USER_TOKEN || "",
+    // Приоритет у ключа доступа сообщества: он не зависит от лимитов user-токенов
+    // (новые правила VK API от 07.09.2026) и не истекает через час, как VK ID токен.
+    // Отправка при этом идёт от имени сообщества.
+    token: groupToken || process.env.VK_USER_TOKEN || "",
+    isCommunity: !!groupToken,
+    groupId: process.env.VK_GROUP_ID || "",
     peerId: process.env.VK_CHAT_PEER_ID || "",
     secret: process.env.VK_ACTION_SECRET || "",
   };
@@ -16,6 +22,26 @@ function getConfig() {
 
 function randomId(): number {
   return Math.floor(Math.random() * 2147483647);
+}
+
+// ── Flood control guard ──
+// С 07.09.2026 VK ограничил API для сторонних интеграций: лимит вызовов на аккаунт
+// в Кабинете для бизнеса VK ID (10 000/мес без верификации бизнес-профиля).
+// При превышении VK отдаёт code 9 «Flood control» на ЛЮБОЙ метод. Продолжать слать
+// запросы бессмысленно — это расходует остаток лимита и продлевает блокировку,
+// поэтому при первом же code 9 ставим паузу и молчим.
+const VK_FLOOD_PAUSE_MS = 30 * 60 * 1000; // 30 минут тишины
+let vkFloodPausedUntil = 0;
+
+function isVkFloodPaused(): boolean {
+  return Date.now() < vkFloodPausedUntil;
+}
+
+function markVkFlood(context: string, code: number, msg: string): void {
+  vkFloodPausedUntil = Date.now() + VK_FLOOD_PAUSE_MS;
+  logError(
+    `[VK] Flood control (code ${code}) в ${context}: "${msg}" — пауза ${VK_FLOOD_PAUSE_MS / 60000} мин, запросы к VK приостановлены`
+  );
 }
 
 function plain(text: string): string {
@@ -59,6 +85,11 @@ async function sendVkMessage(text: string): Promise<boolean> {
 
   const cleanText = plain(text);
 
+  if (isVkFloodPaused()) {
+    console.log("[VK] Skipped (flood pause active)");
+    return false;
+  }
+
   try {
     const body = new URLSearchParams({
       peer_id: peerId,
@@ -70,10 +101,7 @@ async function sendVkMessage(text: string): Promise<boolean> {
 
     const response = await fetch(`https://api.vk.ru/method/messages.send`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString(),
     });
 
@@ -87,7 +115,8 @@ async function sendVkMessage(text: string): Promise<boolean> {
     }
 
     if (data.error) {
-      logError("[VK] Send error:", data.error.error_msg);
+      if (data.error.error_code === 9) markVkFlood("messages.send", 9, data.error.error_msg);
+      else logError("[VK] Send error:", data.error.error_code, data.error.error_msg);
       return false;
     }
 
@@ -512,6 +541,11 @@ export async function sendVkChatNotification(
     : `${header}\n${text}`;
   const msgText = plain(body_text).slice(0, VK_MAX_LENGTH);
 
+  if (isVkFloodPaused()) {
+    console.log("[VK Chat] Skipped (flood pause active)");
+    return null;
+  }
+
   try {
     const body = new URLSearchParams({
       peer_id: peerId,
@@ -523,16 +557,14 @@ export async function sendVkChatNotification(
 
     const response = await fetch(`https://api.vk.ru/method/messages.send`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString(),
     });
 
     const data = await response.json() as any;
     if (data.error) {
-      logError("[VK Chat] Send error:", data.error.error_msg);
+      if (data.error.error_code === 9) markVkFlood("messages.send (chat)", 9, data.error.error_msg);
+      else logError("[VK Chat] Send error:", data.error.error_code, data.error.error_msg);
       return null;
     }
 
@@ -551,9 +583,22 @@ export function startVkLongPoll(
   onReply: (vkMessageId: number, replyText: string, adminName: string) => Promise<void>
 ): void {
   if (longPollActive) return;
-  const { token, peerId } = getConfig();
+  const { token, peerId, isCommunity } = getConfig();
   if (!token || !peerId) {
     console.log("[VK LongPoll] Not configured, skipping");
+    return;
+  }
+  if (isCommunity) {
+    // С ключом сообщества работает только Bots Long Poll (groups.getLongPollServer).
+    if (!getConfig().groupId) {
+      console.log("[VK Bots LongPoll] VK_GROUP_TOKEN задан, но VK_GROUP_ID пуст — поллинг не запущен");
+      return;
+    }
+    longPollActive = true;
+    runBotsLongPoll(onReply, getConfig().groupId).catch(err => {
+      logError("[VK Bots LongPoll] Fatal error:", err.message);
+      longPollActive = false;
+    });
     return;
   }
   longPollActive = true;
@@ -563,14 +608,103 @@ export function startVkLongPoll(
   });
 }
 
+// ── Bots Long Poll (для ключа доступа сообщества) ─────────────────────────────
+// Формат событий отличается от user long poll: приходят events вида
+// { type: "message_new", object: { message: { peer_id, text, reply_message } } }.
+
+async function getBotsLongPollServer(groupId: string): Promise<{ key: string; server: string; ts: string }> {
+  const { token } = getConfig();
+  const res = await fetch(
+    `https://api.vk.ru/method/groups.getLongPollServer?group_id=${groupId}&access_token=${token}&v=5.199`
+  );
+  const data = await res.json() as any;
+  if (data.error) {
+    if (data.error.error_code === 9) markVkFlood("groups.getLongPollServer", 9, data.error.error_msg);
+    throw new Error(`groups.getLongPollServer: ${data.error.error_msg}`);
+  }
+  return data.response;
+}
+
+async function runBotsLongPoll(
+  onReply: (vkMessageId: number, replyText: string, adminName: string) => Promise<void>,
+  groupId: string
+): Promise<void> {
+  const { peerId } = getConfig();
+  console.log("[VK Bots LongPoll] Starting...");
+
+  let params: { key: string; server: string; ts: string } | null = null;
+  while (!params) {
+    if (isVkFloodPaused()) {
+      const wait = Math.max(1000, vkFloodPausedUntil - Date.now());
+      await new Promise(r => setTimeout(r, Math.min(wait, VK_FLOOD_PAUSE_MS)));
+      continue;
+    }
+    try {
+      params = await getBotsLongPollServer(groupId);
+    } catch (err: any) {
+      logError("[VK Bots LongPoll] Could not get server params:", err.message, "retry in 5min");
+      await new Promise(r => setTimeout(r, 5 * 60_000));
+    }
+  }
+
+  let { key, server, ts } = params;
+  while (true) {
+    try {
+      const res = await fetch(`https://${server}?act=a_check&key=${key}&ts=${ts}&wait=25`, {
+        signal: AbortSignal.timeout(35000),
+      });
+      const data = await res.json() as any;
+
+      if (data.failed) {
+        console.log(`[VK Bots LongPoll] Failed=${data.failed}, refreshing server params`);
+        try {
+          ({ key, server, ts } = await getBotsLongPollServer(groupId));
+        } catch (err: any) {
+          logError("[VK Bots LongPoll] refresh error:", err.message);
+          await new Promise(r => setTimeout(r, 5000));
+        }
+        continue;
+      }
+
+      ts = String(data.ts);
+      for (const update of data.updates || []) {
+        if (update?.type !== "message_new") continue;
+        const msg = update.object?.message;
+        if (!msg) continue;
+        if (String(msg.peer_id) !== String(peerId)) continue;
+
+        const replyMsg = msg.reply_message;
+        if (!replyMsg?.id) continue;
+        const replyText: string = String(msg.text || "").trim();
+        if (!replyText) continue;
+
+        console.log(`[VK Bots LongPoll] Reply to vk_msg_id=${replyMsg.id}: "${replyText.slice(0, 60)}"`);
+        try {
+          await onReply(replyMsg.id as number, replyText, "Менеджер");
+        } catch (err: any) {
+          logError("[VK Bots LongPoll] onReply error:", err.message);
+        }
+      }
+    } catch (err: any) {
+      logError("[VK Bots LongPoll] Poll error:", err.message);
+      await new Promise(r => setTimeout(r, 5000));
+      try {
+        ({ key, server, ts } = await getBotsLongPollServer(groupId));
+      } catch {}
+    }
+  }
+}
+
 async function getLongPollServer(): Promise<{ key: string; server: string; ts: string }> {
   const { token } = getConfig();
   const res = await fetch(
-    `https://api.vk.ru/method/messages.getLongPollServer?access_token=${token}&v=5.199&lp_version=3`,
-    { headers: { Authorization: `Bearer ${token}` } }
+    `https://api.vk.ru/method/messages.getLongPollServer?access_token=${token}&v=5.199&lp_version=3`
   );
   const data = await res.json() as any;
-  if (data.error) throw new Error(`messages.getLongPollServer: ${data.error.error_msg}`);
+  if (data.error) {
+    if (data.error.error_code === 9) markVkFlood("messages.getLongPollServer", 9, data.error.error_msg);
+    throw new Error(`messages.getLongPollServer: ${data.error.error_msg}`);
+  }
   return data.response;
 }
 
@@ -580,18 +714,20 @@ async function runLongPoll(
   const { token, peerId } = getConfig();
   console.log("[VK LongPoll] Starting...");
 
-  // Получение параметров сессии может временно падать (Flood control, сеть) —
-  // не умираем навсегда, а ретраим с нарастающей паузой (60с → 10мин).
+  // Получение параметров сессии может падать (Flood control, сеть). При flood не
+  // долбим VK (каждый вызов расходует лимит и продлевает блокировку) — ждём паузу.
   let lpParams: { key: string; server: string; ts: string } | null = null;
-  let getServerAttempt = 0;
   while (!lpParams) {
+    if (isVkFloodPaused()) {
+      const wait = Math.max(1000, vkFloodPausedUntil - Date.now());
+      await new Promise(r => setTimeout(r, Math.min(wait, VK_FLOOD_PAUSE_MS)));
+      continue;
+    }
     try {
       lpParams = await getLongPollServer();
     } catch (err: any) {
-      getServerAttempt++;
-      const delay = Math.min(60_000 * getServerAttempt, 600_000);
-      logError(`[VK LongPoll] Could not get server params (attempt ${getServerAttempt}):`, err.message, `retry in ${Math.round(delay / 1000)}s`);
-      await new Promise(r => setTimeout(r, delay));
+      logError("[VK LongPoll] Could not get server params:", err.message, "retry in 5min");
+      await new Promise(r => setTimeout(r, 5 * 60_000));
     }
   }
 
@@ -649,8 +785,7 @@ async function runLongPoll(
 
         try {
           const msgRes = await fetch(
-            `https://api.vk.ru/method/messages.getById?access_token=${token}&v=5.199&message_ids=${msgId}`,
-            { headers: { Authorization: `Bearer ${token}` } }
+            `https://api.vk.ru/method/messages.getById?access_token=${token}&v=5.199&message_ids=${msgId}`
           );
           const msgData = await msgRes.json() as any;
           const msg = msgData?.response?.items?.[0];
@@ -723,3 +858,5 @@ export function vkNotifyAgentAlert(text: string): void {
 export function vkNotifyAgentDigest(text: string): void {
   sendVkMessage(text).catch(err => logError("[VK] vkNotifyAgentDigest failed:", err));
 }
+
+

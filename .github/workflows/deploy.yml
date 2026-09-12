@@ -82,6 +82,8 @@ jobs:
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             EMAIL_FROM=${{ secrets.EMAIL_FROM }}
             VK_USER_TOKEN=${{ secrets.VK_USER_TOKEN }}
+            VK_GROUP_TOKEN=${{ secrets.VK_GROUP_TOKEN }}
+            VK_GROUP_ID=${{ secrets.VK_GROUP_ID }}
             VK_ACTION_SECRET=${{ secrets.VK_ACTION_SECRET }}
             VK_CHAT_PEER_ID=${{ secrets.VK_CHAT_PEER_ID }}
             DADATA_API_KEY=${{ secrets.DADATA_API_KEY }}
