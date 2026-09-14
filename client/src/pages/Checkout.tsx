@@ -819,7 +819,10 @@ export default function Checkout() {
   const cheapestDoorTariff = doorTariffs.length ? doorTariffs.reduce((min, t) => t.delivery_sum < min.delivery_sum ? t : min, doorTariffs[0]) : null;
 
   const FREE_SHIPPING_THRESHOLD = 500000;
-  const isFreeShipping = !isWholesale && subtotal >= FREE_SHIPPING_THRESHOLD;
+  // Курьерская доставка СДЭК ("до двери") в порог бесплатной доставки НЕ входит:
+  // бесплатно от 5000 ₽ — только ПВЗ / Ozon / самовывоз, курьер всегда по тарифу.
+  const isCourierDelivery = !isWholesale && deliveryService === "cdek" && deliveryType === "door";
+  const isFreeShipping = !isWholesale && !isCourierDelivery && subtotal >= FREE_SHIPPING_THRESHOLD;
 
   const cdekDeliveryCost = !isWholesale 
     ? (deliveryType === "door" 
@@ -1105,7 +1108,15 @@ export default function Checkout() {
                   <p className="text-xs opacity-60">от 5 000 ₽</p>
                 </div>
               )}
-              {!isWholesale && !isFreeShipping && subtotal > 0 && (
+              {isCourierDelivery && (
+                <div className="mb-4 p-4 border border-border rounded-xl flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground">
+                    Курьерская доставка не входит в бесплатную доставку от 5 000 ₽ — оплачивается по тарифу СДЭК.
+                  </p>
+                </div>
+              )}
+              {!isWholesale && !isFreeShipping && !isCourierDelivery && subtotal > 0 && (
                 <div className="mb-4 p-4 border border-border rounded-xl">
                   <div className="flex justify-between items-center mb-2">
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">До бесплатной доставки</p>

@@ -197,6 +197,10 @@ function invalidateSubscriptionPromosCache() {
 
 const CDEK_ITEM_WEIGHT_GRAMS = 300;
 
+// Тарифы СДЭК "до двери" (курьер). Зеркалит CDEK_DOOR_TARIFFS в client/src/pages/Checkout.tsx,
+// чтобы сервер считал курьерскую доставку по той же цене, которую видит покупатель.
+const CDEK_DOOR_TARIFFS = [137, 139, 184, 480, 482, 486];
+
 function isApprovedWholesaleUser(user: any): boolean {
   return !!user && user.role === "wholesale" && (user.wholesaleApproved === true || user.approved === true);
 }
@@ -9824,9 +9828,22 @@ ${faqSection}
       // Recalculate subtotal with correct prices (items only, no delivery)
       const orderSubtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-      // Verify delivery cost on the server side for non-wholesale orders
+      // Курьерская доставка СДЭК ("до двери") в порог бесплатной доставки НЕ входит — всегда платная.
+      const isCourierDelivery = deliveryService === "cdek" && cdekDeliveryType === "door";
+
+      // Verify delivery cost on the server side for non-wholesale orders.
+      // Курьер + clientDeliveryCost === 0 (подмена запроса): сервер обязан посчитать тариф сам,
+      // иначе заказ уйдёт с бесплатной курьерской доставкой. Не смогли посчитать — заказ НЕ создаём.
       let verifiedDeliveryCost = 0;
-      if (!isWholesale && clientDeliveryCost > 0 && cdekCityCode) {
+      const needsCourierServerCost = !isWholesale && isCourierDelivery && clientDeliveryCost <= 0;
+      if (needsCourierServerCost && !cdekCityCode) {
+        logWarn(`[Order] Courier delivery rejected: client sent deliveryCost=0 and cdekCityCode is missing (email=${input.customerEmail}, sessionId=${input.sessionId})`);
+        return res.status(400).json({
+          message: "Не удалось рассчитать стоимость курьерской доставки. Попробуйте ещё раз или выберите пункт выдачи.",
+          code: "COURIER_DELIVERY_CALC_FAILED",
+        });
+      }
+      if (!isWholesale && (clientDeliveryCost > 0 || needsCourierServerCost) && cdekCityCode) {
         try {
           const totalItemCount = orderItems.reduce((sum, item) => sum + item.quantity, 0);
           const packageWeight = Math.max(500, totalItemCount * CDEK_ITEM_WEIGHT_GRAMS);
@@ -9846,7 +9863,24 @@ ${faqSection}
               ? tariffs.find(t => t.tariff_code === cdekTariffCode) 
               : null;
             const cheapest = tariffs.reduce((min, t) => t.delivery_sum < min.delivery_sum ? t : min, tariffs[0]);
-            const serverDeliveryCost = (matchingTariff?.delivery_sum || cheapest.delivery_sum) * 100;
+            // Курьер ("до двери") + клиент прислал 0: считаем ТОЛЬКО по тарифу "дверь",
+            // иначе самым дешёвым окажется ПВЗ-ПВЗ и курьерская доставка будет занижена.
+            let courierDoorTariff: { delivery_sum: number } | null = null;
+            if (needsCourierServerCost) {
+              const doorTariffs = tariffs.filter(t => CDEK_DOOR_TARIFFS.includes(t.tariff_code));
+              courierDoorTariff = doorTariffs.length > 0
+                ? (doorTariffs.find(t => t.tariff_code === cdekTariffCode)
+                  || doorTariffs.reduce((min, t) => (t.delivery_sum < min.delivery_sum ? t : min), doorTariffs[0]))
+                : null;
+              if (!courierDoorTariff) {
+                logWarn(`[Order] Courier delivery rejected: no door tariff from CDEK (city=${cdekCityCode}, email=${input.customerEmail}, sessionId=${input.sessionId})`);
+                return res.status(400).json({
+                  message: "Не удалось рассчитать стоимость курьерской доставки. Попробуйте ещё раз или выберите пункт выдачи.",
+                  code: "COURIER_DELIVERY_CALC_FAILED",
+                });
+              }
+            }
+            const serverDeliveryCost = ((courierDoorTariff || matchingTariff)?.delivery_sum || cheapest.delivery_sum) * 100;
             const tolerance = Math.round(serverDeliveryCost * 0.20);
             if (Math.abs(clientDeliveryCost - serverDeliveryCost) <= tolerance) {
               verifiedDeliveryCost = clientDeliveryCost;
@@ -9855,11 +9889,24 @@ ${faqSection}
               logWarn(`[Order] CDEK delivery cost mismatch beyond 20% tolerance! client=${clientDeliveryCost/100}, server=${serverDeliveryCost/100}. Using server value.`);
             }
             logInfo(`[Order] CDEK delivery cost verified: client=${clientDeliveryCost/100}, server=${serverDeliveryCost/100}, used=${verifiedDeliveryCost/100} RUB`);
+          } else if (needsCourierServerCost) {
+            logWarn(`[Order] Courier delivery rejected: CDEK returned no tariffs (city=${cdekCityCode}, email=${input.customerEmail}, sessionId=${input.sessionId})`);
+            return res.status(400).json({
+              message: "Не удалось рассчитать стоимость курьерской доставки. Попробуйте ещё раз или выберите пункт выдачи.",
+              code: "COURIER_DELIVERY_CALC_FAILED",
+            });
           } else {
             verifiedDeliveryCost = clientDeliveryCost;
             logInfo(`[Order] CDEK tariffs not available, using client delivery cost: ${clientDeliveryCost/100} RUB`);
           }
         } catch (cdekErr: any) {
+          if (needsCourierServerCost) {
+            logError(`[Order] Courier delivery rejected: CDEK calculation failed: ${cdekErr.message}`);
+            return res.status(400).json({
+              message: "Не удалось рассчитать стоимость курьерской доставки. Попробуйте ещё раз или выберите пункт выдачи.",
+              code: "COURIER_DELIVERY_CALC_FAILED",
+            });
+          }
           verifiedDeliveryCost = clientDeliveryCost;
           logInfo(`[Order] CDEK calculation failed, using client delivery cost: ${clientDeliveryCost/100} RUB. Error: ${cdekErr.message}`);
         }
@@ -9902,9 +9949,11 @@ ${faqSection}
         }
       }
 
-      // Free shipping for retail orders >= 5000 RUB
+      // Free shipping for retail orders >= 5000 RUB.
+      // Курьерская доставка СДЭК ("до двери") в порог НЕ входит — всегда платная.
       const FREE_SHIPPING_THRESHOLD = 500000;
-      if (!isWholesale && orderSubtotal >= FREE_SHIPPING_THRESHOLD && verifiedDeliveryCost > 0) {
+      // isCourierDelivery объявлен выше — в блоке верификации стоимости доставки.
+      if (!isWholesale && !isCourierDelivery && orderSubtotal >= FREE_SHIPPING_THRESHOLD && verifiedDeliveryCost > 0) {
         logInfo(`[Order] Free shipping applied: subtotal=${orderSubtotal/100} RUB >= ${FREE_SHIPPING_THRESHOLD/100} RUB threshold. Delivery cost zeroed (was ${verifiedDeliveryCost/100} RUB)`);
         verifiedDeliveryCost = 0;
       }
