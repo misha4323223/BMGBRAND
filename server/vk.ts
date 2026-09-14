@@ -612,6 +612,16 @@ export function startVkLongPoll(
 // Формат событий отличается от user long poll: приходят events вида
 // { type: "message_new", object: { message: { peer_id, text, reply_message } } }.
 
+// VK отдаёт адрес Long Poll сервера УЖЕ с протоколом (документация: «server — адрес
+// сервера (начинается с https://)») — и у user-, и у bots-поллинга. Раньше код всегда
+// подставлял "https://", получалось "https://https://lp.vk.com/...", хостом становилось
+// "https" → undici отдавал "fetch failed" (ENOTFOUND). Теперь префикс добавляется только
+// если его нет.
+function lpServerUrl(server: string, query: string): string {
+  const base = /^https?:\/\//i.test(server) ? server : `https://${server}`;
+  return `${base}${base.includes("?") ? "&" : "?"}${query}`;
+}
+
 async function getBotsLongPollServer(groupId: string): Promise<{ key: string; server: string; ts: string }> {
   const { token } = getConfig();
   const res = await fetch(
@@ -650,7 +660,7 @@ async function runBotsLongPoll(
   let { key, server, ts } = params;
   while (true) {
     try {
-      const res = await fetch(`https://${server}?act=a_check&key=${key}&ts=${ts}&wait=25`, {
+      const res = await fetch(lpServerUrl(server, `act=a_check&key=${key}&ts=${ts}&wait=25`), {
         signal: AbortSignal.timeout(35000),
       });
       const data = await res.json() as any;
@@ -686,7 +696,7 @@ async function runBotsLongPoll(
         }
       }
     } catch (err: any) {
-      logError("[VK Bots LongPoll] Poll error:", err.message);
+      logError("[VK Bots LongPoll] Poll error:", err.message, err.cause?.code || err.cause?.message || "");
       await new Promise(r => setTimeout(r, 5000));
       try {
         ({ key, server, ts } = await getBotsLongPollServer(groupId));
@@ -736,7 +746,7 @@ async function runLongPoll(
 
   while (true) {
     try {
-      const url = `https://${server}?act=a_check&key=${key}&ts=${ts}&wait=25&mode=2&version=3`;
+      const url = lpServerUrl(server, `act=a_check&key=${key}&ts=${ts}&wait=25&mode=2&version=3`);
       const res = await fetch(url, { signal: AbortSignal.timeout(35000) });
       const data = await res.json() as any;
 
@@ -817,7 +827,7 @@ async function runLongPoll(
         }
       }
     } catch (err: any) {
-      logError("[VK LongPoll] Poll error:", err.message);
+      logError("[VK LongPoll] Poll error:", err.message, err.cause?.code || err.cause?.message || "");
       await new Promise(r => setTimeout(r, 5000));
       try {
         ({ key, server, ts } = await getLongPollServer());
