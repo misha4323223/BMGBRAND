@@ -1101,10 +1101,10 @@ export function registerAiChatRoute(app: Express, requireAdminRole?: (req: any, 
         res.setHeader("X-Accel-Buffering", "no");
         res.flushHeaders();
 
-                // SSE: try keys in order (KEY -> KEY_2 -> KEY_3); 429 triggers fallback
+                // SSE: try keys in order (KEY -> KEY_2 -> KEY_3); 429/401/403 triggers fallback
         let streamRes: any = null;
         let lastStatus = 0;
-        for (const key of apiKeys) {
+        for (const [keyIdx, key] of apiKeys.entries()) {
           streamRes = await fetch(`${groqBase}/openai/v1/chat/completions`, {
             method: "POST",
             headers: makeHeaders(key),
@@ -1112,11 +1112,15 @@ export function registerAiChatRoute(app: Express, requireAdminRole?: (req: any, 
           });
           if (streamRes.ok && streamRes.body) break;
           lastStatus = streamRes.status;
-          if (streamRes.status === 429) {
-            logWarn("[AI Chat] 429 on key, trying next...");
+          // 429 = лимит, 401/403 = ключ невалидный/отозванный/просроченный.
+          // Любой из них — повод взять следующий ключ. Раньше фолбэк был только на
+          // 429, поэтому один мёртвый ключ (key#1 = GROQ_API_KEY) намертво ронял чат,
+          // хотя GROQ_API_KEY_2/_3 при этом были живыми.
+          if (streamRes.status === 429 || streamRes.status === 401 || streamRes.status === 403) {
+            logWarn(`[AI Chat] key#${keyIdx + 1} error ${streamRes.status} — trying next key...`);
             continue;
           }
-          break; // non-429 error -> don't retry
+          break; // прочие ошибки (400/413/5xx) по ключам не повторяем
         }
 
         if (!streamRes || !streamRes.ok || !streamRes.body) {
@@ -1280,15 +1284,15 @@ export function registerAiChatRoute(app: Express, requireAdminRole?: (req: any, 
 
       // ── Non-streaming path ─────────────────────────────────────────────────
       let response: any = null;
-      for (const key of apiKeys) {
+      for (const [keyIdx, key] of apiKeys.entries()) {
         response = await fetch(`${groqBase}/openai/v1/chat/completions`, {
           method: "POST",
           headers: makeHeaders(key),
           body: JSON.stringify(groqBody),
         });
         if (response.ok) break;
-        if (response.status === 429) {
-          logWarn("[AI Chat] 429 on key, trying next...");
+        if (response.status === 429 || response.status === 401 || response.status === 403) {
+          logWarn(`[AI Chat] key#${keyIdx + 1} error ${response.status} — trying next key...`);
           continue;
         }
         break;
@@ -1737,7 +1741,7 @@ export function registerProductInfoRoute(app: Express): void {
         return { ok: true, chars };
       };
 
-      // ── Try keys; on 429 or empty-response, fall through to next key ──────
+      // ── Try keys; on 429/401/403 or empty-response, fall through to next key ──
       let finalChars = 0;
       let attempted = false;
 
@@ -1746,8 +1750,8 @@ export function registerProductInfoRoute(app: Express): void {
         attempted = true;
 
         if (!result.ok) {
-          if (result.status === 429) {
-            logWarn("[ProductInfo] 429 on key, trying fallback key");
+          if (result.status === 429 || result.status === 401 || result.status === 403) {
+            logWarn(`[ProductInfo] key error ${result.status} — trying next key`);
             continue; // try next key
           }
           break; // unrecoverable network error
