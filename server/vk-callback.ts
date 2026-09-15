@@ -86,56 +86,46 @@ function isDuplicate(vkMessageId?: number): boolean {
   return false;
 }
 
-async function vkUserName(userId: number): Promise<string | null> {
-  if (!userId) return null;
-  try {
-    const resp = await vkCall("users.get", { user_ids: String(userId) });
-    const name = resp?.[0] ? `${resp[0].first_name || ""} ${resp[0].last_name || ""}`.trim() : "";
-    return name || null;
-  } catch {
-    return null;
-  }
-}
-
 export interface VkAdminMessage {
-  /** id сообщения ВК, на которое отвечает менеджер (0/undefined → берём последний диалог сайта) */
+  /** id сообщения ВК, на которое менеджер ответил («Ответить») — обязателен */
   vkMessageId?: number;
   /** id входящего сообщения ВК — нужен только для дедупа */
   incomingMessageId?: number;
   text: string;
+  /** Имя отправителя в чате сайта; по умолчанию всегда «Администратор» */
   author?: string;
-  fromUserId?: number;
   invalidate?: (sessionId: string) => void;
 }
 
 /**
  * Сохраняет ответ менеджера как сообщение от админа в диалоге сайта.
- * Если сообщение — ответ на конкретное уведомление, находим сессию по его vk- id.
- * Если менеджер написал в чат «просто так» — кладём в самый свежий диалог,
- * куда уходили VK-уведомления (иначе ответ терялся бы).
+ *
+ * ⚠️ Доставляем ТОЛЬКО ответы («Ответить» на конкретное наше уведомление).
+ * Обычные сообщения в беседе игнорируем: в этом ВК-чате идут ещё и заявки,
+ * и они не должны попадать в чат клиента. Если ответ адресован не нашему
+ * уведомлению (например, кто-то ответил на сообщение заявки) — тоже пропускаем,
+ * а не шлём в «последний диалог».
  */
 export async function deliverVkAdminMessage(msg: VkAdminMessage): Promise<boolean> {
   const text = String(msg.text || "").trim();
   if (!text) return false;
+  if (!msg.vkMessageId) {
+    logInfo("[VK In] Message is not a reply to a site notification — skipped");
+    return false;
+  }
   if (isDuplicate(msg.incomingMessageId)) {
     logInfo(`[VK In] Duplicate vk_msg_id=${msg.incomingMessageId} ignored`);
     return false;
   }
 
-  let sessionId: string | null = null;
-  if (msg.vkMessageId) {
-    sessionId = await storage.getSessionIdByVkMessageId(msg.vkMessageId);
-    if (!sessionId) {
-      logWarn(`[VK In] Session not found for vk_message_id=${msg.vkMessageId}, fallback to latest dialog`);
-    }
-  }
-  if (!sessionId) sessionId = await storage.getLatestVkChatSessionId();
+  const sessionId = await storage.getSessionIdByVkMessageId(msg.vkMessageId);
   if (!sessionId) {
-    logWarn("[VK In] No site chat session to deliver the message to — nothing saved");
+    logWarn(`[VK In] Reply to vk_message_id=${msg.vkMessageId} is not one of our notifications — skipped`);
     return false;
   }
 
-  const author = msg.author || (msg.fromUserId ? (await vkUserName(msg.fromUserId)) || "Менеджер (ВК)" : "Менеджер (ВК)");
+  // Имя в чате сайта всегда одинаковое — менеджеров не раскрываем.
+  const author = msg.author || "Администратор";
   const { randomUUID } = await import("crypto");
   await storage.saveChatMessage({
     messageId: randomUUID(),
@@ -430,6 +420,13 @@ export function registerVkCallbackWebhook(
 
       if (!text) { tracked.note = "пустой текст"; return; }
       if (groupId && fromId === -groupId) { tracked.note = "наше собственное сообщение"; return; } // наше собственное сообщение
+      // Только ответы («Ответить» на наше уведомление) — обычные сообщения в беседе
+      // не пересылаем: там идут посторонние заявки, клиенту они не нужны.
+      if (!replyTo) {
+        tracked.note = "не ответ на уведомление — пропущено";
+        logInfo(`[VK Callback] message_new peer=${peerId} без «Ответа» — пропущено`);
+        return;
+      }
 
       // Сравниваем с обрезкой пробелов/переводов строк: в env-секрете значение может
       // прийти с хвостовым пробелом, и тогда фильтр молча резал все сообщения.
@@ -445,7 +442,6 @@ export function registerVkCallbackWebhook(
         vkMessageId: replyTo,
         incomingMessageId: incomingId,
         text: text.replace(/^\[Ответ\][^\n]*\n?/m, "").trim(),
-        fromUserId: fromId,
         invalidate: chatCacheInvalidate,
       });
     } catch (err: any) {

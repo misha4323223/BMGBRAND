@@ -735,16 +735,16 @@ async function runBotsLongPoll(
         if (String(msg.peer_id) !== String(peerId)) continue;
 
         const replyMsg = msg.reply_message;
-        // Ответом менеджер может и не пользоваться: тогда сообщение уходит
-        // в самый свежий диалог сайта, где были VK-уведомления (vkMessageId = 0).
         const replyToId = replyMsg?.id ? Number(replyMsg.id) : 0;
         const replyText: string = String(msg.text || "").trim();
         if (!replyText) continue;
         if (Number(msg.from_id) === -Number(groupId)) continue; // наше собственное сообщение
+        // В беседе идут ещё и заявки — пересылаем только ответы («Ответить») на наши уведомления.
+        if (!replyToId) continue;
 
         console.log(`[VK Bots LongPoll] Message id=${msg.id} reply_to=${replyToId}: "${replyText.slice(0, 60)}"`);
         try {
-          await onReply(replyToId, replyText, "Менеджер", Number(msg.id) || undefined);
+          await onReply(replyToId, replyText, "Администратор", Number(msg.id) || undefined);
         } catch (err: any) {
           logError("[VK Bots LongPoll] onReply error:", err.message);
         }
@@ -878,7 +878,7 @@ async function runLongPoll(
             .trim();
           if (!replyText) continue;
 
-          const adminName = 'Менеджер';
+          const adminName = 'Администратор';
           console.log(`[VK LongPoll] Reply to vk_msg_id=${replyMsg.id}: "${replyText.slice(0, 60)}"`);
           await onReply(replyMsg.id as number, replyText, adminName);
         } catch (err: any) {

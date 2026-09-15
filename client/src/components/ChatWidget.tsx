@@ -1618,7 +1618,7 @@ export function ChatWidget() {
                           ${msg.sender === "client" ? "bg-black text-white rounded-br-md" : "bg-white text-black rounded-bl-md border border-black/8"}
                           ${msg.messageId.startsWith("temp-") ? "opacity-50" : ""}`}>
                           {msg.sender === "admin" && (
-                            <p className="text-[10px] font-semibold mb-1 opacity-40 uppercase tracking-wide">{msg.userName || "Менеджер"}</p>
+                            <p className="text-[10px] font-semibold mb-1 opacity-40 uppercase tracking-wide">{msg.userName || "Администратор"}</p>
                           )}
                           {msg.imageUrl && (
                             <img src={msg.imageUrl} alt="Фото" className="rounded-lg max-w-full max-h-[200px] object-contain mb-1 cursor-pointer"
