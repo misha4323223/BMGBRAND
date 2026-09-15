@@ -300,6 +300,19 @@
 - Логика доставки: `message_new` + «Ответ» на уведомление → сессия находится по `vk_message_id`;
   обычное сообщение в чат → в последний диалог, куда уходили VK-уведомления. Свои исходящие (`from_id === -group_id`)
   и чужие peer отбрасываются, дубли Callback/Long Poll гасятся по id входящего сообщения.
+- **Второй блокер (найдено 15.09.2026): Bots Long Poll API в сообществе глушит Callback.**
+  Если в настройках сообщества включён Long Poll API (`groups.getLongPollSettings → is_enabled: true`),
+  VK кладёт события в ЕГО очередь (очередь живёт на стороне ВК), а в Callback не приходит ничего —
+  при этом `groups.getCallbackSettings` показывает `message_new: 1` и всё выглядит настроенным.
+  В serverless-контейнере держать Long Poll-сессию нечем (висящий запрос обрывается, инстансы засыпают),
+  поэтому очередь просто копится. Лечится `groups.setLongPollSettings { enabled: 0 }` — это делает
+  `setupVkCallbackApi` при каждом запуске. Прод-состояние после фикса: сервер id 13, `is_enabled: false`
+  у Long Poll, `message_new: 1` у Callback.
+- Событие-проверка канала: `POST /api/admin/vk/callback-setup` `{"recreate":true}` удаляет+добавляет сервер,
+  и VK присылает `confirmation` — если в `recentEvents` он появился, доставка ВК→нас жива.
+  Поле `events` в теле (`{"events":{"message_reply":true}}`) включает отдельное событие для диагностики
+  (⚠️ для сообщений в беседе `message_reply` НЕ приходит — проверять только по реальному `message_new`).
+- `groups.getSettings` этим ключом недоступен (`groupSettings` в статусе пусто) — это норма.
 - Long Poll в коде остался резервом; ключ сообщества требует права `manage`.
 
 ## Verification
