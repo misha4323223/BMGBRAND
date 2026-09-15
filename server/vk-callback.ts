@@ -126,7 +126,8 @@ export async function deliverVkAdminMessage(msg: VkAdminMessage): Promise<boolea
 
 // ── Callback API: настройка и статус ────────────────────────────────────────
 
-const CALLBACK_TITLE = "booomerangs-site";
+// VK ограничивает название сервера 14 символами (иначе ошибка 100).
+const CALLBACK_TITLE = "BMG site";
 
 export async function getVkCallbackConfirmationCode(): Promise<string> {
   const envCode = process.env.VK_CALLBACK_CONFIRM_CODE;
