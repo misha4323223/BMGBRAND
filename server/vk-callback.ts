@@ -396,10 +396,12 @@ export function registerVkCallbackWebhook(
       if (!text) { tracked.note = "пустой текст"; return; }
       if (groupId && fromId === -groupId) { tracked.note = "наше собственное сообщение"; return; } // наше собственное сообщение
 
-      const configuredPeer = process.env.VK_CHAT_PEER_ID || "";
+      // Сравниваем с обрезкой пробелов/переводов строк: в env-секрете значение может
+      // прийти с хвостовым пробелом, и тогда фильтр молча резал все сообщения.
+      const configuredPeer = String(process.env.VK_CHAT_PEER_ID || "").trim();
       if (configuredPeer && peerId !== configuredPeer) {
         tracked.note = `peer ${peerId} ≠ настроенного ${configuredPeer}`;
-        logInfo(`[VK Callback] message_new from peer ${peerId} — not the notification chat (${configuredPeer}), skipped`);
+        logWarn(`[VK Callback] message_new from peer ${peerId} — not the notification chat (${configuredPeer}), skipped`);
         return;
       }
 
@@ -416,5 +418,8 @@ export function registerVkCallbackWebhook(
     }
   });
 
-  logInfo("[VK Callback] Webhook registered at /api/vk/callback");
+  const peerForLog = String(process.env.VK_CHAT_PEER_ID || "").trim();
+  logInfo(
+    `[VK Callback] Webhook registered at /api/vk/callback (chat filter: ${peerForLog || "любой peer"})`
+  );
 }
