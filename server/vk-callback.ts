@@ -236,7 +236,10 @@ export async function setupVkCallbackApi(): Promise<VkCallbackSetupResult> {
     } else {
       const params: Record<string, string> = { group_id: vkGroupId(), url, title: CALLBACK_TITLE };
       if (secret) params.secret_key = secret;
-      serverId = Number(await vkCall("groups.addCallbackServer", params));
+      // VK возвращает { server_id: 11 } (в старых версиях — просто число).
+      const added = await vkCall("groups.addCallbackServer", params);
+      serverId = Number(typeof added === "object" ? added?.server_id : added);
+      if (!Number.isFinite(serverId)) throw new Error(`addCallbackServer вернул неожиданный ответ: ${JSON.stringify(added)}`);
       out.created = true;
       steps.push(`Сервер добавлен (addCallbackServer → id=${serverId})`);
     }
