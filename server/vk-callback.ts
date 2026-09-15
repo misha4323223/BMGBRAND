@@ -186,6 +186,8 @@ export interface VkCallbackStatus {
   settings?: any;
   settingsError?: string;
   longPoll?: any;
+  /** Настройки сообщества (например, messages — включены ли сообщения сообщества) */
+  groupSettings?: any;
   /** Последние события, которые VK реально прислал на наш вебхук (пусто → VK пока не доставляет) */
   recentEvents?: VkRecentEvent[];
   error?: string;
@@ -237,6 +239,12 @@ export async function getVkCallbackStatus(): Promise<VkCallbackStatus> {
   } catch {
     /* не критично для диагностики */
   }
+  try {
+    // Приём сообщений сообщества невозможен, если в сообществе выключены сообщения.
+    result.groupSettings = await vkCall("groups.getSettings", { group_id: result.groupId });
+  } catch {
+    /* не критично для диагностики */
+  }
   return result;
 }
 
@@ -254,7 +262,9 @@ export interface VkCallbackSetupResult {
   error?: string;
 }
 
-export async function setupVkCallbackApi(opts: { recreate?: boolean } = {}): Promise<VkCallbackSetupResult> {
+export async function setupVkCallbackApi(
+  opts: { recreate?: boolean; events?: Record<string, boolean> } = {}
+): Promise<VkCallbackSetupResult> {
   const url = `${siteUrl()}/api/vk/callback`;
   const secret = process.env.VK_CALLBACK_SECRET || "";
   const steps: string[] = [];
@@ -315,14 +325,24 @@ export async function setupVkCallbackApi(opts: { recreate?: boolean } = {}): Pro
     }
     out.serverId = serverId;
 
+    // message_new нужен всегда; остальные события можно включить/выключить через
+    // `events` — нужно для диагностики (например, message_reply = исходящие
+    // сообщения сообщества: по нему видно, доставляет ли VK события в наш вебхук).
+    const eventParams: Record<string, string> = { message_new: "1", message_reply: "0" };
+    for (const [key, value] of Object.entries(opts.events || {})) {
+      if (/^[a-z_]+$/.test(key)) eventParams[key] = value ? "1" : "0";
+    }
     await vkCall("groups.setCallbackSettings", {
       group_id: vkGroupId(),
       server_id: String(serverId),
       api_version: "5.199",
-      message_new: "1",
-      message_reply: "0",
+      ...eventParams,
     });
-    steps.push("Включено событие message_new (setCallbackSettings)");
+    steps.push(
+      `События Callback: ${Object.entries(eventParams)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(", ")} (setCallbackSettings)`
+    );
 
     // ⚠️ КРИТИЧНО: пока в сообществе включён Bots Long Poll API, события уходят в его
     // очередь (она живёт на стороне ВК) и в Callback НЕ приходят — при этом настройки

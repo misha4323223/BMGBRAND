@@ -3119,7 +3119,10 @@ ${faqSection}
     if (req.headers["x-api-key"] !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
     try {
       // body.recreate=true → удалить старый сервер и переподтвердить адрес заново
-      const result = await setupVkCallbackApi({ recreate: req.body?.recreate === true });
+      const result = await setupVkCallbackApi({
+        recreate: req.body?.recreate === true,
+        events: req.body?.events,
+      });
       res.status(result.ok ? 200 : 502).json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
