@@ -145,6 +145,7 @@ export interface VkCallbackStatus {
   activeServerId: number | null;
   confirmationCode: string | null;
   settings?: any;
+  settingsError?: string;
   longPoll?: any;
   error?: string;
 }
@@ -181,9 +182,13 @@ export async function getVkCallbackStatus(): Promise<VkCallbackStatus> {
     result.error = result.error || err.message;
   }
   try {
-    result.settings = await vkCall("groups.getCallbackSettings", { group_id: result.groupId });
-  } catch {
-    /* не критично для диагностики */
+    // server_id обязателен — без него VK отвечает ошибкой, и диагностика пустая.
+    const params: Record<string, string> = { group_id: result.groupId };
+    if (result.activeServerId) params.server_id = String(result.activeServerId);
+    result.settings = await vkCall("groups.getCallbackSettings", params);
+  } catch (err: any) {
+    result.settings = undefined;
+    result.settingsError = err.message;
   }
   try {
     result.longPoll = await vkCall("groups.getLongPollSettings", { group_id: result.groupId });
