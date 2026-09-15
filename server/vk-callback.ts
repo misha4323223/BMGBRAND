@@ -324,6 +324,21 @@ export async function setupVkCallbackApi(opts: { recreate?: boolean } = {}): Pro
     });
     steps.push("Включено событие message_new (setCallbackSettings)");
 
+    // ⚠️ КРИТИЧНО: пока в сообществе включён Bots Long Poll API, события уходят в его
+    // очередь (она живёт на стороне ВК) и в Callback НЕ приходят — при этом настройки
+    // Callback выглядят включёнными. В serverless-контейнере держать Long Poll-сессию
+    // нечем, поэтому очередь просто копится. Основной канал — Callback, Long Poll гасим.
+    try {
+      await vkCall("groups.setLongPollSettings", {
+        group_id: vkGroupId(),
+        enabled: "0",
+        api_version: "5.199",
+      });
+      steps.push("Bots Long Poll API отключён — события идут только в Callback API");
+    } catch (err: any) {
+      steps.push(`Не удалось отключить Bots Long Poll API: ${err.message}`);
+    }
+
     out.confirmationCode = await getVkCallbackConfirmationCode();
     steps.push("Строка подтверждения получена (getCallbackConfirmationCode)");
     out.ok = true;

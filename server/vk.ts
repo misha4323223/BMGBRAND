@@ -610,11 +610,33 @@ export function startVkLongPoll(onReply: VkReplyHandler): void {
       console.log("[VK Bots LongPoll] VK_GROUP_TOKEN задан, но VK_GROUP_ID пуст — поллинг не запущен");
       return;
     }
-    longPollActive = true;
-    runBotsLongPoll(onReply, getConfig().groupId).catch(err => {
-      logError("[VK Bots LongPoll] Fatal error:", err.message);
-      longPollActive = false;
-    });
+    const groupId = getConfig().groupId;
+    // ⚠️ У сообщества Long Poll и Callback делят ОДИН канал событий: если в настройках
+    // сообщества включён Long Poll API, события уходят в его очередь (она живёт на стороне
+    // ВК) и в Callback API не приходят вообще. Наш основной канал — Callback
+    // (server/vk-callback.ts), поэтому поллинг запускаем только если он реально включён.
+    void (async () => {
+      try {
+        const res = await fetch(
+          `https://api.vk.ru/method/groups.getLongPollSettings?group_id=${groupId}&access_token=${getConfig().token}&v=5.199`
+        );
+        const data = await res.json() as any;
+        if (data.error) throw new Error(data.error.error_msg);
+        if (!data.response?.is_enabled) {
+          console.log(
+            "[VK Bots LongPoll] Long Poll API в сообществе отключён — поллинг не запускаем (события идут в Callback API)"
+          );
+          return;
+        }
+      } catch (err: any) {
+        console.log(`[VK Bots LongPoll] Настройки Long Poll недоступны (${err.message}) — пробуем запустить`);
+      }
+      longPollActive = true;
+      runBotsLongPoll(onReply, groupId).catch(err => {
+        logError("[VK Bots LongPoll] Fatal error:", err.message);
+        longPollActive = false;
+      });
+    })();
     return;
   }
   longPollActive = true;
