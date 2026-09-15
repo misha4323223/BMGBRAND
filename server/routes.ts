@@ -3118,7 +3118,8 @@ ${faqSection}
   app.post("/api/admin/vk/callback-setup", async (req, res) => {
     if (req.headers["x-api-key"] !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
     try {
-      const result = await setupVkCallbackApi();
+      // body.recreate=true → удалить старый сервер и переподтвердить адрес заново
+      const result = await setupVkCallbackApi({ recreate: req.body?.recreate === true });
       res.status(result.ok ? 200 : 502).json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });

@@ -282,6 +282,26 @@
   живой сервер подтверждает то же самое в логах: `[VK Bots LongPoll] Could not get server params: ...`.
   После проверки временный скрипт удалять.
 
+## VK → сайт (приём ответов менеджера) — Callback API (2026-09-15)
+- Приём из ВК в чат сайта идёт через **Callback API** (`server/vk-callback.ts`, POST `/api/vk/callback`),
+  а НЕ через Bots Long Poll: в serverless-контейнере Long Poll не держит соединение.
+- **Главная причина «в ВК уходит, обратно не приходит» (найдено и исправлено 15.09.2026):**
+  `groups.getCallbackConfirmationCode` отдаёт `{"response":{"code":"..."}}`, а код делал
+  `String(response)` → на запрос VK `confirmation` уходила строка **"[object Object]"** (15 символов).
+  Без правильно подтверждённого адреса VK **не доставляет события вообще**, при этом
+  `groups.getCallbackSettings` показывает `message_new: 1, is_enabled: true` — настройки выглядят верными,
+  что сбивало с толку. Теперь код читается как `resp.code`.
+- Строка подтверждения меняется время от времени и после правки сервера нужна заново.
+  Поэтому `setupVkCallbackApi({ recreate: true })` (POST `/api/admin/vk/callback-setup` `{"recreate":true}`)
+  удаляет сервер с нашим URL и добавляет заново — VK шлёт новый `confirmation`, наш вебхук отвечает кодом.
+- Диагностика: `GET /api/admin/vk/callback-status` (админ-ключ) → серверы сообщества, активный id,
+  настройки событий, longPoll и **`recentEvents`** — последние 10 событий, реально присланных VK
+  (пусто → VK не доставляет). В логах контейнера каждое обращение видно как `[VK Callback] → event type=...`.
+- Логика доставки: `message_new` + «Ответ» на уведомление → сессия находится по `vk_message_id`;
+  обычное сообщение в чат → в последний диалог, куда уходили VK-уведомления. Свои исходящие (`from_id === -group_id`)
+  и чужие peer отбрасываются, дубли Callback/Long Poll гасятся по id входящего сообщения.
+- Long Poll в коде остался резервом; ключ сообщества требует права `manage`.
+
 ## Verification
 - ОБЯЗАТЕЛЬНО тестируй вживую на preview после правок — typecheck НЕ заменяет живой тест. Не пропускай этот этап.
 - Если песочница не отвечает (`running:false`, 502, «Is the Sandbox started?», `freebuff-preview: not found`) —

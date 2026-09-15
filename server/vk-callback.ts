@@ -41,6 +41,32 @@ async function vkCall(method: string, params: Record<string, string> = {}): Prom
   return data.response;
 }
 
+// ── Диагностика: последние полученные события от VK ─────────────────────────
+// В serverless-контейнере логи читать неудобно, поэтому держим последние 10
+// событий в памяти инстанса и отдаём их в /api/admin/vk/callback-status.
+export interface VkRecentEvent {
+  at: number;
+  type: string;
+  eventId?: string;
+  peerId?: string;
+  fromId?: number;
+  replyTo?: number;
+  text?: string;
+  delivered?: boolean;
+  note?: string;
+}
+
+const recentEvents: VkRecentEvent[] = [];
+function trackEvent(ev: VkRecentEvent): VkRecentEvent {
+  recentEvents.push(ev);
+  if (recentEvents.length > 10) recentEvents.shift();
+  return ev;
+}
+
+export function getRecentVkEvents(): VkRecentEvent[] {
+  return [...recentEvents].reverse();
+}
+
 // ── Доставка сообщения менеджера из ВК в чат сайта ───────────────────────────
 
 // Дедуп: Callback API и Long Poll могут работать одновременно (VK шлёт событие
@@ -129,11 +155,24 @@ export async function deliverVkAdminMessage(msg: VkAdminMessage): Promise<boolea
 // VK ограничивает название сервера 14 символами (иначе ошибка 100).
 const CALLBACK_TITLE = "BMG site";
 
+// ── Строка подтверждения адреса сервера ─────────────────────────────────────
+//
+// КРИТИЧНО (найдено 15.09.2026): VK отдаёт не голую строку, а JSON-объект
+// `{"response":{"code":"d8v2ve07"}}`. Раньше код делал `String(response)` и
+// возвращал на запрос `confirmation` строку "[object Object]" (ровно 15 символов).
+// Из-за этого VK НИКОГДА не подтверждал сервер, а без подтверждения события не
+// доставляются вообще — при этом `groups.getCallbackSettings` показывал
+// `message_new: 1, is_enabled: true`, т.е. настройки выглядели правильными.
+// Отсюда и симптом «в ВК уходит, обратно не приходит».
 export async function getVkCallbackConfirmationCode(): Promise<string> {
   const envCode = process.env.VK_CALLBACK_CONFIRM_CODE;
   if (envCode) return envCode;
-  const code = await vkCall("groups.getCallbackConfirmationCode", { group_id: vkGroupId() });
-  return String(code);
+  const resp: any = await vkCall("groups.getCallbackConfirmationCode", { group_id: vkGroupId() });
+  const code = typeof resp === "string" ? resp : resp?.code ?? resp?.confirmation_code;
+  if (!code || typeof code !== "string") {
+    throw new Error(`getCallbackConfirmationCode вернул неожиданный ответ: ${JSON.stringify(resp)}`);
+  }
+  return code;
 }
 
 export interface VkCallbackStatus {
@@ -147,6 +186,8 @@ export interface VkCallbackStatus {
   settings?: any;
   settingsError?: string;
   longPoll?: any;
+  /** Последние события, которые VK реально прислал на наш вебхук (пусто → VK пока не доставляет) */
+  recentEvents?: VkRecentEvent[];
   error?: string;
 }
 
@@ -161,6 +202,7 @@ export async function getVkCallbackStatus(): Promise<VkCallbackStatus> {
     activeServerId: null,
     confirmationCode: null,
   };
+  result.recentEvents = getRecentVkEvents();
   if (!result.tokenFound || !result.groupId) {
     result.error = "VK_GROUP_TOKEN или VK_GROUP_ID не заданы";
     return result;
@@ -212,7 +254,7 @@ export interface VkCallbackSetupResult {
   error?: string;
 }
 
-export async function setupVkCallbackApi(): Promise<VkCallbackSetupResult> {
+export async function setupVkCallbackApi(opts: { recreate?: boolean } = {}): Promise<VkCallbackSetupResult> {
   const url = `${siteUrl()}/api/vk/callback`;
   const secret = process.env.VK_CALLBACK_SECRET || "";
   const steps: string[] = [];
@@ -222,7 +264,20 @@ export async function setupVkCallbackApi(): Promise<VkCallbackSetupResult> {
     if (!vkToken() || !vkGroupId()) throw new Error("VK_GROUP_TOKEN или VK_GROUP_ID не заданы");
 
     const existing = await vkCall("groups.getCallbackServers", { group_id: vkGroupId() });
-    const items: any[] = existing?.items || [];
+    let items: any[] = existing?.items || [];
+
+    // `recreate` — принудительное переподтверждение адреса: удаляем старый сервер
+    // с нашим URL, чтобы VK заново прислал запрос `confirmation`. Без успешного
+    // подтверждения VK не доставляет события, даже если настройки выставлены.
+    if (opts.recreate) {
+      const ours = items.filter((s: any) => String(s.url).replace(/\/$/, "") === url);
+      for (const s of ours) {
+        await vkCall("groups.deleteCallbackServer", { group_id: vkGroupId(), server_id: String(s.id) });
+        steps.push(`Старый сервер удалён (id=${s.id}) — VK пришлёт новый confirmation`);
+      }
+      if (ours.length) items = items.filter((s: any) => !ours.includes(s));
+    }
+
     let serverId: number | null = null;
     const match = items.find((s: any) => String(s.url).replace(/\/$/, "") === url);
     if (match) {
@@ -237,6 +292,16 @@ export async function setupVkCallbackApi(): Promise<VkCallbackSetupResult> {
           secret_key: secret,
         });
         steps.push("Секретный ключ обновлён (editCallbackServer)");
+      } else {
+        // Правка сервера заставляет VK перепроверить адрес (новый confirmation) —
+        // полезно, если предыдущее подтверждение не прошло.
+        await vkCall("groups.editCallbackServer", {
+          group_id: vkGroupId(),
+          server_id: String(serverId),
+          url,
+          title: CALLBACK_TITLE,
+        });
+        steps.push("Сервер перепроверяется: VK отправит запрос confirmation (editCallbackServer)");
       }
     } else {
       const params: Record<string, string> = { group_id: vkGroupId(), url, title: CALLBACK_TITLE };
@@ -284,6 +349,19 @@ export function registerVkCallbackWebhook(
     const type = String(body.type || "");
     const secret = process.env.VK_CALLBACK_SECRET || "";
 
+    // Логируем КАЖДЫЙ запрос от VK: так сразу видно, доставляет ли VK события
+    // (в том числе `confirmation` — по нему видно, прошла ли проверка адреса).
+    logInfo(`[VK Callback] → event type=${type || "(empty)"} event_id=${body.event_id ?? "-"} group=${body.group_id ?? "-"} v=${body.v ?? "-"}`);
+    const tracked = trackEvent({
+      at: Date.now(),
+      type: type || "(empty)",
+      eventId: body.event_id !== undefined ? String(body.event_id) : undefined,
+      peerId: body.object?.message?.peer_id ? String(body.object.message.peer_id) : undefined,
+      fromId: body.object?.message?.from_id,
+      replyTo: body.object?.message?.reply_message?.id,
+      text: body.object?.message?.text ? String(body.object.message.text).slice(0, 80) : undefined,
+    });
+
     if (secret && String(body.secret || "") !== secret) {
       logWarn(`[VK Callback] Rejected event type=${type}: bad secret`);
       return res.status(403).send("forbidden");
@@ -315,17 +393,18 @@ export function registerVkCallbackWebhook(
       const text = String(msg.text || "").trim();
       const replyTo = msg.reply_message?.id ? Number(msg.reply_message.id) : 0;
 
-      if (!text) return;
-      if (groupId && fromId === -groupId) return; // наше собственное сообщение
+      if (!text) { tracked.note = "пустой текст"; return; }
+      if (groupId && fromId === -groupId) { tracked.note = "наше собственное сообщение"; return; } // наше собственное сообщение
 
       const configuredPeer = process.env.VK_CHAT_PEER_ID || "";
       if (configuredPeer && peerId !== configuredPeer) {
+        tracked.note = `peer ${peerId} ≠ настроенного ${configuredPeer}`;
         logInfo(`[VK Callback] message_new from peer ${peerId} — not the notification chat (${configuredPeer}), skipped`);
         return;
       }
 
       logInfo(`[VK Callback] message_new peer=${peerId} from=${fromId} reply_to=${replyTo} text="${text.slice(0, 60)}"`);
-      await deliverVkAdminMessage({
+      tracked.delivered = await deliverVkAdminMessage({
         vkMessageId: replyTo,
         incomingMessageId: incomingId,
         text: text.replace(/^\[Ответ\][^\n]*\n?/m, "").trim(),
