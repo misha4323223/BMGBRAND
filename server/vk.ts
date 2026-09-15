@@ -76,6 +76,17 @@ export function verifyActionLink(act: string, id: string, exp: string, sig: stri
   return crypto.timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"));
 }
 
+// 917 «You don't have access to this chat» / 901 «Can't send messages for users
+// without permission» — не лимит и не сбой сети, а конфигурация: ключ от имени
+// СООБЩЕСТВА может писать только в те чаты, где сообщество — участник. Раньше
+// отправка шла от личного аккаунта (user-ключ), поэтому чужой чат открывался.
+function peerAccessHint(code: number): string {
+  if (code === 917 || code === 901) {
+    return " — сообщество не участник этого чата: добавьте сообщество в нужный чат (ВК: чат → участники → добавить сообщество) или укажите VK_CHAT_PEER_ID того чата, где оно уже есть";
+  }
+  return "";
+}
+
 async function sendVkMessage(text: string): Promise<boolean> {
   const { token, peerId } = getConfig();
   if (!token || !peerId) {
@@ -116,7 +127,7 @@ async function sendVkMessage(text: string): Promise<boolean> {
 
     if (data.error) {
       if (data.error.error_code === 9) markVkFlood("messages.send", 9, data.error.error_msg);
-      else logError("[VK] Send error:", data.error.error_code, data.error.error_msg);
+      else logError("[VK] Send error:", data.error.error_code, data.error.error_msg + peerAccessHint(data.error.error_code), `(peer_id=${peerId})`);
       return false;
     }
 
@@ -564,7 +575,7 @@ export async function sendVkChatNotification(
     const data = await response.json() as any;
     if (data.error) {
       if (data.error.error_code === 9) markVkFlood("messages.send (chat)", 9, data.error.error_msg);
-      else logError("[VK Chat] Send error:", data.error.error_code, data.error.error_msg);
+      else logError("[VK Chat] Send error:", data.error.error_code, data.error.error_msg + peerAccessHint(data.error.error_code), `(peer_id=${peerId})`);
       return null;
     }
 
@@ -643,6 +654,7 @@ async function runBotsLongPoll(
   console.log("[VK Bots LongPoll] Starting...");
 
   let params: { key: string; server: string; ts: string } | null = null;
+  let paramAttempts = 0;
   while (!params) {
     if (isVkFloodPaused()) {
       const wait = Math.max(1000, vkFloodPausedUntil - Date.now());
@@ -651,9 +663,18 @@ async function runBotsLongPoll(
     }
     try {
       params = await getBotsLongPollServer(groupId);
+      paramAttempts = 0;
     } catch (err: any) {
-      logError("[VK Bots LongPoll] Could not get server params:", err.message, "retry in 5min");
-      await new Promise(r => setTimeout(r, 5 * 60_000));
+      // Код 29 «Rate limit reached» — это лимит КОНКРЕТНОГО МЕТОДА: VK считает лимиты
+      // отдельно по каждому методу (проверено: при лимите на groups.getLongPollServer
+      // groups.getById и messages.send отвечают нормально). Поэтому глобальную паузу
+      // (markVkFlood) тут не ставим — иначе зря замолчат уведомления, которые работают.
+      // Но и «retry in 5min» бесконечно — плохо: пока метод в лимите, повторы не дают
+      // ему отпустить. Удваиваем паузу: 5 → 10 → 20 → 30 мин (потолок).
+      const delayMs = Math.min(5 * 60_000 * Math.pow(2, paramAttempts), 30 * 60_000);
+      paramAttempts++;
+      logError("[VK Bots LongPoll] Could not get server params:", err.message, `retry in ${Math.round(delayMs / 60000)}min`);
+      await new Promise(r => setTimeout(r, delayMs));
     }
   }
 
@@ -727,6 +748,7 @@ async function runLongPoll(
   // Получение параметров сессии может падать (Flood control, сеть). При flood не
   // долбим VK (каждый вызов расходует лимит и продлевает блокировку) — ждём паузу.
   let lpParams: { key: string; server: string; ts: string } | null = null;
+  let lpAttempts = 0;
   while (!lpParams) {
     if (isVkFloodPaused()) {
       const wait = Math.max(1000, vkFloodPausedUntil - Date.now());
@@ -735,9 +757,13 @@ async function runLongPoll(
     }
     try {
       lpParams = await getLongPollServer();
+      lpAttempts = 0;
     } catch (err: any) {
-      logError("[VK LongPoll] Could not get server params:", err.message, "retry in 5min");
-      await new Promise(r => setTimeout(r, 5 * 60_000));
+      // См. комментарий в Bots Long Poll: код 29 — лимит метода, а не общий флуд.
+      const delayMs = Math.min(5 * 60_000 * Math.pow(2, lpAttempts), 30 * 60_000);
+      lpAttempts++;
+      logError("[VK LongPoll] Could not get server params:", err.message, `retry in ${Math.round(delayMs / 60000)}min`);
+      await new Promise(r => setTimeout(r, delayMs));
     }
   }
 

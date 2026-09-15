@@ -1,9 +1,15 @@
 // Normalize env var names: strip leading invisible Unicode chars (e.g. U+200E Left-to-Right Mark)
 // that get injected when secrets are pasted from certain editors or Replit's secret manager.
+//
+// ВАЖНО: если чистый ключ уже задан (например, в .env.local лежит ручная запись
+// VK_CHAT_PEER_ID=..., а в старом экспортированном .env осталась строка
+// "\u200eVK_CHAT_PEER_ID=..."), невидимый дубль НЕ должен перебивать чистый ключ —
+// иначе в рантайме молча побеждает старое значение и правка конфига «не применяется».
+// Именно так ломался VK_CHAT_PEER_ID (2000000052 вместо 2000000003).
 for (const key of Object.keys(process.env)) {
   const clean = key.replace(/^[\u200e\u200f\u200b\u200c\u200d\ufeff\u00a0]+/, "");
   if (clean !== key) {
-    process.env[clean] = process.env[key];
+    if (process.env[clean] === undefined) process.env[clean] = process.env[key];
     delete process.env[key];
   }
 }
