@@ -23,6 +23,9 @@ function vkToken(): string {
 function vkGroupId(): string {
   return process.env.VK_GROUP_ID || "";
 }
+function vkChatPeerId(): string {
+  return String(process.env.VK_CHAT_PEER_ID || "2000000003").trim();
+}
 function siteUrl(): string {
   return (process.env.SITE_URL || process.env.APP_DOMAIN || "https://booomerangs.ru").replace(/\/$/, "");
 }
@@ -54,17 +57,55 @@ export interface VkRecentEvent {
   text?: string;
   delivered?: boolean;
   note?: string;
+  /** Каким путём нашли диалог: exact | cmid | fallback | miss | not-reply | duplicate */
+  route?: string;
 }
 
 const recentEvents: VkRecentEvent[] = [];
+const MAX_RECENT_EVENTS = 10;
+
 function trackEvent(ev: VkRecentEvent): VkRecentEvent {
   recentEvents.push(ev);
-  if (recentEvents.length > 10) recentEvents.shift();
+  if (recentEvents.length > MAX_RECENT_EVENTS) recentEvents.shift();
   return ev;
 }
 
-export function getRecentVkEvents(): VkRecentEvent[] {
-  return [...recentEvents].reverse();
+// Журнал храним ещё и в БД (bonus_settings): в serverless инстансов несколько,
+// они засыпают, поэтому по памяти инстанса видно не всё — а вопрос «почему не пришло»
+// решается именно этим журналом.
+const EVENTS_KEY = "vk_callback_last_events";
+
+export async function persistRecentVkEvents(): Promise<void> {
+  try {
+    await storage.setBonusSetting(EVENTS_KEY, JSON.stringify(recentEvents.slice(-MAX_RECENT_EVENTS)));
+  } catch (err: any) {
+    logWarn("[VK Callback] Не удалось сохранить журнал событий:", err.message);
+  }
+}
+
+async function loadPersistedVkEvents(): Promise<VkRecentEvent[]> {
+  try {
+    const raw = await storage.getBonusSetting(EVENTS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Свежие события: память инстанса + журнал из БД, без дублей. */
+export async function getRecentVkEvents(): Promise<VkRecentEvent[]> {
+  const merged = [...recentEvents, ...(await loadPersistedVkEvents())];
+  const seen = new Set<string>();
+  const unique: VkRecentEvent[] = [];
+  for (const ev of merged.sort((a, b) => (b.at || 0) - (a.at || 0))) {
+    const key = `${ev.at}|${ev.type}|${ev.eventId ?? ""}|${ev.replyTo ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(ev);
+    if (unique.length >= MAX_RECENT_EVENTS) break;
+  }
+  return unique;
 }
 
 // ── Доставка сообщения менеджера из ВК в чат сайта ───────────────────────────
@@ -95,32 +136,81 @@ export interface VkAdminMessage {
   /** Имя отправителя в чате сайта; по умолчанию всегда «Администратор» */
   author?: string;
   invalidate?: (sessionId: string) => void;
+  /** Диагностика: каким путём нашли диалог (exact | cmid | fallback | miss) */
+  debug?: { route?: string };
+}
+
+/**
+ * В беседе ВК у сообщения два идентификатора: глобальный `id` (его возвращает
+ * `messages.send`, его мы и сохраняем) и `conversation_message_id` (номер внутри
+ * беседы). В событии «Ответить» может прийти любой из них — поэтому если прямой
+ * поиск не дал результата, читаем историю беседы и сопоставляем по обоим.
+ */
+async function resolveReplyTarget(rawId: number): Promise<{ messageId: number | null; foundInChat: boolean; error?: string }> {
+  try {
+    const resp: any = await vkCall("messages.getHistory", {
+      peer_id: String(vkChatPeerId()),
+      count: "100",
+    });
+    const items: any[] = resp?.items || [];
+    const byConv = items.find((m) => Number(m.conversation_message_id) === rawId);
+    if (byConv) return { messageId: Number(byConv.id), foundInChat: true };
+    const byId = items.find((m) => Number(m.id) === rawId);
+    if (byId) return { messageId: rawId, foundInChat: true };
+    return { messageId: null, foundInChat: false };
+  } catch (err: any) {
+    return { messageId: null, foundInChat: false, error: err.message };
+  }
 }
 
 /**
  * Сохраняет ответ менеджера как сообщение от админа в диалоге сайта.
  *
- * ⚠️ Доставляем ТОЛЬКО ответы («Ответить» на конкретное наше уведомление).
- * Обычные сообщения в беседе игнорируем: в этом ВК-чате идут ещё и заявки,
- * и они не должны попадать в чат клиента. Если ответ адресован не нашему
- * уведомлению (например, кто-то ответил на сообщение заявки) — тоже пропускаем,
- * а не шлём в «последний диалог».
+ * ⚠️ Доставляем ТОЛЬКО ответы («Ответить»). Обычные сообщения в беседе игнорируем:
+ * в этом ВК-чате идут ещё и заявки, и они не должны попадать в чат клиента.
+ * Ответ на чужое сообщение (заявку) тоже не отправляем клиенту.
  */
 export async function deliverVkAdminMessage(msg: VkAdminMessage): Promise<boolean> {
   const text = String(msg.text || "").trim();
   if (!text) return false;
   if (!msg.vkMessageId) {
     logInfo("[VK In] Message is not a reply to a site notification — skipped");
+    if (msg.debug) msg.debug.route = "not-reply";
     return false;
   }
   if (isDuplicate(msg.incomingMessageId)) {
     logInfo(`[VK In] Duplicate vk_msg_id=${msg.incomingMessageId} ignored`);
+    if (msg.debug) msg.debug.route = "duplicate";
     return false;
   }
 
-  const sessionId = await storage.getSessionIdByVkMessageId(msg.vkMessageId);
+  let sessionId = await storage.getSessionIdByVkMessageId(msg.vkMessageId);
+  if (sessionId && msg.debug) msg.debug.route = "exact";
+
   if (!sessionId) {
-    logWarn(`[VK In] Reply to vk_message_id=${msg.vkMessageId} is not one of our notifications — skipped`);
+    const resolved = await resolveReplyTarget(msg.vkMessageId);
+    if (resolved.messageId) {
+      sessionId = await storage.getSessionIdByVkMessageId(resolved.messageId);
+      if (sessionId && msg.debug) msg.debug.route = "cmid";
+    }
+    if (!sessionId) {
+      if (resolved.foundInChat || resolved.error) {
+        // Ответ на чужое сообщение в беседе (например, заявку) — клиенту не шлём.
+        logWarn(
+          `[VK In] Reply target ${msg.vkMessageId} is not one of our notifications (inChat=${resolved.foundInChat}) — skipped`
+        );
+        if (msg.debug) msg.debug.route = "miss";
+        return false;
+      }
+      // Сообщение уже вне последних 100 в беседе / история недоступна — берём
+      // самый свежий диалог, куда уходили VK-уведомления (поведение до ужесточения).
+      sessionId = await storage.getLatestVkChatSessionId();
+      logWarn(`[VK In] Reply target ${msg.vkMessageId} not found — fallback to latest VK dialog`);
+      if (msg.debug) msg.debug.route = "fallback";
+    }
+  }
+  if (!sessionId) {
+    logWarn("[VK In] No site chat session to deliver the message to — nothing saved");
     return false;
   }
 
@@ -194,7 +284,7 @@ export async function getVkCallbackStatus(): Promise<VkCallbackStatus> {
     activeServerId: null,
     confirmationCode: null,
   };
-  result.recentEvents = getRecentVkEvents();
+  result.recentEvents = await getRecentVkEvents();
   if (!result.tokenFound || !result.groupId) {
     result.error = "VK_GROUP_TOKEN или VK_GROUP_ID не заданы";
     return result;
@@ -396,6 +486,7 @@ export function registerVkCallbackWebhook(
       try {
         const code = await getVkCallbackConfirmationCode();
         logInfo("[VK Callback] Confirmation request answered");
+        void persistRecentVkEvents();
         return res.status(200).send(code);
       } catch (err: any) {
         logError("[VK Callback] Cannot answer confirmation:", err.message);
@@ -438,14 +529,21 @@ export function registerVkCallbackWebhook(
       }
 
       logInfo(`[VK Callback] message_new peer=${peerId} from=${fromId} reply_to=${replyTo} text="${text.slice(0, 60)}"`);
+      const debug: { route?: string } = {};
       tracked.delivered = await deliverVkAdminMessage({
         vkMessageId: replyTo,
         incomingMessageId: incomingId,
         text: text.replace(/^\[Ответ\][^\n]*\n?/m, "").trim(),
         invalidate: chatCacheInvalidate,
+        debug,
       });
+      tracked.route = debug.route;
     } catch (err: any) {
       logError("[VK Callback] message_new handling failed:", err.message);
+    } finally {
+      // Журнал событий кладём в БД: инстансов в serverless несколько, и по памяти
+      // потом не видно, кто и как обработал событие.
+      await persistRecentVkEvents();
     }
   });
 
