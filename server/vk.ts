@@ -590,9 +590,14 @@ export async function sendVkChatNotification(
 
 let longPollActive = false;
 
-export function startVkLongPoll(
-  onReply: (vkMessageId: number, replyText: string, adminName: string) => Promise<void>
-): void {
+type VkReplyHandler = (
+  vkMessageId: number,
+  replyText: string,
+  adminName: string,
+  incomingMessageId?: number
+) => Promise<void>;
+
+export function startVkLongPoll(onReply: VkReplyHandler): void {
   if (longPollActive) return;
   const { token, peerId, isCommunity } = getConfig();
   if (!token || !peerId) {
@@ -622,6 +627,9 @@ export function startVkLongPoll(
 // ── Bots Long Poll (для ключа доступа сообщества) ─────────────────────────────
 // Формат событий отличается от user long poll: приходят events вида
 // { type: "message_new", object: { message: { peer_id, text, reply_message } } }.
+// ⚠️ С ключом сообщества этот путь работает только если в сообществе включён
+// Long Poll API и выдан scope manage. Основной канал приёма — Callback API
+// (server/vk-callback.ts); здесь оставлен резерв + логика маршрутизации та же.
 
 // VK отдаёт адрес Long Poll сервера УЖЕ с протоколом (документация: «server — адрес
 // сервера (начинается с https://)») — и у user-, и у bots-поллинга. Раньше код всегда
@@ -647,7 +655,7 @@ async function getBotsLongPollServer(groupId: string): Promise<{ key: string; se
 }
 
 async function runBotsLongPoll(
-  onReply: (vkMessageId: number, replyText: string, adminName: string) => Promise<void>,
+  onReply: VkReplyHandler,
   groupId: string
 ): Promise<void> {
   const { peerId } = getConfig();
@@ -705,13 +713,16 @@ async function runBotsLongPoll(
         if (String(msg.peer_id) !== String(peerId)) continue;
 
         const replyMsg = msg.reply_message;
-        if (!replyMsg?.id) continue;
+        // Ответом менеджер может и не пользоваться: тогда сообщение уходит
+        // в самый свежий диалог сайта, где были VK-уведомления (vkMessageId = 0).
+        const replyToId = replyMsg?.id ? Number(replyMsg.id) : 0;
         const replyText: string = String(msg.text || "").trim();
         if (!replyText) continue;
+        if (Number(msg.from_id) === -Number(groupId)) continue; // наше собственное сообщение
 
-        console.log(`[VK Bots LongPoll] Reply to vk_msg_id=${replyMsg.id}: "${replyText.slice(0, 60)}"`);
+        console.log(`[VK Bots LongPoll] Message id=${msg.id} reply_to=${replyToId}: "${replyText.slice(0, 60)}"`);
         try {
-          await onReply(replyMsg.id as number, replyText, "Менеджер");
+          await onReply(replyToId, replyText, "Менеджер", Number(msg.id) || undefined);
         } catch (err: any) {
           logError("[VK Bots LongPoll] onReply error:", err.message);
         }

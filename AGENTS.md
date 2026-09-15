@@ -246,6 +246,29 @@
   файлы через `fs.readFileSync`, ищет ключи с символами U+200B/200E/200F/FEFF (значения не печатать!).
 - Прод: обновить в GitHub secrets `VK_GROUP_TOKEN` (новый ключ сообщества) и `VK_CHAT_PEER_ID=2000000003`.
   Старое значение `VK_CHAT_PEER_ID=2000000052` в `.env` (строка с U+200E) — мусор, можно удалить.
+
+## VK → сайт: приём ответов менеджера (Callback API, 2026-09-15)
+- `server/vk-callback.ts` — единственный канал приёма сообщений ИЗ ВК: `POST /api/vk/callback`.
+  `confirmation` → отдаём строку (`groups.getCallbackConfirmationCode` или env `VK_CALLBACK_CONFIRM_CODE`),
+  `message_new` → `deliverVkAdminMessage()` → сообщение `sender: 'admin'` в чат сайта.
+- Почему не Long Poll: сайт в Yandex Serverless Container (инстанс засыпает, висящий long-poll обрывается),
+  плюс `groups.getLongPollServer` отдаёт 29. Long Poll оставлен резервом (`startVkLongPoll`, теперь принимает
+  и сообщения без «Ответа» — уходят в последний диалог).
+- Маршрутизация: есть `reply_message.id` → сессия через `storage.getSessionIdByVkMessageId`,
+  иначе → `storage.getLatestVkChatSessionId()` (новый метод: последний диалог с `vk_message_id`).
+  Дедуп по `message.id` (Callback + Long Poll могут доставить одно и то же).
+- ⚠️ **Ключ сообщества ОБЯЗАН иметь scope `manage` («Управление сообществом») + «Сообщения сообщества».**
+  С текущим ключом `groups.getCallbackConfirmationCode` → `15 Access denied: ... current scopes`, а
+  `groups.getLongPollServer` → 29. Только отправка (`messages.send`) работает без manage.
+- Настройка Callback API: `POST /api/admin/vk/callback-setup` (x-api-key) — сам добавит сервер
+  (`addCallbackServer`), включит `message_new` и вернёт строку подтверждения; `GET /api/admin/vk/callback-status` —
+  диагностика (серверы, код, настройки callback/longpoll). Альтернатива без нового ключа: вручную добавить
+  сервер в UI сообщества (URL `https://booomerangs.ru/api/vk/callback`, событие «Входящее сообщение»),
+  строку подтверждения из UI положить в `VK_CALLBACK_CONFIRM_CODE`.
+- Проверка без VK (симуляция того, что шлёт VK, — работает в preview):
+  `curl -X POST <preview>/api/vk/callback -H 'Content-Type: application/json' -d '{"type":"confirmation"}'`
+  и `-d '{"type":"message_new","object":{"message":{"id":1,"peer_id":2000000003,"from_id":<vk user id>,"text":"...","reply_message":{"id":<vk_message_id из чата>}}}}'`,
+  затем `GET /api/chat/messages/<sessionId>` — должно появиться сообщение `sender:"admin"`.
 - Только КЛЮЧ СООБЩЕСТВА даёт надёжную отправку: VK ID / user-токены живут ~1 час и отзываются
   («invalid access_token»), плюс лимиты user-токенов с 07.09.2026. Ключ сообщества — в ВК:
   Управление сообществом → Работа с API → Ключи доступа (права: «Управление сообществом»,

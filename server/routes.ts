@@ -69,6 +69,7 @@ import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
 import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notifyPreorderStatusChange, registerWholesaleWebhook, sendChatNotification, registerChatWebhook, notifyMerchOrder, sendAgentAlert } from "./telegram";
 import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyMerchOrder, verifyActionLink, sendVkChatNotification, startVkLongPoll, vkNotifyAgentAlert } from "./vk";
+import { registerVkCallbackWebhook, setupVkCallbackApi, getVkCallbackStatus, deliverVkAdminMessage } from "./vk-callback";
 import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
 import { registerAddonOrderRoutes, processAddonOrderPaid } from "./addon-order";
 import { registerOllamaRoutes } from "./ollama";
@@ -3086,27 +3087,43 @@ ${faqSection}
     });
   }, 2000);
 
-  // Start VK Long Poll for admin replies via VK chat
+  // Ответы менеджера из ВК → в чат сайта.
+  // Основной путь — Callback API (вебхук ниже): в serverless-контейнере он надёжнее,
+  // потому что VK сам присылает POST, а не мы держим висящий Long Poll.
+  // Long Poll оставлен резервом (с ключом сообщества он доступен не всегда — код 29).
   setTimeout(() => {
-    startVkLongPoll(async (vkMessageId, replyText, adminName) => {
-      const sessionId = await storage.getSessionIdByVkMessageId(vkMessageId);
-      if (!sessionId) {
-        logWarn(`[VK LongPoll] Session not found for vk_message_id=${vkMessageId}`);
-        return;
-      }
-      const { randomUUID } = await import("crypto");
-      await storage.saveChatMessage({
-        messageId: randomUUID(),
-        sessionId,
-        sender: 'admin',
+    startVkLongPoll(async (vkMessageId, replyText, adminName, incomingMessageId) => {
+      await deliverVkAdminMessage({
+        vkMessageId,
+        incomingMessageId,
         text: replyText,
-        timestamp: Date.now(),
-        userName: adminName,
+        author: adminName,
+        invalidate: chatCacheInvalidate,
       });
-      chatCacheInvalidate(sessionId);
-      logInfo(`[VK LongPoll] Admin reply saved for session ${sessionId.slice(0, 8)}`);
     });
   }, 3000);
+
+  registerVkCallbackWebhook(app, chatCacheInvalidate);
+
+  // Диагностика и настройка Callback API сообщества (админ-ключ).
+  app.get("/api/admin/vk/callback-status", async (req, res) => {
+    if (req.headers["x-api-key"] !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      res.json(await getVkCallbackStatus());
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/vk/callback-setup", async (req, res) => {
+    if (req.headers["x-api-key"] !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const result = await setupVkCallbackApi();
+      res.status(result.ok ? 200 : 502).json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   // ============================================
   // CHAT API

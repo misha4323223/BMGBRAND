@@ -11,6 +11,7 @@ declare module "./core" {
     getChatMessages(sessionId: string, since?: number): Promise<Array<{ messageId: string; sessionId: string; sender: string; text: string; timestamp: number; userId?: string; userName?: string; imageUrl?: string }>>;
     getSessionIdByTgMessageId(tgMessageId: number): Promise<string | null>;
     getSessionIdByVkMessageId(vkMessageId: number): Promise<string | null>;
+    getLatestVkChatSessionId(): Promise<string | null>;
     debugChatTable(): Promise<{ rowCount: number; sampleRows: any[] }>;
     getChatSessions(): Promise<Array<{ sessionId: string; lastMessage: string; lastTimestamp: number; userName?: string; unread?: number }>>;
   }
@@ -129,6 +130,23 @@ DatabaseStorage.prototype.getSessionIdByVkMessageId = async function (this: Data
       `, {
         $vk_message_id: TypedValues.optional(TypedValues.int64(vkMessageId)),
       });
+      return qr.resultSets[0]?.rows || [];
+    });
+    if (!result || result.length === 0) return null;
+    return String(this.extractTypedValue(result[0].items![0]) ?? '') || null;
+  }
+;
+
+// Куда положить ответ менеджера, если он написал в VK-чат не через «Ответ»:
+// в самый свежий диалог сайта, куда уходили VK-уведомления (по vk_message_id).
+DatabaseStorage.prototype.getLatestVkChatSessionId = async function (this: DatabaseStorage): Promise<string | null> {
+    const result = await this.safeQuery(async (session) => {
+      const qr = await session.executeQuery(`
+        SELECT session_id FROM chat_messages
+        WHERE vk_message_id IS NOT NULL
+        ORDER BY timestamp DESC
+        LIMIT 1;
+      `);
       return qr.resultSets[0]?.rows || [];
     });
     if (!result || result.length === 0) return null;

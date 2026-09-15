@@ -751,6 +751,7 @@ export interface IStorage {
   getChatMessages(sessionId: string, since?: number): Promise<Array<{ messageId: string; sessionId: string; sender: string; text: string; timestamp: number; userId?: string; userName?: string; imageUrl?: string }>>;
   getSessionIdByTgMessageId(tgMessageId: number): Promise<string | null>;
   getSessionIdByVkMessageId(vkMessageId: number): Promise<string | null>;
+  getLatestVkChatSessionId(): Promise<string | null>;
   getChatSessions(): Promise<Array<{ sessionId: string; lastMessage: string; lastTimestamp: number; userName?: string; unread?: number }>>;
   // Wholesale XML feed
   getWholesaleFeedProductIds(userId: number): Promise<number[]>;
