@@ -3,6 +3,7 @@ import { logError, logInfo } from "../logger";
 import { storage } from "../storage";
 import { sendEmail, getGiftCardPaidEmailHtml, getGiftCardReceivedEmailHtml } from "../email";
 import { notifyError } from "../error-monitor";
+import { vkNotifyGiftCardSale } from "../vk";
 
 // Admin gift-card activation/resend routes extracted from routes.ts:
 // - POST /api/gift-cards/:id/activate (activate after payment, send emails)
@@ -28,6 +29,8 @@ export function registerAdminGiftCardRoutes(
         return res.status(404).json({ error: "Карта не найдена" });
       }
       
+      const wasPending = card.status === "pending";
+
       const updated = await storage.updateGiftCard(id, {
         status: "active",
         paymentId: paymentId || null,
@@ -35,6 +38,21 @@ export function registerAdminGiftCardRoutes(
       });
       
       logInfo(`[GiftCards] Activated card ${card.code} for ${card.amount / 100} RUB`);
+
+      // Ручная активация из админки = оплата подтверждена вручную (вебхук мог не дойти).
+      // Уведомляем в VK только при первом переходе pending → active, иначе повтор нажатия спамит.
+      if (wasPending) {
+        vkNotifyGiftCardSale({
+          cards: [{ code: card.code, amount: card.amount }],
+          purchaserName: card.purchaserName,
+          purchaserEmail: card.purchaserEmail,
+          recipientName: card.recipientName,
+          recipientEmail: card.recipientEmail,
+          personalMessage: card.message,
+          paymentMethod: updated.paymentMethod || card.paymentMethod,
+          paymentId: paymentId || card.paymentId || null,
+        });
+      }
       
       if (card.purchaserEmail) {
         try {

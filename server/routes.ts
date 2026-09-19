@@ -4,6 +4,8 @@ import { config } from "./config";
 import type { Server } from "http";
 import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsByCategory, isProductsCacheWarm, isLoyaltyCountedStatus } from "./storage";
 import { api } from "@shared/routes";
+import { qualifiesForFreeShipping, getFreeShippingThreshold, resolveFreeShippingThresholds } from "@shared/free-shipping";
+import type { FreeShippingThresholds } from "@shared/free-shipping";
 import { z } from "zod";
 import express from "express";
 import path from "path";
@@ -68,7 +70,7 @@ import { schedulePostPurchaseEmail } from "./post-purchase-email";
 import { waitForDriver } from "./db";
 import { sendOrderToBitrix, syncOrderStatusToBitrix } from "./bitrix24";
 import { notifyNewOrder, notifyPreorderDeposit, notifyPreorderGoalReached, notifyPreorderStatusChange, registerWholesaleWebhook, sendChatNotification, registerChatWebhook, notifyMerchOrder, sendAgentAlert } from "./telegram";
-import { vkNotifyNewOrder, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyMerchOrder, verifyActionLink, sendVkChatNotification, startVkLongPoll, vkNotifyAgentAlert } from "./vk";
+import { vkNotifyNewOrder, vkNotifyGiftCardSale, vkNotifyPreorderDeposit, vkNotifyPreorderGoalReached, vkNotifyPreorderStatusChange, vkNotifyMerchOrder, verifyActionLink, sendVkChatNotification, startVkLongPoll, vkNotifyAgentAlert } from "./vk";
 import { registerVkCallbackWebhook, setupVkCallbackApi, getVkCallbackStatus, deliverVkAdminMessage } from "./vk-callback";
 import { updateCoPurchaseIndex, getRecommendations } from "./recommendations";
 import { registerAddonOrderRoutes, processAddonOrderPaid } from "./addon-order";
@@ -204,6 +206,23 @@ const CDEK_DOOR_TARIFFS = [137, 139, 184, 480, 482, 486];
 
 function isApprovedWholesaleUser(user: any): boolean {
   return !!user && user.role === "wholesale" && (user.wholesaleApproved === true || user.approved === true);
+}
+
+// --- Пороги бесплатной доставки (розница) -------------------------------------------------
+// Логика и фолбэки — в @shared/free-shipping (её же использует клиент чекаута).
+// Значения живут в админке: page_settings("checkout") -> checkout_data.
+
+/**
+ * Пороги бесплатной доставки из настроек чекаута (чтение из кеша page_settings).
+ * Нет настроек / мусор / ошибка — фолбэки из @shared/free-shipping (5 000 ₽ и 15 000 ₽).
+ */
+async function getCheckoutFreeShippingThresholds(): Promise<FreeShippingThresholds> {
+  try {
+    const settings = await storage.getPageSettings("checkout");
+    return resolveFreeShippingThresholds((settings as any)?.checkout_data);
+  } catch {
+    return resolveFreeShippingThresholds(null);
+  }
 }
 
 // Расчёт скидки промокода для заказов (используется предзаказами).
@@ -3824,18 +3843,25 @@ ${faqSection}
             if (!isNaN(numId)) giftCardIdsToActivate.push(numId);
           }
 
+          // Активируем ТОЛЬКО карты в статусе "pending": повторная доставка вебхука
+          // по тому же платежу не должна ни активировать карту, ни уведомлять владельца второй раз.
+          const activatedCards = [];
           for (const cardId of giftCardIdsToActivate) {
+            const card = await storage.getGiftCardById(cardId);
+            if (!card) {
+              logError(`[YooKassa Webhook] Gift card ${cardId} not found`);
+              continue;
+            }
+            if (card.status !== "pending") {
+              logInfo(`[YooKassa Webhook] Gift card ${cardId} already ${card.status} — activation skipped`);
+              continue;
+            }
             await storage.updateGiftCard(cardId, { status: "active" });
             logInfo(`[YooKassa Webhook] Gift card ${cardId} activated`);
+            activatedCards.push({ ...card, status: "active" });
           }
 
-          logInfo(`[YooKassa Webhook] Activated ${giftCardIdsToActivate.length} gift cards: ${giftCardIdsToActivate.join(', ')}`);
-
-          const activatedCards = [];
-          for (const cid of giftCardIdsToActivate) {
-            const card = await storage.getGiftCardById(cid);
-            if (card) activatedCards.push(card);
-          }
+          logInfo(`[YooKassa Webhook] Activated ${activatedCards.length} of ${giftCardIdsToActivate.length} gift cards: ${giftCardIdsToActivate.join(', ')}`);
 
           if (activatedCards.length > 0) {
             const firstCard = activatedCards[0];
@@ -3901,6 +3927,18 @@ ${faqSection}
                 notifyError('Email подарочная карта (YooKassa)', 'Не удалось отправить письмо с подарочной картой', emailErr.message);
               }
             }
+
+            // Уведомление владельцу в VK о продаже сертификата (Telegram не дублируем).
+            vkNotifyGiftCardSale({
+              cards: activatedCards.map((c: any) => ({ code: c.code, amount: c.amount })),
+              purchaserName: firstCard.purchaserName,
+              purchaserEmail: firstCard.purchaserEmail,
+              recipientName: firstCard.recipientName,
+              recipientEmail: firstCard.recipientEmail,
+              personalMessage: firstCard.message,
+              paymentMethod: firstCard.paymentMethod,
+              paymentId: String(paymentId || ''),
+            });
           }
         } else if (orderId.startsWith("PREORDER-MULTI-")) {
           const multiOrderId = Number(orderId.replace("PREORDER-MULTI-", ""));
@@ -4247,8 +4285,23 @@ ${faqSection}
         if (OrderId.startsWith("GIFT-")) {
           // Single gift card payment
           const cardId = parseInt(OrderId.replace("GIFT-", ""));
-          await storage.updateGiftCard(cardId, { status: "active" });
-          logInfo(`[T-Bank Webhook] Gift card ${cardId} activated`);
+          const giftCardToActivate = await storage.getGiftCardById(cardId);
+          if (giftCardToActivate && giftCardToActivate.status === "pending") {
+            await storage.updateGiftCard(cardId, { status: "active" });
+            logInfo(`[T-Bank Webhook] Gift card ${cardId} activated`);
+            vkNotifyGiftCardSale({
+              cards: [{ code: giftCardToActivate.code, amount: giftCardToActivate.amount }],
+              purchaserName: giftCardToActivate.purchaserName,
+              purchaserEmail: giftCardToActivate.purchaserEmail,
+              recipientName: giftCardToActivate.recipientName,
+              recipientEmail: giftCardToActivate.recipientEmail,
+              personalMessage: giftCardToActivate.message,
+              paymentMethod: giftCardToActivate.paymentMethod || "tbank",
+              paymentId: String(PaymentId),
+            });
+          } else {
+            logInfo(`[T-Bank Webhook] Gift card ${cardId} not pending — activation skipped`);
+          }
         } else if (OrderId.startsWith("BATCH-")) {
           // Batch gift cards payment - find cards by paymentId
           const paymentIdStr = String(PaymentId);
@@ -4271,6 +4324,20 @@ ${faqSection}
             logInfo(`[T-Bank Webhook] Gift card ${card.id} (${card.code}) activated`);
           }
           logInfo(`[T-Bank Webhook] Activated ${batchCards.length} gift cards for payment ${PaymentId}`);
+
+          // batchCards уже отфильтрованы по status === "pending" — повтор вебхука не уведомит дважды
+          if (batchCards.length > 0) {
+            vkNotifyGiftCardSale({
+              cards: batchCards.map((c: any) => ({ code: c.code, amount: c.amount })),
+              purchaserName: batchCards[0].purchaserName,
+              purchaserEmail: batchCards[0].purchaserEmail,
+              recipientName: batchCards[0].recipientName,
+              recipientEmail: batchCards[0].recipientEmail,
+              personalMessage: batchCards[0].message,
+              paymentMethod: batchCards[0].paymentMethod || "tbank",
+              paymentId: String(PaymentId),
+            });
+          }
           
           // Send email to purchaser with all cards
           if (batchCards.length > 0 && batchCards[0].purchaserEmail) {
@@ -4508,6 +4575,18 @@ ${faqSection}
                   logError(`[T-Bank Webhook] Failed to send gift card email:`, emailErr.message);
                 }
               }
+
+              // Карта была pending → оплата только что подтверждена: уведомляем владельца в VK
+              vkNotifyGiftCardSale({
+                cards: [{ code: giftCard.code, amount: giftCard.amount }],
+                purchaserName: giftCard.purchaserName,
+                purchaserEmail: giftCard.purchaserEmail,
+                recipientName: giftCard.recipientName,
+                recipientEmail: giftCard.recipientEmail,
+                personalMessage: giftCard.message,
+                paymentMethod: giftCard.paymentMethod || "tbank",
+                paymentId: String(PaymentId),
+              });
             } else {
               const incomingPaymentId = String(PaymentId);
               const orderBeforePayment = await storage.getOrder(numericId);
@@ -9849,14 +9928,26 @@ ${faqSection}
       // Recalculate subtotal with correct prices (items only, no delivery)
       const orderSubtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-      // Курьерская доставка СДЭК ("до двери") в порог бесплатной доставки НЕ входит — всегда платная.
       const isCourierDelivery = deliveryService === "cdek" && cdekDeliveryType === "door";
+
+      // Пороги бесплатной доставки (розница) — из админки: page_settings "checkout" -> checkout_data.
+      // ПВЗ / Ozon / самовывоз — от 5 000 ₽, курьер СДЭК «до двери» — только от 15 000 ₽.
+      const freeShippingThresholds = await getCheckoutFreeShippingThresholds();
+      const freeShippingThreshold = getFreeShippingThreshold(freeShippingThresholds, isCourierDelivery);
+      // Порог считается по сумме ТОВАРОВ (без доставки). Оптовые заказы в правило не входят.
+      const freeShippingOrder = qualifiesForFreeShipping({
+        subtotal: orderSubtotal,
+        thresholds: freeShippingThresholds,
+        isWholesale,
+        isCourierDelivery,
+      });
 
       // Verify delivery cost on the server side for non-wholesale orders.
       // Курьер + clientDeliveryCost === 0 (подмена запроса): сервер обязан посчитать тариф сам,
       // иначе заказ уйдёт с бесплатной курьерской доставкой. Не смогли посчитать — заказ НЕ создаём.
+      // Если заказ уже подпадает под бесплатную доставку — тариф не нужен, СДЭК не дёргаем.
       let verifiedDeliveryCost = 0;
-      const needsCourierServerCost = !isWholesale && isCourierDelivery && clientDeliveryCost <= 0;
+      const needsCourierServerCost = !isWholesale && isCourierDelivery && clientDeliveryCost <= 0 && !freeShippingOrder;
       if (needsCourierServerCost && !cdekCityCode) {
         logWarn(`[Order] Courier delivery rejected: client sent deliveryCost=0 and cdekCityCode is missing (email=${input.customerEmail}, sessionId=${input.sessionId})`);
         return res.status(400).json({
@@ -9970,12 +10061,10 @@ ${faqSection}
         }
       }
 
-      // Free shipping for retail orders >= 5000 RUB.
-      // Курьерская доставка СДЭК ("до двери") в порог НЕ входит — всегда платная.
-      const FREE_SHIPPING_THRESHOLD = 500000;
-      // isCourierDelivery объявлен выше — в блоке верификации стоимости доставки.
-      if (!isWholesale && !isCourierDelivery && orderSubtotal >= FREE_SHIPPING_THRESHOLD && verifiedDeliveryCost > 0) {
-        logInfo(`[Order] Free shipping applied: subtotal=${orderSubtotal/100} RUB >= ${FREE_SHIPPING_THRESHOLD/100} RUB threshold. Delivery cost zeroed (was ${verifiedDeliveryCost/100} RUB)`);
+      // Бесплатная доставка: пороги посчитаны выше (freeShippingOrder).
+      // Обнуляем стоимость, если она всё же успела посчитаться (например, устаревший клиент прислал тариф).
+      if (freeShippingOrder && verifiedDeliveryCost > 0) {
+        logInfo(`[Order] Free shipping applied (${isCourierDelivery ? "courier" : "pickup"}): subtotal=${orderSubtotal/100} RUB >= ${freeShippingThreshold/100} RUB threshold. Delivery cost zeroed (was ${verifiedDeliveryCost/100} RUB)`);
         verifiedDeliveryCost = 0;
       }
 

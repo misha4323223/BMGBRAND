@@ -558,7 +558,9 @@ async function seedDefaultLegalDocuments() {
         } catch (err) {
           logError("[Warmup] Failed to warm reviews cache:", err);
         }
-        const criticalPages = ["home", "navbar", "footer", "artist_pages", "seo", "static_pages", "product_feature_templates", "deleted_slugs", "site_config"];
+        // "checkout" — пороги бесплатной доставки читаются при создании заказа,
+        // кеш должен быть тёплым, иначе первый заказ после старта ждёт YDB.
+        const criticalPages = ["home", "navbar", "footer", "artist_pages", "seo", "static_pages", "product_feature_templates", "deleted_slugs", "site_config", "checkout"];
         for (const page of criticalPages) {
           try {
             await new Promise(resolve => setTimeout(resolve, 300));

@@ -64,7 +64,10 @@ export interface CheckoutSettings {
   selectPointHint: string;
   freeDeliveryText: string;
   showFreeDeliveryBanner: boolean;
+  /** Порог бесплатной доставки в ПВЗ / Ozon / самовывоз (копейки). */
   freeDeliveryThreshold: number;
+  /** Порог бесплатной КУРЬЕРСКОЙ доставки СДЭК (копейки). */
+  freeCourierDeliveryThreshold: number;
 
 }
 
@@ -114,7 +117,7 @@ export const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
     { text: "Сроки и стоимость доставки рассчитываются автоматически в зависимости от вашего региона.", visible: true },
     { text: "При доставке одежды через СДЭК доступна функция примерки. Если вещь не подошла — можно отказаться прямо на месте.", visible: true },
     { text: "Носки возврату и обмену не подлежат в соответствии с Постановлением Правительства РФ № 55.", visible: true },
-    { text: "При заказе от 5000 ₽ доставка бесплатная.", visible: true },
+    { text: "Доставка в пункт выдачи (ПВЗ) и Ozon — бесплатно при заказе от 5 000 ₽. Курьерская доставка — бесплатно от 15 000 ₽.", visible: true },
   ],
   wholesaleDeliveryInfoText: "Доставка товаров Покупателю осуществляется силами Транспортной компании (ТК). Поставщик осуществляет доставку до ТК за свой счет в течение 5 рабочих дней со дня оплаты Покупателем стоимости товаров в размере 100%.",
   promoCodeLabel: "Промокод",
@@ -136,5 +139,5 @@ export const DEFAULT_CHECKOUT_SETTINGS: CheckoutSettings = {
   freeDeliveryText: "При заказе от {threshold} доставка бесплатная",
   showFreeDeliveryBanner: true,
   freeDeliveryThreshold: 500000,
-
+  freeCourierDeliveryThreshold: 1500000,
 };

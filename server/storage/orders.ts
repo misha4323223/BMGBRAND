@@ -14,7 +14,7 @@ declare module "./core" {
   interface DatabaseStorage {
     getOrders(): Promise<Order[]>;
     getAllRetailPreorderOrders(): Promise<Order[]>;
-    getOrderAnalytics(): Promise<{ month: string; retailCount: number; wholesaleCount: number; retailRevenue: number; wholesaleRevenue: number }[]>;
+    getOrderAnalytics(): Promise<{ month: string; retailCount: number; wholesaleCount: number; retailRevenue: number; wholesaleRevenue: number; giftCardCount: number; giftCardRevenue: number }[]>;
     getArtistAnalytics(): Promise<{ artist: string; revenue: number; orders: number; items: number; ordersList: { orderId: number; date: string; customerName: string; items: { name: string; qty: number; price: number }[]; total: number }[] }[]>;
     getMonthlySalesReport(from?: string, to?: string, type?: 'retail' | 'wholesale' | 'all'): Promise<{ month: string; ownerKey: string; ownerLabel: string; revenue: number; qty: number; items: { productName: string; size: string; color: string; qty: number; price: number }[]; }[]>;
     getAllWholesaleOrdersIncludingDrafts(): Promise<Order[]>;
@@ -142,7 +142,7 @@ DatabaseStorage.prototype.getAllRetailPreorderOrders = async function (this: Dat
   }
 ;
 
-DatabaseStorage.prototype.getOrderAnalytics = async function (this: DatabaseStorage, ): Promise<{ month: string; retailCount: number; wholesaleCount: number; retailRevenue: number; wholesaleRevenue: number }[]> {
+DatabaseStorage.prototype.getOrderAnalytics = async function (this: DatabaseStorage, ): Promise<{ month: string; retailCount: number; wholesaleCount: number; retailRevenue: number; wholesaleRevenue: number; giftCardCount: number; giftCardRevenue: number }[]> {
     if (!driver) return [];
     const result = await this.safeQuery(async (session) => {
       const query = `
@@ -161,7 +161,14 @@ DatabaseStorage.prototype.getOrderAnalytics = async function (this: DatabaseStor
     });
     if (!result) return [];
 
-    const monthMap = new Map<string, { retailCount: number; wholesaleCount: number; retailRevenue: number; wholesaleRevenue: number }>();
+    const monthMap = new Map<string, { retailCount: number; wholesaleCount: number; retailRevenue: number; wholesaleRevenue: number; giftCardCount: number; giftCardRevenue: number }>();
+
+    const ensureMonth = (month: string) => {
+      if (!monthMap.has(month)) {
+        monthMap.set(month, { retailCount: 0, wholesaleCount: 0, retailRevenue: 0, wholesaleRevenue: 0, giftCardCount: 0, giftCardRevenue: 0 });
+      }
+      return monthMap.get(month)!;
+    };
 
     for (const row of result) {
       const total = Number(this.extractTypedValue(row.items![0])) || 0;
@@ -173,10 +180,7 @@ DatabaseStorage.prototype.getOrderAnalytics = async function (this: DatabaseStor
       if (isNaN(date.getTime())) continue;
       const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-      if (!monthMap.has(month)) {
-        monthMap.set(month, { retailCount: 0, wholesaleCount: 0, retailRevenue: 0, wholesaleRevenue: 0 });
-      }
-      const entry = monthMap.get(month)!;
+      const entry = ensureMonth(month);
       if (isWholesale) {
         entry.wholesaleCount++;
         entry.wholesaleRevenue += total;
@@ -184,6 +188,37 @@ DatabaseStorage.prototype.getOrderAnalytics = async function (this: DatabaseStor
         entry.retailCount++;
         entry.retailRevenue += total;
       }
+    }
+
+    // ── Подарочные сертификаты ────────────────────────────────────────────────
+    // Сертификаты живут в отдельной таблице gift_cards, поэтому в статистику
+    // заказов не попадали вовсе. Считаем только ОПЛАЧЕННЫЕ карты ('pending' —
+    // неоплаченная заявка), месяц — по дате покупки карты.
+    // ⚠️ В выручку заказов НЕ подмешиваем: сертификатом тоже оплачивают заказы,
+    // и единая сумма посчитала бы одни и те же деньги дважды. Отдельная строка.
+    const giftResult = await this.safeQuery(async (session) => {
+      const queryResult = await session.executeQuery(`
+        SELECT amount, created_at
+        FROM gift_cards
+        WHERE status IN ('active', 'used', 'expired')
+        ORDER BY created_at DESC
+        LIMIT 3000;
+      `);
+      return queryResult.resultSets[0]?.rows || [];
+    });
+
+    for (const row of giftResult || []) {
+      const amount = Number(this.extractTypedValue(row.items![0])) || 0;
+      const createdAt = this.extractTypedValue(row.items![1]);
+      if (!createdAt) continue;
+
+      const date = new Date(createdAt);
+      if (isNaN(date.getTime())) continue;
+      const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      const entry = ensureMonth(month);
+      entry.giftCardCount++;
+      entry.giftCardRevenue += amount;
     }
 
     return Array.from(monthMap.entries())

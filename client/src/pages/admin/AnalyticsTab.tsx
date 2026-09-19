@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, RefreshCw, Loader2, TrendingUp, ShoppingBag, Package, Banknote, Music2, ChevronDown, ChevronRight, FileSpreadsheet } from "lucide-react";
+import { BarChart3, RefreshCw, Loader2, TrendingUp, ShoppingBag, Package, Banknote, Music2, ChevronDown, ChevronRight, FileSpreadsheet, Gift } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +11,9 @@ type MonthStat = {
   wholesaleCount: number;
   retailRevenue: number;
   wholesaleRevenue: number;
+  // Подарочные сертификаты — отдельная метрика (см. пояснение в карточках ниже)
+  giftCardCount: number;
+  giftCardRevenue: number;
 };
 
 type ArtistOrderItem = { name: string; qty: number; price: number };
@@ -115,6 +118,8 @@ export function AnalyticsTab({ apiKey }: { apiKey: string }) {
   const totalWholesale = rows.reduce((s, m) => s + m.wholesaleCount, 0);
   const totalRetailRev = rows.reduce((s, m) => s + m.retailRevenue, 0);
   const totalWsRev     = rows.reduce((s, m) => s + m.wholesaleRevenue, 0);
+  const totalGiftCount = rows.reduce((s, m) => s + (m.giftCardCount || 0), 0);
+  const totalGiftRev   = rows.reduce((s, m) => s + (m.giftCardRevenue || 0), 0);
   const totalOrders    = totalRetail + totalWholesale;
   const totalRevenue   = totalRetailRev + totalWsRev;
 
@@ -228,14 +233,21 @@ export function AnalyticsTab({ apiKey }: { apiKey: string }) {
 
       {!isLoading && !isError && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             <StatCard icon={<ShoppingBag className="w-4 h-4 text-blue-400" />} label="Все заказы" value={String(totalOrders)} testId="analytics-total-count" />
             <StatCard icon={<Package className="w-4 h-4 text-blue-400" />} label="Розница" value={String(totalRetail)} testId="analytics-retail-count" />
             <StatCard icon={<Package className="w-4 h-4 text-amber-400" />} label="Опт" value={String(totalWholesale)} testId="analytics-wholesale-count" />
-            <StatCard icon={<Banknote className="w-4 h-4 text-green-400" />} label="Вся выручка" value={`${(totalRevenue / 100).toLocaleString("ru-RU")} ₽`} testId="analytics-total-revenue" />
+            <StatCard icon={<Banknote className="w-4 h-4 text-green-400" />} label="Выручка заказов" value={`${(totalRevenue / 100).toLocaleString("ru-RU")} ₽`} testId="analytics-total-revenue" />
             <StatCard icon={<TrendingUp className="w-4 h-4 text-blue-400" />} label="Выручка розница" value={`${(totalRetailRev / 100).toLocaleString("ru-RU")} ₽`} testId="analytics-retail-revenue" />
             <StatCard icon={<TrendingUp className="w-4 h-4 text-amber-400" />} label="Выручка опт" value={`${(totalWsRev / 100).toLocaleString("ru-RU")} ₽`} testId="analytics-wholesale-revenue" />
+            <StatCard icon={<Gift className="w-4 h-4 text-purple-400" />} label="Сертификаты (шт.)" value={String(totalGiftCount)} testId="analytics-giftcards-count" />
+            <StatCard icon={<Gift className="w-4 h-4 text-purple-400" />} label="Оплачено сертификатов" value={`${(totalGiftRev / 100).toLocaleString("ru-RU")} ₽`} testId="analytics-giftcards-revenue" />
           </div>
+
+          <p className="text-xs text-zinc-500">
+            Подарочные сертификаты показаны отдельной строкой и не входят в «Выручку заказов»: сертификатом
+            тоже оплачивают заказы, и общая сумма посчитала бы одни и те же деньги дважды.
+          </p>
 
           <div style={CHART_STYLE}>
             <p className="text-sm font-medium text-zinc-400 px-4 mb-3">Количество оплаченных заказов по месяцам</p>
@@ -251,6 +263,7 @@ export function AnalyticsTab({ apiKey }: { apiKey: string }) {
                   <Legend wrapperStyle={{ color: "#a1a1aa", fontSize: 12, paddingTop: 8 }} iconType="circle" iconSize={8} />
                   <Bar dataKey="retailCount" name="Розница" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
                   <Bar dataKey="wholesaleCount" name="Опт" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="giftCardCount" name="Сертификаты" fill="#a855f7" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -270,6 +283,7 @@ export function AnalyticsTab({ apiKey }: { apiKey: string }) {
                   <Legend wrapperStyle={{ color: "#a1a1aa", fontSize: 12, paddingTop: 8 }} iconType="circle" iconSize={8} />
                   <Bar dataKey="retailRevenue" name="Розница" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
                   <Bar dataKey="wholesaleRevenue" name="Опт" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="giftCardRevenue" name="Сертификаты" fill="#a855f7" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -408,7 +422,9 @@ export function AnalyticsTab({ apiKey }: { apiKey: string }) {
                       <th className="text-right text-xs text-zinc-500 font-medium py-2 px-3">Розница (шт.)</th>
                       <th className="text-right text-xs text-zinc-500 font-medium py-2 px-3">Опт (шт.)</th>
                       <th className="text-right text-xs text-zinc-500 font-medium py-2 px-3">Выручка розница</th>
-                      <th className="text-right text-xs text-zinc-500 font-medium py-2 px-4">Выручка опт</th>
+                      <th className="text-right text-xs text-zinc-500 font-medium py-2 px-3">Выручка опт</th>
+                      <th className="text-right text-xs text-zinc-500 font-medium py-2 px-3">Сертификаты (шт.)</th>
+                      <th className="text-right text-xs text-zinc-500 font-medium py-2 px-4">Оплачено сертификатов</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -422,7 +438,9 @@ export function AnalyticsTab({ apiKey }: { apiKey: string }) {
                         <td className="text-right text-zinc-200 py-2.5 px-3">{row.retailCount}</td>
                         <td className="text-right text-zinc-200 py-2.5 px-3">{row.wholesaleCount}</td>
                         <td className="text-right text-zinc-200 py-2.5 px-3">{(row.retailRevenue / 100).toLocaleString("ru-RU")} ₽</td>
-                        <td className="text-right text-zinc-200 py-2.5 px-4">{(row.wholesaleRevenue / 100).toLocaleString("ru-RU")} ₽</td>
+                        <td className="text-right text-zinc-200 py-2.5 px-3">{(row.wholesaleRevenue / 100).toLocaleString("ru-RU")} ₽</td>
+                        <td className="text-right text-zinc-200 py-2.5 px-3">{row.giftCardCount || 0}</td>
+                        <td className="text-right text-zinc-200 py-2.5 px-4">{((row.giftCardRevenue || 0) / 100).toLocaleString("ru-RU")} ₽</td>
                       </tr>
                     ))}
                   </tbody>

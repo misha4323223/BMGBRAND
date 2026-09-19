@@ -5381,7 +5381,7 @@ export default function Admin() {
                           ], visible: true },
                           promo_banner: { visible: true, title: "НОВАЯ КОЛЛЕКЦИЯ SS'26", subtitle: "Российский бренд одежды для тех, кто ценит стиль и качество", buttonText: "Смотреть", buttonLink: "/products", bgImage: "", bgColor: "black", textColor: "light", size: "medium", rounded: false, effect: "gradient-overlay", position: "after_categories" },
                           newsletter: { title: "Подпишитесь на рассылку", subtitle: "Получайте первыми информацию о новых дропах и эксклюзивных акциях.", buttonText: "Подписаться", successText: "Спасибо за подписку!", visible: true },
-                          marquee: { text: "Новая коллекция уже в продаже • Бесплатная доставка при заказе от 5000₽ •", visible: true },
+                          marquee: { text: "Новая коллекция уже в продаже • Доставка в ПВЗ бесплатно от 5000₽ • Курьером — от 15000₽ •", visible: true },
                           reels: { title: "Обзоры", items: [], visible: true },
                           editorialStrip: { title: "Избранное", subtitle: "Смотреть больше", items: [], visible: true },
                         };
@@ -6022,7 +6022,7 @@ export default function Admin() {
                               <Input
                                 value={sectionSettings.text || ""}
                                 onChange={(e) => setSectionSettings({...sectionSettings, text: e.target.value})}
-                                placeholder="Новая коллекция уже в продаже • Бесплатная доставка при заказе от 5000₽ •"
+                                placeholder="Новая коллекция уже в продаже • Доставка в ПВЗ бесплатно от 5000₽ • Курьером — от 15000₽ •"
                               />
                             </div>
                             <div className="flex items-center gap-2">

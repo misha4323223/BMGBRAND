@@ -1518,7 +1518,7 @@ export default function Home() {
         case "marquee":
           return isSectionVisible("marquee") ? (
             <div key="section-marquee">
-              <MarqueeSection text={pageSettings?.marquee?.text || "Новая коллекция уже в продаже • Бесплатная доставка при заказе от 5000₽ •"} />
+              <MarqueeSection text={pageSettings?.marquee?.text || "Новая коллекция уже в продаже • Доставка в ПВЗ бесплатно от 5000₽ • Курьером — от 15000₽ •"} />
             </div>
           ) : null;
 

@@ -2628,7 +2628,7 @@ export default function ProductDetail() {
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
                   <div className="max-h-[220px] overflow-y-auto pr-1 space-y-3 text-sm text-foreground/80">
-                    <p><span className="text-foreground font-medium">Доставка:</span> {(product as any).delivery || "По всей России от 2-х дней. Бесплатно при заказе от 5000 ₽"}</p>
+                    <p><span className="text-foreground font-medium">Доставка:</span> {(product as any).delivery || "По всей России от 2-х дней. В ПВЗ бесплатно от 5 000 ₽, курьером — от 15 000 ₽"}</p>
                     <p><span className="text-foreground font-medium">Возврат:</span> {(product as any).returnPolicy || "14 дней на возврат товара надлежащего качества"}</p>
                   </div>
                 </AccordionContent>

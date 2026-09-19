@@ -624,7 +624,7 @@ export interface IStorage {
   removeFromCart(id: number, sessionId?: string, productId?: number, size?: string, color?: string): Promise<void>;
   clearCart(sessionId: string): Promise<void>;
   getOrders(): Promise<Order[]>;
-  getOrderAnalytics(): Promise<{ month: string; retailCount: number; wholesaleCount: number; retailRevenue: number; wholesaleRevenue: number }[]>;
+  getOrderAnalytics(): Promise<{ month: string; retailCount: number; wholesaleCount: number; retailRevenue: number; wholesaleRevenue: number; giftCardCount: number; giftCardRevenue: number }[]>;
   getArtistAnalytics(): Promise<{ artist: string; revenue: number; orders: number; items: number; ordersList: { orderId: number; date: string; customerName: string; items: { name: string; qty: number; price: number }[]; total: number }[] }[]>;
   getMonthlySalesReport(from?: string, to?: string, type?: 'retail' | 'wholesale' | 'all'): Promise<{ month: string; ownerKey: string; ownerLabel: string; revenue: number; qty: number; items: { productName: string; size: string; color: string; qty: number; price: number }[] }[]>;
   getUnsyncedOrdersFor1C(): Promise<Order[]>;

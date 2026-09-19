@@ -531,6 +531,51 @@ export function vkNotifyPartnerFeedback(data: {
   sendVkMessage(text).catch(err => logError("[VK] vkNotifyPartnerFeedback failed:", err));
 }
 
+/**
+ * Продажа подарочного сертификата: владельцу приходит уведомление в VK-чат
+ * (Telegram — по просьбе владельца НЕ дублируем).
+ *
+ * Вызывать ТОЛЬКО для реально оплаченных карт (переход pending → active),
+ * чтобы повторный вебхук платежа не отправил уведомление второй раз.
+ */
+export function vkNotifyGiftCardSale(data: {
+  cards: { code: string; amount: number }[];
+  purchaserName?: string | null;
+  purchaserEmail?: string | null;
+  recipientName?: string | null;
+  recipientEmail?: string | null;
+  personalMessage?: string | null;
+  paymentMethod?: string | null;
+  paymentId?: string | null;
+}): void {
+  const cards = (data.cards || []).filter((c) => c && c.code);
+  if (cards.length === 0) return;
+
+  const total = cards.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  const methodLabels: Record<string, string> = {
+    yookassa: "ЮKassa",
+    tbank: "Т-Банк",
+    tinkoff: "Т-Банк",
+    card: "Карта",
+  };
+  const method = data.paymentMethod
+    ? (methodLabels[String(data.paymentMethod).toLowerCase()] || data.paymentMethod)
+    : "оплата подтверждена";
+
+  let text = cards.length > 1
+    ? `🎁 Куплены подарочные сертификаты (${cards.length} шт.)`
+    : "🎁 Куплен подарочный сертификат";
+  text += `\n\n💰 ${price(total)}  •  ${method}`;
+  text += `\n${cards.length > 1 ? "Коды" : "Код"}: ${cards.map((c) => c.code).join(", ")}`;
+  text += `\n👤 ${data.purchaserName || "—"}`;
+  if (data.purchaserEmail) text += `\n✉️ ${data.purchaserEmail}`;
+  if (data.recipientEmail) text += `\n🎯 Получатель: ${data.recipientName || "—"} (${data.recipientEmail})`;
+  if (data.personalMessage) text += `\n💬 ${data.personalMessage}`;
+  text += `\n\n🗂 Сертификаты: ${SITE_URL}/admin → Бонусы → Сертификаты`;
+
+  sendVkMessage(text).catch(err => logError("[VK] vkNotifyGiftCardSale failed:", err));
+}
+
 // ============================================
 // VK CHAT (live chat notifications + Long Poll replies)
 // ============================================

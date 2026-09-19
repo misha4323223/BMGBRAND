@@ -17,6 +17,7 @@ import { useLocation } from "wouter";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { type CheckoutSettings, DEFAULT_CHECKOUT_SETTINGS } from "@/components/checkout-settings";
+import { getFreeShippingThreshold, qualifiesForFreeShipping, resolveFreeShippingThresholds } from "@shared/free-shipping";
 import { Loader2, CheckCircle2, MapPin, Truck, Search, Package, Tag, Percent, CreditCard, Landmark, Building2, Info, Gift, Plus, Minus, Trash2, Clock, ShieldCheck, AlertCircle, Store } from "lucide-react";
 import { BrandLoader } from "@/components/BrandLoader";
 import { TransportCompanyCards } from "@/components/TransportCompanyCards";
@@ -818,11 +819,18 @@ export default function Checkout() {
   const cheapestTariff = pvzTariffs.length ? pvzTariffs.reduce((min, t) => t.delivery_sum < min.delivery_sum ? t : min, pvzTariffs[0]) : null;
   const cheapestDoorTariff = doorTariffs.length ? doorTariffs.reduce((min, t) => t.delivery_sum < min.delivery_sum ? t : min, doorTariffs[0]) : null;
 
-  const FREE_SHIPPING_THRESHOLD = 500000;
-  // Курьерская доставка СДЭК ("до двери") в порог бесплатной доставки НЕ входит:
-  // бесплатно от 5000 ₽ — только ПВЗ / Ozon / самовывоз, курьер всегда по тарифу.
+  // Пороги из настроек чекаута (админка). Логика общая с сервером — @shared/free-shipping.
+  const freeShippingThresholds = resolveFreeShippingThresholds(cs);
+  const FREE_COURIER_THRESHOLD = freeShippingThresholds.courier;
   const isCourierDelivery = !isWholesale && deliveryService === "cdek" && deliveryType === "door";
-  const isFreeShipping = !isWholesale && !isCourierDelivery && subtotal >= FREE_SHIPPING_THRESHOLD;
+  // ПВЗ / Ozon / самовывоз — от 5 000 ₽, курьер СДЭК «до двери» — только от 15 000 ₽.
+  const freeShippingThreshold = getFreeShippingThreshold(freeShippingThresholds, isCourierDelivery);
+  const isFreeShipping = qualifiesForFreeShipping({
+    subtotal,
+    thresholds: freeShippingThresholds,
+    isWholesale,
+    isCourierDelivery,
+  });
 
   const cdekDeliveryCost = !isWholesale 
     ? (deliveryType === "door" 
@@ -1105,27 +1113,27 @@ export default function Checkout() {
               {!isWholesale && isFreeShipping && (
                 <div className="mb-4 px-4 py-3 bg-foreground text-background rounded-xl flex items-center justify-between">
                   <p className="text-sm font-semibold tracking-wide uppercase">Бесплатная доставка</p>
-                  <p className="text-xs opacity-60">от 5 000 ₽</p>
+                  <p className="text-xs opacity-60">от {formatPrice(freeShippingThreshold)}</p>
                 </div>
               )}
-              {isCourierDelivery && (
+              {isCourierDelivery && !isFreeShipping && (
                 <div className="mb-4 p-4 border border-border rounded-xl flex items-start gap-2.5">
                   <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-muted-foreground">
-                    Курьерская доставка не входит в бесплатную доставку от 5 000 ₽ — оплачивается по тарифу СДЭК.
+                    Курьерская доставка бесплатна при заказе от {formatPrice(FREE_COURIER_THRESHOLD)}. До этой суммы оплачивается по тарифу СДЭК.
                   </p>
                 </div>
               )}
-              {!isWholesale && !isFreeShipping && !isCourierDelivery && subtotal > 0 && (
+              {!isWholesale && !isFreeShipping && subtotal > 0 && (
                 <div className="mb-4 p-4 border border-border rounded-xl">
                   <div className="flex justify-between items-center mb-2">
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">До бесплатной доставки</p>
-                    <p className="text-xs font-semibold text-foreground">{formatPrice(FREE_SHIPPING_THRESHOLD - subtotal)}</p>
+                    <p className="text-xs font-semibold text-foreground">{formatPrice(freeShippingThreshold - subtotal)}</p>
                   </div>
                   <div className="h-1 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-foreground rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (subtotal / freeShippingThreshold) * 100)}%` }}
                     />
                   </div>
                 </div>

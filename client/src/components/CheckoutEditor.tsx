@@ -229,7 +229,7 @@ export function CheckoutEditor({ apiKey }: CheckoutEditorProps) {
               </div>
               {renderField("Текст (используйте {threshold} для суммы)", "freeDeliveryText")}
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Порог бесплатной доставки (в копейках)</Label>
+                <Label className="text-xs text-muted-foreground">Порог бесплатной доставки — ПВЗ / Ozon / самовывоз (в копейках)</Label>
                 <Input
                   type="number"
                   value={settings.freeDeliveryThreshold}
@@ -237,6 +237,18 @@ export function CheckoutEditor({ apiKey }: CheckoutEditorProps) {
                   data-testid="input-checkout-freeDeliveryThreshold"
                 />
                 <p className="text-xs text-muted-foreground">= {(settings.freeDeliveryThreshold / 100).toLocaleString("ru-RU")} руб.</p>
+              </div>
+              <div className="space-y-1 mt-3">
+                <Label className="text-xs text-muted-foreground">Порог бесплатной доставки — курьер СДЭК (в копейках)</Label>
+                <Input
+                  type="number"
+                  value={settings.freeCourierDeliveryThreshold}
+                  onChange={(e) => update("freeCourierDeliveryThreshold", Number(e.target.value))}
+                  data-testid="input-checkout-freeCourierDeliveryThreshold"
+                />
+                <p className="text-xs text-muted-foreground">
+                  = {((settings.freeCourierDeliveryThreshold ?? 0) / 100).toLocaleString("ru-RU")} руб. Курьерская доставка «до двери» — до этого порога оплачивается по тарифу СДЭК. Оптовые и предзаказы не входят в правило.
+                </p>
               </div>
             </div>
             <div className="border-t pt-4">
