@@ -12,7 +12,12 @@ function authorized(req: any, getAdminKey: () => string | undefined): boolean {
 async function metrikaRequest(path: string, token: string, params: Record<string, string>) {
   const url = new URL(`${API_BASE}${path}`);
   Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
-  const response = await fetch(url, { headers: { Authorization: `OAuth ${token}` } });
+  // Таймаут обязателен: очередь ниже последовательная, зависший fetch заблокировал
+  // бы и все следующие запросы.
+  const response = await fetch(url, {
+    headers: { Authorization: `OAuth ${token}` },
+    signal: AbortSignal.timeout(METRIKA_TIMEOUT_MS),
+  });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = typeof body?.message === "string" ? body.message : `HTTP ${response.status}`;
@@ -21,19 +26,36 @@ async function metrikaRequest(path: string, token: string, params: Record<string
   return body;
 }
 
-const METRIKA_DELAY_MS = 300;
+const METRIKA_DELAY_MS = 200;
+const METRIKA_TIMEOUT_MS = 15_000;
 const GOALS_CACHE_TTL_MS = 60_000;
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// goals-stats делает подряд несколько запросов к Метрике. Чтобы не превышать
-// квоту на токен (общую для всех инструментов владельца), перед каждым
-// обращением держим паузу и кэшируем готовый результат на 60 с.
-async function pacedMetrikaRequest(path: string, token: string, params: Record<string, string>) {
-  await sleep(METRIKA_DELAY_MS);
-  return metrikaRequest(path, token, params);
+// Метрика считает квоту ПАРАЛЛЕЛЬНЫХ запросов на пользователя-токен: когда панель
+// открывается, клиент шлёт 8 отчётов сразу, и часть из них падала с 502
+// «Превышена квота на количество параллельных запросов». Поэтому все обращения
+// к API Метрики проходят через одну очередь — строго по одному, с паузой между
+// запросами (она же защищает goals-stats, который делает несколько запросов).
+let metrikaQueue: Promise<unknown> = Promise.resolve();
+
+function enqueueMetrika<T>(task: () => Promise<T>): Promise<T> {
+  const run = metrikaQueue.then(async () => {
+    await sleep(METRIKA_DELAY_MS);
+    return task();
+  });
+  // Ошибка одного запроса не должна рвать очередь для остальных.
+  metrikaQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+function pacedMetrikaRequest(path: string, token: string, params: Record<string, string>) {
+  return enqueueMetrika(() => metrikaRequest(path, token, params));
 }
 
 let goalsCache: { key: string; at: number; output: { ok: true; goals: { id: number; name: string; reaches: number }[] } } | null = null;
@@ -73,7 +95,7 @@ export function registerYandexMetrikaRoutes(
     try {
       const body = fetchFn
         ? await fetchFn(token, { ...params, ids: COUNTER_ID, lang: "ru" })
-        : await metrikaRequest(path, token, { ...params, ids: COUNTER_ID, lang: "ru" });
+        : await enqueueMetrika(() => metrikaRequest(path, token, { ...params, ids: COUNTER_ID, lang: "ru" }));
       return res.json(transform ? transform(body) : body);
     } catch (error: any) {
       logError("[Yandex Metrika] API error:", error?.message || error);
@@ -86,7 +108,7 @@ export function registerYandexMetrikaRoutes(
     const token = process.env.YANDEX_METRIKA_OAUTH_TOKEN?.trim();
     if (!token) return res.json({ configured: false, counterId: COUNTER_ID });
     try {
-      await metrikaRequest(`/management/v1/counter/${COUNTER_ID}`, token, {});
+      await enqueueMetrika(() => metrikaRequest(`/management/v1/counter/${COUNTER_ID}`, token, {}));
       return res.json({ configured: true, counterId: COUNTER_ID });
     } catch (error: any) {
       return res.status(502).json({ configured: true, counterId: COUNTER_ID, error: error?.message || "Access check failed" });

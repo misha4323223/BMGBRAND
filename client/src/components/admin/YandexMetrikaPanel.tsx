@@ -91,6 +91,22 @@ export function YandexMetrikaPanel({ apiKey }: Props) {
     staleTime: 60_000,
   });
 
+  // ВАЖНО: все хуки обязаны вызываться до ранних return — иначе React падает с
+  // "Rendered more hooks than during the previous render" после загрузки status.
+  const dailyRows = useMemo(
+    () => [...(daily.data?.data ?? [])].sort((a, b) => String(a.dimensions?.[0]?.name).localeCompare(String(b.dimensions?.[0]?.name))),
+    [daily.data],
+  );
+
+  const productDateRows = useMemo(() => {
+    const filter = productFilter.trim().toLowerCase();
+    const rows = productDates.data?.data ?? [];
+    const filtered = filter
+      ? rows.filter((r) => String(r.dimensions?.[0]?.name || "").toLowerCase().includes(filter))
+      : rows;
+    return showAllDates ? filtered : filtered.slice(0, 60);
+  }, [productDates.data, productFilter, showAllDates]);
+
   if (status.isLoading) return <Loading />;
   if (status.isError) return <Message text="Не удалось проверить подключение к Яндекс.Метрике." error />;
   if (!configured) return <Message text="Добавьте серверный секрет YANDEX_METRIKA_OAUTH_TOKEN, чтобы включить отчёты." />;
@@ -110,20 +126,6 @@ export function YandexMetrikaPanel({ apiKey }: Props) {
     (row.metrics ?? []).forEach((value, index) => { acc[index] = (acc[index] || 0) + Number(value || 0); });
     return acc;
   }, [] as number[]);
-
-  const dailyRows = useMemo(
-    () => [...(daily.data?.data ?? [])].sort((a, b) => String(a.dimensions?.[0]?.name).localeCompare(String(b.dimensions?.[0]?.name))),
-    [daily.data],
-  );
-
-  const productDateRows = useMemo(() => {
-    const filter = productFilter.trim().toLowerCase();
-    const rows = productDates.data?.data ?? [];
-    const filtered = filter
-      ? rows.filter((r) => String(r.dimensions?.[0]?.name || "").toLowerCase().includes(filter))
-      : rows;
-    return showAllDates ? filtered : filtered.slice(0, 60);
-  }, [productDates.data, productFilter, showAllDates]);
 
   return (
     <div className="p-4 space-y-5 bg-zinc-950 min-h-full text-white">
