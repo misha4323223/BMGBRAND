@@ -523,14 +523,17 @@ export default function ProductDetail() {
       ? (colorVariants?.find(v => v.id === product.id)?.color || "")
       : (selectedColor || "");
     pushEcommerce("detail", [{
-      id: product.sku || product.id,
+      id: product.id,
       name: product.name,
       priceCents: product.price,
       category: makeCategoryFromSlugs(product.category, (product as any).subcategory),
       variant: makeVariant(selectedSize, detailColor || product.color),
     }]);
-    // VK Реклама: просмотр карточки товара (view_content)
-    vkReachGoal("view_content", Math.round(product.price / 100));
+    // VK Реклама: просмотр карточки товара (view_content).
+    // product_id = числовой productId (как в pushEcommerce и <offer id> в фидах).
+    vkReachGoal("view_content", Math.round(product.price / 100), {
+      product_id: String(product.id),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
   
@@ -763,7 +766,7 @@ export default function ProductDetail() {
       size: selectedSize || "One Size",
       color: cartColor,
       ecommerce: {
-        id: product.sku || product.id,
+        id: product.id,
         name: product.name,
         priceCents: product.price,
         category: makeCategoryFromSlugs(product.category, (product as any).subcategory),

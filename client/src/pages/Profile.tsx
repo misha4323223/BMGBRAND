@@ -561,7 +561,7 @@ export default function Profile() {
               size: item.size || "One Size",
               color: item.color || "Default",
               ecommerce: {
-                id: item.sku || item.productId,
+                id: item.productId,
                 name: item.productName || item.name || String(item.productId),
                 priceCents: item.price,
                 variant: makeVariant(item.size, item.color),

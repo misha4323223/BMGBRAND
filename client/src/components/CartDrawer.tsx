@@ -268,7 +268,7 @@ function CartDrawer() {
                                   color: item.color,
                                   productName: item.product?.name,
                                   ecommerce: {
-                                    id: item.product?.sku || item.productId,
+                                    id: item.productId,
                                     name: item.product?.name || "",
                                     priceCents: item.product?.price || 0,
                                     variant: makeVariant(item.size, item.color),
@@ -301,7 +301,7 @@ function CartDrawer() {
                                       color: item.color,
                                       productName: item.product?.name,
                                       ecommerce: {
-                                        id: item.product?.sku || item.productId,
+                                        id: item.productId,
                                         name: item.product?.name || "",
                                         priceCents: item.product?.price || 0,
                                         variant: makeVariant(item.size, item.color),

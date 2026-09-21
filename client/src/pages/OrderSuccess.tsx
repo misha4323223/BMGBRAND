@@ -68,10 +68,13 @@ export default function OrderSuccess() {
             })));
             // VK Реклама: покупка (purchase) — только после подтверждённой оплаты,
             // стоимость заказа в рублях, один раз на заказ (дедуп в localStorage).
+            // product_id — ID всех товаров заказа (как в pushEcommercePurchase; должны
+            // совпадать с ID товаров в фиде VK) для товарной аналитики и ретаргетинга.
             const vkTotalRub = items.reduce(
               (s: number, it: any) => s + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0
             ) / 100;
-            vkReachGoalPurchase(orderId, vkTotalRub);
+            const vkProductIds = items.map((it: any) => it.id).filter((id: any) => id != null && String(id).length > 0);
+            vkReachGoalPurchase(orderId, vkTotalRub, vkProductIds);
           }
           // Метрика на success-page нужна сразу (после возврата с платёжки), плюс цель
           // успешной оплаты отдельно от purchase для воронки. Идемпотентно.

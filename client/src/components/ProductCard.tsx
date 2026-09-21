@@ -285,7 +285,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
       size: autoSize,
       color: selectedColor || undefined,
       ecommerce: {
-        id: activeProduct.sku || activeProduct.id,
+        id: activeProduct.id,
         name: activeProduct.name,
         priceCents: activeProduct.price,
         category: makeCategoryFromSlugs(activeProduct.category, (activeProduct as any).subcategory),
@@ -311,7 +311,7 @@ function ProductCardInner({ product, priority = false, isJDM = false, isMinta = 
       quantity: qty,
       size: singleSockSize,
       ecommerce: {
-        id: product.sku || product.id,
+        id: product.id,
         name: product.name,
         priceCents: product.price,
         category: makeCategoryFromSlugs(product.category, (product as any).subcategory),

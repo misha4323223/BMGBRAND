@@ -55,10 +55,11 @@ export function useAddToCart() {
     onSuccess: (result: any, variables: AddToCartInput) => {
       if (variables.ecommerce) {
         pushEcommerce("add", [{ ...variables.ecommerce, quantity: variables.quantity }]);
-        // VK Реклама: добавление в корзину (add_to_cart) — по фактическому действию
+        // VK Реклама: добавление в корзину (add_to_cart) — по фактическому действию.
+        // product_id (как в pushEcommerce) должен совпадать с ID товара в фиде VK.
         const itemValue =
           (Number(variables.ecommerce.priceCents) || 0) * (Number(variables.quantity) || 1) / 100;
-        vkReachGoal("add_to_cart", itemValue);
+        vkReachGoal("add_to_cart", itemValue, { product_id: String(variables.ecommerce.id) });
       }
       queryClient.invalidateQueries({ queryKey: [api.cart.list.path] });
       openDrawer();

@@ -11,7 +11,11 @@
 import { CATEGORIES } from "@shared/schema";
 
 export interface EcommerceProductInput {
-  /** Стабильный ID/SKU товара (должен совпадать на просмотре, в корзине и покупке) */
+  /**
+   * Стабильный числовой ID товара (productId). Должен совпадать на просмотре,
+   * в корзине и покупке, а также с <offer id> в фидах сайта
+   * (/yml-feed.xml, /ozon-feed.xml) — иначе покупки не свяжутся с товарами.
+   */
   id: string | number;
   name: string;
   /** Цена в копейках (как в БД) */
@@ -205,30 +209,58 @@ export function reachGoal(goalId: string, params?: Record<string, unknown>): voi
  *   view_content / add_to_cart / initiate_checkout / purchase.
  * Названия целей (goal) должны совпадать с событиями, созданными в кабинете
  * VK Рекламы (Сайты → Настройка → События, условие «JS событие»).
+ *
+ * Для товарных событий передаётся params.product_id — строка или массив строк
+ * (для заказа из нескольких товаров). ID должны совпадать с ID товаров в фиде VK.
  */
 export const VK_ADS_PIXEL_ID = 3791024;
 
 const VK_PURCHASE_KEY = "bmg_vk_purchase_ids";
 
 /**
- * Отправка события (цели) в пиксель VK Рекламы:
- * _tmr.push({ type: "reachGoal", id, goal, value }).
- * value — денежная ценность события в рублях (для purchase — стоимость заказа).
+ * Приводит список ID товаров к формату VK: одна строка при одном товаре,
+ * массив строк — при нескольких. Пустые значения отбрасываются.
+ * Возвращает undefined, если товаров нет (тогда params не отправляем).
  */
-export function vkReachGoal(goal: string, value?: number): void {
+function toVkProductParam(ids?: Array<string | number>): string | string[] | undefined {
+  const clean = (ids ?? []).map((id) => String(id).trim()).filter((id) => id.length > 0);
+  if (!clean.length) return undefined;
+  return clean.length === 1 ? clean[0] : clean;
+}
+
+/**
+ * Отправка события (цели) в пиксель VK Рекламы:
+ * _tmr.push({ type: "reachGoal", id, goal, value, params }).
+ * value — денежная ценность события в рублях (для purchase — стоимость заказа).
+ * params — дополнительные параметры события (для товарных целей — product_id),
+ * используются VK для товарной аналитики и динамического ретаргетинга.
+ */
+export function vkReachGoal(
+  goal: string,
+  value?: number,
+  params?: Record<string, unknown>,
+): void {
   if (typeof window === "undefined") return;
   const win = window as any;
   const tmr = win._tmr || (win._tmr = []);
   const hit: Record<string, unknown> = { type: "reachGoal", id: VK_ADS_PIXEL_ID, goal };
   if (value != null && Number.isFinite(value)) hit.value = Math.round(value);
+  if (params && Object.keys(params).length > 0) hit.params = params;
   tmr.push(hit);
 }
 
 /**
  * Покупка — ТОЛЬКО после подтверждённой оплаты, один раз на заказ
  * (собственный localStorage-дедуп, как у Метрики).
+ *
+ * productIds — ID всех товаров заказа (должны совпадать с ID в фиде VK);
+ * передаются в params.product_id (строка или массив строк).
  */
-export function vkReachGoalPurchase(orderId: string | number, value?: number): void {
+export function vkReachGoalPurchase(
+  orderId: string | number,
+  value?: number,
+  productIds?: Array<string | number>,
+): void {
   if (typeof window === "undefined") return;
   try {
     const raw = window.localStorage.getItem(VK_PURCHASE_KEY);
@@ -239,5 +271,6 @@ export function vkReachGoalPurchase(orderId: string | number, value?: number): v
   } catch {
     /* ignore */
   }
-  vkReachGoal("purchase", value);
+  const productId = toVkProductParam(productIds);
+  vkReachGoal("purchase", value, productId ? { product_id: productId } : undefined);
 }

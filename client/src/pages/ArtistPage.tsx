@@ -445,7 +445,7 @@ function ArtistProductCard({ product, priority = false, theme }: ArtistProductCa
         quantity: 1,
         size: size || undefined,
         ecommerce: {
-          id: product.sku || product.id,
+          id: product.id,
           name: product.name,
           priceCents: product.price,
           category: makeCategoryFromSlugs(product.category, (product as any).subcategory),

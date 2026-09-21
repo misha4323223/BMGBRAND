@@ -1936,7 +1936,7 @@ export default function Checkout() {
                             size: item.size,
                             color: item.color,
                             ecommerce: {
-                              id: item.product?.sku || item.productId,
+                              id: item.productId,
                               name: item.product?.name || "",
                               priceCents: item.product?.price || 0,
                               variant: makeVariant(item.size, item.color),

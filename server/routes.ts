@@ -138,7 +138,10 @@ function orderItemsToEcommerceItems(order: any): Record<string, unknown>[] {
     .filter((i: any) => !!i && !i._discountDetails && !!(i.sku || i.productId || i.id))
     .map((i: any) => {
     const out: Record<string, unknown> = {
-      id: String(i.sku || i.productId || (i.id ?? "")),
+      // Числовой productId — совпадает с <offer id> в /yml-feed.xml и /ozon-feed.xml
+      // (нужно для сверки покупок с товарами в аналитике и фидах).
+      // sku — только крайний фолбэк для позиций без productId.
+      id: String(i.productId || i.id || i.sku || ""),
       name: i.productName || i.name || `Товар #${i.productId ?? ""}`,
       price: Math.round(Number(i.price) || 0),
       quantity: Number(i.quantity) || 1,
