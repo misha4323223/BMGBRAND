@@ -44,6 +44,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePreorderCart } from "@/context/PreorderCartContext";
 import { usePreorderCartDrawer } from "@/components/PreorderCartDrawer";
 import { CATEGORIES, buildCategoryIndex, resolveProductCategoryPaths, sortProductCategoryPaths, transliterateToSlug, type CategorySlug, type SizeMeasurement } from "@shared/schema";
+import { buildProductJsonLd } from "@shared/product-jsonld";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFavoriteStatus, useFavoriteActions } from "@/hooks/use-favorites";
@@ -966,109 +967,6 @@ export default function ProductDetail() {
     "sameAs": ["https://vk.com/bmgbrand", "https://t.me/bmg_booomerangs"],
     "address": { "@type": "PostalAddress", "addressLocality": "Тула", "addressCountry": "RU" },
   };
-  const merchantReturnPolicy = {
-    "@type": "MerchantReturnPolicy",
-    "applicableCountry": "RU",
-    "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
-    "merchantReturnDays": 14,
-    "returnMethod": "https://schema.org/ReturnByMail",
-    "returnFees": "https://schema.org/ReturnFeesCustomerResponsibility",
-  };
-  const shippingDetails = {
-    "@type": "OfferShippingDetails",
-    "shippingRate": { "@type": "MonetaryAmount", "currency": "RUB", "minValue": "0", "maxValue": "600" },
-    "shippingDestination": { "@type": "DefinedRegion", "addressCountry": "RU" },
-    "deliveryTime": {
-      "@type": "ShippingDeliveryTime",
-      "handlingTime": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 2, "unitCode": "DAY" },
-      "transitTime": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 10, "unitCode": "DAY" },
-    },
-  };
-
-  // ─── Admin JSON-LD override (Variant B) ─────────────────────────────────────
-  // If admin set seoJsonLd with @type Product → its fields merge ON TOP of the
-  // auto-generated schema below (admin wins; placeholder/empty URLs are skipped).
-  // Non-Product types (FAQPage, VideoObject, etc.) are collected as extra schemas.
-  // Result: always exactly ONE Product schema per page.
-  const isPlaceholderJsonLdValue = (v: any): boolean =>
-    typeof v === "string" && (v.includes("/placeholder") || v.includes("example.com") || v.trim() === "");
-
-  const adminSeoJsonLd = (() => {
-    const raw = (product as any).seoJsonLd;
-    if (!raw) return null;
-    try { return JSON.parse(raw); } catch { return null; }
-  })();
-
-  const extractAdminProduct = (obj: any): Record<string, any> | null => {
-    if (!obj) return null;
-    if (Array.isArray(obj)) { for (const x of obj) { const f = extractAdminProduct(x); if (f) return f; } return null; }
-    const t = obj["@type"];
-    return (t === "Product" || t === "ProductGroup") ? obj : null;
-  };
-  const adminProductOverride = extractAdminProduct(adminSeoJsonLd);
-
-  const adminExtraSchemas: any[] = adminSeoJsonLd
-    ? (Array.isArray(adminSeoJsonLd)
-        ? adminSeoJsonLd.filter((x: any) => x && x["@type"] !== "Product" && x["@type"] !== "ProductGroup")
-        : (adminSeoJsonLd["@type"] !== "Product" && adminSeoJsonLd["@type"] !== "ProductGroup"
-            ? [adminSeoJsonLd] : []))
-    : [];
-
-  // Auto-generated Product schema — complete, built from live product data
-  const baseProduct: Record<string, any> = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    "name": product.name,
-    "description": product.description || `${product.name} — купить в BMGBRAND`,
-    "image": allProductImages.length > 0 ? allProductImages : [productImage],
-    "url": productUrl,
-    "sku": (product as any).article || product.sku || product.id,
-    "brand": { "@id": organizationSchema["@id"] },
-    "offers": {
-      "@type": "Offer",
-      "priceCurrency": "RUB",
-      "price": (product.price / 100).toFixed(2),
-      "priceValidUntil": new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split("T")[0],
-      "availability": (product as any).preorderEnabled
-        ? "https://schema.org/PreOrder"
-        : (product.stock ?? 0) > 0
-          ? "https://schema.org/InStock"
-          : "https://schema.org/OutOfStock",
-      "itemCondition": "https://schema.org/NewCondition",
-      "url": productUrl,
-      "seller": { "@id": organizationSchema["@id"] },
-      "hasMerchantReturnPolicy": merchantReturnPolicy,
-      "shippingDetails": shippingDetails,
-    },
-    ...(product.category ? { "category": product.category } : {}),
-    ...((product.colors?.length > 0 || selectedColorName) ? { "color": product.colors?.length > 0 ? product.colors.join(", ") : selectedColorName } : {}),
-    ...((product.sizes?.length > 0 || currentSizeRange) ? { "size": product.sizes?.length > 0 ? product.sizes.join(", ") : currentSizeRange } : {}),
-    ...(reviewCount > 0 ? {
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": avgRating,
-        "reviewCount": reviewCount,
-        "bestRating": 5,
-        "worstRating": 1,
-      },
-      "review": productReviews.slice(0, 5).map(r => ({
-        "@type": "Review",
-        "author": { "@type": "Person", "name": r.authorName },
-        "reviewRating": { "@type": "Rating", "ratingValue": r.rating, "bestRating": 5 },
-        ...(r.comment ? { "reviewBody": r.comment } : {}),
-        ...(r.createdAt ? { "datePublished": r.createdAt.split("T")[0] } : {}),
-      })),
-    } : {}),
-  };
-
-  // If admin has a Product override → merge its fields on top (admin wins, skip placeholders)
-  if (adminProductOverride) {
-    for (const [key, val] of Object.entries(adminProductOverride)) {
-      if (key === "@context" || key === "@type") continue;
-      if (isPlaceholderJsonLdValue(val)) continue;
-      baseProduct[key] = val;
-    }
-  }
 
   // Полные пути товара (категория → подкатегория → под-подкатегория),
   // включая дополнительные категории. Резолвер тот же, что в sitemap/SSR.
@@ -1083,6 +981,55 @@ export default function ProductDetail() {
     buildCategoryIndex(CATEGORIES),
   ));
   const primaryPath = catPaths[0] || null;
+
+  // Единый генератор JSON-LD (shared/product-jsonld.ts): на странице ровно один
+  // Product — уникальный sku + inProductGroupWithID, розничная цена со скидкой,
+  // наличие из карточки, url только внутри offers. Ручное поле «SEO микроразметка
+  // JSON-LD» из админки отключено 2026-09-23 (старые записи — архив в БД).
+  const productSchema = buildProductJsonLd({
+    id: product.id,
+    name: product.name,
+    seoName: product.seoTitle,
+    description: product.description,
+    seoDescription: product.seoDescription,
+    images: allProductImages.length > 0 ? allProductImages : [product.imageUrl],
+    siteUrl: origin,
+    url: productUrl,
+    sku: (product as any).article,
+    modelSku: product.sku,
+    color: (product as any).color || (product.colors?.length ? product.colors[0] : null),
+    category: primaryPath
+      ? [
+          CATEGORIES[primaryPath.categorySlug as keyof typeof CATEGORIES]?.name || primaryPath.categorySlug,
+          primaryPath.subcategoryName,
+          primaryPath.subSubcategoryName,
+        ]
+      : [CATEGORIES[product.category as keyof typeof CATEGORIES]?.name || product.category || ""],
+    sizes: product.sizes,
+    specsHtml: (product as any).specsHtml,
+    composition: (product as any).composition,
+    careInstructions: (product as any).careInstructions,
+    measurements: (product as any).measurements,
+    seoBody: (product as any).seoBody,
+    price: product.price,
+    salePrice: (product as any).salePrice,
+    discountPercent: (product as any).discountPercent,
+    // Скидка выбранного размера: разметка должна совпадать с ценой на экране
+    // (см. activeSizeDiscount выше). Без выбранного размера — общая скидка.
+    size: selectedSize || null,
+    stock: (product as any).stock,
+    stockBySize: (product as any).sizeStock || (product as any).stockBySize,
+    preorder: (product as any).preorderEnabled,
+    aggregateRating: reviewCount > 0
+      ? { ratingValue: avgRating, reviewCount }
+      : null,
+    reviews: productReviews.slice(0, 5).map(r => ({
+      authorName: r.authorName,
+      rating: r.rating,
+      comment: r.comment,
+      createdAt: r.createdAt,
+    })),
+  });
 
   // BreadcrumbList — полный путь товара (категория/подкатегория/под-подкатегория)
   const breadcrumbListItems: Array<{ "@type": string; position: number; name: string; item: string }> = [
@@ -1104,13 +1051,12 @@ export default function ProductDetail() {
   breadcrumbListItems.push({ "@type": "ListItem", "position": bcPos, "name": product.name, "item": productUrl });
 
   const productJsonLd = [
-    baseProduct,
+    ...(productSchema ? [productSchema] : []),
     {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       "itemListElement": breadcrumbListItems,
     },
-    ...adminExtraSchemas,
     { "@context": "https://schema.org", ...organizationSchema },
     {
       "@context": "https://schema.org",

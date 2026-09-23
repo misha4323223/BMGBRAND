@@ -11452,18 +11452,20 @@ export default function Admin() {
                             </div>
 
                             <div>
-                              <label className="text-xs font-medium text-muted-foreground block mb-1">SEO микроразметка (JSON-LD)</label>
+                              <label className="text-xs font-medium text-muted-foreground block mb-1">
+                                SEO микроразметка (JSON-LD) <span className="text-muted-foreground/60">— архив, на сайте не используется</span>
+                              </label>
                               <Textarea
                                 placeholder={'{\n  "@context": "https://schema.org",\n  "@type": "Product",\n  "sku": "BMG-001",\n  "description": "SEO описание для поисковиков"\n}'}
                                 value={productForm.seoJsonLd}
-                                onChange={(e) => setProductForm({...productForm, seoJsonLd: e.target.value})}
-                                rows={8}
-                                className="font-mono text-xs"
+                                readOnly
+                                rows={6}
+                                className="font-mono text-xs opacity-60"
                                 data-testid="input-seo-json-ld"
                               />
                               <div className="flex items-center gap-2 mt-1">
                                 <p className="text-[10px] text-muted-foreground flex-1">
-                                  Невидимый блок &lt;script type="application/ld+json"&gt; — добавляется к автоматической разметке товара. Поисковики и ИИ-роботы читают его напрямую. Вставьте валидный JSON.
+                                  Поле отключено 23.09.2026: разметка товара собирается автоматически из карточки (название и описание с учётом SEO-полей, изображения, sku карточки + inProductGroupWithID модели, розничная цена со скидкой, наличие или предзаказ). Старые записи остаются в базе как архив и на странице не выводятся.
                                 </p>
                                 {productForm.seoJsonLd && (
                                   <button

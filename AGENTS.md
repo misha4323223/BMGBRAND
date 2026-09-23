@@ -331,6 +331,26 @@
 - `groups.getSettings` этим ключом недоступен (`groupSettings` в статусе пусто) — это норма.
 - Long Poll в коде остался резервом; ключ сообщества требует права `manage`.
 
+## JSON-LD карточки товара — единый генератор (2026-09-23)
+- `shared/product-jsonld.ts` — ЕДИНЫЙ источник разметки: `buildProductJsonLd()` (объект) и
+  `serializeJsonLd()` (безопасная сериализация `<`, `>`, `&`, U+2028/29). Импортируется в
+  bot-ssr.ts, static.ts, vite.ts и клиенте ProductDetail.tsx; SEO.tsx тоже сериализует jsonLd
+  этим хелпером. Правишь разметку — правь ТОЛЬКО здесь (все 4 поверхности обязаны совпадать).
+- Согласовано с заказчиком: на странице РОВНО один Product (без ProductGroup/hasVariant);
+  связь цветов — `inProductGroupWithID` (НЕ `itemGroupId`!) = `product.sku` (общий артикул
+  модели); `sku` = `product.article`, если пусто — `${sku}-${product.id}` (уникальный артикул
+  карточки); `url` только в `offers.url` (полный URL текущей карточки, slug не меняется);
+  `brand.name` всегда BOOOMERANGS; `offers`: price (розничная, числом в рублях),
+  priceCurrency RUB, availability (PreOrder, если предзаказ, иначе InStock/OutOfStock по сумме
+  sizeStock с fallback на stockBySize), itemCondition NewCondition. seller/returnPolicy/
+  shippingDetails и priceValidUntil НЕ выводим.
+- Цена: salePrice → скидка выбранного размера (клиент передаёт selectedSize) → discountPercent
+  → обычная — как розничная ветка `resolveItemPrice` (server/lib/pricing.ts), синхронно.
+- Ручное поле админки «SEO микроразметка JSON-LD» ОТКЛЮЧЕНО (MANUAL_PRODUCT_JSONLD_ENABLED=false,
+  readOnly «архив»); старые записи в БД на сайте не выводятся.
+- Тест: `bunx vitest run server/__tests__/product-jsonld.test.ts` (25 тестов). ProductMetaForSsr
+  расширен полями article/modelSku/color/salePrice/discountPercent/sizeStock (storage/core.ts).
+
 ## Verification
 - ОБЯЗАТЕЛЬНО тестируй вживую на preview после правок — typecheck НЕ заменяет живой тест. Не пропускай этот этап.
 - Если песочница не отвечает (`running:false`, 502, «Is the Sandbox started?», `freebuff-preview: not found`) —

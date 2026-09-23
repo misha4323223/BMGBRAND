@@ -20,6 +20,7 @@ function getSeoOverride(key: string): { title?: string; description?: string } {
 }
 import { getRecommendationsSync } from "./recommendations";
 import { CATEGORIES as SCHEMA_CATEGORIES, buildCategoryIndex, resolveProductCategoryPaths, sortProductCategoryPaths } from "../shared/schema";
+import { buildProductJsonLd as buildAutoProductJsonLd } from "../shared/product-jsonld";
 
 const SITE_NAME = "BMGBRAND";
 const DEFAULT_TITLE = `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
@@ -510,98 +511,10 @@ function buildShippingDetails() {
 }
 
 function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProductMetaBySlug>>, slug: string, siteUrl: string): string {
-  const isMerch = ["merch", "мерч"].includes(meta.category.toLowerCase());
-  const pageDesc = meta.seoDescription || [
-    isMerch ? `Купить мерч ${meta.title} BOOOMERANGS` : `Купить ${meta.title} BOOOMERANGS`,
-    meta.sizes.length > 0 ? `Размеры: ${meta.sizes.join(", ")}.` : "",
-    "Доставка по России СДЭК.",
-    meta.description ? meta.description.slice(0, 80) : "",
-  ].filter(Boolean).join(" ").slice(0, 220);
-
-  const productUrl = `${siteUrl}/${slug}`;
-  const priceValidUntil = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split("T")[0];
-  const availability = meta.preorderEnabled
-    ? "https://schema.org/PreOrder"
-    : meta.stock > 0
-      ? "https://schema.org/InStock"
-      : "https://schema.org/OutOfStock";
+  const productUrl = siteUrl + "/" + slug;
 
   const rating = getCachedRatingByProductId(meta.productId);
   const organizationSchema = buildOrganizationSchema(siteUrl);
-
-  const specsPairs = meta.specsHtml ? parseSpecPairs(meta.specsHtml) : [];
-  const specProps: Array<Record<string, string>> = [];
-  if (meta.specsHtml && specsPairs.length > 0) {
-    const hasComposition = specsPairs.some((p) => p.name.toLowerCase() === "состав");
-    const hasCare = specsPairs.some((p) => p.name.toLowerCase().startsWith("уход"));
-    for (const pair of specsPairs) {
-      specProps.push({ "@type": "PropertyValue", "name": pair.name, "value": pair.value });
-    }
-    if (meta.composition && !hasComposition) {
-      specProps.push({ "@type": "PropertyValue", "name": "Состав", "value": meta.composition });
-    }
-    if (meta.careInstructions && !hasCare) {
-      specProps.push({ "@type": "PropertyValue", "name": "Уход", "value": meta.careInstructions });
-    }
-  } else if (meta.specsHtml) {
-    const specsText = stripHtml(meta.specsHtml);
-    if (specsText) specProps.push({ "@type": "PropertyValue", "name": "Характеристики", "value": specsText });
-  } else {
-    if (meta.composition) specProps.push({ "@type": "PropertyValue", "name": "Состав", "value": meta.composition });
-    if (meta.careInstructions) specProps.push({ "@type": "PropertyValue", "name": "Уход", "value": meta.careInstructions });
-  }
-  const specsMaterial =
-    (specsPairs.find((p) => p.name.toLowerCase() === "состав")?.value) ||
-    meta.composition ||
-    "";
-
-  const productSchema = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    "name": meta.title,
-    "description": pageDesc,
-    "image": meta.images.length > 0 ? meta.images : (meta.image ? meta.image : undefined),
-    "url": productUrl,
-    "sku": meta.sku,
-    "brand": { "@type": "Brand", "name": SITE_NAME },
-    "offers": {
-      "@type": "Offer",
-      "priceCurrency": "RUB",
-      "price": (meta.price / 100).toFixed(2),
-      "priceValidUntil": priceValidUntil,
-      "availability": availability,
-      "itemCondition": "https://schema.org/NewCondition",
-      "url": productUrl,
-      "seller": { "@id": organizationSchema["@id"] },
-      "hasMerchantReturnPolicy": buildMerchantReturnPolicy(siteUrl),
-      "shippingDetails": buildShippingDetails(),
-    },
-    ...(rating && rating.reviewCount >= 1 ? {"aggregateRating": { "@type": "AggregateRating", "ratingValue": rating.averageRating.toFixed(1),
-        "reviewCount": rating.reviewCount,
-        "bestRating": "5",
-        "worstRating": "1",
-      }
-    } : {}),
-    ...(meta.category ? { "category": meta.category } : {}),
-    ...(meta.colors.length > 0 ? { "color": meta.colors.join(", ") } : {}),
-    ...(meta.sizes.length > 0 ? { "size": meta.sizes.join(", ") } : {}),
-    ...(specsMaterial ? { "material": specsMaterial } : {}),
-    "additionalProperty": [
-      ...(meta.sizes.length > 0 ? [
-        {
-          "@type": "PropertyValue",
-          "name": "Доступные размеры",
-          "value": meta.sizes.join(", "),
-        },
-        {
-          "@type": "PropertyValue",
-          "name": "Подбор размера",
-          "value": "На странице доступен ИИ-подбор размера по параметрам покупателя",
-        },
-      ] : []),
-      ...specProps,
-    ],
-  };
 
   // Полный путь товара в breadcrumb (категория → подкатегория → под-подкатегория).
   // Резолвер тот же, что в sitemap/SSR; имена/слаги берём из shared/schema.ts.
@@ -634,7 +547,47 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
     "itemListElement": bcItems,
   };
 
-  return JSON.stringify([productSchema, organizationSchema, breadcrumbSchema]);
+  // Единый генератор JSON-LD (shared/product-jsonld.ts): на странице ровно один
+  // Product — уникальный sku + inProductGroupWithID, розничная цена со скидкой,
+  // наличие из карточки, url только внутри offers. Ручное поле «SEO микроразметка
+  // JSON-LD» из админки отключено 2026-09-23 (старые записи — архив в БД).
+  const productSchema = buildAutoProductJsonLd({
+    id: meta.productId,
+    name: meta.title,
+    seoName: meta.seoTitle,
+    description: meta.description,
+    seoDescription: meta.seoDescription,
+    images: meta.images.length > 0 ? meta.images : [meta.image],
+    siteUrl,
+    url: productUrl,
+    sku: meta.article,
+    modelSku: meta.modelSku,
+    color: meta.color || meta.colors[0] || null,
+    category: bcPrimary
+      ? [
+          SCHEMA_CATEGORIES[bcPrimary.categorySlug]?.name || bcPrimary.categorySlug,
+          bcPrimary.subcategoryName,
+          bcPrimary.subSubcategoryName,
+        ]
+      : [SCHEMA_CATEGORIES[meta.category]?.name || meta.category],
+    sizes: meta.sizes,
+    specsHtml: meta.specsHtml,
+    composition: meta.composition,
+    careInstructions: meta.careInstructions,
+    measurements: meta.measurements,
+    seoBody: meta.seoBody,
+    price: meta.price,
+    salePrice: meta.salePrice,
+    discountPercent: meta.discountPercent,
+    stock: meta.stock,
+    stockBySize: meta.sizeStock,
+    preorder: meta.preorderEnabled,
+    aggregateRating: rating && rating.reviewCount >= 1
+      ? { ratingValue: rating.averageRating.toFixed(1), reviewCount: rating.reviewCount }
+      : null,
+  }, { onError: (message) => logError("[static] " + message) });
+
+  return JSON.stringify([productSchema, organizationSchema, breadcrumbSchema].filter(Boolean));
 }
 
 function injectMeta(html: string, opts: {

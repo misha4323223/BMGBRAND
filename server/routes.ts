@@ -1755,7 +1755,8 @@ ${productLines || "- (список формируется)"}
 - [Вакансии](${llmsBaseUrl}/vacancies)
 - [Оптовые продажи](${llmsBaseUrl}/wholesale)
 - [Партнёрская программа](${llmsBaseUrl}/partner)
-- [YML-фид (Яндекс Маркет)](${llmsBaseUrl}/yml-feed.xml)
+- [YML-фид (Яндекс Маркет, полный каталог)](${llmsBaseUrl}/yml-feed.xml)
+- [YML-фид для Кнопки «Купить» Яндекса](${llmsBaseUrl}/ycp-feed.xml)
 
 ## О бренде
 
@@ -2225,8 +2226,11 @@ ${faqSection}
     }
   });
 
-  // YML feed for Yandex.Products (Яндекс.Товары)
-  app.get("/yml-feed.xml", async (_req, res) => {
+  // YML feed for Yandex.Products (Яндекс.Товары) — ПОЛНЫЙ каталог.
+  // Тот же генератор обслуживает /ycp-feed.xml: фид Кнопки «Купить» (YCP),
+  // из которого вырезаны товары с выбором размера — YCP размер не передаёт.
+  app.get(["/yml-feed.xml", "/ycp-feed.xml"], async (_req, res) => {
+    const isYcpFeed = _req.path.includes("ycp-feed.xml");
     const host = _req.headers.host || "booomerangs.ru";
     const baseUrl = `https://${host}`;
     const now = new Date().toISOString().replace("T", " ").slice(0, 16);
@@ -2248,9 +2252,10 @@ ${faqSection}
         // Real non-numeric slug only — `p.slug || p.id` would emit numeric-ID
         // URLs (/123) that don't resolve to product pages.
         typeof p.slug === "string" && p.slug.trim().length > 0 && !/^\d+$/.test(p.slug.trim()) &&
-        // Кнопка «Купить» (YCP) не передаёт размер → в фид попадают только носки,
-        // товары с флагом noSize и товары без буквенных размеров (S/M/L/XL...).
-        isYcpBuyable(p)
+        // Полный фид (/yml-feed.xml) отдаёт весь каталог. Фид Кнопки «Купить»
+        // (/ycp-feed.xml) урезан до товаров без выбора размера: носки, noSize
+        // и вещи без буквенных размеров (S/M/L/XL...) — YCP размер не передаёт.
+        (!isYcpFeed || isYcpBuyable(p))
       );
 
       const escXml = (s: string) => String(s)
@@ -2334,17 +2339,18 @@ ${faqSection}
       xml += `  </shop>\n`;
       xml += `</yml_catalog>`;
 
-      serveGeneratedXml(res, "yml-feed.xml", xml, "ru");
-      logInfo(`[YML] Feed generated: ${visibleProducts.length} products`);
+      const feedName = isYcpFeed ? "ycp-feed.xml" : "yml-feed.xml";
+      serveGeneratedXml(res, feedName, xml, "ru");
+      logInfo(`[YML] ${feedName} generated: ${visibleProducts.length} products`);
     } catch (err) {
-      serveStaleXmlOrError(res, "yml-feed.xml", "YML feed", err);
+      serveStaleXmlOrError(res, isYcpFeed ? "ycp-feed.xml" : "yml-feed.xml", isYcpFeed ? "YCP feed" : "YML feed", err);
     }
   });
 
   // ==================== Ozon Product Feed ====================
   // Отдельный фид для загрузки товаров на Ozon Marketplace (YML-совместимый формат)
   // URL: /ozon-feed.xml
-  // Яндексовый фид (/yml-feed.xml) не затронут.
+  // Яндексовые фиды (/yml-feed.xml, /ycp-feed.xml) не затронуты.
   app.get("/ozon-feed.xml", async (_req, res) => {
     const now = new Date().toISOString().replace("T", " ").slice(0, 16);
 

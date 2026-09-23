@@ -1,4 +1,5 @@
 import { Helmet } from "react-helmet-async";
+import { serializeJsonLd } from "@shared/product-jsonld";
 
 interface SEOProps {
   title?: string;
@@ -73,7 +74,9 @@ export default function SEO({
 
       {jsonLd && (
         <script type="application/ld+json">
-          {JSON.stringify(Array.isArray(jsonLd) ? jsonLd : jsonLd)}
+          {/* serializeJsonLd экранирует <, >, & и U+2028/U+2029, чтобы отзывы
+              покупателей и SEO-тексты не могли «разорвать» тег <script>. */}
+          {serializeJsonLd(jsonLd)}
         </script>
       )}
     </Helmet>

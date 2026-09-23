@@ -32,6 +32,7 @@ import {
 import { getRecommendationsSync } from "./recommendations";
 import { findProductVariantsSync } from "./variant-matching";
 import { CATEGORIES, normalizeCategories, findCategoryBySubcategorySlug, findCategoryBySubSubcategorySlug, buildCategoryIndex, resolveProductCategoryPaths, sortProductCategoryPaths, GIFT_CARD_AMOUNTS } from "../shared/schema";
+import { buildProductJsonLd } from "../shared/product-jsonld";
 
 // ─── Bot User-Agent detection ─────────────────────────────────────────────────
 // Only include server-side crawlers and link-preview fetchers.
@@ -892,13 +893,8 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
 
   const statusCls = meta.preorderEnabled ? "preorder" : meta.stock > 0 ? "in-stock" : "out-of-stock";
   const statusText = meta.preorderEnabled ? "предзаказ" : meta.stock > 0 ? "в наличии" : "нет в наличии";
-  const availability = meta.preorderEnabled
-    ? "https://schema.org/PreOrder"
-    : meta.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock";
 
   const rating = getCachedRatingByProductId(meta.productId);
-  const priceValidUntil = new Date(new Date().setFullYear(new Date().getFullYear() + 1))
-    .toISOString().split("T")[0];
 
   // Защита от "Invalid time value": некоторые товары имеют сломанное поле дат.
   const safeISODate = (d: Date | null | undefined): string | undefined => {
@@ -908,122 +904,10 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
   };
 
   const organizationSchema = buildOrganizationSchema();
-  const rawImages: string[] = meta.images.length > 0 ? meta.images.slice(0, 6) : (meta.image ? [meta.image] : []);
-  // Google Merchant Listings: image must be URL or ImageObject.
-  // Single image → plain URL (simplest). Multiple → ImageObject array.
-  // Empty → undefined (JSON.stringify strips it).
-  // representativeOfPage is NOT recognized by Google on ImageObject — omit it.
-  const productImageJsonLd: string | Record<string, any>[] | undefined =
-    rawImages.length === 0 ? undefined
-    : rawImages.length === 1 ? rawImages[0]
-    : rawImages.map((url) => ({
-        "@type": "ImageObject",
-        "url": url,
-        "contentUrl": url,
-      }));
-  const productSchema: Record<string, any> = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    "name": meta.title,
-    "description": desc,
-    ...(productImageJsonLd ? { "image": productImageJsonLd } : {}),
-    "url": `${SITE_URL}/${slug}`,
-    "sku": meta.sku,
-    "brand": { "@type": "Brand", "name": SITE_NAME },
-    ...(safeISODate(meta.createdAt) ? { "datePublished": safeISODate(meta.createdAt) } : {}),
-    // dateModified — сигнал свежести карточки для Google/Яндекса. Берём updatedAt,
-    // если товар когда-либо редактировался в админке; иначе падаем на createdAt.
-    ...((safeISODate(meta.updatedAt) || safeISODate(meta.createdAt))
-      ? { "dateModified": safeISODate(meta.updatedAt) ?? safeISODate(meta.createdAt) }
-      : {}),
-    "offers": {
-      "@type": "Offer",
-      "priceCurrency": "RUB",
-      "price": (meta.price / 100).toFixed(2),
-      "priceValidUntil": priceValidUntil,
-      "availability": availability,
-      "itemCondition": "https://schema.org/NewCondition",
-      "url": `${SITE_URL}/${slug}`,
-      "seller": { "@id": organizationSchema["@id"] },
-      "hasMerchantReturnPolicy": buildMerchantReturnPolicy(),
-      "shippingDetails": buildShippingDetails(),
-    },
-  };
-  if (rating && rating.reviewCount >= 1) {
-    productSchema.aggregateRating = {
-      "@type": "AggregateRating",
-      "ratingValue": rating.averageRating.toFixed(1),
-      "reviewCount": rating.reviewCount,
-      "bestRating": "5",
-      "worstRating": "1",
-    };
-  }
-
   const cachedReviews = getCachedReviewsByProductId(meta.productId);
-  if (cachedReviews.length > 0) {
-    productSchema.review = cachedReviews.map(r => {
-      const reviewSchema: Record<string, any> = {
-        "@type": "Review",
-        "author": { "@type": "Person", "name": r.authorName },
-        "reviewRating": {
-          "@type": "Rating",
-          "ratingValue": String(r.rating),
-          "bestRating": "5",
-          "worstRating": "1",
-        },
-      };
-      if (r.comment) reviewSchema.reviewBody = r.comment;
-      if (r.createdAt) reviewSchema.datePublished = r.createdAt.split("T")[0];
-      return reviewSchema;
-    });
-  }
-  const additionalProps: any[] = [];
-  if (meta.sizes.length > 0) {
-    additionalProps.push({ "@type": "PropertyValue", "name": "Доступные размеры", "value": meta.sizes.join(", ") });
-  }
-  if (meta.seoBody) {
-    const seoBodyText = stripHtml(meta.seoBody);
-    if (seoBodyText) additionalProps.push({ "@type": "PropertyValue", "name": "Подробнее о товаре", "value": seoBodyText });
-  }
-  const specsPairs = meta.specsHtml ? parseSpecPairs(meta.specsHtml) : [];
-  if (meta.specsHtml && specsPairs.length > 0) {
-    // Каждая характеристика — отдельная PropertyValue-пара, чтобы Яндекс/Google
-    // показывали их строками «Название → значение» (один «блоб» они не разбирают).
-    const hasComposition = specsPairs.some((p) => p.name.toLowerCase() === "состав");
-    const hasCare = specsPairs.some((p) => p.name.toLowerCase().startsWith("уход"));
-    for (const pair of specsPairs) {
-      additionalProps.push({ "@type": "PropertyValue", "name": pair.name, "value": pair.value });
-      if (pair.name.toLowerCase() === "состав" && !productSchema.material) {
-        productSchema.material = pair.value;
-      }
-    }
-    if (meta.composition && !hasComposition) {
-      productSchema.material = meta.composition;
-      additionalProps.push({ "@type": "PropertyValue", "name": "Состав", "value": meta.composition });
-    }
-    if (meta.careInstructions && !hasCare) {
-      additionalProps.push({ "@type": "PropertyValue", "name": "Уход", "value": meta.careInstructions });
-    }
-  } else if (meta.specsHtml) {
-    const specsText = stripHtml(meta.specsHtml);
-    if (specsText) additionalProps.push({ "@type": "PropertyValue", "name": "Характеристики", "value": specsText });
-  } else {
-    if (meta.composition) {
-      productSchema.material = meta.composition;
-      additionalProps.push({ "@type": "PropertyValue", "name": "Состав", "value": meta.composition });
-    }
-    if (meta.careInstructions) {
-      additionalProps.push({ "@type": "PropertyValue", "name": "Уход", "value": meta.careInstructions });
-    }
-  }
-  if (meta.measurements && meta.measurements.length > 0) {
-    const measurementStr = meta.measurements.map(row =>
-      Object.entries(row).map(([k, v]) => `${k}: ${v}`).join(", ")
-    ).join(" | ");
-    additionalProps.push({ "@type": "PropertyValue", "name": "Таблица размеров", "value": measurementStr });
-  }
   // Feature badges (admin-editable templates: icon + title + description) — exposed as visible text + schema for bots/AI crawlers
   let featureBadgesHtml = "";
+  const badgeCharacteristics: Array<{ name: string; value: string }> = [];
   if (Array.isArray((meta as any).featureBadgeIds) && (meta as any).featureBadgeIds.length > 0) {
     try {
       const templates = getCachedRawPageSettings("product_feature_templates") || {};
@@ -1034,13 +918,9 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
         featureBadgesHtml = `<ul class="feature-badges" style="margin-top:1rem;list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:.5rem">${badges.map((b: any) =>
           `<li style="border:1px solid #ddd;border-radius:.5rem;padding:.5rem .75rem"><strong>${esc(b.title)}</strong>${b.description ? ` — ${esc(b.description)}` : ""}</li>`
         ).join("\n")}</ul>`;
-        additionalProps.push({ "@type": "PropertyValue", "name": "Особенности товара", "value": badges.map((b: any) => b.description ? `${b.title}: ${b.description}` : b.title).join("; ") });
+        badgeCharacteristics.push({ name: "Особенности товара", value: badges.map((b: any) => b.description ? `${b.title}: ${b.description}` : b.title).join("; ") });
       }
     } catch { /* safe to skip */ }
-  }
-
-  if (additionalProps.length > 0) {
-    productSchema.additionalProperty = additionalProps;
   }
 
   // Color/model variants — synchronous, in-memory only (never touches YDB).
@@ -1053,47 +933,9 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
       const variants = findProductVariantsSync(currentAsInput, variantCandidates)
         .filter(v => v.slug && v.slug !== slug);
       if (variants.length > 0) {
-        // Каждый вариант группы получает собственные offers (цена + наличие),
-        // как рекомендует Google для ProductGroup — раньше варианты были только
-        // «указателями» без цены. Предзаказ наследуется от текущего товара:
-        // варианты цвета относятся к той же модели.
-        const variantAvailability = (stock: number) =>
-          meta.preorderEnabled
-            ? "https://schema.org/PreOrder"
-            : stock > 0
-              ? "https://schema.org/InStock"
-              : "https://schema.org/OutOfStock";
-        const variantOffers = (price: number, stock: number, url: string) => ({
-          "@type": "Offer",
-          "priceCurrency": "RUB",
-          "price": (price / 100).toFixed(2),
-          "availability": variantAvailability(stock),
-          "url": url,
-          "hasMerchantReturnPolicy": buildMerchantReturnPolicy(),
-          "shippingDetails": buildShippingDetails(),
-        });
-        productSchema.isVariantOf = {
-          "@type": "ProductGroup",
-          "name": meta.title,
-          "url": `${SITE_URL}/${slug}`,
-          "hasVariant": [
-            {
-              "@type": "Product",
-              "name": meta.title,
-              "url": `${SITE_URL}/${slug}`,
-              "sku": meta.sku,
-              "image": meta.image || undefined,
-              "offers": variantOffers(meta.price, meta.stock, `${SITE_URL}/${slug}`),
-            },
-            ...variants.map(v => ({
-              "@type": "Product",
-              "name": v.name,
-              "url": `${SITE_URL}/${v.slug}`,
-              "image": v.imageUrl || undefined,
-              "offers": variantOffers(v.price, v.stock, `${SITE_URL}/${v.slug}`),
-            })),
-          ],
-        };
+        // ProductGroup/hasVariant убраны по ТЗ (2026-09-23): на странице ровно один
+        // Product, а связь цветов задаёт inProductGroupWithID. Ниже — только
+        // видимые ссылки «Другие цвета».
         variantsHtml = `<div class="variants"><h2>Другие цвета</h2><ul>${variants.map(v =>
           `<li><a href="/${esc(v.slug)}">${v.color ? `<img src="${esc(v.thumbnailUrl || v.imageUrl)}" alt="${esc(v.color)}" width="60" height="60" loading="lazy"><span>${esc(v.color)}</span>` : esc(v.name)}</a></li>`
         ).join("\n")}</ul></div>`;
@@ -1109,6 +951,49 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
     buildCategoryIndex(getLiveCategories()),
   ));
   const primaryPath = catPaths[0] || null;
+
+  // Единый генератор JSON-LD (shared/product-jsonld.ts): ровно один Product на
+  // страницу, sku + inProductGroupWithID, цена со скидкой и наличие из карточки.
+  // Ручное поле «SEO микроразметка JSON-LD» из админки отключено (2026-09-23).
+  const productSchema = buildProductJsonLd({
+    id: meta.productId,
+    name: meta.title,
+    seoName: meta.seoTitle,
+    description: meta.description,
+    seoDescription: meta.seoDescription,
+    images: meta.images.length > 0 ? meta.images : [meta.image],
+    siteUrl: SITE_URL,
+    url: `${SITE_URL}/${slug}`,
+    sku: meta.article,
+    modelSku: meta.modelSku,
+    color: meta.color || meta.colors[0] || null,
+    category: primaryPath
+      ? [
+          CAT_META[primaryPath.categorySlug]?.name || primaryPath.categorySlug,
+          primaryPath.subcategoryName,
+          primaryPath.subSubcategoryName,
+        ]
+      : [catName],
+    sizes: meta.sizes,
+    specsHtml: meta.specsHtml,
+    composition: meta.composition,
+    careInstructions: meta.careInstructions,
+    measurements: meta.measurements,
+    seoBody: meta.seoBody,
+    extraCharacteristics: badgeCharacteristics,
+    price: meta.price,
+    salePrice: meta.salePrice,
+    discountPercent: meta.discountPercent,
+    stock: meta.stock,
+    stockBySize: meta.sizeStock,
+    preorder: meta.preorderEnabled,
+    aggregateRating: rating && rating.reviewCount >= 1
+      ? { ratingValue: rating.averageRating.toFixed(1), reviewCount: rating.reviewCount }
+      : null,
+    reviews: cachedReviews.map(r => ({ authorName: r.authorName, rating: r.rating, comment: r.comment, createdAt: r.createdAt })),
+    datePublished: safeISODate(meta.createdAt),
+    dateModified: safeISODate(meta.updatedAt) ?? safeISODate(meta.createdAt),
+  }, { onError: (message) => logError("[bot-ssr] " + message) });
 
   const breadcrumbItems: any[] = [
     { "@type": "ListItem", "position": 1, "name": "Главная", "item": SITE_URL },
@@ -1138,52 +1023,11 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
   const ogImage = meta.image && meta.image.startsWith("http") ? meta.image : `${SITE_URL}${meta.image || "/og-image.png"}`;
 
   const lcpImageUrl = (meta.images.length > 0 ? meta.images[0] : meta.image) || "";
-  // ─── Admin JSON-LD override ──────────────────────────────────────────────────
-  // Strategy (Variant B):
-  //   • If admin set seoJsonLd with @type Product/ProductGroup → merge its fields
-  //     ON TOP of the auto-generated productSchema (admin wins, auto fills the gaps).
-  //     Placeholder/empty URLs are silently skipped so stale admin data can't break
-  //     a valid auto-generated field.  Result: exactly ONE Product schema.
-  //   • Non-Product types (FAQPage, VideoObject, etc.) from admin are appended as a
-  //     separate <script> block alongside the main Product schema.
-  const isPlaceholderValue = (v: any): boolean =>
-    typeof v === "string" && (v.includes("/placeholder") || v.includes("example.com") || v.trim() === "");
-
-  let customNonProductScript = "";
-  if ((meta as any).seoJsonLd) {
-    try {
-      const parsed = JSON.parse((meta as any).seoJsonLd);
-
-      // Extract the first Product/ProductGroup object (parsed may be array or plain object)
-      const extractProduct = (obj: any): Record<string, any> | null => {
-        if (!obj) return null;
-        if (Array.isArray(obj)) {
-          for (const x of obj) { const f = extractProduct(x); if (f) return f; }
-          return null;
-        }
-        const t = obj["@type"];
-        return (t === "Product" || t === "ProductGroup") ? obj : null;
-      };
-
-      const adminProduct = extractProduct(parsed);
-      if (adminProduct) {
-        // Merge admin fields on top of auto-generated productSchema (admin overrides)
-        for (const [key, val] of Object.entries(adminProduct)) {
-          if (key === "@context" || key === "@type") continue;  // keep auto-generated type
-          if (isPlaceholderValue(val)) continue;                // skip stale placeholders
-          (productSchema as any)[key] = val;
-        }
-      }
-
-      // Collect any non-Product schemas from admin (e.g. FAQPage) to append separately
-      const nonProductItems = Array.isArray(parsed)
-        ? parsed.filter((x: any) => x && x["@type"] !== "Product" && x["@type"] !== "ProductGroup")
-        : (parsed && parsed["@type"] !== "Product" && parsed["@type"] !== "ProductGroup" ? [parsed] : []);
-      if (nonProductItems.length > 0) {
-        customNonProductScript = `\n  <script type="application/ld+json">${JSON.stringify(nonProductItems)}</script>`;
-      }
-    } catch { /* invalid JSON — skip silently */ }
-  }
+  // Ручное переопределение JSON-LD из админки (поле «SEO микроразметка JSON-LD»)
+  // отключено 2026-09-23: разметка формируется автоматически из карточки
+  // (shared/product-jsonld.ts). Старые записи остаются в БД как архив и на
+  // странице не выводятся; включать переопределение снова можно только отдельным
+  // переключателем и с полной заменой автоматической разметки.
 
   const head = baseHead({
     title,
@@ -1191,11 +1035,11 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
     canonical: `${SITE_URL}/${slug}`,
     ogImage,
     ogType: "product",
-    jsonLd: safeJsonLd([productSchema, organizationSchema, breadcrumbSchema]),
+    jsonLd: safeJsonLd([productSchema, organizationSchema, breadcrumbSchema].filter(Boolean)),
     // Preload the first product photo so the browser starts fetching it
     // before it parses the <img> tag — directly improves LCP score.
     preloadImage: lcpImageUrl.startsWith("http") ? lcpImageUrl : undefined,
-  }) + customNonProductScript;
+  });
 
   const imagesHtml = meta.images.slice(0, 6).map((imgUrl, idx) =>
     `<img src="${esc(imgUrl)}" alt="${esc(idx === 0 ? meta.title + " — фото" : meta.title + " — фото " + (idx + 1))}" width="400" height="400" loading="${idx === 0 ? "eager" : "lazy"}">`

@@ -513,6 +513,18 @@ export interface ProductMetaForSsr {
   additionalCategories: Array<{ category: string; subcategory: string; subSubcategory?: string }>;
   sizes: string[]; colors: string[]; preorderEnabled: boolean;
   seoTitle: string | null; seoDescription: string | null; seoBody: string | null; seoJsonLd: string | null; specsHtml: string | null; videoUrl: string | null;
+  /** Уникальный артикул карточки (product.article) — для JSON-LD sku. */
+  article: string | null;
+  /** Общий артикул модели (product.sku) — для JSON-LD inProductGroupWithID. */
+  modelSku: string | null;
+  /** Цвет текущего варианта (product.color) — для JSON-LD color. */
+  color: string | null;
+  /** Фиксированная цена со скидкой (копейки) — для JSON-LD offers.price. */
+  salePrice: number | null;
+  /** Общая скидка, % — для JSON-LD offers.price. */
+  discountPercent: number | null;
+  /** Остатки по размерам — общий остаток для JSON-LD availability. */
+  sizeStock: Record<string, number> | null;
   composition: string | null; careInstructions: string | null;
   measurements: Array<{ size: string; [key: string]: string }> | null;
   featureBadgeIds: string[];
@@ -536,6 +548,17 @@ function buildProductMeta(product: any): ProductMetaForSsr {
     images: allImages,
     price: product.price || 0,
     sku: (product as any).article || (product as any).sku || String(product.id),
+    article: (product as any).article || null,
+    modelSku: (product as any).sku || null,
+    color: (product as any).color || null,
+    salePrice: typeof (product as any).salePrice === "number" ? (product as any).salePrice : null,
+    discountPercent: typeof (product as any).discountPercent === "number" ? (product as any).discountPercent : null,
+    sizeStock:
+      (product as any).sizeStock && typeof (product as any).sizeStock === "object"
+        ? ((product as any).sizeStock as Record<string, number>)
+        : (product as any).stockBySize && typeof (product as any).stockBySize === "object"
+          ? ((product as any).stockBySize as Record<string, number>)
+          : null,
     stock: Number((product as any).stock ?? 0),
     category: (product as any).category || "",
     subcategory: (product as any).subcategory != null && String((product as any).subcategory).trim() !== ""

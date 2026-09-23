@@ -8,6 +8,7 @@ import path from "path";
 import { nanoid } from "nanoid";
 import { getCachedProductMetaBySlug, getCachedArtistHeroImage, getCachedRawPageSettings } from "./storage";
 import { CATEGORIES as SCHEMA_CATEGORIES, buildCategoryIndex, resolveProductCategoryPaths, sortProductCategoryPaths } from "../shared/schema";
+import { buildProductJsonLd } from "../shared/product-jsonld";
 
 const SITE_NAME = "BMGBRAND";
 
@@ -89,9 +90,6 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
           meta.description ? meta.description.slice(0, 80) : "",
         ].filter(Boolean).join(" ").slice(0, 220);
         const image = meta.image.startsWith("http") ? meta.image : `${origin}${meta.image}`;
-        const priceValidUntil = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split("T")[0];
-        const availability = meta.preorderEnabled ? "https://schema.org/PreOrder"
-          : meta.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock";
         const bcPaths = sortProductCategoryPaths(resolveProductCategoryPaths(
           { category: meta.category, subcategory: meta.subcategory, subSubcategory: meta.subSubcategory, additionalCategories: meta.additionalCategories },
           buildCategoryIndex(SCHEMA_CATEGORIES),
@@ -114,44 +112,40 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
           bcItems.push({ "@type": "ListItem", "position": bcPos++, "name": CATEGORIES[meta.category]?.name || meta.category, "item": `${origin}/products/${meta.category}` });
         }
         bcItems.push({ "@type": "ListItem", "position": bcPos, "name": meta.title, "item": `${origin}/${slug}` });
+        const productSchema = buildProductJsonLd({
+          id: meta.productId,
+          name: meta.title,
+          seoName: meta.seoTitle,
+          description: meta.description,
+          seoDescription: meta.seoDescription,
+          images: meta.images.length > 0 ? meta.images : [meta.image],
+          siteUrl: origin,
+          url: origin + "/" + slug,
+          sku: meta.article,
+          modelSku: meta.modelSku,
+          color: meta.color || meta.colors[0] || null,
+          category: bcPrimary
+            ? [
+                SCHEMA_CATEGORIES[bcPrimary.categorySlug]?.name || bcPrimary.categorySlug,
+                bcPrimary.subcategoryName,
+                bcPrimary.subSubcategoryName,
+              ]
+            : [SCHEMA_CATEGORIES[meta.category]?.name || meta.category],
+          sizes: meta.sizes,
+          specsHtml: meta.specsHtml,
+          composition: meta.composition,
+          careInstructions: meta.careInstructions,
+          measurements: meta.measurements,
+          seoBody: meta.seoBody,
+          price: meta.price,
+          salePrice: meta.salePrice,
+          discountPercent: meta.discountPercent,
+          stock: meta.stock,
+          stockBySize: meta.sizeStock,
+          preorder: meta.preorderEnabled,
+        }, { onError: (message) => logError("[vite] " + message) });
         const jsonLd = JSON.stringify([
-          {
-            "@context": "https://schema.org", "@type": "Product",
-            "name": meta.title, "description": desc,
-            "image": meta.images.length > 0 ? meta.images : (image ? image : undefined),
-            "url": `${origin}/${slug}`, "sku": meta.sku,
-            "brand": { "@type": "Brand", "name": SITE_NAME },
-            "offers": {
-              "@type": "Offer", "priceCurrency": "RUB",
-              "price": (meta.price / 100).toFixed(2),
-              "priceValidUntil": priceValidUntil,
-              "availability": availability,
-              "itemCondition": "https://schema.org/NewCondition",
-              "url": `${origin}/${slug}`,
-              "seller": { "@type": "Organization", "name": SITE_NAME },
-              "hasMerchantReturnPolicy": {
-                "@type": "MerchantReturnPolicy",
-                "applicableCountry": "RU",
-                "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
-                "merchantReturnDays": 14,
-                "returnMethod": "https://schema.org/ReturnByMail",
-                "returnFees": "https://schema.org/ReturnFeesCustomerResponsibility",
-              },
-              "shippingDetails": {
-                "@type": "OfferShippingDetails",
-                "shippingRate": { "@type": "MonetaryAmount", "currency": "RUB", "minValue": "0", "maxValue": "600" },
-                "shippingDestination": { "@type": "DefinedRegion", "addressCountry": "RU" },
-                "deliveryTime": {
-                  "@type": "ShippingDeliveryTime",
-                  "handlingTime": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 2, "unitCode": "DAY" },
-                  "transitTime": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 10, "unitCode": "DAY" },
-                },
-              },
-            },
-            ...(meta.category ? { "category": meta.category } : {}),
-            ...(meta.colors.length > 0 ? { "color": meta.colors.join(", ") } : {}),
-            ...(meta.sizes.length > 0 ? { "size": meta.sizes.join(", ") } : {}),
-          },
+          ...(productSchema ? [productSchema] : []),
           {
             "@context": "https://schema.org", "@type": "BreadcrumbList",
             "itemListElement": bcItems,
