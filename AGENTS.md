@@ -449,6 +449,37 @@
   дублей. Проверено вживую: 2/10/25 параллельных POST → quantity ровно 2/12/37, 0 дублей; 20 параллельных →
   1 физическая строка qty=20. Раньше absolute-value UPDATE давал 10 вместо 50 (lost update).
 
+## Радио-полоска «Дикая Мята» (2026-09-27)
+- Постоянная тонкая полоса живого эфира **под навбаром** на всех страницах с `<Navbar />`
+  (кроме `/admin`, `/partner*`, `/wholesale*`, `/checkout`, `/predrop/checkout` — список в `shared/radio.ts`).
+  На мобилке прячется вместе с навбаром (она внутри того же `<nav>`, работает `navbar-hidden-mobile`).
+- Поток: `dikayamyata.hostingradio.ru/dikayamyata128.mp3` (официальный эфир фестиваля, HTTPS).
+  Аудио идёт **напрямую со станции в браузер** — наш сервер в потоке НЕ участвует, расход у нас не растёт.
+- `shared/radio.ts` — единственный источник правды (станция + `shouldShowRadioStrip`); тест `shared/radio.test.ts`.
+- `client/src/context/RadioContext.tsx` — один `<audio>` на всё приложение (провайдер в `App.tsx` внутри
+  `PlayerProvider`, обёрнут вокруг `<Router/>`): иначе переход между страницами обрывал бы эфир
+  (каждая страница монтирует свой Navbar). Радио и плеер сайта сами ставят друг друга на паузу;
+  громкость в `localStorage`; старт — только по клику (политика автоплея).
+- `client/src/components/RadioStrip.tsx` — сама полоска (в Navbar перед `<PartnerBannerContent/>`).
+  Сразу после `</nav>` рендерится распорка `h-[34px]`: навбар fixed, так контент остаётся ровно под шапкой
+  без правок на каждой странице (единственное исключение — ConceptCampaignPage, там `<Navbar/>` перенесён
+  в начало страницы).
+- «Сейчас играет»: `server/lib/radio-meta.ts` (ICY-парсер: `Icy-MetaData: 1`, блоки `metaint`×16,
+  пустые блоки пропускаются) + `server/routes/radio.ts` → `GET /api/radio/now-playing`
+  (кэш 25 с — один опрос на всех посетителей; пустой результат кэшируется 10 с).
+  Полоска опрашивает эндпоинт только пока играет, раз в 25 с. Тест: `server/__tests__/radio-meta.test.ts`.
+- **Счётчик «слушают сейчас» — только наши посетители** (цифры станции не берём: их Icecast status
+  отдаётся через раз и это был бы весь интернет, а не наш сайт). Пока эфир играет, клиент раз в 25 с зовёт тот же
+  эндпоинт с `?listener=<анонимный id гостя>` (тот же `bmg_session_id`, что у корзины);
+  `server/storage/radio-listeners.ts` пишет `last_seen` в YDB-таблицу `radio_listeners`
+  (PK listener_id, Uint64 = epoch ms) и считает строки за `RADIO_LISTENER_WINDOW_MS` (60 с) → в ответе
+  `listeners` (кэш счётчика 5 с; чистка старых строк раз в 5 мин). Таблица создаётся сама через SDK
+  `createTable` — DDL через `executeQuery` в YDB запрещён («Operation 'CreateTable' can't be performed in
+  data query», код 2008); повторное создание идемпотентно. Полоска показывает цифру только от 3
+  (`RADIO_LISTENERS_MIN_DISPLAY`) и склоняет правильно (`listenersVerb`). Живой тест: 4 разных id →
+  `listeners:4`, повтор того же id не удваивает, мусорные id отбиваются, через 65 с окно пустеет → 0.
+- Эквалайзер: `.radio-eq-bar` + `@keyframes radio-eq` в `client/src/index.css` (уважает `prefers-reduced-motion`).
+
 ## Verification
 - ОБЯЗАТЕЛЬНО тестируй вживую на preview после правок — typecheck НЕ заменяет живой тест. Не пропускай этот этап.
 - Если песочница не отвечает (`running:false`, 502, «Is the Sandbox started?», `freebuff-preview: not found`) —

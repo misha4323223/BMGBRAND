@@ -9,6 +9,7 @@ import { PreorderCartDrawerProvider } from "@/components/PreorderCartDrawer";
 import { captureRefFromUrl } from "@/lib/partner-ref";
 import { PreorderCartProvider } from "@/context/PreorderCartContext";
 import { PlayerProvider } from "@/context/PlayerContext";
+import { RadioProvider } from "@/context/RadioContext";
 import { BrandLoader } from "@/components/BrandLoader"; // ⬅️ добавлен импорт
 
 // GlobalPlayer тянул framer-motion (116 КБ) в критический путь каждой страницы,
@@ -215,7 +216,9 @@ function App() {
                 <PromoCapture />
                 <Toaster />
                 <DeferredComponents />
-                <Router />
+                <RadioProvider>
+                  <Router />
+                </RadioProvider>
                 <Suspense fallback={null}>
                   <GlobalPlayer />
                 </Suspense>

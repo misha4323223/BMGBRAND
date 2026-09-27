@@ -32,6 +32,7 @@ import { registerPreorderSubscribersRoutes } from "./routes/preorder-subscribers
 import { registerOzonRoutes } from "./routes/ozon";
 import { registerCategoriesAdminRoutes } from "./routes/categories-admin";
 import { registerPageSettingsRoutes } from "./routes/page-settings";
+import { registerRadioRoutes } from "./routes/radio";
 import { registerAdminOrdersRoutes } from "./routes/admin-orders";
 import { registerMailingsRoutes } from "./routes/mailings";
 import { registerBonusSettingsRoutes } from "./routes/bonus-settings";
@@ -11894,6 +11895,9 @@ ${faqSection}
   // Page settings API (public read, admin write)
   // Page settings (server/routes/page-settings.ts)
   registerPageSettingsRoutes(app, getAdminKey, autoAddSubcategory);
+
+  // Радио «Дикая Мята»: «сейчас играет» для полоски эфира (server/routes/radio.ts)
+  registerRadioRoutes(app);
 
   // Admin SEO + media upload (server/routes/admin-seo.ts)
   registerAdminSeoRoutes(app, getAdminKey);

@@ -253,6 +253,7 @@ export default function ConceptCampaignPage() {
   return (
     <div className="min-h-screen bg-background text-foreground" data-testid="page-concept-campaign">
       <SEO title={seoTitle} description={seoDescription} keywords={`предзаказ, pre-drop, ${pageTitle}, BOOOMERANGS`} />
+      <Navbar />
 
       {/* Hero banner — рендерим только если изображения точно есть.
           Пока данные грузятся (heroLoading) — ничего не показываем,
@@ -585,7 +586,6 @@ export default function ConceptCampaignPage() {
         </div>
       </section>
 
-      <Navbar />
       <Footer />
     </div>
   );

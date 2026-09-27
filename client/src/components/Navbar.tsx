@@ -2,6 +2,8 @@ import { Link, useLocation } from "wouter";
 import { ShoppingBag, Menu, X, ArrowLeft, Search, User, LogOut, LogIn, Gift, Heart, ChevronDown, ChevronRight, Briefcase, TrendingUp, Shirt, PackageOpen, Headphones, Music, Play, Pause } from "lucide-react";
 import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 import { usePartnerBanner, PartnerBannerContent } from "./PartnerBanner";
+import { RadioStrip } from "./RadioStrip";
+import { shouldShowRadioStrip } from "@shared/radio";
 import { usePlayer } from "@/context/PlayerContext";
 import { useState, useRef, useEffect, useMemo, lazy, Suspense } from "react";
 
@@ -216,6 +218,8 @@ export function Navbar() {
   const { data: authData } = useAuth();
   const logout = useLogout();
   const partnerBanner = usePartnerBanner();
+  // Постоянная полоска эфира «Дикая Мята» под навбаром (скрыта в админке/партнёрке/опте/оформлении)
+  const showRadio = shouldShowRadioStrip(location);
   
   const { favoritesCount } = useFavorites();
   const { totalCount: preorderCount } = usePreorderCart();
@@ -377,7 +381,7 @@ export function Navbar() {
   return (
     <>
     <nav className={`navbar-glass-dark ${getNavWrapperClasses()} transition-transform duration-300 ease-in-out ${isNavHidden ? 'navbar-hidden-mobile' : ''} ${isSearchOpen ? 'invisible' : ''} ${partnerBanner.rendered ? 'lg:border-b lg:border-black/15' : ''}`}>
-      <div className={`${getNavBarClasses()} lg:bg-background/80 lg:backdrop-blur-md ${partnerBanner.rendered ? 'lg:!border-0' : 'lg:border-b lg:border-border/20'} lg:shadow-none lg:px-8 lg:py-0 lg:rounded-none`}>
+      <div className={`${getNavBarClasses()} lg:bg-background/80 lg:backdrop-blur-md ${partnerBanner.rendered || showRadio ? 'lg:!border-0' : 'lg:border-b lg:border-border/20'} lg:shadow-none lg:px-8 lg:py-0 lg:rounded-none`}>
 
         {/* ── Mobile layout ─────────────────────────── */}
         <div className="flex lg:hidden items-center justify-between h-10">
@@ -897,6 +901,9 @@ export function Navbar() {
 
         </div>
 
+        {/* Постоянная радио-полоска «Дикая Мята»; баннер партнёрки выезжает ПОД ней */}
+        {showRadio && <RadioStrip />}
+
         <PartnerBannerContent {...partnerBanner} />
       </div>
 
@@ -1104,6 +1111,9 @@ export function Navbar() {
         </Suspense>
       )}
     </nav>
+    {/* Распорка в потоке: навбар fixed, поэтому высоту радио-полоски (34px) компенсируем
+        здесь — контент страниц остаётся ровно под шапкой, без правок на каждой странице. */}
+    {showRadio && <div aria-hidden="true" className="h-[34px]" />}
     {/* MusicDrawer MUST stay outside <nav>: nav has CSS transform + backdrop-filter which
         create a new containing block for position:fixed children, breaking viewport anchoring */}
     <Suspense fallback={null}>

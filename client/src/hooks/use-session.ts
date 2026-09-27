@@ -9,7 +9,7 @@ const GUEST_SESSION_KEY = 'bmg_session_id';
 let globalMergedForUser: string | null = null;
 let mergeInProgress = false;
 
-function getGuestSessionId(): string {
+export function getGuestSessionId(): string {
   let stored = localStorage.getItem(GUEST_SESSION_KEY);
   if (!stored) {
     stored = nanoid();

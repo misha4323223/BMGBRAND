@@ -360,6 +360,19 @@ body.lb-open nav {
   animation: holo-icon-pulse 2.8s ease-in-out infinite;
 }
 
+/* Радио-полоска «Дикая Мята»: эквалайзер оживает только во время эфира */
+@keyframes radio-eq {
+  0%, 100% { transform: scaleY(0.35); }
+  50%      { transform: scaleY(1); }
+}
+.radio-eq-bar {
+  transform-origin: bottom;
+  animation: radio-eq 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .radio-eq-bar { animation: none; }
+}
+
 /* Мобильный навбар: скрыть при скролле вниз (только < 1024px) */
 @media (max-width: 1023px) {
   .navbar-hidden-mobile {
