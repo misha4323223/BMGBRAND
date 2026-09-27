@@ -738,7 +738,7 @@ export default function Home() {
 
         {/* ── Main section (desktop always; mobile only for non-video) ── */}
         <section
-          className={`relative w-full flex-col items-center justify-center overflow-hidden bg-black sm:-mt-40
+          className={`relative w-full flex-col items-center justify-center overflow-hidden bg-black -mt-[42px] sm:-mt-40
             ${isVideoSlide
               ? `hidden sm:flex sm:h-auto sm:aspect-[2560/1740] ${pageSettings?.hero?.showOnDesktop === false ? 'sm:hidden' : ''}`
               : `h-svh sm:h-auto sm:aspect-[2560/1740] ${pageSettings?.hero?.showOnMobile === false ? 'hidden sm:flex' : 'flex'} ${pageSettings?.hero?.showOnDesktop === false ? 'sm:hidden' : ''}`
