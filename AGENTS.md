@@ -464,6 +464,20 @@
   Сразу после `</nav>` рендерится распорка `h-[34px]`: навбар fixed, так контент остаётся ровно под шапкой
   без правок на каждой странице (единственное исключение — ConceptCampaignPage, там `<Navbar/>` перенесён
   в начало страницы).
+- Мобильная версия полоски компактная (2026-09-27): слово «LIVE» показывается только с `lg`
+  (на мобилке — лишь пульсирующая точка), шрифты/трекинг/зазоры уменьшены мобильными классами,
+  десктоп не затронут.
+- **Сворачивание радио на мобилке (2026-09-27, пожелание владельца)**: шеврон в полоске
+  (`button-radio-collapse`, `lg:hidden`) → `setCollapsed(true)`. Состояние живёт в `RadioContext`
+  (`collapsed`/`setCollapsed`, localStorage `booomerangs_radio_collapsed`, дефолт — развёрнуто).
+  Свёрнутая полоска полностью уходит из навбара (`hidden lg:block`), распорка `h-[34px]` в Navbar
+  тоже становится `hidden lg:block`, а эфир показывает нижний мини-плеер
+  `client/src/components/RadioMiniPlayer.tsx` — по логике плеера сайта: `fixed bottom-0 z-40 lg:hidden`,
+  тёмная панель как у GlobalPlayer, встаёт на 77px выше, если открыт плеер сайта
+  (`usePlayer().currentTrack`), кнопка ChevronUp возвращает полоску в навбар. Пока он открыт:
+  `#root.style.paddingBottom = 64px` и класс `body.radio-mini-open`, который по CSS из `client/src/index.css`
+  прячет кнопку чата (`.chat-fab` в ChatWidget) — ровно как делает плеер сайта. Рендерится в `App.tsx`
+  ВНЕ `<nav>` (у навбара transform/backdrop-filter ломают position:fixed внутри). Десктоп не затронут.
 - «Сейчас играет»: `server/lib/radio-meta.ts` (ICY-парсер: `Icy-MetaData: 1`, блоки `metaint`×16,
   пустые блоки пропускаются) + `server/routes/radio.ts` → `GET /api/radio/now-playing`
   (кэш 25 с — один опрос на всех посетителей; пустой результат кэшируется 10 с).

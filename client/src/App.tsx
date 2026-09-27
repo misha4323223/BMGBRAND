@@ -10,6 +10,7 @@ import { captureRefFromUrl } from "@/lib/partner-ref";
 import { PreorderCartProvider } from "@/context/PreorderCartContext";
 import { PlayerProvider } from "@/context/PlayerContext";
 import { RadioProvider } from "@/context/RadioContext";
+import { RadioMiniPlayer } from "@/components/RadioMiniPlayer";
 import { BrandLoader } from "@/components/BrandLoader"; // ⬅️ добавлен импорт
 
 // GlobalPlayer тянул framer-motion (116 КБ) в критический путь каждой страницы,
@@ -218,6 +219,10 @@ function App() {
                 <DeferredComponents />
                 <RadioProvider>
                   <Router />
+                  {/* Нижний мини-плеер эфира: показывается, когда полоска свёрнута.
+                      Намеренно ВНЕ <nav>: у навбара есть transform/backdrop-filter,
+                      которые ломают position:fixed внутри него. */}
+                  <RadioMiniPlayer />
                 </RadioProvider>
                 <Suspense fallback={null}>
                   <GlobalPlayer />

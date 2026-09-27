@@ -1753,7 +1753,7 @@ export function ChatWidget() {
       )}
 
       {/* Toggle button — скрывается когда плеер активен или на мерч-страницах (там свои кнопки в навбаре) */}
-      <div className={`fixed right-6 z-50 flex flex-col items-end gap-2 transition-all duration-300 ease-in-out ${(btnHidden && !open) || (!!currentTrack && !open) || (isMerchNavPage && !open) ? 'bottom-[-154px] opacity-0 pointer-events-none' : 'bottom-6 opacity-100'}`}>
+      <div className={`chat-fab fixed right-6 z-50 flex flex-col items-end gap-2 transition-all duration-300 ease-in-out ${(btnHidden && !open) || (!!currentTrack && !open) || (isMerchNavPage && !open) ? 'bottom-[-154px] opacity-0 pointer-events-none' : 'bottom-6 opacity-100'}`}>
         {!open && unreadCount > 0 && (
           <div className="flex items-center gap-1.5 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-300">
             <span className="w-1.5 h-1.5 rounded-full bg-white/70 flex-shrink-0" />

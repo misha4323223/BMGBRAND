@@ -26,6 +26,8 @@ import { getGuestSessionId } from "@/hooks/use-session";
  */
 
 const VOLUME_STORAGE_KEY = "booomerangs_radio_volume";
+/** Свёрнута ли полоска на мобильном (эфир уезжает в нижний мини-плеер). */
+const COLLAPSED_STORAGE_KEY = "booomerangs_radio_collapsed";
 const DEFAULT_VOLUME = 0.8;
 const NOW_PLAYING_POLL_MS = 25_000;
 const CONNECT_TIMEOUT_MS = 15_000;
@@ -38,6 +40,9 @@ interface RadioContextValue {
   nowPlaying: string | null;
   /** Сколько людей слушают эфир на нашем сайте прямо сейчас (null — неизвестно). */
   listeners: number | null;
+  /** Свёрнута ли полоска на мобильном: она уходит из навбара в нижний мини-плеер. */
+  collapsed: boolean;
+  setCollapsed: (value: boolean) => void;
   play: () => void;
   pause: () => void;
   toggle: () => void;
@@ -62,6 +67,15 @@ function readStoredVolume(): number {
   }
 }
 
+function readStoredCollapsed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function RadioProvider({ children }: { children: ReactNode }) {
   const player = usePlayer();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -72,6 +86,7 @@ export function RadioProvider({ children }: { children: ReactNode }) {
   const [volume, setVolumeState] = useState<number>(readStoredVolume);
   const [nowPlaying, setNowPlaying] = useState<string | null>(null);
   const [listeners, setListeners] = useState<number | null>(null);
+  const [collapsed, setCollapsedState] = useState<boolean>(readStoredCollapsed);
   const volumeRef = useRef(volume);
   // Плеер сайта обновляет контекст каждую секунду (currentTime) — держим его в ref,
   // чтобы наш value не менял идентичность и не ре-рендерил полоску зря.
@@ -166,6 +181,15 @@ export function RadioProvider({ children }: { children: ReactNode }) {
     else play();
   }, [isConnecting, isPlaying, pause, play]);
 
+  const setCollapsed = useCallback((value: boolean) => {
+    setCollapsedState(value);
+    try {
+      window.localStorage.setItem(COLLAPSED_STORAGE_KEY, value ? "1" : "0");
+    } catch {
+      /* приватный режим — просто не запоминаем */
+    }
+  }, []);
+
   const setVolume = useCallback((value: number) => {
     const next = clampVolume(value);
     setVolumeState(next);
@@ -251,12 +275,27 @@ export function RadioProvider({ children }: { children: ReactNode }) {
       volume,
       nowPlaying,
       listeners,
+      collapsed,
+      setCollapsed,
       play,
       pause,
       toggle,
       setVolume,
     }),
-    [error, isConnecting, isPlaying, listeners, nowPlaying, pause, play, setVolume, toggle, volume],
+    [
+      collapsed,
+      error,
+      isConnecting,
+      isPlaying,
+      listeners,
+      nowPlaying,
+      pause,
+      play,
+      setCollapsed,
+      setVolume,
+      toggle,
+      volume,
+    ],
   );
 
   return <RadioContext.Provider value={value}>{children}</RadioContext.Provider>;

@@ -5,6 +5,7 @@ import { usePartnerBanner, PartnerBannerContent } from "./PartnerBanner";
 import { RadioStrip } from "./RadioStrip";
 import { shouldShowRadioStrip } from "@shared/radio";
 import { usePlayer } from "@/context/PlayerContext";
+import { useRadio } from "@/context/RadioContext";
 import { useState, useRef, useEffect, useMemo, lazy, Suspense } from "react";
 
 // MusicDrawer тянет framer-motion (116 КБ). Открывается только по клику —
@@ -220,6 +221,9 @@ export function Navbar() {
   const partnerBanner = usePartnerBanner();
   // Постоянная полоска эфира «Дикая Мята» под навбаром (скрыта в админке/партнёрке/опте/оформлении)
   const showRadio = shouldShowRadioStrip(location);
+  // Свёрнута ли полоска на мобильном: тогда она уходит из навбара, а эфир
+  // показывает нижний мини-плеер (`RadioMiniPlayer`, рендерится в App.tsx).
+  const { collapsed: radioCollapsed } = useRadio();
   
   const { favoritesCount } = useFavorites();
   const { totalCount: preorderCount } = usePreorderCart();
@@ -1113,7 +1117,9 @@ export function Navbar() {
     </nav>
     {/* Распорка в потоке: навбар fixed, поэтому высоту радио-полоски (34px) компенсируем
         здесь — контент страниц остаётся ровно под шапкой, без правок на каждой странице. */}
-    {showRadio && <div aria-hidden="true" className="h-[34px]" />}
+    {showRadio && (
+      <div aria-hidden="true" className={`h-[34px] ${radioCollapsed ? "hidden lg:block" : ""}`} />
+    )}
     {/* MusicDrawer MUST stay outside <nav>: nav has CSS transform + backdrop-filter which
         create a new containing block for position:fixed children, breaking viewport anchoring */}
     <Suspense fallback={null}>

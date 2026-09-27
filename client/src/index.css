@@ -373,6 +373,16 @@ body.lb-open nav {
   .radio-eq-bar { animation: none; }
 }
 
+/* Пока на мобильном открыт нижний мини-плеер радио (`body.radio-mini-open`),
+   кнопка чата уезжает вниз — ровно та же логика, что у плеера сайта (он её тоже прячет). */
+@media (max-width: 1023px) {
+  body.radio-mini-open .chat-fab {
+    bottom: -154px;
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
 /* Мобильный навбар: скрыть при скролле вниз (только < 1024px) */
 @media (max-width: 1023px) {
   .navbar-hidden-mobile {
