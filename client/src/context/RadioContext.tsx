@@ -142,14 +142,27 @@ export function RadioProvider({ children }: { children: ReactNode }) {
 
     if (audio.getAttribute("src") !== RADIO_STATION.streamUrl) {
       audio.setAttribute("src", RADIO_STATION.streamUrl);
+      // Safari/iOS: явно перезапускаем выбор источника, иначе play() может зависнуть.
+      audio.load();
     }
 
     const started = audio.play();
     if (started && typeof started.catch === "function") {
-      started.catch(() => {
+      started.catch((err: unknown) => {
         setIsPlaying(false);
         setIsConnecting(false);
-        setError("Не удалось включить эфир");
+        // AbortError = воспроизведение прервали сами (пауза/смена src) — это не сбой.
+        const name = err instanceof Error ? err.name : "";
+        if (name === "AbortError") return;
+        if (name === "NotAllowedError") {
+          setError("Браузер не разрешил запуск — нажмите ▶ ещё раз");
+          return;
+        }
+        if (name === "NotSupportedError") {
+          setError("Эфир не поддерживается этим браузером");
+          return;
+        }
+        setError("Не удалось включить эфир — нажмите ▶ ещё раз");
       });
     }
 
@@ -160,7 +173,7 @@ export function RadioProvider({ children }: { children: ReactNode }) {
       // Если поток так и не начал играть (или сразу встал) — говорим об этом честно.
       if (!current || !current.paused) return;
       setIsConnecting(false);
-      setError("Эфир не отвечает — попробуйте позже");
+      setError("Эфир не отвечает — нажмите ▶ ещё раз");
     }, CONNECT_TIMEOUT_MS);
   }, [clearConnectTimer, getAudio]);
 

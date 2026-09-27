@@ -1118,7 +1118,7 @@ export function Navbar() {
     {/* Распорка в потоке: навбар fixed, поэтому высоту радио-полоски (34px) компенсируем
         здесь — контент страниц остаётся ровно под шапкой, без правок на каждой странице. */}
     {showRadio && (
-      <div aria-hidden="true" className={`h-[34px] ${radioCollapsed ? "hidden lg:block" : ""}`} />
+      <div aria-hidden="true" className={radioCollapsed ? "h-[34px] lg:h-[24px]" : "h-[42px] lg:h-[64px]"} />
     )}
     {/* MusicDrawer MUST stay outside <nav>: nav has CSS transform + backdrop-filter which
         create a new containing block for position:fixed children, breaking viewport anchoring */}
