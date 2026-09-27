@@ -5,6 +5,7 @@ import { uploadToYandexStorage, deleteFromYandexStorage } from "../lib/storage-s
 import { sanitizeHtmlBlock, sanitizeJsonLd, sanitizeSizes, sanitizeSizeStock } from "../lib/product-utils";
 import { enqueueNewProduct } from "../new-products-notifier";
 import { enqueuePreorderProduct } from "../preorder-notifier";
+import { resolveHomepageSectionUpdate, homepageSectionResponse } from "../lib/homepage-sections";
 import { sendPriceDropEmail } from "../email";
 
 // Admin products management routes extracted from routes.ts verbatim.
@@ -706,6 +707,65 @@ export function registerAdminProductsRoutes(
     } catch (error) {
       logError("[Admin] Error getting product:", error);
       res.status(500).json({ error: "Failed to get product" });
+    }
+  });
+
+  // ============ СЕКЦИИ ГЛАВНОЙ СТРАНИЦЫ ============
+  // Кнопка в форме товара: поставить товар первым в секции главной страницы
+  // (popular — она же «Новинки»/«Популярное» — либо любая custom_* с type=custom_hits)
+  // или убрать его из неё. Закрепление переводит секцию в режим "manual"
+  // (как и тумблер в админке: Страницы → главная → секция).
+  app.post("/api/admin/products/:id/homepage-section", async (req, res) => {
+    const expectedKey = getAdminKey();
+    const apiKey = req.headers["x-api-key"];
+    if (!expectedKey) {
+      return res.status(503).json({ error: "Admin API not configured" });
+    }
+    if (apiKey !== expectedKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const productId = Number(req.params.id);
+      if (!Number.isFinite(productId) || productId <= 0) {
+        return res.status(400).json({ error: "Некорректный ID товара" });
+      }
+
+      const sectionId = String(req.body?.sectionId || "popular");
+      const action: "prepend" | "remove" = req.body?.action === "remove" ? "remove" : "prepend";
+
+      const home = (await storage.getPageSettings("home")) as Record<string, any>;
+      const section = home?.[sectionId];
+      const product = await storage.getProduct(productId);
+
+      const result = resolveHomepageSectionUpdate({
+        sectionId,
+        section,
+        productId,
+        productExists: !!product,
+        productIsHidden: (product as any)?.isHidden === true,
+        action,
+      });
+      if (!result.ok) {
+        return res.status(result.status).json({ error: result.error });
+      }
+
+      if (action === "remove" && !result.meta.removed) {
+        return res.json(homepageSectionResponse(sectionId, action, result.meta));
+      }
+
+      // visible/title/count и прочие поля секции НЕ трогаем — меняем только режим и список.
+      await storage.setPageSectionSettings("home", sectionId, {
+        ...section,
+        mode: "manual",
+        pinnedProductIds: result.next,
+      });
+
+      logInfo(`[HomepageSection] ${action}: product ${productId} → ${sectionId} (pinned: ${result.next.length})`);
+      res.json(homepageSectionResponse(sectionId, action, result.meta));
+    } catch (err: any) {
+      logError("[HomepageSection] Error:", err);
+      res.status(500).json({ error: err.message || "Failed to update homepage section" });
     }
   });
 }

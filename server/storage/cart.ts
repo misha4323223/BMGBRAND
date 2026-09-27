@@ -2,10 +2,11 @@
 // Extends DatabaseStorage via typed prototype assignment (module augmentation).
 // The single DatabaseStorage instance lives in core.ts; this file patches its
 // prototype so all `this.` calls (helpers, caches, cross-domain methods) work as before.
-import { driver } from "../db";
+import { driver, waitForDriver } from "../db";
 import { logError, logWarn } from "../logger";
 import type { CartItem, InsertCartItem, Product } from "@shared/schema";
 import { DatabaseStorage, devCartItems } from "./core";
+import { withYdbRetry } from "../lib/ydb-retry";
 
 declare module "./core" {
   interface DatabaseStorage {
@@ -158,7 +159,11 @@ DatabaseStorage.prototype.addToCart = async function (this: DatabaseStorage, ite
     
     try {
       let finalQuantity = qty;
-      await driver.tableClient.withSession(async (session) => {
+      // Записи корзины могут упасть на гонке YDB (locks invalidated) — повторяем.
+      await withYdbRetry(async () => {
+      const activeDriver = await waitForDriver();
+      if (!activeDriver) throw new Error("[Cart] YDB driver unavailable");
+      await activeDriver.tableClient.withSession(async (session) => {
         const { TypedValues, Types } = await import("ydb-sdk");
         
         const selectQuery = `
@@ -184,49 +189,77 @@ DatabaseStorage.prototype.addToCart = async function (this: DatabaseStorage, ite
         
         const result = await session.executeQuery(selectQuery, selectParams);
         const rows = result.resultSets?.[0]?.rows || [];
-        
+
+        // Атомарный инкремент: +qty считает база, поэтому параллельные добавления
+        // НЕ теряют друг друга (раньше был absolute-value UPDATE поверх SELECT:
+        // 50 параллельных добавлений давали 10).
+        const incrementQuery = `
+          DECLARE $session_id AS Utf8;
+          DECLARE $product_id AS Uint64;
+          DECLARE $size AS Utf8;
+          DECLARE $color AS Utf8;
+          DECLARE $delta AS Int32;
+
+          UPDATE cart_items SET quantity = quantity + $delta
+          WHERE session_id = $session_id
+            AND product_id = $product_id
+            AND size = $size
+            AND color = $color;
+        `;
+
         if (rows.length > 0) {
           const existingQty = Number(rows[0]?.items?.[1]?.int32Value || rows[0]?.items?.[1]?.uint64Value || 0);
           finalQuantity = existingQty + qty;
-          console.log(`[Cart] Found existing item, updating quantity: ${existingQty} + ${qty} = ${finalQuantity}`);
-          
-          const updateQuery = `
-            DECLARE $session_id AS Utf8;
-            DECLARE $product_id AS Uint64;
-            DECLARE $size AS Utf8;
-            DECLARE $color AS Utf8;
-            DECLARE $quantity AS Int32;
-            
-            UPDATE cart_items SET quantity = $quantity
-            WHERE session_id = $session_id
-              AND product_id = $product_id
-              AND size = $size
-              AND color = $color;
-          `;
-          await session.executeQuery(updateQuery, {
+          console.log(`[Cart] Found existing item, atomic increment: ${existingQty} + ${qty} = ${finalQuantity}`);
+          await session.executeQuery(incrementQuery, {
             ...selectParams,
-            $quantity: TypedValues.fromNative(Types.INT32, finalQuantity),
+            $delta: TypedValues.fromNative(Types.INT32, qty),
           });
         } else {
+          finalQuantity = qty;
+          // Строки ещё нет — создаём её в сериализуемой транзакции, чтобы два
+          // одновременных «первых» добавления не перезаписали друг друга.
           console.log(`[Cart] Inserting new item: id=${cartItemId}, session=${sessionStr}, product=${productIdNum}, qty=${qty}`);
-          const insertQuery = `
-            DECLARE $id AS Uint64;
-            DECLARE $session_id AS Utf8;
-            DECLARE $product_id AS Uint64;
-            DECLARE $size AS Utf8;
-            DECLARE $color AS Utf8;
-            DECLARE $quantity AS Int32;
-            
-            UPSERT INTO cart_items (id, session_id, product_id, size, color, quantity, created_at)
-            VALUES ($id, $session_id, $product_id, $size, $color, $quantity, CurrentUtcTimestamp());
-          `;
-          await session.executeQuery(insertQuery, {
-            $id: TypedValues.fromNative(Types.UINT64, cartItemId),
-            ...selectParams,
-            $quantity: TypedValues.fromNative(Types.INT32, qty),
-          });
+          const tx = await session.beginTransaction({ serializableReadWrite: {} });
+          const txId = tx.id!;
+          try {
+            const txSelect = await session.executeQuery(selectQuery, selectParams, { txId });
+            const txRows = txSelect.resultSets?.[0]?.rows || [];
+            if (txRows.length > 0) {
+              // Пока шли до транзакции, строку успел создать другой запрос — инкремент.
+              const existingQty = Number(txRows[0]?.items?.[1]?.int32Value || txRows[0]?.items?.[1]?.uint64Value || 0);
+              finalQuantity = existingQty + qty;
+              await session.executeQuery(incrementQuery, {
+                ...selectParams,
+                $delta: TypedValues.fromNative(Types.INT32, qty),
+              }, { txId });
+            } else {
+              const insertQuery = `
+                DECLARE $id AS Uint64;
+                DECLARE $session_id AS Utf8;
+                DECLARE $product_id AS Uint64;
+                DECLARE $size AS Utf8;
+                DECLARE $color AS Utf8;
+                DECLARE $quantity AS Int32;
+
+                UPSERT INTO cart_items (id, session_id, product_id, size, color, quantity, created_at)
+                VALUES ($id, $session_id, $product_id, $size, $color, $quantity, CurrentUtcTimestamp());
+              `;
+              await session.executeQuery(insertQuery, {
+                $id: TypedValues.fromNative(Types.UINT64, cartItemId),
+                ...selectParams,
+                $quantity: TypedValues.fromNative(Types.INT32, qty),
+              }, { txId });
+            }
+            await session.commitTransaction({ txId });
+          } catch (txErr) {
+            // Транзакция могла уже отмениться (locks invalidated) — глушим откат.
+            try { await session.rollbackTransaction({ txId }); } catch { /* уже отменена */ }
+            throw txErr;
+          }
         }
       });
+      }, { label: "cart.addToCart", attempts: 8, baseDelayMs: 120 });
       console.log(`[Cart] Added/updated item in YDB: session=${sessionStr}, product=${productIdNum}, finalQty=${finalQuantity}`);
     } catch (err: any) {
       logError(`[Cart] Error adding to cart:`, err.message || err);
@@ -259,7 +292,11 @@ DatabaseStorage.prototype.updateCartItemQuantity = async function (this: Databas
     }
 
     try {
-      await driver.tableClient.withSession(async (session) => {
+      // Записи корзины могут упасть на гонке YDB (locks invalidated) — повторяем.
+      await withYdbRetry(async () => {
+      const activeDriver = await waitForDriver();
+      if (!activeDriver) throw new Error("[Cart] YDB driver unavailable");
+      await activeDriver.tableClient.withSession(async (session) => {
         const { TypedValues, Types } = await import("ydb-sdk");
         const query = `
           DECLARE $session_id AS Utf8;
@@ -282,6 +319,7 @@ DatabaseStorage.prototype.updateCartItemQuantity = async function (this: Databas
           $quantity: TypedValues.fromNative(Types.INT32, quantity),
         });
       });
+      }, { label: "cart.updateQuantity" });
       console.log(`[Cart] Updated quantity in YDB: session=${sessionId}, product=${productId}, size=${size}, qty=${quantity}`);
       return { id, quantity, sessionId: sessionId || '', productId: productId || 0, size: size || 'One Size', color: color || 'Default' } as CartItem;
     } catch (err: any) {
@@ -313,7 +351,11 @@ DatabaseStorage.prototype.removeFromCart = async function (this: DatabaseStorage
     }
     
     try {
-      await driver.tableClient.withSession(async (session) => {
+      // Записи корзины могут упасть на гонке YDB (locks invalidated) — повторяем.
+      await withYdbRetry(async () => {
+      const activeDriver = await waitForDriver();
+      if (!activeDriver) throw new Error("[Cart] YDB driver unavailable");
+      await activeDriver.tableClient.withSession(async (session) => {
         const { TypedValues, Types } = await import("ydb-sdk");
         const query = `
           DECLARE $session_id AS Utf8;
@@ -338,8 +380,10 @@ DatabaseStorage.prototype.removeFromCart = async function (this: DatabaseStorage
         await session.executeQuery(query, params);
         console.log(`[Cart] Removed item from YDB: session=${sessionId}, product=${productId}`);
       });
+      }, { label: "cart.removeFromCart" });
     } catch (err: any) {
       logError(`[Cart] Error removing from cart:`, err.message || err);
+      throw err;
     }
   }
 ;

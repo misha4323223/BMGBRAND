@@ -4,6 +4,7 @@ import { config } from "./config";
 import type { Server } from "http";
 import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsByCategory, isProductsCacheWarm, isLoyaltyCountedStatus } from "./storage";
 import { api } from "@shared/routes";
+import { escapeXml, formatFeedPriceRub } from "@shared/feed-utils";
 import { qualifiesForFreeShipping, getFreeShippingThreshold, resolveFreeShippingThresholds } from "@shared/free-shipping";
 import type { FreeShippingThresholds } from "@shared/free-shipping";
 import { z } from "zod";
@@ -15,6 +16,7 @@ import { uploadToYandexStorage, downloadFromYandexStorage, listObjectsFromYandex
 import { createCdekWaybillForOrder, recreateCdekWaybillForOrder } from "./lib/cdek-waybill";
 import { queuePreorderStatusEmail } from "./lib/preorder-email-buffer";
 import { resolveItemPrice } from "./lib/pricing";
+import { getOrCreateVkJpeg, vkPictureUrl } from "./lib/vk-image";
 import { computePromoEligibleSubtotal, computePromoDiscount } from "./lib/checkout";
 import { SIZE_ORDER, STANDARD_CLOTHING_SIZES, sanitizeHtmlBlock, sanitizeJsonLd, sortSizes, normalizeSizeKey, canonicalizeSizeKey, resolveSizeStock, sanitizeSizes, sanitizeSizeStock } from "./lib/product-utils";
 import { registerDadataRoutes } from "./routes/dadata";
@@ -50,6 +52,7 @@ import sharp from "sharp";
 import { mapProductCategory, isOnSale, extractColorFromName, extractSizesFromName, mapGroupHierarchyToCategory, isIgnoredRootGroup, isAllowedRootGroup, getRootGroupCategorySlug, getArtistSlugFromName, type GroupHierarchy } from "./categoryMapper";
 import { CATEGORIES, normalizeCategories, buildCategoryIndex, resolveProductCategoryPaths, transliterateToSlug, insertPromoCodeSchema, insertLoyaltyTierSchema, insertNewsletterSubscriptionSchema, PARTNER_COOKIE_NAME, PARTNER_DEFAULT_COMMISSION_PERCENT, getProgressiveCommissionRate } from "@shared/schema";
 import type { SubcategoryConfig, SubSubcategoryConfig, CategoryConfig } from "@shared/schema";
+import { resolveBlogPostForSsr } from "@shared/blog-post";
 import authRoutes, { authMiddleware, requireAdminRole, type AuthRequest } from "./auth-routes";
 import { notifyError } from "./error-monitor";
 import partnerRoutes, { partnerRefQueryMiddleware, partnerRefRedirectHandler, getApprovedPartnerCached, getGlobalPartnerCommissionPercentCached, getGlobalPartnerHoldDaysCached } from "./partner-routes";
@@ -1500,6 +1503,7 @@ export async function registerRoutes(
     cacheKey: string,
     xml: string,
     contentLanguage?: string,
+    maxAgeSeconds?: number,
   ) {
     const today = new Date().toISOString().slice(0, 10);
     const normalizedXml = xml.replace(
@@ -1507,11 +1511,20 @@ export async function registerRoutes(
       (_match, open, value, close) => `${open}${formatSitemapLastmod(value, today)}${close}`,
     );
     generatedXmlCache[cacheKey] = { xml: normalizedXml, generatedAt: Date.now() };
-    const type = res.type("application/xml");
+    // charset указываем явно: для HEAD-запроса ответ формируется без res.send(),
+    // который иначе сам добавляет charset к строковому телу.
+    const type = res.type("application/xml; charset=utf-8");
     if (contentLanguage) type.set("Content-Language", contentLanguage);
     // Sitemaps/feeds rarely need to be regenerated more than hourly; caching the
     // response publicly stops each crawler hit from rebuilding (and re-reading YDB).
-    type.set("Cache-Control", "public, max-age=3600");
+    type.set("Cache-Control", `public, max-age=${maxAgeSeconds ?? 3600}`);
+    // HEAD: отдаём корректный Content-Length явно (Express делает это и сам,
+    // но HTTP-роутер платформы контейнера иначе отвечает Content-Length: 0).
+    if (res.req.method === "HEAD") {
+      type.set("Content-Length", String(Buffer.byteLength(normalizedXml)));
+      type.status(200).end();
+      return;
+    }
     type.send(normalizedXml);
   }
   function serveStaleXmlOrError(res: express.Response, cacheKey: string, label: string, err: unknown) {
@@ -1757,6 +1770,7 @@ ${productLines || "- (список формируется)"}
 - [Партнёрская программа](${llmsBaseUrl}/partner)
 - [YML-фид (Яндекс Маркет, полный каталог)](${llmsBaseUrl}/yml-feed.xml)
 - [YML-фид для Кнопки «Купить» Яндекса](${llmsBaseUrl}/ycp-feed.xml)
+- [VK-фид (ВКонтакте, JPEG + целые цены)](${llmsBaseUrl}/vk-feed.xml)
 
 ## О бренде
 
@@ -2032,6 +2046,7 @@ ${faqSection}
       { loc: "/partner", changefreq: "monthly", priority: "0.8" },
       { loc: "/merch-na-zakaz", changefreq: "weekly", priority: "0.9" },
       { loc: "/care", changefreq: "yearly", priority: "0.4" },
+      { loc: "/blog", changefreq: "weekly", priority: "0.7" },
     ];
 
     try {
@@ -2156,6 +2171,30 @@ ${faqSection}
         }
       }
 
+      // Статьи блога: /blog/{id} — резолвер тот же, что в SSR, поэтому в sitemap
+      // попадают только существующие и видимые статьи (без пустышек).
+      try {
+        const blogPagesSm = await storage.getPageSettings("blog_pages") as Record<string, any> | null;
+        const homeSm = await storage.getPageSettings("home") as Record<string, any> | null;
+        const homeBlogItems = homeSm?.blog?.items;
+        const blogMaxIndex = Math.max(
+          Object.keys(blogPagesSm || {}).length,
+          Array.isArray(homeBlogItems) ? homeBlogItems.length : 0,
+        );
+        for (let bi = 0; bi < blogMaxIndex; bi++) {
+          const blogPost = resolveBlogPostForSsr(blogPagesSm, homeBlogItems, bi);
+          if (!blogPost) continue;
+          xml += `  <url>\n`;
+          xml += `    <loc>${baseUrl}/blog/${blogPost.id}</loc>\n`;
+          if (/^\d{4}-\d{2}-\d{2}$/.test(blogPost.dateIso)) {
+            xml += `    <lastmod>${blogPost.dateIso}</lastmod>\n`;
+          }
+          xml += `    <changefreq>monthly</changefreq>\n`;
+          xml += `    <priority>0.7</priority>\n`;
+          xml += `  </url>\n`;
+        }
+      } catch { /* блог недоступен — sitemap без статей */ }
+
       for (const product of visibleProducts) {
         const productPath = product.slug;
         // Per-product lastmod: prefer real update date over today's date
@@ -2227,10 +2266,12 @@ ${faqSection}
   });
 
   // YML feed for Yandex.Products (Яндекс.Товары) — ПОЛНЫЙ каталог.
-  // Тот же генератор обслуживает /ycp-feed.xml: фид Кнопки «Купить» (YCP),
-  // из которого вырезаны товары с выбором размера — YCP размер не передаёт.
-  app.get(["/yml-feed.xml", "/ycp-feed.xml"], async (_req, res) => {
+  // Тот же генератор обслуживает /ycp-feed.xml (фид Кнопки «Купить»: вырезаны
+  // товары с выбором размера — YCP размер не передаёт) и /vk-feed.xml
+  // (ВКонтакте: целые цены и картинки только JPEG/PNG — VK не принимает WebP).
+  app.get(["/yml-feed.xml", "/ycp-feed.xml", "/vk-feed.xml"], async (_req, res) => {
     const isYcpFeed = _req.path.includes("ycp-feed.xml");
+    const isVkFeed = _req.path.includes("vk-feed.xml");
     const host = _req.headers.host || "booomerangs.ru";
     const baseUrl = `https://${host}`;
     const now = new Date().toISOString().replace("T", " ").slice(0, 16);
@@ -2252,18 +2293,15 @@ ${faqSection}
         // Real non-numeric slug only — `p.slug || p.id` would emit numeric-ID
         // URLs (/123) that don't resolve to product pages.
         typeof p.slug === "string" && p.slug.trim().length > 0 && !/^\d+$/.test(p.slug.trim()) &&
-        // Полный фид (/yml-feed.xml) отдаёт весь каталог. Фид Кнопки «Купить»
-        // (/ycp-feed.xml) урезан до товаров без выбора размера: носки, noSize
-        // и вещи без буквенных размеров (S/M/L/XL...) — YCP размер не передаёт.
+        // Полные фиды (/yml-feed.xml, /vk-feed.xml) отдают весь каталог. Фид
+        // Кнопки «Купить» (/ycp-feed.xml) урезан до товаров без выбора размера:
+        // носки, noSize и вещи без буквенных размеров (S/M/L/XL...) — YCP
+        // размер не передаёт.
         (!isYcpFeed || isYcpBuyable(p))
       );
 
-      const escXml = (s: string) => String(s)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&apos;");
+      // Экранирование — общий тестируемый хелпер (@shared/feed-utils).
+      const escXml = escapeXml;
 
       let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
       xml += `<yml_catalog date="${now}">\n`;
@@ -2287,7 +2325,7 @@ ${faqSection}
       for (const product of visibleProducts) {
         const p = product as any;
         const productUrl = `${baseUrl}/${p.slug || p.id}`;
-        const priceRub = (p.price / 100).toFixed(2);
+        const priceRub = formatFeedPriceRub(p.price, isVkFeed);
         const catEntry = CATEGORY_MAP[p.category] || CATEGORY_MAP["clothing"];
         const available = (p.stock == null || p.stock > 0) ? "true" : "false";
 
@@ -2314,13 +2352,13 @@ ${faqSection}
         xml += `        <name>${escXml(`${namePrefix}${p.name}`)}</name>\n`;
         xml += `        <price>${priceRub}</price>\n`;
         if (p.discountPercent && p.discountPercent > 0 && p.discountPercent < 100) {
-          const oldPriceRub = (p.price / (1 - p.discountPercent / 100) / 100).toFixed(2);
+          const oldPriceRub = formatFeedPriceRub(p.price / (1 - p.discountPercent / 100), isVkFeed);
           xml += `        <oldprice>${oldPriceRub}</oldprice>\n`;
         }
         xml += `        <currencyId>RUB</currencyId>\n`;
         xml += `        <categoryId>${catEntry.id}</categoryId>\n`;
         for (const img of allImages.slice(0, 10)) {
-          xml += `        <picture>${escXml(img)}</picture>\n`;
+          xml += `        <picture>${escXml(isVkFeed ? vkPictureUrl(baseUrl, img) : img)}</picture>\n`;
         }
         xml += `        <description>${escXml(desc)}</description>\n`;
         xml += `        <vendor>BMGBRAND</vendor>\n`;
@@ -2339,11 +2377,37 @@ ${faqSection}
       xml += `  </shop>\n`;
       xml += `</yml_catalog>`;
 
-      const feedName = isYcpFeed ? "ycp-feed.xml" : "yml-feed.xml";
-      serveGeneratedXml(res, feedName, xml, "ru");
+      const feedName = isVkFeed ? "vk-feed.xml" : isYcpFeed ? "ycp-feed.xml" : "yml-feed.xml";
+      // Для VK кэш короче (10 минут): фид должен быстрее отражать изменения.
+      serveGeneratedXml(res, feedName, xml, "ru", isVkFeed ? 600 : undefined);
       logInfo(`[YML] ${feedName} generated: ${visibleProducts.length} products`);
     } catch (err) {
-      serveStaleXmlOrError(res, isYcpFeed ? "ycp-feed.xml" : "yml-feed.xml", isYcpFeed ? "YCP feed" : "YML feed", err);
+      serveStaleXmlOrError(
+        res,
+        isVkFeed ? "vk-feed.xml" : isYcpFeed ? "ycp-feed.xml" : "yml-feed.xml",
+        isVkFeed ? "VK feed" : isYcpFeed ? "YCP feed" : "YML feed",
+        err,
+      );
+    }
+  });
+
+  // ==================== VK image proxy (webp → JPEG) ====================
+  // VK принимает только JPG/PNG/GIF, а каталог хранит WebP. Эндпоинт отдаёт
+  // JPEG (конвертируя при первом обращении) и сохраняет его в Object Storage
+  // как `<имя>_vk.jpg`, чтобы повторные обращения не тратили CPU.
+  app.get(/^\/vk-img\/(.+)$/, async (req, res) => {
+    try {
+      const result = await getOrCreateVkJpeg(req.params[0]);
+      if (!result) {
+        res.status(404).type("text/plain").send("Image not found");
+        return;
+      }
+      res.type("image/jpeg");
+      res.set("Cache-Control", "public, max-age=31536000, immutable");
+      res.send(result.buffer);
+    } catch (err) {
+      logError("[VK IMG] conversion failed:", err);
+      res.status(500).type("text/plain").send("Image conversion failed");
     }
   });
 
@@ -9718,7 +9782,12 @@ ${faqSection}
       if (!result) return res.status(404).json({ message: "Cart item not found" });
       res.json(result);
     } catch (err) {
-      res.status(400).json({ message: "Invalid quantity" });
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid quantity" });
+      }
+      // Инфраструктурные сбои YDB не маскируем под «неверное количество»:
+      // уходят в единый error-middleware (503 + code RETRY_LATER).
+      throw err;
     }
   });
 

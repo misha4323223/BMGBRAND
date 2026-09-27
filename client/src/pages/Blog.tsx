@@ -74,20 +74,21 @@ export default function Blog() {
   return (
     <div className="min-h-screen bg-background">
       <SEO 
-        title="Блог"
-        description="Блог BMGBRAND — новости бренда, тренды российской моды, новые коллекции и коллаборации."
-        keywords="блог BMGBRAND, новости российской одежды, тренды, коллекции"
+        title="Блог BOOOMERANGS — новости, коллекции, коллаборации"
+        description="Блог BOOOMERANGS — новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами."
+        keywords="блог BOOOMERANGS, новости российской одежды, тренды, коллекции"
+        brandSuffix={false}
         jsonLd={[
           {
             "@context": "https://schema.org",
             "@type": "Blog",
             "name": homeData?.blog?.title || "BMG Журнал",
-            "description": "Блог BMGBRAND — новости бренда, тренды российской моды, новые коллекции и коллаборации.",
+            "description": "Блог BOOOMERANGS — новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами.",
             "url": `${window.location.origin}/blog`,
             "publisher": {
               "@type": "Organization",
               "@id": `${window.location.origin}/#organization`,
-              "name": "BMGBRAND",
+              "name": "BOOOMERANGS",
               "logo": { "@type": "ImageObject", "url": `${window.location.origin}/favicon.png` },
             },
             "blogPost": posts.map((post: any, idx: number) => ({

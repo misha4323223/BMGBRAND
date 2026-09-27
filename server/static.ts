@@ -21,6 +21,8 @@ function getSeoOverride(key: string): { title?: string; description?: string } {
 import { getRecommendationsSync } from "./recommendations";
 import { CATEGORIES as SCHEMA_CATEGORIES, buildCategoryIndex, resolveProductCategoryPaths, sortProductCategoryPaths } from "../shared/schema";
 import { buildProductJsonLd as buildAutoProductJsonLd } from "../shared/product-jsonld";
+import { resolveBlogPostForSsr, parseBlogIndex, blogPageTitle, blogDescriptionFor, buildBlogPostJsonLd, buildBlogBreadcrumbJsonLd, type BlogPostForSsr } from "../shared/blog-post";
+import { sanitizeHtmlBlock } from "./lib/product-utils";
 
 const SITE_NAME = "BMGBRAND";
 const DEFAULT_TITLE = `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
@@ -431,10 +433,29 @@ function buildBlogListNoscript(siteUrl: string): string {
     `<li><a href="${escHtml(siteUrl + "/blog/" + idx)}">${escHtml(p.title)}</a> — ${escHtml(p.date)}, ${escHtml(p.category)}. ${escHtml(p.excerpt)}</li>`
   ).join("\n");
   return `<noscript><div>` +
-    `<h1>Блог BMGBRAND — культура и стиль</h1>` +
+    `<h1>Блог BOOOMERANGS — культура и стиль</h1>` +
     `<p>Анонсы новых коллекций, истории создания вещей и авторские дизайны бренда.</p>` +
     `<ul>${items}</ul>` +
     `</div></noscript>`;
+}
+
+/**
+ * Noscript-блок статьи /blog/{id}: один H1, мета-строка, главная картинка
+ * и полный HTML-текст. Нужен, чтобы контент статьи был в первом HTML-ответе
+ * даже тогда, когда отдаётся клиентская оболочка (не бот-рендер).
+ */
+function buildBlogPostNoscript(post: BlogPostForSsr, siteUrl: string): string {
+  const image = post.image
+    ? (post.image.startsWith("http") ? post.image : `${siteUrl}${post.image}`)
+    : "";
+  const metaLine = [post.date, post.category, post.author].filter(Boolean).map(escHtml).join(" · ");
+  return `<noscript><article>` +
+    `<h1>${escHtml(post.title)}</h1>` +
+    (metaLine ? `<p>${metaLine}</p>` : "") +
+    (image ? `<img src="${escHtml(image)}" alt="${escHtml(post.title)}" style="max-width:100%;height:auto">` : "") +
+    sanitizeHtmlBlock(post.content) +
+    `<p><a href="${escHtml(siteUrl + "/blog")}">← Все статьи блога</a></p>` +
+    `</article></noscript>`;
 }
 
 function injectSeoBody(html: string, noscriptBlock: string): string {
@@ -802,7 +823,8 @@ export function serveStatic(app: Express) {
     const knownPrefixes = ['/products/', '/wholesale/', '/gift-cards/', '/blog/', '/@', '/order-success/', '/order-failed/', '/track/', '/api/', '/assets/'];
     const isKnownRoute = knownRoutes.has(cleanUrl) || knownPrefixes.some(p => url.startsWith(p));
     const slugMatch = !isKnownRoute ? cleanUrl.match(/^\/([a-z0-9][a-z0-9-]*[a-z0-9])(?:\/?)$/) : null;
-    const isValidRoute = isKnownRoute || !!slugMatch;
+    // let: несуществующая статья блога переводит роут в 404 ниже.
+    let isValidRoute = isKnownRoute || !!slugMatch;
     let detectedProductSlug = '';
     if (slugMatch) {
       try {
@@ -1345,8 +1367,8 @@ export function serveStatic(app: Express) {
           description: "Концепция и философия бренда BMGBRAND — российский бренд одежды с авторскими принтами.",
         },
         "/blog": {
-          title: `Блог | ${SITE_NAME}`,
-          description: "Блог BMGBRAND — новости бренда, статьи о стиле и авторских дизайнах.",
+          title: "Блог BOOOMERANGS — новости, коллекции, коллаборации",
+          description: "Блог BOOOMERANGS — новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами.",
         },
         "/wholesale-register": {
           title: `Оптовые закупки — регистрация | ${SITE_NAME}`,
@@ -1384,6 +1406,37 @@ export function serveStatic(app: Express) {
           html = injectSeoBody(html, buildVacanciesNoscript());
         } else if (cleanUrl === "/blog") {
           html = injectSeoBody(html, buildBlogListNoscript(siteUrl));
+        }
+      }
+
+      // --- Статья блога /blog/{id}: уникальные мета, H1, текст, canonical без JS ---
+      const blogArticleId = parseBlogIndex(cleanUrl.match(/^\/blog\/([^/]+)\/?$/)?.[1]);
+      if (blogArticleId !== null) {
+        const post = resolveBlogPostForSsr(
+          getCachedRawPageSettings("blog_pages") as Record<string, any> | null,
+          (getCachedRawPageSettings("home") as Record<string, any> | null)?.blog?.items,
+          blogArticleId,
+        );
+        if (post) {
+          const url = `${siteUrl}/blog/${post.id}`;
+          const image = post.image
+            ? (post.image.startsWith("http") ? post.image : `${siteUrl}${post.image}`)
+            : `${siteUrl}/og-image.png`;
+          html = injectMeta(html, {
+            title: blogPageTitle(post),
+            description: blogDescriptionFor(post),
+            ogImage: image,
+            ogType: "article",
+            canonical: url,
+            jsonLd: JSON.stringify([
+              buildBlogPostJsonLd(post, { url, siteUrl }),
+              buildBlogBreadcrumbJsonLd(post, { url, siteUrl }),
+            ]),
+          });
+          html = injectSeoBody(html, buildBlogPostNoscript(post, siteUrl));
+        } else {
+          // Статьи нет или она скрыта — 404 + noindex (пустышку роботу не отдаём).
+          isValidRoute = false;
         }
       }
     } catch (e) {

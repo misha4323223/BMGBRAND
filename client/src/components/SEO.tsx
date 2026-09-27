@@ -24,6 +24,8 @@ function getAbsoluteUrl(path: string): string {
 interface SEOPropsExtended extends SEOProps {
   ogImageWidth?: string;
   ogImageHeight?: string;
+  /** false — не добавлять «| BMGBRAND» к заголовку (блог использует свои заголовки BOOOMERANGS). */
+  brandSuffix?: boolean;
 }
 
 export default function SEO({
@@ -37,10 +39,11 @@ export default function SEO({
   jsonLd,
   ogImageWidth = "1200",
   ogImageHeight = "630",
+  brandSuffix = true,
 }: SEOPropsExtended) {
   // Prevent double brand suffix when admin SEO overrides already include SITE_NAME
   const fullTitle = title
-    ? (title.endsWith(`| ${SITE_NAME}`) || title.endsWith(SITE_NAME) ? title : `${title} | ${SITE_NAME}`)
+    ? (brandSuffix && !title.endsWith(`| ${SITE_NAME}`) && !title.endsWith(SITE_NAME) ? `${title} | ${SITE_NAME}` : title)
     : `Booomerangs — Российский бренд одежды Booomerangs/BMGBRAND`;
   const absoluteOgImage = getAbsoluteUrl(ogImage);
   const canonicalUrl = canonical || `${CANONICAL_ORIGIN}${window.location.pathname}`;

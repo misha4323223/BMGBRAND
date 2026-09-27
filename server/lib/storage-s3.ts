@@ -422,6 +422,37 @@ export async function checkFileExistsInYandexStorage(key: string): Promise<boole
   }
 }
 
+// Загрузить объект по полному ключу (без префикса `products/`), публично.
+// Нужно для файлов вне products/: например JPEG-версий картинок VK-фида в site/.
+export async function putObjectToYandexStorage(
+  fileBuffer: Buffer,
+  key: string,
+  contentType: string,
+): Promise<string | null> {
+  const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME;
+  if (!bucketName || !process.env.YANDEX_STORAGE_ACCESS_KEY || !process.env.YANDEX_STORAGE_SECRET_KEY) {
+    console.warn("[S3] putObjectToYandexStorage: storage credentials are not set");
+    return null;
+  }
+
+  try {
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+        Body: fileBuffer,
+        ContentType: contentType,
+        ACL: "public-read",
+        CacheControl: "public, max-age=31536000, immutable",
+      }),
+    );
+    return `https://storage.yandexcloud.net/${bucketName}/${key}`;
+  } catch (error: any) {
+    console.error(`[S3] putObjectToYandexStorage FAILED for ${key}:`, error.message || error);
+    return null;
+  }
+}
+
 export async function generateAudioPresignedUrl(
   artistSlug: string,
   originalName: string,

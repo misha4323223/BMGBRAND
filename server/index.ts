@@ -38,6 +38,8 @@ import { startPreorderStatusScheduler } from "./preorder-status-scheduler";
 import { startOrderNotifyWatcher } from "./order-notify-watcher";
 import { notifyError } from "./error-monitor";
 import { pushRequest, pushError } from "./log-buffer";
+import { isRetryableYdbError } from "./lib/ydb-retry";
+import { enableExpressAsyncErrors } from "./lib/express-async";
 
 // ── Диагностика (ТЗ №5): перехват консольных потоков в кольцевой буфер ──
 // Ловим error и warn. console.log (info) сознательно НЕ перехватываем: он забит
@@ -77,6 +79,10 @@ process.on('unhandledRejection', (reason: any) => {
       logError('[Process] YDB reconnect from unhandledRejection failed:', errMsg);
       notifyError('YDB: сбой переподключения', errMsg);
     });
+  } else if (isRetryableYdbError(reason)) {
+    // Транзиентная гонка YDB (locks invalidated / aborted / bad session) — штатная
+    // конкуренция запросов: логируем, но НЕ присылаем алерт владельцу.
+    logWarn('[Process] Transient YDB rejection (no alert):', message);
   } else {
     // Не-YDB необработанный reject — сообщаем в мессенджеры
     notifyError('Необработанная ошибка', message);
@@ -91,6 +97,13 @@ process.on('uncaughtException', (err: Error) => {
 });
 
 const app = express();
+
+// Express 4 сам не ловит rejected promise из async-хендлеров: ошибка уходила
+// в process.on('unhandledRejection') мимо error-middleware — клиент не получал
+// ответа, а владельцу прилетал алерт «Необработанная ошибка». Патч Layer.handle
+// (подход пакета express-async-errors) в одной точке закрывает весь класс ошибок.
+enableExpressAsyncErrors();
+
 // Anti-spoof (30.04.2026): доверяем ровно одному прокси-хопу — Yandex Cloud API Gateway.
 // `true` бы означало "доверять всему X-Forwarded-For" — тогда любой клиент,
 // бьющий напрямую в публичный URL контейнера, мог бы подменить req.ip через свой XFF-заголовок.
@@ -510,6 +523,13 @@ async function seedDefaultLegalDocuments() {
     const path = _req.path || "";
 
     if (status >= 500) {
+      // Транзиентные ошибки YDB (гонки «locks invalidated», aborted, транспорт)
+      // после ретраев отвечаем 503 с понятным текстом и БЕЗ алерта: это не
+      // инцидент, а штатная конкуренция запросов.
+      if (isRetryableYdbError(err)) {
+        logWarn("[Express] Transient YDB error → 503 (no alert)", { path, message: message.slice(0, 300) });
+        return res.status(503).json({ message: "Сервис временно недоступен, попробуйте ещё раз", code: "RETRY_LATER" });
+      }
       logError("[Express] Unhandled error", { status, path, message, stack: err.stack?.slice(0, 400) });
       // Уведомляем только о серверных ошибках (5xx), клиентские (4xx) игнорируем
       notifyError('Express 500', message, err.stack?.slice(0, 400));
@@ -560,7 +580,9 @@ async function seedDefaultLegalDocuments() {
         }
         // "checkout" — пороги бесплатной доставки читаются при создании заказа,
         // кеш должен быть тёплым, иначе первый заказ после старта ждёт YDB.
-        const criticalPages = ["home", "navbar", "footer", "artist_pages", "seo", "static_pages", "product_feature_templates", "deleted_slugs", "site_config", "checkout"];
+        // blog_pages обязателен: без него SSR статей блога (/blog/{id}) не видит данные
+        // и отдаёт роботам общую заглушку.
+        const criticalPages = ["home", "navbar", "footer", "artist_pages", "seo", "static_pages", "product_feature_templates", "deleted_slugs", "site_config", "checkout", "blog_pages"];
         for (const page of criticalPages) {
           try {
             await new Promise(resolve => setTimeout(resolve, 300));

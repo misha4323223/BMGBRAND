@@ -33,6 +33,8 @@ import { getRecommendationsSync } from "./recommendations";
 import { findProductVariantsSync } from "./variant-matching";
 import { CATEGORIES, normalizeCategories, findCategoryBySubcategorySlug, findCategoryBySubSubcategorySlug, buildCategoryIndex, resolveProductCategoryPaths, sortProductCategoryPaths, GIFT_CARD_AMOUNTS } from "../shared/schema";
 import { buildProductJsonLd } from "../shared/product-jsonld";
+import { resolveBlogPostForSsr, parseBlogIndex, blogPageTitle, blogDescriptionFor, buildBlogPostJsonLd, buildBlogBreadcrumbJsonLd, type BlogPostForSsr } from "../shared/blog-post";
+import { sanitizeHtmlBlock } from "./lib/product-utils";
 
 // ─── Bot User-Agent detection ─────────────────────────────────────────────────
 // Only include server-side crawlers and link-preview fetchers.
@@ -2069,6 +2071,99 @@ ${campaignProducts.length > 0
 
 // ─── Static-content page renderers ───────────────────────────────────────────
 
+/** Блок «Товары из статьи»: карточки со ссылками (перелинковка + SEO). */
+function blogProductsBlock(post: BlogPostForSsr): string {
+  if (!post.productsVisible || !post.productsCategory) return "";
+  const pool = getCachedProductsByCategory(post.productsCategory, 500).filter(
+    (p: any) => p && !p.artistOnly && p.price > 0 && p.slug,
+  );
+
+  const norm = (s: unknown) => String(s || "").toLowerCase().trim().replace(/\s+/g, " ");
+  let selected: any[] = [];
+  if (post.linkedProducts.length > 0) {
+    const wanted = new Set(post.linkedProducts);
+    selected = pool.filter((p: any) => wanted.has(Number(p.id)));
+  } else if (post.productsSubcategory) {
+    const target = norm(post.productsSubcategory);
+    selected = pool.filter((p: any) => {
+      if (norm(p.subcategory) === target || norm(p.subSubcategory) === target) return true;
+      const extra: Array<{ subcategory?: string }> = (p as any).additionalCategories || [];
+      return extra.some(ac => norm(ac?.subcategory) === target);
+    });
+  } else {
+    selected = pool;
+  }
+  if (selected.length === 0) return "";
+
+  const inStock = selected.filter((p: any) => p.stock > 0);
+  const sorted = [...inStock, ...selected.filter((p: any) => !(p.stock > 0))].slice(0, 8);
+  const cards = sorted.map((p: any) => `
+    <article class="card">
+      <div class="name"><a href="/${esc(p.slug)}">${esc(p.name)}</a></div>
+      <div class="price">${price(p.price)}</div>
+      <div class="status ${cardStatus(p).cls}">${cardStatus(p).text}</div>
+    </article>`).join("\n");
+  return `<h2>${esc(post.productsTitle)}</h2>\n<div class="grid">${cards}</div>`;
+}
+
+/**
+ * Страница статьи /blog/{id} для роботов: уникальные title/description, один H1,
+ * полный HTML-текст, главная картинка, canonical и BlogPosting — всё без JS.
+ * null — статьи нет или она скрыта (роут отдаёт 404 + noindex).
+ */
+function renderBlogPost(index: number): string | null {
+  const blogPages = getCachedRawPageSettings("blog_pages") as Record<string, any> | null;
+  const homeSettings = getCachedRawPageSettings("home") as Record<string, any> | null;
+  const post = resolveBlogPostForSsr(blogPages, homeSettings?.blog?.items, index);
+  if (!post) return null;
+
+  const url = `${SITE_URL}/blog/${post.id}`;
+  const image = post.image
+    ? (post.image.startsWith("http") ? post.image : `${SITE_URL}${post.image}`)
+    : `${SITE_URL}/og-image.png`;
+
+  const head = baseHead({
+    title: blogPageTitle(post),
+    description: blogDescriptionFor(post),
+    canonical: url,
+    ogImage: image,
+    ogType: "article",
+    jsonLd: safeJsonLd([
+      buildBlogPostJsonLd(post, { url, siteUrl: SITE_URL }),
+      buildBlogBreadcrumbJsonLd(post, { url, siteUrl: SITE_URL }),
+    ]),
+    preloadImage: image,
+  });
+
+  const metaLine = [post.date, post.category, post.author].filter(Boolean).map((s) => esc(s)).join(" · ");
+  const contentHtml = sanitizeHtmlBlock(post.content);
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / <a href="/blog">Блог</a> / ${esc(post.title)}</div>
+<article>
+<h1>${esc(post.title)}</h1>
+${metaLine ? `<p class="desc" style="margin-bottom:1rem">${metaLine}</p>` : ""}
+${image ? `<img src="${esc(image)}" alt="${esc(post.title)}" style="max-width:100%;height:auto;border-radius:8px;margin-bottom:1.5rem">` : ""}
+${contentHtml}
+${blogProductsBlock(post)}
+</article>
+<p style="margin-top:2rem"><a href="/blog">← Все статьи блога</a></p>`;
+
+  return wrapPage(head, body);
+}
+
+/** 404 для несуществующей статьи: noindex, чтобы поисковики не держали пустышку. */
+function renderBlogNotFound(): string {
+  const head = baseHead({
+    title: "Статья не найдена | BOOOMERANGS",
+    description: "Запрашиваемая статья не существует или была удалена. Перейдите в блог BOOOMERANGS за актуальными статьями.",
+    canonical: `${SITE_URL}/blog`,
+    ogImage: `${SITE_URL}/og-image.png`,
+    extra: `  <meta name="robots" content="noindex, follow">`,
+  });
+  return wrapPage(head, `<h1>Статья не найдена</h1><p class="desc">Запрашиваемая статья не существует или была удалена.</p><p><a href="/blog">← Все статьи блога</a></p>`);
+}
+
 function renderBlog(): string {
   const homeSettings  = getCachedRawPageSettings("home")  as Record<string, any> | null;
   const blogPageMeta  = getCachedRawPageSettings("blog_pages") as Record<string, any> | null;
@@ -2082,12 +2177,18 @@ function renderBlog(): string {
 
   const rawItems: any[] = homeSettings?.blog?.items || defaultPosts;
   const posts = rawItems.map((item: any, idx: number) => {
+    // Приоритет — полная статья из blog_pages (та же логика, что у клиента);
+    // ссылка на статью появляется только если статья реально существует,
+    // иначе робот не должен видеть битые ссылки на 404.
+    const resolved = resolveBlogPostForSsr(blogPageMeta, rawItems, idx);
     const meta = blogPageMeta?.[String(idx)] || {};
     return {
-      title:    meta.title    || item.title    || "",
-      date:     meta.date     || item.date     || "",
-      category: meta.category || item.category || "",
-      excerpt:  meta.excerpt  || item.excerpt  || "",
+      index:    idx,
+      url:      resolved ? `/blog/${idx}` : "",
+      title:    resolved?.title    || meta.title    || item.title    || "",
+      date:     resolved?.date     || meta.date     || item.date     || "",
+      category: resolved?.category || meta.category || item.category || "",
+      excerpt:  resolved?.excerpt  || meta.excerpt  || item.excerpt  || "",
     };
   }).filter((p: any) => p.title);
 
@@ -2095,7 +2196,7 @@ function renderBlog(): string {
     {
       "@context": "https://schema.org",
       "@type": "Blog",
-      "name": "Блог BMGBRAND",
+      "name": "Блог BOOOMERANGS",
       "url": `${SITE_URL}/blog`,
       "description": "Новости бренда, тренды российской моды, новые коллекции и коллаборации.",
       "publisher": { "@type": "Organization", "@id": `${SITE_URL}/#organization` },
@@ -2105,8 +2206,8 @@ function renderBlog(): string {
         "datePublished": p.date,
         "articleSection": p.category,
         "description": p.excerpt,
-        "url": `${SITE_URL}/blog`,
-        "author": { "@type": "Organization", "name": "BMGBRAND" },
+        "url": p.url ? `${SITE_URL}${p.url}` : `${SITE_URL}/blog`,
+        "author": { "@type": "Organization", "name": "BOOOMERANGS" },
       })),
     },
     {
@@ -2120,8 +2221,8 @@ function renderBlog(): string {
   ]);
 
   const head = baseHead({
-    title:       blogSeo.title       || `Блог BMGBRAND — новости, коллекции, коллаборации | ${SITE_NAME}`,
-    description: blogSeo.description || "Блог BMGBRAND — новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами.",
+    title:       blogSeo.title       || "Блог BOOOMERANGS — новости, коллекции, коллаборации",
+    description: blogSeo.description || "Блог BOOOMERANGS — новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами.",
     canonical:   `${SITE_URL}/blog`,
     ogImage:     `${SITE_URL}/og-image.png`,
     jsonLd,
@@ -2130,13 +2231,13 @@ function renderBlog(): string {
   const cards = posts.map((p: any) => `
     <div class="card">
       <div style="font-size:.75rem;color:#888;margin-bottom:.25rem">${esc(p.category)} · ${esc(p.date)}</div>
-      <div class="name">${esc(p.title)}</div>
+      <div class="name">${p.url ? `<a href="${p.url}">${esc(p.title)}</a>` : esc(p.title)}</div>
       <p class="desc" style="margin:.25rem 0 0">${esc(p.excerpt)}</p>
     </div>`).join("\n");
 
   const body = `
 <div class="breadcrumb"><a href="/">Главная</a> / Блог</div>
-<h1>Блог BMGBRAND</h1>
+<h1>Блог BOOOMERANGS</h1>
 <p class="desc">Новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами.</p>
 ${posts.length > 0 ? `<div class="grid">${cards}</div>` : "<p>Статьи скоро появятся.</p>"}
 <p style="margin-top:2rem"><a href="/products">Перейти в каталог →</a></p>`;
@@ -2555,6 +2656,18 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
       html = renderMerchOrder();
     } else if (reqPath === "/blog") {
       html = renderBlog();
+    } else if (reqPath.startsWith("/blog/")) {
+      // Статьи /blog/{id}: полный SSR-контент до выполнения JS.
+      const articleIndex = parseBlogIndex(reqPath.slice("/blog/".length).replace(/\/+$/, ""));
+      const articleHtml = articleIndex === null ? null : renderBlogPost(articleIndex);
+      if (articleHtml) {
+        html = articleHtml;
+      } else {
+        res.setHeader("X-Bot-SSR", "blog-not-found");
+        res.setHeader("Cache-Control", "no-store");
+        res.status(404).type("text/html").send(renderBlogNotFound());
+        return;
+      }
     } else if (reqPath === "/vacancies") {
       html = renderVacancies();
     } else if (reqPath === "/gift-cards") {

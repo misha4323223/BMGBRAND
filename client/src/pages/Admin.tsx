@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import * as XLSX from 'xlsx';
 import PushNotificationsPanel from "@/components/admin/PushNotificationsPanel";
 import ReviewRequestsPanel from "@/components/admin/ReviewRequestsPanel";
+import PinToHomepageButton from "@/components/admin/PinToHomepageButton";
 import ProductDuplicatesPanel from "@/components/admin/ProductDuplicatesPanel";
 import VirtualTryOnToggle from "@/components/admin/VirtualTryOnToggle";
 import CreateWholesaleUserPanel from "@/components/admin/CreateWholesaleUserPanel";
@@ -11546,6 +11547,9 @@ export default function Admin() {
                           </AccordionContent>
                         </AccordionItem>
                       </Accordion>
+
+                      {/* Секция главной страницы: закрепить товар первым / убрать */}
+                      <PinToHomepageButton productId={editingProductId} apiKey={apiKey} />
 
                       {/* Save button */}
                       <div className="pt-4 border-t flex gap-3">

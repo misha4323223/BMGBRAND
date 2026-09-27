@@ -9,6 +9,8 @@ import { nanoid } from "nanoid";
 import { getCachedProductMetaBySlug, getCachedArtistHeroImage, getCachedRawPageSettings } from "./storage";
 import { CATEGORIES as SCHEMA_CATEGORIES, buildCategoryIndex, resolveProductCategoryPaths, sortProductCategoryPaths } from "../shared/schema";
 import { buildProductJsonLd } from "../shared/product-jsonld";
+import { resolveBlogPostForSsr, parseBlogIndex, blogPageTitle, blogDescriptionFor, buildBlogPostJsonLd, buildBlogBreadcrumbJsonLd, type BlogPostForSsr } from "../shared/blog-post";
+import { sanitizeHtmlBlock } from "./lib/product-utils";
 
 const SITE_NAME = "BMGBRAND";
 
@@ -65,6 +67,24 @@ function injectMeta(html: string, opts: {
   }
 
   return html;
+}
+
+/**
+ * Noscript-блок статьи (зеркало static.ts): H1, мета-строка, картинка и
+ * полный HTML-текст — чтобы контент был в первом HTML-ответе и без JS.
+ */
+function buildBlogPostNoscript(post: BlogPostForSsr, siteUrl: string): string {
+  const image = post.image
+    ? (post.image.startsWith("http") ? post.image : `${siteUrl}${post.image}`)
+    : "";
+  const metaLine = [post.date, post.category, post.author].filter(Boolean).map(escHtml).join(" · ");
+  return `<noscript><article>` +
+    `<h1>${escHtml(post.title)}</h1>` +
+    (metaLine ? `<p>${metaLine}</p>` : "") +
+    (image ? `<img src="${escHtml(image)}" alt="${escHtml(post.title)}" style="max-width:100%;height:auto">` : "") +
+    sanitizeHtmlBlock(post.content) +
+    `<p><a href="${escHtml(siteUrl + "/blog")}">← Все статьи блога</a></p>` +
+    `</article></noscript>`;
 }
 
 function applyBotMetaInjection(html: string, url: string, origin: string): string {
@@ -206,6 +226,34 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
         ogImage: `${origin}/og-image.png`,
         canonical: `${origin}/products`,
       });
+    }
+
+    // --- Blog article: /blog/{id} (мета в первом HTML-ответе) ---
+    const blogArticleId = parseBlogIndex(cleanUrl.match(/^\/blog\/([^/]+)\/?$/)?.[1]);
+    if (blogArticleId !== null) {
+      const post = resolveBlogPostForSsr(
+        getCachedRawPageSettings("blog_pages") as Record<string, any> | null,
+        (getCachedRawPageSettings("home") as Record<string, any> | null)?.blog?.items,
+        blogArticleId,
+      );
+      if (post) {
+        const url = `${origin}/blog/${post.id}`;
+        const image = post.image
+          ? (post.image.startsWith("http") ? post.image : `${origin}${post.image}`)
+          : `${origin}/og-image.png`;
+        const withMeta = injectMeta(html, {
+          title: blogPageTitle(post),
+          description: blogDescriptionFor(post),
+          ogImage: image,
+          ogType: "article",
+          canonical: url,
+          jsonLd: JSON.stringify([
+            buildBlogPostJsonLd(post, { url, siteUrl: origin }),
+            buildBlogBreadcrumbJsonLd(post, { url, siteUrl: origin }),
+          ]),
+        });
+        return withMeta.replace("</body>", `${buildBlogPostNoscript(post, origin)}\n</body>`);
+      }
     }
   } catch (e) {
     logError("[Vite] Meta injection error:", e);

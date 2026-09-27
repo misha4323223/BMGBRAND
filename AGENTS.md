@@ -360,6 +360,95 @@
 - Тест: `bunx vitest run server/__tests__/product-jsonld.test.ts` (25 тестов). ProductMetaForSsr
   расширен полями article/modelSku/color/salePrice/discountPercent/sizeStock (storage/core.ts).
 
+## VK-фид `/vk-feed.xml` (2026-09-27)
+- Отдельный фид для импорта товаров ВКонтакте: **606 товаров** (весь каталог, как `/yml-feed.xml`).
+- Обслуживается тем же обработчиком `app.get(["/yml-feed.xml", "/ycp-feed.xml", "/vk-feed.xml"])`
+  в routes.ts (~2244): ветка `isVkFeed` — **целые цены** (`formatFeedPriceRub(..., isVkFeed)`, без `.00`)
+  и картинки через маппер `vkPictureUrl` (webp → `/vk-img/...jpg`, jpg/png как есть).
+  `Cache-Control: max-age=600` (10 мин, свежее остальных фидов).
+- `/vk-img/<путь>.jpg` (routes.ts, ~2372) — конвертер webp→JPEG для VK: `server/lib/vk-image.ts`
+  (sharp: 1600px, q85, mozjpeg) + `getOrCreateVkJpeg`. Первое обращение конвертирует и сохраняет
+  `_vk.jpg` рядом с оригиналом в Object Storage (`site/foo.webp` → `site/foo_vk.jpg`), дальше отдаёт
+  готовый файл из S3. Оригиналы WebP НЕ удаляются и не меняются — в бакете оба формата
+  (+~0,35 ГБ на 2300 картинок; JPEG при 1600px выходит меньше webp-оригиналов 2500×3000).
+  Защита от path traversal (`..`, `%2e%2e`, чужие хосты) — в `vk-image.ts`.
+- `shared/feed-utils.ts` — общие для всех фидов `escapeXml` / `formatFeedPriceRub` (тесты:
+  `server/__tests__/vk-feed.test.ts`, 15 шт.). `serveGeneratedXml` получил 5-й параметр
+  `maxAgeSeconds` и явную HEAD-ветку (Content-Length + `application/xml; charset=utf-8`).
+- ⚠️ `Content-Length: 0` на HEAD — **особенность платформы Yandex Serverless Containers**
+  (обнуляет у всех URL, включая robots.txt и статику; наш Express отдаёт корректный заголовок,
+  GET всегда полный). В коде не лечится: проверять после деплоя; запасной вариант — зеркало
+  фида в Object Storage (S3 отвечает корректно).
+- `/yml-feed.xml`, `/ycp-feed.xml`, `/ozon-feed.xml` НЕ менялись: проверено сравнением тел
+  до/после правки (идентичны, кроме `date="..."` и таймстампа Ozon).
+- Тест: `bunx vitest run server/__tests__/vk-feed.test.ts`.
+
+## SSR статей блога `/blog/{id}` (2026-09-27)
+- `shared/blog-post.ts` — единый источник данных/мета/JSON-LD блога (чистые функции):
+  `parseBlogDateRu` (русская дата → ISO), `parseBlogIndex`, `resolveBlogPostForSsr(blogPages, homeItems, id)`
+  (null для отсутствующей/скрытой/пустой статьи → 404 + noindex), `blogPageTitle`, `blogDescriptionFor`,
+  `buildBlogPostJsonLd` (BlogPosting, publisher BOOOMERANGS + `@id /#organization`), `buildBlogBreadcrumbJsonLd`.
+  Тесты: `server/__tests__/blog-post.test.ts` (15).
+- Источник данных: `page_settings.blog_pages` (seoTitle/seoDescription/content/image/tags/товары) поверх
+  `home.blog.items`. **`blog_pages` добавлен в `criticalPages` прогрева (`server/index.ts`)** — без этого
+  SSR статей отдавал заглушку.
+- Поверхности: `bot-ssr.ts` (`renderBlogPost` + `blogProductsBlock` + 404-страница статьи, роут `/blog/{id}`),
+  `static.ts` (прод-оболочка: мета + `buildBlogPostNoscript` с полным текстом и картинкой),
+  `vite.ts` (dev-зеркало, копия noscript-блока), клиент `Blog.tsx`/`BlogDetail.tsx`.
+- Каждая статья отдаёт роботам: уникальный `<title>` из `seoTitle`, `<meta name="description">`, один `<h1>`,
+  полный HTML-текст (sanitizeHtmlBlock), главную картинку, `canonical /blog/{id}`, og:type article,
+  BlogPosting + BreadcrumbList, HTTP 200 без noindex. `/blog/5`, `/blog/99`, `/blog/abc` → 404 + noindex.
+- Бренд в блоге: BOOOMERANGS (BMGBRAND в title/description/H1 блога убран). `SEO.tsx` получил проп
+  `brandSuffix` (блог ставит `false`, чтобы не липло «| BMGBRAND»). Внизу сайта подпись футера
+  «© BMGBRAND (Booomerangs)» осталась — она общая для всех страниц, менять только по команде владельца.
+- sitemap.xml: добавлены `/blog` + существующие статьи (`lastmod` = дата статьи в ISO), резолвер тот же,
+  что в SSR (пустышки не попадают).
+
+## Кнопка «Показать первым» в секции главной (2026-09-27)
+- Где: форма товара (`Admin.tsx`, над кнопкой «Сохранить») → блок «Показ на главной странице»,
+  компонент `client/src/components/admin/PinToHomepageButton.tsx`. Две кнопки: «Поставить первым»
+  и «Убрать из секции», плюс Select со списком секций.
+- Какие секции: `popular` (та самая «Новинки», `page_settings/home`) + все `custom_*` c `type: "custom_hits"`
+  («Хиты продаж», «Носки»). Прочие секции (hero, blog, featuredDrop, custom_text, …) отбрасываются с 400.
+- Сервер: `POST /api/admin/products/:id/homepage-section` (`server/routes/admin-products.ts`),
+  тело `{ sectionId, action: "prepend"|"remove" }` (action по умолчанию `prepend`). Логика — в чистом
+  модуле `server/lib/homepage-sections.ts` (`resolveHomepageSectionUpdate`, тесты
+  `server/__tests__/homepage-sections.test.ts`, 19 шт.).
+- **Режим не «засеваем»**: `prepend` только вставляет товар первым в `pinnedProductIds` и ставит
+  `mode: "manual"` (решение владельца 27.09.2026: если секция в «Авто» — ничего дополнительно не делаем).
+  В UI для секции в режиме «Авто» показывается `confirm()` с предупреждением, что она переключится
+  в «Вручную» и будет показывать только закреплённые товары. Остальные поля секции (title/count/visible)
+  НЕ меняются. Кэш `pageSettingsCache` чистит сам `setPageSectionSettings`.
+- Ошибки: чужой/пустой товар → 404, скрытый товар при закреплении → 400 «Товар скрыт», секция не найдена → 404.
+  При `remove` отсутствующего товара ответ `removed: false` (не ошибка). Пустой список = секция снова «как авто».
+- Проверено вживую 27.09.2026 временной тестовой секцией (создаётся БЕЗ добавления в `sectionOrder`,
+  поэтому на сайте не рендерится): 21/21 проверок, боевые `popular.pinnedProductIds` остались байт-в-байт.
+
+## YDB-гонки и честные ошибки корзины (2026-09-27)
+- **Причина алертов «Необработанная ошибка»**: Express 4 не ловит rejected promise из async-хендлеров —
+  ошибка уходила в `process.on('unhandledRejection')` мимо error-middleware: клиент не получал ответа,
+  владельцу летел алерт (инцидент «Transaction locks invalidated» на `cart_items`).
+- `server/lib/express-async.ts` — патч `Layer.prototype.handle` (подход express-async-errors), вызывается
+  в `server/index.ts` сразу после `const app = express()`. Reject из async-роута идёт в `next(err)`;
+  `length` хендлера сохраняется (Express различает обычные хендлеры и error-middleware по 4 аргументам).
+  Тест: `server/__tests__/express-async.test.ts`.
+- `server/lib/ydb-retry.ts` — `isRetryableYdbError` (locks invalidated / 400040 / 400140 Transaction not found /
+  BadSession / RESOURCE_EXHAUSTED / транспорт) + `withYdbRetry` (backoff+jitter; при транспорте — `reconnectYdb`,
+  как в safeQuery). Тест: `server/__tests__/ydb-retry.test.ts`.
+- error-middleware (`server/index.ts`): транзиентная YDB-ошибка после ретраев → **503 {code:"RETRY_LATER"}**
+  и БЕЗ алерта (раньше — 500 + алерт). В `unhandledRejection` такие ошибки тоже только логируются.
+  Лог ретраев: `[YDB] cart.addToCart: попытка N/M не удалась (...), повтор через X мс`.
+- `server/storage/cart.ts`: `addToCart` / `updateCartItemQuantity` / `removeFromCart` — под `withYdbRetry`
+  (addToCart: attempts 8, base 120 мс). `removeFromCart` больше не проглатывает ошибку — бросает дальше.
+  PATCH-роут корзины: Zod → 400, остальное — наверх в middleware (раньше любой сбой маскировался под 400).
+- **⚠️ `cart_items`: PRIMARY KEY = `id`** (не композитный). Каждый `UPSERT` с новым `Date.now()` создавал
+  ВТОРУЮ строку на ту же позицию (в проде 1 легаси-пара с совпадающими количествами). Теперь `addToCart`:
+  для существующей строки — **атомарный инкремент** `UPDATE ... SET quantity = quantity + $delta` (автокоммит,
+  YDB сериализует — потерь нет), создание строки — в **сериализуемой транзакции** (`beginTransaction` +
+  `executeQuery(...,{txId})` + `commitTransaction`, откат при ошибке) — гонка «первых» добавлений не создаёт
+  дублей. Проверено вживую: 2/10/25 параллельных POST → quantity ровно 2/12/37, 0 дублей; 20 параллельных →
+  1 физическая строка qty=20. Раньше absolute-value UPDATE давал 10 вместо 50 (lost update).
+
 ## Verification
 - ОБЯЗАТЕЛЬНО тестируй вживую на preview после правок — typecheck НЕ заменяет живой тест. Не пропускай этот этап.
 - Если песочница не отвечает (`running:false`, 502, «Is the Sandbox started?», `freebuff-preview: not found`) —
