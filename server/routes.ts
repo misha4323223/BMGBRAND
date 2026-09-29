@@ -2394,8 +2394,12 @@ ${faqSection}
         const descRaw = p.description
           ? p.description.slice(0, 3000)
           : descFallback;
-        // ВК отклоняет описания короче 10 символов («должно быть длиннее 9 символов»).
-        const desc = isVkFeed ? vkFeedDescription(descRaw, descFallback) : descRaw;
+        // ВК отклоняет описания короче 10 символов («должно быть длиннее 9 символов»),
+        // а весь файл должен умещаться примерно в 345 КБ — больше ВК не берёт
+        // (проверено: 345 КБ приняли, 400+ КБ — нет). Поэтому для VK описание урезается.
+        const desc = isVkFeed
+          ? vkFeedDescription(descRaw.slice(0, 30), descFallback)
+          : descRaw;
 
         xml += `      <offer id="${escXml(String(p.id))}" available="${available}">\n`;
         xml += `        <url>${escXml(productUrl)}</url>\n`;
@@ -2416,14 +2420,18 @@ ${faqSection}
           xml += `        <picture>${escXml(pictureSrc)}</picture>\n`;
         }
         xml += `        <description>${escXml(desc)}</description>\n`;
-        xml += `        <vendor>BMGBRAND</vendor>\n`;
-        xml += `        <vendorCode>${escXml(p.article || p.sku || String(p.id))}</vendorCode>\n`;
-        xml += `        <country_of_origin>Россия</country_of_origin>\n`;
-        if (sizes.length > 0) {
-          xml += `        <param name="Размер">${escXml(sizes.join(", "))}</param>\n`;
-        }
-        if (colors.length > 0) {
-          xml += `        <param name="Цвет">${escXml(colors.join(", "))}</param>\n`;
+        // Служебные теги и param — только для Яндекса/YCP: в принятом ВК файле
+        // их не было, а в сумме они дают ~70 КБ, из-за которых ВК отвергает фид.
+        if (!isVkFeed) {
+          xml += `        <vendor>BMGBRAND</vendor>\n`;
+          xml += `        <vendorCode>${escXml(p.article || p.sku || String(p.id))}</vendorCode>\n`;
+          xml += `        <country_of_origin>Россия</country_of_origin>\n`;
+          if (sizes.length > 0) {
+            xml += `        <param name="Размер">${escXml(sizes.join(", "))}</param>\n`;
+          }
+          if (colors.length > 0) {
+            xml += `        <param name="Цвет">${escXml(colors.join(", "))}</param>\n`;
+          }
         }
         xml += `      </offer>\n`;
       }
