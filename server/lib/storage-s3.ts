@@ -12,6 +12,19 @@ const s3Client = new S3Client({
   },
 });
 
+/**
+ * Публичный URL объекта в бакете (бакет публичный — файлы открываются напрямую).
+ * `bucket` опционален: по умолчанию берётся из окружения; в тестах передаётся явно.
+ */
+export function publicUrlFromStorageKey(
+  key: string,
+  bucket: string = process.env.YANDEX_STORAGE_BUCKET_NAME || "",
+): string | null {
+  if (!bucket || !key) return null;
+  const encoded = key.split("/").map(encodeURIComponent).join("/");
+  return `https://storage.yandexcloud.net/${bucket}/${encoded}`;
+}
+
 export async function uploadToYandexStorage(fileBuffer: Buffer, fileName: string, contentType: string) {
   const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME;
   const accessKey = process.env.YANDEX_STORAGE_ACCESS_KEY;
@@ -428,6 +441,10 @@ export async function putObjectToYandexStorage(
   fileBuffer: Buffer,
   key: string,
   contentType: string,
+  // Картинкам-конвертациям нужен immutable-кэш, а обновляемым файлам
+  // (зеркало VK-фида) — короткий, иначе потребитель закэширует старую версию
+  // на год. По умолчанию поведение прежнее.
+  cacheControl = "public, max-age=31536000, immutable",
 ): Promise<string | null> {
   const bucketName = process.env.YANDEX_STORAGE_BUCKET_NAME;
   if (!bucketName || !process.env.YANDEX_STORAGE_ACCESS_KEY || !process.env.YANDEX_STORAGE_SECRET_KEY) {
@@ -443,7 +460,7 @@ export async function putObjectToYandexStorage(
         Body: fileBuffer,
         ContentType: contentType,
         ACL: "public-read",
-        CacheControl: "public, max-age=31536000, immutable",
+        CacheControl: cacheControl,
       }),
     );
     return `https://storage.yandexcloud.net/${bucketName}/${key}`;

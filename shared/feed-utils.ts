@@ -25,3 +25,13 @@ export function formatFeedPriceRub(kopeks: number, integer: boolean): string {
   const rub = (Number(kopeks) || 0) / 100;
   return integer ? String(Math.round(rub)) : rub.toFixed(2);
 }
+
+/**
+ * Описание для VK-фида. ВК отклоняет позиции с описанием короче 10 символов
+ * («Описание товара должно быть длиннее 9 символов»), поэтому короткий или
+ * пустой текст заменяется запасным вариантом.
+ */
+export function vkFeedDescription(desc: string, fallback: string): string {
+  const clean = String(desc || "").replace(/\s+/g, " ").trim();
+  return clean.length > 9 ? clean : String(fallback || "");
+}

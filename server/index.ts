@@ -36,6 +36,7 @@ import { startNewProductsNotifierJob } from "./new-products-notifier";
 import { startPreorderNotifierJob } from "./preorder-notifier";
 import { startPreorderStatusScheduler } from "./preorder-status-scheduler";
 import { startOrderNotifyWatcher } from "./order-notify-watcher";
+import { startVkFeedMirror } from "./vk-feed-mirror";
 import { notifyError } from "./error-monitor";
 import { pushRequest, pushError } from "./log-buffer";
 import { isRetryableYdbError } from "./lib/ydb-retry";
@@ -606,6 +607,8 @@ async function seedDefaultLegalDocuments() {
       startPreorderNotifierJob();
       startPreorderStatusScheduler();
       startOrderNotifyWatcher();
+      // Зеркало VK-фида в Object Storage: ВК скачивает фид оттуда (см. vk-feed-mirror.ts).
+      startVkFeedMirror();
       migrateAiKnowledgeDefaults();
       migrateAiQuestionsTable()
         .then(r => logInfo(`[AiQuestions] ${r.message}`))

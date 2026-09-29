@@ -4,7 +4,7 @@ import { config } from "./config";
 import type { Server } from "http";
 import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsByCategory, isProductsCacheWarm, isLoyaltyCountedStatus } from "./storage";
 import { api } from "@shared/routes";
-import { escapeXml, formatFeedPriceRub } from "@shared/feed-utils";
+import { escapeXml, formatFeedPriceRub, vkFeedDescription } from "@shared/feed-utils";
 import { qualifiesForFreeShipping, getFreeShippingThreshold, resolveFreeShippingThresholds } from "@shared/free-shipping";
 import type { FreeShippingThresholds } from "@shared/free-shipping";
 import { z } from "zod";
@@ -16,7 +16,8 @@ import { uploadToYandexStorage, downloadFromYandexStorage, listObjectsFromYandex
 import { createCdekWaybillForOrder, recreateCdekWaybillForOrder } from "./lib/cdek-waybill";
 import { queuePreorderStatusEmail } from "./lib/preorder-email-buffer";
 import { resolveItemPrice } from "./lib/pricing";
-import { getOrCreateVkJpeg, vkPictureUrl } from "./lib/vk-image";
+import { buildVkFeedPictureUrls, filterExistingVkImages, getOrCreateVkJpeg, vkPictureUrl } from "./lib/vk-image";
+import { publishVkFeedToStorage } from "./vk-feed-mirror";
 import { computePromoEligibleSubtotal, computePromoDiscount } from "./lib/checkout";
 import { SIZE_ORDER, STANDARD_CLOTHING_SIZES, sanitizeHtmlBlock, sanitizeJsonLd, sortSizes, normalizeSizeKey, canonicalizeSizeKey, resolveSizeStock, resolveSizeCharacteristicId, isOneCCharacteristicGuid, sanitizeSizes, sanitizeSizeStock } from "./lib/product-utils";
 import { registerDadataRoutes } from "./routes/dadata";
@@ -2270,9 +2271,12 @@ ${faqSection}
   // Тот же генератор обслуживает /ycp-feed.xml (фид Кнопки «Купить»: вырезаны
   // товары с выбором размера — YCP размер не передаёт) и /vk-feed.xml
   // (ВКонтакте: целые цены и картинки только JPEG/PNG — VK не принимает WebP).
-  app.get(["/yml-feed.xml", "/ycp-feed.xml", "/vk-feed.xml"], async (_req, res) => {
+  // `/vk-feed.yml` — алиас того же фида: ВК в справке требует, чтобы ссылка
+  // вела на файл с расширением .yml («https://site.ru/file.yml»), поэтому
+  // отдаём один и тот же XML и по .xml, и по .yml.
+  app.get(["/yml-feed.xml", "/ycp-feed.xml", "/vk-feed.xml", "/vk-feed.yml"], async (_req, res) => {
     const isYcpFeed = _req.path.includes("ycp-feed.xml");
-    const isVkFeed = _req.path.includes("vk-feed.xml");
+    const isVkFeed = _req.path.includes("vk-feed");
     const host = _req.headers.host || "booomerangs.ru";
     const baseUrl = `https://${host}`;
     const now = new Date().toISOString().replace("T", " ").slice(0, 16);
@@ -2300,6 +2304,43 @@ ${faqSection}
         // размер не передаёт.
         (!isYcpFeed || isYcpBuyable(p))
       );
+
+      // Собираем все ссылки на фото из того же набора, что идёт в фид.
+      const collectImages = (prod: any): string[] => {
+        const imgs: string[] = [];
+        if (prod.imageUrl?.startsWith("https://")) imgs.push(prod.imageUrl);
+        if (Array.isArray(prod.images)) {
+          for (const img of prod.images) {
+            if (typeof img === "string" && img.startsWith("https://") && !imgs.includes(img)) imgs.push(img);
+          }
+        }
+        return imgs;
+      };
+
+      // ВК принимает только товары с доступными фото: битую ссылку в <picture> убираем,
+      // товар, где не осталось ни одной живой картинки, из фида не отдаём (справка ВК:
+      // «товары без изображений при импорте будут пропущены»). Проверку делаем ОДНИМ
+      // пакетом на весь фид (2300+ ссылок, параллельно) и дальше в цикле только
+      // сверяемся по карте — иначе 2300 последовательных проверок на каждый запрос.
+      let vkPictureOk: Map<string, boolean> | null = null;
+      let vkPictureUrlMap: Map<string, string> | null = null;
+      if (isVkFeed) {
+        const allUrls = new Set<string>();
+        for (const product of visibleProducts) {
+          for (const u of collectImages(product as any)) allUrls.add(u);
+        }
+        const alive = await filterExistingVkImages([...allUrls]);
+        const aliveSet = new Set(alive);
+        const dead = [...allUrls].filter((u) => !aliveSet.has(u));
+        if (dead.length > 0) {
+          logWarn(`[VK feed] Убрано недоступных картинок: ${dead.length} из ${allUrls.size}`);
+        }
+        vkPictureOk = new Map([...allUrls].map((u) => [u, aliveSet.has(u)]));
+        // Прямые ссылки в хранилище: наш прокси /vk-img/ отдаёт HEAD с
+        // Content-Length: 0 и без Range — загрузчик картинок ВК на этом
+        // спотыкается («Произошла проблема с загрузкой изображения»).
+        vkPictureUrlMap = await buildVkFeedPictureUrls([...aliveSet]);
+      }
 
       // Экранирование — общий тестируемый хелпер (@shared/feed-utils).
       const escXml = escapeXml;
@@ -2330,13 +2371,18 @@ ${faqSection}
         const catEntry = CATEGORY_MAP[p.category] || CATEGORY_MAP["clothing"];
         const available = (p.stock == null || p.stock > 0) ? "true" : "false";
 
-        const allImages: string[] = [];
-        if (p.imageUrl?.startsWith("https://")) allImages.push(p.imageUrl);
-        if (Array.isArray(p.images)) {
-          for (const img of p.images) {
-            if (typeof img === "string" && img.startsWith("https://") && !allImages.includes(img)) {
-              allImages.push(img);
-            }
+        const allImages = collectImages(p);
+        // Для VK-фида оставляем только те ссылки, что подтвердились выше, а товар
+        // без единой живой картинки не отдаём ВК вовсе.
+        let pictures = allImages;
+        if (isVkFeed && vkPictureOk) {
+          pictures = allImages.filter((u) => vkPictureOk!.get(u));
+          if (pictures.length === 0) {
+            logWarn(`[VK feed] Товар ${p.id} не отдан ВК: нет ни одной доступной фото (${allImages.length} шт. в БД)`);
+            continue;
+          }
+          if (pictures.length !== allImages.length) {
+            logWarn(`[VK feed] Товар ${p.id}: убрано битых фото ${allImages.length - pictures.length} из ${allImages.length}`);
           }
         }
 
@@ -2344,9 +2390,12 @@ ${faqSection}
         const colors: string[] = Array.isArray(p.colors) ? p.colors : [];
         const isMerch = p.category === "merch";
         const namePrefix = isMerch ? "Мерч " : "";
-        const desc = p.description
+        const descFallback = `${namePrefix}${p.name} — купить в BMGBRAND. Доставка по всей России.`;
+        const descRaw = p.description
           ? p.description.slice(0, 3000)
-          : `${namePrefix}${p.name} — купить в BMGBRAND. Доставка по всей России.`;
+          : descFallback;
+        // ВК отклоняет описания короче 10 символов («должно быть длиннее 9 символов»).
+        const desc = isVkFeed ? vkFeedDescription(descRaw, descFallback) : descRaw;
 
         xml += `      <offer id="${escXml(String(p.id))}" available="${available}">\n`;
         xml += `        <url>${escXml(productUrl)}</url>\n`;
@@ -2358,8 +2407,13 @@ ${faqSection}
         }
         xml += `        <currencyId>RUB</currencyId>\n`;
         xml += `        <categoryId>${catEntry.id}</categoryId>\n`;
-        for (const img of allImages.slice(0, 10)) {
-          xml += `        <picture>${escXml(isVkFeed ? vkPictureUrl(baseUrl, img) : img)}</picture>\n`;
+        // Для ВК — одна картинка на товар: ВК скачивает их все, а 2300 файлов
+        // замедляют импорт и повышают шанс таймаута загрузки изображений.
+        for (const img of pictures.slice(0, isVkFeed ? 1 : 10)) {
+          const pictureSrc = isVkFeed
+            ? (vkPictureUrlMap?.get(img) || vkPictureUrl(baseUrl, img))
+            : img;
+          xml += `        <picture>${escXml(pictureSrc)}</picture>\n`;
         }
         xml += `        <description>${escXml(desc)}</description>\n`;
         xml += `        <vendor>BMGBRAND</vendor>\n`;
@@ -2382,6 +2436,14 @@ ${faqSection}
       // Для VK кэш короче (10 минут): фид должен быстрее отражать изменения.
       serveGeneratedXml(res, feedName, xml, "ru", isVkFeed ? 600 : undefined);
       logInfo(`[YML] ${feedName} generated: ${visibleProducts.length} products`);
+
+      if (isVkFeed) {
+        // Дублируем фид в Object Storage: ВК забирает его оттуда, потому что наш
+        // контейнер на HEAD отдаёт Content-Length: 0 (подробности в vk-feed-mirror.ts).
+        publishVkFeedToStorage(xml).catch((err: any) =>
+          logError("[VK feed] Публикация зеркала не удалась:", err?.message),
+        );
+      }
     } catch (err) {
       serveStaleXmlOrError(
         res,

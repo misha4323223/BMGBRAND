@@ -1,12 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { escapeXml, formatFeedPriceRub } from "@shared/feed-utils";
+import { describe, expect, it, beforeAll } from "vitest";
+import { escapeXml, formatFeedPriceRub, vkFeedDescription } from "@shared/feed-utils";
 import {
   isVkFriendlyImage,
   storageKeyFromUrl,
+  vkDirectStorageUrl,
   vkImagePathToSourceCandidates,
   vkJpegKeyFor,
   vkPictureUrl,
 } from "../lib/vk-image";
+import { VK_FEED_MIRROR_KEY, isVkFeedXml, vkFeedMirrorUrl } from "../vk-feed-mirror";
+import { filterExistingVkImages, vkImageSourceKeys } from "../lib/vk-image";
 
 describe("escapeXml", () => {
   it("экранирует спецсимволы XML", () => {
@@ -76,6 +79,53 @@ describe("vkJpegKeyFor", () => {
   });
 });
 
+describe("vkFeedDescription", () => {
+  it("короткое или пустое описание заменяется запасным (порог ВК — 10 символов)", () => {
+    expect(vkFeedDescription("500 мл", "fallback")).toBe("fallback");
+    expect(vkFeedDescription("", "fallback")).toBe("fallback");
+    expect(vkFeedDescription("   ", "fallback")).toBe("fallback");
+    expect(vkFeedDescription("123456789", "fallback")).toBe("fallback");
+  });
+
+  it("описание длинее 9 символов остаётся, пробелы нормализуются", () => {
+    expect(vkFeedDescription("100% Хлопок", "fallback")).toBe("100% Хлопок");
+    expect(vkFeedDescription("  Футболка   с\n принтом ", "fb")).toBe("Футболка с принтом");
+  });
+});
+
+describe("vkDirectStorageUrl", () => {
+  beforeAll(() => {
+    process.env.YANDEX_STORAGE_BUCKET_NAME = "bmg";
+  });
+
+  it("webp из бакета → прямая ссылка на JPEG-версию _vk.jpg", () => {
+    expect(
+      vkDirectStorageUrl("https://storage.yandexcloud.net/bmg/site/foo.webp"),
+    ).toBe("https://storage.yandexcloud.net/bmg/site/foo_vk.jpg");
+  });
+
+  it("jpg/png в бакете → прямая ссылка на сам файл", () => {
+    expect(
+      vkDirectStorageUrl("https://storage.yandexcloud.net/bmg/site/foo.jpg"),
+    ).toBe("https://storage.yandexcloud.net/bmg/site/foo.jpg");
+  });
+
+  it("прокси /vk-img/ → прямая ссылка на JPEG-версию", () => {
+    expect(
+      vkDirectStorageUrl("https://booomerangs.ru/vk-img/site/foo.jpg"),
+    ).toBe("https://storage.yandexcloud.net/bmg/site/foo_vk.jpg");
+    expect(
+      vkDirectStorageUrl("https://booomerangs.ru/vk-img/site/foo.webp"),
+    ).toBe("https://storage.yandexcloud.net/bmg/site/foo_vk.jpg");
+  });
+
+  it("чужой хост или не-картинка → null (вызывающий оставляет оригинал)", () => {
+    expect(vkDirectStorageUrl("https://example.com/a.jpg")).toBeNull();
+    expect(vkDirectStorageUrl("https://booomerangs.ru/vk-img/..")).toBeNull();
+    expect(vkDirectStorageUrl("")).toBeNull();
+  });
+});
+
 describe("vkPictureUrl", () => {
   const base = "https://booomerangs.ru";
 
@@ -113,5 +163,82 @@ describe("vkImagePathToSourceCandidates", () => {
     expect(vkImagePathToSourceCandidates("site/%2e%2e/x.jpg")).toEqual([]);
     expect(vkImagePathToSourceCandidates("site/photo.webp")).toEqual([]);
     expect(vkImagePathToSourceCandidates("")).toEqual([]);
+  });
+});
+
+describe("зеркало VK-фида", () => {
+  it("ссылка для ВК оканчивается на .yml (требование справки ВК)", () => {
+    expect(VK_FEED_MIRROR_KEY.endsWith(".yml")).toBe(true);
+    const prev = process.env.YANDEX_STORAGE_BUCKET_NAME;
+    process.env.YANDEX_STORAGE_BUCKET_NAME = "bmg";
+    expect(vkFeedMirrorUrl()).toBe(`https://storage.yandexcloud.net/bmg/${VK_FEED_MIRROR_KEY}`);
+    if (prev === undefined) delete process.env.YANDEX_STORAGE_BUCKET_NAME;
+    else process.env.YANDEX_STORAGE_BUCKET_NAME = prev;
+  });
+
+  it("принимает только настоящий YML-фид", () => {
+    expect(isVkFeedXml('<?xml version="1.0" encoding="UTF-8"?>\n<yml_catalog date="x">')).toBe(true);
+    expect(isVkFeedXml("<!DOCTYPE html><html><body>404</body></html>")).toBe(false);
+    expect(isVkFeedXml("")).toBe(false);
+    // Страница ошибки контейнера не должна попасть в бакет как «фид».
+    expect(isVkFeedXml('<?xml version="1.0"?><error>boom</error>')).toBe(false);
+  });
+});
+
+describe("filterExistingVkImages — убрать битые картинки из VK-фида", () => {
+  it("наш бакет → ключ сбрасывается от query; чужой хост → null (проверке не подлежит)", () => {
+    expect(vkImageSourceKeys("https://storage.yandexcloud.net/bmg/site/a.webp?v=1769945169494")).toEqual([
+      "site/a.webp",
+    ]);
+    expect(vkImageSourceKeys("https://example.com/photo.webp")).toBeNull();
+    expect(vkImageSourceKeys("https://booomerangs.ru/vk-img/site/a.jpg")).toEqual([
+      "site/a.webp",
+      "site/a.jpg",
+      "site/a.jpeg",
+      "site/a.png",
+    ]);
+  });
+
+  it("оставляет картинку, если исходник есть хотя бы в одном варианте", async () => {
+    const checked: string[] = [];
+    const out = await filterExistingVkImages(
+      ["https://booomerangs.ru/vk-img/site/a.jpg"],
+      async (key) => {
+        checked.push(key);
+        return key === "site/a.webp";
+      },
+    );
+    expect(out).toEqual(["https://booomerangs.ru/vk-img/site/a.jpg"]);
+    expect(checked).toEqual(["site/a.webp"]);
+  });
+
+  it("убирает ссылку, которой нет в хранилище", async () => {
+    const out = await filterExistingVkImages(
+      ["https://storage.yandexcloud.net/bmg/products/gone.webp"],
+      async () => false,
+    );
+    expect(out).toEqual([]);
+  });
+
+  it("чужие ссылки не проверяем и не удаляем", async () => {
+    const foreign = "https://example.com/photo.webp";
+    const out = await filterExistingVkImages([foreign], async () => false);
+    expect(out).toEqual([foreign]);
+  });
+
+  it("страховка: пакет из 8+ ссылок, всё «не найдено» — сбой хранилища, возвращаем как было", async () => {
+    const urls = Array.from({ length: 12 }, (_, i) => `https://storage.yandexcloud.net/bmg/site/${i}.webp`);
+    const out = await filterExistingVkImages(urls, async () => false);
+    expect(out).toEqual(urls);
+  });
+
+  it("на полном пакете живые ссылки остаются, битые — уходят", async () => {
+    const urls = Array.from({ length: 13 }, (_, i) => `https://storage.yandexcloud.net/bmg/site/x${i}.webp`);
+    const out = await filterExistingVkImages(
+      urls,
+      async (key) => /^site\/x[0-6]\.webp$/.test(key),
+    );
+    expect(out).toHaveLength(7);
+    expect(out[0]).toBe("https://storage.yandexcloud.net/bmg/site/x0.webp");
   });
 });
