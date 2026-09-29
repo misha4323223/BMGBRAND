@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { logError, logInfo } from "../logger";
 import { storage } from "../storage";
 import { authStorage } from "../auth-storage";
-import { sendInvoiceEmail, getNextInvoiceNumber, generateInvoicePDF } from "../invoice";
+import { sendInvoiceEmail, formatInvoiceNumber, generateInvoicePDF } from "../invoice";
 import { uploadToYandexStorage } from "../lib/storage-s3";
 import { notifyNewOrder } from "../telegram";
 import { vkNotifyNewOrder } from "../vk";
@@ -175,7 +175,7 @@ export function registerWholesaleAdminRoutes(
       } catch {}
 
       const remainingAmount = Math.round(order.total / 2);
-      const invoiceNum = getNextInvoiceNumber();
+      const invoiceNum = (await storage.allocateInvoiceNumber()) ?? Date.now();
       const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
 
       const invoiceItems = items.map((item: any) => ({
@@ -205,7 +205,7 @@ export function registerWholesaleAdminRoutes(
       // Сохраняем номер финального счёта в заказ чтобы показать в ЛК
       await storage.updateOrderPreorderFields(orderId, { preorderPaymentId: `final:${invoiceNum}` });
 
-      res.json({ ok: true, invoiceNumber: invoiceNum, remainingAmount });
+      res.json({ ok: true, invoiceNumber: formatInvoiceNumber(invoiceNum), remainingAmount });
     } catch (err: any) {
       logError("[Wholesale] Final invoice error:", err.message);
       res.status(500).json({ error: err.message });
@@ -267,7 +267,7 @@ export function registerWholesaleAdminRoutes(
       });
 
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="final-invoice-${invoiceNum}.pdf"`);
+      res.setHeader("Content-Disposition", `attachment; filename="final-invoice-${formatInvoiceNumber(invoiceNum)}.pdf"`);
       res.send(pdfBuffer);
     } catch (err: any) {
       logError("[Wholesale] Download final invoice error:", err.message);
@@ -335,7 +335,7 @@ export function registerWholesaleAdminRoutes(
             total: o.total,
             items,
             isPreorder: o.isPreorder === true,
-            invoiceNumber: o.invoiceNumber || null,
+            invoiceNumber: formatInvoiceNumber(o.invoiceNumber) || null,
             transportCompany: o.transportCompany || null,
             trackingNumber: o.trackingNumber || null,
             shippingAddress: o.address || null,
@@ -754,7 +754,7 @@ export function registerWholesalePreorderOrderRoute(
         if (modeSetting === 'on_top' || modeSetting === 'included') vatMode = modeSetting;
       } catch (e) {}
 
-      const preorderInvoiceNum = getNextInvoiceNumber();
+      const preorderInvoiceNum = (await storage.allocateInvoiceNumber()) ?? Date.now();
       storage.saveOrderInvoiceNumber(order.id, preorderInvoiceNum).catch(err => logError('[Wholesale Preorder] Failed to save invoice number:', err));
       sendInvoiceEmail({
         invoiceNumber: preorderInvoiceNum,

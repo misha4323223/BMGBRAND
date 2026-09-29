@@ -5,6 +5,14 @@ import path from 'path';
 import fs from 'fs';
 import QRCode from 'qrcode';
 import { transportCompanyName } from '../shared/transport-companies';
+// Номер счёта печатается обычным числом — № 1792, № 1793, … (так же, как счета,
+// выставленные до 29.09.2026). Функция оставлена единой точкой формата: менять
+// формат нужно только здесь.
+export function formatInvoiceNumber(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '';
+  const value = Number(n);
+  return Number.isFinite(value) ? String(value) : '';
+}
 
 interface InvoiceItem {
   name: string;
@@ -126,7 +134,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     `CorrespAcc=${COMPANY.corrAccount}`,
     `PayeeINN=${COMPANY.inn}`,
     `Sum=${_payableTotal}`,
-    `Purpose=Оплата по счёту №${data.invoiceNumber}`,
+    `Purpose=Оплата по счёту №${formatInvoiceNumber(data.invoiceNumber)}`,
   ].join('|');
 
   let qrImageBuffer: Buffer | null = null;
@@ -188,7 +196,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     doc.moveTo(40, 130).lineTo(555, 130).stroke();
 
     doc.fontSize(14).font('Roboto-Bold');
-    doc.text(`Счет на оплату № ${data.invoiceNumber} от ${formatDate(data.date)}`, 40, 145, { align: 'center' });
+    doc.text(`Счет на оплату № ${formatInvoiceNumber(data.invoiceNumber)} от ${formatDate(data.date)}`, 40, 145, { align: 'center' });
 
     doc.fontSize(9).font('Roboto');
     doc.text(`Поставщик (исполнитель): ${COMPANY.name}, ИНН ${COMPANY.inn}, ${COMPANY.address}, тел.: ${COMPANY.phone}`, 40, 175, { width: PAGE_WIDTH });
@@ -377,8 +385,8 @@ export async function sendInvoiceEmail(data: InvoiceData): Promise<boolean> {
     const { config } = await import('./config');
 
     if (!config.email.enabled) {
-      console.log(`[Invoice] Email disabled. Would send invoice #${data.invoiceNumber} to ${data.customerEmail}`);
-      const testPath = `/tmp/invoice_${data.invoiceNumber}.pdf`;
+      console.log(`[Invoice] Email disabled. Would send invoice #${formatInvoiceNumber(data.invoiceNumber)} to ${data.customerEmail}`);
+      const testPath = `/tmp/invoice_${formatInvoiceNumber(data.invoiceNumber)}.pdf`;
       fs.writeFileSync(testPath, pdfBuffer);
       console.log(`[Invoice] Saved test PDF to ${testPath}`);
       return true;
@@ -397,7 +405,7 @@ export async function sendInvoiceEmail(data: InvoiceData): Promise<boolean> {
     await transporter.sendMail({
       from: `"BMGBRAND" <${config.email.from}>`,
       to: data.customerEmail,
-      subject: data.subjectOverride || `Счет на оплату № ${data.invoiceNumber} от ${formatDate(data.date)} - BMGBRAND`,
+      subject: data.subjectOverride || `Счет на оплату № ${formatInvoiceNumber(data.invoiceNumber)} от ${formatDate(data.date)} - BMGBRAND`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -414,7 +422,7 @@ export async function sendInvoiceEmail(data: InvoiceData): Promise<boolean> {
         <body>
           <div class="container">
             <div class="logo">BMG<span style="color:#E53935">BRAND</span></div>
-            <h2>Счет на оплату № ${data.invoiceNumber}</h2>
+            <h2>Счет на оплату № ${formatInvoiceNumber(data.invoiceNumber)}</h2>
             <p>Здравствуйте, ${data.customerName}!</p>
             ${data.managerApprovalRequired ? `<p><strong>Счёт пока оплачивать не нужно.</strong> В течение 1 рабочего дня с вами свяжется менеджер, подтвердит заказ и условия доставки — после этого счёт станет активным для оплаты.</p>` : ''}
             ${data.noteText ? `<div class="note">${data.noteText}</div>` : `<p>Благодарим вас за оптовый заказ в BMGBRAND.</p>`}
@@ -437,14 +445,14 @@ export async function sendInvoiceEmail(data: InvoiceData): Promise<boolean> {
       `,
       attachments: [
         {
-          filename: `Счет_${data.invoiceNumber}_${formatDate(data.date).replace(/ /g, '_')}.pdf`,
+          filename: `Счет_${formatInvoiceNumber(data.invoiceNumber)}_${formatDate(data.date).replace(/ /g, '_')}.pdf`,
           content: pdfBuffer,
           contentType: 'application/pdf',
         },
       ],
     });
 
-    console.log(`[Invoice] Sent invoice #${data.invoiceNumber} to ${data.customerEmail}`);
+    console.log(`[Invoice] Sent invoice #${formatInvoiceNumber(data.invoiceNumber)} to ${data.customerEmail}`);
     return true;
   } catch (error) {
     logError('[Invoice] Failed to send:', error);
@@ -508,7 +516,7 @@ export async function generateUpdPDF(data: DocOrderData): Promise<Buffer> {
     y += 14;
     doc.font('Roboto').fontSize(8).text('(счёт-фактура и передаточный документ)', PAGE_MARGIN, y, { width: W, align: 'center' });
     y += 12;
-    doc.font('Roboto-Bold').fontSize(8).text(`Статус: 1          Счёт-фактура № ${data.invoiceNumber}    от ${formatDate(data.date)}`, PAGE_MARGIN, y, { width: W });
+    doc.font('Roboto-Bold').fontSize(8).text(`Статус: 1          Счёт-фактура № ${formatInvoiceNumber(data.invoiceNumber)}    от ${formatDate(data.date)}`, PAGE_MARGIN, y, { width: W });
     y += 14;
 
     hline(y); y += 5;
@@ -622,7 +630,7 @@ export async function generateTorg12PDF(data: DocOrderData): Promise<Buffer> {
 
     doc.font('Roboto-Bold').fontSize(11).text('ТОВАРНАЯ НАКЛАДНАЯ', PAGE_MARGIN, y, { width: W, align: 'center' });
     y += 14;
-    doc.font('Roboto-Bold').fontSize(9).text(`№ ${data.invoiceNumber}    от ${formatDate(data.date)}`, PAGE_MARGIN, y, { width: W, align: 'center' });
+    doc.font('Roboto-Bold').fontSize(9).text(`№ ${formatInvoiceNumber(data.invoiceNumber)}    от ${formatDate(data.date)}`, PAGE_MARGIN, y, { width: W, align: 'center' });
     y += 18;
 
     // Info rows with dynamic height
@@ -719,11 +727,10 @@ export async function generateTorg12PDF(data: DocOrderData): Promise<Buffer> {
   });
 }
 
-// Get next invoice number (simple implementation - in production use DB sequence)
-let invoiceCounter = Math.floor(Date.now() / 1000) % 10000;
-export function getNextInvoiceNumber(): number {
-  return ++invoiceCounter;
-}
+// Номера счетов больше НЕ берутся из памяти процесса (прежний счётчик заново
+// «сеялся» из текущего времени и сбрасывался при деплое): номер выдаёт YDB —
+// storage.allocateInvoiceNumber() (таблица order_counters, name="invoices").
+// Печать номера — через formatInvoiceNumber() выше.
 
 // ── Счёт на оплату от партнёра (ИП/ООО) в адрес BMGBRAND ─────────────────
 // Роли ОБРАТНЫЕ по сравнению с generateInvoicePDF:

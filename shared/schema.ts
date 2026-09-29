@@ -491,6 +491,13 @@ export const cartItems = pgTable("cart_items", {
   color: text("color"),
 });
 
+// Сквозная нумерация счетов — ТОЛЬКО для новых счетов: № 1792, № 1793, …
+// В БД (orders.invoice_number) и в счётчике YDB хранится само число (1792); оно же
+// печатается в документе и уходит в 1С (formatInvoiceNumber), как и у счетов,
+// выставленных до 29.09.2026.
+// 1792 (а не 1800) — чтобы НЕ пропускать номера: в 1С последний счёт был № 1791.
+export const INVOICE_NUMBER_START = 1792; // первый новый счёт: № 1792
+
 // Orders
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
@@ -507,6 +514,7 @@ export const orders = pgTable("orders", {
   isWholesale: boolean("is_wholesale").default(false), // Wholesale order flag
   transportCompany: text("transport_company"), // Transport company for wholesale: cdek, dellin, pek, pochta
   invoiceNumber: integer("invoice_number"), // Saved invoice number for wholesale orders
+  orderNumber: text("order_number"), // Номер заказа для 1С: CA-000001 … (только новые заказы)
   // Платёжная интеграция
   paymentId: text("payment_id"), // YooKassa/T-Bank payment ID для основного платежа
   // СДЭК / интеграции

@@ -14,7 +14,7 @@ import { vkNotifyWholesaleRegistration, vkNotifyOrderCancelled } from './vk';
 import { cdekService } from './cdek';
 import { paymentService } from './payments';
 
-import { generateInvoicePDF, generateUpdPDF, generateTorg12PDF } from './invoice';
+import { generateInvoicePDF, generateUpdPDF, generateTorg12PDF, formatInvoiceNumber } from './invoice';
 import { partnerRegisterSchema, LEGAL_DOCUMENT_SLUGS, type LegalDocumentSlug } from '@shared/schema';
 
 const router = Router();
@@ -1511,7 +1511,7 @@ router.get('/orders/:id/invoice', authMiddleware, async (req: AuthRequest, res: 
     });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Schet_${invoiceNum}_zakaz_${orderId}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="Schet_${formatInvoiceNumber(invoiceNum)}_zakaz_${orderId}.pdf"`);
     res.send(pdfBuffer);
   } catch (error) {
     logError('[Auth] Download invoice error:', error);
@@ -1546,7 +1546,7 @@ router.get('/orders/:id/upd', authMiddleware, async (req: AuthRequest, res: Resp
     });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="UPD_${invoiceNum}_zakaz_${orderId}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="UPD_${formatInvoiceNumber(invoiceNum)}_zakaz_${orderId}.pdf"`);
     res.send(pdfBuffer);
   } catch (error) {
     logError('[Auth] Download UPD error:', error);
@@ -1581,7 +1581,7 @@ router.get('/orders/:id/torg12', authMiddleware, async (req: AuthRequest, res: R
     });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="TORG12_${invoiceNum}_zakaz_${orderId}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="TORG12_${formatInvoiceNumber(invoiceNum)}_zakaz_${orderId}.pdf"`);
     res.send(pdfBuffer);
   } catch (error) {
     logError('[Auth] Download TORG12 error:', error);

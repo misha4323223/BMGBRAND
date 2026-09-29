@@ -7,7 +7,7 @@ import type { Order } from "@shared/schema";
 import { DatabaseStorage, productsCache, deserializeOrderPartnerId, serializeOrderPartnerId } from "./core";
 import ydb from "ydb-sdk";
 import { logWarn } from "../logger";
-import type { InsertOrder, Product } from "@shared/schema";
+import { INVOICE_NUMBER_START, type InsertOrder, type Product } from "@shared/schema";
 import { logError } from "../logger";
 
 declare module "./core" {
@@ -44,6 +44,8 @@ declare module "./core" {
     updateOrderUserId(orderId: number, userId: number): Promise<boolean>;
     getWholesaleOrdersWithoutUserId(): Promise<any[]>;
     saveOrderInvoiceNumber(orderId: number, invoiceNumber: number): Promise<void>;
+    allocateOrderNumber(): Promise<string | null>;
+    allocateInvoiceNumber(): Promise<number | null>;
     deleteOrder(id: number): Promise<boolean>;
     getDraftOrders(): Promise<any[]>;
     deleteExpiredDraftOrders(maxAgeMinutes: number): Promise<number>;
@@ -572,7 +574,7 @@ DatabaseStorage.prototype.getUnsyncedOrdersFor1C = async function (this: Databas
     console.log('[Storage] getUnsyncedOrdersFor1C: Fetching unsynced orders from YDB...');
     const result = await this.safeQuery(async (session) => {
       const query = `
-        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, created_at, is_wholesale, transport_company, is_preorder, deposit_paid, remaining_amount, user_id, cdek_data
+        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, created_at, is_wholesale, transport_company, is_preorder, deposit_paid, remaining_amount, user_id, cdek_data, order_number
         FROM orders
         WHERE status != 'awaiting_payment' AND (synced_to_1c IS NULL OR synced_to_1c = false)
         ORDER BY created_at DESC
@@ -603,6 +605,7 @@ DatabaseStorage.prototype.getUnsyncedOrdersFor1C = async function (this: Databas
       remainingAmount: Number(this.extractTypedValue(row.items[14])) || 0,
       userId: Number(this.extractTypedValue(row.items[15])) || undefined,
       cdekData: this.extractTypedValue(row.items[16]) || undefined,
+      orderNumber: this.extractTypedValue(row.items[17]) || undefined,
     })) as any;
   }
 ;
@@ -637,7 +640,7 @@ DatabaseStorage.prototype.getOrdersByStatus = async function (this: DatabaseStor
       const ydb = await import('ydb-sdk');
       const query = `
         DECLARE $status AS Utf8;
-        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, created_at, partner_id
+        SELECT id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, created_at, partner_id, order_number
         FROM orders
         WHERE status = $status
         ORDER BY created_at DESC
@@ -666,6 +669,7 @@ DatabaseStorage.prototype.getOrdersByStatus = async function (this: DatabaseStor
         createdAt: this.extractTypedValue(row.items[9]),
         // См. deserializeOrderPartnerId (вверху файла) — legacy Utf8 колонка.
         partnerId: deserializeOrderPartnerId(this.extractTypedValue(row.items[10])),
+        orderNumber: this.extractTypedValue(row.items[11]) || undefined,
       };
     }) as any;
   }
@@ -1227,6 +1231,153 @@ DatabaseStorage.prototype.getWholesaleOrdersWithoutUserId = async function (this
   }
 ;
 
+// ── Номер заказа для 1С: CA-000001, CA-000002, … ──────────────────────────
+// Сквозная нумерация живёт в YDB (таблица order_counters) и выдаётся
+// атомарно в сериализуемой транзакции, поэтому два одновременных заказа не
+// могут получить один и тот же номер. Раньше номер был счётчиком в памяти
+// процесса (время старта контейнера + инкремент) — из-за этого в 1С все
+// заказы уходили под одним и тем же «SITE-<13-значный id>», который 1С ещё и
+// обрезала по длине поля «Номер».
+// Нумеруются ТОЛЬКО новые заказы: у старых order_number = NULL, и в 1С они
+// по-прежнему уходят как SITE-<id>.
+let orderNumberSchemaEnsured = false;
+
+/** Ленивая идемпотентная миграция: таблица счётчика + колонка orders.order_number.
+ *  Важно: DDL нельзя выполнять обычным data-запросом — YDB отвечает
+ *  «Operation 'CreateTable' can't be performed in data query». Поэтому
+ *  используется scheme-API SDK: createTable / alterTable (+ describeTable,
+ *  чтобы повторный запуск был безобидным). */
+async function ensureOrderNumberSchema(session: any): Promise<void> {
+  if (orderNumberSchemaEnsured) return;
+  const { TableDescription, AlterTableDescription, Column, Types } = await import("ydb-sdk");
+  let ready = true;
+
+  try {
+    let hasCountersTable = true;
+    try {
+      await session.describeTable("order_counters");
+    } catch {
+      hasCountersTable = false;
+    }
+    if (!hasCountersTable) {
+      await session.createTable("order_counters", new TableDescription()
+        .withColumn(new Column("name", Types.UTF8))
+        .withColumn(new Column("value", Types.UINT64))
+        .withPrimaryKey("name"));
+    }
+  } catch (e: any) {
+    ready = false;
+    logWarn(`[Storage] ensure order_counters failed: ${String(e?.message || e).slice(0, 200)}`);
+  }
+
+  try {
+    const described: any = await session.describeTable("orders");
+    const hasColumn = (described?.columns || []).some((c: any) => c.name === "order_number");
+    if (!hasColumn) {
+      await session.alterTable("orders", new AlterTableDescription()
+        .withAddColumn(new Column("order_number", Types.optional(Types.UTF8))));
+    }
+  } catch (e: any) {
+    ready = false;
+    logWarn(`[Storage] ensure orders.order_number failed: ${String(e?.message || e).slice(0, 200)}`);
+  }
+
+  // Флаг ставим только при успехе — иначе повторим на следующем заказе.
+  orderNumberSchemaEnsured = ready;
+}
+
+DatabaseStorage.prototype.allocateOrderNumber = async function (this: DatabaseStorage): Promise<string | null> {
+    if (!driver) return null;
+    try {
+      const next = await this.safeQuery(async (session) => {
+        const { TypedValues } = await import("ydb-sdk");
+        await ensureOrderNumberSchema(session);
+        const tx = await session.beginTransaction({ serializableReadWrite: {} });
+        const txId = tx.id!;
+        try {
+          const read = await session.executeQuery(
+            `DECLARE $name AS Utf8;
+             SELECT value FROM order_counters WHERE name = $name LIMIT 1;`,
+            { $name: TypedValues.utf8("orders") },
+            { txId },
+          );
+          const row = read.resultSets?.[0]?.rows?.[0] as any;
+          const current = row ? Number(this.extractTypedValue(row.items[0])) || 0 : 0;
+          const value = current + 1;
+          await session.executeQuery(
+            `DECLARE $name AS Utf8;
+             DECLARE $value AS Uint64;
+             UPSERT INTO order_counters (name, value) VALUES ($name, $value);`,
+            { $name: TypedValues.utf8("orders"), $value: TypedValues.uint64(value) },
+            { txId },
+          );
+          await session.commitTransaction({ txId });
+          return value;
+        } catch (txErr) {
+          // Транзакция могла уже отмениться (locks invalidated) — глушим откат.
+          try { await session.rollbackTransaction({ txId }); } catch { /* уже отменена */ }
+          throw txErr;
+        }
+      }, 5);
+      if (!next || next < 1) return null;
+      return `CA-${String(next).padStart(6, "0")}`;
+    } catch (err: any) {
+      logWarn(`[Storage] allocateOrderNumber failed: ${err?.message || err}`);
+      return null;
+    }
+  }
+;
+
+// Сквозной номер счёта для НОВЫХ счетов: № 1792, № 1793, … Живёт в YDB (та же
+// таблица order_counters, строка name="invoices") и выдаётся атомарно в
+// сериализуемой транзакции — номера не повторяются и не сбрасываются при
+// деплое/перезапуске контейнера. Раньше счётчик жил в памяти процесса и заново
+// «сеялся» из текущего времени, поэтому мог выдать тот же номер дважды.
+// В БД и в 1С уходит само число (1792).
+DatabaseStorage.prototype.allocateInvoiceNumber = async function (this: DatabaseStorage): Promise<number | null> {
+    if (!driver) return null;
+    try {
+      const next = await this.safeQuery(async (session) => {
+        const { TypedValues } = await import("ydb-sdk");
+        await ensureOrderNumberSchema(session);
+        const tx = await session.beginTransaction({ serializableReadWrite: {} });
+        const txId = tx.id!;
+        try {
+          const read = await session.executeQuery(
+            `DECLARE $name AS Utf8;
+             SELECT value FROM order_counters WHERE name = $name LIMIT 1;`,
+            { $name: TypedValues.utf8("invoices") },
+            { txId },
+          );
+          const row = read.resultSets?.[0]?.rows?.[0] as any;
+          // Счётчик ещё не заведён → начинаем с 1792. Меньшее значение из базы
+          // не отдаём: новые счета всегда >= INVOICE_NUMBER_START.
+          const stored = row ? Number(this.extractTypedValue(row.items[0])) || 0 : 0;
+          const value = Math.max(stored, INVOICE_NUMBER_START - 1) + 1;
+          await session.executeQuery(
+            `DECLARE $name AS Utf8;
+             DECLARE $value AS Uint64;
+             UPSERT INTO order_counters (name, value) VALUES ($name, $value);`,
+            { $name: TypedValues.utf8("invoices"), $value: TypedValues.uint64(value) },
+            { txId },
+          );
+          await session.commitTransaction({ txId });
+          return value;
+        } catch (txErr) {
+          // Транзакция могла уже отмениться (locks invalidated) — глушим откат.
+          try { await session.rollbackTransaction({ txId }); } catch { /* уже отменена */ }
+          throw txErr;
+        }
+      }, 5);
+      if (!next || next < 1) return null;
+      return next;
+    } catch (err: any) {
+      logWarn(`[Storage] allocateInvoiceNumber failed: ${err?.message || err}`);
+      return null;
+    }
+  }
+;
+
 DatabaseStorage.prototype.saveOrderInvoiceNumber = async function (this: DatabaseStorage, orderId: number, invoiceNumber: number): Promise<void> {
     if (!driver) return;
     await this.safeQuery(async (session) => {
@@ -1371,6 +1522,9 @@ DatabaseStorage.prototype.createOrder = async function (this: DatabaseStorage, o
     
     const orderId = Date.now();
     const createdAt = new Date();
+    // Номер заказа для 1С (CA-000001 …). Если счётчик недоступен — заказ всё
+    // равно создаётся, просто без номера (в 1С уйдёт SITE-<id>).
+    const orderNumber = await this.allocateOrderNumber();
     
     try {
       await driver.tableClient.withSession(async (session) => {
@@ -1390,12 +1544,13 @@ DatabaseStorage.prototype.createOrder = async function (this: DatabaseStorage, o
           DECLARE $transport_company AS Utf8;
           DECLARE $cdek_data AS Utf8;
           DECLARE $created_at AS Timestamp;
+          DECLARE $order_number AS Utf8;
           ${order.userId ? 'DECLARE $user_id AS Uint64;' : ''}
           ${order.partnerId ? 'DECLARE $partner_id AS Utf8;' : ''}
           ${order.paymentMethod ? 'DECLARE $payment_method AS Utf8;' : ''}
           
-          UPSERT INTO orders (id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, promo_code, is_wholesale, transport_company, cdek_data, user_id, partner_id, payment_method, created_at)
-          VALUES ($id, $session_id, $customer_name, $customer_email, $customer_phone, $address, $total, $items, $status, $promo_code, $is_wholesale, $transport_company, $cdek_data, ${order.userId ? 'Just($user_id)' : 'NULL'}, ${order.partnerId ? 'Just($partner_id)' : 'NULL'}, ${order.paymentMethod ? 'Just($payment_method)' : 'NULL'}, $created_at);
+          UPSERT INTO orders (id, session_id, customer_name, customer_email, customer_phone, address, total, items, status, promo_code, is_wholesale, transport_company, cdek_data, user_id, partner_id, payment_method, order_number, created_at)
+          VALUES ($id, $session_id, $customer_name, $customer_email, $customer_phone, $address, $total, $items, $status, $promo_code, $is_wholesale, $transport_company, $cdek_data, ${order.userId ? 'Just($user_id)' : 'NULL'}, ${order.partnerId ? 'Just($partner_id)' : 'NULL'}, ${order.paymentMethod ? 'Just($payment_method)' : 'NULL'}, $order_number, $created_at);
         `;
         
         const cdekData = JSON.stringify({
@@ -1425,6 +1580,7 @@ DatabaseStorage.prototype.createOrder = async function (this: DatabaseStorage, o
           '$transport_company': ydb.TypedValues.utf8(order.transportCompany || ''),
           '$cdek_data': ydb.TypedValues.utf8(cdekData),
           '$created_at': ydb.TypedValues.timestamp(createdAt),
+          '$order_number': ydb.TypedValues.utf8(orderNumber || ''),
         };
         if (order.userId) {
           params['$user_id'] = ydb.TypedValues.uint64(order.userId);
@@ -1507,6 +1663,7 @@ DatabaseStorage.prototype.createOrder = async function (this: DatabaseStorage, o
         status: 'pending',
         promoCode: order.promoCode,
         paymentMethod: order.paymentMethod,
+        orderNumber: orderNumber || undefined,
         createdAt: createdAt.toISOString(),
       } as unknown as Order;
     } catch (error) {

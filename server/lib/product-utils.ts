@@ -151,3 +151,92 @@ export function resolveSizeStock(sizeStock: Record<string, number>, size: string
   if (matches.length === 0) return undefined;
   return Math.max(...matches.map(([, v]) => v));
 }
+
+/**
+ * GUID характеристики, выданный самой 1С (а не придуманный сайтом).
+ *
+ * 1С в этом проекте выдаёт идентификаторы первого поколения: `…-11eb-…`,
+ * `…-11f1-…`, с MAC-узлом в конце (последние 12 hex-цифр). Сайт же, пока
+ * придумывал характеристики сам (до 29.09.2026), писал `crypto.randomUUID()` —
+ * это UUID версии 4. Отправлять в 1С неизвестный ей GUID нельзя: она не может
+ * привязать характеристику и подставляет в это поле название товара.
+ *
+ * true только для корректного GUID версии 1; всё остальное (v4 от сайта,
+ * мусор, пусто) — false.
+ */
+export function isOneCCharacteristicGuid(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const s = value.trim().toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(s)) return false;
+  return s[14] === '1';
+}
+
+/**
+ * Найти GUID характеристики (из 1С) для конкретного размера заказа.
+ *
+ * Размер приходит от покупателя в «сыром» виде (`(40-45)`, `one size`, `М`
+ * кириллицей), а ключи `sizeCharacteristicIds` хранятся канонизированными
+ * (`40-45`, `OneSize`). Прямой поиск по ключу такие пары теряет, поэтому
+ * сначала пробуем точное совпадение (быстрый путь), затем — совпадение по
+ * `normalizeSizeKey` (как в `resolveSizeStock`).
+ *
+ * Если у одного размера есть несколько ключей и среди них есть GUID из 1С
+ * (например `(OneSize)` придуман сайтом, а `OneSize` пришёл из 1С) — вернём
+ * 1С-овский: сайтовый 1С всё равно не знает.
+ *
+ * Возвращает GUID или undefined. Никогда не выдумывает значение: если пары нет,
+ * значит характеристики у этого размера нет (в 1С уйдёт товар без характеристики).
+ */
+export function resolveSizeCharacteristicId(
+  ids: unknown,
+  size: unknown,
+): string | undefined {
+  if (!ids || typeof ids !== 'object' || Array.isArray(ids)) return undefined;
+  const map = ids as Record<string, unknown>;
+  const key = typeof size === 'string' ? size.trim() : '';
+  if (!key) return undefined;
+
+  const direct = map[key];
+  const directGuid = typeof direct === 'string' && direct.trim() ? direct.trim() : undefined;
+  if (directGuid && isOneCCharacteristicGuid(directGuid)) return directGuid;
+
+  const norm = normalizeSizeKey(key);
+  if (!norm) return directGuid;
+  let fallback: string | undefined;
+  for (const [k, v] of Object.entries(map)) {
+    if (normalizeSizeKey(k) !== norm) continue;
+    if (typeof v !== 'string' || !v.trim()) continue;
+    const guid = v.trim();
+    if (isOneCCharacteristicGuid(guid)) return guid;
+    if (!fallback) fallback = guid;
+  }
+  return fallback ?? directGuid;
+}
+
+/**
+ * Характеристики размеров для выгрузки в 1С.
+ * Сайт НЕ выдумывает GUID характеристики: он хранит только те, что пришли из 1С
+ * (импорт предложений: `offer Ид = "продуктGuid#характеристикаGuid"`). Если GUID
+ * неизвестен 1С, она не может привязать характеристику и подставляет в это поле
+ * название товара — поэтому выдуманные GUID недопустимы.
+ *
+ * Возвращает только те пары «размер → GUID», которые уже есть у товара и
+ * относятся к оставшимся размерам; ключи сравниваются нормализованно
+ * (как в resolveSizeStock), сами GUID не меняются.
+ * Если список размеров пустой — возвращаем всё, что было (ничего не теряем).
+ */
+export function keepExistingSizeCharacteristicIds(existing: unknown, sizes: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!existing || typeof existing !== 'object' || Array.isArray(existing)) return out;
+  const wanted = new Set(
+    (Array.isArray(sizes) ? sizes : [])
+      .map((s) => normalizeSizeKey(String(s ?? '')))
+      .filter(Boolean),
+  );
+  for (const [key, value] of Object.entries(existing as Record<string, unknown>)) {
+    if (typeof value !== 'string' || !value.trim()) continue;
+    if (wanted.size > 0 && !wanted.has(normalizeSizeKey(key))) continue;
+    out[key] = value;
+  }
+  return out;
+}

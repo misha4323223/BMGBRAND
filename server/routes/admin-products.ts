@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { logError, logInfo } from "../logger";
 import { storage } from "../storage";
 import { uploadToYandexStorage, deleteFromYandexStorage } from "../lib/storage-s3";
-import { sanitizeHtmlBlock, sanitizeJsonLd, sanitizeSizes, sanitizeSizeStock } from "../lib/product-utils";
+import { sanitizeHtmlBlock, sanitizeJsonLd, sanitizeSizes, sanitizeSizeStock, keepExistingSizeCharacteristicIds } from "../lib/product-utils";
 import { enqueueNewProduct } from "../new-products-notifier";
 import { enqueuePreorderProduct } from "../preorder-notifier";
 import { resolveHomepageSectionUpdate, homepageSectionResponse } from "../lib/homepage-sections";
@@ -48,11 +48,11 @@ export function registerAdminProductsRoutes(
       const autoSlug = req.body.slug || generateUniqueSlug(name, existingSlugs);
 
       const sizesArray: string[] = sanitizeSizes(sizes);
+      // externalId нужен как идентификатор номенклатуры для 1С (у нового товара
+      // своего нет), а характеристики размеров сайт НЕ придумывает: GUID
+      // характеристики должен прийти из 1С (импорт предложений), иначе 1С не
+      // находит её и подставляет в это поле название товара.
       const generatedExternalId = crypto.randomUUID();
-      const generatedSizeCharIds: Record<string, string> = {};
-      for (const s of sizesArray) {
-        generatedSizeCharIds[s] = crypto.randomUUID();
-      }
 
       const productData: any = {
         name,
@@ -104,7 +104,7 @@ export function registerAdminProductsRoutes(
         preorderGroup: preorderGroup || null,
         preorderStatus: (preorderEnabled === true || preorderEnabled === 'true') ? 'collecting' : null,
         externalId: generatedExternalId,
-        sizeCharacteristicIds: generatedSizeCharIds,
+        sizeCharacteristicIds: {},
       };
       
       const product = await storage.createProduct(productData);
@@ -377,12 +377,12 @@ export function registerAdminProductsRoutes(
       }
       if (sizes !== undefined) {
         updateData.sizes = sanitizeSizes(sizes);
-        const existingCharIds = ((product as any).sizeCharacteristicIds || {}) as Record<string, string>;
-        const newCharIds: Record<string, string> = {};
-        for (const s of (updateData.sizes as string[])) {
-          newCharIds[s] = existingCharIds[s] || crypto.randomUUID();
-        }
-        updateData.sizeCharacteristicIds = newCharIds;
+        // Характеристики для 1С сайт не придумывает и не перезаписывает: оставляем
+        // только GUID, которые уже пришли из 1С (и только для оставшихся размеров).
+        updateData.sizeCharacteristicIds = keepExistingSizeCharacteristicIds(
+          (product as any).sizeCharacteristicIds,
+          updateData.sizes,
+        );
         if (!(product as any).externalId) {
           updateData.externalId = crypto.randomUUID();
         }

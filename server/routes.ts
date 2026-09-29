@@ -18,7 +18,7 @@ import { queuePreorderStatusEmail } from "./lib/preorder-email-buffer";
 import { resolveItemPrice } from "./lib/pricing";
 import { getOrCreateVkJpeg, vkPictureUrl } from "./lib/vk-image";
 import { computePromoEligibleSubtotal, computePromoDiscount } from "./lib/checkout";
-import { SIZE_ORDER, STANDARD_CLOTHING_SIZES, sanitizeHtmlBlock, sanitizeJsonLd, sortSizes, normalizeSizeKey, canonicalizeSizeKey, resolveSizeStock, sanitizeSizes, sanitizeSizeStock } from "./lib/product-utils";
+import { SIZE_ORDER, STANDARD_CLOTHING_SIZES, sanitizeHtmlBlock, sanitizeJsonLd, sortSizes, normalizeSizeKey, canonicalizeSizeKey, resolveSizeStock, resolveSizeCharacteristicId, isOneCCharacteristicGuid, sanitizeSizes, sanitizeSizeStock } from "./lib/product-utils";
 import { registerDadataRoutes } from "./routes/dadata";
 import { registerReviewsRoutes } from "./routes/reviews";
 import { registerPushRoutes } from "./routes/push";
@@ -65,7 +65,7 @@ import { ozonDeliveryService } from "./ozon-delivery";
 import { ozonDeliveryOAuth, OZON_OAUTH_KEYS } from "./ozon-delivery-oauth";
 import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PVZ_CODE, CDEK_DEFAULT_PACKAGE, CDEK_TARIFFS, isTariffToDoor, isTariffFromPvz } from "./cdek";
 
-import { sendInvoiceEmail, getNextInvoiceNumber } from "./invoice";
+import { sendInvoiceEmail, formatInvoiceNumber } from "./invoice";
 import { registerYcpRoutes, isYcpBuyable } from "./ycp";
 import { addAbandonedCartUnsub } from "./abandoned-cart";
 import { enqueueNewProduct } from "./new-products-notifier";
@@ -5074,7 +5074,16 @@ ${faqSection}
                   const colorVal = item.color ? String(item.color).trim() : "";
                   const hasColor = colorVal && colorVal.toLowerCase() !== "default";
 
-                  const charGuid = item.sizeCharacteristicId || null;
+                  // В 1С отправляем только GUID характеристики, который выдала сама 1С.
+                  // Сайтовый (придуманный сайтом) GUID ей неизвестен: она не может
+                  // привязать характеристику и подставляет в это поле название товара.
+                  // Позиции без известного GUID уходят так же, как и раньше — с
+                  // наименованием и значением характеристики, но без <Ид>.
+                  const rawCharGuid = item.sizeCharacteristicId || null;
+                  const charGuid = isOneCCharacteristicGuid(rawCharGuid) ? rawCharGuid : null;
+                  if (rawCharGuid && !charGuid) {
+                    logInfo(`[1C] Игнорирую GUID характеристики, которого нет в 1С: ${baseName} (${sizeVal}) → ${rawCharGuid}`);
+                  }
 
                   const characteristics: any[] = [];
                   if (!isOneSize) {
@@ -5165,9 +5174,14 @@ ${faqSection}
                   docRekvizity.push({ "Наименование": "Предзаказ", "Значение": "true" });
                 }
 
+                // ВАЖНО: номер счёта сайта в 1С НЕ передаётся (решение владельца, 29.09.2026).
+                // Счёт нумерует и отправляет клиенту сам сайт; в 1С бухгалтер ведёт свой
+                // номер счёта. Не добавлять сюда реквизит «Номер счёта» и не тянуть
+                // invoice_number в выборки заказов для обмена с 1С.
+
                 const doc: any = {
                   "Ид": order.id.toString(),
-                  "Номер": `SITE-${order.id}`,
+                  "Номер": order.orderNumber || `SITE-${order.id}`,
                   "Дата": orderDate,
                   "Время": orderTime,
                   "ХозОперация": "Заказ товара",
@@ -9988,8 +10002,9 @@ ${faqSection}
             userWholesaleDiscount: ((req.user as any)?.wholesaleDiscount ?? 0) - ((req.user as any)?.wholesaleMarkup ?? 0),
           });
           wholesaleItemDiscountTotal += wholesaleDiscountPerUnit * item.quantity;
-          const sizeCharIds = (item.product as any).sizeCharacteristicIds as Record<string, string> | null | undefined;
-          const sizeCharGuid = (item.size && sizeCharIds) ? (sizeCharIds[item.size] || null) : null;
+          // Размер от покупателя может быть "(40-45)"/"one size", а ключи GUID канонизированы —
+          // ищем нормализованно, а не по точному ключу (иначе характеристика теряется).
+          const sizeCharGuid = resolveSizeCharacteristicId((item.product as any).sizeCharacteristicIds, item.size);
           return {
             productId: item.productId,
             productExternalId: item.product.externalId || item.productId.toString(),
@@ -9999,7 +10014,7 @@ ${faqSection}
             price,
             size: item.size,
             color: item.color,
-            sizeCharacteristicId: sizeCharGuid || undefined,
+            sizeCharacteristicId: sizeCharGuid,
             imageUrl: item.product.thumbnailUrl || (item.product.images && item.product.images[0]) || null,
           };
       });
@@ -10490,7 +10505,7 @@ ${faqSection}
           if (modeSetting === 'on_top' || modeSetting === 'included') vatMode = modeSetting;
         } catch (e) {}
         
-        const invoiceNum = getNextInvoiceNumber();
+        const invoiceNum = (await storage.allocateInvoiceNumber()) ?? Date.now();
         storage.saveOrderInvoiceNumber(order.id, invoiceNum).catch(err => logError('[Order] Failed to save invoice number:', err));
         sendInvoiceEmail({
           invoiceNumber: invoiceNum,
@@ -10503,7 +10518,7 @@ ${faqSection}
           vatMode: vatMode,
           promoCode: promoCode || undefined,
           promoDiscount: promoDiscount > 0 ? promoDiscount : undefined,
-          subjectOverride: `Счет на оплату № ${invoiceNum} — оплата после подтверждения менеджером`,
+          subjectOverride: `Счет на оплату № ${formatInvoiceNumber(invoiceNum)} — оплата после подтверждения менеджером`,
           managerApprovalRequired: true,
           items: orderItems.map(item => ({
             name: item.productName,
@@ -12309,16 +12324,18 @@ ${faqSection}
       const isWholesaleUser = isApprovedWholesaleUser(user);
 
       const orderItems = sizeItems.map((item: any) => {
-        const sizeCharIds = (product as any).sizeCharacteristicIds as Record<string, string> | null | undefined;
-        const sizeCharGuid = (item.size && sizeCharIds) ? (sizeCharIds[item.size] || null) : null;
+        // Нормализованный поиск: "(40-45)" ↔ "40-45", "one size" ↔ "OneSize"
+        const sizeCharGuid = resolveSizeCharacteristicId((product as any).sizeCharacteristicIds, item.size);
         return {
           productId: product.id,
+          productExternalId: (product as any).externalId || String(product.id),
           productName: product.name,
+          sku: (product as any).sku || "",
           quantity: item.quantity,
           price: resolveItemPrice(product as any, { isWholesale: isWholesaleUser, size: item.size, userWholesaleDiscount: (user?.wholesaleDiscount ?? 0) - (user?.wholesaleMarkup ?? 0) }).price,
           size: item.size || undefined,
           color: color || undefined,
-          sizeCharacteristicId: sizeCharGuid || undefined,
+          sizeCharacteristicId: sizeCharGuid,
           imageUrl: (product as any).images?.[0] || product.imageUrl || '',
         };
       });
@@ -12701,6 +12718,11 @@ ${faqSection}
         size: i.size || undefined,
         color: i.color || undefined,
         imageUrl: i.imageUrl || undefined,
+        // Ниже заполняются сверкой с БД — номенклатура, артикул и GUID
+        // характеристики нужны для выгрузки позиции в 1С.
+        productExternalId: undefined as string | undefined,
+        sku: undefined as string | undefined,
+        sizeCharacteristicId: undefined as string | undefined,
       }));
 
       if (orderItems.length === 0) {
@@ -12757,6 +12779,11 @@ ${faqSection}
         // для опта, salePrice/discountPercent для розницы.
         item.price = resolveItemPrice(product as any, { isWholesale: isWholesaleUser, userWholesaleDiscount: (req.user?.wholesaleDiscount ?? 0) - (req.user?.wholesaleMarkup ?? 0) }).price;
         item.productName = product.name;
+        // Данные для 1С: предзаказ раньше не заполнял их вообще, поэтому позиция
+        // уходила в 1С без номенклатуры, артикула и характеристики.
+        item.productExternalId = (product as any).externalId || String(product.id);
+        item.sku = (product as any).sku || "";
+        item.sizeCharacteristicId = resolveSizeCharacteristicId((product as any).sizeCharacteristicIds, item.size);
         promoProducts[item.productId] = product;
       }
 
@@ -12846,7 +12873,7 @@ ${faqSection}
           if (modeSetting === 'on_top' || modeSetting === 'included') vatMode = modeSetting;
         } catch {}
 
-        const invoiceNum = getNextInvoiceNumber();
+        const invoiceNum = (await storage.allocateInvoiceNumber()) ?? Date.now();
         storage.saveOrderInvoiceNumber(order.id, invoiceNum).catch(err => logError('[Preorder Multi] Failed to save invoice number:', err));
         sendInvoiceEmail({
           invoiceNumber: invoiceNum,
