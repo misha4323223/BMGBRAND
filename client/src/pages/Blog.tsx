@@ -43,6 +43,12 @@ export default function Blog() {
     queryKey: ["/api/page-settings/blog_pages"],
   });
 
+  // Admin-editable SEO overrides (раздел "SEO" в админке) для страницы /blog.
+  const { data: seoOverrides } = useQuery<Record<string, { title?: string; description?: string }>>({
+    queryKey: ["/api/page-settings/seo"],
+  });
+  const blogSeo = seoOverrides?.["static:blog"];
+
   const homeData = homeSettingsQuery.data;
   const blogPagesData = blogPagesQuery.data;
 
@@ -74,8 +80,8 @@ export default function Blog() {
   return (
     <div className="min-h-screen bg-background">
       <SEO 
-        title="Блог BOOOMERANGS — новости, коллекции, коллаборации"
-        description="Блог BOOOMERANGS — новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами."
+        title={blogSeo?.title || "Блог BOOOMERANGS - одежда, стиль, мерч и производство | BMGBRAND"}
+        description={blogSeo?.description || "Блог BOOOMERANGS об одежде и мерче: гайды по материалам и посадке, новые коллекции и коллаборации с артистами и фестивалями, производство одежды, мерч на заказ и истории бренда BMGBRAND."}
         keywords="блог BOOOMERANGS, новости российской одежды, тренды, коллекции"
         brandSuffix={false}
         jsonLd={[
@@ -83,7 +89,7 @@ export default function Blog() {
             "@context": "https://schema.org",
             "@type": "Blog",
             "name": homeData?.blog?.title || "BMG Журнал",
-            "description": "Блог BOOOMERANGS — новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами.",
+            "description": blogSeo?.description || "Блог BOOOMERANGS об одежде и мерче: гайды по материалам и посадке, новые коллекции и коллаборации с артистами и фестивалями, производство одежды, мерч на заказ и истории бренда BMGBRAND.",
             "url": `${window.location.origin}/blog`,
             "publisher": {
               "@type": "Organization",

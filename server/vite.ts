@@ -6,7 +6,7 @@ import viteConfig from "../vite.config";
 import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
-import { getCachedProductMetaBySlug, getCachedArtistHeroImage, getCachedRawPageSettings } from "./storage";
+import { getCachedProductMetaBySlug, getCachedArtistHeroImage, getCachedRawPageSettings, ensurePageSettingsCached } from "./storage";
 import { CATEGORIES as SCHEMA_CATEGORIES, buildCategoryIndex, resolveProductCategoryPaths, sortProductCategoryPaths } from "../shared/schema";
 import { buildProductJsonLd } from "../shared/product-jsonld";
 import { resolveBlogPostForSsr, parseBlogIndex, blogPageTitle, blogDescriptionFor, buildBlogPostJsonLd, buildBlogBreadcrumbJsonLd, type BlogPostForSsr } from "../shared/blog-post";
@@ -77,7 +77,11 @@ function buildBlogPostNoscript(post: BlogPostForSsr, siteUrl: string): string {
   const image = post.image
     ? (post.image.startsWith("http") ? post.image : `${siteUrl}${post.image}`)
     : "";
-  const metaLine = [post.date, post.category, post.author].filter(Boolean).map(escHtml).join(" · ");
+  const metaLine = [
+    post.date ? `<time datetime="${escHtml(post.dateIso)}">${escHtml(post.date)}</time>` : "",
+    escHtml(post.category),
+    escHtml(post.author),
+  ].filter(Boolean).join(" · ");
   return `<noscript><article>` +
     `<h1>${escHtml(post.title)}</h1>` +
     (metaLine ? `<p>${metaLine}</p>` : "") +
@@ -87,7 +91,7 @@ function buildBlogPostNoscript(post: BlogPostForSsr, siteUrl: string): string {
     `</article></noscript>`;
 }
 
-function applyBotMetaInjection(html: string, url: string, origin: string): string {
+async function applyBotMetaInjection(html: string, url: string, origin: string): Promise<string> {
   const cleanUrl = url.split('?')[0].split('#')[0];
 
   try {
@@ -231,6 +235,9 @@ function applyBotMetaInjection(html: string, url: string, origin: string): strin
     // --- Blog article: /blog/{id} (мета в первом HTML-ответе) ---
     const blogArticleId = parseBlogIndex(cleanUrl.match(/^\/blog\/([^/]+)\/?$/)?.[1]);
     if (blogArticleId !== null) {
+      // Существующая статья не должна отдавать 404 из-за пустого кэша
+      // page settings: на промахе точечно прогреваем blog_pages из YDB.
+      await ensurePageSettingsCached("blog_pages");
       const post = resolveBlogPostForSsr(
         getCachedRawPageSettings("blog_pages") as Record<string, any> | null,
         (getCachedRawPageSettings("home") as Record<string, any> | null)?.blog?.items,
@@ -291,6 +298,17 @@ export async function setupVite(server: Server, app: Express) {
     const url = req.originalUrl;
 
     try {
+      // Дедупликация URL блога (как в prod static.ts и bot-ssr):
+      // /blog/{id}/ → /blog/{id}, /blog/ → /blog (301).
+      const cleanBlogUrl = url.split('?')[0].split('#')[0];
+      if (cleanBlogUrl === "/blog/") {
+        res.redirect(301, "/blog");
+        return;
+      }
+      if (cleanBlogUrl.startsWith("/blog/") && cleanBlogUrl.endsWith("/")) {
+        res.redirect(301, cleanBlogUrl.replace(/\/+$/, ""));
+        return;
+      }
       const clientTemplate = path.resolve(
         import.meta.dirname,
         "..",
@@ -306,7 +324,7 @@ export async function setupVite(server: Server, app: Express) {
       let page = await vite.transformIndexHtml(url, template);
 
       const origin = `${req.protocol}://${req.get('host')}`;
-      page = applyBotMetaInjection(page, url, origin);
+      page = await applyBotMetaInjection(page, url, origin);
 
       // Inject home page settings for dev mode (same pattern as production static.ts).
       // Eliminates the settingsLoading blank screen by pre-populating React Query cache.

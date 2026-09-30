@@ -6,7 +6,9 @@
  *
  * Rules:
  *  - Only fires on GET requests from known bots (User-Agent detection).
- *  - NEVER makes YDB calls — reads only from warm in-memory caches.
+ *  - Reads only warm in-memory caches. Единственное исключение — статья
+ *    блога: при промахе blog_pages вызывается ensurePageSettingsCached()
+ *    (точечный прогрев из YDB с дедупликацией и таймаутом, storage/core.ts).
  *  - Has its own 5-min in-memory cache so every bot hit doesn't regenerate HTML.
  *  - If cache is empty (server just started) it passes through to normal serving.
  *  - Gracefully falls through on any error — humans always get the React app.
@@ -25,6 +27,7 @@ import {
   getCachedReviewsByProductId,
   getCachedProductsForVariantMatching,
   getCachedRawPageSettings,
+  ensurePageSettingsCached,
   isProductsCacheWarm,
   getProductMetaBySlugFromDb,
   type ProductMetaForSsr,
@@ -2135,7 +2138,11 @@ function renderBlogPost(index: number): string | null {
     preloadImage: image,
   });
 
-  const metaLine = [post.date, post.category, post.author].filter(Boolean).map((s) => esc(s)).join(" · ");
+  const metaLine = [
+    post.date ? `<time datetime="${esc(post.dateIso)}">${esc(post.date)}</time>` : "",
+    esc(post.category),
+    esc(post.author),
+  ].filter(Boolean).join(" · ");
   const contentHtml = sanitizeHtmlBlock(post.content);
 
   const body = `
@@ -2167,7 +2174,10 @@ function renderBlogNotFound(): string {
 function renderBlog(): string {
   const homeSettings  = getCachedRawPageSettings("home")  as Record<string, any> | null;
   const blogPageMeta  = getCachedRawPageSettings("blog_pages") as Record<string, any> | null;
-  const blogSeo       = getSeoOverride("blog");
+  // Ключ админки — "static:blog" (как у остальных статических страниц,
+  // см. client/src/pages/admin/SeoTab.tsx); раньше читался несуществующий "blog",
+  // поэтому админские title/description для /blog до роботов не доходили.
+  const blogSeo       = getSeoOverride("static:blog");
 
   const defaultPosts = [
     { title: "SS'26: Новая эстетика уличной моды",    date: "15 января 2026",  category: "Коллекции",    excerpt: "Исследуем грани между российской уличной модой и современным искусством в новом дропе." },
@@ -2221,8 +2231,8 @@ function renderBlog(): string {
   ]);
 
   const head = baseHead({
-    title:       blogSeo.title       || "Блог BOOOMERANGS — новости, коллекции, коллаборации",
-    description: blogSeo.description || "Блог BOOOMERANGS — новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами.",
+    title:       blogSeo.title       || "Блог BOOOMERANGS - одежда, стиль, мерч и производство | BMGBRAND",
+    description: blogSeo.description || "Блог BOOOMERANGS об одежде и мерче: гайды по материалам и посадке, новые коллекции и коллаборации с артистами и фестивалями, производство одежды, мерч на заказ и истории бренда BMGBRAND.",
     canonical:   `${SITE_URL}/blog`,
     ogImage:     `${SITE_URL}/og-image.png`,
     jsonLd,
@@ -2626,6 +2636,16 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
     return next();
   }
 
+  // Дедупликация URL блога: /blog/{id}/ → /blog/{id}, /blog/ → /blog (301).
+  if (reqPath === "/blog/") {
+    res.redirect(301, "/blog");
+    return;
+  }
+  if (reqPath.startsWith("/blog/") && reqPath.endsWith("/")) {
+    res.redirect(301, reqPath.replace(/\/+$/, ""));
+    return;
+  }
+
   try {
     // Check bot HTML cache first
     const cacheKey = reqPath;
@@ -2655,11 +2675,21 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
     } else if (reqPath === "/merch-na-zakaz") {
       html = renderMerchOrder();
     } else if (reqPath === "/blog") {
+      // Ссылки на статьи в списке строятся из blog_pages: на промахе кэша
+      // точечно прогреваем его, чтобы робот увидел ссылки на живые статьи.
+      await ensurePageSettingsCached("blog_pages");
       html = renderBlog();
     } else if (reqPath.startsWith("/blog/")) {
       // Статьи /blog/{id}: полный SSR-контент до выполнения JS.
       const articleIndex = parseBlogIndex(reqPath.slice("/blog/".length).replace(/\/+$/, ""));
-      const articleHtml = articleIndex === null ? null : renderBlogPost(articleIndex);
+      let articleHtml: string | null = null;
+      if (articleIndex !== null) {
+        // pageSettingsCache жёстко истекает через 600 с без обновления, а
+        // единственным посетителем статьи может быть робот — без форс-прогрева
+        // существующая статья получала ложный 404 «Статья не найдена».
+        await ensurePageSettingsCached("blog_pages");
+        articleHtml = renderBlogPost(articleIndex);
+      }
       if (articleHtml) {
         html = articleHtml;
       } else {

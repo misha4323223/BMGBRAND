@@ -593,6 +593,16 @@ async function seedDefaultLegalDocuments() {
             logError(`[Warmup] Failed to preload pageSettings(${page}):`, err);
           }
         }
+        // pageSettingsCache жёстко истекает через 600 с без обновления, а
+        // обновляют его только вызовы storage.getPageSettings(). Если блог
+        // читает один поисковый робот, кэш blog_pages остывал и SSR отдавал
+        // ложный 404 на живые статьи. 4 минуты < 600 с — держим ключ тёплым
+        // (плюс страховка ensurePageSettingsCached на промахе в SSR).
+        const blogPagesKeepAlive = setInterval(() => {
+          storage.getPageSettings("blog_pages").catch(err =>
+            logError("[Cache] blog_pages keep-alive failed:", err));
+        }, 4 * 60 * 1000);
+        blogPagesKeepAlive.unref?.();
         // Sync all existing artist/festival pages as merch subcategories
         try {
           await syncArtistPagesToMerchSubcategories(storage);

@@ -480,6 +480,36 @@ export function getCachedRawPageSettings(pageName: string): Record<string, any> 
   return pageSettingsCache.get(pageName) || null;
 }
 
+// ── Точечный форс-прогрев page settings (осознанное исключение из правила
+//    «SSR не ходит в YDB») ─────────────────────────────────────────────────
+// pageSettingsCache жёстко истекает через 600 с без обновления (SimpleCache
+// staleUntil), а наполняют его только вызовы storage.getPageSettings() — обычно
+// из админки/API. Если страницы блога читает один поисковый робот, кэш
+// оставался пустым и SSR отдавал ложный 404 «Статья не найдена» на живую
+// статью. ensurePageSettingsCached срабатывает ТОЛЬКО при промахе,
+// дедуплицирует параллельные запросы и ограничен по времени, чтобы зависший
+// YDB не держал SSR-запрос.
+const pageSettingsWarmInflight = new Map<string, Promise<void>>();
+
+export async function ensurePageSettingsCached(pageName: string, timeoutMs = 4000): Promise<boolean> {
+  if (pageSettingsCache.get(pageName) !== null) return true;
+  let inflight = pageSettingsWarmInflight.get(pageName);
+  if (!inflight) {
+    // storage.getPageSettings() сам кладёт результат в pageSettingsCache
+    // (кроме ошибки YDB — тогда кэш не трогаем и честно вернём false).
+    inflight = storage.getPageSettings(pageName)
+      .then(() => undefined)
+      .catch((err) => { logError(`[Cache] ensurePageSettingsCached(${pageName}) failed:`, err); })
+      .finally(() => { pageSettingsWarmInflight.delete(pageName); });
+    pageSettingsWarmInflight.set(pageName, inflight);
+  }
+  await Promise.race([
+    inflight,
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
+  return pageSettingsCache.get(pageName) !== null;
+}
+
 // Returns the slug of a product by its numeric ID, searching the full cache
 // (includes hidden products). Used before deletion to record the slug for 410.
 export function getCachedProductSlugById(id: number): string | null {

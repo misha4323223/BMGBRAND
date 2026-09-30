@@ -2,7 +2,7 @@ import express, { type Express } from "express";
 import { logError, logWarn } from "./logger";
 import fs from "fs";
 import path from "path";
-import { getCachedLcpImageUrls, getCachedProductImageBySlug, getCachedProductMetaBySlug, getCachedRatingByProductId, getCachedProductsByCategory, getCachedAllVisibleProducts, getCachedProductsForRecommendations, getCachedHeroData, getCachedArtistHeroImage, getCachedRawPageSettings } from "./storage";
+import { getCachedLcpImageUrls, getCachedProductImageBySlug, getCachedProductMetaBySlug, getCachedRatingByProductId, getCachedProductsByCategory, getCachedAllVisibleProducts, getCachedProductsForRecommendations, getCachedHeroData, getCachedArtistHeroImage, getCachedRawPageSettings, ensurePageSettingsCached } from "./storage";
 
 // Admin-editable SEO overrides (page_settings, pageName="seo").
 // Ключи: "home", "category:<slug>". Читаем только из тёплого кэша.
@@ -429,12 +429,30 @@ function buildVacanciesNoscript(): string {
 }
 
 function buildBlogListNoscript(siteUrl: string): string {
-  const items = DEFAULT_BLOG_POSTS.map((p, idx) =>
-    `<li><a href="${escHtml(siteUrl + "/blog/" + idx)}">${escHtml(p.title)}</a> — ${escHtml(p.date)}, ${escHtml(p.category)}. ${escHtml(p.excerpt)}</li>`
+  // Реальные статьи из blog_pages (та же логика, что в bot-ssr renderBlog):
+  // ссылки ведут только на существующие статьи, заголовки/даты — настоящие.
+  // Раньше здесь были DEFAULT_BLOG_POSTS с фейковыми анонсами.
+  const homeSettings = getCachedRawPageSettings("home") as Record<string, any> | null;
+  const blogPages = getCachedRawPageSettings("blog_pages") as Record<string, any> | null;
+  const rawItems: any[] = homeSettings?.blog?.items || DEFAULT_BLOG_POSTS;
+  const posts = rawItems
+    .map((item: any, idx: number) => {
+      const resolved = resolveBlogPostForSsr(blogPages, rawItems, idx);
+      return {
+        url: resolved ? `${siteUrl}/blog/${idx}` : "",
+        title: resolved?.title || item?.title || "",
+        date: resolved?.date || item?.date || "",
+        category: resolved?.category || item?.category || "",
+        excerpt: resolved?.excerpt || item?.excerpt || "",
+      };
+    })
+    .filter((p: any) => p.title);
+  const items = posts.map((p: any) =>
+    `<li>${p.url ? `<a href="${escHtml(p.url)}">${escHtml(p.title)}</a>` : escHtml(p.title)} — ${escHtml(p.date)}, ${escHtml(p.category)}. ${escHtml(p.excerpt)}</li>`
   ).join("\n");
   return `<noscript><div>` +
-    `<h1>Блог BOOOMERANGS — культура и стиль</h1>` +
-    `<p>Анонсы новых коллекций, истории создания вещей и авторские дизайны бренда.</p>` +
+    `<h1>Блог BOOOMERANGS</h1>` +
+    `<p>Новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами.</p>` +
     `<ul>${items}</ul>` +
     `</div></noscript>`;
 }
@@ -448,7 +466,11 @@ function buildBlogPostNoscript(post: BlogPostForSsr, siteUrl: string): string {
   const image = post.image
     ? (post.image.startsWith("http") ? post.image : `${siteUrl}${post.image}`)
     : "";
-  const metaLine = [post.date, post.category, post.author].filter(Boolean).map(escHtml).join(" · ");
+  const metaLine = [
+    post.date ? `<time datetime="${escHtml(post.dateIso)}">${escHtml(post.date)}</time>` : "",
+    escHtml(post.category),
+    escHtml(post.author),
+  ].filter(Boolean).join(" · ");
   return `<noscript><article>` +
     `<h1>${escHtml(post.title)}</h1>` +
     (metaLine ? `<p>${metaLine}</p>` : "") +
@@ -804,10 +826,18 @@ export function serveStatic(app: Express) {
   // Individual blog posts (/blog/123) also rarely change once published.
   const CACHEABLE_STATIC_PREFIXES = ['/blog/'];
 
-  app.use("*", (req, res) => {
+  app.use("*", async (req, res) => {
     const url = req.originalUrl;
     const cleanUrl = url.split('?')[0].split('#')[0];
     const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
+
+    // Дедупликация URL блога: /blog/{id}/ → /blog/{id}, /blog/ → /blog (301).
+    if (cleanUrl === "/blog/") {
+      return res.redirect(301, "/blog");
+    }
+    if (cleanUrl.startsWith("/blog/") && cleanUrl.endsWith("/")) {
+      return res.redirect(301, cleanUrl.replace(/\/+$/, ""));
+    }
 
     if (CACHEABLE_STATIC_PATHS.has(cleanUrl) || CACHEABLE_STATIC_PREFIXES.some(p => cleanUrl.startsWith(p))) {
       // Public, short max-age with background revalidation — reduces TTFB for bots/crawlers
@@ -1367,8 +1397,8 @@ export function serveStatic(app: Express) {
           description: "Концепция и философия бренда BMGBRAND — российский бренд одежды с авторскими принтами.",
         },
         "/blog": {
-          title: "Блог BOOOMERANGS — новости, коллекции, коллаборации",
-          description: "Блог BOOOMERANGS — новости бренда, тренды российской моды, новые коллекции и коллаборации с артистами.",
+          title: "Блог BOOOMERANGS - одежда, стиль, мерч и производство | BMGBRAND",
+          description: "Блог BOOOMERANGS об одежде и мерче: гайды по материалам и посадке, новые коллекции и коллаборации с артистами и фестивалями, производство одежды, мерч на заказ и истории бренда BMGBRAND.",
         },
         "/wholesale-register": {
           title: `Оптовые закупки — регистрация | ${SITE_NAME}`,
@@ -1378,6 +1408,9 @@ export function serveStatic(app: Express) {
 
       const staticPage = STATIC_PAGES[cleanUrl];
       if (staticPage) {
+        // Админ-SEO (ключ "static:...") перекрывает хардкод — как в bot-ssr, чтобы
+        // HTML-оболочка для людей и робот-рендер показывали одни и те же title/description.
+        const staticSeoOverride = getSeoOverride(`static:${cleanUrl.replace(/^\//, "")}`);
         let staticJsonLd: string | undefined;
         if (cleanUrl === "/faq") {
           staticJsonLd = JSON.stringify({
@@ -1391,8 +1424,8 @@ export function serveStatic(app: Express) {
           });
         }
         html = injectMeta(html, {
-          title: staticPage.title,
-          description: staticPage.description,
+          title: staticSeoOverride.title || staticPage.title,
+          description: staticSeoOverride.description || staticPage.description,
           ogImage: `${siteUrl}/og-image.png`,
           canonical: `${siteUrl}${cleanUrl}`,
           jsonLd: staticJsonLd,
@@ -1405,6 +1438,9 @@ export function serveStatic(app: Express) {
         } else if (cleanUrl === "/vacancies") {
           html = injectSeoBody(html, buildVacanciesNoscript());
         } else if (cleanUrl === "/blog") {
+          // Ссылки на статьи в noscript-блоке строятся из blog_pages: на
+          // промахе кэша прогреваем его, чтобы список не остался без ссылок.
+          await ensurePageSettingsCached("blog_pages");
           html = injectSeoBody(html, buildBlogListNoscript(siteUrl));
         }
       }
@@ -1412,6 +1448,9 @@ export function serveStatic(app: Express) {
       // --- Статья блога /blog/{id}: уникальные мета, H1, текст, canonical без JS ---
       const blogArticleId = parseBlogIndex(cleanUrl.match(/^\/blog\/([^/]+)\/?$/)?.[1]);
       if (blogArticleId !== null) {
+        // Существующая статья не должна отдавать 404 из-за пустого кэша
+        // page settings: на промахе точечно прогреваем blog_pages из YDB.
+        await ensurePageSettingsCached("blog_pages");
         const post = resolveBlogPostForSsr(
           getCachedRawPageSettings("blog_pages") as Record<string, any> | null,
           (getCachedRawPageSettings("home") as Record<string, any> | null)?.blog?.items,
