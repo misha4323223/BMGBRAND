@@ -8,11 +8,13 @@
  * Значения редактируются в админке: page_settings("checkout") -> checkout_data
  * (`freeDeliveryThreshold` и `freeCourierDeliveryThreshold`, в копейках).
  *
- * Правила (с 2026-09-16):
+ * Правила (обновлено 2026-10-04):
  * - ПВЗ СДЭК / Ozon / самовывоз — бесплатно от 5 000 ₽;
  * - курьер СДЭК «до двери» — бесплатно только от 15 000 ₽;
  * - оптовые заказы и предзаказы в правило не входят;
- * - порог считается по сумме ТОВАРОВ (без доставки).
+ * - порог считается по сумме ТОВАРОВ ПОСЛЕ скидок (промокод + персональная
+ *   скидка лояльности), без доставки;
+ * - подарочный сертификат не учитывается — это способ оплаты, а не скидка.
  */
 
 /** ПВЗ / Ozon / самовывоз — 5 000 ₽ (копейки). */
@@ -65,14 +67,19 @@ export function getFreeShippingThreshold(
 
 /**
  * Подпадает ли заказ под бесплатную доставку.
- * Сумма — по ТОВАРАМ без доставки; оптовые заказы исключены.
+ * База — сумма ТОВАРОВ ПОСЛЕ скидок (промокод + лояльность), без доставки;
+ * подарочный сертификат не учитывается (способ оплаты, а не скидка).
+ * Оптовые заказы исключены.
  */
 export function qualifiesForFreeShipping(opts: {
   subtotal: number;
+  /** Скидки на товары (промокод + лояльность), копейки. Вычитаются из subtotal. */
+  discountAmount?: number;
   thresholds: FreeShippingThresholds;
   isWholesale?: boolean;
   isCourierDelivery?: boolean;
 }): boolean {
   if (opts.isWholesale) return false;
-  return opts.subtotal >= getFreeShippingThreshold(opts.thresholds, opts.isCourierDelivery);
+  const base = Math.max(0, opts.subtotal - Math.max(0, opts.discountAmount ?? 0));
+  return base >= getFreeShippingThreshold(opts.thresholds, opts.isCourierDelivery);
 }

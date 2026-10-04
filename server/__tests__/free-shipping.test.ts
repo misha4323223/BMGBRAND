@@ -88,4 +88,30 @@ describe("qualifiesForFreeShipping", () => {
     expect(qualifiesForFreeShipping({ subtotal: 100000000, thresholds, isWholesale: true })).toBe(false);
     expect(qualifiesForFreeShipping({ subtotal: 100000000, thresholds, isWholesale: true, isCourierDelivery: true })).toBe(false);
   });
+
+  it("скидки (промокод + лояльность) вычитаются из базы порога", () => {
+    // Ровно 5 000 ₽ без скидок — бесплатно; со скидкой ниже порога — платно.
+    expect(qualifiesForFreeShipping({ subtotal: 500000, thresholds })).toBe(true);
+    expect(qualifiesForFreeShipping({ subtotal: 500000, discountAmount: 0, thresholds })).toBe(true);
+    expect(qualifiesForFreeShipping({ subtotal: 500000, discountAmount: 50000, thresholds })).toBe(false);
+    expect(qualifiesForFreeShipping({ subtotal: 550000, discountAmount: 50000, thresholds })).toBe(true);
+  });
+
+  it("скидка больше суммы даёт базу 0 — доставка платная", () => {
+    expect(qualifiesForFreeShipping({ subtotal: 500000, discountAmount: 500000, thresholds })).toBe(false);
+    expect(qualifiesForFreeShipping({ subtotal: 500000, discountAmount: 900000, thresholds })).toBe(false);
+  });
+
+  it("отрицательная скидка не увеличивает базу", () => {
+    expect(qualifiesForFreeShipping({ subtotal: 490000, discountAmount: -100000, thresholds })).toBe(false);
+  });
+
+  it("курьер: скидка уводит ниже 15 000 ₽", () => {
+    expect(qualifiesForFreeShipping({ subtotal: 1500000, discountAmount: 1, thresholds, isCourierDelivery: true })).toBe(false);
+    expect(qualifiesForFreeShipping({ subtotal: 1520000, discountAmount: 20000, thresholds, isCourierDelivery: true })).toBe(true);
+  });
+
+  it("опт не получает бесплатную доставку даже со скидкой", () => {
+    expect(qualifiesForFreeShipping({ subtotal: 100000000, discountAmount: 1000, thresholds, isWholesale: true })).toBe(false);
+  });
 });

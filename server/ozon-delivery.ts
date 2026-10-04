@@ -17,6 +17,14 @@ import { logError, logWarn } from "./logger";
 
 const OZON_SELLER_API = "https://api-seller.ozon.ru";
 
+/**
+ * Фиксированная стоимость доставки Ozon в копейках (350 ₽).
+ * Ozon /v1/delivery/check сообщает только доступность; отдельного API расчёта
+ * тарифа нет. Значение использует и оформление заказа (POST /api/orders),
+ * когда клиент прислал 0, а заказ не попадает под бесплатную доставку.
+ */
+export const OZON_FIXED_DELIVERY_COST_KOPEKS = 35_000;
+
 // ─── Типы ────────────────────────────────────────────────────────────────────
 
 export interface OzonPvzPoint {
@@ -435,8 +443,6 @@ class OzonDeliveryService {
 
     // Ozon /v1/delivery/check возвращает только признак возможности доставки.
     // Отдельного API для расчёта тарифа нет — используем фиксированную цену.
-    const OZON_FIXED_DELIVERY_COST_KOPEKS = 35_000; // 350 ₽
-
     const r = result.data?.result ?? result.data ?? {};
     const isAvailable =
       r.is_possible === true ||

@@ -64,6 +64,14 @@
   (e.g. `tolstovki` → `hoodies`).
 
 ## Recent fixes (current state)
+- **Бесплатная доставка и скидки (2026-10-04)**: порог бесплатной доставки считается
+  по сумме ТОВАРОВ ПОСЛЕ скидок (промокод + скидка лояльности); подарочный сертификат
+  не учитывается (способ оплаты, а не скидка). Правило — `qualifiesForFreeShipping({
+  discountAmount })` в `shared/free-shipping.ts`. Клиент (`Checkout.tsx`) и сервер
+  (`POST /api/orders` в `routes.ts`) считают скидки ДО решения о доставке. Если клиент
+  прислал deliveryCost=0, а доставка платная, сервер считает тариф сам: СДЭК door/PVZ
+  строго по типу тарифа, Ozon — `OZON_FIXED_DELIVERY_COST_KOPEKS` (350 ₽). В чекауте
+  при скидке ниже порога — жёлтое предупреждение, прогресс-бар от суммы после скидок.
 - bot-ssr `renderCategory`: the "Разделы" links block is now rendered **ABOVE**
   the product grid (was below 246 products).
 - bot-ssr counter fix: `outOfStock = products.filter(p => !(p.stock > 0))`
@@ -514,7 +522,16 @@
   `ensurePageSettingsCached` на промахе — прогрев одного инстанса через API не помогает остальным.
 - 301-дедупликация готова: `/blog/{id}/` → `/blog/{id}` и `/blog/` → `/blog` в bot-ssr, static.ts
   и vite.ts; canonical у статей остаётся `/blog/{id}`.
-- Осталось по ТЗ от 27.09.2026 (аудит): деплой (фикс 404 + код-правки) и прогон чек-листа п.21 на проде.
+- **ТЗ от 27.09.2026 закрыто полностью 30.09.2026.** Задеплоено: коммит `c2ba4f4` (пуш в main),
+  ревизия выкачена после ретрая (первый прогон deploy упал на `i/o timeout` при push манифеста
+  `latest` в Yandex Container Registry — инфраструктурный сбой, лечится повторным push, rerun через
+  API недоступен: у интеграции нет прав на Actions, `workflow_dispatch` в deploy.yml нет).
+- Прогон чек-листа п.21 на проде 30.09.2026 (под Googlebot): `/blog` и `/blog/0..8` → 200,
+  `/blog/99` → 404, `/blog/2/` и `/blog/` → 301, у каждой статьи уникальные title/description,
+  ровно один h1, h2 8–32, `<time datetime>` есть, canonical `/blog/{id}`, `og:type=article`,
+  BlogPosting=1, og:image своей статьи, 3+ внутренних ссылок в контенте, `X-Robots-Tag` отсутствует,
+  meta robots `index, follow`. `/blog` отдаёт новые title/description, H1 «Блог BOOOMERANGS» и ссылки
+  на все 9 статей; sitemap включает `/blog` + статьи, robots.txt `/blog` не запрещает.
   Деплой — GitHub Actions по push в main, только по явной просьбе владельца.
 
 ## Кнопка «Показать первым» в секции главной (2026-09-27)

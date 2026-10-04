@@ -62,7 +62,7 @@ import adminPartnerRoutes from "./admin-partner-routes";
 import adminWholesaleRoutes from "./admin-wholesale-routes";
 import { authStorage } from "./auth-storage";
 import { paymentService } from "./payments";
-import { ozonDeliveryService } from "./ozon-delivery";
+import { ozonDeliveryService, OZON_FIXED_DELIVERY_COST_KOPEKS } from "./ozon-delivery";
 import { ozonDeliveryOAuth, OZON_OAUTH_KEYS } from "./ozon-delivery-oauth";
 import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PVZ_CODE, CDEK_DEFAULT_PACKAGE, CDEK_TARIFFS, isTariffToDoor, isTariffFromPvz } from "./cdek";
 
@@ -10094,144 +10094,10 @@ ${faqSection}
 
       const isCourierDelivery = deliveryService === "cdek" && cdekDeliveryType === "door";
 
-      // Пороги бесплатной доставки (розница) — из админки: page_settings "checkout" -> checkout_data.
-      // ПВЗ / Ozon / самовывоз — от 5 000 ₽, курьер СДЭК «до двери» — только от 15 000 ₽.
-      const freeShippingThresholds = await getCheckoutFreeShippingThresholds();
-      const freeShippingThreshold = getFreeShippingThreshold(freeShippingThresholds, isCourierDelivery);
-      // Порог считается по сумме ТОВАРОВ (без доставки). Оптовые заказы в правило не входят.
-      const freeShippingOrder = qualifiesForFreeShipping({
-        subtotal: orderSubtotal,
-        thresholds: freeShippingThresholds,
-        isWholesale,
-        isCourierDelivery,
-      });
-
-      // Verify delivery cost on the server side for non-wholesale orders.
-      // Курьер + clientDeliveryCost === 0 (подмена запроса): сервер обязан посчитать тариф сам,
-      // иначе заказ уйдёт с бесплатной курьерской доставкой. Не смогли посчитать — заказ НЕ создаём.
-      // Если заказ уже подпадает под бесплатную доставку — тариф не нужен, СДЭК не дёргаем.
-      let verifiedDeliveryCost = 0;
-      const needsCourierServerCost = !isWholesale && isCourierDelivery && clientDeliveryCost <= 0 && !freeShippingOrder;
-      if (needsCourierServerCost && !cdekCityCode) {
-        logWarn(`[Order] Courier delivery rejected: client sent deliveryCost=0 and cdekCityCode is missing (email=${input.customerEmail}, sessionId=${input.sessionId})`);
-        return res.status(400).json({
-          message: "Не удалось рассчитать стоимость курьерской доставки. Попробуйте ещё раз или выберите пункт выдачи.",
-          code: "COURIER_DELIVERY_CALC_FAILED",
-        });
-      }
-      if (!isWholesale && (clientDeliveryCost > 0 || needsCourierServerCost) && cdekCityCode) {
-        try {
-          const totalItemCount = orderItems.reduce((sum, item) => sum + item.quantity, 0);
-          const packageWeight = Math.max(500, totalItemCount * CDEK_ITEM_WEIGHT_GRAMS);
-          const calcRequest = {
-            from_location: { code: CDEK_SENDER_CITY_CODE },
-            to_location: { code: cdekCityCode },
-            packages: [{
-              weight: packageWeight,
-              length: CDEK_DEFAULT_PACKAGE.length,
-              width: CDEK_DEFAULT_PACKAGE.width,
-              height: CDEK_DEFAULT_PACKAGE.height,
-            }],
-          };
-          const tariffs = await cdekService.calculateTariffs(calcRequest);
-          if (tariffs && tariffs.length > 0) {
-            const matchingTariff = cdekTariffCode 
-              ? tariffs.find(t => t.tariff_code === cdekTariffCode) 
-              : null;
-            const cheapest = tariffs.reduce((min, t) => t.delivery_sum < min.delivery_sum ? t : min, tariffs[0]);
-            // Курьер ("до двери") + клиент прислал 0: считаем ТОЛЬКО по тарифу "дверь",
-            // иначе самым дешёвым окажется ПВЗ-ПВЗ и курьерская доставка будет занижена.
-            let courierDoorTariff: { delivery_sum: number } | null = null;
-            if (needsCourierServerCost) {
-              const doorTariffs = tariffs.filter(t => CDEK_DOOR_TARIFFS.includes(t.tariff_code));
-              courierDoorTariff = doorTariffs.length > 0
-                ? (doorTariffs.find(t => t.tariff_code === cdekTariffCode)
-                  || doorTariffs.reduce((min, t) => (t.delivery_sum < min.delivery_sum ? t : min), doorTariffs[0]))
-                : null;
-              if (!courierDoorTariff) {
-                logWarn(`[Order] Courier delivery rejected: no door tariff from CDEK (city=${cdekCityCode}, email=${input.customerEmail}, sessionId=${input.sessionId})`);
-                return res.status(400).json({
-                  message: "Не удалось рассчитать стоимость курьерской доставки. Попробуйте ещё раз или выберите пункт выдачи.",
-                  code: "COURIER_DELIVERY_CALC_FAILED",
-                });
-              }
-            }
-            const serverDeliveryCost = ((courierDoorTariff || matchingTariff)?.delivery_sum || cheapest.delivery_sum) * 100;
-            const tolerance = Math.round(serverDeliveryCost * 0.20);
-            if (Math.abs(clientDeliveryCost - serverDeliveryCost) <= tolerance) {
-              verifiedDeliveryCost = clientDeliveryCost;
-            } else {
-              verifiedDeliveryCost = serverDeliveryCost;
-              logWarn(`[Order] CDEK delivery cost mismatch beyond 20% tolerance! client=${clientDeliveryCost/100}, server=${serverDeliveryCost/100}. Using server value.`);
-            }
-            logInfo(`[Order] CDEK delivery cost verified: client=${clientDeliveryCost/100}, server=${serverDeliveryCost/100}, used=${verifiedDeliveryCost/100} RUB`);
-          } else if (needsCourierServerCost) {
-            logWarn(`[Order] Courier delivery rejected: CDEK returned no tariffs (city=${cdekCityCode}, email=${input.customerEmail}, sessionId=${input.sessionId})`);
-            return res.status(400).json({
-              message: "Не удалось рассчитать стоимость курьерской доставки. Попробуйте ещё раз или выберите пункт выдачи.",
-              code: "COURIER_DELIVERY_CALC_FAILED",
-            });
-          } else {
-            verifiedDeliveryCost = clientDeliveryCost;
-            logInfo(`[Order] CDEK tariffs not available, using client delivery cost: ${clientDeliveryCost/100} RUB`);
-          }
-        } catch (cdekErr: any) {
-          if (needsCourierServerCost) {
-            logError(`[Order] Courier delivery rejected: CDEK calculation failed: ${cdekErr.message}`);
-            return res.status(400).json({
-              message: "Не удалось рассчитать стоимость курьерской доставки. Попробуйте ещё раз или выберите пункт выдачи.",
-              code: "COURIER_DELIVERY_CALC_FAILED",
-            });
-          }
-          verifiedDeliveryCost = clientDeliveryCost;
-          logInfo(`[Order] CDEK calculation failed, using client delivery cost: ${clientDeliveryCost/100} RUB. Error: ${cdekErr.message}`);
-        }
-      } else if (!isWholesale && clientDeliveryCost > 0 && deliveryService === "ozon") {
-        verifiedDeliveryCost = clientDeliveryCost;
-        logInfo(`[Order] Non-CDEK delivery (${deliveryService}), using client delivery cost: ${clientDeliveryCost/100} RUB`);
-      }
-
-      // Pre-payment Ozon availability check: verify items are deliverable before charging the customer
-      if (deliveryService === "ozon" && ozonDeliveryService.isConfigured() && ozonDeliveryService.isEnabled()) {
-        try {
-          const ozonCheckItems = orderItems.map((item, idx) => {
-            const product = cartItems[idx]?.product as any;
-            const offerId: string = product?.article || item.sku || String(item.productId);
-            return { offerId, quantity: item.quantity, price: item.price, name: item.productName };
-          });
-          const ozonCheckResult = await ozonDeliveryService.checkoutDelivery({
-            items: ozonCheckItems,
-            pvzId: ozonPvzId,
-            customerPhone: input.customerPhone,
-          });
-          if (!ozonCheckResult.success) {
-            logWarn(`[Order] Ozon pre-payment checkoutDelivery failed: ${ozonCheckResult.error}`);
-            return res.status(400).json({
-              message: ozonCheckResult.unavailableItems?.length
-                ? "Некоторые товары недоступны для доставки Ozon. Выберите другой ПВЗ или способ доставки."
-                : `Не удалось подтвердить доставку Ozon: ${ozonCheckResult.error || "Попробуйте позже"}`,
-              code: "OZON_DELIVERY_UNAVAILABLE",
-              unavailableItems: ozonCheckResult.unavailableItems,
-            });
-          }
-          logInfo(`[Order] Ozon pre-payment checkoutDelivery OK${ozonCheckResult.checkoutId ? `, checkout_id=${ozonCheckResult.checkoutId}` : ""}`);
-        } catch (ozonCheckErr: any) {
-          // Network/API error during availability check — block order to avoid charging customer when delivery cannot be confirmed
-          logError(`[Order] Ozon checkoutDelivery check threw error: ${ozonCheckErr?.message}`);
-          return res.status(400).json({
-            message: "Сервис доставки Ozon временно недоступен. Попробуйте позже или выберите другой способ доставки.",
-            code: "OZON_DELIVERY_UNAVAILABLE",
-          });
-        }
-      }
-
-      // Бесплатная доставка: пороги посчитаны выше (freeShippingOrder).
-      // Обнуляем стоимость, если она всё же успела посчитаться (например, устаревший клиент прислал тариф).
-      if (freeShippingOrder && verifiedDeliveryCost > 0) {
-        logInfo(`[Order] Free shipping applied (${isCourierDelivery ? "courier" : "pickup"}): subtotal=${orderSubtotal/100} RUB >= ${freeShippingThreshold/100} RUB threshold. Delivery cost zeroed (was ${verifiedDeliveryCost/100} RUB)`);
-        verifiedDeliveryCost = 0;
-      }
-
+      // ── Скидки на товары (считаются ДО решения о доставке) ──────────────────
+      // Порог бесплатной доставки считается по сумме ПОСЛЕ скидок: промокод или
+      // персональная скидка лояльности могут увести заказ ниже порога — тогда
+      // доставка снова становится платной. Сертификат не учитывается.
       // Apply promo code discount (applied to subtotal only, not delivery)
       let promoDiscount = 0;
       const promoCode = req.body.promoCode;
@@ -10313,6 +10179,158 @@ ${faqSection}
             logInfo(`[Order] Loyalty discount skipped - promo code does not allow combination`);
           }
         }
+      }
+
+      // Пороги бесплатной доставки (розница) — из админки: page_settings "checkout" -> checkout_data.
+      // ПВЗ / Ozon / самовывоз — от 5 000 ₽, курьер СДЭК «до двери» — только от 15 000 ₽.
+      const freeShippingThresholds = await getCheckoutFreeShippingThresholds();
+      const freeShippingThreshold = getFreeShippingThreshold(freeShippingThresholds, isCourierDelivery);
+      // Порог считается по сумме ТОВАРОВ ПОСЛЕ скидок (промокод + лояльность), без доставки.
+      // Подарочный сертификат не учитывается — это способ оплаты, а не скидка.
+      // Оптовые заказы в правило не входят.
+      const freeShippingOrder = qualifiesForFreeShipping({
+        subtotal: orderSubtotal,
+        discountAmount: promoDiscount + loyaltyDiscountApplied,
+        thresholds: freeShippingThresholds,
+        isWholesale,
+        isCourierDelivery,
+      });
+
+      // Verify delivery cost on the server side for non-wholesale orders.
+      // clientDeliveryCost === 0, а доставка платная (например, промокод увёл сумму ниже порога,
+      // и клиент прислал 0): сервер обязан посчитать тариф сам, иначе заказ уйдёт
+      // с бесплатной доставкой. Не смогли посчитать — заказ НЕ создаём.
+      // Если заказ подпадает под бесплатную доставку — тариф не нужен, СДЭК не дёргаем.
+      let verifiedDeliveryCost = 0;
+      const requiresCdekServerCost = !isWholesale && !freeShippingOrder && clientDeliveryCost <= 0 && deliveryService === "cdek";
+      const needsOzonServerCost = !isWholesale && !freeShippingOrder && clientDeliveryCost <= 0 && deliveryService === "ozon";
+      if (requiresCdekServerCost && !cdekCityCode) {
+        logWarn(`[Order] CDEK delivery rejected: client sent deliveryCost=0 and cdekCityCode is missing (email=${input.customerEmail}, sessionId=${input.sessionId})`);
+        return res.status(400).json({
+          message: "Не удалось рассчитать стоимость доставки. Попробуйте ещё раз или выберите другой способ.",
+          code: "DELIVERY_CALC_FAILED",
+        });
+      }
+      if (!isWholesale && (clientDeliveryCost > 0 || requiresCdekServerCost) && cdekCityCode) {
+        try {
+          const totalItemCount = orderItems.reduce((sum, item) => sum + item.quantity, 0);
+          const packageWeight = Math.max(500, totalItemCount * CDEK_ITEM_WEIGHT_GRAMS);
+          const calcRequest = {
+            from_location: { code: CDEK_SENDER_CITY_CODE },
+            to_location: { code: cdekCityCode },
+            packages: [{
+              weight: packageWeight,
+              length: CDEK_DEFAULT_PACKAGE.length,
+              width: CDEK_DEFAULT_PACKAGE.width,
+              height: CDEK_DEFAULT_PACKAGE.height,
+            }],
+          };
+          const tariffs = await cdekService.calculateTariffs(calcRequest);
+          if (tariffs && tariffs.length > 0) {
+            const matchingTariff = cdekTariffCode 
+              ? tariffs.find(t => t.tariff_code === cdekTariffCode) 
+              : null;
+            const cheapest = tariffs.reduce((min, t) => t.delivery_sum < min.delivery_sum ? t : min, tariffs[0]);
+            // Клиент прислал 0 (подмена запроса или устаревший кеш), а доставка платная:
+            // считаем строго по нужному типу тарифа — курьер («до двери») только дверные,
+            // ПВЗ — только не-дверные. Иначе cheapest может оказаться чужим тарифом
+            // и стоимость доставки будет занижена.
+            let serverPickedTariff: { delivery_sum: number } | null = null;
+            if (requiresCdekServerCost) {
+              const wantedTariffs = isCourierDelivery
+                ? tariffs.filter(t => CDEK_DOOR_TARIFFS.includes(t.tariff_code))
+                : tariffs.filter(t => !CDEK_DOOR_TARIFFS.includes(t.tariff_code));
+              serverPickedTariff = wantedTariffs.length > 0
+                ? (wantedTariffs.find(t => t.tariff_code === cdekTariffCode)
+                  || wantedTariffs.reduce((min, t) => (t.delivery_sum < min.delivery_sum ? t : min), wantedTariffs[0]))
+                : null;
+              if (!serverPickedTariff) {
+                logWarn(`[Order] CDEK delivery rejected: no ${isCourierDelivery ? "door" : "pickup"} tariff (city=${cdekCityCode}, email=${input.customerEmail}, sessionId=${input.sessionId})`);
+                return res.status(400).json({
+                  message: "Не удалось рассчитать стоимость доставки. Попробуйте ещё раз или выберите другой способ.",
+                  code: "DELIVERY_CALC_FAILED",
+                });
+              }
+            }
+            const serverDeliveryCost = ((serverPickedTariff || matchingTariff)?.delivery_sum || cheapest.delivery_sum) * 100;
+            const tolerance = Math.round(serverDeliveryCost * 0.20);
+            if (requiresCdekServerCost) {
+              // Клиентский 0 недействителен (доставка платная) — используем серверный расчёт.
+              verifiedDeliveryCost = serverDeliveryCost;
+            } else if (Math.abs(clientDeliveryCost - serverDeliveryCost) <= tolerance) {
+              verifiedDeliveryCost = clientDeliveryCost;
+            } else {
+              verifiedDeliveryCost = serverDeliveryCost;
+              logWarn(`[Order] CDEK delivery cost mismatch beyond 20% tolerance! client=${clientDeliveryCost/100}, server=${serverDeliveryCost/100}. Using server value.`);
+            }
+            logInfo(`[Order] CDEK delivery cost verified: client=${clientDeliveryCost/100}, server=${serverDeliveryCost/100}, used=${verifiedDeliveryCost/100} RUB`);
+          } else if (requiresCdekServerCost) {
+            logWarn(`[Order] CDEK delivery rejected: no tariffs returned (city=${cdekCityCode}, email=${input.customerEmail}, sessionId=${input.sessionId})`);
+            return res.status(400).json({
+              message: "Не удалось рассчитать стоимость доставки. Попробуйте ещё раз или выберите другой способ.",
+              code: "DELIVERY_CALC_FAILED",
+            });
+          } else {
+            verifiedDeliveryCost = clientDeliveryCost;
+            logInfo(`[Order] CDEK tariffs not available, using client delivery cost: ${clientDeliveryCost/100} RUB`);
+          }
+        } catch (cdekErr: any) {
+          if (requiresCdekServerCost) {
+            logError(`[Order] CDEK delivery rejected: calculation failed: ${cdekErr.message}`);
+            return res.status(400).json({
+              message: "Не удалось рассчитать стоимость доставки. Попробуйте ещё раз или выберите другой способ.",
+              code: "DELIVERY_CALC_FAILED",
+            });
+          }
+          verifiedDeliveryCost = clientDeliveryCost;
+          logInfo(`[Order] CDEK calculation failed, using client delivery cost: ${clientDeliveryCost/100} RUB. Error: ${cdekErr.message}`);
+        }
+      } else if (!isWholesale && deliveryService === "ozon" && (clientDeliveryCost > 0 || needsOzonServerCost)) {
+        // Тариф Ozon фиксированный (Ozon не отдаёт расчёт): клиентский 0 при платной
+        // доставке заменяем серверной ценой, чтобы скидка не оставляла доставку бесплатной.
+        verifiedDeliveryCost = clientDeliveryCost > 0 ? clientDeliveryCost : OZON_FIXED_DELIVERY_COST_KOPEKS;
+        logInfo(`[Order] Non-CDEK delivery (${deliveryService}), used delivery cost: ${verifiedDeliveryCost/100} RUB`);
+      }
+
+      // Pre-payment Ozon availability check: verify items are deliverable before charging the customer
+      if (deliveryService === "ozon" && ozonDeliveryService.isConfigured() && ozonDeliveryService.isEnabled()) {
+        try {
+          const ozonCheckItems = orderItems.map((item, idx) => {
+            const product = cartItems[idx]?.product as any;
+            const offerId: string = product?.article || item.sku || String(item.productId);
+            return { offerId, quantity: item.quantity, price: item.price, name: item.productName };
+          });
+          const ozonCheckResult = await ozonDeliveryService.checkoutDelivery({
+            items: ozonCheckItems,
+            pvzId: ozonPvzId,
+            customerPhone: input.customerPhone,
+          });
+          if (!ozonCheckResult.success) {
+            logWarn(`[Order] Ozon pre-payment checkoutDelivery failed: ${ozonCheckResult.error}`);
+            return res.status(400).json({
+              message: ozonCheckResult.unavailableItems?.length
+                ? "Некоторые товары недоступны для доставки Ozon. Выберите другой ПВЗ или способ доставки."
+                : `Не удалось подтвердить доставку Ozon: ${ozonCheckResult.error || "Попробуйте позже"}`,
+              code: "OZON_DELIVERY_UNAVAILABLE",
+              unavailableItems: ozonCheckResult.unavailableItems,
+            });
+          }
+          logInfo(`[Order] Ozon pre-payment checkoutDelivery OK${ozonCheckResult.checkoutId ? `, checkout_id=${ozonCheckResult.checkoutId}` : ""}`);
+        } catch (ozonCheckErr: any) {
+          // Network/API error during availability check — block order to avoid charging customer when delivery cannot be confirmed
+          logError(`[Order] Ozon checkoutDelivery check threw error: ${ozonCheckErr?.message}`);
+          return res.status(400).json({
+            message: "Сервис доставки Ozon временно недоступен. Попробуйте позже или выберите другой способ доставки.",
+            code: "OZON_DELIVERY_UNAVAILABLE",
+          });
+        }
+      }
+
+      // Бесплатная доставка: порог посчитан выше (freeShippingOrder) от суммы ПОСЛЕ скидок.
+      // Обнуляем стоимость, если она всё же успела посчитаться (например, устаревший клиент прислал тариф).
+      if (freeShippingOrder && verifiedDeliveryCost > 0) {
+        logInfo(`[Order] Free shipping applied (${isCourierDelivery ? "courier" : "pickup"}): subtotal=${orderSubtotal/100} − discounts=${(promoDiscount + loyaltyDiscountApplied)/100} >= ${freeShippingThreshold/100} RUB threshold. Delivery cost zeroed (was ${verifiedDeliveryCost/100} RUB)`);
+        verifiedDeliveryCost = 0;
       }
 
       // Handle gift card if provided

@@ -819,6 +819,29 @@ export default function Checkout() {
   const cheapestTariff = pvzTariffs.length ? pvzTariffs.reduce((min, t) => t.delivery_sum < min.delivery_sum ? t : min, pvzTariffs[0]) : null;
   const cheapestDoorTariff = doorTariffs.length ? doorTariffs.reduce((min, t) => t.delivery_sum < min.delivery_sum ? t : min, doorTariffs[0]) : null;
 
+  // ── Скидки на товары (считаются ДО решения о доставке) ───────────────────
+  // Порог бесплатной доставки считается по сумме ПОСЛЕ скидок: промокод или
+  // персональная скидка лояльности могут увести заказ ниже порога — тогда
+  // доставка снова становится платной. Сертификат не учитывается — это оплата.
+  // Calculate promo discount: percent-based or fixed amount
+  // If promo has category restrictions, eligibleAmount is the sum of matching items
+  const promoEligibleAmount = appliedPromo?.eligibleAmount ?? subtotal;
+  const promoDiscount = appliedPromo 
+    ? (appliedPromo.discountPercent 
+        ? Math.round(promoEligibleAmount * (appliedPromo.discountPercent / 100))
+        : (appliedPromo.discountAmount || 0))
+    : 0;
+  
+  // Calculate loyalty discount amount (only for retail, check if can combine with promo)
+  const canApplyLoyalty = !appliedPromo || appliedPromo.canCombineWithLoyalty !== false;
+  const loyaltyDiscountAmount = (userLoyaltyDiscount > 0 && canApplyLoyalty) 
+    ? Math.round(subtotal * (userLoyaltyDiscount / 100)) 
+    : 0;
+  // Сумма товаров после скидок — база для порога бесплатной доставки.
+  // Подарочный сертификат НЕ учитывается: это способ оплаты, а не скидка.
+  const itemDiscountsTotal = promoDiscount + loyaltyDiscountAmount;
+  const discountedBase = Math.max(0, subtotal - itemDiscountsTotal);
+
   // Пороги из настроек чекаута (админка). Логика общая с сервером — @shared/free-shipping.
   const freeShippingThresholds = resolveFreeShippingThresholds(cs);
   const FREE_COURIER_THRESHOLD = freeShippingThresholds.courier;
@@ -827,6 +850,7 @@ export default function Checkout() {
   const freeShippingThreshold = getFreeShippingThreshold(freeShippingThresholds, isCourierDelivery);
   const isFreeShipping = qualifiesForFreeShipping({
     subtotal,
+    discountAmount: itemDiscountsTotal,
     thresholds: freeShippingThresholds,
     isWholesale,
     isCourierDelivery,
@@ -842,21 +866,7 @@ export default function Checkout() {
   
   const rawDeliveryCost = isWholesale ? 0 : deliveryService === "pickup" ? 0 : deliveryService === "ozon" ? (ozonDeliveryCost ?? 0) : cdekDeliveryCost;
   const deliveryCost = isFreeShipping ? 0 : rawDeliveryCost;
-  // Calculate promo discount: percent-based or fixed amount
-  // If promo has category restrictions, eligibleAmount is the sum of matching items
-  const promoEligibleAmount = appliedPromo?.eligibleAmount ?? subtotal;
-  const promoDiscount = appliedPromo 
-    ? (appliedPromo.discountPercent 
-        ? Math.round(promoEligibleAmount * (appliedPromo.discountPercent / 100))
-        : (appliedPromo.discountAmount || 0))
-    : 0;
-  
-  // Calculate loyalty discount amount (only for retail, check if can combine with promo)
-  const canApplyLoyalty = !appliedPromo || appliedPromo.canCombineWithLoyalty !== false;
-  const loyaltyDiscountAmount = (userLoyaltyDiscount > 0 && canApplyLoyalty) 
-    ? Math.round(subtotal * (userLoyaltyDiscount / 100)) 
-    : 0;
-  
+
   // Calculate gift card discount (can't exceed order total)
   const giftCardDiscount = appliedGiftCard 
     ? Math.min(appliedGiftCard.balance, subtotal + deliveryCost - promoDiscount - loyaltyDiscountAmount)
@@ -1124,16 +1134,24 @@ export default function Checkout() {
                   </p>
                 </div>
               )}
-              {!isWholesale && !isFreeShipping && subtotal > 0 && (
+              {!isWholesale && !isFreeShipping && deliveryService !== "pickup" && itemDiscountsTotal > 0 && subtotal >= freeShippingThreshold && (
+                <div className="mb-4 p-4 border border-amber-500/40 bg-amber-500/10 rounded-xl flex items-start gap-2.5" data-testid="notice-discounts-below-free-shipping">
+                  <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Сумма после скидок ({formatPrice(discountedBase)}) ниже {formatPrice(freeShippingThreshold)} ₽ — доставка стала платной.
+                  </p>
+                </div>
+              )}
+              {!isWholesale && !isFreeShipping && discountedBase > 0 && (
                 <div className="mb-4 p-4 border border-border rounded-xl">
                   <div className="flex justify-between items-center mb-2">
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">До бесплатной доставки</p>
-                    <p className="text-xs font-semibold text-foreground">{formatPrice(freeShippingThreshold - subtotal)}</p>
+                    <p className="text-xs font-semibold text-foreground">{formatPrice(Math.max(0, freeShippingThreshold - discountedBase))}</p>
                   </div>
                   <div className="h-1 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-foreground rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, (subtotal / freeShippingThreshold) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (discountedBase / freeShippingThreshold) * 100)}%` }}
                     />
                   </div>
                 </div>
