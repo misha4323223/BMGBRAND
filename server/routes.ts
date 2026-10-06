@@ -1565,8 +1565,8 @@ Disallow: /*?
 # Yandex: ignore non-significant GET params and merge duplicate-page signals
 # into the canonical (param-free) URL instead of leaving indexed copies.
 Clean-param: ref /
-Clean-param: utm_source utm_medium utm_campaign utm_content utm_term /
-Clean-param: category subcategory subSubcategory sale search /
+Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term /
+Clean-param: category&subcategory&subSubcategory&sale&search /
 
 Sitemap: ${siteUrl}/sitemap.xml
 
