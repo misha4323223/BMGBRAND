@@ -58,6 +58,13 @@ POST /api/admin/1c-sync-toggle   {"enabled": false}
 1С получает `failure`, выгрузка останавливается. Флаг хранится в памяти процесса —
 после рестарта/новой ревизии снова включён.
 
+## Если деплой упал на шаге «Login to Yandex Container Registry»
+
+`Could not login: … context deadline exceeded` — транзиентный сетевой сбой раннера
+GitHub ↔ реестр Yandex, к коду отношения не имеет (сборка даже не начиналась).
+Перезапустите workflow: GitHub → Actions → «Deploy to Yandex Serverless Container» →
+Re-run failed jobs, или просто сделайте любой новый пуш в `main`.
+
 ## Что смотреть после выгрузки (логи контейнера)
 
 Успех:
