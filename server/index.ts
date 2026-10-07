@@ -556,6 +556,16 @@ async function seedDefaultLegalDocuments() {
       log(`serving on port ${port}`);
       import("./storage").then(async ({ storage, warmRatingsCache, warmReviewsCache }) => {
         logInfo(`[Migration] old_price: Column already exists`);
+        // Ручные остатки (stock_sync_disabled): колонка создаётся лениво и идемпотентно
+        // при старте, чтобы владельцу не нужно было жать кнопку миграции в админке.
+        // ALTER ADD COLUMN безопасен и аддитивен; повторный вызов гасится
+        // «already exists» / «Cannot alter type for column» (так отвечает YDB).
+        try {
+          const mig = await (storage as any).addStockSyncDisabledColumn?.();
+          if (mig?.success) logInfo(`[Migration] stock_sync_disabled: ${mig.message}`);
+        } catch (err: any) {
+          logWarn(`[Migration] stock_sync_disabled: ${err?.message}`);
+        }
         logInfo(`[Migration] seo_json_ld: Column already exists`);
         try {
           const products = await storage.getProducts();

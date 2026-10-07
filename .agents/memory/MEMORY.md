@@ -22,4 +22,7 @@
 - [Yandex Delivery removed](yandex-delivery-removed.md) — ЯД полностью удалена; 9 файлов; секреты YANDEX_DELIVERY_TOKEN/PLATFORM_STATION_ID можно удалить
 - [Ozon Delivery integration](ozon-delivery-integration.md) — Ozon Pay удалён, Ozon Delivery через Seller API OAuth; флаг ozon_delivery_enabled в bonus_settings; Admin UI таб "Интеграции"
 - [Ozon delivery check field name](ozon-delivery-check-field.md) — /v1/delivery/check uses `client_phone` not `customer_phone`; protobuf error message reveals camelCase field name
+- [Ручные остатки товара](manual-stock-flag.md) — флаг stockSyncDisabled (+ предзаказ) отключает перезапись stock/sizeStock/sizes из 1С и автоскрытие; колонка создаётся на старте
+- [ydb-sdk INT64 не принимает BigInt](ydb-int64-bigint.md) — bigint в INT64-параметре кодируется как 0; createProduct терял stock/wholesalePrice (починено 2026-10-07)
 - [Project architecture](project-architecture.md) — безопасная памятка по стеку, boot flow, YDB/storage, интеграциям и правилам диагностики; секреты намеренно не хранятся
+- [1С: файлы приходят фрагментами](1c-file-parts.md) — контейнер режет запросы > 3.5 МБ, поэтому file_limit=2 МиБ; части склеиваются в 1c_parts/ и публикуются сразу при переходе 1С к следующему файлу / mode=import (обход бакета — раз в минуту)

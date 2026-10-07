@@ -5,6 +5,7 @@ import { uploadToYandexStorage, deleteFromYandexStorage } from "../lib/storage-s
 import { sanitizeHtmlBlock, sanitizeJsonLd, sanitizeSizes, sanitizeSizeStock, keepExistingSizeCharacteristicIds } from "../lib/product-utils";
 import { enqueueNewProduct } from "../new-products-notifier";
 import { enqueuePreorderProduct } from "../preorder-notifier";
+import { resolveStockSyncDisabled } from "../lib/manual-stock";
 import { resolveHomepageSectionUpdate, homepageSectionResponse } from "../lib/homepage-sections";
 import { sendPriceDropEmail } from "../email";
 
@@ -107,7 +108,19 @@ export function registerAdminProductsRoutes(
         sizeCharacteristicIds: {},
       };
       
-      const product = await storage.createProduct(productData);
+      let product = await storage.createProduct(productData);
+      // createProduct пишет фиксированный набор колонок (как и для auto_hide_override),
+      // поэтому флаг ручных остатков доставляем отдельным апдейтом — иначе он потеряется
+      // ровно в момент создания карточки. Апдейт ждём: админка должна сразу видеть флаг.
+      const wantsManualStock =
+        resolveStockSyncDisabled(preorderEnabled, req.body.stockSyncDisabled) === true;
+      if (wantsManualStock && product?.id) {
+        try {
+          product = await storage.updateProduct(product.id, { stockSyncDisabled: true } as any);
+        } catch (e: any) {
+          logError("[Admin] stockSyncDisabled apply failed:", e?.message);
+        }
+      }
       logInfo(`[Admin] Created new product: ${name} (ID: ${product.id})`);
       if (preorderEnabled === true || preorderEnabled === 'true') {
         enqueuePreorderProduct(product.id).catch(() => {});
@@ -358,7 +371,7 @@ export function registerAdminProductsRoutes(
         preorderEnabled, preorderGoal, preorderDeadline, preorderProductionDate, preorderShippingDate,
         stock, sizeStock, slug, discountPercent, noSize, sizeDiscounts, salePrice, videoUrl, disabledNotifySizes,
         seoTitle, seoDescription, seoBody, seoJsonLd, specsHtml, imageAlts, featureBadgeIds,
-        isHidden, autoHideOverride, inStock
+        isHidden, autoHideOverride, inStock, stockSyncDisabled
       } = req.body;
       
       const updateData: any = {};
@@ -466,6 +479,15 @@ export function registerAdminProductsRoutes(
         logInfo(`[Admin] DisabledNotifySizes update for product ${id}: ${JSON.stringify(updateData.disabledNotifySizes)}`);
       }
       if (preorderEnabled !== undefined) updateData.preorderEnabled = preorderEnabled;
+      // Вариант B: флаг ручных остатков следует за предзаказом.
+      //  • включили предзаказ → 1С не трогает остатки;
+      //  • выключили → синхронизация возвращается, если админ не выставил флаг
+      //    сам (в форме сохранения галочка приходит явно и побеждает);
+      //  • поля в запросе нет → флаг не трогаем.
+      {
+        const resolvedStockSync = resolveStockSyncDisabled(preorderEnabled, stockSyncDisabled);
+        if (resolvedStockSync !== undefined) updateData.stockSyncDisabled = resolvedStockSync;
+      }
       if (preorderGoal !== undefined) updateData.preorderGoal = parseInt(preorderGoal) || 0;
       if (preorderDeadline !== undefined) updateData.preorderDeadline = preorderDeadline || null;
       if (preorderProductionDate !== undefined) updateData.preorderProductionDate = preorderProductionDate || null;

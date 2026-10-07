@@ -268,6 +268,7 @@ export default function Admin() {
     featureBadgeIds: string[];
     slug: string;
     preorderEnabled: boolean;
+    stockSyncDisabled: boolean;
     preorderDeadline: string;
     preorderProductionDate: string;
     preorderShippingDate: string;
@@ -317,6 +318,7 @@ export default function Admin() {
     featureBadgeIds: [],
     slug: "",
     preorderEnabled: false,
+    stockSyncDisabled: false,
     preorderDeadline: "",
     preorderProductionDate: "",
     preorderShippingDate: "",
@@ -1505,6 +1507,7 @@ export default function Admin() {
         featureBadgeIds: (p as any).featureBadgeIds || [],
         slug: p.slug || "",
         preorderEnabled: p.preorderEnabled || false,
+        stockSyncDisabled: (p as any).stockSyncDisabled || false,
         preorderDeadline: p.preorderDeadline || "",
         preorderProductionDate: p.preorderProductionDate || "",
         preorderShippingDate: p.preorderShippingDate || "",
@@ -1601,6 +1604,7 @@ export default function Admin() {
       featureBadgeIds: [],
       slug: "",
       preorderEnabled: false,
+      stockSyncDisabled: false,
       preorderDeadline: "",
       preorderProductionDate: "",
       preorderShippingDate: "",
@@ -1656,6 +1660,7 @@ export default function Admin() {
         featureBadgeIds: (product as any).featureBadgeIds || [],
         slug: product.slug || "",
         preorderEnabled: product.preorderEnabled || false,
+        stockSyncDisabled: (product as any).stockSyncDisabled || false,
         preorderDeadline: product.preorderDeadline || "",
         preorderProductionDate: product.preorderProductionDate || "",
         preorderShippingDate: product.preorderShippingDate || "",
@@ -11187,10 +11192,27 @@ export default function Admin() {
                             <div className="flex items-center gap-3">
                               <Switch
                                 checked={productForm.preorderEnabled}
-                                onCheckedChange={(checked) => setProductForm({...productForm, preorderEnabled: checked})}
+                                onCheckedChange={(checked) => setProductForm({...productForm, preorderEnabled: checked, stockSyncDisabled: checked})}
                                 data-testid="switch-preorder-enabled"
                               />
                               <Label className="text-sm">Включить предзаказ</Label>
+                            </div>
+
+                            {/* Ручные остатки (Вариант B): 1С не перезаписывает количества по размерам */}
+                            <div className="flex items-start gap-3 pt-1">
+                              <Switch
+                                checked={productForm.stockSyncDisabled || productForm.preorderEnabled}
+                                disabled={productForm.preorderEnabled}
+                                onCheckedChange={(checked) => setProductForm({...productForm, stockSyncDisabled: checked})}
+                                data-testid="switch-stock-sync-disabled"
+                              />
+                              <div>
+                                <Label className="text-sm">Остатки вручную (не брать из 1С)</Label>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  Количества по размерам из админки не перезаписываются синхронизацией 1С.
+                                  {productForm.preorderEnabled && " Для предзаказа включается автоматически."}
+                                </p>
+                              </div>
                             </div>
 
                             {productForm.preorderEnabled && (
@@ -11572,6 +11594,7 @@ export default function Admin() {
                               seoDescription: productForm.seoDescription || "",
                               imageAlts: productForm.imageAlts.filter(a => a.trim() !== ""),
                               preorderEnabled: productForm.preorderEnabled,
+                              stockSyncDisabled: productForm.stockSyncDisabled,
                               preorderDeadline: productForm.preorderDeadline || null,
                               preorderProductionDate: productForm.preorderProductionDate || null,
                               preorderShippingDate: productForm.preorderShippingDate || null,

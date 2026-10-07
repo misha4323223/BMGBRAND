@@ -35,6 +35,7 @@ declare module "./core" {
     addAutoHideOverrideColumn(): Promise<{ success: boolean; message: string }>;
     addStockColumn(): Promise<{ success: boolean; message: string }>;
     addSlugColumn(): Promise<{ success: boolean; message: string }>;
+    addStockSyncDisabledColumn(): Promise<{ success: boolean; message: string }>;
   }
 }
 
@@ -415,8 +416,10 @@ DatabaseStorage.prototype.createProduct = async function (this: DatabaseStorage,
         $is_hidden: TypedValues.fromNative(Types.BOOL, (p as any).isHidden ?? false),
         $badge_text: TypedValues.fromNative(Types.UTF8, (p as any).badgeText || ''),
         $slug: TypedValues.fromNative(Types.UTF8, (p as any).slug || ''),
-        $wholesale_price: TypedValues.fromNative(Types.INT64, BigInt((p as any).wholesalePrice || 0)),
-        $stock: TypedValues.fromNative(Types.INT64, BigInt((p as any).stock || 0)),
+        // Только number: ydb-sdk не умеет bigint в INT64-параметрах — протобуф
+        // кодирует его как 0, и товар создавался с нулевыми stock/wholesale_price.
+        $wholesale_price: TypedValues.fromNative(Types.INT64, Number((p as any).wholesalePrice || 0)),
+        $stock: TypedValues.fromNative(Types.INT64, Number((p as any).stock || 0)),
         $size_stock: TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).sizeStock || {})),
         $composition: TypedValues.fromNative(Types.UTF8, (p as any).composition || ''),
         $care_instructions: TypedValues.fromNative(Types.UTF8, (p as any).careInstructions || ''),
@@ -619,6 +622,12 @@ DatabaseStorage.prototype.updateProduct = async function (this: DatabaseStorage,
         declareStatements += 'DECLARE $size_stock AS Json;\n';
         setClauses.push('size_stock = $size_stock');
         params.$size_stock = TypedValues.fromNative(Types.JSON, JSON.stringify((p as any).sizeStock));
+      }
+
+      if ((p as any).stockSyncDisabled !== undefined) {
+        declareStatements += 'DECLARE $stock_sync_disabled AS Bool;\n';
+        setClauses.push('stock_sync_disabled = $stock_sync_disabled');
+        params.$stock_sync_disabled = TypedValues.fromNative(Types.BOOL, (p as any).stockSyncDisabled === true);
       }
 
       if ((p as any).sizeCharacteristicIds !== undefined) {
@@ -1193,6 +1202,33 @@ DatabaseStorage.prototype.addSlugColumn = async function (this: DatabaseStorage,
       return { success: true, message: "Column slug added successfully" };
     } catch (err: any) {
       if (err.message?.includes("already exists") || err.message?.includes("Duplicate column")) {
+        return { success: true, message: "Column already exists" };
+      }
+      logError("[Migration Error]:", err.message);
+      return { success: false, message: err.message || String(err) };
+    }
+  }
+;
+
+DatabaseStorage.prototype.addStockSyncDisabledColumn = async function (this: DatabaseStorage, ): Promise<{ success: boolean; message: string }> {
+    if (!driver) {
+      return { success: false, message: "YDB driver not initialized" };
+    }
+
+    try {
+      await driver.tableClient.withSession(async (session) => {
+        const ydb = await import('ydb-sdk');
+        await session.alterTable('products', {
+          addColumns: [
+            { name: 'stock_sync_disabled', type: ydb.Ydb.Type.create({ optionalType: { item: { typeId: ydb.Ydb.Type.PrimitiveTypeId.BOOL } } }) }
+          ]
+        } as any);
+      });
+      return { success: true, message: "Column stock_sync_disabled added successfully" };
+    } catch (err: any) {
+      // YDB на повторный ADD COLUMN отвечает не «already exists», а
+      // «Cannot alter type for column» — как и в остальных миграциях выше.
+      if (err.message?.includes("already exists") || err.message?.includes("Duplicate column") || err.message?.includes("Cannot alter type")) {
         return { success: true, message: "Column already exists" };
       }
       logError("[Migration Error]:", err.message);

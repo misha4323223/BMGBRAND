@@ -13,6 +13,7 @@ import path from "path";
 import fs from "fs";
 import { XMLParser, XMLBuilder } from "fast-xml-parser";
 import { uploadToYandexStorage, downloadFromYandexStorage, listObjectsFromYandexStorage, downloadBinaryFromYandexStorage, deleteFromYandexStorage, checkFileExistsInYandexStorage } from "./lib/storage-s3";
+import { ONEC_FILE_PART_LIMIT, accumulateOneCFilePart, collectOneCFile, collectPendingOneCFiles, discardStaleOneCPartAssemblies, dropOneCAssembly, fastPublishDecision, oneCFileKey, type PendingOneCFile } from "./lib/one-c-file-parts";
 import { createCdekWaybillForOrder, recreateCdekWaybillForOrder } from "./lib/cdek-waybill";
 import { queuePreorderStatusEmail } from "./lib/preorder-email-buffer";
 import { resolveItemPrice } from "./lib/pricing";
@@ -20,6 +21,7 @@ import { buildVkFeedPictureUrls, filterExistingVkImages, getOrCreateVkJpeg, vkPi
 import { publishVkFeedToStorage } from "./vk-feed-mirror";
 import { computePromoEligibleSubtotal, computePromoDiscount } from "./lib/checkout";
 import { SIZE_ORDER, STANDARD_CLOTHING_SIZES, sanitizeHtmlBlock, sanitizeJsonLd, sortSizes, normalizeSizeKey, canonicalizeSizeKey, resolveSizeStock, resolveSizeCharacteristicId, isOneCCharacteristicGuid, sanitizeSizes, sanitizeSizeStock } from "./lib/product-utils";
+import { isStockSyncDisabled } from "./lib/manual-stock";
 import { registerDadataRoutes } from "./routes/dadata";
 import { registerReviewsRoutes } from "./routes/reviews";
 import { registerPushRoutes } from "./routes/push";
@@ -438,6 +440,11 @@ async function updateProductSizesFromOffers(
     const product = productsByExternalId.get(baseId);
     if (product) {
       const priceData = productPrices?.get(baseId);
+      // Ручные остатки: состав размеров задаёт админ — 1С его не дополняет.
+      if (isStockSyncDisabled(product)) {
+        logInfo(`[Sizes] SKIP "${product.name}": размеры и остатки ведём вручную`);
+        continue;
+      }
       const existingSizes: string[] = product.sizes || [];
 
       const filteredSizes = Array.from(sizesSet).filter(size => {
@@ -650,6 +657,11 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
         // распроданный размер — S:0). Размеры, которых нет в этой выгрузке,
         // сохраняют свои остатки, поэтому «распродан один размер» больше не
         // превращается в «распродан весь товар».
+        // Ручные остатки (Вариант B): 1С не перезаписывает stock/sizeStock этого товара.
+        const stockSyncDisabled = isStockSyncDisabled(existing);
+        if (stockSyncDisabled) {
+          logInfo(`[Stock SKIP] "${existing.name}" (id ${existing.id}): ${(existing as any).preorderEnabled === true ? 'предзаказ' : 'ручные остатки'} — 1С не перезаписывает stock/sizeStock`);
+        }
         const incomingSizeStock = sanitizeSizeStock(priceData.sizeStock);
         const oldSizeStock = sanitizeSizeStock((existing as any).sizeStock);
         const hasIncomingSizes = Object.keys(incomingSizeStock).length > 0;
@@ -661,13 +673,13 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
         // «дельта»-выгрузка с нулём по одному размеру целый товар не прячет.
         const shouldBeHidden = priceData.totalStock <= 0 && totalStockToSave <= 0;
         // Update stock field with actual quantity
-        updateData.stock = totalStockToSave;
+        if (!stockSyncDisabled) updateData.stock = totalStockToSave;
         // Save stock per size for wholesale users
         // Единый источник остатка: пришедшие из 1С размеры перезаписывают,
         // не пришедшие — сохраняют свои значения.
-        if (hasIncomingSizes) {
+        if (hasIncomingSizes && !stockSyncDisabled) {
           updateData.sizeStock = mergedSizeStock;
-        } else if (shouldBeHidden) {
+        } else if (shouldBeHidden && !stockSyncDisabled) {
           // чистим sizeStock, чтобы в админке не висели устаревшие положительные
           // остатки по размерам при скрытом товаре («товар скрыт, а по размерам 5 шт»)
           updateData.sizeStock = {};
@@ -684,7 +696,11 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
         const hasOverride = (existing as any).autoHideOverride === true;
         const isPreorder = (existing as any).preorderEnabled === true;
         
-        if (shouldBeHidden && !existing.isHidden && !hasOverride && !isPreorder) {
+        // Ручные остатки без предзаказа: видимостью товара 1С тоже не управляет —
+        // скрывает и показывает его админ в админке.
+        if (stockSyncDisabled && !isPreorder) {
+          logInfo(`[Stock SKIP] Автоскрытие/показ пропущен для "${existing.name}": остатки ведём вручную`);
+        } else if (shouldBeHidden && !existing.isHidden && !hasOverride && !isPreorder) {
           updateData.isHidden = true;
           updateData.inStock = false;
           hidden++;
@@ -714,7 +730,7 @@ async function updateProductPricesFromOffers(productPrices: Map<string, ProductP
       
       await storage.updateProduct(existing.id, updateData);
       
-      if (priceData.hasStockData && Object.keys(priceData.sizeStock).length > 0) {
+      if (priceData.hasStockData && Object.keys(priceData.sizeStock).length > 0 && !isStockSyncDisabled(existing)) {
         const oldSizeStock = (existing as any).sizeStock || null;
         const imgUrl = Array.isArray((existing as any).images) && (existing as any).images.length > 0 ? (existing as any).images[0] : undefined;
         processStockNotifications(existing.id, existing.name, oldSizeStock, priceData.sizeStock, imgUrl, (existing as any).slug).catch(() => {});
@@ -824,9 +840,24 @@ function getThumbnailUrl(imageUrl: string | null): string | null {
   return imageUrl;
 }
 
+// Есть ли уже готовое превью: сначала список файлов бакета (обновляется перед
+// разбором XML), затем HEAD-запрос — так же проверяет свои конвертации VK-фид
+// (server/lib/vk-image.ts), чтобы не конвертировать одно и то же повторно.
+async function oneCThumbExists(thumbKey: string): Promise<boolean> {
+  if (existingFilesCache.has(thumbKey)) return true;
+  if (await checkFileExistsInYandexStorage(thumbKey)) {
+    existingFilesCache.add(thumbKey);
+    return true;
+  }
+  return false;
+}
+
 // Generate _thumb.webp from any image format (.jpg/.png/.webp) during 1C import.
 // Downloads original from S3, resizes with Sharp, uploads _thumb.webp back to S3.
 // Returns the thumb URL on success, null on any error (import continues normally).
+// Если превью уже есть — download + Sharp + upload не гоняем: без этой проверки
+// каждая позиция с фото конвертировалась заново на КАЖДОМ импорте, и именно это
+// было самой тяжёлой частью обмена (тысячи конвертаций внутри одного mode=import).
 async function generate1cThumbUrl(imageUrl: string): Promise<string | null> {
   try {
     if (!imageUrl || !imageUrl.includes('storage.yandexcloud.net/bmg/products/')) return null;
@@ -836,6 +867,9 @@ async function generate1cThumbUrl(imageUrl: string): Promise<string | null> {
     if (sourceKey.includes('_thumb.webp')) return imageUrl;
     const thumbKey = sourceKey.replace(/\.(jpg|jpeg|png|webp)$/i, '_thumb.webp');
     if (thumbKey === sourceKey) return null;
+    const bucket = process.env.YANDEX_STORAGE_BUCKET_NAME || "bmg";
+    const thumbUrl = `https://storage.yandexcloud.net/${bucket}/${thumbKey}`;
+    if (await oneCThumbExists(thumbKey)) return thumbUrl;
     const imageBuffer = await downloadBinaryFromYandexStorage(sourceKey);
     if (!imageBuffer) return null;
     const thumbBuffer = await sharp(imageBuffer)
@@ -844,8 +878,7 @@ async function generate1cThumbUrl(imageUrl: string): Promise<string | null> {
       .toBuffer();
     const thumbFilename = thumbKey.replace('products/', '');
     await uploadToYandexStorage(thumbBuffer, thumbFilename, 'image/webp');
-    const bucket = process.env.YANDEX_STORAGE_BUCKET_NAME || "bmg";
-    const thumbUrl = `https://storage.yandexcloud.net/${bucket}/${thumbKey}`;
+    existingFilesCache.add(thumbKey);
     logInfo(`[1C IMPORT] Thumb generated: ${thumbFilename}`);
     return thumbUrl;
   } catch (err: any) {
@@ -5001,6 +5034,163 @@ ${faqSection}
   // Apply auth middleware to all routes below
   app.use(authMiddleware);
 
+  // ─── 1С: файлы приходят фрагментами ─────────────────────────────────────────
+  // В ответе mode=init сайт сообщает 1С file_limit; файл больше лимита 1С шлёт
+  // несколькими POST `mode=file&filename=...` — части без номера, строго по
+  // порядку (протокол синхронный). Части копятся в Object Storage
+  // (server/lib/one-c-file-parts.ts). Публикуем файл сразу, как только 1С перешла
+  // к следующему файлу (или к mode=import): протокол синхронный, значит
+  // предыдущий файл дослан целиком.
+  /** Как часто (не чаще) обходим бакет целиком: ловит сборки чужих экземпляров. */
+  const ONEC_FULL_SWEEP_MIN_MS = 60 * 1000;
+  /** Свежую сборку (< этой паузы) обход не трогает: её может дописывать другой экземпляр. */
+  const ONEC_SWEEP_MIN_IDLE_MS = 20 * 1000;
+  const ONEC_XML_FRESH_MS = 15 * 60 * 1000;
+  /** XML, принятые в этой сессии: mode=import предпочитает их телу запроса. */
+  const recentlyPublishedOneCXml = new Map<string, number>();
+  /** Файл, чьи фрагменты принимал этот экземпляр контейнера последним. */
+  let lastOneCFileKey: string | null = null;
+  let lastOneCFullSweepAt = 0;
+
+  /**
+   * Публикация полностью полученного файла 1С — прежняя логика приёма:
+   * фото → Object Storage (с ретраями), XML → Object Storage + локально для парсера.
+   */
+  async function publishOneCFile(filename: string, fileBody: Buffer): Promise<{ ok: boolean; error?: string }> {
+    const filenameStr = path.basename(filename);
+    const isXml = /\.(xml)$/i.test(filenameStr);
+
+    if (!fileBody || fileBody.length === 0) {
+      logError(`[1C FILE] Empty body for ${filenameStr}`);
+      return { ok: false, error: "Empty file body" };
+    }
+
+    if (/\.(jpg|jpeg|png|gif|webp)$/i.test(filenameStr) && process.env.YANDEX_STORAGE_BUCKET_NAME) {
+      const ext = filenameStr.toLowerCase().split('.').pop() || 'jpg';
+      const contentType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+      // Ключ в бакете — ровно тот, что строит разбор XML (getImageUrl): полный
+      // относительный путь 1С с заменой разделителей на «_». Через path.basename
+      // папка import_files терялась бы (если 1С шлёт путь с «/»), и ссылка
+      // товара не совпала бы с загруженным файлом.
+      const finalFilename = String(filename).replace(/^[\/\\]+/, '').replace(/[\/\\]/g, '_');
+      const MAX_RETRIES = 3;
+      let lastError: any = null;
+
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          logInfo(`[1C IMAGE] Upload attempt ${attempt}/${MAX_RETRIES}: ${finalFilename}, size: ${fileBody.length}`);
+          const s3Url = await uploadToYandexStorage(fileBody, finalFilename, contentType);
+          if (s3Url) {
+            existingFilesCache.add(`products/${finalFilename}`);
+            logInfo(`[1C IMAGE] *** SUCCESS (attempt ${attempt}): ${filenameStr} -> ${s3Url} ***`);
+            return { ok: true };
+          }
+          lastError = "uploadToYandexStorage returned null";
+          logError(`[1C IMAGE] Attempt ${attempt} failed: returned null`);
+        } catch (err: any) {
+          lastError = err.message || err;
+          logError(`[1C IMAGE] Attempt ${attempt} exception: ${lastError}`);
+        }
+
+        // Wait before retry (exponential backoff)
+        if (attempt < MAX_RETRIES) {
+          const delay = 1000 * attempt;
+          logInfo(`[1C IMAGE] Waiting ${delay}ms before retry...`);
+          await new Promise(r => setTimeout(r, delay));
+        }
+      }
+
+      logError(`[1C IMAGE] *** FAILED after ${MAX_RETRIES} attempts: ${filenameStr}, error: ${lastError} ***`);
+      return { ok: false, error: "Upload failed after retries: " + lastError };
+    }
+
+    // XML (или фото без бакета): сохраняем в Object Storage и локально для парсера
+    if (isXml && process.env.YANDEX_STORAGE_BUCKET_NAME) {
+      try {
+        logInfo(`[1C XML] *** UPLOADING TO S3: ${filenameStr}, size: ${fileBody.length} ***`);
+        const s3Url = await uploadToYandexStorage(fileBody, filenameStr, 'application/xml');
+        if (s3Url) {
+          logInfo(`[1C XML] *** SUCCESS: ${filenameStr} -> ${s3Url} ***`);
+        } else {
+          logError(`[1C XML] ERROR: uploadToYandexStorage returned null for XML ${filenameStr}`);
+        }
+      } catch (err: any) {
+        logError(`[1C XML] UPLOAD ERROR for ${filenameStr}:`, err.message || err);
+      }
+    } else {
+      logInfo(`[1C XML] Skipping S3 upload: isXml=${isXml}, bucket=${!!process.env.YANDEX_STORAGE_BUCKET_NAME}`);
+    }
+
+    // Also save locally for immediate parsing (in case same container processes import)
+    const uploadPath = path.resolve(process.cwd(), "1c_uploads", filenameStr);
+    const dir = path.dirname(uploadPath);
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(uploadPath, fileBody);
+      logInfo(`[1C] Saved file locally: ${filenameStr}`);
+      if (isXml) recentlyPublishedOneCXml.set(filenameStr, Date.now());
+      return { ok: true };
+    } catch (err) {
+      logError(`[1C] Failed to save file ${filenameStr}:`, err);
+      return { ok: false, error: "Error saving file" };
+    }
+  }
+
+  /** Публикация одной сборки: publishOneCFile + снятие сборки при успехе. */
+  async function publishPendingOneCFile(file: PendingOneCFile): Promise<void> {
+    logInfo(`[1C PARTS] Публикую ${oneCFileKey(file.type, file.filename)}: ${file.parts} фрагм., ${file.data.length} Б`);
+    const result = await publishOneCFile(file.filename, file.data);
+    if (result.ok) {
+      await dropOneCAssembly(file.type, file.filename);
+    } else {
+      logError(`[1C PARTS] Не опубликован ${oneCFileKey(file.type, file.filename)}: ${result.error}`);
+    }
+  }
+
+  /**
+   * Опубликовать досланные файлы 1С (кроме файла, который принимается сейчас).
+   * Быстрый путь без обхода бакета: фрагменты файла принимал этот экземпляр
+   * контейнера последним, а 1С уже перешла к другому файлу или к mode=import —
+   * значит файл дослан и публикуется сразу (в пределах своего типа обмена).
+   * Полный обход бакета — редко: он ловит сборки, оставшиеся от других
+   * экземпляров контейнера, и не трогает свежие сборки (их может дописывать
+   * другой экземпляр). На границах обмена (init/import) обход форсируется.
+   */
+  async function flushPendingOneCFiles(exchangeType: string, currentKey?: string, forceFullSweep = false): Promise<void> {
+    const previousKey = lastOneCFileKey;
+    lastOneCFileKey = currentKey ?? null;
+
+    const fast = fastPublishDecision(previousKey, currentKey, exchangeType);
+    if (fast) {
+      const pending = await collectOneCFile(fast.type, fast.filename);
+      if (pending) await publishPendingOneCFile(pending);
+    }
+
+    const now = Date.now();
+    if (!forceFullSweep && now - lastOneCFullSweepAt < ONEC_FULL_SWEEP_MIN_MS) return;
+    lastOneCFullSweepAt = now;
+    for (const file of await collectPendingOneCFiles(currentKey, ONEC_SWEEP_MIN_IDLE_MS)) {
+      await publishPendingOneCFile(file);
+    }
+  }
+
+  /** Целый XML этой сессии: локальная копия, иначе Object Storage. */
+  async function readStoredOneCXml(filename: string): Promise<string | null> {
+    const filenameStr = path.basename(filename);
+    const uploadPath = path.resolve(process.cwd(), "1c_uploads", filenameStr);
+    try {
+      if (fs.existsSync(uploadPath)) return fs.readFileSync(uploadPath, "utf-8");
+    } catch (err: any) {
+      logWarn(`[1C] Не удалось прочитать ${uploadPath}:`, err.message || err);
+    }
+    if (process.env.YANDEX_STORAGE_BUCKET_NAME) {
+      return await downloadFromYandexStorage(`products/${filenameStr}`);
+    }
+    return null;
+  }
+
     // 1C CommerceML Exchange (Standard Protocol)
   app.all("/api/1c-exchange", express.raw({ type: '*/*', limit: '500mb' }), async (req, res, next) => {
     // Log ALL requests with full details
@@ -5024,6 +5214,17 @@ ${faqSection}
     if (!is1CSyncEnabled) {
       logInfo(`[1C] Sync disabled — rejecting request`);
       return res.status(403).send("failure\n1C sync is disabled");
+    }
+
+    // Склейка фрагментов 1С: публикуем досланные файлы (см. one-c-file-parts.ts).
+    // Текущий файл-продолжение не трогаем. На границах обмена (init/import)
+    // обходим бакет целиком: там оседают сборки от других экземпляров и хвосты.
+    try {
+      const currentFileKey =
+        mode === "file" && filename ? oneCFileKey(type, String(filename)) : undefined;
+      await flushPendingOneCFiles(type, currentFileKey, mode === "init" || mode === "import");
+    } catch (flushErr: any) {
+      logError("[1C PARTS] Ошибка публикации сборок:", flushErr?.message || flushErr);
     }
 
     if (req.method === "GET" && mode === "checkauth") {
@@ -5065,8 +5266,9 @@ ${faqSection}
       }
       if (type === "catalog" && mode === "init") {
         logInfo("[1C] Catalog init received. Sending file limits.");
+        await discardStaleOneCPartAssemblies();
         res.setHeader("Content-Type", "text/plain; charset=windows-1251");
-        const initResponse = "zip=no\nfile_limit=104857600";
+        const initResponse = `zip=no\nfile_limit=${ONEC_FILE_PART_LIMIT}`;
         logInfo(`[1C DEBUG] Sending init response: ${initResponse}`);
         return res.end(Buffer.from(initResponse, "binary"));
       }
@@ -5076,8 +5278,9 @@ ${faqSection}
       }
       if (type === "sale" && mode === "init") {
         logInfo("[1C] Sale init received. Sending file limits.");
+        await discardStaleOneCPartAssemblies();
         res.setHeader("Content-Type", "text/plain; charset=windows-1251");
-        const initResponse = "zip=no\nfile_limit=104857600";
+        const initResponse = `zip=no\nfile_limit=${ONEC_FILE_PART_LIMIT}`;
         logInfo(`[1C DEBUG] Sending init response: ${initResponse}`);
         return res.end(Buffer.from(initResponse, "binary"));
       }
@@ -7788,6 +7991,10 @@ ${faqSection}
       for (const [baseId, sizesSet] of allProductSizes) {
         const product = await storage.getProductByExternalId(baseId);
         if (product) {
+          if (isStockSyncDisabled(product)) {
+            logInfo(`[UpdateSizes] SKIP "${product.name}": размеры и остатки ведём вручную`);
+            continue;
+          }
           const sizes = sortSizes(Array.from(sizesSet));
           if (sizes.length > 0) {
             const currentSizes = product.sizes || [];
@@ -7999,110 +8206,42 @@ ${faqSection}
     if ((type === "catalog" || type === "sale") && mode === "file") {
       const filenameStr = path.basename(filename as string);
       const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(filenameStr);
-      logInfo(`[1C FILE] Processing file: ${filenameStr}, isImage: ${isImage}, hasBody: ${!!req.body}, bodyLength: ${req.body?.length || 0}`);
-      
-      // Upload images to Object Storage with retry mechanism
-      if (isImage && process.env.YANDEX_STORAGE_BUCKET_NAME) {
-        logInfo(`[1C IMAGE] *** RECEIVED: ${filenameStr}, bodySize: ${req.body?.length || 0} ***`);
-        
-        const imageBuffer = req.body;
-        if (!imageBuffer || imageBuffer.length === 0) {
-          logError(`[1C IMAGE] ERROR: Empty body for ${filenameStr}`);
-          return res.send("failure\nEmpty file body");
-        }
-        
-        const ext = filenameStr.toLowerCase().split('.').pop() || 'jpg';
-        const contentType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
-        const finalFilename = filenameStr.replace(/[\/\\]/g, '_');
-        
-        // Retry mechanism for S3 upload
-        const MAX_RETRIES = 3;
-        let lastError: any = null;
-        
-        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-          try {
-            logInfo(`[1C IMAGE] Upload attempt ${attempt}/${MAX_RETRIES}: ${finalFilename}, size: ${imageBuffer.length}`);
-            const s3Url = await uploadToYandexStorage(imageBuffer, finalFilename, contentType);
-            
-            if (s3Url) {
-              existingFilesCache.add(`products/${finalFilename}`);
-              logInfo(`[1C IMAGE] *** SUCCESS (attempt ${attempt}): ${filenameStr} -> ${s3Url} ***`);
-              return res.send("success");
-            } else {
-              lastError = "uploadToYandexStorage returned null";
-              logError(`[1C IMAGE] Attempt ${attempt} failed: returned null`);
-            }
-          } catch (err: any) {
-            lastError = err.message || err;
-            logError(`[1C IMAGE] Attempt ${attempt} exception: ${lastError}`);
-          }
-          
-          // Wait before retry (exponential backoff)
-          if (attempt < MAX_RETRIES) {
-            const delay = 1000 * attempt;
-            logInfo(`[1C IMAGE] Waiting ${delay}ms before retry...`);
-            await new Promise(r => setTimeout(r, delay));
-          }
-        }
-        
-        // All retries failed
-        logError(`[1C IMAGE] *** FAILED after ${MAX_RETRIES} attempts: ${filenameStr}, error: ${lastError} ***`);
-        return res.send("failure\nUpload failed after retries: " + lastError);
-      }
-      
-      // For XML files, save to Object Storage AND locally for parsing
-      const isXml = /\.(xml)$/i.test(filenameStr);
-      
-      logInfo(`\n========== XML FILE RECEIVED ==========`);
-      logInfo(`[1C XML] File: ${filenameStr}, isXml: ${isXml}, size: ${req.body?.length || 0}`);
-      logInfo(`========================================\n`);
-      
-      // Upload XML to S3 so it persists across serverless container instances
-      if (isXml && process.env.YANDEX_STORAGE_BUCKET_NAME) {
-        try {
-          const xmlBuffer = req.body;
-          if (!xmlBuffer || xmlBuffer.length === 0) {
-            logError(`[1C XML] ERROR: Empty body for XML ${filenameStr}`);
-            return res.send("failure\nEmpty file body");
-          }
-          
-          // Save as products/import.xml or products/offers.xml (keep original name, no flattening)
-          // Important: don't flatten slashes for XML - they need to match download path exactly
-          const s3Filename = filenameStr;
-          logInfo(`[1C XML] *** UPLOADING TO S3: ${s3Filename}, size: ${xmlBuffer.length} ***`);
-          const s3Url = await uploadToYandexStorage(xmlBuffer, s3Filename, 'application/xml');
-          if (s3Url) {
-            logInfo(`[1C XML] *** SUCCESS: ${filenameStr} -> ${s3Url} ***`);
-          } else {
-            logError(`[1C XML] ERROR: uploadToYandexStorage returned null for XML ${filenameStr}`);
-          }
-        } catch (err: any) {
-          logError(`[1C XML] UPLOAD ERROR for ${filenameStr}:`, err.message || err);
-        }
+      const fileBody = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+      logInfo(`[1C FILE] Processing file: ${filenameStr}, isImage: ${isImage}, bodyLength: ${fileBody.length}`);
+      if (isImage) {
+        logInfo(`[1C IMAGE] *** RECEIVED: ${filenameStr}, bodySize: ${fileBody.length} ***`);
       } else {
-        logInfo(`[1C XML] Skipping S3 upload: isXml=${isXml}, bucket=${!!process.env.YANDEX_STORAGE_BUCKET_NAME}`);
+        logInfo(`\n========== XML FILE RECEIVED ==========`);
+        logInfo(`[1C XML] File: ${filenameStr}, size: ${fileBody.length}`);
+        logInfo(`========================================\n`);
       }
-      
-      // Also save locally for immediate parsing (in case same container processes import)
-      const uploadPath = path.resolve(process.cwd(), "1c_uploads", filenameStr);
-      const dir = path.dirname(uploadPath);
-      
-      try {
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-        }
-        fs.writeFileSync(uploadPath, req.body);
-        logInfo(`[1C] Saved file locally: ${filenameStr}`);
-        return res.send("success");
-      } catch (err) {
-        logError(`[1C] Failed to save file ${filenameStr}:`, err);
-        return res.send("failure\nError saving file");
+
+      // Файл больше file_limit приходит несколькими запросами: копим фрагменты
+      // в Object Storage, файл публикует следующий запрос 1С.
+      const part = await accumulateOneCFilePart(type as string, String(filename), fileBody);
+      if (part.error) {
+        logError(`[1C FILE] Фрагмент файла ${filenameStr} не принят: ${part.error}`);
+        return res.send(`failure\n${part.error}`);
       }
+      logInfo(`[1C FILE] Принят фрагмент ${part.parts} файла ${filenameStr}: +${fileBody.length} Б (сборка ${part.bytes} Б)`);
+      return res.send("success");
     }
     
     // Handle import for both catalog and sale types
     if ((type === "catalog" || type === "sale") && mode === "import") {
-      const xmlData = req.body.toString();
+      // 1С может прислать XML и телом запроса, но тело режется шлюзом на больших
+      // файлах. Если файл принят файлом (`mode=file`) в этой сессии — берём его
+      // из хранилища: там гарантированно целая версия (см. flushPendingOneCFiles).
+      let xmlData = req.body.toString();
+      const xmlKey = filename ? path.basename(String(filename)) : "";
+      const xmlPublishedAt = xmlKey ? recentlyPublishedOneCXml.get(xmlKey) : undefined;
+      if (xmlPublishedAt && Date.now() - xmlPublishedAt < ONEC_XML_FRESH_MS) {
+        const storedXml = await readStoredOneCXml(xmlKey);
+        if (storedXml && storedXml.length > 0) {
+          logInfo(`[1C XML] mode=import: использую склеенный файл ${xmlKey} (${storedXml.length} Б) вместо тела запроса (${xmlData.length} Б)`);
+          xmlData = storedXml;
+        }
+      }
       
       // Save XML to Object Storage for debugging
       try {
@@ -9583,7 +9722,9 @@ ${faqSection}
       for (const item of items) {
         const existing = await storage.getProductByExternalId(item.externalId);
         if (existing) {
-          const updated = await storage.updateProduct(existing.id, item);
+          // Ручные остатки: sizes из 1С не применяем, остальные поля — как раньше.
+          const patch = isStockSyncDisabled(existing) ? { ...item, sizes: undefined } : item;
+          const updated = await storage.updateProduct(existing.id, patch);
           results.push({ id: updated.id, status: "updated" });
         } else {
           const created = await storage.createProduct(item as any);
@@ -9713,7 +9854,9 @@ ${faqSection}
       for (const update of updates) {
         const existing = await storage.getProductByExternalId(update.externalId);
         if (existing) {
-          const updated = await storage.updateProduct(existing.id, update);
+          // Ручные остатки: состав размеров из 1С не применяем (цену применяем как раньше).
+          const patch = isStockSyncDisabled(existing) ? { ...update, sizes: undefined } : update;
+          const updated = await storage.updateProduct(existing.id, patch);
           results.push({ id: updated.id, status: "updated" });
         } else {
           results.push({ externalId: update.externalId, status: "not_found" });

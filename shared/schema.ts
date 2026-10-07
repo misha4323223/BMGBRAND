@@ -430,6 +430,7 @@ export const products = pgTable("products", {
   onSale: boolean("on_sale").default(false), // For sale category
   isHidden: boolean("is_hidden").default(false), // Hide product from public catalog
   autoHideOverride: boolean("auto_hide_override").default(false), // If true, auto-hide will not affect this product (admin manually showed it)
+  stockSyncDisabled: boolean("stock_sync_disabled").default(false), // Ручные остатки: 1С-синк НЕ перезаписывает stock / sizeStock / sizes (ставится авто при предзаказе)
   stock: integer("stock").default(0), // Stock quantity from 1C offers.xml (total)
   sizeStock: jsonb("size_stock").$type<Record<string, number>>(), // Stock per size: {"XS": 1, "S": 4, "M": 6}
   sizeDiscounts: jsonb("size_discounts").$type<Record<string, number>>(), // Discounts per size in %: {"XS": 30, "L": 20}

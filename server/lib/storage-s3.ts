@@ -164,6 +164,41 @@ export async function listObjectsFromYandexStorage(prefix: string): Promise<stri
   }
 }
 
+/**
+ * Список «папок» внутри префикса (ListObjectsV2 с Delimiter="/").
+ * Так ищутся незавершённые сборки файлов 1С: не нужно перечислять каждый фрагмент.
+ */
+export async function listCommonPrefixesFromYandexStorage(prefix: string): Promise<string[]> {
+  if (!process.env.YANDEX_STORAGE_BUCKET_NAME) {
+    return [];
+  }
+
+  const prefixes: string[] = [];
+  let continuationToken: string | undefined;
+
+  try {
+    do {
+      const command = new ListObjectsV2Command({
+        Bucket: process.env.YANDEX_STORAGE_BUCKET_NAME,
+        Prefix: prefix,
+        Delimiter: "/",
+        ContinuationToken: continuationToken,
+      });
+
+      const response = await s3Client.send(command);
+      if (response.CommonPrefixes) {
+        prefixes.push(...response.CommonPrefixes.map((item) => item.Prefix!).filter(Boolean));
+      }
+      continuationToken = response.NextContinuationToken;
+    } while (continuationToken);
+
+    return prefixes;
+  } catch (error) {
+    console.error(`Failed to list common prefixes for ${prefix}:`, error);
+    return [];
+  }
+}
+
 export async function deleteFromYandexStorage(key: string): Promise<boolean> {
   if (!process.env.YANDEX_STORAGE_BUCKET_NAME) {
     return false;

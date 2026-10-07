@@ -1206,6 +1206,7 @@ export class DatabaseStorage implements IStorage {
       onSale: data.on_sale === true,
       isHidden: data.is_hidden === true,
       autoHideOverride: data.auto_hide_override === true,
+      stockSyncDisabled: data.stock_sync_disabled === true,
       inStock: data.in_stock !== false, // Default to true if not set
       stock: data.stock ? Number(data.stock) : 0, // Stock quantity from YDB
       sizeStock: sizeStock, // Stock per size for wholesale users
