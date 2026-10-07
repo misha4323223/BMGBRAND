@@ -3,6 +3,9 @@ name: Deploy to Yandex Serverless Container
 on:
   push:
     branches: [main, master]
+  # Ручной запуск/ретрай из UI (Actions → Deploy → Run workflow): ретраить деплой
+  # после сетевого сбоя можно без пустых коммитов.
+  workflow_dispatch:
 
 env:
   CR_REGISTRY: crpp1bes63avh83rbvte

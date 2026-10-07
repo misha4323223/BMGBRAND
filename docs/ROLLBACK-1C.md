@@ -63,7 +63,8 @@ POST /api/admin/1c-sync-toggle   {"enabled": false}
 `Could not login: … context deadline exceeded` — транзиентный сетевой сбой раннера
 GitHub ↔ реестр Yandex, к коду отношения не имеет (сборка даже не начиналась).
 Перезапустите workflow: GitHub → Actions → «Deploy to Yandex Serverless Container» →
-Re-run failed jobs, или просто сделайте любой новый пуш в `main`.
+**Run workflow** (ручной запуск, `workflow_dispatch`) или «Re-run failed jobs»;
+либо просто сделайте любой новый пуш в `main`.
 
 Наблюдение 2026-10-07: два провала подряд на шаге логина (`cr.yandex/v2` — таймаут),
 при этом с других хостов реестр отвечает за <1 с (HTTP 401 без авторизации = норма).
