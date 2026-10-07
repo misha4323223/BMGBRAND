@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import * as XLSX from 'xlsx';
 import PushNotificationsPanel from "@/components/admin/PushNotificationsPanel";
 import ReviewRequestsPanel from "@/components/admin/ReviewRequestsPanel";
+import ReviewReplyForm from "@/components/admin/ReviewReplyForm";
 import PinToHomepageButton from "@/components/admin/PinToHomepageButton";
 import ProductDuplicatesPanel from "@/components/admin/ProductDuplicatesPanel";
 import VirtualTryOnToggle from "@/components/admin/VirtualTryOnToggle";
@@ -13421,6 +13422,12 @@ export default function Admin() {
                                   {new Date(createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 </p>
                               )}
+                              <ReviewReplyForm
+                                reviewId={Number(review.id)}
+                                apiKey={apiKey}
+                                adminComment={review.adminComment || review.admin_comment || ""}
+                                adminCommentedAt={review.adminCommentedAt || review.admin_commented_at || null}
+                              />
                             </div>
                             <div className="flex items-center gap-1">
                               {!isApproved ? (

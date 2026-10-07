@@ -17,6 +17,9 @@ interface Review {
   photos?: string[];
   isApproved: boolean;
   createdAt: string | null;
+  /** Публичный ответ магазина (заполняет админ); null — ответа нет */
+  adminComment?: string | null;
+  adminCommentedAt?: string | null;
 }
 
 function StarRating({
@@ -542,6 +545,26 @@ export function ReviewSection({ productId }: { productId: number }) {
                       )}
                       {review.photos && review.photos.length > 0 && (
                         <ReviewPhotos photos={review.photos} />
+                      )}
+                      {review.adminComment && review.adminComment.trim() && (
+                        <div
+                          className="mt-3 rounded-xl border-l-2 border-zinc-900 dark:border-zinc-200 bg-zinc-50 dark:bg-zinc-900/60 px-4 py-3"
+                          data-testid={`review-admin-reply-${review.id}`}
+                        >
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                              Ответ магазина
+                            </span>
+                            {review.adminCommentedAt && (
+                              <span className="text-[11px] text-zinc-400">
+                                {formatDate(review.adminCommentedAt)}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">
+                            {review.adminComment}
+                          </p>
+                        </div>
                       )}
                     </div>
                   </div>

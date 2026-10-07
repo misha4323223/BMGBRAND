@@ -16,6 +16,7 @@ declare module "./core" {
     getAllReviews(): Promise<Review[]>;
     createReview(review: InsertReview): Promise<Review>;
     updateReview(id: number, updates: Partial<Review>): Promise<Review>;
+    setReviewAdminComment(id: number, comment: string): Promise<void>;
     deleteReview(id: number): Promise<boolean>;
   }
 }
@@ -36,6 +37,8 @@ DatabaseStorage.prototype.migrateReviewsTable = async function (this: DatabaseSt
           .withColumn(new ydb.Column('comment', ydb.Types.optional(ydb.Types.UTF8)))
           .withColumn(new ydb.Column('is_approved', ydb.Types.optional(ydb.Types.BOOL)))
           .withColumn(new ydb.Column('created_at', ydb.Types.optional(ydb.Types.DATETIME)))
+          .withColumn(new ydb.Column('admin_comment', ydb.Types.optional(ydb.Types.UTF8)))
+          .withColumn(new ydb.Column('admin_commented_at', ydb.Types.optional(ydb.Types.DATETIME)))
           .withPrimaryKey('id')
         );
       });
@@ -160,4 +163,31 @@ DatabaseStorage.prototype.deleteReview = async function (this: DatabaseStorage, 
     });
     return true;
   }
+;
+
+// Публичный ответ магазина на отзыв. Отдельный путь записи (НЕ updateReview —
+// тот предназначен для полей покупателя и не умеет очищать значение):
+// пишет только admin_comment/admin_commented_at, пустая строка стирает ответ.
+// Колонки созданы в YDB: admin_comment Utf8, admin_commented_at Datetime.
+DatabaseStorage.prototype.setReviewAdminComment = async function (this: DatabaseStorage, id: number, comment: string): Promise<void> {
+    const text = (comment ?? "").trim();
+    await this.safeQuery(async (session) => {
+      await session.executeQuery(`
+        DECLARE $id AS Uint64;
+        DECLARE $admin_comment AS Optional<Utf8>;
+        DECLARE $admin_commented_at AS Optional<Datetime>;
+        UPDATE reviews
+        SET admin_comment = $admin_comment, admin_commented_at = $admin_commented_at
+        WHERE id = $id
+      `, {
+        '$id': ydb.TypedValues.uint64(id),
+        '$admin_comment': text
+          ? ydb.TypedValues.optional(ydb.TypedValues.utf8(text))
+          : ydb.TypedValues.optionalNull(ydb.Types.UTF8),
+        '$admin_commented_at': text
+          ? ydb.TypedValues.optional(ydb.TypedValues.datetime(new Date()))
+          : ydb.TypedValues.optionalNull(ydb.Types.DATETIME),
+      });
+    });
+}
 ;

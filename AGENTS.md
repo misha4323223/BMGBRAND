@@ -217,6 +217,22 @@
 - UI: `client/src/components/admin/ReviewRequestsPanel.tsx` (вкладка «Отзывы», отдельный файл — Admin.tsx не раздувать).
 - Пауза 400 мс/письмо, MAX 100 писем за запуск (страховка под таймаут 600 c).
 
+## Ответ магазина на отзыв (2026-10-07)
+- Админ может оставить ОДИН публичный ответ на отзыв. Колонки `reviews.admin_comment` (Utf8)
+  и `reviews.admin_commented_at` (Datetime) созданы вручную в YDB (`ALTER TABLE`); в
+  `migrateReviewsTable` они добавлены для свежих окружений.
+- Запись — только через `storage.setReviewAdminComment(id, comment)` (`server/storage/reviews.ts`):
+  отдельный UPDATE с Optional-параметрами, пустая строка стирает ответ (NULL). НЕ через
+  `updateReview` — тот пишет поля покупателя (whitelist) и не умеет очищать значения.
+- API: `PATCH /api/admin/reviews/:id { adminComment }` (`server/routes/admin-content.ts`).
+  Публичный `GET /api/reviews/:productId` отдаёт `adminComment`/`adminCommentedAt`
+  автоматически (SELECT * + camelCase в `parseResultSet`); ответ виден только у одобренных отзывов.
+- UI: `client/src/components/admin/ReviewReplyForm.tsx` (карточка отзыва во вкладке «Отзывы»
+  в Admin.tsx); витрина — блок «Ответ магазина» в `client/src/components/ReviewSection.tsx`.
+- bot-ssr: поля добавлены в `CachedReview` (`server/storage/core.ts`), рендер `.review-reply`
+  в `server/bot-ssr.ts`. После сохранения ответа роут сам вызывает `warmReviewsCache` — иначе
+  кэш отзывов обновился бы только при рестарте контейнера (греется при старте).
+
 ## Push notifications (web-push)
 - VAPID: `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (env). Проверка: `GET /api/push/vapid-public-key` → 200.
 - Клиентские хелперы: `client/src/lib/push.ts` (`enablePush` — разрешение запрашивается ПЕРВЫМ,

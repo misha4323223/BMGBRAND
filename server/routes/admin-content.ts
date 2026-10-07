@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { logError, logInfo } from "../logger";
-import { storage } from "../storage";
+import { storage, warmReviewsCache } from "../storage";
 import { uploadToYandexStorage } from "../lib/storage-s3";
 import { onReviewApproved } from "../review-promo";
 
@@ -81,7 +81,17 @@ export function registerAdminContentRoutes(
     }
     try {
       const id = parseInt(req.params.id);
+      // Ответ магазина — отдельное поле: пишется своим запросом, чтобы не путать его
+      // с текстом покупателя (updateReview принимает только поля покупателя).
+      if (req.body?.adminComment !== undefined) {
+        await storage.setReviewAdminComment(id, String(req.body.adminComment ?? ""));
+      }
       const review = await storage.updateReview(id, req.body);
+      // bot-ssr читает отзывы из in-memory кэша (греется только при старте), поэтому
+      // после ответа админа обновляем кэш сразу — без перезапуска контейнера.
+      if (req.body?.adminComment !== undefined) {
+        warmReviewsCache(storage as any).catch((e: any) => logError('[Reviews] warm cache error:', e?.message));
+      }
       // Отзыв одобрен → автоматически выдаём покупателю промокод «за отзыв»
       if (req.body?.isApproved === true) {
         onReviewApproved(id).catch((e: any) => logError('[ReviewPromo] hook error (admin):', e?.message));

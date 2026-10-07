@@ -129,6 +129,8 @@ export interface CachedReview {
   rating: number;
   comment: string | null;
   createdAt: string | null;
+  adminComment: string | null;
+  adminCommentedAt: string | null;
 }
 const REVIEWS_CACHE_MAX_PER_PRODUCT = 10;
 const reviewsCache = new Map<number, CachedReview[]>();
@@ -203,6 +205,8 @@ export async function warmReviewsCache(storage: IStorage): Promise<void> {
           rating: r.rating,
           comment: r.comment || null,
           createdAt: r.createdAt ? new Date(r.createdAt as any).toISOString() : null,
+          adminComment: typeof r.adminComment === "string" && r.adminComment.trim() ? r.adminComment : null,
+          adminCommentedAt: r.adminCommentedAt ? new Date(r.adminCommentedAt as any).toISOString() : null,
         });
       }
     }
@@ -774,6 +778,9 @@ export interface IStorage {
   getReviewById(id: number): Promise<Review | undefined>;
   createReview(review: InsertReview): Promise<Review>;
   updateReview(id: number, updates: Partial<Review>): Promise<Review>;
+  // Публичный ответ магазина на отзыв: пишет только admin_comment/admin_commented_at,
+  // текст и оценка покупателя не затрагиваются. Пустая строка стирает ответ (NULL).
+  setReviewAdminComment(id: number, comment: string): Promise<void>;
   deleteReview(id: number): Promise<boolean>;
   migrateReviewsTable(): Promise<{ success: boolean; message: string }>;
   // Stock notifications

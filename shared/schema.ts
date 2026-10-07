@@ -679,6 +679,10 @@ export const reviews = pgTable("reviews", {
   photos: text("photos"),
   isApproved: boolean("is_approved").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+  // Публичный ответ магазина на отзыв (заполняется в админке, вкладка «Отзывы»).
+  // Колонки физически созданы в YDB: admin_comment Utf8, admin_commented_at Datetime.
+  adminComment: text("admin_comment"),
+  adminCommentedAt: timestamp("admin_commented_at"),
 });
 
 // Wholesale XML feed — products selected by a wholesaler for export to their own site
@@ -1229,7 +1233,7 @@ export const insertPromoCodeSchema = createInsertSchema(promoCodes).omit({ id: t
 export const insertLoyaltyTierSchema = createInsertSchema(loyaltyTiers).omit({ id: true });
 export const insertNewsletterSubscriptionSchema = createInsertSchema(newsletterSubscriptions).omit({ id: true, subscribedAt: true });
 export const insertBonusSettingSchema = createInsertSchema(bonusSettings).omit({ id: true, updatedAt: true });
-export const insertReviewSchema = createInsertSchema(reviews).omit({ id: true, createdAt: true, isApproved: true });
+export const insertReviewSchema = createInsertSchema(reviews).omit({ id: true, createdAt: true, isApproved: true, adminComment: true, adminCommentedAt: true });
 export const insertFavoriteSchema = createInsertSchema(favorites).omit({ id: true, createdAt: true });
 
 // Schema for purchasing a gift card

@@ -444,6 +444,10 @@ footer a{color:#999}footer p+p{margin-top:.5rem}
 .review-head{font-size:.9rem;color:#333}
 .review-date{color:#999;font-size:.8rem}
 .review-text{margin-top:.5rem;color:#333;font-size:.95rem}
+.review-reply{margin-top:.6rem;border-left:3px solid #e0e0e0;padding-left:.65rem}
+.review-reply-label{font-size:.8rem;font-weight:600;color:#555}
+.review-reply-date{font-size:.8rem;color:#999}
+.review-reply-text{margin-top:.25rem;color:#333;font-size:.95rem}
 .in-stock{color:#2a7a2a}
 .preorder{color:#c47000}
 .out-of-stock{color:#888}
@@ -1076,6 +1080,7 @@ function renderProductHtml(slug: string, meta: ProductMetaForSsr): string {
     <div class="review">
       <div class="review-head"><strong>${esc(r.authorName)}</strong> — ${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}${r.createdAt ? ` <span class="review-date">${esc(r.createdAt.split("T")[0])}</span>` : ""}</div>
       ${r.comment ? `<p class="review-text">${esc(r.comment)}</p>` : ""}
+      ${r.adminComment ? `<div class="review-reply"><span class="review-reply-label">Ответ магазина</span>${r.adminCommentedAt ? ` <span class="review-reply-date">${esc(r.adminCommentedAt.split("T")[0])}</span>` : ""}<p class="review-reply-text">${esc(r.adminComment)}</p></div>` : ""}
     </div>`).join("\n")}</div>`
     : "";
 
