@@ -72,8 +72,26 @@ export const CATEGORIES: Record<string, CategoryConfig> = {
           { name: "Футболки с Артистами", slug: "futbolki-artists" },
         ],
       },
-      sub("Куртки", "jackets"),
-      sub("Брюки", "trousers"),
+      {
+        name: "Куртки",
+        slug: "jackets",
+        subSubcategories: [
+          { name: "Зимние", slug: "winter-jackets" },
+          { name: "Демисезонные куртки", slug: "demi-season-jackets" },
+          { name: "Летние куртки", slug: "summer-jackets" },
+        ],
+      },
+      {
+        name: "Брюки",
+        slug: "trousers",
+        subSubcategories: [
+          { name: "Спортивные брюки", slug: "sweatpants" },
+          { name: "Джоггеры", slug: "joggers" },
+          { name: "Повседневные  брюки", slug: "casual-trousers" },
+        ],
+      },
+      sub("Для животных", "animals"),
+      sub("Лонгсливы", "longsliv"),
     ],
   },
   socks: {
@@ -121,7 +139,20 @@ export const CATEGORIES: Record<string, CategoryConfig> = {
   accessories: {
     name: "Аксессуары",
     slug: "accessories",
-    subcategories: [sub("Кружки", "mugs"), sub("Ремни", "belts"), sub("Сумки", "bags"), sub("Шапки", "hats")],
+    subcategories: [
+      sub("Кружки", "mugs"),
+      sub("Ремни", "belts"),
+      sub("Сумки", "bags"),
+      {
+        name: "Головные уборы",
+        slug: "headwear",
+        subSubcategories: [
+          { name: "Шапки", slug: "hats" },
+          { name: "Панамы", slug: "panamas" },
+          { name: "Баффы", slug: "buffs" },
+        ],
+      },
+    ],
   },
   merch: {
     name: "Мерч",

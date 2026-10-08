@@ -508,6 +508,8 @@ function baseHead(opts: {
     `  <meta name="description" content="${d}">`,
     extra || `  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">`,
     `  <link rel="canonical" href="${esc(canonical)}">`,
+    // RSS-канал блога: даёт Яндекс.Вебмастеру и агрегаторам точку входа на статьи.
+    `  <link rel="alternate" type="application/rss+xml" title="BOOOMERANGS: Блог" href="${SITE_URL}/rss.xml">`,
     // LCP preload: browser begins fetching the main product image immediately,
     // before it encounters the <img> tag further down the page.
     preloadImage ? `  <link rel="preload" as="image" href="${esc(preloadImage)}" fetchpriority="high">` : "",
@@ -1191,6 +1193,21 @@ export const CYRILLIC_TO_CANONICAL: Record<string, string> = {
   shorty:     "shorts",
   shapki:     "hats",
   sumki:      "bags",
+};
+
+/**
+ * Устаревшие плоские URL → актуальная живая страница (301).
+ * «Шапки» переехали в под-подкатегорию /products/accessories/headwear/hats,
+ * а подкатегорий «Спортивные (40-45/34-39)» в носках больше нет.
+ * Без этого карта боту отдавала 404 на URL, который человек видел как 200.
+ * Держать в паре со STATIC_LEGACY_FLAT_REDIRECTS в server/static.ts.
+ */
+export const LEGACY_FLAT_REDIRECTS: Record<string, string> = {
+  hats:               "/products/accessories/headwear/hats",
+  shapki:             "/products/accessories/headwear/hats",
+  "sportivnye-40-45":   "/products/socks",
+  "sportivnye-34-39-2": "/products/socks",
+  "sportivnye-34-39":   "/products/socks",
 };
 
 function renderSubcategory(subSlug: string, canonicalSlug?: string): string | null {
@@ -2750,6 +2767,13 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
       if (slugMatch) {
         const slug = slugMatch[1];
         html = renderProduct(slug);
+        // Устаревший плоский URL (шапки, старые «спортивные» носки): живой
+        // страницы по нему больше нет, но и 404 отдавать нельзя — человек
+        // видит контент. Один переход на актуальный URL.
+        if (!html && LEGACY_FLAT_REDIRECTS[slug]) {
+          res.redirect(301, LEGACY_FLAT_REDIRECTS[slug]);
+          return;
+        }
         // Transliterated Cyrillic slug → immediate 301 to English canonical.
         // Do this BEFORE renderSubcategory: YDB uses English slugs ("hoodies"),
         // so renderSubcategory("tolstovki") would return null and the redirect would never fire.

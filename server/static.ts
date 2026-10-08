@@ -43,12 +43,27 @@ const STATIC_CYRILLIC_TO_CANONICAL: Record<string, string> = {
   sumki:      "bags",
 };
 
-/** Category-level legacy slugs → /products/:category */
+/** Категория-level legacy slugs → /products/:category */
 const STATIC_LEGACY_CATEGORY_MAP: Record<string, string> = {
   clothes:              "clothing",
   rasprodazha:          "sale",
   "rasprodazha-2":      "sale",
   "podarochnye-nabory": "merch",
+};
+
+/**
+ * Устаревшие плоские URL → актуальная живая страница (301).
+ * «Шапки» переехали в под-подкатегорию /products/accessories/headwear/hats,
+ * а подкатегорий «Спортивные (40-45/34-39)» в носках больше нет.
+ * Держать в паре с LEGACY_FLAT_REDIRECTS в server/bot-ssr.ts: и робот,
+ * и человек должны одним переходом попадать на один и тот же живой URL.
+ */
+const STATIC_LEGACY_FLAT_REDIRECTS: Record<string, string> = {
+  hats:                 "/products/accessories/headwear/hats",
+  shapki:               "/products/accessories/headwear/hats",
+  "sportivnye-40-45":   "/products/socks",
+  "sportivnye-34-39-2": "/products/socks",
+  "sportivnye-34-39":   "/products/socks",
 };
 
 /** English subcategory alias slugs for canonical/meta injection */
@@ -863,6 +878,12 @@ export function serveStatic(app: Express) {
       } catch {}
     }
 
+    // 301: устаревшие плоские URL, у которых изменилась реальная страница
+    // (шапки → под-подкатегория, старые «спортивные» носки → категория носков).
+    // Иначе человек получал 200-оболочку с self-canonical, а робот — 404.
+    if (detectedProductSlug && !routeLcpImage && STATIC_LEGACY_FLAT_REDIRECTS[detectedProductSlug]) {
+      return res.redirect(301, STATIC_LEGACY_FLAT_REDIRECTS[detectedProductSlug]);
+    }
     // 301: transliterated Cyrillic subcategory slugs → English canonical
     if (detectedProductSlug && STATIC_CYRILLIC_TO_CANONICAL[detectedProductSlug]) {
       return res.redirect(301, `/${STATIC_CYRILLIC_TO_CANONICAL[detectedProductSlug]}`);

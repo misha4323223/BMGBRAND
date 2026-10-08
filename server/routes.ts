@@ -57,6 +57,8 @@ import { mapProductCategory, isOnSale, extractColorFromName, extractSizesFromNam
 import { CATEGORIES, normalizeCategories, buildCategoryIndex, resolveProductCategoryPaths, transliterateToSlug, insertPromoCodeSchema, insertLoyaltyTierSchema, insertNewsletterSubscriptionSchema, PARTNER_COOKIE_NAME, PARTNER_DEFAULT_COMMISSION_PERCENT, getProgressiveCommissionRate } from "@shared/schema";
 import type { SubcategoryConfig, SubSubcategoryConfig, CategoryConfig } from "@shared/schema";
 import { resolveBlogPostForSsr } from "@shared/blog-post";
+import type { BlogPostForSsr } from "@shared/blog-post";
+import { buildBlogRssFeed, BLOG_RSS_PATH, BLOG_RSS_ALIAS_PATH } from "@shared/blog-rss";
 import authRoutes, { authMiddleware, requireAdminRole, type AuthRequest } from "./auth-routes";
 import { notifyError } from "./error-monitor";
 import partnerRoutes, { partnerRefQueryMiddleware, partnerRefRedirectHandler, getApprovedPartnerCached, getGlobalPartnerCommissionPercentCached, getGlobalPartnerHoldDaysCached } from "./partner-routes";
@@ -1806,6 +1808,7 @@ ${productLines || "- (список формируется)"}
 - [YML-фид (Яндекс Маркет, полный каталог)](${llmsBaseUrl}/yml-feed.xml)
 - [YML-фид для Кнопки «Купить» Яндекса](${llmsBaseUrl}/ycp-feed.xml)
 - [VK-фид (ВКонтакте, JPEG + целые цены)](${llmsBaseUrl}/vk-feed.xml)
+- [RSS-канал блога (статьи; для Яндекс.Вебмастера «Свежий контент»)](${llmsBaseUrl}/rss.xml)
 
 ## О бренде
 
@@ -2297,6 +2300,39 @@ ${faqSection}
       serveGeneratedXml(res, "sitemap.xml", xml);
     } catch (err) {
       serveStaleXmlOrError(res, "sitemap.xml", "Sitemap", err);
+    }
+  });
+
+  // SEO: RSS-канал блога для Яндекс.Вебмастера («Свежий контент» → добавить канал).
+  // Тот же генератор обслуживает алиас /blog/rss.xml. Статьи берём тем же
+  // резолвером, что SSR и sitemap, поэтому в канал попадают только существующие
+  // видимые статьи с текстом. Формат — RSS 2.0 + yandex:full-text (требования
+  // Яндекса: yandex.ru/support/webmaster/ru/search-appearance/fresh-content).
+  app.get([BLOG_RSS_PATH, BLOG_RSS_ALIAS_PATH], async (_req, res) => {
+    const rssSiteUrl = (process.env.SITE_URL || "https://booomerangs.ru").replace(/\/$/, "");
+    try {
+      const rssBlogPages = await storage.getPageSettings("blog_pages") as Record<string, any> | null;
+      const rssHomeSettings = await storage.getPageSettings("home") as Record<string, any> | null;
+      const rssHomeItems = rssHomeSettings?.blog?.items;
+      const rssMaxIndex = Math.max(
+        Object.keys(rssBlogPages || {}).length,
+        Array.isArray(rssHomeItems) ? rssHomeItems.length : 0,
+      );
+      const rssPosts: BlogPostForSsr[] = [];
+      for (let rssIndex = 0; rssIndex < rssMaxIndex; rssIndex++) {
+        const rssPost = resolveBlogPostForSsr(rssBlogPages, rssHomeItems, rssIndex);
+        if (rssPost) rssPosts.push(rssPost);
+      }
+      const rssXml = buildBlogRssFeed(rssPosts, {
+        siteUrl: rssSiteUrl,
+        title: "BOOOMERANGS: Блог",
+        description:
+          "Статьи BOOOMERANGS об одежде и мерче: материалы и посадка, коллекции, коллаборации с артистами, производство и мерч на заказ.",
+        language: "ru",
+      });
+      serveGeneratedXml(res, "rss.xml", rssXml, "ru", 1800);
+    } catch (err) {
+      serveStaleXmlOrError(res, "rss.xml", "RSS-канал блога", err);
     }
   });
 

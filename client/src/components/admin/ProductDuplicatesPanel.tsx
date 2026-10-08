@@ -114,6 +114,10 @@ export default function ProductDuplicatesPanel({ apiKey, isActive }: Props) {
       if (Array.isArray(parsed)) map = parsed;
     } catch { /* keep empty */ }
     if (map.some((r) => r.from === from)) return;
+    // Одна пара — одно направление. Если в карте уже есть встречная запись
+    // (например, дубль и канон позже менялись местами при дедупликации),
+    // убираем её: две встречные записи образуют 301-петлю для поисковиков.
+    map = map.filter((r) => !(r.from === to && r.to === from));
     map.push({ from, to });
     await adminFetch("/api/bonus-settings", apiKey, {
       method: "POST",
