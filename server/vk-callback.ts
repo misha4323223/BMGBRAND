@@ -14,6 +14,7 @@
 import type { Express } from "express";
 import { storage } from "./storage";
 import { logError, logInfo, logWarn } from "./logger";
+import { tempPublicOrigin } from "./public-origin";
 
 const VK_API = "https://api.vk.ru/method";
 
@@ -27,7 +28,7 @@ function vkChatPeerId(): string {
   return String(process.env.VK_CHAT_PEER_ID || "2000000003").trim();
 }
 function siteUrl(): string {
-  return (process.env.SITE_URL || process.env.APP_DOMAIN || "https://booomerangs.ru").replace(/\/$/, "");
+  return (tempPublicOrigin() || process.env.SITE_URL || process.env.APP_DOMAIN || "https://booomerangs.ru").replace(/\/$/, "");
 }
 
 async function vkCall(method: string, params: Record<string, string> = {}): Promise<any> {

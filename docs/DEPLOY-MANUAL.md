@@ -38,7 +38,10 @@ docker push "$IMAGE"
 3. проверить параметры: память 2 ГБ, cores 1, core-fraction 100%, concurrency 13,
    provisioned instances 1, timeout 600 с;
 4. сверить переменные окружения (в редакторе они подставлены от текущей ревизии —
-   сверьте со списком в `.github/workflows/deploy.yml`);
+   сверьте со списком в `.github/workflows/deploy.yml`). Отдельно проверьте
+   `TEMP_PUBLIC_ORIGIN` (адрес контейнера): если он не попадёт в ревизию,
+   временный режим «сайт на адресе контейнера» просто останется выключенным —
+   см. `docs/TEMP-CONTAINER-MODE.md`;
 5. «Создать ревизию».
 
 CLI-вариант — `yc serverless container revision deploy`: обязательны

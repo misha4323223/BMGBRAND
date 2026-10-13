@@ -49,6 +49,9 @@ jobs:
           revision-provisioned: 1
           revision-image-url: cr.yandex/${{ env.CR_REGISTRY }}/${{ env.CR_REPOSITORY }}:${{ github.sha }}
           revision-execution-timeout: 600s
+          # Временный режим «сайт на адресе контейнера» (docs/TEMP-CONTAINER-MODE.md):
+          # секрет TEMP_PUBLIC_ORIGIN = адрес контейнера, например
+          # https://bba6fol2jvub7mr2uahi.containers.yandexcloud.net. Не задан = режим выключен.
           revision-env: |
             NODE_ENV=production
             YDB_ENDPOINT=${{ secrets.YDB_ENDPOINT }}
@@ -102,6 +105,7 @@ jobs:
             SYNC_API_KEY=${{ secrets.SYNC_API_KEY }}
             SITE_URL=${{ secrets.SITE_URL }}
             APP_DOMAIN=${{ secrets.APP_DOMAIN }}
+            TEMP_PUBLIC_ORIGIN=${{ secrets.TEMP_PUBLIC_ORIGIN }}
             HF_TOKEN=${{ secrets.HF_TOKEN }}
             HF_PROXY_URL=${{ secrets.HF_PROXY_URL }}
             YCP_TOKEN=${{ secrets.YCP_TOKEN }}

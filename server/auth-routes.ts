@@ -15,6 +15,7 @@ import { cdekService } from './cdek';
 import { paymentService } from './payments';
 
 import { generateInvoicePDF, generateUpdPDF, generateTorg12PDF, formatInvoiceNumber } from './invoice';
+import { emailBaseUrl, cookieDomainForHost, yandexRedirectUri } from './public-origin';
 import { partnerRegisterSchema, LEGAL_DOCUMENT_SLUGS, type LegalDocumentSlug } from '@shared/schema';
 
 const router = Router();
@@ -69,24 +70,37 @@ function generateRandomToken(): string {
 
 const PROD_COOKIE_DOMAIN = process.env.NODE_ENV === 'production' ? '.booomerangs.ru' : undefined;
 
-function authCookieOptions(isSecure: boolean): object {
+/**
+ * Домен cookie авторизации для конкретного запроса.
+ * Пока TEMP_PUBLIC_ORIGIN не задан — всегда PROD_COOKIE_DOMAIN, как было раньше.
+ * Во временном режиме на адресе контейнера домен не ставим: браузер обязан отбросить
+ * cookie с Domain=.booomerangs.ru для хоста *.containers.yandexcloud.net, иначе вход
+ * формально проходит, а человек сразу оказывается разлогинен.
+ */
+function authCookieDomain(req: Request): string | undefined {
+  return cookieDomainForHost(req.headers.host, PROD_COOKIE_DOMAIN);
+}
+
+function authCookieOptions(isSecure: boolean, req: Request): object {
+  const domain = authCookieDomain(req);
   return {
     httpOnly: true,
     secure: isSecure,
     sameSite: 'lax' as const,
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000,
-    ...(PROD_COOKIE_DOMAIN ? { domain: PROD_COOKIE_DOMAIN } : {}),
+    ...(domain ? { domain } : {}),
   };
 }
 
-function authClearCookieOptions(): object {
+function authClearCookieOptions(req: Request): object {
+  const domain = authCookieDomain(req);
   return {
     httpOnly: true,
     secure: !!PROD_COOKIE_DOMAIN,
     sameSite: 'lax' as const,
     path: '/',
-    ...(PROD_COOKIE_DOMAIN ? { domain: PROD_COOKIE_DOMAIN } : {}),
+    ...(domain ? { domain } : {}),
   };
 }
 
@@ -136,7 +150,7 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
       next();
     }).catch(() => next());
   } catch {
-    res.clearCookie('auth_token', authClearCookieOptions());
+    res.clearCookie('auth_token', authClearCookieOptions(req));
     next();
   }
 }
@@ -220,7 +234,7 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
       logError('[Auth] Guest order merge failed:', mergeErr?.message);
     }
     
-    const verificationUrl = `${config.app.domain}/verify-email?token=${verificationToken}`;
+    const verificationUrl = `${emailBaseUrl()}/verify-email?token=${verificationToken}`;
     await sendEmail({
       to: email,
       subject: 'Подтверждение регистрации в BMGBRAND',
@@ -247,13 +261,31 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
     }
     
     const loginRole = role === 'wholesale' ? 'wholesale' : 'retail';
-    const user = await authStorage.getUserByEmailAndRole(email, loginRole);
-    if (!user) {
-      return res.status(401).json({ error: 'Неверный email или пароль' });
+    let user = await authStorage.getUserByEmailAndRole(email, loginRole);
+    let isValidPassword = user ? await bcrypt.compare(password, user.passwordHash) : false;
+
+    // Дубли email в users: одна и та же почта может висеть на нескольких строках
+    // (розничная, оптовая, партнёрская — их создают разные формы), а UNIQUE-индекса
+    // на email в YDB нет. Розничная строка при этом часто остаётся
+    // неподтверждённой, и вход через обычную форму падал с «Email не подтверждён»,
+    // хотя у человека есть живой оптовый кабинет. Если розничная запись не
+    // подтверждена, ищем подтверждённую запись с тем же email И тем же паролем —
+    // пароль всё равно нужен от того аккаунта, в который входим, поэтому это не
+    // повышение прав, а тот же вход, что и через отдельную форму.
+    if (loginRole === 'retail' && user && isValidPassword && !user.emailVerified) {
+      for (const altRole of ['wholesale', 'partner'] as const) {
+        const alt = await authStorage.getUserByEmailAndRole(email, altRole);
+        if (!alt) continue;
+        if (!(await bcrypt.compare(password, alt.passwordHash))) continue;
+        const altUsable = altRole === 'wholesale' ? alt.wholesaleApproved === true : alt.emailVerified === true;
+        if (!altUsable) continue;
+        logWarn(`[Auth] Login ${email}: подтверждённого retail нет (id=${user.id}), вход выполнен по роли ${altRole} (id=${alt.id})`);
+        user = alt;
+        break;
+      }
     }
-    
-    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-    if (!isValidPassword) {
+
+    if (!user || !isValidPassword) {
       return res.status(401).json({ error: 'Неверный email или пароль' });
     }
     
@@ -288,7 +320,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
     
     const isProduction = process.env.NODE_ENV === 'production';
     const isSecure = isProduction || req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
-    res.cookie('auth_token', token, authCookieOptions(isSecure));
+    res.cookie('auth_token', token, authCookieOptions(isSecure, req));
     
     res.json({
       user: {
@@ -335,7 +367,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
 });
 
 router.post('/logout', (req: Request, res: Response) => {
-  res.clearCookie('auth_token', authClearCookieOptions());
+  res.clearCookie('auth_token', authClearCookieOptions(req));
   res.json({ message: 'Выход выполнен' });
 });
 
@@ -651,7 +683,7 @@ router.post('/partner/register', authLimiter, async (req: Request, res: Response
     }
 
     // Письмо со ссылкой — это фактор «второй контур» для УНЭП.
-    const confirmUrl = `${config.app.domain}/partner/confirm-signature?token=${token}`;
+    const confirmUrl = `${emailBaseUrl()}/partner/confirm-signature?token=${token}`;
     try {
       await sendEmail({
         to: email,
@@ -964,7 +996,7 @@ router.post('/partner/login', authLimiter, async (req: Request, res: Response) =
 
     const isProduction = process.env.NODE_ENV === 'production';
     const isSecure = isProduction || req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
-    res.cookie('auth_token', token, authCookieOptions(isSecure));
+    res.cookie('auth_token', token, authCookieOptions(isSecure, req));
 
     res.json({
       user: {
@@ -1031,7 +1063,7 @@ router.post('/verify-email', async (req: Request, res: Response) => {
     const authToken = generateToken({ userId: user.id, email: user.email });
     
     const isSecureVerify = process.env.NODE_ENV === 'production' || req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
-    res.cookie('auth_token', authToken, authCookieOptions(isSecureVerify));
+    res.cookie('auth_token', authToken, authCookieOptions(isSecureVerify, req));
     
     res.json({ 
       message: 'Email подтверждён!',
@@ -1074,7 +1106,7 @@ router.post('/forgot-password', authLimiter, async (req: Request, res: Response)
     
     await authStorage.setResetToken(user.id, resetToken, expiry);
     
-    const resetUrl = `${config.app.domain}/reset-password?token=${resetToken}`;
+    const resetUrl = `${emailBaseUrl()}/reset-password?token=${resetToken}`;
     await sendEmail({
       to: email,
       subject: 'Сброс пароля в BMGBRAND',
@@ -1134,7 +1166,7 @@ router.post('/resend-verification', async (req: Request, res: Response) => {
     
     const verificationToken = generateRandomToken();
     
-    const verificationUrl = `${config.app.domain}/verify-email?token=${verificationToken}`;
+    const verificationUrl = `${emailBaseUrl()}/verify-email?token=${verificationToken}`;
     await sendEmail({
       to: email,
       subject: 'Подтверждение регистрации в BMGBRAND',
@@ -1409,7 +1441,7 @@ router.post('/orders/:id/pay', authMiddleware, async (req: AuthRequest, res: Res
     // Куда вернуть после оплаты: по умолчанию страница успеха заказа на сайте,
     // приложение может передать свой returnUrl в теле запроса.
     const bodyReturnUrl = typeof req.body?.returnUrl === 'string' && req.body.returnUrl.trim() ? req.body.returnUrl.trim() : null;
-    const defaultReturnUrl = `${config.app.domain}/order-success/${orderId}`;
+    const defaultReturnUrl = `${emailBaseUrl()}/order-success/${orderId}`;
 
     const paymentResult = await paymentService.createPayment({
       amount,
@@ -2340,15 +2372,14 @@ router.post('/telegram/webhook', async (req: Request, res: Response) => {
 // ─── Yandex OAuth ───────────────────────────────────────────────────────────
 const YANDEX_CLIENT_ID = process.env.YANDEX_CLIENT_ID || '';
 const YANDEX_CLIENT_SECRET = process.env.YANDEX_CLIENT_SECRET || '';
-const YANDEX_REDIRECT_URI = process.env.NODE_ENV === 'production'
-  ? 'https://www.booomerangs.ru/api/auth/yandex/callback'
-  : `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/api/auth/yandex/callback`;
+// redirect_uri считается в server/public-origin.ts (yandexRedirectUri): он учитывает
+// временный режим TEMP_PUBLIC_ORIGIN, поэтому константы здесь больше нет.
 
 router.get('/yandex', (req: Request, res: Response) => {
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: YANDEX_CLIENT_ID,
-    redirect_uri: YANDEX_REDIRECT_URI,
+    redirect_uri: yandexRedirectUri(),
     scope: 'login:email login:info login:phone',
     force_confirm: 'no',
   });
@@ -2372,7 +2403,7 @@ router.get('/yandex/callback', async (req: Request, res: Response) => {
         code,
         client_id: YANDEX_CLIENT_ID,
         client_secret: YANDEX_CLIENT_SECRET,
-        redirect_uri: YANDEX_REDIRECT_URI,
+        redirect_uri: yandexRedirectUri(),
       }).toString(),
     });
 
@@ -2458,7 +2489,7 @@ router.get('/yandex/callback', async (req: Request, res: Response) => {
 
     const token = generateToken({ userId: user.id, email: user.email });
     const isSecure = req.headers['x-forwarded-proto'] === 'https' || req.secure;
-    res.cookie('auth_token', token, authCookieOptions(isSecure));
+    res.cookie('auth_token', token, authCookieOptions(isSecure, req));
     res.redirect('/');
   } catch (err: any) {
     logError('[Yandex OAuth] Error:', err.message);
@@ -2503,7 +2534,7 @@ router.post('/mobile-login', authLimiter, async (req: Request, res: Response) =>
 
     const token = generateToken({ userId: user.id, email: user.email });
     const isSecure = process.env.NODE_ENV === 'production' || req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
-    res.cookie('auth_token', token, authCookieOptions(isSecure));
+    res.cookie('auth_token', token, authCookieOptions(isSecure, req));
 
     res.json({
       token,
@@ -2561,7 +2592,7 @@ router.post('/mobile-register', authLimiter, async (req: Request, res: Response)
 
     const token = generateToken({ userId: user.id, email: user.email });
     const isSecure = process.env.NODE_ENV === 'production' || req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
-    res.cookie('auth_token', token, authCookieOptions(isSecure));
+    res.cookie('auth_token', token, authCookieOptions(isSecure, req));
 
     res.json({
       token,

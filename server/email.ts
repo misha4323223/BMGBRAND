@@ -1,6 +1,19 @@
 import { config } from './config';
 import { logError } from "./logger";
 import { createHmac } from 'crypto';
+import { tempPublicOrigin } from './public-origin';
+
+/**
+ * Пока сайт доступен только по адресу контейнера (TEMP_PUBLIC_ORIGIN), подменяем в письмах
+ * ссылки с реального домена на этот адрес — иначе кнопки «личный кабинет», проверка почты,
+ * сброс пароля и отслеживание заказа ведут на недоступный домен.
+ * Режим выключен (переменная не задана) → письма уходят ровно как раньше.
+ */
+export function rewriteSiteLinks(html: string): string {
+  const temp = tempPublicOrigin();
+  if (!temp) return html;
+  return html.replace(/https?:\/\/(?:www\.)?booomerangs\.ru/gi, temp);
+}
 
 interface EmailOptions {
   to: string;
@@ -9,11 +22,13 @@ interface EmailOptions {
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
+  const html = rewriteSiteLinks(options.html);
+
   if (!config.email.enabled) {
     console.log(`[Email] Sending disabled (SMTP_HOST not set). Would send to ${options.to}:`);
     console.log(`[Email] Subject: ${options.subject}`);
     
-    const linkMatch = options.html.match(/href="([^"]*(?:verify-email|reset-password|confirm-signature)[^"]*)"/);
+    const linkMatch = html.match(/href="([^"]*(?:verify-email|reset-password|confirm-signature)[^"]*)"/);
     if (linkMatch) {
       console.log(`[Email] *** ACTION LINK: ${linkMatch[1]} ***`);
       return true;
@@ -38,7 +53,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       from: `"${config.app.name}" <${config.email.from}>`,
       to: options.to,
       subject: options.subject,
-      html: options.html,
+      html,
     });
 
     console.log(`[Email] Sent to ${options.to}: ${options.subject}`);

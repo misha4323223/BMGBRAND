@@ -60,6 +60,7 @@ import { resolveBlogPostForSsr } from "@shared/blog-post";
 import type { BlogPostForSsr } from "@shared/blog-post";
 import { buildBlogRssFeed, BLOG_RSS_PATH, BLOG_RSS_ALIAS_PATH } from "@shared/blog-rss";
 import authRoutes, { authMiddleware, requireAdminRole, type AuthRequest } from "./auth-routes";
+import { publicBaseUrl, tempPublicOrigin } from "./public-origin";
 import { notifyError } from "./error-monitor";
 import partnerRoutes, { partnerRefQueryMiddleware, partnerRefRedirectHandler, getApprovedPartnerCached, getGlobalPartnerCommissionPercentCached, getGlobalPartnerHoldDaysCached } from "./partner-routes";
 import adminPartnerRoutes from "./admin-partner-routes";
@@ -590,7 +591,7 @@ async function processStockNotifications(productId: number, productName: string,
       return;
     }
 
-    const baseUrl = process.env.SITE_URL || 'https://www.booomerangs.ru';
+    const baseUrl = tempPublicOrigin() || process.env.SITE_URL || 'https://www.booomerangs.ru';
     for (const size of sizesBackInStock) {
       const subscribers = await storage.getUnnotifiedByProductAndSize(productId, size);
       if (subscribers.length === 0) {
@@ -3305,7 +3306,7 @@ ${faqSection}
 
   // Register Telegram wholesale bot webhook
   // Strip www. prefix — Telegram does not follow 301 redirects, www→non-www redirect breaks webhooks
-  const tgWebhookBase = (process.env.APP_DOMAIN || process.env.SITE_URL || 'https://booomerangs.ru')
+  const tgWebhookBase = (tempPublicOrigin() || process.env.APP_DOMAIN || process.env.SITE_URL || 'https://booomerangs.ru')
     .replace('https://www.', 'https://')
     .replace('http://www.', 'http://');
   registerWholesaleWebhook(`${tgWebhookBase}/api/auth/telegram/webhook`).catch(err => {
@@ -10894,7 +10895,7 @@ ${faqSection}
           logError(`[Order] CDEK waybill error for gift-card order ${order.id}:`, err.message)
         );
       } else if (paymentMethod === "tbank" && paymentService.isTBankEnabled()) {
-        const baseUrl = process.env.APP_DOMAIN || `https://${req.get('host')}`;
+        const baseUrl = publicBaseUrl(req.get('host'));
         const receiptItems = orderItems.map(item => ({
           name: item.productName,
           quantity: item.quantity,
@@ -10925,7 +10926,7 @@ ${faqSection}
           notifyError('Оплата T-Bank', `Заказ #${order.id} — не удалось создать платёж`, `Клиент: ${input.customerEmail} | Сумма: ${(amountToPay/100).toFixed(0)} ₽ | Ошибка: ${paymentResult.error}`);
         }
       } else if (paymentMethod === "yookassa" && paymentService.isYooKassaEnabled()) {
-        const baseUrl = process.env.APP_DOMAIN || `https://${req.get('host')}`;
+        const baseUrl = publicBaseUrl(req.get('host'));
         const paymentResult = await paymentService.createPayment({
           amount: amountToPay,
           description: `Заказ #${order.id}`,
@@ -12025,7 +12026,7 @@ ${faqSection}
       const totalAmount = input.amount * quantity;
 
       // If payment service is configured, create payment
-      const baseUrl = process.env.PUBLIC_URL || `https://${req.headers.host}`;
+      const baseUrl = tempPublicOrigin() || process.env.PUBLIC_URL || `https://${req.headers.host}`;
       const returnUrl = `${baseUrl}/gift-cards/success?id=${firstCard.id}`;
 
       if (paymentService.isYooKassaEnabled() || paymentService.isTBankEnabled()) {
@@ -12651,7 +12652,7 @@ ${faqSection}
 
       let paymentUrl: string | undefined;
       let preorderConfirmationToken: string | undefined;
-      const baseUrl = process.env.APP_DOMAIN || `https://${req.get('host')}`;
+      const baseUrl = publicBaseUrl(req.get('host'));
 
       const chosenMethod = paymentMethod || (paymentService.isTBankEnabled() ? "tbank" : "yookassa");
       const useMethod = chosenMethod === "yookassa" && paymentService.isYooKassaEnabled() ? "yookassa"
@@ -12731,7 +12732,7 @@ ${faqSection}
 
       let paymentUrl: string | undefined;
       let remainConfirmationToken: string | undefined;
-      const baseUrl = process.env.APP_DOMAIN || `https://${req.get('host')}`;
+      const baseUrl = publicBaseUrl(req.get('host'));
 
       const chosenMethod = paymentMethod || (paymentService.isTBankEnabled() ? "tbank" : "yookassa");
       const useMethod = chosenMethod === "yookassa" && paymentService.isYooKassaEnabled() ? "yookassa"
@@ -13203,7 +13204,7 @@ ${faqSection}
       }
 
       // ── Розничный предзаказ — онлайн-оплата ─────────────────────────────
-      const baseUrl = process.env.APP_DOMAIN || `https://${req.get('host')}`;
+      const baseUrl = publicBaseUrl(req.get('host'));
       const chosenMethod = paymentMethod || (paymentService.isTBankEnabled() ? "tbank" : "yookassa");
       const useMethod = chosenMethod === "yookassa" && paymentService.isYooKassaEnabled() ? "yookassa"
         : chosenMethod === "tbank" && paymentService.isTBankEnabled() ? "tbank"

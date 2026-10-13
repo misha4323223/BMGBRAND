@@ -7,6 +7,7 @@ import { notifyAddonOrderPaid } from "./telegram";
 import { vkNotifyAddonOrderPaid } from "./vk";
 import { sendEmail, getAddonOrderEmailHtml } from "./email";
 import { authMiddleware } from "./auth-routes";
+import { publicBaseUrl } from "./public-origin";
 
 export interface AddonItem {
   productId: number;
@@ -243,7 +244,7 @@ export function registerAddonOrderRoutes(app: Express): void {
 
       if (!useMethod) return res.status(400).json({ error: "no_payment_method_available" });
 
-      const baseUrl = process.env.APP_DOMAIN || `https://${req.get("host")}`;
+      const baseUrl = publicBaseUrl(req.get("host"));
 
       const addonData: AddonData = {
         status: "awaiting_payment",

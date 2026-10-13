@@ -16,6 +16,7 @@ for (const key of Object.keys(process.env)) {
 
 import express, { type Request, Response, NextFunction } from "express";
 import { logError, logInfo, logWarn } from "./logger";
+import { tempPublicOrigin } from "./public-origin";
 import cookieParser from "cookie-parser";
 import compression from "compression";
 import helmet from "helmet";
@@ -183,6 +184,7 @@ declare module "http" {
 
 const allowedOrigins = [
   process.env.SITE_URL,
+  tempPublicOrigin() ?? undefined,
   'https://booomerangs.ru',
   'https://www.booomerangs.ru',
   'https://bba6fol2jvub7mr2uahi.containers.yandexcloud.net',
