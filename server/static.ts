@@ -1167,7 +1167,7 @@ export function serveStatic(app: Express) {
         const cat = CATEGORIES[catSlug];
         if (cat) {
           const catSeo = getSeoOverride(`category:${catSlug}`);
-          const title = catSeo.title || cat.title || `${cat.name} — купить в BOOOMERANGS | ${SITE_NAME}`;
+          const title = catSeo.title || cat.title || `${cat.name} — купить в интернет-магазине | ${SITE_NAME}`;
           const catDesc = catSeo.description || cat.desc;
 
           const breadcrumb = {

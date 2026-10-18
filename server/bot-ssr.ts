@@ -766,7 +766,7 @@ function renderCategory(catSlug: string): string | null {
   // которую поисковики и ИИ-краулеры «не видят».
   if (products.length === 0 && !isProductsCacheWarm()) {
     const catSeo = getSeoOverride(`category:${catSlug}`);
-    const title = catSeo.title || cat.title || `${cat.name} — купить в BOOOMERANGS | ${SITE_NAME}`;
+    const title = catSeo.title || cat.title || `${cat.name} — купить в интернет-магазине | ${SITE_NAME}`;
     const desc = catSeo.description || cat.desc;
     return renderLoadingPlaceholder({
       title,
@@ -812,7 +812,7 @@ function renderCategory(catSlug: string): string | null {
     : "";
 
   const catSeo = getSeoOverride(`category:${catSlug}`);
-  const title = catSeo.title || cat.title || `${cat.name} — купить в BOOOMERANGS | ${SITE_NAME}`;
+  const title = catSeo.title || cat.title || `${cat.name} — купить в интернет-магазине | ${SITE_NAME}`;
   const desc = catSeo.description || cat.desc;
   const jsonLd = safeJsonLd([
     {
@@ -1653,7 +1653,7 @@ function renderAbout(): string {
 
   const aboutSeo = getSeoOverride("static:about");
   const head = baseHead({
-    title: aboutSeo.title || `О бренде BOOOMERANGS — история, производство, команда | ${SITE_NAME}`,
+    title: aboutSeo.title || `О бренде — история, производство, команда | ${SITE_NAME}`,
     description: aboutSeo.description || description,
     canonical: `${SITE_URL}/about`,
     ogImage: `${SITE_URL}/images/about-hero.webp`,
@@ -1967,7 +1967,7 @@ function renderConceptIndex(): string | null {
   const hero = conceptSettings?.hero || {};
   const seoSettings = getCachedRawPageSettings("seo");
   const conceptSeo = seoSettings?.concept || {};
-  const pageTitle = conceptSeo.title || `Pre-drop — предзаказы BOOOMERANGS | ${SITE_NAME}`;
+  const pageTitle = conceptSeo.title || `Pre-drop — предзаказы будущих коллекций | ${SITE_NAME}`;
   const pageDesc = conceptSeo.description || "Предзаказы и коллаборации BOOOMERANGS — оформи предзаказ на ограниченные коллекции до старта продаж. Уникальный мерч артистов.";
 
   const jsonLd = safeJsonLd([
@@ -2387,7 +2387,7 @@ function renderVacancies(): string {
   ]);
 
   const head = baseHead({
-    title:       vacSeo.title       || `Вакансии — присоединяйся к команде BOOOMERANGS | ${SITE_NAME}`,
+    title:       vacSeo.title       || `Вакансии — присоединяйся к команде | ${SITE_NAME}`,
     description: vacSeo.description || `Открытые вакансии в команду BOOOMERANGS. ${vacancies.map((v: any) => v.title).join(", ")}.`,
     canonical:   `${SITE_URL}/vacancies`,
     ogImage:     `${SITE_URL}/og-image.png`,
@@ -2539,7 +2539,7 @@ function renderCare(): string {
   const content = parsed?.content ? stripTailwindClasses(parsed.content) : defaultBody;
 
   const head = baseHead({
-    title: "Уход за одеждой — BOOOMERANGS | " + SITE_NAME,
+    title: "Уход за одеждой — стирка, сушка, хранение | " + SITE_NAME,
     description: "Рекомендации по уходу за одеждой BOOOMERANGS: носки, футболки, худи, свитшоты, куртки, брюки и шорты. Правильная стирка, сушка и хранение.",
     canonical: SITE_URL + "/care",
     ogImage: SITE_URL + "/og-image.png",
@@ -2587,7 +2587,7 @@ function renderGiftCards(): string {
   ]);
 
   const head = baseHead({
-    title: `Подарочная карта BOOOMERANGS — от ${minAmount} до ${maxAmount} | ${SITE_NAME}`,
+    title: `Подарочная карта — от ${minAmount} до ${maxAmount} | ${SITE_NAME}`,
     description: `Электронная подарочная карта интернет-магазина BOOOMERANGS. Номиналы: ${amountsList}. Мгновенная доставка на e-mail, действует 1 год. Оплата картой, ЮKassa, Т-Банк.`,
     canonical: `${SITE_URL}/gift-cards`,
     ogImage: `${SITE_URL}/og-image.png`,

@@ -253,7 +253,7 @@ async function applyBotMetaInjection(html: string, url: string, origin: string):
     if (catMatch) {
       const cat = CATEGORIES[catMatch[1]];
       if (cat) {
-        const title = `${cat.name} — купить в BOOOMERANGS | ${SITE_NAME}`;
+        const title = `${cat.name} — купить в интернет-магазине | ${SITE_NAME}`;
         const jsonLd = JSON.stringify({
           "@context": "https://schema.org", "@type": "BreadcrumbList",
           "itemListElement": [

@@ -85,7 +85,7 @@ export default function Cart() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO title="Корзина" description="Ваша корзина покупок BMGBRAND." noindex={true} />
+      <SEO title="Корзина" description="Ваша корзина покупок BOOOMERANGS." noindex={true} />
       <Navbar />
 
       <div className="pt-32 pb-24 max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">

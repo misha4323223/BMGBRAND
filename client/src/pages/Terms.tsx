@@ -122,7 +122,7 @@ export default function Terms() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <SEO title="Условия использования" description="Условия использования интернет-магазина BMGBRAND." noindex={true} />
+      <SEO title="Условия использования" description="Условия использования интернет-магазина BOOOMERANGS." noindex={true} />
       <Navbar />
       <main className="flex-1 pt-32 pb-24 px-4">
         <div className="max-w-4xl mx-auto prose dark:prose-invert" dangerouslySetInnerHTML={{ __html: content }} />

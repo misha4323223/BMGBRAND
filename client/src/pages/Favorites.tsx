@@ -212,7 +212,7 @@ export default function Favorites() {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="Избранное | BMGBRAND"
+        title="Избранное | BOOOMERANGS"
         description="Ваши избранные товары"
         noindex
       />

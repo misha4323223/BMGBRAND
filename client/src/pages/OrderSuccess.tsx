@@ -128,7 +128,7 @@ export default function OrderSuccess() {
   if (isInvoiceOrder) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
-        <SEO title="Предзаказ оформлен | BMGBRAND" noindex={true} />
+        <SEO title="Предзаказ оформлен | BOOOMERANGS" noindex={true} />
         <Navbar />
         <main className="flex-1 container mx-auto px-4 py-16 flex flex-col items-center gap-6">
           <Card className="max-w-md w-full text-center">

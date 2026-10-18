@@ -132,7 +132,7 @@ export default function Privacy() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <SEO title="Политика конфиденциальности" description="Политика конфиденциальности и обработки персональных данных BMGBRAND." noindex={true} />
+      <SEO title="Политика конфиденциальности" description="Политика конфиденциальности и обработки персональных данных BOOOMERANGS." noindex={true} />
       <Navbar />
       <main className="flex-1 pt-32 pb-24 px-4">
         <div className="max-w-4xl mx-auto prose dark:prose-invert" dangerouslySetInnerHTML={{ __html: content }} />
