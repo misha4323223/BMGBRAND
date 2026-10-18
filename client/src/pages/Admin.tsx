@@ -4278,7 +4278,7 @@ export default function Admin() {
   <div class="logo">BMG<span>BRAND</span></div>
   <div style="margin-top: 20px;">${broadcastBody}</div>
   <div class="footer">
-    <p>&copy; ${new Date().getFullYear()} BMGBRAND. Все права защищены.</p>
+    <p>&copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.</p>
   </div>
 </div>
 </body></html>`;
@@ -5583,7 +5583,7 @@ export default function Admin() {
                                 </div>
                                 <div>
                                   <Label className="text-sm">Alt-текст изображения (для SEO и скринридеров)</Label>
-                                  <Input value={currentSlide.heroImageAlt || ""} onChange={(e) => updateSlide({ heroImageAlt: e.target.value })} placeholder="Например: Модель в свитшоте BMGBRAND на фоне города" />
+                                  <Input value={currentSlide.heroImageAlt || ""} onChange={(e) => updateSlide({ heroImageAlt: e.target.value })} placeholder="Например: Модель в свитшоте BOOOMERANGS на фоне города" />
                                   <p className="text-xs text-muted-foreground mt-1">Описывает, что на фото. Если пусто — используется общее описание бренда</p>
                                 </div>
                               </div>
@@ -7798,7 +7798,7 @@ export default function Admin() {
                           slug: slugBase,
                         };
                         const updatedArtists = {
-                          ...(homePageData?.artists || { title: "Наши артисты", subtitle: "Коллаборации", linkText: "Весь мерч", linkUrl: "/products?category=merch", visible: true }),
+                          ...(homePageData?.artists || { title: "Наши артисты", subtitle: "Коллаборации", linkText: "Весь мерч", linkUrl: "/products/merch", visible: true }),
                           items: [newItem, ...currentItems],
                         };
                         try {

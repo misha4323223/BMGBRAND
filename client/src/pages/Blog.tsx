@@ -80,8 +80,8 @@ export default function Blog() {
   return (
     <div className="min-h-screen bg-background">
       <SEO 
-        title={blogSeo?.title || "Блог BOOOMERANGS - одежда, стиль, мерч и производство | BMGBRAND"}
-        description={blogSeo?.description || "Блог BOOOMERANGS об одежде и мерче: гайды по материалам и посадке, новые коллекции и коллаборации с артистами и фестивалями, производство одежды, мерч на заказ и истории бренда BMGBRAND."}
+        title={blogSeo?.title || "Блог BOOOMERANGS - одежда, стиль, мерч и производство"}
+        description={blogSeo?.description || "Блог BOOOMERANGS об одежде и мерче: гайды по материалам и посадке, новые коллекции и коллаборации с артистами и фестивалями, производство одежды, мерч на заказ и истории бренда BOOOMERANGS."}
         keywords="блог BOOOMERANGS, новости российской одежды, тренды, коллекции"
         brandSuffix={false}
         jsonLd={[
@@ -89,7 +89,7 @@ export default function Blog() {
             "@context": "https://schema.org",
             "@type": "Blog",
             "name": homeData?.blog?.title || "BMG Журнал",
-            "description": blogSeo?.description || "Блог BOOOMERANGS об одежде и мерче: гайды по материалам и посадке, новые коллекции и коллаборации с артистами и фестивалями, производство одежды, мерч на заказ и истории бренда BMGBRAND.",
+            "description": blogSeo?.description || "Блог BOOOMERANGS об одежде и мерче: гайды по материалам и посадке, новые коллекции и коллаборации с артистами и фестивалями, производство одежды, мерч на заказ и истории бренда BOOOMERANGS.",
             "url": `${window.location.origin}/blog`,
             "publisher": {
               "@type": "Organization",

@@ -917,7 +917,7 @@ export default function ProductDetail() {
     product.name,
     isMerchProduct ? "мерч" : null,
     isMerchProduct ? "купить мерч" : null,
-    "BMGBRAND",
+    "BOOOMERANGS",
     "BOOOMERANGS",
     "купить",
     categoryName,
@@ -960,7 +960,7 @@ export default function ProductDetail() {
   const organizationSchema = {
     "@type": "Organization",
     "@id": `${origin}/#organization`,
-    "name": "BMGBRAND",
+    "name": "BOOOMERANGS",
     "alternateName": "Booomerangs",
     "url": origin,
     "logo": `${origin}/favicon.png`,

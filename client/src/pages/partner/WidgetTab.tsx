@@ -112,7 +112,7 @@ export function WidgetTab({ slug }: WidgetTabProps) {
           <div className="flex-1 min-w-0">
             <p className="font-medium text-foreground">Публичная страница</p>
             <p className="text-sm text-muted-foreground mb-3">
-              Каталог выбранных вами товаров в стиле BMGBRAND. Делитесь ссылкой с аудиторией —
+              Каталог выбранных вами товаров в стиле BOOOMERANGS. Делитесь ссылкой с аудиторией —
               переходы автоматически закрепляются за вами.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -163,7 +163,7 @@ export function WidgetTab({ slug }: WidgetTabProps) {
             <p className="font-medium text-foreground">Виджет для встраивания</p>
             <p className="text-sm text-muted-foreground mb-3">
               Вставьте этот код на свой сайт — посетители увидят ваши товары прямо там и при
-              нажатии «Купить» перейдут к оплате на BMGBRAND с уже привязанным реферальным
+              нажатии «Купить» перейдут к оплате на BOOOMERANGS с уже привязанным реферальным
               cookie.
             </p>
 

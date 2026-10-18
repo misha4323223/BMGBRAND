@@ -1,4 +1,6 @@
 import SEO from "@/components/SEO";
+import NotFound from "@/pages/not-found";
+import { resolveSubcategorySeoKey } from "@shared/seo-overrides";
 import { usePaginatedProducts, ProductFilters } from "@/hooks/use-products";
 import { ProductCard } from "@/components/ProductCard";
 import { Navbar } from "@/components/Navbar";
@@ -1457,14 +1459,14 @@ function buildListingProductItem(p: any): Record<string, any> {
   const rawDesc = p.description || "";
   const description = rawDesc
     ? String(rawDesc).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160)
-    : `Купить ${p.name} в интернет-магазине BMGBRAND. Доставка по России.`;
+    : `Купить ${p.name} в интернет-магазине BOOOMERANGS. Доставка по России.`;
   return {
     "@type": "Product",
     "name": p.name,
     "description": description,
     "image": productImageUrl(p),
     "sku": p.article || p.sku || String(p.id),
-    "brand": { "@type": "Brand", "name": "BMGBRAND" },
+    "brand": { "@type": "Brand", "name": "BOOOMERANGS" },
     "url": `${window.location.origin}/${p.slug}`,
     "offers": {
       "@type": "Offer",
@@ -1725,6 +1727,8 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     if (searchParam) return `Результаты поиска: "${searchParam}"`;
     if (saleParam) return "SALE";
     if (currentCategory) {
+      // H1 третьего уровня — имя самой под-подкатегории («Худи с начёсом»), а не родителя.
+      if (subSubcategoryParam) return subSubcategoryParam;
       if (subcategoryParam) return subcategoryParam;
       return currentCategory.name;
     }
@@ -1785,10 +1789,31 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     : null;
 
   // SEO-переопределения из админки имеют приоритет над автогенерируемыми текстами.
-  const subSlugForSeo = pathSubSlug || (subcategoryParam ? currentCategory?.subcategories.find(s => s.name === subcategoryParam)?.slug : null);
-  const seoOverrideKey = subSlugForSeo && currentCategory
-    ? `subcategory:${currentCategory.slug}:${subSlugForSeo}`
-    : (currentCategory ? `category:${currentCategory.slug}` : null);
+  // Ручные SEO-тексты подкатегорий хранятся с публичным слагом
+  // (`subcategory:clothing:sweaters`), а не с YDB-слагом (`svitera`). На legacy-адресах
+  // (/sweaters) pathSubSlug пуст, поэтому перебираем кандидатов и берём первого,
+  // для кого переопределение реально существует.
+  const subcategoryOverrideKey = currentCategory
+    ? resolveSubcategorySeoKey(
+        currentCategory.slug,
+        [
+          pathSubSlug,
+          forcedUrlSlug,
+          forcedSubSlug,
+          subcategoryParam ? currentCategory.subcategories.find(s => s.name === subcategoryParam)?.slug : null,
+        ],
+        key => !!seoOverrides?.[key],
+      )
+    : null;
+  // Третий уровень (/products/cat/sub/subsub): собственные SEO-поля важнее родительских (ТЗ п.6).
+  // Ключ совпадает с админским `subsubcategory:<catSlug>:<subSlug>:<subSubSlug>`.
+  const subSubcategoryOverrideKey = currentCategory && pathSubSlug && pathSubSubSlug
+    ? `subsubcategory:${currentCategory.slug}:${pathSubSlug}:${pathSubSubSlug}`
+    : null;
+  const subSubcategoryOverride = subSubcategoryOverrideKey ? seoOverrides?.[subSubcategoryOverrideKey] : null;
+  const seoOverrideKey = (subSubcategoryOverrideKey && subSubcategoryOverride)
+    ? subSubcategoryOverrideKey
+    : (subcategoryOverrideKey || (currentCategory ? `category:${currentCategory.slug}` : null));
   const seoOverride = seoOverrideKey ? seoOverrides?.[seoOverrideKey] : null;
 
   // Current subcategory and its sub-subcategories for filter panel
@@ -1799,12 +1824,12 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
 
   // Dynamic SEO based on active filters
   const catalogSeoTitle = seoOverride?.title || (() => {
-    if (searchParam) return `Поиск: «${searchParam}» — BMGBRAND`;
+    if (searchParam) return `Поиск: «${searchParam}» — BOOOMERANGS`;
     if (saleParam) return "SALE — скидки на одежду";
-    if (subSubcategoryParam) return `${subSubcategoryParam} — купить | ${subcategoryParam || ''} BMGBRAND`;
+    if (subSubcategoryParam) return `${subSubcategoryParam} — купить | ${subcategoryParam || ''} BOOOMERANGS`;
     if (subcategoryParam && isMerch) return `Мерч ${subcategoryParam} — купить официальный мерч`;
     if (subcategoryParam) return `${subcategoryParam} — купить`;
-    if (currentCategory?.slug === 'socks') return "Купить необычные носки с принтом — прикольные носки с мемами | BMGBRAND";
+    if (currentCategory?.slug === 'socks') return "Купить необычные носки с принтом — прикольные носки с мемами";
     if (currentCategory) return `${currentCategory.name} — купить`;
     return "Каталог одежды";
   })();
@@ -1814,43 +1839,49 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   const catalogVisibleDescription = (() => {
     if (searchParam) return null;
     if (subcategoryParam && isMerch) {
-      return `Официальный мерч ${subcategoryParam} в интернет-магазине BMGBRAND: футболки, худи, свитшоты и аксессуары с авторскими принтами артиста. Все модели пошиты из плотного качественного хлопка, принты не выцветают и не трескаются после стирки. Оплата картой или частями через Долями, доставка СДЭК по всей России — от Москвы и Санкт-Петербурга до регионов. Новые коллекции и коллаборации выходят регулярно, размерная сетка и рекомендации по подбору размера — на карточке каждого товара.`;
+      return `Официальный мерч ${subcategoryParam} в интернет-магазине BOOOMERANGS: футболки, худи, свитшоты и аксессуары с авторскими принтами артиста. Все модели пошиты из плотного качественного хлопка, принты не выцветают и не трескаются после стирки. Оплата картой или частями через Долями, доставка СДЭК по всей России — от Москвы и Санкт-Петербурга до регионов. Новые коллекции и коллаборации выходят регулярно, размерная сетка и рекомендации по подбору размера — на карточке каждого товара.`;
     }
     if (subcategoryParam) {
-      return `${subcategoryParam} — раздел каталога BMGBRAND, российского бренда одежды с авторскими принтами из Тулы. В подборке — актуальные модели с уникальными дизайнами, которые не встретить в масс-маркете. Все вещи проверены на качество пошива и печати перед отправкой. Оплата картой или частями через Долями, доставка СДЭК по всей России. На карточке товара доступны таблица размеров и инструмент подбора размера по параметрам.`;
+      return `${subcategoryParam} — раздел каталога BOOOMERANGS, российского бренда одежды с авторскими принтами из Тулы. В подборке — актуальные модели с уникальными дизайнами, которые не встретить в масс-маркете. Все вещи проверены на качество пошива и печати перед отправкой. Оплата картой или частями через Долями, доставка СДЭК по всей России. На карточке товара доступны таблица размеров и инструмент подбора размера по параметрам.`;
     }
     if (currentCategory?.slug === 'socks') {
       return `Необычные носки с принтом BOOOMERANGS — это оригинальные авторские рисунки, мемные принты и классические модели на любой вкус. Состав — качественный хлопок (75%), прочная резинка, яркая печать, которая не выцветает после стирок. Подходят как повседневный образ, так и в подарок: есть одиночные пары и подарочные наборы. Оплата картой или частями через Долями. Доставка СДЭК по всей России — от 1–3 дней в крупных городах.`;
     }
     if (currentCategory) {
-      return `${currentCategory.name} в официальном интернет-магазине BMGBRAND — российского бренда одежды с авторскими принтами. Мы делаем вещи, которые носим сами: плотные ткани, аккуратный крой, печать, которая не трескается и не выцветает. В каталоге — актуальные модели и лимитированные коллаборации с артистами. Оплата картой или частями через Долями, доставка СДЭК по всей России, от крупных городов до отдалённых регионов.`;
+      return `${currentCategory.name} в официальном интернет-магазине BOOOMERANGS — российского бренда одежды с авторскими принтами. Мы делаем вещи, которые носим сами: плотные ткани, аккуратный крой, печать, которая не трескается и не выцветает. В каталоге — актуальные модели и лимитированные коллаборации с артистами. Оплата картой или частями через Долями, доставка СДЭК по всей России, от крупных городов до отдалённых регионов.`;
     }
     if (saleParam) {
-      return `Распродажа в BMGBRAND — одежда и аксессуары с авторскими принтами по сниженным ценам. В разделе собраны товары из прошлых коллекций и остатки лимитированных серий — количество ограничено. Качество то же, что и в основном каталоге: плотный хлопок, аккуратная печать, проверенный пошив. Оплата картой или частями через Долями, доставка СДЭК по всей России.`;
+      return `Распродажа в BOOOMERANGS — одежда и аксессуары с авторскими принтами по сниженным ценам. В разделе собраны товары из прошлых коллекций и остатки лимитированных серий — количество ограничено. Качество то же, что и в основном каталоге: плотный хлопок, аккуратная печать, проверенный пошив. Оплата картой или частями через Долями, доставка СДЭК по всей России.`;
     }
-    return `Каталог BMGBRAND — российского бренда одежды с авторскими принтами из Тулы: худи, свитшоты, футболки, носки и аксессуары. Мы делаем вещи, которые носим сами, поэтому уделяем внимание качеству ткани, кроя и печати принтов. В каталоге — базовые модели, сезонные новинки и лимитированные коллаборации с артистами и фестивалями. Оплата картой или частями через Долями, доставка СДЭК по всей России.`;
+    return `Каталог BOOOMERANGS — российского бренда одежды с авторскими принтами из Тулы: худи, свитшоты, футболки, носки и аксессуары. Мы делаем вещи, которые носим сами, поэтому уделяем внимание качеству ткани, кроя и печати принтов. В каталоге — базовые модели, сезонные новинки и лимитированные коллаборации с артистами и фестивалями. Оплата картой или частями через Долями, доставка СДЭК по всей России.`;
   })();
+
+  // Ручной текст подборки из админки (ТЗ п.6) — показываем вместо автогенерируемого.
+  const seoBodyOverride = typeof (seoOverride as any)?.body === "string" ? String((seoOverride as any).body).trim() : "";
+  const catalogSeoBodyParagraphs = seoBodyOverride
+    ? seoBodyOverride.split(/\n{2,}/).map(p => p.replace(/\s*\n\s*/g, " ").trim()).filter(Boolean)
+    : null;
 
   const catalogSeoDescription = seoOverride?.description || (() => {
     if (subSubcategoryParam) {
-      return `${subSubcategoryParam} — ${subcategoryParam || ''} в официальном магазине BMGBRAND. Одежда с авторскими принтами. Оплата частями через Долями. Доставка по всей России.`;
+      return `${subSubcategoryParam} — ${subcategoryParam || ''} в официальном магазине BOOOMERANGS. Одежда с авторскими принтами. Оплата частями через Долями. Доставка по всей России.`;
     }
     if (subcategoryParam && isMerch) {
-      return `Купить мерч ${subcategoryParam} — официальный магазин BMGBRAND. Футболки, худи, аксессуары. Оплата частями через Долями. Доставка по России СДЭК.`;
+      return `Купить мерч ${subcategoryParam} — официальный магазин BOOOMERANGS. Футболки, худи, аксессуары. Оплата частями через Долями. Доставка по России СДЭК.`;
     }
     if (subcategoryParam) {
-      return `${subcategoryParam} в официальном магазине BMGBRAND. Одежда с авторскими принтами. Оплата частями через Долями. Доставка по всей России.`;
+      return `${subcategoryParam} в официальном магазине BOOOMERANGS. Одежда с авторскими принтами. Оплата частями через Долями. Доставка по всей России.`;
     }
     if (currentCategory?.slug === 'socks') {
       return "Купить необычные носки с принтом BOOOMERANGS: оригинальные носки с мемами, прикольные авторские рисунки, носки хорошего качества — хлопок 75%. Оплата частями. Доставка СДЭК по всей России.";
     }
     if (currentCategory) {
-      return `${currentCategory.name} — купить в официальном интернет-магазине BMGBRAND. Российский бренд одежды. Оплата частями через Долями. Доставка по России.`;
+      return `${currentCategory.name} — купить в официальном интернет-магазине BOOOMERANGS. Российский бренд одежды. Оплата частями через Долями. Доставка по России.`;
     }
     if (saleParam) {
-      return "Распродажа в BMGBRAND — скидки на одежду и аксессуары. Оплата частями через Долями. Доставка по России.";
+      return "Распродажа в BOOOMERANGS — скидки на одежду и аксессуары. Оплата частями через Долями. Доставка по России.";
     }
-    return "Каталог BMGBRAND — худи, футболки, брюки, носки, аксессуары. Оплата частями через Долями. Доставка по всей России.";
+    return "Каталог BOOOMERANGS — худи, футболки, брюки, носки, аксессуары. Оплата частями через Долями. Доставка по всей России.";
   })();
 
   const catalogSeoKeywords = [
@@ -1868,7 +1899,7 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
     currentCategory?.slug === 'socks' ? "купить носки с принтом" : null,
     currentCategory?.slug === 'socks' ? "носки BOOOMERANGS" : null,
     currentCategory?.name,
-    "BMGBRAND",
+    "BOOOMERANGS",
     "BOOOMERANGS",
     "купить",
     "российский бренд одежды и аксессуаров",
@@ -1934,6 +1965,12 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
   }
   if (subSubcategoryParam) {
     uiBreadcrumbItems.push({ name: subSubcategoryParam, href: toPath(catalogCanonical) });
+  }
+
+  // Неизвестный /products/<slug> (например, /products/1C Import): сервер уже отдал
+  // 404, здесь — чтобы человек не видел под чужим URL весь каталог.
+  if (pathCatSlug && dynamicCategories !== undefined && !categories[pathCatSlug]) {
+    return <NotFound />;
   }
 
   const pageContent = (
@@ -2431,9 +2468,9 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
       {/* SEO text block for main categories */}
       {categoryParam === 'clothing' && !subcategoryParam && (
         <div className="max-w-4xl mx-auto px-4 py-12 text-zinc-500 dark:text-zinc-500">
-          <h2 className="text-base font-semibold text-zinc-400 dark:text-zinc-400 mb-3">Одежда BOOOMERANGS / BMGBRAND</h2>
+          <h2 className="text-base font-semibold text-zinc-400 dark:text-zinc-400 mb-3">Одежда BOOOMERANGS</h2>
           <p className="text-sm leading-relaxed mb-3">
-            BOOOMERANGS / BMGBRAND — российский бренд одежды из Тулы с широким ассортиментом: от базовых оверсайз-футболок до зимних курток. Мы создаём вещи, которые носим сами — с вниманием к каждой детали и качеству материалов.
+            BOOOMERANGS — российский бренд одежды из Тулы с широким ассортиментом: от базовых оверсайз-футболок до зимних курток. Мы создаём вещи, которые носим сами — с вниманием к каждой детали и качеству материалов.
           </p>
           <p className="text-sm leading-relaxed mb-3">
             В основе коллекции — базовые футболки oversize из премиальной двухнитки, которые не садятся и не теряют форму после стирки. Для тех, кто ценит технологичность — куртки серии SSH 2.0 из softshell-материала с защитой от ветра и влаги. Для любителей тактического стиля — джоггеры и брюки из рипстопа с практичными карманами.
@@ -2449,7 +2486,7 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
 
       {currentCategory?.slug === 'socks' && !subcategoryParam && (
         <div className="max-w-4xl mx-auto px-4 py-12 text-zinc-500 dark:text-zinc-500">
-          <h2 className="text-base font-semibold text-zinc-400 dark:text-zinc-400 mb-3">Необычные носки с принтом BOOOMERANGS / BMGBRAND</h2>
+          <h2 className="text-base font-semibold text-zinc-400 dark:text-zinc-400 mb-3">Необычные носки с принтом BOOOMERANGS</h2>
           <p className="text-sm leading-relaxed mb-3">
             Носки BOOOMERANGS — это большой выбор необычных и оригинальных моделей с яркими авторскими принтами. Если ищете прикольные носки с мемами, носки с уникальными рисунками или просто носки хорошего качества — вы попали по адресу. Состав: хлопок 75%, полиамид 17%, эластан 8% — комфортная носка, которая держит форму и не теряет цвет после стирки.
           </p>
@@ -2492,16 +2529,20 @@ export default function ProductList({ forcedCatSlug, forcedSubName, forcedSubSlu
         </div>
       )}
 
-      {catalogVisibleDescription && (
+      {(catalogSeoBodyParagraphs || catalogVisibleDescription) && (
         <div className="max-w-4xl mx-auto px-4 py-12">
-          <p
+          <div
             className={`text-sm leading-relaxed ${
               isDarkThemed ? "text-white/50" : isMinta ? "text-[#2e2e2e]/60" : "text-zinc-500 dark:text-zinc-500"
             }`}
             data-testid="text-category-description"
           >
-            {catalogVisibleDescription}
-          </p>
+            {catalogSeoBodyParagraphs
+              ? catalogSeoBodyParagraphs.map((paragraph, i) => (
+                  <p key={i} className={i > 0 ? "mt-3" : undefined}>{paragraph}</p>
+                ))
+              : <p>{catalogVisibleDescription}</p>}
+          </div>
         </div>
       )}
 

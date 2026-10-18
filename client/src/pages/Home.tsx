@@ -530,14 +530,15 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-white">
       <SEO 
-        title={homeSeoOverride?.title || "Официальный сайт бренда Booomerangs"}
-        description={homeSeoOverride?.description || "Booomerangs (BMGBRAND) — официальный магазин мерча. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России."}
+        title={homeSeoOverride?.title || "BOOOMERANGS — российский бренд одежды и мерча"}
+        description={homeSeoOverride?.description || "Официальный интернет-магазин BOOOMERANGS. Одежда, носки и авторский мерч, коллекции артистов и лимитированные дропы. Доставка по всей России."}
         keywords="мерч Гудтаймс, мерч Молодость внутри, мерч Дикая мята, мерч Драгни, мерч МультFильмы, купить мерч, мерч артистов, Booomerangs, BMGBRAND, российский бренд одежды с авторскими принтами"
         jsonLd={[
           {
             "@context": "https://schema.org",
             "@type": "Organization",
-            "name": "BMGBRAND",
+            "@id": `${window.location.origin}/#organization`,
+            "name": "BOOOMERANGS",
             "alternateName": "Booomerangs",
             "description": "Официальный магазин мерча российского бренда одежды и аксессуаров. Мерч Гудтаймс, Молодость внутри, Дикая мята и других артистов. Доставка по всей России.",
             "logo": `${window.location.origin}/favicon.png`,
@@ -563,7 +564,7 @@ export default function Home() {
             "@type": "WebSite",
             "@id": `${window.location.origin}/#website`,
             "name": "Booomerangs",
-            "alternateName": "BMGBRAND",
+            "alternateName": "BOOOMERANGS",
             "url": `${window.location.origin}/`,
             "inLanguage": "ru-RU",
             "publisher": { "@id": `${window.location.origin}/#organization` },
@@ -578,8 +579,8 @@ export default function Home() {
             "@type": "WebPage",
             "@id": `${window.location.origin}/#webpage`,
             "url": `${window.location.origin}/`,
-            "name": homeSeoOverride?.title || "Официальный сайт бренда Booomerangs | BMGBRAND",
-            "description": homeSeoOverride?.description || "Booomerangs (BMGBRAND) — официальный магазин мерча. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
+            "name": homeSeoOverride?.title || "BOOOMERANGS — российский бренд одежды и мерча",
+            "description": homeSeoOverride?.description || "Официальный интернет-магазин BOOOMERANGS. Одежда, носки и авторский мерч, коллекции артистов и лимитированные дропы. Доставка по всей России.",
             "inLanguage": "ru-RU",
             "isPartOf": { "@id": `${window.location.origin}/#website` },
             "about": { "@id": `${window.location.origin}/#organization` },
@@ -591,7 +592,7 @@ export default function Home() {
         ]}
       />
       <Navbar />
-      <h1 className="sr-only">Booomerangs (BMGBRAND) — официальный магазин мерча</h1>
+      <h1 className="sr-only">BOOOMERANGS — российский бренд одежды и мерча</h1>
 
       {settingsLoading && (
         <div className="min-h-screen" />
@@ -1249,7 +1250,7 @@ export default function Home() {
             {pageSettings?.philosophy?.desktopMediaType === "image" && pageSettings?.philosophy?.desktopImage ? (
               <img
                 src={pageSettings.philosophy.desktopImage}
-                alt="BMGBRAND Identity"
+                alt="BOOOMERANGS Identity"
                 loading="lazy"
                 className="hidden md:block w-full h-full object-contain"
               />
@@ -1267,7 +1268,7 @@ export default function Home() {
             ) : (
               <img
                 src={pageSettings?.philosophy?.mobileImage || philosophyMobile}
-                alt="BMGBRAND Identity"
+                alt="BOOOMERANGS Identity"
                 loading="lazy"
                 className="md:hidden w-full h-auto"
               />

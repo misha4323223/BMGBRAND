@@ -114,8 +114,8 @@ export default function Links() {
   return (
     <>
       <SEO
-        title="Ссылки — BMGBRAND"
-        description="Все важные ссылки BMGBRAND: соцсети и маркетплейсы"
+        title="Ссылки — BOOOMERANGS"
+        description="Все важные ссылки BOOOMERANGS: соцсети и маркетплейсы"
         noindex={true}
       />
       <Navbar />

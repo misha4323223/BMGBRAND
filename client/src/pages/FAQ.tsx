@@ -70,7 +70,7 @@ export default function FAQ() {
     <div className="min-h-screen bg-background">
       <SEO 
         title="Вопросы и ответы"
-        description="Часто задаваемые вопросы о заказах, доставке, оплате и возврате в BMGBRAND."
+        description="Часто задаваемые вопросы о заказах, доставке, оплате и возврате в BOOOMERANGS."
         keywords="FAQ BMGBRAND, доставка, оплата, возврат, вопросы"
         jsonLd={{
           "@context": "https://schema.org",

@@ -1104,8 +1104,8 @@ export default function WholesalePreorder() {
   return (
     <div className="min-h-screen bg-background text-foreground" data-testid="page-wholesale-preorder">
       <SEO
-        title="Оптовый предзаказ | BMGBRAND"
-        description="Эксклюзивный оптовый предзаказ BMGBRAND — бронируйте новые коллекции раньше поступления в продажу по оптовым ценам."
+        title="Оптовый предзаказ"
+        description="Эксклюзивный оптовый предзаказ BOOOMERANGS — бронируйте новые коллекции раньше поступления в продажу по оптовым ценам."
         keywords="оптовый предзаказ, BMGBRAND, оптовые цены, предзаказ одежда"
       />
       <WholesaleNavbar />

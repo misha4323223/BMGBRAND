@@ -198,6 +198,9 @@ app.use(cors({
       || origin.endsWith('.replit.dev')
       || origin.endsWith('.pike.replit.dev')
       || origin.endsWith('.daytonaproxy01.net')
+      // Freebuff preview (e2b.app) — иначе браузер в песочнице получает
+      // "CORS error" на каждый запрос к /api, хотя страница открыта с того же хоста.
+      || origin.endsWith('.e2b.app')
       || origin.startsWith('http://localhost:')
       || origin.startsWith('http://127.0.0.1:')
       || origin.startsWith('http://0.0.0.0:')
@@ -502,6 +505,19 @@ async function seedDefaultLegalDocuments() {
     res.status(404).json({ message: "Not Found" });
   });
 
+  // Единый 301 для URL со слэшем на конце (/sweaters/ → /sweaters, /@slug/ → /@slug).
+  // Раньше такие адреса отдавали 200 с тем же canonical: технический дубль для
+  // поисковиков (SEO-отчёт 15.10.2026, п. 1). API и ассеты не трогаем.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+    const [pathname, query] = req.originalUrl.split("?");
+    if (pathname.length <= 1 || !pathname.endsWith("/")) return next();
+    if (pathname.startsWith("/api/") || pathname.startsWith("/assets/")) return next();
+    const trimmed = pathname.replace(/\/+$/, "");
+    if (!trimmed) return next();
+    return res.redirect(301, query ? `${trimmed}?${query}` : trimmed);
+  });
+
   // Bot SSR middleware — intercept known crawlers before the SPA catch-all.
   // Serves real visible HTML from in-memory cache (no YDB calls).
   // Humans are completely unaffected — only bots with matching User-Agent hit this.
@@ -615,6 +631,14 @@ async function seedDefaultLegalDocuments() {
             logError("[Cache] blog_pages keep-alive failed:", err));
         }, 4 * 60 * 1000);
         blogPagesKeepAlive.unref?.();
+        // artist_pages нужен SSR страниц /@slug. Читают его только админка и API,
+        // поэтому на сайте без админа кэш остывал через 10 минут и страницы
+        // артистов отдавались оболочкой с title главной.
+        const artistPagesKeepAlive = setInterval(() => {
+          storage.getPageSettings("artist_pages").catch(err =>
+            logError("[Cache] artist_pages keep-alive failed:", err));
+        }, 4 * 60 * 1000);
+        artistPagesKeepAlive.unref?.();
         // Sync all existing artist/festival pages as merch subcategories
         try {
           await syncArtistPagesToMerchSubcategories(storage);

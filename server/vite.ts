@@ -11,8 +11,10 @@ import { CATEGORIES as SCHEMA_CATEGORIES, buildCategoryIndex, resolveProductCate
 import { buildProductJsonLd } from "../shared/product-jsonld";
 import { resolveBlogPostForSsr, parseBlogIndex, blogPageTitle, blogDescriptionFor, buildBlogPostJsonLd, buildBlogBreadcrumbJsonLd, type BlogPostForSsr } from "../shared/blog-post";
 import { sanitizeHtmlBlock } from "./lib/product-utils";
+import { artistRedirectTarget } from "./lib/artist-redirects";
+import { knownCategorySlugs } from "./lib/catalog-paths";
 
-const SITE_NAME = "BMGBRAND";
+const SITE_NAME = "BOOOMERANGS";
 
 const ARTISTS: Record<string, { name: string; desc: string }> = {
   "goodtimes":      { name: "ГУДТАЙМС",        desc: "Официальный мерч ГУДТАЙМС — купить футболки, худи, аксессуары. Доставка по всей России." },
@@ -23,12 +25,34 @@ const ARTISTS: Record<string, { name: string; desc: string }> = {
 };
 
 const CATEGORIES: Record<string, { name: string; desc: string }> = {
-  "clothing":    { name: "Одежда",      desc: "Купить одежду с авторскими принтами BMGBRAND — худи, свитшоты, футболки, шорты. Доставка по всей России." },
-  "merch":       { name: "Мерч",        desc: "Купить официальный мерч артистов BMGBRAND — одежда и аксессуары с уникальными принтами. Доставка по всей России." },
-  "socks":       { name: "Носки",       desc: "Купить носки BMGBRAND — стильные носки с уникальными принтами. Доставка по всей России." },
-  "accessories": { name: "Аксессуары", desc: "Купить аксессуары BMGBRAND — шапки, сумки, ремни. Доставка по всей России." },
-  "sale":        { name: "SALE", desc: "Распродажа BMGBRAND — выгодные цены на одежду и аксессуары. Доставка по всей России." },
+  "clothing":    { name: "Одежда",      desc: "Купить одежду с авторскими принтами BOOOMERANGS — худи, свитшоты, футболки, шорты. Доставка по всей России." },
+  "merch":       { name: "Мерч",        desc: "Купить официальный мерч артистов BOOOMERANGS — одежда и аксессуары с уникальными принтами. Доставка по всей России." },
+  "socks":       { name: "Носки",       desc: "Купить носки BOOOMERANGS — стильные носки с уникальными принтами. Доставка по всей России." },
+  "accessories": { name: "Аксессуары", desc: "Купить аксессуары BOOOMERANGS — шапки, сумки, ремни. Доставка по всей России." },
+  "sale":        { name: "SALE", desc: "Распродажа BOOOMERANGS — выгодные цены на одежду и аксессуары. Доставка по всей России." },
 };
+
+/** English subcategory alias slugs (зеркало static.ts). */
+const SUBCATEGORY_ALIASES: Record<string, { catSlug: string; name: string }> = {
+  hoodies:              { catSlug: "clothing",    name: "Толстовки" },
+  sweatshirts:          { catSlug: "clothing",    name: "Свитшоты" },
+  sweaters:             { catSlug: "clothing",    name: "Свитера" },
+  "t-shirts":           { catSlug: "clothing",    name: "Футболки" },
+  shorts:               { catSlug: "clothing",    name: "Шорты" },
+  hats:                 { catSlug: "accessories", name: "Шапки" },
+  bags:                 { catSlug: "accessories", name: "Сумки" },
+  remni:                { catSlug: "accessories", name: "Ремни" },
+  "tula-designers":     { catSlug: "merch",       name: "Тульские Дизайнеры" },
+};
+
+/** Ручные SEO-тексты из page_settings.seo (зеркало getSeoOverride в static.ts). */
+function getSeoOverride(key: string): { title?: string; description?: string } {
+  const entry = getCachedRawPageSettings("seo")?.[key];
+  if (!entry || typeof entry !== "object") return {};
+  const title = typeof entry.title === "string" && entry.title.trim() ? entry.title.trim() : undefined;
+  const description = typeof entry.description === "string" && entry.description.trim() ? entry.description.trim() : undefined;
+  return { title, description };
+}
 
 function escHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -54,7 +78,7 @@ function injectMeta(html: string, opts: {
   html = html.replace(/<meta name="twitter:image" content="[^"]*"/, `<meta name="twitter:image" content="${img}"`);
 
   if (canonical) {
-    const canonTag = `<link rel="canonical" href="${escHtml(canonical)}">`;
+    const canonTag = `<link rel="canonical" href="${escHtml(canonical)}" data-rh="true">`;
     if (html.includes('<link rel="canonical"')) {
       html = html.replace(/<link rel="canonical"[^>]*>/, canonTag);
     } else {
@@ -96,8 +120,8 @@ async function applyBotMetaInjection(html: string, url: string, origin: string):
 
   try {
     // --- Product page: /:slug ---
-    const knownRoutes = new Set(['/', '/products', '/cart', '/checkout', '/about', '/admin', '/verify-email', '/reset-password', '/profile', '/favorites', '/vacancies', '/faq', '/terms', '/privacy', '/links', '/concept', '/blog']);
-    const knownPrefixes = ['/products/', '/wholesale/', '/gift-cards/', '/blog/', '/artist/', '/order-success/', '/order-failed/', '/track/', '/api/', '/assets/'];
+    const knownRoutes = new Set(['/', '/products', '/cart', '/checkout', '/about', '/admin', '/verify-email', '/reset-password', '/profile', '/favorites', '/vacancies', '/faq', '/terms', '/privacy', '/links', '/care', '/concept', '/blog', '/predrop/checkout']);
+    const knownPrefixes = ['/products/', '/wholesale/', '/gift-cards/', '/blog/', '/concept/', '/partner/', '/artist/', '/order-success/', '/order-failed/', '/track/', '/api/', '/assets/'];
     const isKnownRoute = knownRoutes.has(cleanUrl) || knownPrefixes.some(p => cleanUrl.startsWith(p));
     const slugMatch = !isKnownRoute ? cleanUrl.match(/^\/([a-z0-9][a-z0-9-]*[a-z0-9])(?:\/?)$/) : null;
 
@@ -179,18 +203,38 @@ async function applyBotMetaInjection(html: string, url: string, origin: string):
       }
     }
 
+    // --- English subcategory alias: /sweaters, /t-shirts ---
+    const aliasSlug = !isKnownRoute ? cleanUrl.match(/^\/([a-z0-9][a-z0-9-]*)$/)?.[1] : null;
+    const alias = aliasSlug ? SUBCATEGORY_ALIASES[aliasSlug] : null;
+    if (alias) {
+      const subSeo = getSeoOverride(`subcategory:${alias.catSlug}:${aliasSlug}`);
+      return injectMeta(html, {
+        title: subSeo.title || `${alias.name} | Booomerangs`,
+        description: subSeo.description || `Купить ${alias.name.toLowerCase()} в интернет-магазине Booomerangs. Широкий выбор, доставка по России.`,
+        ogImage: `${origin}/og-image.png`,
+        canonical: `${origin}/${aliasSlug}`,
+      });
+    }
+
     // --- Artist/creator page: /@:slug ---
     const artistMatch = cleanUrl.match(/^\/@([a-z0-9][a-z0-9-]*)$/);
     if (artistMatch) {
       const artistSlug = artistMatch[1];
+      // Тот же прогрев, что в prod static.ts.
+      await ensurePageSettingsCached("artist_pages");
       const staticArtist = ARTISTS[artistSlug];
       const artistHero = getCachedArtistHeroImage(artistSlug);
-      const artistName = staticArtist?.name || artistHero.name;
-      const artistDesc = staticArtist?.desc || (artistName
+      const artistPageSettings = getCachedRawPageSettings("artist_pages")?.[artistSlug];
+      const artistSeoTitle = typeof artistPageSettings?.seoTitle === "string" && artistPageSettings.seoTitle.trim()
+        ? artistPageSettings.seoTitle.trim() : undefined;
+      const artistSeoDesc = typeof artistPageSettings?.seoDescription === "string" && artistPageSettings.seoDescription.trim()
+        ? artistPageSettings.seoDescription.trim() : undefined;
+      const artistName = staticArtist?.name || artistPageSettings?.name || artistHero.name;
+      const artistDesc = artistSeoDesc || staticArtist?.desc || (artistName
         ? `Официальный мерч ${artistName} — купить одежду и аксессуары с символикой артиста. Доставка по всей России.`
         : null);
       if (artistName && artistDesc) {
-        const title = `Мерч ${artistName} — купить официальный мерч | ${SITE_NAME}`;
+        const title = artistSeoTitle || `Мерч ${artistName} — купить официальный мерч | ${SITE_NAME}`;
         const artistOgImage = artistHero.img || artistHero.imgMobile || `${origin}/og-image.png`;
         const jsonLd = JSON.stringify({
           "@context": "https://schema.org", "@type": "BreadcrumbList",
@@ -209,7 +253,7 @@ async function applyBotMetaInjection(html: string, url: string, origin: string):
     if (catMatch) {
       const cat = CATEGORIES[catMatch[1]];
       if (cat) {
-        const title = `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
+        const title = `${cat.name} — купить в BOOOMERANGS | ${SITE_NAME}`;
         const jsonLd = JSON.stringify({
           "@context": "https://schema.org", "@type": "BreadcrumbList",
           "itemListElement": [
@@ -226,7 +270,7 @@ async function applyBotMetaInjection(html: string, url: string, origin: string):
     if (cleanUrl === "/products") {
       return injectMeta(html, {
         title: `Каталог — одежда и аксессуары | ${SITE_NAME}`,
-        description: "Каталог BMGBRAND — уличная одежда, мерч артистов, носки, аксессуары. Доставка по всей России.",
+        description: "Каталог BOOOMERANGS — уличная одежда, мерч артистов, носки, аксессуары. Доставка по всей России.",
         ogImage: `${origin}/og-image.png`,
         canonical: `${origin}/products`,
       });
@@ -309,6 +353,15 @@ export async function setupVite(server: Server, app: Express) {
         res.redirect(301, cleanBlogUrl.replace(/\/+$/, ""));
         return;
       }
+      // Служебные слаг-клоны артистов → 301 (зеркало bot-ssr/static.ts).
+      const artistRedirectMatch = cleanBlogUrl.match(/^\/@([a-z0-9][a-z0-9-]*)\/?$/);
+      if (artistRedirectMatch) {
+        const target = artistRedirectTarget(artistRedirectMatch[1]);
+        if (target) {
+          res.redirect(301, target);
+          return;
+        }
+      }
       const clientTemplate = path.resolve(
         import.meta.dirname,
         "..",
@@ -326,6 +379,20 @@ export async function setupVite(server: Server, app: Express) {
       const origin = `${req.protocol}://${req.get('host')}`;
       page = await applyBotMetaInjection(page, url, origin);
 
+      // Неизвестный /products/<slug> → 404 + noindex (зеркало prod static.ts).
+      let status = 200;
+      const catCheck = cleanBlogUrl.match(/^\/products\/([^/]+)$/);
+      if (catCheck) {
+        let catSlug = catCheck[1];
+        try { catSlug = decodeURIComponent(catSlug); } catch { /* оставить как есть */ }
+        const known = knownCategorySlugs();
+        if (known && !known.has(catSlug)) {
+          status = 404;
+          page = page.replace(/<title>[^<]*<\/title>/, `<title>404 — Страница не найдена | ${SITE_NAME}</title>`);
+          page = page.replace(/<meta name="robots" content="[^"]*"/, '<meta name="robots" content="noindex">');
+        }
+      }
+
       // Inject home page settings for dev mode (same pattern as production static.ts).
       // Eliminates the settingsLoading blank screen by pre-populating React Query cache.
       const cleanUrl = url.split('?')[0].split('#')[0];
@@ -337,7 +404,11 @@ export async function setupVite(server: Server, app: Express) {
         }
       }
 
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      // Dev-оболочку нельзя кэшировать: после перезапуска Vite меняет хэши
+      // `?v=` у модулей и deps, и старый HTML из кэша браузера/прокси просит
+      // уже несуществующие URL → "Failed to fetch dynamically imported module".
+      res.setHeader("Cache-Control", "no-store");
+      res.status(status).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);

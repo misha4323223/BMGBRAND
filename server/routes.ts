@@ -22,6 +22,7 @@ import { publishVkFeedToStorage } from "./vk-feed-mirror";
 import { computePromoEligibleSubtotal, computePromoDiscount } from "./lib/checkout";
 import { SIZE_ORDER, STANDARD_CLOTHING_SIZES, sanitizeHtmlBlock, sanitizeJsonLd, sortSizes, normalizeSizeKey, canonicalizeSizeKey, resolveSizeStock, resolveSizeCharacteristicId, isOneCCharacteristicGuid, sanitizeSizes, sanitizeSizeStock } from "./lib/product-utils";
 import { isStockSyncDisabled } from "./lib/manual-stock";
+import { artistRedirectTarget } from "./lib/artist-redirects";
 import { registerDadataRoutes } from "./routes/dadata";
 import { registerReviewsRoutes } from "./routes/reviews";
 import { registerPushRoutes } from "./routes/push";
@@ -1593,6 +1594,7 @@ Disallow: /wholesale/profile
 Disallow: /partner/profile
 Disallow: /order-success/
 Disallow: /order-failed/
+Disallow: /track/
 Disallow: /gift-cards/success
 Disallow: /gift-cards/failed
 Disallow: /links
@@ -1672,19 +1674,20 @@ Sitemap: ${siteUrl}/sitemap.xml
         const artistPages = await storage.getPageSettings("artist_pages") as Record<string, any> | null;
         if (artistPages) {
           const names = Object.entries(artistPages)
+            .filter(([slug]) => !artistRedirectTarget(slug))
             .filter(([, v]: [string, any]) => v && v.name)
             .map(([slug, v]: [string, any]) => `- [${v.name}](${llmsBaseUrl}/@${slug})`);
           if (names.length > 0) artistLinks = names.join("\n");
         }
       } catch { /* artist_pages not set yet — section stays empty */ }
 
-      const llmsText = `# BMGBRAND / Booomerangs — российский бренд мерча и одежды
+      const llmsText = `# BOOOMERANGS / Booomerangs — российский бренд мерча и одежды
 
 > Производитель мерча, необычных носков с принтом, худи, футболок и аксессуаров. Собственное производство. Доставка по всей России.
 
 ## Кто мы
 
-BMGBRAND (Booomerangs) — российский бренд одежды и аксессуаров с собственным производством.
+BOOOMERANGS — российский бренд одежды и аксессуаров с собственным производством.
 Делаем мерч для артистов, блогеров, брендов и мероприятий — от идеи и дизайна до готовой продукции.
 Специализируемся на носках с авторскими принтами (более 200 дизайнов), а также на худи, футболках, брюках, аксессуарах.
 
@@ -1692,7 +1695,7 @@ BMGBRAND (Booomerangs) — российский бренд одежды и ак�
 
 ## Официальный мерч артистов
 
-BMGBRAND — официальный производитель и магазин мерча российских артистов и проектов:
+BOOOMERANGS — официальный производитель и магазин мерча российских артистов и проектов:
 - Гудтаймс (rap/hip-hop артист)
 - Молодость внутри (музыкальный проект)
 - Дикая Мята (фестиваль)
@@ -1708,9 +1711,9 @@ ${artistLinks || "- (список формируется)"}
 
 Производим мерч под ключ для артистов, блогеров, компаний и мероприятий.
 
-- Носки с принтом — от 180 ₽/пара, тираж от 50 пар
-- Футболки — от 900 ₽, тираж от 20 штук
-- Худи и свитшоты — от 1 800 ₽, тираж от 20 штук
+- Носки с принтом — от 180 ₽/пара, тираж от 50 пар на артикул
+- Футболки — от 900 ₽, тираж от 1 штуки
+- Худи и свитшоты — от 1 800 ₽, тираж от 1 штуки
 - Аксессуары (кружки, шапки, сумки, панамы) — от 30 единиц
 - Разработка дизайна включена при тираже от 50 единиц
 - Срок производства: носки от 10 рабочих дней, одежда 2–4 недели
@@ -1777,7 +1780,7 @@ ${productLines || "- (список формируется)"}
 
 - Доставка по всей России: СДЭК (курьер, ПВЗ, постаматы)
 - Производство и отгрузка: Тула / Новомосковск
-- Оплата: банковские карты МИР/Visa/MasterCard, Т-Банк (Тинькофф), ЮKassa, подарочные карты BMGBRAND
+- Оплата: банковские карты МИР/Visa/MasterCard, Т-Банк (Тинькофф), ЮKassa, подарочные карты BOOOMERANGS
 
 ## Дополнительно
 
@@ -1813,7 +1816,7 @@ ${productLines || "- (список формируется)"}
 
 ## О бренде
 
-- Название: BMGBRAND / Booomerangs
+- Название: BOOOMERANGS / Booomerangs
 - Страна производства: Россия
 - Город производства: Тула
 - Язык сайта: Русский
@@ -1827,7 +1830,7 @@ ${productLines || "- (список формируется)"}
         logWarn(`[SEO] llms.txt: serving stale cached copy from ${new Date(llmsTextCache.generatedAt).toISOString()}`);
         res.type("text/plain").send(llmsTextCache.text);
       } else {
-        res.type("text/plain").send("# BMGBRAND\n\n> Российский бренд одежды с авторскими принтами. Доставка по всей России.");
+        res.type("text/plain").send("# BOOOMERANGS\n\n> Российский бренд одежды с авторскими принтами. Доставка по всей России.");
       }
     }
   });
@@ -1882,6 +1885,7 @@ ${productLines || "- (список формируется)"}
         const artistPages = await storage.getPageSettings("artist_pages") as Record<string, any> | null;
         if (artistPages) {
           const names = Object.entries(artistPages)
+            .filter(([slug]) => !artistRedirectTarget(slug))
             .filter(([, v]: [string, any]) => v && v.name)
             .map(([slug, v]: [string, any]) => `- [${v.name}](${llmsBaseUrl}/@${slug})`);
           if (names.length > 0) artistLinks = names.join("\n");
@@ -1910,13 +1914,13 @@ ${productLines || "- (список формируется)"}
         })
         .join("\n\n");
 
-      const llmsFullText = `# BMGBRAND / Booomerangs — полная информация (llms-full)
+      const llmsFullText = `# BOOOMERANGS / Booomerangs — полная информация (llms-full)
 
 > Производитель мерча, необычных носков с принтом, худи, футболок и аксессуаров. Собственное производство. Доставка по всей России.
 
 ## Кто мы
 
-BMGBRAND (Booomerangs) — российский бренд одежды и аксессуаров с собственным производством в Туле.
+BOOOMERANGS — российский бренд одежды и аксессуаров с собственным производством в Туле.
 Делаем мерч для артистов, блогеров, брендов и мероприятий — от идеи и дизайна до готовой продукции.
 Специализируемся на носках с авторскими принтами (более 200 дизайнов), а также на худи, футболках, брюках и аксессуарах.
 
@@ -1924,7 +1928,7 @@ BMGBRAND (Booomerangs) — российский бренд одежды и ак�
 
 ## Официальный мерч артистов
 
-BMGBRAND — официальный производитель и магазин мерча российских артистов и проектов: Гудтаймс, Молодость внутри, Дикая Мята, Драгни, МультФильмы.
+BOOOMERANGS — официальный производитель и магазин мерча российских артистов и проектов: Гудтаймс, Молодость внутри, Дикая Мята, Драгни, МультФильмы.
 
 Купить официальный мерч: [Мерч артистов](${llmsBaseUrl}/products/merch)
 
@@ -1933,9 +1937,9 @@ ${artistLinks || "- (список формируется)"}
 
 ## Мерч на заказ
 
-- Носки с принтом — от 180 ₽/пара, тираж от 50 пар
-- Футболки — от 900 ₽, тираж от 20 штук
-- Худи и свитшоты — от 1 800 ₽, тираж от 20 штук
+- Носки с принтом — от 180 ₽/пара, тираж от 50 пар на артикул
+- Футболки — от 900 ₽, тираж от 1 штуки
+- Худи и свитшоты — от 1 800 ₽, тираж от 1 штуки
 - Аксессуары (кружки, шапки, сумки, панамы) — от 30 единиц
 - Разработка дизайна включена при тираже от 50 единиц
 - Срок производства: носки от 10 рабочих дней, одежда 2–4 недели
@@ -2003,7 +2007,7 @@ ${faqSection}
 
 - Доставка по всей России: СДЭК (курьер, ПВЗ, постаматы)
 - Производство и отгрузка: Тула / Новомосковск
-- Оплата: банковские карты МИР/Visa/MasterCard, Т-Банк (Тинькофф), ЮKassa, подарочные карты BMGBRAND
+- Оплата: банковские карты МИР/Visa/MasterCard, Т-Банк (Тинькофф), ЮKassa, подарочные карты BOOOMERANGS
 
 ## Уход за вещами
 
@@ -2030,7 +2034,7 @@ ${faqSection}
 
 ## О бренде
 
-- Название: BMGBRAND / Booomerangs
+- Название: BOOOMERANGS / Booomerangs
 - Страна производства: Россия
 - Город производства: Тула
 - Язык сайта: Русский
@@ -2044,7 +2048,7 @@ ${faqSection}
         logWarn(`[SEO] llms-full.txt: serving stale cached copy from ${new Date(llmsFullTextCache.generatedAt).toISOString()}`);
         res.type("text/plain").send(llmsFullTextCache.text);
       } else {
-        res.type("text/plain").send("# BMGBRAND / Booomerangs\n\n> Российский бренд одежды с авторскими принтами. Доставка по всей России.");
+        res.type("text/plain").send("# BOOOMERANGS / Booomerangs\n\n> Российский бренд одежды с авторскими принтами. Доставка по всей России.");
       }
     }
   });
@@ -2197,6 +2201,8 @@ ${faqSection}
       }
 
       for (const artistSlug of Object.keys(artistPages)) {
+        // Служебные дубли (artist-<timestamp>) отдают 301 — в sitemap им нельзя.
+        if (artistRedirectTarget(artistSlug)) continue;
         // Включаем только реальных артистов с заполненным именем — тестовые страницы пропускаем
         const artistData = artistPages[artistSlug];
         const hasRealName = artistData?.name && typeof artistData.name === "string" && artistData.name.trim().length > 0;
@@ -2255,11 +2261,11 @@ ${faqSection}
           const safeTitle = escAttr((product as any).name || "");
           // image:caption — used by Yandex.Images and Google Images to describe
           // the photo in search results. Prefer product description (≤200 chars),
-          // fall back to "name — официальный мерч BMGBRAND".
+          // fall back to "name — официальный мерч BOOOMERANGS".
           const rawDesc = ((product as any).description || "").replace(/<[^>]*>/g, "").trim();
           const captionText = rawDesc
             ? `${rawDesc.slice(0, 180)}${rawDesc.length > 180 ? "…" : ""}`
-            : `${(product as any).name || ""} — официальный мерч BMGBRAND`;
+            : `${(product as any).name || ""} — официальный мерч BOOOMERANGS`;
           const safeCaption = escAttr(captionText);
           xml += `    <image:image>\n`;
           xml += `      <image:loc>${safeImg}</image:loc>\n`;
@@ -2273,9 +2279,16 @@ ${faqSection}
       // Concept campaign pages (/concept/:slug)
       try {
         const conceptCampaignsList = await storage.getPageSettings("concept_campaigns");
-        const conceptSlugs: string[] = Array.isArray(conceptCampaignsList?.campaigns)
-          ? conceptCampaignsList.campaigns.map((c: any) => c.slug).filter(Boolean)
-          : Object.keys(conceptCampaignsList || {}).filter(k => k !== "campaigns" && /^[a-z0-9][a-z0-9-]*$/.test(k));
+        // Реальная форма настроек: { list: { slugs: string[] } }. Старый fallback
+        // брал ключи объекта, из-за чего в sitemap попадал /concept/list → 404.
+        const rawConceptSlugs: unknown[] = Array.isArray(conceptCampaignsList?.campaigns)
+          ? conceptCampaignsList.campaigns.map((c: any) => c?.slug)
+          : Array.isArray(conceptCampaignsList?.list?.slugs)
+            ? conceptCampaignsList.list.slugs
+            : [];
+        const conceptSlugs: string[] = rawConceptSlugs.filter(
+          (s): s is string => typeof s === "string" && /^[a-z0-9][a-z0-9-]*$/.test(s),
+        );
 
         // /concept index
         if (conceptSlugs.length > 0) {
@@ -2285,13 +2298,10 @@ ${faqSection}
           xml += `    <priority>0.7</priority>\n`;
           xml += `  </url>\n`;
         }
-        for (const slug of conceptSlugs) {
-          xml += `  <url>\n`;
-          xml += `    <loc>${baseUrl}/concept/${slug}</loc>\n`;
-          xml += `    <changefreq>weekly</changefreq>\n`;
-          xml += `    <priority>0.75</priority>\n`;
-          xml += `  </url>\n`;
-        }
+        // Отдельные кампании /concept/<slug> в sitemap не публикуем: на бою они
+        // отдают 404 (bot-ssr не прогревает concept_campaign_<slug>, а static.ts
+        // не знает префикса /concept/). Пока страницы не починены, честнее держать
+        // в sitemap только живой индекс /concept.
       } catch { /* skip if concept settings not available */ }
 
       // Блог убран из sitemap (29.07.2026) — страница не наполнена реальным контентом,
@@ -2418,8 +2428,8 @@ ${faqSection}
       let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
       xml += `<yml_catalog date="${now}">\n`;
       xml += `  <shop>\n`;
-      xml += `    <name>BMGBRAND</name>\n`;
-      xml += `    <company>BMGBRAND (Booomerangs)</company>\n`;
+      xml += `    <name>BOOOMERANGS</name>\n`;
+      xml += `    <company>BOOOMERANGS</company>\n`;
       xml += `    <url>${baseUrl}</url>\n`;
       xml += `    <currencies>\n`;
       xml += `      <currency id="RUB" rate="1"/>\n`;
@@ -2460,7 +2470,7 @@ ${faqSection}
         const colors: string[] = Array.isArray(p.colors) ? p.colors : [];
         const isMerch = p.category === "merch";
         const namePrefix = isMerch ? "Мерч " : "";
-        const descFallback = `${namePrefix}${p.name} — купить в BMGBRAND. Доставка по всей России.`;
+        const descFallback = `${namePrefix}${p.name} — купить в BOOOMERANGS. Доставка по всей России.`;
         const descRaw = p.description
           ? p.description.slice(0, 3000)
           : descFallback;
@@ -2493,7 +2503,7 @@ ${faqSection}
         // Служебные теги и param — только для Яндекса/YCP: в принятом ВК файле
         // их не было, а в сумме они дают ~70 КБ, из-за которых ВК отвергает фид.
         if (!isVkFeed) {
-          xml += `        <vendor>BMGBRAND</vendor>\n`;
+          xml += `        <vendor>BOOOMERANGS</vendor>\n`;
           xml += `        <vendorCode>${escXml(p.article || p.sku || String(p.id))}</vendorCode>\n`;
           xml += `        <country_of_origin>Россия</country_of_origin>\n`;
           if (sizes.length > 0) {
@@ -2639,13 +2649,13 @@ ${faqSection}
       }
 
       let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-      xml += `<!-- Ozon Marketplace Feed — BMGBRAND -->\n`;
+      xml += `<!-- Ozon Marketplace Feed — BOOOMERANGS -->\n`;
       xml += `<!-- Сгенерирован: ${now} | Товаров: ${visibleProducts.length} -->\n`;
       xml += `<!-- ВАЖНО: перед загрузкой в Ozon проверьте ID категорий в ЛК продавца -->\n`;
       xml += `<yml_catalog date="${now}">\n`;
       xml += `  <shop>\n`;
-      xml += `    <name>BMGBRAND</name>\n`;
-      xml += `    <company>BMGBRAND (Booomerangs)</company>\n`;
+      xml += `    <name>BOOOMERANGS</name>\n`;
+      xml += `    <company>BOOOMERANGS</company>\n`;
       xml += `    <url>https://booomerangs.ru</url>\n`;
       xml += `    <currencies>\n`;
       xml += `      <currency id="RUB" rate="1"/>\n`;
@@ -2685,7 +2695,7 @@ ${faqSection}
 
         const desc = p.description
           ? p.description.slice(0, 2000)
-          : `${p.name} — купить в BMGBRAND. Доставка по всей России.`;
+          : `${p.name} — купить в BOOOMERANGS. Доставка по всей России.`;
 
         // vendorCode = артикул из 1С или внутренний ID
         const vendorCode = p.article || p.sku || String(p.id);
@@ -2704,7 +2714,7 @@ ${faqSection}
           xml += `        <picture>${escXml(img)}</picture>\n`;
         }
         xml += `        <description>${escXml(desc)}</description>\n`;
-        xml += `        <vendor>BMGBRAND</vendor>\n`;
+        xml += `        <vendor>BOOOMERANGS</vendor>\n`;
         xml += `        <vendorCode>${escXml(vendorCode)}</vendorCode>\n`;
         xml += `        <country_of_origin>Россия</country_of_origin>\n`;
         xml += `        <weight>${weight}</weight>\n`;
@@ -2725,7 +2735,7 @@ ${faqSection}
             xml += `        <param name="Цвет">${escXml(color)}</param>\n`;
           }
         }
-        xml += `        <param name="Бренд">BMGBRAND</param>\n`;
+        xml += `        <param name="Бренд">BOOOMERANGS</param>\n`;
         xml += `        <param name="Вид одежды">${escXml(catEntry.name)}</param>\n`;
         xml += `      </offer>\n`;
       }
@@ -4318,7 +4328,7 @@ ${faqSection}
                     });
                     await sendEmail({
                       to: order.customerEmail,
-                      subject: `Заказ #${order.id} оплачен — BMGBRAND`,
+                      subject: `Заказ #${order.id} оплачен — BOOOMERANGS`,
                       html: emailHtml,
                     });
                     logInfo(`[YooKassa Webhook] Order confirmation email sent to ${order.customerEmail}`);
@@ -4598,7 +4608,7 @@ ${faqSection}
                     </div>
                     
                     <div class="footer">
-                      <p>&copy; ${new Date().getFullYear()} BMGBRAND. Все права защищены.</p>
+                      <p>&copy; ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.</p>
                     </div>
                   </div>
                 </body>
@@ -4607,7 +4617,7 @@ ${faqSection}
               
               await sendEmail({
                 to: firstCard.purchaserEmail,
-                subject: `Подарочные карты BMGBRAND (${batchCards.length} шт.) на ${(totalAmount / 100).toLocaleString('ru-RU')} ₽ оплачены`,
+                subject: `Подарочные карты BOOOMERANGS (${batchCards.length} шт.) на ${(totalAmount / 100).toLocaleString('ru-RU')} ₽ оплачены`,
                 html: batchHtml
               });
               logInfo(`[T-Bank Webhook] Batch email sent to: ${firstCard.purchaserEmail}`);
@@ -4624,7 +4634,7 @@ ${faqSection}
                     );
                     await sendEmail({
                       to: card.recipientEmail,
-                      subject: `Вам подарили подарочную карту BMGBRAND на ${(card.amount / 100).toLocaleString('ru-RU')} ₽!`,
+                      subject: `Вам подарили подарочную карту BOOOMERANGS на ${(card.amount / 100).toLocaleString('ru-RU')} ₽!`,
                       html: recipientHtml
                     });
                     logInfo(`[T-Bank Webhook] Batch recipient email sent to: ${card.recipientEmail}`);
@@ -4763,7 +4773,7 @@ ${faqSection}
                   );
                   await sendEmail({
                     to: giftCard.purchaserEmail,
-                    subject: `Подарочная карта BMGBRAND на ${(giftCard.amount / 100).toLocaleString('ru-RU')} ₽ оплачена`,
+                    subject: `Подарочная карта BOOOMERANGS на ${(giftCard.amount / 100).toLocaleString('ru-RU')} ₽ оплачена`,
                     html: purchaserHtml
                   });
                   logInfo(`[T-Bank Webhook] Email sent to purchaser: ${giftCard.purchaserEmail}`);
@@ -4780,7 +4790,7 @@ ${faqSection}
                     );
                     await sendEmail({
                       to: giftCard.recipientEmail,
-                      subject: `Вам подарили подарочную карту BMGBRAND на ${(giftCard.amount / 100).toLocaleString('ru-RU')} ₽!`,
+                      subject: `Вам подарили подарочную карту BOOOMERANGS на ${(giftCard.amount / 100).toLocaleString('ru-RU')} ₽!`,
                       html: recipientHtml
                     });
                     logInfo(`[T-Bank Webhook] Email sent to recipient: ${giftCard.recipientEmail}`);
@@ -4897,7 +4907,7 @@ ${faqSection}
                     });
                     await sendEmail({
                       to: order.customerEmail,
-                      subject: `Заказ #${order.id} оплачен — BMGBRAND`,
+                      subject: `Заказ #${order.id} оплачен — BOOOMERANGS`,
                       html: emailHtml,
                     });
                     logInfo(`[T-Bank Webhook] Order confirmation email sent to ${order.customerEmail}`);
@@ -12032,14 +12042,14 @@ ${faqSection}
       if (paymentService.isYooKassaEnabled() || paymentService.isTBankEnabled()) {
         const amountRub = totalAmount / 100;
         const description = quantity > 1 
-          ? `Подарочные карты BMGBRAND (${quantity} шт.) на ${amountRub} ₽`
-          : `Подарочная карта BMGBRAND на ${amountRub} ₽`;
+          ? `Подарочные карты BOOOMERANGS (${quantity} шт.) на ${amountRub} ₽`
+          : `Подарочная карта BOOOMERANGS на ${amountRub} ₽`;
 
         const useWidget = paymentMethod === "yookassa" || (!paymentMethod && paymentService.isYooKassaEnabled());
         const amountPerCard = input.amount;
         const giftCardReceiptItems = quantity > 1
-          ? [{ name: `Подарочная карта BMGBRAND (${quantity} шт.)`, quantity: quantity, price: amountPerCard }]
-          : [{ name: `Подарочная карта BMGBRAND`, quantity: 1, price: totalAmount }];
+          ? [{ name: `Подарочная карта BOOOMERANGS (${quantity} шт.)`, quantity: quantity, price: amountPerCard }]
+          : [{ name: `Подарочная карта BOOOMERANGS`, quantity: 1, price: totalAmount }];
         const payment = await paymentService.createPayment({
           amount: totalAmount,
           description,

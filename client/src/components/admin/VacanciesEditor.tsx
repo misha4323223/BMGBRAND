@@ -52,7 +52,7 @@ export function VacanciesEditor({ pageSettingsQuery, savePageSectionMutation }: 
   const data = pageSettingsQuery.data?.vacancies_data || {};
   
   const [pageTitle, setPageTitle] = useState(data.pageTitle || "Вакансии");
-  const [pageSubtitle, setPageSubtitle] = useState(data.pageSubtitle || "Присоединяйся к команде BMGBRAND! Мы всегда в поиске талантливых и увлечённых людей.");
+  const [pageSubtitle, setPageSubtitle] = useState(data.pageSubtitle || "Присоединяйся к команде BOOOMERANGS! Мы всегда в поиске талантливых и увлечённых людей.");
   const [hrEmail, setHrEmail] = useState(data.hrEmail || "hr@booomerangs.ru");
   const [resumeText, setResumeText] = useState(data.resumeText || "Не нашли подходящую вакансию? Отправьте резюме, и мы свяжемся с вами!");
   const [emptyText, setEmptyText] = useState(data.emptyText || "Сейчас открытых вакансий нет, но вы можете отправить резюме");
@@ -66,7 +66,7 @@ export function VacanciesEditor({ pageSettingsQuery, savePageSectionMutation }: 
     const d = pageSettingsQuery.data?.vacancies_data;
     if (!d) return;
     setPageTitle(d.pageTitle || "Вакансии");
-    setPageSubtitle(d.pageSubtitle || "Присоединяйся к команде BMGBRAND! Мы всегда в поиске талантливых и увлечённых людей.");
+    setPageSubtitle(d.pageSubtitle || "Присоединяйся к команде BOOOMERANGS! Мы всегда в поиске талантливых и увлечённых людей.");
     setHrEmail(d.hrEmail || "hr@booomerangs.ru");
     setResumeText(d.resumeText || "Не нашли подходящую вакансию? Отправьте резюме, и мы свяжемся с вами!");
     setEmptyText(d.emptyText || "Сейчас открытых вакансий нет, но вы можете отправить резюме");

@@ -28,7 +28,7 @@ const WHAT_WE_MAKE = [
   { name: "Футболки", desc: "Оверсайз и классика", emoji: "👕" },
   { name: "Худи, свитшоты и свитера", desc: "", emoji: "🧥" },
   { name: "Брюки, джоггеры и джинсы", desc: "", emoji: "👖" },
-  { name: "Носки", desc: "Любые принты, 200+ дизайнов, от 50 пар", emoji: "🧦" },
+  { name: "Носки", desc: "Любые принты, 200+ дизайнов, от 50 пар на артикул", emoji: "🧦" },
   { name: "Аксессуары", desc: "Кружки, шапки, сумки, панамы, ремни", emoji: "🎒" },
   { name: "Упаковка", desc: "Брендированные пакеты, бирки, коробки", emoji: "📦" },
 ];
@@ -43,8 +43,8 @@ const STEPS = [
 
 const STATS = [
   { value: "5+", label: "лет на рынке" },
-  { value: "200+", label: "дизайнов носков" },
-  { value: "от 20", label: "штук в тираже" },
+  { value: "от 1", label: "шт — футболки и худи" },
+  { value: "от 50", label: "пар носков на артикул" },
   { value: "24 ч", label: "ответ на заявку" },
 ];
 
@@ -59,7 +59,7 @@ const CLIENTS = [
 const FAQ_ITEMS = [
   {
     question: "Какой минимальный тираж для создания мерча на заказ?",
-    answer: "Минимальный тираж зависит от типа продукции: носки - от 50 пар, футболки и худи - от 1 штуки, аксессуары - от 30 единиц.",
+    answer: "Минимальный тираж зависит от типа продукции: носки — от 50 пар на артикул, футболки и худи — от 1 штуки, аксессуары — от 30 единиц.",
   },
   {
     question: "Сколько стоит мерч на заказ?",
@@ -121,12 +121,12 @@ export default function MerchOrder() {
   const merchSeo = seoOverrides?.merch_order || {};
   const merchHero = (merchSettings?.hero as Record<string, string>) || {};
   const merchContent = (merchSettings?.content as Record<string, any>) || {};
-  const seoTitle = (merchSeo as any).title || "Мерч на заказ — футболки, худи, носки с принтом от 180 ₽ | BMGBRAND";
-  const seoDescription = (merchSeo as any).description || "Производство мерча на заказ от BMGBRAND: футболки от 900 ₽, худи от 1800 ₽, носки от 180 ₽/пара. Тираж от 20 шт. Разработка дизайна бесплатно. Работаем с блогерами, артистами, компаниями. Доставка по всей России — Тула, Москва, регионы.";
+  const seoTitle = (merchSeo as any).title || "Производство мерча на заказ оптом — BOOOMERANGS";
+  const seoDescription = (merchSeo as any).description || "Производство мерча на заказ от BOOOMERANGS: футболки и худи от 1 штуки, носки от 50 пар на артикул, аксессуары от 30 единиц. Бесплатная разработка дизайна, доставка по всей России.";
   const heroDesktopSrc: string = merchHero.heroImage || (merchBannerDesktop as unknown as string);
   const heroMobileSrc: string = merchHero.heroImageMobile || (merchBannerMobile as unknown as string);
   const heroAlt: string = merchHero.heroImageAlt || "Мерч на заказ — производство под ключ, доставка по всей России";
-  const pageH1: string = merchContent.h1 || "Мерч на заказ — производство мерча под ключ от BMGBRAND";
+  const pageH1: string = merchContent.h1 || "Мерч на заказ — производство мерча под ключ";
   const techText: string = merchContent.techText || "";
   const b2bText: string = merchContent.b2bText || "";
   const faqItemsResolved: Array<{ question: string; answer: string }> =
@@ -157,7 +157,7 @@ export default function MerchOrder() {
     {
       "@context": "https://schema.org",
       "@type": "LocalBusiness",
-      "name": "BMGBRAND (Booomerangs)",
+      "name": "BOOOMERANGS",
       "url": "https://booomerangs.ru",
       "image": "https://booomerangs.ru/og-image.png",
       "description": "Производство мерча на заказ под ключ: футболки, худи, носки, аксессуары с авторскими принтами. Работаем по всей России.",
@@ -172,7 +172,7 @@ export default function MerchOrder() {
     {
       "@context": "https://schema.org",
       "@type": "WebPage",
-      "name": "Мерч на заказ — BMGBRAND (Booomerangs)",
+      "name": "Мерч на заказ — BOOOMERANGS",
       "url": "https://booomerangs.ru/merch-na-zakaz",
       "speakable": {
         "@type": "SpeakableSpecification",
@@ -182,7 +182,7 @@ export default function MerchOrder() {
     {
       "@context": "https://schema.org",
       "@type": "HowTo",
-      "name": "Как заказать мерч в BMGBRAND",
+      "name": "Как заказать мерч в BOOOMERANGS",
       "description": "Производство мерча на заказ под ключ: от заявки до доставки по всей России.",
       "step": STEPS.map((s) => ({
         "@type": "HowToStep",
@@ -197,18 +197,18 @@ export default function MerchOrder() {
       "name": "Создание мерча на заказ",
       "provider": {
         "@type": "Organization",
-        "name": "BMGBRAND",
+        "name": "BOOOMERANGS",
         "url": "https://booomerangs.ru",
         "address": { "@type": "PostalAddress", "addressLocality": "Тула", "addressCountry": "RU" },
       },
-      "description": "Производство мерча на заказ под ключ: футболки, худи, носки, аксессуары с авторскими принтами. Работаем с блогерами, артистами, компаниями по всей России. Тираж от 20 штук.",
+      "description": "Производство мерча на заказ под ключ: футболки, худи, носки, аксессуары с авторскими принтами. Работаем с блогерами, артистами, компаниями по всей России. Футболки и худи — от 1 штуки, носки — от 50 пар на артикул.",
       "areaServed": "RU",
       "serviceType": "Производство мерча",
       "offers": [
-        { "@type": "Offer", "name": "Носки с принтом на заказ", "priceCurrency": "RUB", "price": "180", "description": "Носки с принтом от 180 ₽/пара при тираже от 50 пар. 200+ дизайнов." },
-        { "@type": "Offer", "name": "Футболки на заказ", "priceCurrency": "RUB", "price": "900", "description": "Футболки с принтом от 900 ₽ при тираже от 20 штук. 100% хлопок." },
-        { "@type": "Offer", "name": "Худи на заказ", "priceCurrency": "RUB", "price": "1800", "description": "Худи и свитшоты от 1 800 ₽ при тираже от 20 штук. Трёхнитка." },
-        { "@type": "Offer", "name": "Брюки и джоггеры на заказ", "priceCurrency": "RUB", "price": "1500", "description": "Брюки и джоггеры от 1 500 ₽ при тираже от 20 штук." },
+        { "@type": "Offer", "name": "Носки с принтом на заказ", "priceCurrency": "RUB", "price": "180", "description": "Носки с принтом от 180 ₽/пара при тираже от 50 пар на артикул. 200+ дизайнов." },
+        { "@type": "Offer", "name": "Футболки на заказ", "priceCurrency": "RUB", "price": "900", "description": "Футболки с принтом от 900 ₽ при тираже от 1 штуки. 100% хлопок." },
+        { "@type": "Offer", "name": "Худи на заказ", "priceCurrency": "RUB", "price": "1800", "description": "Худи и свитшоты от 1 800 ₽ при тираже от 1 штуки. Трёхнитка." },
+        { "@type": "Offer", "name": "Брюки и джоггеры на заказ", "priceCurrency": "RUB", "price": "1500", "description": "Брюки и джоггеры от 1 500 ₽." },
         { "@type": "Offer", "name": "Корпоративный мерч", "priceCurrency": "RUB", "price": "180", "description": "Мерч для компаний, мероприятий, фестивалей. Брендирование под ключ." },
       ],
     },
@@ -371,7 +371,7 @@ export default function MerchOrder() {
                 Футболки с логотипом на заказ
               </h2>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Оверсайз и классический крой с нанесением логотипа или авторского принта — от 900&nbsp;₽. Шелкография, термотрансфер. Подходит для корпоративных подарков, мерча блогеров, фирменной одежды сотрудников.
+                Оверсайз и классический крой с нанесением логотипа или авторского принта — от 900&nbsp;₽, тираж от 1 штуки. Шелкография, термотрансфер. Подходит для корпоративных подарков, мерча блогеров, фирменной одежды сотрудников.
               </p>
             </div>
             <div>
@@ -379,7 +379,7 @@ export default function MerchOrder() {
                 Худи и толстовки с принтом
               </h2>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Трёхнитка с начёсом, вышивка или шелкография — от 1&nbsp;800&nbsp;₽. Собственный пошив на производстве в Туле. Популярный формат мерча для музыкантов, спортивных команд и корпоративного гардероба.
+                Трёхнитка с начёсом, вышивка или шелкография — от 1&nbsp;800&nbsp;₽, тираж от 1 штуки. Собственный пошив на производстве в Туле. Популярный формат мерча для музыкантов, спортивных команд и корпоративного гардероба.
               </p>
             </div>
             <div>
@@ -387,7 +387,7 @@ export default function MerchOrder() {
                 Носки с символикой компании
               </h2>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                От 180&nbsp;₽/пара при тираже от 50 пар. 200+ авторских дизайнов. Хлопок 75%, полиамид 17%, эластан 8%. Один из самых популярных форматов корпоративных подарков для партнёров.
+                От 180&nbsp;₽/пара при тираже от 50 пар на артикул. 200+ авторских дизайнов. Хлопок 75%, полиамид 17%, эластан 8%. Один из самых популярных форматов корпоративных подарков для партнёров.
               </p>
             </div>
           </div>
@@ -402,7 +402,7 @@ export default function MerchOrder() {
             <div>
               <p className="text-xs font-medium tracking-[0.3em] uppercase text-primary mb-2">Корпоративный мерч и B2B</p>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                {b2bText || <>Работаем с юридическими лицами и ИП — закрывающие документы, договор, счёт. Тираж от 20 штук одежды или от 50 пар носков. Доставляем по всей России: <strong className="text-zinc-200">Москва</strong>, <strong className="text-zinc-200">Санкт-Петербург</strong> и регионы.</>}
+                {b2bText || <>Работаем с юридическими лицами и ИП — закрывающие документы, договор, счёт. Футболки и худи — от 1 штуки, носки — от 50 пар на артикул. Доставляем по всей России: <strong className="text-zinc-200">Москва</strong>, <strong className="text-zinc-200">Санкт-Петербург</strong> и регионы.</>}
               </p>
             </div>
           </div>
@@ -435,14 +435,14 @@ export default function MerchOrder() {
         </div>
       </section>
 
-      {/* ── ПОЧЕМУ BMGBRAND - светлая ── */}
+      {/* ── ПОЧЕМУ BOOOMERANGS - светлая ── */}
       <section className="py-20 px-6 bg-background" data-testid="merch-order-why">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-12">
             <div>
               <p className="text-xs font-medium tracking-[0.3em] uppercase text-primary mb-2">Преимущества</p>
               <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-tight">
-                Почему BMGBRAND
+                Почему BOOOMERANGS
               </h2>
             </div>
           </div>
@@ -452,7 +452,7 @@ export default function MerchOrder() {
             {[
               { num: "100%", label: "собственное производство", sub: "Никаких посредников" },
               { num: "2 нед", label: "стандартный срок пошива", sub: "" },
-              { num: "от 1 шт", label: "минимальный тираж одежды", sub: "Носки - от 50 пар" },
+              { num: "от 1 шт", label: "футболки и худи", sub: "Носки — от 50 пар на артикул" },
               { num: "0₽", label: "предоплата за дизайн", sub: "" },
             ].map((s) => (
               <div key={s.num} className="rounded-2xl bg-zinc-950 text-white p-5 sm:p-6 flex flex-col justify-between min-h-[120px]">

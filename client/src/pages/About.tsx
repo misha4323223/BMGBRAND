@@ -16,14 +16,14 @@ export default function About() {
     <div className="min-h-screen bg-background text-foreground" data-testid="page-about">
       <SEO
         title="О бренде BOOOMERANGS — история, производство, команда"
-        description="BOOOMERANGS (BMGBRAND) — российский бренд одежды и аксессуаров из Тулы. Основан в 2006 году. Собственное производство с 2019 года. 200+ моделей носков, одежда и мерч для артистов. На сайте работает встроенный ИИ-консультант BOOOM AI. Делаем вещи, которые носим сами."
+        description="BOOOMERANGS — российский бренд одежды и аксессуаров из Тулы. Основан в 2006 году. Собственное производство с 2019 года. 200+ моделей носков, одежда и мерч для артистов. На сайте работает встроенный ИИ-консультант BOOOM AI. Делаем вещи, которые носим сами."
         keywords="о бренде BOOOMERANGS, история бренда, BMGBRAND, российский бренд одежды, Тула, производство одежды, мерч, BOOOM AI"
         canonical="https://booomerangs.ru/about"
         jsonLd={[
           {
             "@context": "https://schema.org",
             "@type": "Organization",
-            "name": "BMGBRAND",
+            "name": "BOOOMERANGS",
             "alternateName": ["Booomerangs", "BOOOMERANGS"],
             "description": "Российский бренд одежды и аксессуаров с авторскими принтами из Тулы. Основан в 2006 году. Собственное производство с 2019 года. Худи, футболки, носки, аксессуары и мерч для артистов. На сайте работает встроенный ИИ-консультант BOOOM AI.",
             "url": "https://booomerangs.ru",

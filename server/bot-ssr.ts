@@ -38,6 +38,8 @@ import { CATEGORIES, normalizeCategories, findCategoryBySubcategorySlug, findCat
 import { buildProductJsonLd } from "../shared/product-jsonld";
 import { resolveBlogPostForSsr, parseBlogIndex, blogPageTitle, blogDescriptionFor, buildBlogPostJsonLd, buildBlogBreadcrumbJsonLd, type BlogPostForSsr } from "../shared/blog-post";
 import { sanitizeHtmlBlock } from "./lib/product-utils";
+import { artistRedirectTarget } from "./lib/artist-redirects";
+import { knownCategorySlugs, legacyCategoryParamRedirect } from "./lib/catalog-paths";
 
 // ─── Bot User-Agent detection ─────────────────────────────────────────────────
 // Only include server-side crawlers and link-preview fetchers.
@@ -174,7 +176,7 @@ export function clearBotSsrCache(): number {
 }
 
 // ─── Static site data (mirrors server/static.ts — kept in sync manually) ─────
-const SITE_NAME = "BMGBRAND";
+const SITE_NAME = "BOOOMERANGS";
 const SITE_URL = (process.env.SITE_URL || "https://booomerangs.ru").replace(/\/$/, "");
 
 // Единая сущность Organization с @id — используется как ссылка (brand/seller)
@@ -273,15 +275,15 @@ function getFaqItems(): Array<{ question: string; answer: string }> {
 }
 
 const CAT_META: Record<string, { name: string; title?: string; desc: string }> = {
-  clothing:    { name: "Одежда",                    desc: "Купить одежду с авторскими принтами BMGBRAND — худи, свитшоты, футболки, шорты. Доставка по всей России." },
-  merch:       { name: "Мерч",                      desc: "Купить официальный мерч артистов BMGBRAND — одежда и аксессуары с уникальными принтами. Доставка по всей России." },
+  clothing:    { name: "Одежда",                    desc: "Купить одежду с авторскими принтами BOOOMERANGS — худи, свитшоты, футболки, шорты. Доставка по всей России." },
+  merch:       { name: "Мерч",                      desc: "Купить официальный мерч артистов BOOOMERANGS — одежда и аксессуары с уникальными принтами. Доставка по всей России." },
   socks:       {
     name: "Необычные носки с принтом",
-    title: "Купить необычные носки с принтом — прикольные носки с мемами | BMGBRAND",
+    title: "Носки с принтами и рисунками — BOOOMERANGS",
     desc: "Купить необычные носки с принтом BOOOMERANGS: оригинальные носки с мемами, прикольные авторские рисунки, носки хорошего качества — хлопок 75%. Большой выбор принтов. Доставка по всей России СДЭК.",
   },
-  accessories: { name: "Аксессуары",                desc: "Купить аксессуары BMGBRAND — шапки, сумки, ремни и другие аксессуары. Доставка по всей России." },
-  sale:        { name: "SALE",                desc: "Распродажа BMGBRAND — выгодные цены на одежду и аксессуары. Доставка по всей России." },
+  accessories: { name: "Аксессуары",                desc: "Купить аксессуары BOOOMERANGS — шапки, сумки, ремни и другие аксессуары. Доставка по всей России." },
+  sale:        { name: "SALE",                desc: "Распродажа BOOOMERANGS — выгодные цены на одежду и аксессуары. Доставка по всей России." },
 };
 
 // ─── Admin-editable SEO overrides ──────────────────────────────────────────────
@@ -554,7 +556,7 @@ function navHtml(): string {
 function footerHtml(): string {
   return `<footer>
   <div class="container">
-    <p>© ${new Date().getFullYear()} BMGBRAND (Booomerangs). Все права защищены.</p>
+    <p>© ${new Date().getFullYear()} BOOOMERANGS. Все права защищены.</p>
     <p><a href="https://vk.com/bmgbrand">ВКонтакте</a> · <a href="https://t.me/bmg_booomerangs">Telegram</a> · <a href="mailto:info@booomerangs.ru">info@booomerangs.ru</a></p>
     <p><a href="/products">Каталог</a> · <a href="/products/socks">Носки</a> · <a href="/products/clothing">Одежда</a> · <a href="/products/accessories">Аксессуары</a> · <a href="/products/merch">Мерч</a> · <a href="/products/sale">SALE</a></p>
     <p><a href="/about">О бренде</a> · <a href="/faq">Вопросы и ответы</a> · <a href="/contacts">Контакты</a> · <a href="/merch-na-zakaz">Мерч на заказ</a></p>
@@ -600,12 +602,12 @@ function renderHome(): string | null {
     </article>`).join("\n");
 
   const homeSeoTitle = getSeoOverride("home").title || `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
-  const homeSeoDesc = getSeoOverride("home").description || "Booomerangs (BMGBRAND) — официальный магазин мерча со встроенным ИИ-консультантом BOOOM AI. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.";
+  const homeSeoDesc = getSeoOverride("home").description || "Официальный интернет-магазин BOOOMERANGS. Одежда, носки и авторский мерч, коллекции артистов и лимитированные дропы. Встроенный ИИ-консультант BOOOM AI подберёт размер. Доставка по всей России.";
   const jsonLd = safeJsonLd([
     {
       "@context": "https://schema.org",
       ...buildOrganizationSchema(),
-      "description": "Официальный магазин мерча российского бренда одежды и аксессуаров BMGBRAND со встроенным ИИ-консультантом BOOOM AI, который помогает подобрать размер и рассказывает о товаре.",
+      "description": "Официальный магазин мерча российского бренда одежды и аксессуаров BOOOMERANGS со встроенным ИИ-консультантом BOOOM AI, который помогает подобрать размер и рассказывает о товаре.",
     },
     {
       "@context": "https://schema.org",
@@ -650,7 +652,7 @@ function renderHome(): string | null {
   });
 
   const body = `
-<h1>BOOOMERANGS — официальный магазин бренда BMGBRAND</h1>
+<h1>BOOOMERANGS — официальный магазин бренда BOOOMERANGS</h1>
 <p class="desc">Российский бренд одежды с авторскими принтами из Тулы. Худи, свитшоты, футболки, носки и аксессуары. Делаем вещи, которые носим сами. На каждой странице товара работает встроенный ИИ-консультант BOOOM AI — помогает подобрать размер и отвечает на вопросы о составе, уходе и коллаборациях. Доставка по всей России СДЭК.</p>
 <h2>Категории товаров</h2>
 <div class="cats">${catLinks}</div>
@@ -682,7 +684,7 @@ function renderCatalog(): string | null {
   const topProducts = products.slice(0, 12);
   const catalogSeo = getSeoOverride("static:catalog");
   const catalogTitle = catalogSeo.title || `Каталог — одежда и аксессуары | ${SITE_NAME}`;
-  const catalogDesc = catalogSeo.description || "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.";
+  const catalogDesc = catalogSeo.description || "Каталог BOOOMERANGS — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.";
   const jsonLd = safeJsonLd([
     {
       "@context": "https://schema.org",
@@ -728,7 +730,7 @@ function renderCatalog(): string | null {
   const body = `
 <div class="breadcrumb"><a href="/">Главная</a> / Каталог</div>
 <h1>Каталог BOOOMERANGS</h1>
-<p class="desc">Официальный магазин бренда BMGBRAND. Доставка по всей России.</p>
+<p class="desc">Официальный магазин бренда BOOOMERANGS. Доставка по всей России.</p>
 ${catBlocks || "<p>Товары загружаются...</p>"}`;
 
   return wrapPage(head, body);
@@ -764,7 +766,7 @@ function renderCategory(catSlug: string): string | null {
   // которую поисковики и ИИ-краулеры «не видят».
   if (products.length === 0 && !isProductsCacheWarm()) {
     const catSeo = getSeoOverride(`category:${catSlug}`);
-    const title = catSeo.title || cat.title || `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
+    const title = catSeo.title || cat.title || `${cat.name} — купить в BOOOMERANGS | ${SITE_NAME}`;
     const desc = catSeo.description || cat.desc;
     return renderLoadingPlaceholder({
       title,
@@ -810,7 +812,7 @@ function renderCategory(catSlug: string): string | null {
     : "";
 
   const catSeo = getSeoOverride(`category:${catSlug}`);
-  const title = catSeo.title || cat.title || `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
+  const title = catSeo.title || cat.title || `${cat.name} — купить в BOOOMERANGS | ${SITE_NAME}`;
   const desc = catSeo.description || cat.desc;
   const jsonLd = safeJsonLd([
     {
@@ -1210,7 +1212,44 @@ export const LEGACY_FLAT_REDIRECTS: Record<string, string> = {
   "sportivnye-34-39":   "/products/socks",
 };
 
-function renderSubcategory(subSlug: string, canonicalSlug?: string): string | null {
+/**
+ * Страница подкатегории, в которой сейчас нет товаров.
+ *
+ * Адреса вида `/sale-jackets` есть в конфиге категорий и в меню, поэтому
+ * робот не должен получать на них 404 («страницы нет»). Отдаём 200 с честным
+ * текстом и `noindex, follow`: пустой раздел не попадает в индекс, но ссылка
+ * работает и вес уходит на родительскую категорию.
+ */
+function renderEmptySubcategory(
+  category: { name: string; slug: string },
+  subcategory: { name: string; slug: string },
+  pageSlug: string,
+): string {
+  const catMeta = CAT_META[category.slug];
+  const catName = catMeta?.name || category.name;
+  const pageUrl = `${SITE_URL}/${pageSlug}`;
+  const subSeo = getSeoOverride(`subcategory:${category.slug}:${subcategory.slug}`);
+  const title = subSeo.title || `${subcategory.name} — купить в ${SITE_NAME} | ${catName}`;
+  const desc = subSeo.description || `В разделе «${subcategory.name}» пока нет товаров. Посмотрите другие разделы каталога ${SITE_NAME}.`;
+
+  const head = baseHead({
+    title,
+    description: desc,
+    canonical: pageUrl,
+    ogImage: `${SITE_URL}/og-image.png`,
+    extra: '<meta name="robots" content="noindex, follow">',
+  });
+
+  const body = `
+<div class="breadcrumb"><a href="/">Главная</a> / <a href="/products">Каталог</a> / <a href="/products/${esc(category.slug)}">${esc(catName)}</a> / ${esc(subcategory.name)}</div>
+<h1>${esc(subcategory.name)}</h1>
+<p class="desc">${esc(desc)}</p>
+<p style="margin-top:1.5rem"><a href="/products/${esc(category.slug)}">← Все ${esc(catName)}</a></p>`;
+
+  return wrapPage(head, body);
+}
+
+export function renderSubcategory(subSlug: string, canonicalSlug?: string): string | null {
   // Build the live category map the same way /api/categories does:
   // read from the in-memory page-settings cache (site_config.categories_data),
   // fall back to the static schema CATEGORIES if the cache is cold.
@@ -1244,8 +1283,8 @@ function renderSubcategory(subSlug: string, canonicalSlug?: string): string | nu
         ? `Мерч ${subcategory.name} — купить официальный мерч | ${SITE_NAME}`
         : `${subcategory.name} — купить в ${SITE_NAME} | ${catName}`);
       const desc = subSeo.description || (isMerch
-        ? `Официальный мерч ${subcategory.name} в интернет-магазине BMGBRAND: одежда и аксессуары с авторскими принтами. Доставка по всей России СДЭК.`
-        : `${subcategory.name} от BMGBRAND — ${catName.toLowerCase()} с авторскими принтами. Доставка по всей России.`);
+        ? `Официальный мерч ${subcategory.name} в интернет-магазине BOOOMERANGS: одежда и аксессуары с авторскими принтами. Доставка по всей России СДЭК.`
+        : `${subcategory.name} от BOOOMERANGS — ${catName.toLowerCase()} с авторскими принтами. Доставка по всей России.`);
       return renderLoadingPlaceholder({
         title,
         description: desc,
@@ -1254,7 +1293,9 @@ function renderSubcategory(subSlug: string, canonicalSlug?: string): string | nu
         body: `<h1>${esc(subcategory.name)}</h1><p class="desc">${esc(desc)}</p><p>Товары раздела загружаются — зайдите чуть позже.</p>`,
       });
     }
-    return null;
+    // Кэш тёплый, но во всей категории нет товаров — тот же честный noindex,
+    // что и для пустой под-подкатегории.
+    return renderEmptySubcategory(category, subcategory, canonicalSlug ?? subSlug);
   }
 
   // Products belong to a subcategory either directly (p.subcategory) or via
@@ -1269,7 +1310,11 @@ function renderSubcategory(subSlug: string, canonicalSlug?: string): string | nu
       path.categorySlug === targetCatSlug && path.subcategorySlug === targetSubSlug
     )
   );
-  if (filtered.length === 0) return null;
+  // Валидная подкатегория без товаров → 200 + noindex вместо 404: адрес
+  // остаётся рабочим (на него ведут меню и конфиг категорий).
+  if (filtered.length === 0) {
+    return renderEmptySubcategory(category, subcategory, canonicalSlug ?? subSlug);
+  }
 
   const inStock = filtered.filter((p: any) => p.stock > 0);
   const outOfStock = filtered.filter((p: any) => p.stock === 0);
@@ -1284,8 +1329,8 @@ function renderSubcategory(subSlug: string, canonicalSlug?: string): string | nu
     ? `Мерч ${subcategory.name} — купить официальный мерч | ${SITE_NAME}`
     : `${subcategory.name} — купить в ${SITE_NAME} | ${catName}`);
   const desc = subSeo.description || (isMerch
-    ? `Официальный мерч ${subcategory.name} в интернет-магазине BMGBRAND: одежда и аксессуары с авторскими принтами. Доставка по всей России СДЭК.`
-    : `${subcategory.name} от BMGBRAND — ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России.`);
+    ? `Официальный мерч ${subcategory.name} в интернет-магазине BOOOMERANGS: одежда и аксессуары с авторскими принтами. Доставка по всей России СДЭК.`
+    : `${subcategory.name} от BOOOMERANGS — ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России.`);
 
   // canonicalSlug is the URL the bot actually arrived at (e.g. "sweaters").
   // subSlug is the internal YDB slug (e.g. "svitera"). Use canonicalSlug when set.
@@ -1416,7 +1461,7 @@ function renderSubSubcategoryLoading(
   const pageUrl = `${SITE_URL}/products/${category.slug}/${subcategory.slug}/${subSubcategory.slug}`;
   const subSubSeo = getSeoOverride(`subsubcategory:${category.slug}:${subcategory.slug}:${subSubcategory.slug}`);
   const title = subSubSeo.title || `${subSubcategory.name} — купить в ${SITE_NAME} | ${subcategory.name}, ${catName}`;
-  const desc = subSubSeo.description || `${subSubcategory.name} от BMGBRAND — ${subcategory.name.toLowerCase()}, ${catName.toLowerCase()} с авторскими принтами. Доставка по всей России СДЭК.`;
+  const desc = subSubSeo.description || `${subSubcategory.name} от BOOOMERANGS — ${subcategory.name.toLowerCase()}, ${catName.toLowerCase()} с авторскими принтами. Доставка по всей России СДЭК.`;
 
   // Ссылки на соседние под-подкатегории — краулеры продолжают обход по разделу
   let siblingLinks = "";
@@ -1500,7 +1545,7 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
 
   const subSubSeo = getSeoOverride(`subsubcategory:${catSlug}:${subSlug}:${subSubSlug}`);
   const title = subSubSeo.title || `${subSubcategory.name} — купить в ${SITE_NAME} | ${subcategory.name}, ${catName}`;
-  const desc = subSubSeo.description || `${subSubcategory.name} от BMGBRAND — ${subcategory.name.toLowerCase()}, ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России СДЭК.`;
+  const desc = subSubSeo.description || `${subSubcategory.name} от BOOOMERANGS — ${subcategory.name.toLowerCase()}, ${catName.toLowerCase()} с авторскими принтами. ${inStock.length > 0 ? `В наличии: ${inStock.length} моделей.` : ''} Доставка по всей России СДЭК.`;
 
   const jsonLd = safeJsonLd([
     {
@@ -1550,13 +1595,13 @@ function renderSubSubcategory(catSlug: string, subSlug: string, subSubSlug: stri
 }
 
 function renderAbout(): string {
-  const description = "BOOOMERANGS (BMGBRAND) — российский бренд одежды из Тулы. Основан в 2006 году, своё производство с 2019 года. 200+ моделей носков, мерч для артистов, встроенный ИИ-консультант BOOOM AI.";
+  const description = "BOOOMERANGS — российский бренд одежды из Тулы. Основан в 2006 году, своё производство с 2019 года. 200+ моделей носков, мерч для артистов, встроенный ИИ-консультант BOOOM AI.";
 
   const jsonLd = safeJsonLd([
     {
       "@context": "https://schema.org",
       "@type": "Organization",
-      "name": "BMGBRAND",
+      "name": "BOOOMERANGS",
       "alternateName": ["Booomerangs", "BOOOMERANGS"],
       "description": description,
       "url": SITE_URL,
@@ -1599,7 +1644,7 @@ function renderAbout(): string {
       "jobTitle": "Основатель",
       "worksFor": {
         "@type": "Organization",
-        "name": "BMGBRAND",
+        "name": "BOOOMERANGS",
         "url": SITE_URL,
       },
       "quote": "Сначала приходит вдохновение. Потом эскиз, подбор тканей, тестирование — стираем и носим сами, пока не убедимся что вещь готова. И только потом — в производство.",
@@ -1617,7 +1662,7 @@ function renderAbout(): string {
 
   const body = `
 <div class="breadcrumb"><a href="/">Главная</a> / О бренде</div>
-<h1>О бренде BOOOMERANGS (BMGBRAND)</h1>
+<h1>О бренде BOOOMERANGS</h1>
 <p class="desc">${esc(description)}</p>
 
 <h2>Цифры</h2>
@@ -1679,7 +1724,7 @@ function renderAbout(): string {
 
 function renderFaq(): string {
   const faqItems = getFaqItems();
-  const description = "Ответы на частые вопросы о заказах, доставке, оплате и возврате в интернет-магазине BMGBRAND.";
+  const description = "Ответы на частые вопросы о заказах, доставке, оплате и возврате в интернет-магазине BOOOMERANGS.";
 
   const jsonLd = safeJsonLd([
     {
@@ -1722,7 +1767,7 @@ ${faqItems.map(item => `<h2>${esc(item.question)}</h2><p>${esc(item.answer)}</p>
 
 function renderMerchOrder(): string {
   const DEFAULT_MERCH_FAQ = [
-    { q: "Какой минимальный тираж для создания мерча на заказ?", a: "Минимальный тираж зависит от типа продукции: носки — от 50 пар, футболки и худи — от 1 штуки, аксессуары — от 30 единиц." },
+    { q: "Какой минимальный тираж для создания мерча на заказ?", a: "Минимальный тираж зависит от типа продукции: носки — от 50 пар на артикул, футболки и худи — от 1 штуки, аксессуары — от 30 единиц." },
     { q: "Сколько стоит мерч на заказ?", a: "Носки с принтом — от 180 ₽/пара, футболки — от 900 ₽, худи — от 1 800 ₽, брюки — от 1 500 ₽. Точный расчёт делаем индивидуально." },
     { q: "Вы помогаете с разработкой дизайна?", a: "Да. Разработаем дизайн с нуля или адаптируем ваши материалы. Дизайнерская работа включена в стоимость заказа." },
     { q: "Сколько времени занимает изготовление?", a: "Одежда — от 3 дней. Носки — от 14 рабочих дней. Срочные заказы обсуждаются отдельно." },
@@ -1735,9 +1780,9 @@ function renderMerchOrder(): string {
   // Read content overrides from cached page settings (no YDB calls)
   const cachedMerchSettings = getCachedRawPageSettings("merch_order") || {};
   const content = (cachedMerchSettings.content as Record<string, any>) || {};
-  const pageH1: string = (content.h1 as string) || "Мерч на заказ — производство мерча под ключ от BMGBRAND";
+  const pageH1: string = (content.h1 as string) || "Мерч на заказ — производство мерча под ключ от BOOOMERANGS";
   const techText: string = (content.techText as string) || "Используем шелкографию, термотрансфер и вышивку. Это обеспечивает долговечность и яркость принта после многократных стирок. Подбираем технологию под ваш дизайн, материал и тираж — менеджер расскажет о плюсах каждого метода при обсуждении заказа.";
-  const b2bText: string = (content.b2bText as string) || "Заказать корпоративный мерч оптом для вашей компании, фестиваля или бренда. Работаем с юридическими лицами, ИП и физическими лицами. Минимальный тираж — от 20 штук одежды или от 50 пар носков. Бесплатный макет и полный цикл согласования перед запуском производства. Доставляем по всей России: Москва, Санкт-Петербург и регионы.";
+  const b2bText: string = (content.b2bText as string) || "Заказать корпоративный мерч оптом для вашей компании, фестиваля или бренда. Работаем с юридическими лицами, ИП и физическими лицами. Минимальный тираж: футболки и худи — от 1 штуки, носки — от 50 пар на артикул. Бесплатный макет и полный цикл согласования перед запуском производства. Доставляем по всей России: Москва, Санкт-Петербург и регионы.";
   const rawFaq = Array.isArray(content.faqItems) && content.faqItems.length > 0
     ? (content.faqItems as Array<{ question: string; answer: string }>).map(f => ({ q: f.question, a: f.answer }))
     : DEFAULT_MERCH_FAQ;
@@ -1766,11 +1811,11 @@ function renderMerchOrder(): string {
         "url": SITE_URL,
         "address": { "@type": "PostalAddress", "addressLocality": "Тула", "addressCountry": "RU" },
       },
-      "description": "Производство мерча на заказ под ключ: футболки, худи, носки, аксессуары. Шелкография, термотрансфер, вышивка. Работаем с компаниями, блогерами, артистами по всей России. Тираж от 20 штук. Разработка дизайна бесплатно.",
+      "description": "Производство мерча на заказ под ключ: футболки, худи, носки, аксессуары. Шелкография, термотрансфер, вышивка. Работаем с компаниями, блогерами, артистами по всей России. Футболки и худи — от 1 штуки, носки — от 50 пар на артикул. Разработка дизайна бесплатно.",
       "areaServed": "RU",
       "serviceType": "Производство мерча",
       "offers": [
-        { "@type": "Offer", "name": "Носки с принтом на заказ", "priceCurrency": "RUB", "price": 180, "description": "Носки с принтом от 180 ₽/пара при тираже от 50 пар. 200+ дизайнов." },
+        { "@type": "Offer", "name": "Носки с принтом на заказ", "priceCurrency": "RUB", "price": 180, "description": "Носки с принтом от 180 ₽/пара при тираже от 50 пар на артикул. 200+ дизайнов." },
         { "@type": "Offer", "name": "Футболки с логотипом на заказ", "priceCurrency": "RUB", "price": 900, "description": "Футболки с принтом от 900 ₽. Шелкография, термотрансфер. 100% хлопок." },
         { "@type": "Offer", "name": "Худи и толстовки с принтом на заказ", "priceCurrency": "RUB", "price": 1800, "description": "Худи и свитшоты от 1 800 ₽. Вышивка и шелкография. Трёхнитка." },
         { "@type": "Offer", "name": "Корпоративный мерч", "priceCurrency": "RUB", "price": 180, "description": "Мерч для компаний, мероприятий, фестивалей. Брендирование под ключ." },
@@ -1779,7 +1824,7 @@ function renderMerchOrder(): string {
     {
       "@context": "https://schema.org",
       "@type": "HowTo",
-      "name": "Как заказать мерч в BMGBRAND",
+      "name": "Как заказать мерч в BOOOMERANGS",
       "description": "Производство мерча на заказ под ключ: от заявки до доставки по всей России.",
       "step": [
         { "@type": "HowToStep", "position": 1, "name": "Заявка", "text": "Заполните форму на сайте. Опишите идею, тип товара и тираж." },
@@ -1809,8 +1854,8 @@ function renderMerchOrder(): string {
   ]);
 
   const seoOverride = getSeoOverride("merch_order");
-  const title = seoOverride.title || `Мерч на заказ — футболки, худи, носки с принтом от 180 ₽ | ${SITE_NAME}`;
-  const description = seoOverride.description || "Производство мерча на заказ от BMGBRAND: футболки от 900 ₽, худи от 1800 ₽, носки от 180 ₽/пара. Тираж от 20 шт. Разработка дизайна бесплатно. Работаем с блогерами, артистами, компаниями. Доставка по всей России — Тула, Москва, регионы.";
+  const title = seoOverride.title || "Производство мерча на заказ оптом — BOOOMERANGS";
+  const description = seoOverride.description || "Производство мерча на заказ от BOOOMERANGS: футболки и худи от 1 штуки, носки от 50 пар на артикул, аксессуары от 30 единиц. Бесплатная разработка дизайна, доставка по всей России.";
 
   const head = baseHead({
     title,
@@ -1822,11 +1867,11 @@ function renderMerchOrder(): string {
 
   const body = `
 <div class="breadcrumb"><a href="/">Главная</a> / Мерч на заказ</div>
-<h1>Мерч на заказ — производство мерча под ключ от BMGBRAND</h1>
-<p class="desc">Производство мерча на заказ: футболки с логотипом, худи с вышивкой, носки с принтом от 180 ₽/пара. Собственное производство в Туле — полный цикл без посредников. Тираж от 20 штук. Бесплатная разработка дизайна. Доставка по всей России: Москва, Санкт-Петербург, регионы.</p>
+<h1>Мерч на заказ — производство мерча под ключ от BOOOMERANGS</h1>
+<p class="desc">Производство мерча на заказ: футболки с логотипом, худи с вышивкой, носки с принтом от 180 ₽/пара. Собственное производство в Туле — полный цикл без посредников. Футболки и худи — от 1 штуки, носки — от 50 пар на артикул. Бесплатная разработка дизайна. Доставка по всей России: Москва, Санкт-Петербург, регионы.</p>
 
 <h2>Мерч для компаний и брендов</h2>
-<p>Заказать корпоративный мерч оптом для вашей компании, фестиваля или бренда. Производим футболки, худи, носки и аксессуары с нанесением логотипа. Работаем с юридическими лицами, ИП и физическими лицами. Минимальный тираж — от 20 штук одежды или от 50 пар носков. Бесплатный макет и полный цикл согласования перед запуском производства.</p>
+<p>Заказать корпоративный мерч оптом для вашей компании, фестиваля или бренда. Производим футболки, худи, носки и аксессуары с нанесением логотипа. Работаем с юридическими лицами, ИП и физическими лицами. Минимальный тираж: футболки и худи — от 1 штуки, носки — от 50 пар на артикул. Бесплатный макет и полный цикл согласования перед запуском производства.</p>
 
 <h2>Технологии нанесения</h2>
 <p>Используем шелкографию, термотрансфер и вышивку. Это обеспечивает долговечность и яркость принта после многократных стирок. Подбираем технологию под ваш дизайн, материал и тираж — менеджер расскажет о плюсах каждого метода при обсуждении заказа.</p>
@@ -1838,7 +1883,7 @@ function renderMerchOrder(): string {
 <p>Худи и свитшоты с вышивкой или принтом — от 1 800 ₽. Трёхнитка с начёсом, высокое качество пошива на собственном производстве. Доступна вышивка, шелкография и термотрансфер. Отлично подходит для мерча музыкантов, спортивных команд и корпоративного гардероба.</p>
 
 <h2>Носки с символикой компании</h2>
-<p>Носки с принтом — от 180 ₽/пара при тираже от 50 пар. 200+ авторских дизайнов, производим носки с любым логотипом или принтом. Хлопок 75%, полиамид 17%, эластан 8%. Один из самых популярных форматов корпоративного мерча и подарков для партнёров.</p>
+<p>Носки с принтом — от 180 ₽/пара при тираже от 50 пар на артикул. 200+ авторских дизайнов, производим носки с любым логотипом или принтом. Хлопок 75%, полиамид 17%, эластан 8%. Один из самых популярных форматов корпоративного мерча и подарков для партнёров.</p>
 
 <h2>Как это работает</h2>
 <ol style="margin:.75rem 0;padding-left:1.5rem">
@@ -1863,7 +1908,7 @@ function renderMerchOrder(): string {
 <ul style="margin:.75rem 0;padding-left:1.5rem">
   <li><a href="/products/clothing">Футболки с принтом</a> — оверсайз и классика, от 900 ₽</li>
   <li><a href="/products/clothing">Худи с вышивкой</a> — трёхнитка, от 1 800 ₽</li>
-  <li><a href="/products/socks">Носки с логотипом</a> — от 180 ₽/пара, тираж от 50 пар</li>
+  <li><a href="/products/socks">Носки с логотипом</a> — от 180 ₽/пара, тираж от 50 пар на артикул</li>
   <li><a href="/products/accessories">Аксессуары с логотипом</a> — шапки, сумки, кепки, шопперы</li>
   <li><a href="/products/merch">Мерч для артистов</a> — официальный мерч блогеров и музыкантов</li>
 </ul>
@@ -1996,7 +2041,11 @@ ${cards}
 // ─── /concept/:slug — страница конкретной кампании ───────────────────────────
 
 function renderConceptCampaign(slug: string): string | null {
-  const settings = getCachedRawPageSettings(`concept_campaign_${slug}`);
+  const cached = getCachedRawPageSettings(`concept_campaign_${slug}`);
+  // Пустой объект = в page_settings нет строк для этой кампании (YDB-промах
+  // кэшируется именно как {}). Без этой проверки любой `/concept/<случайный
+  // слаг>` отдавал бы 200 с заголовком из слага — бесконечные soft-404.
+  const settings = cached && Object.keys(cached).length > 0 ? cached : null;
   // Если нет настроек — проверим хотя бы есть ли товары в этой группе
   const hero = settings?.hero || {};
 
@@ -2181,6 +2230,15 @@ ${blogProductsBlock(post)}
   return wrapPage(head, body);
 }
 
+/** Единая HTML-страница 404 для bot-SSR: noindex и без меты главной. */
+function renderNotFoundPage(message: string): string {
+  return '<!doctype html><html lang="ru"><head><meta charset="UTF-8">' +
+    '<meta name="robots" content="noindex"><title>404 — Страница не найдена | ' + SITE_NAME + '</title></head>' +
+    '<body><h1>404 — Страница не найдена</h1>' +
+    `<p>${message}</p>` +
+    '<p><a href="/">На главную</a> · <a href="/products">Каталог</a></p></body></html>';
+}
+
 /** 404 для несуществующей статьи: noindex, чтобы поисковики не держали пустышку. */
 function renderBlogNotFound(): string {
   const head = baseHead({
@@ -2253,8 +2311,8 @@ function renderBlog(): string {
   ]);
 
   const head = baseHead({
-    title:       blogSeo.title       || "Блог BOOOMERANGS - одежда, стиль, мерч и производство | BMGBRAND",
-    description: blogSeo.description || "Блог BOOOMERANGS об одежде и мерче: гайды по материалам и посадке, новые коллекции и коллаборации с артистами и фестивалями, производство одежды, мерч на заказ и истории бренда BMGBRAND.",
+    title:       blogSeo.title       || "Блог BOOOMERANGS - одежда, стиль, мерч и производство",
+    description: blogSeo.description || "Блог BOOOMERANGS об одежде и мерче: гайды по материалам и посадке, новые коллекции и коллаборации с артистами и фестивалями, производство одежды, мерч на заказ и истории бренда BOOOMERANGS.",
     canonical:   `${SITE_URL}/blog`,
     ogImage:     `${SITE_URL}/og-image.png`,
     jsonLd,
@@ -2290,13 +2348,13 @@ function renderVacancies(): string {
   const raw = pageSettings?.vacancies_data;
   const settings = raw
     ? (typeof raw === "string" ? JSON.parse(raw) : raw)
-    : { vacancies: defaultVacancies, pageTitle: "Вакансии", pageSubtitle: "Присоединяйся к команде BMGBRAND!", hrEmail: "hr@booomerangs.ru" };
+    : { vacancies: defaultVacancies, pageTitle: "Вакансии", pageSubtitle: "Присоединяйся к команде BOOOMERANGS!", hrEmail: "hr@booomerangs.ru" };
 
   if (settings.pageVisible === false) {
     // Page is hidden — render minimal placeholder (still valid HTML for bots)
     const head = baseHead({
-      title: "Вакансии — BMGBRAND",
-      description: "Открытые вакансии в команду BMGBRAND.",
+      title: "Вакансии — BOOOMERANGS",
+      description: "Открытые вакансии в команду BOOOMERANGS.",
       canonical: `${SITE_URL}/vacancies`,
       ogImage: `${SITE_URL}/og-image.png`,
     });
@@ -2306,7 +2364,7 @@ function renderVacancies(): string {
   const vacancies: any[] = (settings.vacancies || defaultVacancies).filter((v: any) => v.visible !== false);
   const hrEmail   = settings.hrEmail   || "hr@booomerangs.ru";
   const pageTitle = settings.pageTitle || "Вакансии";
-  const subtitle  = settings.pageSubtitle || "Присоединяйся к команде BMGBRAND!";
+  const subtitle  = settings.pageSubtitle || "Присоединяйся к команде BOOOMERANGS!";
 
   const jsonLd = safeJsonLd([
     {
@@ -2329,8 +2387,8 @@ function renderVacancies(): string {
   ]);
 
   const head = baseHead({
-    title:       vacSeo.title       || `Вакансии — присоединяйся к команде BMGBRAND | ${SITE_NAME}`,
-    description: vacSeo.description || `Открытые вакансии в команду BMGBRAND. ${vacancies.map((v: any) => v.title).join(", ")}.`,
+    title:       vacSeo.title       || `Вакансии — присоединяйся к команде BOOOMERANGS | ${SITE_NAME}`,
+    description: vacSeo.description || `Открытые вакансии в команду BOOOMERANGS. ${vacancies.map((v: any) => v.title).join(", ")}.`,
     canonical:   `${SITE_URL}/vacancies`,
     ogImage:     `${SITE_URL}/og-image.png`,
     jsonLd,
@@ -2393,7 +2451,7 @@ E-mail: <a href="mailto:info@booomerangs.ru">info@booomerangs.ru</a></p>`;
 
   const head = baseHead({
     title:       `Пользовательское соглашение | ${SITE_NAME}`,
-    description: "Условия использования и публичная оферта интернет-магазина BMGBRAND.",
+    description: "Условия использования и публичная оферта интернет-магазина BOOOMERANGS.",
     canonical:   `${SITE_URL}/terms`,
     ogImage:     `${SITE_URL}/og-image.png`,
     extra:       '<meta name="robots" content="noindex, follow">',
@@ -2433,7 +2491,7 @@ function renderPrivacy(): string {
 
   const head = baseHead({
     title:       `Политика конфиденциальности | ${SITE_NAME}`,
-    description: "Политика конфиденциальности и обработки персональных данных BMGBRAND.",
+    description: "Политика конфиденциальности и обработки персональных данных BOOOMERANGS.",
     canonical:   `${SITE_URL}/privacy`,
     ogImage:     `${SITE_URL}/og-image.png`,
     extra:       '<meta name="robots" content="noindex, follow">',
@@ -2511,8 +2569,8 @@ function renderGiftCards(): string {
     {
       "@context": "https://schema.org",
       "@type": "Product",
-      "name": "Подарочная карта BMGBRAND",
-      "description": `Электронная подарочная карта интернет-магазина BMGBRAND (Booomerangs). Номиналы: ${amountsList}. Доставляется на e-mail получателя, действует 1 год.`,
+      "name": "Подарочная карта BOOOMERANGS",
+      "description": `Электронная подарочная карта интернет-магазина BOOOMERANGS. Номиналы: ${amountsList}. Доставляется на e-mail получателя, действует 1 год.`,
       "image": `${SITE_URL}/og-image.png`,
       "brand": { "@id": `${SITE_URL}/#organization` },
       "offers": GIFT_CARD_AMOUNTS.map(a => ({
@@ -2529,8 +2587,8 @@ function renderGiftCards(): string {
   ]);
 
   const head = baseHead({
-    title: `Подарочная карта BMGBRAND — от ${minAmount} до ${maxAmount} | ${SITE_NAME}`,
-    description: `Электронная подарочная карта интернет-магазина BMGBRAND. Номиналы: ${amountsList}. Мгновенная доставка на e-mail, действует 1 год. Оплата картой, ЮKassa, Т-Банк.`,
+    title: `Подарочная карта BOOOMERANGS — от ${minAmount} до ${maxAmount} | ${SITE_NAME}`,
+    description: `Электронная подарочная карта интернет-магазина BOOOMERANGS. Номиналы: ${amountsList}. Мгновенная доставка на e-mail, действует 1 год. Оплата картой, ЮKassa, Т-Банк.`,
     canonical: `${SITE_URL}/gift-cards`,
     ogImage: `${SITE_URL}/og-image.png`,
     jsonLd,
@@ -2538,8 +2596,8 @@ function renderGiftCards(): string {
 
   const body = `
 <div class="breadcrumb"><a href="/">Главная</a> / Подарочные карты</div>
-<h1>Подарочная карта BMGBRAND</h1>
-<p class="desc">Электронная подарочная карта интернет-магазина BMGBRAND (Booomerangs). Идеальный подарок, если не уверены в размере или модели — получатель сам выберет товар в каталоге.</p>
+<h1>Подарочная карта BOOOMERANGS</h1>
+<p class="desc">Электронная подарочная карта интернет-магазина BOOOMERANGS. Идеальный подарок, если не уверены в размере или модели — получатель сам выберет товар в каталоге.</p>
 <h2>Доступные номиналы</h2>
 <ul>${GIFT_CARD_AMOUNTS.map(a => `<li>${esc(a.label)}</li>`).join("\n")}</ul>
 <h2>Как это работает</h2>
@@ -2560,23 +2618,38 @@ function renderGiftCards(): string {
   return wrapPage(head, body);
 }
 
-/** SSR for artist pages: /@artistSlug */
-function renderArtist(artistSlug: string): string | null {
+/**
+ * SSR for artist pages: /@artistSlug
+ *
+ * SEO-поля из админки (seoTitle/seoDescription) приоритетнее автотекста — ровно
+ * так же их читает static.ts для браузеров. Раньше бот всегда получал
+ * «{name} × BOOOMERANGS», даже когда в админке стоял отредактированный title,
+ * из-за чего бот и браузер видели разные заголовки.
+ * Экспортируется для юнит-тестов.
+ */
+export function renderArtist(artistSlug: string): string | null {
   const artistPages = getCachedRawPageSettings("artist_pages") as Record<string, any> | null;
   if (!artistPages) return null;
   const data = artistPages[artistSlug];
   if (!data || !data.name) return null;
 
   const name = esc(data.name as string);
-  const role = data.role ? esc(data.role as string) : "";
+  const roleRaw = typeof data.role === "string" ? data.role.trim() : "";
+  const role = roleRaw ? esc(roleRaw) : "";
   const aboutTitle = data.aboutTitle ? esc(data.aboutTitle as string) : "";
   const aboutText = ((data.aboutText || data.shortDescription || "") as string).trim();
   const heroImage = (data.heroImage as string) || "";
   const canonical = `${SITE_URL}/@${artistSlug}`;
+  // seoTitle/seoDescription — вкладка «Артисты» в админке. Пустая строка = не задано.
+  const seoTitle = typeof data.seoTitle === "string" ? data.seoTitle.trim() : "";
+  const seoDescription = typeof data.seoDescription === "string" ? data.seoDescription.trim() : "";
+  const headingTitle = seoTitle || `${data.name} × BOOOMERANGS`;
 
-  const rawDesc = aboutText
+  const rawDesc = seoDescription
+    ? trimDesc(seoDescription)
+    : aboutText
     ? trimDesc(aboutText)
-    : `${data.name}${role ? ` — ${data.role}` : ""}. Официальный мерч ${data.name} в интернет-магазине BOOOMERANGS. Доставка по всей России.`;
+    : `${data.name}${roleRaw ? ` — ${roleRaw}` : ""}. Официальный мерч ${data.name} в интернет-магазине BOOOMERANGS. Доставка по всей России.`;
 
   const breadcrumbSchema = JSON.stringify({
     "@context": "https://schema.org",
@@ -2600,7 +2673,7 @@ function renderArtist(artistSlug: string): string | null {
   });
 
   const head = baseHead({
-    title: `${data.name} × BMGBRAND | BOOOMERANGS`,
+    title: headingTitle,
     description: rawDesc,
     canonical,
     ogImage: heroImage,
@@ -2656,6 +2729,14 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
     reqPath.includes(".")
   ) {
     return next();
+  }
+
+  // Легаси `/products?category=<slug>` → канонический `/products/<slug>` (301).
+  // Только когда `category` — единственный параметр: фильтры не трогаем (ТЗ п.2).
+  const legacyCatRedirect = legacyCategoryParamRedirect(req.originalUrl);
+  if (legacyCatRedirect) {
+    res.redirect(301, legacyCatRedirect);
+    return;
   }
 
   // Дедупликация URL блога: /blog/{id}/ → /blog/{id}, /blog/ → /blog (301).
@@ -2731,17 +2812,46 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
     } else if (reqPath === "/care") {
       html = renderCare();
     } else if (reqPath === "/concept") {
+      // Список кампаний берёт ручные слаги из page_settings("concept_campaigns"),
+      // а этот кэш наполняют только админка/API и он жёстко истекает через 600 с.
+      await ensurePageSettingsCached("concept_campaigns");
       html = renderConceptIndex();
     } else if (reqPath.startsWith("/concept/")) {
       const campaignSlug = reqPath.slice("/concept/".length).replace(/\/$/, "");
       // Только валидные slug-строки: строчные буквы/цифры/дефис
       if (campaignSlug && /^[a-z0-9][a-z0-9-]*$/.test(campaignSlug)) {
+        // renderConceptCampaign читает `concept_campaign_<slug>` только из кэша,
+        // поэтому после рестарта контейнера робот получал оболочку главной.
+        const warmed = await ensurePageSettingsCached(`concept_campaign_${campaignSlug}`);
         html = renderConceptCampaign(campaignSlug);
+        if (!html && warmed) {
+          // Настройки прочитаны из YDB и кампании нет либо она скрыта —
+          // честный 404 с noindex вместо soft-404.
+          res.setHeader("X-Bot-SSR", "concept-not-found");
+          res.setHeader("Cache-Control", "no-store");
+          res.status(404).type("text/html").send(
+            renderNotFoundPage("Такой кампании предзаказа нет. Возможно, ссылка устарела.")
+          );
+          return;
+        }
       }
     } else if (reqPath.startsWith("/@")) {
       // Artist pages: /@artistSlug
       const artistSlug = reqPath.slice(2).replace(/\/$/, "");
       if (artistSlug && /^[a-z0-9][a-z0-9-]*$/.test(artistSlug)) {
+        // Служебный/дублирующий слаг (artist-<timestamp>) → 301 на публичную
+        // страницу артиста или подкатегорию. Без этого адрес отдавал 200 и
+        // совпадал по title с канонической страницей.
+        const redirectTarget = artistRedirectTarget(artistSlug);
+        if (redirectTarget) {
+          res.redirect(301, redirectTarget);
+          return;
+        }
+        // artist_pages читается только из кэша, а он жёстко истекает через 600 с
+        // без чтения (обновляют его админка/API). Без точечного прогрева
+        // renderArtist возвращал null, и робот получал SPA-оболочку с title
+        // главной и без canonical (инцидент 2026-10-18).
+        await ensurePageSettingsCached("artist_pages");
         html = renderArtist(artistSlug);
       }
     } else if (reqPath === "/products") {
@@ -2749,9 +2859,20 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
     } else if (reqPath.startsWith("/products/")) {
       const rest = reqPath.slice("/products/".length);
       const parts = rest.split("/").filter(Boolean);
-      if (parts.length === 1 && CATEGORIES[parts[0]]) {
+      if (parts.length === 1) {
         // /products/:catSlug
-        html = renderCategory(parts[0]);
+        // Неизвестный слаг (например, /products/1C Import от старого импорта)
+        // раньше отдавал 200-оболочку с title/description главной. Теперь 404.
+        const known = knownCategorySlugs();
+        if (known && !known.has(parts[0])) {
+          res.setHeader("X-Bot-SSR", "unknown-category");
+          res.setHeader("Cache-Control", "no-store");
+          res.status(404).type("text/html").send(
+            renderNotFoundPage("Такого раздела каталога нет. Возможно, ссылка устарела.")
+          );
+          return;
+        }
+        if (CATEGORIES[parts[0]]) html = renderCategory(parts[0]);
       } else if (parts.length === 2) {
         // /products/:catSlug/:subSlug → 301 to canonical /:subSlug (or English equivalent)
         const targetSlug = CYRILLIC_TO_CANONICAL[parts[1]] || parts[1];
@@ -2903,11 +3024,7 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
             res.setHeader("X-Bot-SSR", "not-found");
             res.setHeader("Cache-Control", "no-store");
             res.status(404).type("text/html").send(
-              '<!doctype html><html lang="ru"><head><meta charset="UTF-8">' +
-              '<meta name="robots" content="noindex"><title>404 — Страница не найдена | ' + SITE_NAME + '</title></head>' +
-              '<body><h1>404 — Страница не найдена</h1>' +
-              '<p>Такой страницы не существует. Возможно, товар снят с продажи или ссылка устарела.</p>' +
-              '<p><a href="/">На главную</a> · <a href="/products">Каталог</a></p></body></html>'
+              renderNotFoundPage("Такой страницы не существует. Возможно, товар снят с продажи или ссылка устарела.")
             );
             return;
           }

@@ -996,7 +996,7 @@ router.patch('/partners/:id/homepage', authMiddleware, adminMiddleware, async (r
 
     // Читаем текущие настройки главной страницы
     const homeSettings = await storage.getPageSettings('home');
-    const currentArtists = homeSettings?.artists || { title: 'Наши артисты', subtitle: 'Коллаборации', linkText: 'Весь мерч', linkUrl: '/products?category=merch', visible: true, items: [] };
+    const currentArtists = homeSettings?.artists || { title: 'Наши артисты', subtitle: 'Коллаборации', linkText: 'Весь мерч', linkUrl: '/products/merch', visible: true, items: [] };
     const currentItems: any[] = currentArtists.items || [];
 
     let updatedItems: any[];

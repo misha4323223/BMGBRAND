@@ -12,9 +12,9 @@ interface SEOProps {
   jsonLd?: Record<string, any> | Record<string, any>[];
 }
 
-const SITE_NAME = "BMGBRAND";
+const SITE_NAME = "BOOOMERANGS";
 const CANONICAL_ORIGIN = "https://booomerangs.ru";
-const DEFAULT_DESCRIPTION = "BMGBRAND — российский бренд одежды и аксессуаров со встроенным ИИ-консультантом BOOOM AI, который помогает подобрать размер и расскажет о товаре. Худи, футболки, носки, авторские принты. Оплата частями через Долями. Доставка по всей России.";
+const DEFAULT_DESCRIPTION = "Официальный интернет-магазин BOOOMERANGS. Одежда, носки и авторский мерч, коллекции артистов и лимитированные дропы. Доставка по всей России.";
 
 function getAbsoluteUrl(path: string): string {
   if (path.startsWith("http")) return path;
@@ -24,7 +24,8 @@ function getAbsoluteUrl(path: string): string {
 interface SEOPropsExtended extends SEOProps {
   ogImageWidth?: string;
   ogImageHeight?: string;
-  /** false — не добавлять «| BMGBRAND» к заголовку (блог использует свои заголовки BOOOMERANGS). */
+  /** true — добавить «| BOOOMERANGS», если бренда нет в самом заголовке.
+   *  По умолчанию НЕ добавляем: ТЗ п.5 требует выдавать Title из настроек как есть. */
   brandSuffix?: boolean;
 }
 
@@ -39,12 +40,12 @@ export default function SEO({
   jsonLd,
   ogImageWidth = "1200",
   ogImageHeight = "630",
-  brandSuffix = true,
+  brandSuffix = false,
 }: SEOPropsExtended) {
-  // Prevent double brand suffix when admin SEO overrides already include SITE_NAME
+  // Автоприписка «| BMGBRAND» убрана (ТЗ п.5): Title из админки/страницы выводится как есть.
   const fullTitle = title
-    ? (brandSuffix && !title.endsWith(`| ${SITE_NAME}`) && !title.endsWith(SITE_NAME) ? `${title} | ${SITE_NAME}` : title)
-    : `Booomerangs — Российский бренд одежды Booomerangs/BMGBRAND`;
+    ? (brandSuffix && !title.includes(SITE_NAME) ? `${title} | ${SITE_NAME}` : title)
+    : "BOOOMERANGS — российский бренд одежды и мерча";
   const absoluteOgImage = getAbsoluteUrl(ogImage);
   const canonicalUrl = canonical || `${CANONICAL_ORIGIN}${window.location.pathname}`;
 

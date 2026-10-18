@@ -75,6 +75,9 @@ export function registerAdminSeoRoutes(
       const field = (defaultTitle: string | undefined, defaultDescription: string | undefined, override: any) => ({
         title: { default: defaultTitle || "", value: (typeof override?.title === "string" && override.title.trim()) ? override.title : (defaultTitle || "") },
         description: { default: defaultDescription || "", value: (typeof override?.description === "string" && override.description.trim()) ? override.description : (defaultDescription || "") },
+        // Видимый SEO-текст страницы категории/подкатегории (ТЗ п.6).
+        // Пустое значение — используется автоматический текст из кода.
+        body: { default: "", value: (typeof override?.body === "string" && override.body.trim()) ? override.body : "" },
       });
 
       const pages: any[] = [];
@@ -114,7 +117,7 @@ export function registerAdminSeoRoutes(
 
       // --- Merch na zakaz (custom merch landing) ---
       const MERCH_ORDER_DEFAULT_FAQ: Array<{ question: string; answer: string }> = [
-        { question: "Какой минимальный тираж для создания мерча на заказ?", answer: "Минимальный тираж зависит от типа продукции: носки - от 50 пар, футболки и худи - от 1 штуки, аксессуары - от 30 единиц." },
+        { question: "Какой минимальный тираж для создания мерча на заказ?", answer: "Минимальный тираж зависит от типа продукции: носки — от 50 пар на артикул, футболки и худи — от 1 штуки, аксессуары - от 30 единиц." },
         { question: "Сколько стоит мерч на заказ?", answer: "Стоимость зависит от типа изделия, тиража и сложности принта. Точный расчёт делаем индивидуально - после того, как вы расскажете о задаче." },
         { question: "Вы помогаете с разработкой дизайна?", answer: "Да. Мы предоставляем полный цикл: от разработки концепции и дизайна до готовой продукции. Если у вас уже есть макет - адаптируем его под производство. Дизайнерская работа включена в стоимость заказа." },
         { question: "Сколько времени занимает изготовление?", answer: "Одежда - от 3 дней. Носки - от 14 рабочих дней. Срочные заказы обсуждаются отдельно." },
@@ -185,7 +188,7 @@ export function registerAdminSeoRoutes(
           type: "category",
           key: slug,
           label: cat.name,
-          fields: field(seoDefault?.title || `${cat.name} — купить в BMGBRAND`, seoDefault?.desc, seoOverrides[`category:${slug}`]),
+          fields: field(seoDefault?.title || `${cat.name} — купить в BOOOMERANGS`, seoDefault?.desc, seoOverrides[`category:${slug}`]),
         });
         for (const sub of cat.subcategories || []) {
           const subKey = `${slug}:${sub.slug}`;
@@ -202,7 +205,7 @@ export function registerAdminSeoRoutes(
               key: subSubKey,
               label: `${cat.name} → ${sub.name} → ${subSub.name}`,
               fields: field(
-                `${subSub.name} — купить в BMGBRAND | ${sub.name}, ${cat.name}`,
+                `${subSub.name} — купить в BOOOMERANGS | ${sub.name}, ${cat.name}`,
                 undefined,
                 seoOverrides[`subsubcategory:${subSubKey}`]
               ),
@@ -213,17 +216,17 @@ export function registerAdminSeoRoutes(
 
       // --- Static / informational pages ---
       const staticPageDefs = [
-        { key: "catalog",            label: "Каталог (/products)",                        defaultTitle: "Каталог — одежда и аксессуары | BMGBRAND",                                              defaultDesc: "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России." },
-        { key: "about",              label: "О нас (/about)",                              defaultTitle: "О бренде BOOOMERANGS — история, производство, команда | BMGBRAND",                     defaultDesc: "BOOOMERANGS (BMGBRAND) — российский бренд одежды из Тулы. Основан в 2006 году, своё производство с 2019 года." },
-        { key: "faq",                label: "FAQ — Вопросы и ответы (/faq)",               defaultTitle: "Вопросы и ответы | BMGBRAND",                                                          defaultDesc: "Ответы на частые вопросы о заказах, доставке, оплате и возврате в интернет-магазине BMGBRAND." },
-        { key: "blog",               label: "Блог (/blog)",                                defaultTitle: "Блог BMGBRAND",                                                                        defaultDesc: "Новости, статьи и истории бренда BMGBRAND." },
-        { key: "vacancies",          label: "Вакансии (/vacancies)",                       defaultTitle: "Вакансии — BMGBRAND",                                                                  defaultDesc: "Открытые вакансии в команду BMGBRAND." },
-        { key: "terms",              label: "Пользовательское соглашение (/terms)",        defaultTitle: "Пользовательское соглашение | BMGBRAND",                                               defaultDesc: "Условия использования сайта BMGBRAND." },
-        { key: "privacy",            label: "Политика конфиденциальности (/privacy)",      defaultTitle: "Политика конфиденциальности | BMGBRAND",                                               defaultDesc: "Политика обработки персональных данных BMGBRAND." },
-        { key: "care",               label: "Уход за изделиями (/care)",                   defaultTitle: "Уход за изделиями | BMGBRAND",                                                         defaultDesc: "Рекомендации по уходу за одеждой и аксессуарами BMGBRAND." },
-        { key: "links",              label: "Ссылки (/links)",                             defaultTitle: "BMGBRAND — Ссылки",                                                                    defaultDesc: "Официальные ссылки и соцсети бренда BMGBRAND." },
-        { key: "gift_cards",         label: "Подарочные карты (/gift-cards)",              defaultTitle: "Подарочные карты BMGBRAND",                                                            defaultDesc: "Подарочные карты интернет-магазина BMGBRAND — идеальный подарок." },
-        { key: "wholesale_register", label: "Оптовая программа (/wholesale/register)",     defaultTitle: "Оптовая программа BMGBRAND",                                                           defaultDesc: "Стать оптовым партнёром BMGBRAND — условия сотрудничества и регистрация." },
+        { key: "catalog",            label: "Каталог (/products)",                        defaultTitle: "Каталог — одежда и аксессуары",                                              defaultDesc: "Каталог BOOOMERANGS — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России." },
+        { key: "about",              label: "О нас (/about)",                              defaultTitle: "О бренде BOOOMERANGS — история, производство, команда",                     defaultDesc: "BOOOMERANGS — российский бренд одежды из Тулы. Основан в 2006 году, своё производство с 2019 года." },
+        { key: "faq",                label: "FAQ — Вопросы и ответы (/faq)",               defaultTitle: "Вопросы и ответы",                                                          defaultDesc: "Ответы на частые вопросы о заказах, доставке, оплате и возврате в интернет-магазине BOOOMERANGS." },
+        { key: "blog",               label: "Блог (/blog)",                                defaultTitle: "Блог BOOOMERANGS",                                                                        defaultDesc: "Новости, статьи и истории бренда BOOOMERANGS." },
+        { key: "vacancies",          label: "Вакансии (/vacancies)",                       defaultTitle: "Вакансии — BOOOMERANGS",                                                                  defaultDesc: "Открытые вакансии в команду BOOOMERANGS." },
+        { key: "terms",              label: "Пользовательское соглашение (/terms)",        defaultTitle: "Пользовательское соглашение",                                               defaultDesc: "Условия использования сайта BOOOMERANGS." },
+        { key: "privacy",            label: "Политика конфиденциальности (/privacy)",      defaultTitle: "Политика конфиденциальности",                                               defaultDesc: "Политика обработки персональных данных BOOOMERANGS." },
+        { key: "care",               label: "Уход за изделиями (/care)",                   defaultTitle: "Уход за изделиями",                                                         defaultDesc: "Рекомендации по уходу за одеждой и аксессуарами BOOOMERANGS." },
+        { key: "links",              label: "Ссылки (/links)",                             defaultTitle: "BOOOMERANGS — Ссылки",                                                                    defaultDesc: "Официальные ссылки и соцсети бренда BOOOMERANGS." },
+        { key: "gift_cards",         label: "Подарочные карты (/gift-cards)",              defaultTitle: "Подарочные карты BOOOMERANGS",                                                            defaultDesc: "Подарочные карты интернет-магазина BOOOMERANGS — идеальный подарок." },
+        { key: "wholesale_register", label: "Оптовая программа (/wholesale/register)",     defaultTitle: "Оптовая программа BOOOMERANGS",                                                           defaultDesc: "Стать оптовым партнёром BOOOMERANGS — условия сотрудничества и регистрация." },
       ];
       for (const sp of staticPageDefs) {
         pages.push({
@@ -247,7 +250,7 @@ export function registerAdminSeoRoutes(
           key: slug,
           label: `Мерч ${name}`,
           fields: field(
-            `Мерч ${name} — купить официальный мерч | BMGBRAND`,
+            `Мерч ${name} — купить официальный мерч`,
             seoDefault?.desc,
             { title: settings.seoTitle, description: settings.seoDescription },
           ),

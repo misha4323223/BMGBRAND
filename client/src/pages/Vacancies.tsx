@@ -36,7 +36,7 @@ const defaultVacancies = [
 
 const defaultSettings = {
   pageTitle: "Вакансии",
-  pageSubtitle: "Присоединяйся к команде BMGBRAND! Мы всегда в поиске талантливых и увлечённых людей.",
+  pageSubtitle: "Присоединяйся к команде BOOOMERANGS! Мы всегда в поиске талантливых и увлечённых людей.",
   hrEmail: "hr@booomerangs.ru",
   resumeText: "Не нашли подходящую вакансию? Отправьте резюме, и мы свяжемся с вами!",
   emptyText: "Сейчас открытых вакансий нет, но вы можете отправить резюме",
@@ -88,7 +88,7 @@ export default function Vacancies() {
     <div className="min-h-screen bg-background">
       <SEO 
         title="Вакансии"
-        description="Вакансии в BMGBRAND — присоединяйтесь к команде российского бренда одежды и аксессуаров."
+        description="Вакансии в BOOOMERANGS — присоединяйтесь к команде российского бренда одежды и аксессуаров."
         keywords="вакансии BMGBRAND, работа в бренде, карьера"
       />
       <Navbar />

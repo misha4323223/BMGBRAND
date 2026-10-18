@@ -23,8 +23,28 @@ import { CATEGORIES as SCHEMA_CATEGORIES, buildCategoryIndex, resolveProductCate
 import { buildProductJsonLd as buildAutoProductJsonLd } from "../shared/product-jsonld";
 import { resolveBlogPostForSsr, parseBlogIndex, blogPageTitle, blogDescriptionFor, buildBlogPostJsonLd, buildBlogBreadcrumbJsonLd, type BlogPostForSsr } from "../shared/blog-post";
 import { sanitizeHtmlBlock } from "./lib/product-utils";
+import { artistRedirectTarget } from "./lib/artist-redirects";
+import { knownCategorySlugs, legacyCategoryParamRedirect } from "./lib/catalog-paths";
 
-const SITE_NAME = "BMGBRAND";
+/**
+ * SPA-роуты и префиксы, которые бот/человек должен получить как страницу, а не 404.
+ * Должны покрывать все роуты client/src/App.tsx: иначе живой SPA-роут (например
+ * `/care` или `/partner/<slug>`) отвечал 404 в production. Проверяется тестом
+ * server/__tests__/static-routes.test.ts.
+ */
+export const KNOWN_STATIC_ROUTES = new Set([
+  '/', '/products', '/cart', '/checkout', '/about', '/admin', '/verify-email', '/reset-password',
+  '/profile', '/favorites', '/vacancies', '/faq', '/terms', '/privacy', '/links', '/care',
+  '/concept', '/blog', '/wholesale', '/wholesale-register', '/wholesale-profile',
+  '/order-success', '/order-failed', '/contacts', '/merch-na-zakaz', '/predrop/checkout',
+  '/partner', '/partner/profile', '/partner/register', '/partner/login',
+]);
+export const KNOWN_STATIC_PREFIXES = [
+  '/products/', '/wholesale/', '/gift-cards/', '/blog/', '/concept/', '/partner/',
+  '/@', '/order-success/', '/order-failed/', '/track/', '/api/', '/assets/',
+];
+
+const SITE_NAME = "BOOOMERANGS";
 const DEFAULT_TITLE = `Официальный сайт бренда Booomerangs | ${SITE_NAME}`;
 const DEFAULT_DESC = "Российский бренд одежды с авторскими принтами — худи, футболки, носки и аксессуары. Доставка по всей России. Делаем вещи, которые носим сами.";
 
@@ -85,17 +105,17 @@ const SUBCATEGORY_ALIASES: Record<string, { catSlug: string; name: string }> = {
 // Экспортируются, чтобы админка SEO могла показать их как "текущее значение по умолчанию".
 export const HOME_SEO_DEFAULT = {
   title: DEFAULT_TITLE,
-  description: "Booomerangs (BMGBRAND) — официальный магазин мерча. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
+  description: "Официальный интернет-магазин BOOOMERANGS. Одежда, носки и авторский мерч, коллекции артистов и лимитированные дропы. Доставка по всей России.",
 };
 
 export const CONCEPT_SEO_DEFAULT = {
-  title: "Pre-drop — предзаказ будущих релизов | BMGBRAND",
-  description: "Оформите предзаказ на будущие релизы BMGBRAND — доступ к лимитированным дропам раньше всех.",
+  title: "Pre-drop — предзаказ будущих релизов",
+  description: "Оформите предзаказ на будущие релизы BOOOMERANGS — доступ к лимитированным дропам раньше всех.",
 };
 
 export const MERCH_ORDER_SEO_DEFAULT = {
-  title: `Мерч на заказ — футболки, худи, носки с принтом от 180 ₽ | ${SITE_NAME}`,
-  description: "Производство мерча на заказ от BMGBRAND: футболки от 900 ₽, худи от 1800 ₽, носки от 180 ₽/пара. Тираж от 20 шт. Разработка дизайна бесплатно. Работаем с блогерами, артистами, компаниями. Доставка по всей России — Тула, Москва, регионы.",
+  title: "Производство мерча на заказ оптом — BOOOMERANGS",
+  description: "Производство мерча на заказ от BOOOMERANGS: футболки и худи от 1 штуки, носки от 50 пар на артикул, аксессуары от 30 единиц. Бесплатная разработка дизайна, доставка по всей России.",
 };
 
 export const PARTNER_REGISTER_SEO_DEFAULT = {
@@ -112,15 +132,15 @@ export const ARTISTS: Record<string, { name: string; desc: string }> = {
 };
 
 export const CATEGORIES: Record<string, { name: string; title?: string; desc: string }> = {
-  "clothing": { name: "Одежда",      desc: "Купить одежду с авторскими принтами BMGBRAND — худи, свитшоты, футболки, шорты. Доставка по всей России." },
-  "merch":    { name: "Мерч",        desc: "Купить официальный мерч артистов BMGBRAND — одежда и аксессуары с уникальными принтами. Доставка по всей России." },
+  "clothing": { name: "Одежда",      desc: "Купить одежду с авторскими принтами BOOOMERANGS — худи, свитшоты, футболки, шорты. Доставка по всей России." },
+  "merch":    { name: "Мерч",        desc: "Купить официальный мерч артистов BOOOMERANGS — одежда и аксессуары с уникальными принтами. Доставка по всей России." },
   "socks":    {
     name: "Необычные носки с принтом",
-    title: "Купить необычные носки с принтом — прикольные носки с мемами | BMGBRAND",
+    title: "Носки с принтами и рисунками — BOOOMERANGS",
     desc: "Купить необычные носки с принтом BOOOMERANGS: оригинальные носки с мемами, прикольные авторские рисунки, носки хорошего качества — хлопок 75%. Большой выбор принтов. Доставка по всей России СДЭК.",
   },
-  "accessories": { name: "Аксессуары", desc: "Купить аксессуары BMGBRAND — шапки, сумки, ремни и другие аксессуары. Доставка по всей России." },
-  "sale":     { name: "SALE",  desc: "Распродажа BMGBRAND — выгодные цены на одежду и аксессуары. Доставка по всей России." },
+  "accessories": { name: "Аксессуары", desc: "Купить аксессуары BOOOMERANGS — шапки, сумки, ремни и другие аксессуары. Доставка по всей России." },
+  "sale":     { name: "SALE",  desc: "Распродажа BOOOMERANGS — выгодные цены на одежду и аксессуары. Доставка по всей России." },
 };
 
 function escHtml(s: string): string {
@@ -267,7 +287,7 @@ function buildHomeNoscript(siteUrl: string): string {
   ).join("\n");
 
   return `<noscript><div>` +
-    `<h1>BOOOMERANGS — официальный магазин российского бренда BMGBRAND</h1>` +
+    `<h1>BOOOMERANGS — официальный магазин российского бренда BOOOMERANGS</h1>` +
     `<p>Российский бренд одежды с авторскими принтами из Тулы. Авторские дизайны: худи, свитшоты, футболки, носки и аксессуары. Делаем вещи, которые носим сами. Доставка по всей России СДЭК.</p>` +
     `<h2>Категории</h2><ul>${catLinks}</ul>` +
     (productItems ? `<h2>Популярные товары</h2><ul>${productItems}</ul>` : "") +
@@ -296,7 +316,7 @@ function buildCatalogNoscript(siteUrl: string): string {
 
   return `<noscript><div>` +
     `<h1>Каталог BOOOMERANGS — одежда и аксессуары</h1>` +
-    `<p>Официальный магазин бренда BMGBRAND. Доставка по всей России.</p>` +
+    `<p>Официальный магазин бренда BOOOMERANGS. Доставка по всей России.</p>` +
     catBlocks +
     `</div></noscript>`;
 }
@@ -321,7 +341,7 @@ const DEFAULT_ABOUT = {
 
 const DEFAULT_VACANCIES = {
   pageTitle: "Вакансии",
-  pageSubtitle: "Присоединяйся к команде BMGBRAND! Мы всегда в поиске талантливых и увлечённых людей.",
+  pageSubtitle: "Присоединяйся к команде BOOOMERANGS! Мы всегда в поиске талантливых и увлечённых людей.",
   hrEmail: "hr@booomerangs.ru",
   vacancies: [
     { title: "Менеджер по продажам", location: "Тула", type: "Полная занятость", description: "Ищем активного менеджера для работы с клиентами и развития продаж в онлайн и офлайн каналах." },
@@ -359,7 +379,7 @@ function buildFaqNoscript(): string {
   ).join("\n");
   return `<noscript><div>` +
     `<h1>Часто задаваемые вопросы</h1>` +
-    `<p>Ответы на популярные вопросы о заказах, доставке и возврате BMGBRAND.</p>` +
+    `<p>Ответы на популярные вопросы о заказах, доставке и возврате BOOOMERANGS.</p>` +
     items +
     `</div></noscript>`;
 }
@@ -401,7 +421,7 @@ function buildWholesaleNoscript(): string {
 
 function buildAboutNoscript(): string {
   return `<noscript><div itemscope itemtype="https://schema.org/Organization">` +
-    `<h1>О бренде BOOOMERANGS (BMGBRAND)</h1>` +
+    `<h1>О бренде BOOOMERANGS</h1>` +
     `<p itemprop="description">BOOOMERANGS — российский бренд одежды и аксессуаров с авторскими принтами из Тулы. Основан в 2006 году. Собственное производство с 2019 года в Узловском районе Тульской области. Производим худи, свитшоты, футболки, носки и аксессуары. Делаем вещи, которые носим сами.</p>` +
     `<h2>Цифры</h2>` +
     `<ul>` +
@@ -648,7 +668,7 @@ function buildProductJsonLd(meta: NonNullable<ReturnType<typeof getCachedProduct
   return JSON.stringify([productSchema, organizationSchema, breadcrumbSchema].filter(Boolean));
 }
 
-function injectMeta(html: string, opts: {
+export function injectMeta(html: string, opts: {
   title: string;
   description: string;
   ogImage: string;
@@ -677,13 +697,16 @@ function injectMeta(html: string, opts: {
   html = html.replace(/<meta name="twitter:image" content="[^"]*"/, `<meta name="twitter:image" content="${img}"`);
 
   if (canonical) {
-    const canonTag = `<link rel="canonical" href="${escHtml(canonical)}">`;
+    // data-rh — маркер тегов, которыми управляет react-helmet-async: при
+    // гидратации Helmet удаляет такие теги и ставит свои. Без него в <head>
+    // оставались два description/canonical/og-набора (серверный + клиентский).
+    const canonTag = `<link rel="canonical" href="${escHtml(canonical)}" data-rh="true">`;
     if (html.includes('<link rel="canonical"')) {
       html = html.replace(/<link rel="canonical"[^>]*>/, canonTag);
     } else {
       html = html.replace('</head>', `    ${canonTag}\n  </head>`);
     }
-    const ogUrlTag = `<meta property="og:url" content="${escHtml(canonical)}">`;
+    const ogUrlTag = `<meta property="og:url" content="${escHtml(canonical)}" data-rh="true">`;
     if (html.includes('<meta property="og:url"')) {
       html = html.replace(/<meta property="og:url"[^>]*>/, ogUrlTag);
     } else {
@@ -837,7 +860,7 @@ export function serveStatic(app: Express) {
 
   // Rarely-changing marketing/content pages: safe to cache briefly with revalidation in background.
   // Excludes anything with live price/stock/availability data (home, product, category, catalog, cart, checkout, profile, etc).
-  const CACHEABLE_STATIC_PATHS = new Set(['/about', '/faq', '/vacancies', '/blog', '/terms', '/privacy', '/links', '/concept']);
+  const CACHEABLE_STATIC_PATHS = new Set(['/about', '/faq', '/vacancies', '/blog', '/terms', '/privacy', '/links', '/care', '/concept']);
   // Individual blog posts (/blog/123) also rarely change once published.
   const CACHEABLE_STATIC_PREFIXES = ['/blog/'];
 
@@ -845,6 +868,13 @@ export function serveStatic(app: Express) {
     const url = req.originalUrl;
     const cleanUrl = url.split('?')[0].split('#')[0];
     const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
+
+    // Легаси `/products?category=<slug>` → канонический `/products/<slug>` (301).
+    // Только когда `category` — единственный параметр: фильтры не трогаем (ТЗ п.2).
+    const legacyCatRedirect = legacyCategoryParamRedirect(url);
+    if (legacyCatRedirect) {
+      return res.redirect(301, legacyCatRedirect);
+    }
 
     // Дедупликация URL блога: /blog/{id}/ → /blog/{id}, /blog/ → /blog (301).
     if (cleanUrl === "/blog/") {
@@ -864,9 +894,7 @@ export function serveStatic(app: Express) {
 
     let routeLcpImage = "";
 
-    const knownRoutes = new Set(['/', '/products', '/cart', '/checkout', '/about', '/admin', '/verify-email', '/reset-password', '/profile', '/favorites', '/vacancies', '/faq', '/terms', '/privacy', '/links', '/concept', '/blog', '/wholesale', '/wholesale-register', '/wholesale-profile', '/order-success', '/order-failed', '/contacts', '/merch-na-zakaz', '/partner', '/partner/profile', '/partner/register', '/partner/login']);
-    const knownPrefixes = ['/products/', '/wholesale/', '/gift-cards/', '/blog/', '/@', '/order-success/', '/order-failed/', '/track/', '/api/', '/assets/'];
-    const isKnownRoute = knownRoutes.has(cleanUrl) || knownPrefixes.some(p => url.startsWith(p));
+    const isKnownRoute = KNOWN_STATIC_ROUTES.has(cleanUrl) || KNOWN_STATIC_PREFIXES.some(p => url.startsWith(p));
     const slugMatch = !isKnownRoute ? cleanUrl.match(/^\/([a-z0-9][a-z0-9-]*[a-z0-9])(?:\/?)$/) : null;
     // let: несуществующая статья блога переводит роут в 404 ниже.
     let isValidRoute = isKnownRoute || !!slugMatch;
@@ -972,6 +1000,21 @@ export function serveStatic(app: Express) {
       }
     }
 
+    // Неизвестный раздел каталога (/products/<slug>, например /products/1C Import)
+    // раньше отдавал 200-оболочку с title главной и без canonical. Отдаём 404 и
+    // noindex; SPA при этом покажет каталог, но для поисковика страницы нет.
+    const unknownCategoryMatch = cleanUrl.match(/^\/products\/([^/]+)$/);
+    if (unknownCategoryMatch) {
+      let catSlug = unknownCategoryMatch[1];
+      try { catSlug = decodeURIComponent(catSlug); } catch { /* оставить как есть */ }
+      const known = knownCategorySlugs();
+      if (known && !known.has(catSlug)) {
+        res.status(404);
+        html = html.replace(/<title>[^<]*<\/title>/, `<title>404 — Страница не найдена | ${SITE_NAME}</title>`);
+        html = html.replace(/<meta name="robots" content="[^"]*"/, '<meta name="robots" content="noindex">');
+      }
+    }
+
     try {
       // --- Product page ---
       if (detectedProductSlug) {
@@ -1004,10 +1047,14 @@ export function serveStatic(app: Express) {
         const alias = SUBCATEGORY_ALIASES[detectedProductSlug];
         const aliasTitle = `${alias.name} | Booomerangs`;
         const aliasDesc = `Купить ${alias.name.toLowerCase()} в интернет-магазине Booomerangs. Широкий выбор, доставка по России.`;
-        const catMeta = getSeoOverride(alias.catSlug) as any;
+        // Ручные SEO-тексты подкатегорий лежат в page_settings.seo под ключом
+        // `subcategory:<catSlug>:<публичный slug>` — ровно так их читает bot-ssr.
+        // Раньше здесь искали несуществующее поле `subcategories` у category:<slug>,
+        // поэтому браузер всегда получал автотекст, а робот — ручной.
+        const subSeo = getSeoOverride(`subcategory:${alias.catSlug}:${detectedProductSlug}`);
         html = injectMeta(html, {
-          title: catMeta?.subcategories?.[detectedProductSlug]?.title || aliasTitle,
-          description: catMeta?.subcategories?.[detectedProductSlug]?.description || aliasDesc,
+          title: subSeo.title || aliasTitle,
+          description: subSeo.description || aliasDesc,
           ogImage: `${siteUrl}/og-image.png`,
           canonical: `${siteUrl}/${detectedProductSlug}`,
         });
@@ -1037,7 +1084,7 @@ export function serveStatic(app: Express) {
         const homeSeo = getSeoOverride("home");
         html = injectMeta(html, {
           title: homeSeo.title || DEFAULT_TITLE,
-          description: homeSeo.description || "Booomerangs (BMGBRAND) — официальный магазин мерча. Купить мерч Гудтаймс, Молодость внутри, Дикая мята, Драгни, МультFильмы и других артистов. Доставка по всей России.",
+          description: homeSeo.description || "Официальный интернет-магазин BOOOMERANGS. Одежда, носки и авторский мерч, коллекции артистов и лимитированные дропы. Доставка по всей России.",
           ogImage: `${siteUrl}/og-image.png`,
           canonical: `${siteUrl}/`,
           jsonLd: homeJsonLd,
@@ -1049,6 +1096,15 @@ export function serveStatic(app: Express) {
       const artistMatch = cleanUrl.match(/^\/@([a-z0-9][a-z0-9-]*)$/);
       if (artistMatch) {
         const artistSlug = artistMatch[1];
+        // Тот же 301, что в bot-ssr: служебные слаг-клоны не должны отдавать 200.
+        const redirectTarget = artistRedirectTarget(artistSlug);
+        if (redirectTarget) {
+          return res.redirect(301, redirectTarget);
+        }
+        // Тот же прогрев, что в bot-ssr: pageSettingsCache жёстко истекает через
+        // 600 с без чтения, и браузер иначе получает оболочку с title главной
+        // и без canonical.
+        await ensurePageSettingsCached("artist_pages");
         // getCachedArtistHeroImage нужен и для мета-тегов (fallback), и для гидратации клиента
         const artistHero = getCachedArtistHeroImage(artistSlug);
         const staticArtist = ARTISTS[artistSlug];
@@ -1111,7 +1167,7 @@ export function serveStatic(app: Express) {
         const cat = CATEGORIES[catSlug];
         if (cat) {
           const catSeo = getSeoOverride(`category:${catSlug}`);
-          const title = catSeo.title || cat.title || `${cat.name} — купить в BMGBRAND | ${SITE_NAME}`;
+          const title = catSeo.title || cat.title || `${cat.name} — купить в BOOOMERANGS | ${SITE_NAME}`;
           const catDesc = catSeo.description || cat.desc;
 
           const breadcrumb = {
@@ -1140,10 +1196,10 @@ export function serveStatic(app: Express) {
             "@context": "https://schema.org",
             "@type": "FAQPage",
             "mainEntity": [
-              { "@type": "Question", "name": "Как купить мерч артиста на BMGBRAND?", "acceptedAnswer": { "@type": "Answer", "text": "Выберите артиста в каталоге, добавьте товар в корзину и оформите заказ. Оплата картой, СБП или Т-Pay. Доставка по всей России." } },
-              { "@type": "Question", "name": "Мерч какихартистов продаётся на BMGBRAND?", "acceptedAnswer": { "@type": "Answer", "text": "BMGBRAND — официальный производитель мерча ГУДТАЙМС, Молодость внутри, Дикая Мята, Драгни, МультFильмы и других российских артистов." } },
-              { "@type": "Question", "name": "Можно ли заказать мерч на заказ с логотипом?", "acceptedAnswer": { "@type": "Answer", "text": "Да. BMGBRAND производит мерч на заказ для брендов, артистов и мероприятий. Полный цикл: дизайн, производство, доставка. Подробнее на странице «Мерч на заказ»." } },
-              { "@type": "Question", "name": "Из чего сделан мерч BMGBRAND?", "acceptedAnswer": { "@type": "Answer", "text": "Собственное производство полного цикла. Футболки — 100% хлопок или двухнитка. Носки — хлопок 75%. Контроль качества каждой партии." } },
+              { "@type": "Question", "name": "Как купить мерч артиста на BOOOMERANGS?", "acceptedAnswer": { "@type": "Answer", "text": "Выберите артиста в каталоге, добавьте товар в корзину и оформите заказ. Оплата картой, СБП или Т-Pay. Доставка по всей России." } },
+              { "@type": "Question", "name": "Мерч какихартистов продаётся на BOOOMERANGS?", "acceptedAnswer": { "@type": "Answer", "text": "BOOOMERANGS — официальный производитель мерча ГУДТАЙМС, Молодость внутри, Дикая Мята, Драгни, МультFильмы и других российских артистов." } },
+              { "@type": "Question", "name": "Можно ли заказать мерч на заказ с логотипом?", "acceptedAnswer": { "@type": "Answer", "text": "Да. BOOOMERANGS производит мерч на заказ для брендов, артистов и мероприятий. Полный цикл: дизайн, производство, доставка. Подробнее на странице «Мерч на заказ»." } },
+              { "@type": "Question", "name": "Из чего сделан мерч BOOOMERANGS?", "acceptedAnswer": { "@type": "Answer", "text": "Собственное производство полного цикла. Футболки — 100% хлопок или двухнитка. Носки — хлопок 75%. Контроль качества каждой партии." } },
             ],
           } : null;
 
@@ -1174,7 +1230,7 @@ export function serveStatic(app: Express) {
         });
         html = injectMeta(html, {
           title: `Каталог — одежда и аксессуары | ${SITE_NAME}`,
-          description: "Каталог BMGBRAND — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.",
+          description: "Каталог BOOOMERANGS — одежда с авторскими принтами, мерч артистов, носки, аксессуары. Доставка по всей России.",
           ogImage: `${siteUrl}/og-image.png`,
           canonical: `${siteUrl}/products`,
           jsonLd,
@@ -1203,7 +1259,7 @@ export function serveStatic(app: Express) {
           {
             "@context": "https://schema.org",
             "@type": "WebPage",
-            "name": "Мерч на заказ — BMGBRAND (Booomerangs)",
+            "name": "Мерч на заказ — BOOOMERANGS",
             "url": `${siteUrl}/merch-na-zakaz`,
             "speakable": {
               "@type": "SpeakableSpecification",
@@ -1215,14 +1271,14 @@ export function serveStatic(app: Express) {
             "@type": "Service",
             "name": "Создание мерча на заказ",
             "provider": { "@type": "Organization", "name": SITE_NAME, "url": siteUrl, "address": { "@type": "PostalAddress", "addressLocality": "Тула", "addressCountry": "RU" } },
-            "description": "Производство мерча на заказ под ключ: футболки, худи, носки, аксессуары с авторскими принтами. Работаем по всей России. Тираж от 20 штук. Разработка дизайна бесплатно.",
+            "description": "Производство мерча на заказ под ключ: футболки, худи, носки, аксессуары с авторскими принтами. Работаем по всей России. Футболки и худи — от 1 штуки, носки — от 50 пар на артикул. Разработка дизайна бесплатно.",
             "areaServed": "RU",
             "serviceType": "Производство мерча",
             "offers": [
-              { "@type": "Offer", "name": "Носки с принтом на заказ", "priceCurrency": "RUB", "price": "180", "description": "Носки с принтом от 180 ₽/пара при тираже от 50 пар. 200+ дизайнов." },
-              { "@type": "Offer", "name": "Футболки на заказ", "priceCurrency": "RUB", "price": "900", "description": "Футболки с принтом от 900 ₽ при тираже от 20 штук. 100% хлопок." },
-              { "@type": "Offer", "name": "Худи на заказ", "priceCurrency": "RUB", "price": "1800", "description": "Худи и свитшоты от 1 800 ₽ при тираже от 20 штук. Трёхнитка." },
-              { "@type": "Offer", "name": "Брюки и джоггеры на заказ", "priceCurrency": "RUB", "price": "1500", "description": "Брюки и джоггеры от 1 500 ₽ при тираже от 20 штук." },
+              { "@type": "Offer", "name": "Носки с принтом на заказ", "priceCurrency": "RUB", "price": "180", "description": "Носки с принтом от 180 ₽/пара при тираже от 50 пар на артикул. 200+ дизайнов." },
+              { "@type": "Offer", "name": "Футболки на заказ", "priceCurrency": "RUB", "price": "900", "description": "Футболки с принтом от 900 ₽ при тираже от 1 штуки. 100% хлопок." },
+              { "@type": "Offer", "name": "Худи на заказ", "priceCurrency": "RUB", "price": "1800", "description": "Худи и свитшоты от 1 800 ₽ при тираже от 1 штуки. Трёхнитка." },
+              { "@type": "Offer", "name": "Брюки и джоггеры на заказ", "priceCurrency": "RUB", "price": "1500", "description": "Брюки и джоггеры от 1 500 ₽." },
               { "@type": "Offer", "name": "Корпоративный мерч", "priceCurrency": "RUB", "price": "180", "description": "Мерч для компаний, мероприятий, фестивалей. Брендирование под ключ." },
             ],
           },
@@ -1230,7 +1286,7 @@ export function serveStatic(app: Express) {
             "@context": "https://schema.org",
             "@type": "FAQPage",
             "mainEntity": [
-              { "@type": "Question", "name": "Какой минимальный тираж для мерча на заказ?", "acceptedAnswer": { "@type": "Answer", "text": "Носки — от 50 пар, футболки и худи — от 20 штук, аксессуары — от 30 единиц. Для больших тиражей действуют скидки." } },
+              { "@type": "Question", "name": "Какой минимальный тираж для мерча на заказ?", "acceptedAnswer": { "@type": "Answer", "text": "Носки — от 50 пар на артикул, футболки и худи — от 1 штуки, аксессуары — от 30 единиц. Для больших тиражей действуют скидки." } },
               { "@type": "Question", "name": "Сколько стоит мерч на заказ?", "acceptedAnswer": { "@type": "Answer", "text": "Носки с принтом — от 180 ₽/пара, футболки — от 900 ₽, худи — от 1 800 ₽, брюки — от 1 500 ₽. Точный расчёт делаем индивидуально." } },
               { "@type": "Question", "name": "Вы помогаете с разработкой дизайна мерча?", "acceptedAnswer": { "@type": "Answer", "text": "Да. Разработаем дизайн с нуля или адаптируем ваши материалы. Включено в стоимость при тиражах от 50 единиц." } },
               { "@type": "Question", "name": "Сколько времени занимает производство мерча?", "acceptedAnswer": { "@type": "Answer", "text": "Носки — от 10 рабочих дней. Одежда — 2–4 недели с момента согласования макета. Срочные заказы обсуждаются отдельно." } },
@@ -1387,43 +1443,43 @@ export function serveStatic(app: Express) {
       const STATIC_PAGES: Record<string, { title: string; description: string }> = {
         "/about": {
           title: `О бренде | ${SITE_NAME}`,
-          description: "BMGBRAND — российский бренд одежды с авторскими принтами из Тулы. Узнайте нашу историю, ценности и команду.",
+          description: "BOOOMERANGS — российский бренд одежды с авторскими принтами из Тулы. Узнайте нашу историю, ценности и команду.",
         },
         "/faq": {
           title: `Вопросы и ответы | ${SITE_NAME}`,
-          description: "Ответы на частые вопросы о заказах, доставке, оплате и возврате в интернет-магазине BMGBRAND.",
+          description: "Ответы на частые вопросы о заказах, доставке, оплате и возврате в интернет-магазине BOOOMERANGS.",
         },
         "/contacts": {
           title: `Контакты | ${SITE_NAME}`,
-          description: "Контактная информация BMGBRAND. Свяжитесь с нами по вопросам заказов, сотрудничества и оптовых закупок.",
+          description: "Контактная информация BOOOMERANGS. Свяжитесь с нами по вопросам заказов, сотрудничества и оптовых закупок.",
         },
         "/vacancies": {
           title: `Вакансии | ${SITE_NAME}`,
-          description: "Открытые вакансии в команду BMGBRAND. Присоединяйтесь к нашему бренду одежды с авторскими принтами.",
+          description: "Открытые вакансии в команду BOOOMERANGS. Присоединяйтесь к нашему бренду одежды с авторскими принтами.",
         },
         "/terms": {
           title: `Условия использования | ${SITE_NAME}`,
-          description: "Условия использования сайта и интернет-магазина BMGBRAND.",
+          description: "Условия использования сайта и интернет-магазина BOOOMERANGS.",
         },
         "/privacy": {
           title: `Политика конфиденциальности | ${SITE_NAME}`,
-          description: "Политика конфиденциальности и обработки персональных данных интернет-магазина BMGBRAND.",
+          description: "Политика конфиденциальности и обработки персональных данных интернет-магазина BOOOMERANGS.",
         },
         "/links": {
           title: `Ссылки | ${SITE_NAME}`,
-          description: "Официальные ссылки и социальные сети бренда BMGBRAND.",
+          description: "Официальные ссылки и социальные сети бренда BOOOMERANGS.",
         },
         "/concept": {
           title: `Концепция | ${SITE_NAME}`,
-          description: "Концепция и философия бренда BMGBRAND — российский бренд одежды с авторскими принтами.",
+          description: "Концепция и философия бренда BOOOMERANGS — российский бренд одежды с авторскими принтами.",
         },
         "/blog": {
-          title: "Блог BOOOMERANGS - одежда, стиль, мерч и производство | BMGBRAND",
-          description: "Блог BOOOMERANGS об одежде и мерче: гайды по материалам и посадке, новые коллекции и коллаборации с артистами и фестивалями, производство одежды, мерч на заказ и истории бренда BMGBRAND.",
+          title: "Блог BOOOMERANGS - одежда, стиль, мерч и производство",
+          description: "Блог BOOOMERANGS об одежде и мерче: гайды по материалам и посадке, новые коллекции и коллаборации с артистами и фестивалями, производство одежды, мерч на заказ и истории бренда BOOOMERANGS.",
         },
         "/wholesale-register": {
           title: `Оптовые закупки — регистрация | ${SITE_NAME}`,
-          description: "Регистрация оптового покупателя BMGBRAND. Специальные цены и условия для бизнеса.",
+          description: "Регистрация оптового покупателя BOOOMERANGS. Специальные цены и условия для бизнеса.",
         },
       };
 
@@ -1506,6 +1562,12 @@ export function serveStatic(app: Express) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
     if (!isValidRoute) {
+      // 404 должна выглядеть как 404, а не как главная с её title/description.
+      html = html.replace(/<title>[^<]*<\/title>/, `<title>404 — Страница не найдена | ${SITE_NAME}</title>`);
+      html = html.replace(
+        /<meta name="description" content="[^"]*"/,
+        '<meta name="description" content="Такой страницы нет. Возможно, ссылка устарела — вернитесь в каталог."',
+      );
       html = html.replace('</head>', '  <meta name="robots" content="noindex,nofollow">\n  </head>');
       res.status(404);
     }

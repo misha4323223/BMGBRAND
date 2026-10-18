@@ -1710,7 +1710,7 @@ export default function ArtistPage() {
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-[2px] w-6 rounded-full bg-white/25 shrink-0" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
-                  BMGBRAND × Партнёрская программа
+                  BOOOMERANGS × Партнёрская программа
                 </span>
               </div>
               <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight tracking-tight mb-3">
@@ -1749,7 +1749,7 @@ export default function ArtistPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 py-4 flex items-center justify-between">
           <Link href="/">
             <span className="text-xs font-black tracking-tight text-white/25 hover:text-white/50 transition-colors">
-              BMGBRAND
+              BOOOMERANGS
             </span>
           </Link>
           <p className="text-[10px] text-white/20">

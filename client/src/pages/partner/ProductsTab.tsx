@@ -167,7 +167,7 @@ export function PartnerProductsTab({ partnerSlug }: PartnerProductsTabProps) {
       <Card className="p-4 sm:p-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
-            <p className="font-medium text-foreground">Каталог BMGBRAND</p>
+            <p className="font-medium text-foreground">Каталог BOOOMERANGS</p>
             <p className="text-sm text-muted-foreground">Выберите товары для продвижения</p>
           </div>
           {showProducts && (

@@ -6,6 +6,11 @@ description: Статус SEO-редиректов (кириллица, лега
 # SEO-редиректы: статус реализации
 
 Обновлено 2026-10-08 (проверки на боевом сайте + локальный dev-сервер с bot-UA).
+Дополнено 2026-10-18: 301 для URL со слэшем на конце, 301 со служебных слаг-клонов
+артистов (`server/lib/artist-redirects.ts`), 404 для неизвестных `/products/<slug>`
+(`server/lib/catalog-paths.ts`), 200+noindex для пустых подкатегорий, живые
+`/concept/<slug>` и `/partner/<slug>` в static.ts. Подробности —
+`seo-technical-duplicates-2026-10.md`.
 
 ## Что работает ✅
 
@@ -36,21 +41,22 @@ description: Статус SEO-редиректов (кириллица, лега
   файла баг «2 хопа» числился нерешённым; боевой сайт уже отдаёт один хоп, править больше нечего)
 - `/products/sale/socks` → 301 `/products/sale/sale-socks` → 301 `/sale-socks` → 404 (бот) — см. ниже
 
-## Открытые проблемы ⚠️
+### /sale-socks и /sale-jackets — РЕШЕНО 2026-10-18
+В живых данных SALE всего 4 товара («Худи» 1, «Футболки» 3), а подкатегории «Куртки» и
+«Носки» (они же в меню и в `site_config.categories_data`) пустые — данные тут ни при чём.
+`renderSubcategory` отдавал null → бот получал 404 на адрес, который есть в меню.
+Теперь валидная подкатегория без товаров отдаёт 200 с `robots: noindex, follow`
+(`renderEmptySubcategory` в bot-ssr.ts), как это уже было сделано для 3-го уровня.
+404 остаётся только для неизвестного слага. Тесты: `bot-ssr.test.ts` →
+«renderSubcategory: пустая подкатегория».
 
-### /sale-socks и /sale-jackets: бот — 404, человек — 200-оболочку
-Цепочка `/products/sale/socks` (и `/products/sale/jackets`) заканчивается 404 для бота и
-пустой SPA-оболочкой для человека. Причина: у 24 товаров SALE в поле `subcategory` остались
-СТАРЫЕ имена (например «Спортивные (40-45)»), поэтому `resolveProductCategoryPaths` не относит их
-ни к `sale-socks`, ни к `sale-jackets` → `renderSubcategory` возвращает null → 404.
-Варианты лечения: (а) привести подкатегории товаров SALE к новым слагам (данные),
-(б) в bot-ssr отдавать фолбэк на родительскую `/products/sale`, если у подкатегории 0 товаров.
-НЕ трогал (2026-10-08).
+## Открытые проблемы ⚠️
 
 ## Порядок middleware (server/index.ts)
 ```
-registerRoutes(httpServer, app)  ← ~line 382, регистрирует /products/:cat/:sub
-app.use(botSsrMiddleware)        ← ~line 399
+registerRoutes(httpServer, app)  ← регистрирует /products/:cat/:sub
+app.use(trailingSlash301)        ← GET/HEAD «/path/» → 301 «/path» (+query), кроме /api//assets/
+app.use(botSsrMiddleware)
 serveStatic(app)                 // production only, ~line 404-405
 setupVite(httpServer, app)       // dev only, ~line 407-408
 ```

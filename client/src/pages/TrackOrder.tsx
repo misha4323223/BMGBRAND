@@ -58,8 +58,8 @@ export default function TrackOrder() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <SEO
-        title={`Отслеживание ${trackNumber || ''} | BMGBRAND`}
-        description="Отслеживание заказа BMGBRAND"
+        title={`Отслеживание ${trackNumber || ''}`}
+        description="Отслеживание заказа BOOOMERANGS"
         noindex
       />
       <Navbar />

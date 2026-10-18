@@ -1,5 +1,5 @@
 - [T-Bank TLS fix](tbank-tls.md) — T-Bank использует российский УЦ Минцифры, которому Node.js не доверяет; fix: undici Agent rejectUnauthorized:false только для securepay.tinkoff.ru
-- [SEO redirects status](seo-redirects-status.md) — Cyrillic/legacy redirects: bot-ssr ✅, static.ts ✅ (prod only); нерешено: /products/:cat/tolstovki → 2-хопа вместо 1 (routes.ts фикс написан но не работает)
+- [SEO redirects status](seo-redirects-status.md) — Cyrillic/legacy redirects: bot-ssr ✅, static.ts ✅ (prod only); /products/:cat/tolstovki → 1 хоп (проверено); пустые подкатегории → 200+noindex
 - [Bot SSR duplicate Product JSON-LD](bot-ssr-duplicate-jsonld.md) — 12 products had bad seoJsonLd with placeholders causing 2 conflicting Product schemas; fixed in DB + code; flush endpoint added
 - [Artist subcategory sync](artist-subcategory-sync.md) — artist pages and merch subcategories are separate; startup sync + save hook needed; subcategories stored as {name,slug} objects not strings
 - [Merch page SEO & Bot SSR](merch-na-zakaz-seo.md) — /merch-na-zakaz требовал renderMerchOrder() в bot-ssr.ts; ботам раньше отдавался пустой div
@@ -27,3 +27,4 @@
 - [Project architecture](project-architecture.md) — безопасная памятка по стеку, boot flow, YDB/storage, интеграциям и правилам диагностики; секреты намеренно не хранятся
 - [Временный режим «сайт на адресе контейнера»](temp-container-mode.md) — TEMP_PUBLIC_ORIGIN переключает вход/оплату/письма на адрес контейнера, пока домен недоступен; не задано = поведение как раньше
 - [1С: файлы приходят фрагментами](1c-file-parts.md) — контейнер режет запросы > 3.5 МБ, поэтому file_limit=2 МиБ; части склеиваются в 1c_parts/ и публикуются сразу при переходе 1С к следующему файлу / mode=import (обход бакета — раз в минуту)
+- [SEO: технические дубли (2026-10)](seo-technical-duplicates-2026-10.md) — 301 для слэша, кэш artist_pages + админский seoTitle, 301 с artist-клонов, 404 для неизвестных /products/*, ручные SEO-ключи подкатегорий, data-rh для Helmet, пустые подкатегории → noindex, списки SPA-роутов в static.ts и прогрев /concept/<slug>

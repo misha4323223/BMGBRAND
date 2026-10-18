@@ -21,7 +21,7 @@ type SeoPage = {
   type: "home" | "category" | "subcategory" | "subsubcategory" | "artist" | "concept" | "merch_order" | "partner_register" | "static";
   key: string;
   label: string;
-  fields: { title: SeoFieldState; description: SeoFieldState };
+  fields: { title: SeoFieldState; description: SeoFieldState; body?: SeoFieldState };
   hero?: SeoHero;
   content?: SeoMerchContent;
 };
@@ -51,7 +51,7 @@ const TYPE_ICONS: Record<SeoPage["type"], typeof Globe> = {
 };
 
 const MERCH_ORDER_DEFAULT_FAQ: Array<{ question: string; answer: string }> = [
-  { question: "Какой минимальный тираж для создания мерча на заказ?", answer: "Минимальный тираж зависит от типа продукции: носки - от 50 пар, футболки и худи - от 1 штуки, аксессуары - от 30 единиц." },
+  { question: "Какой минимальный тираж для создания мерча на заказ?", answer: "Минимальный тираж зависит от типа продукции: носки — от 50 пар на артикул, футболки и худи — от 1 штуки, аксессуары — от 30 единиц." },
   { question: "Сколько стоит мерч на заказ?", answer: "Стоимость зависит от типа изделия, тиража и сложности принта. Точный расчёт делаем индивидуально - после того, как вы расскажете о задаче." },
   { question: "Вы помогаете с разработкой дизайна?", answer: "Да. Мы предоставляем полный цикл: от разработки концепции и дизайна до готовой продукции. Если у вас уже есть макет - адаптируем его под производство. Дизайнерская работа включена в стоимость заказа." },
   { question: "Сколько времени занимает изготовление?", answer: "Одежда - от 3 дней. Носки - от 14 рабочих дней. Срочные заказы обсуждаются отдельно." },
@@ -67,7 +67,7 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
   const queryClient = useQueryClient();
   const [subTab, setSubTab] = useState<"settings" | "audit">("settings");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ title: string; description: string; heroImage: string; heroImageMobile: string; heroImageAlt: string; h1: string; introParagraph: string; techText: string; b2bText: string; faqItems: Array<{ question: string; answer: string }> } | null>(null);
+  const [draft, setDraft] = useState<{ title: string; description: string; body: string; heroImage: string; heroImageMobile: string; heroImageAlt: string; h1: string; introParagraph: string; techText: string; b2bText: string; faqItems: Array<{ question: string; answer: string }> } | null>(null);
   const [saving, setSaving] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery<{ pages: SeoPage[] }>({
@@ -90,6 +90,7 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
     setDraft({
       title: p.fields.title.value,
       description: p.fields.description.value,
+      body: p.fields.body?.value || "",
       heroImage: p.hero?.heroImage || "",
       heroImageMobile: p.hero?.heroImageMobile || "",
       heroImageAlt: p.hero?.heroImageAlt || "",
@@ -164,7 +165,7 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
         await adminFetch(`/api/admin/page-settings/seo/subsubcategory:${selectedPage.key}`, apiKey, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: draft.title, description: draft.description }),
+          body: JSON.stringify({ title: draft.title, description: draft.description, body: draft.body }),
         });
       } else if (selectedPage.type === "static") {
         await adminFetch(`/api/admin/page-settings/seo/static:${selectedPage.key}`, apiKey, {
@@ -177,7 +178,7 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
         await adminFetch(`/api/admin/page-settings/seo/${sectionId}`, apiKey, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: draft.title, description: draft.description }),
+          body: JSON.stringify({ title: draft.title, description: draft.description, body: draft.body }),
         });
       }
       toast({ title: "SEO-текст сохранён" });
@@ -331,6 +332,20 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
               <p className="text-xs text-muted-foreground">{draft.description.length} символов (рекомендуется 120–160)</p>
             </div>
 
+            {(selectedPage.type === "category" || selectedPage.type === "subcategory" || selectedPage.type === "subsubcategory") && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Текст подборки (виден на странице под товарами)</label>
+                <Textarea
+                  value={draft.body}
+                  onChange={e => setDraft({ ...draft, body: e.target.value })}
+                  placeholder="Что входит в подборку, чем она отличается, для кого. Пусто — используется автоматический текст."
+                  rows={6}
+                  data-testid="input-seo-body"
+                />
+                <p className="text-xs text-muted-foreground">Абзацы разделяйте пустой строкой. Текст показывается покупателям на странице категории/подкатегории.</p>
+              </div>
+            )}
+
             {selectedPage.type === "merch_order" && draft && (
               <div className="space-y-4 pt-4 border-t">
                 <div className="flex items-center gap-1.5">
@@ -343,7 +358,7 @@ export function SeoTab({ apiKey, adminFetch }: { apiKey: string; adminFetch: (ur
                   <Input
                     value={draft.h1}
                     onChange={e => setDraft({ ...draft, h1: e.target.value })}
-                    placeholder="Мерч на заказ — производство мерча под ключ от BMGBRAND"
+                    placeholder="Мерч на заказ — производство мерча под ключ от BOOOMERANGS"
                   />
                 </div>
                 <div className="space-y-1.5">
