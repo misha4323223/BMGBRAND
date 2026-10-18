@@ -13,6 +13,9 @@ sa-key*.json
 
 # 1C uploads - store images in Object Storage, not Git
 1c_uploads/
+
+# YDB backups (scripts/backup-ydb.ts) — содержат ПДн, не коммитить
+ydb-backup/
 # Local and production secrets — never commit
 .env
 .env.local

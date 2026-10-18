@@ -9,6 +9,7 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
+    "backup:ydb": "tsx scripts/backup-ydb.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
