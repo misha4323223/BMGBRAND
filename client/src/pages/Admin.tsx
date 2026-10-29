@@ -35,6 +35,7 @@ import { AnalyticsTab } from "@/pages/admin/AnalyticsTab";
 import { PartnersTab } from "@/pages/admin/PartnersTab";
 import { AiKnowledgeTab } from "@/pages/admin/AiKnowledgeTab";
 import { SeoTab } from "@/pages/admin/SeoTab";
+import { WholesaleEditor } from "@/pages/admin/WholesaleEditor";
 import { AiQuestionsTab } from "@/pages/admin/AiQuestionsTab";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
@@ -5224,6 +5225,7 @@ export default function Admin() {
                   <SelectItem value="checkout">Оформление заказа</SelectItem>
                   <SelectItem value="static_pages">Статические страницы</SelectItem>
                   <SelectItem value="concept">Концепт (Предзаказ)</SelectItem>
+                  <SelectItem value="wholesale">Оптовые партнёры</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -5238,6 +5240,10 @@ export default function Admin() {
 
             {selectedPage === "checkout" && (
               <CheckoutEditor apiKey={apiKey} />
+            )}
+
+            {selectedPage === "wholesale" && (
+              <WholesaleEditor apiKey={apiKey} />
             )}
 
             {selectedPage === "home" && (() => {
