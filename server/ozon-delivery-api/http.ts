@@ -11,6 +11,7 @@
  *  - Authorization и тело с client_secret нельзя передавать на сторонний хост.
  */
 
+import crypto from "crypto";
 import { logWarn } from "../logger";
 import { parseOzonJson } from "./json";
 
@@ -34,6 +35,9 @@ export interface OzonHttpRedirect {
   to?: string;
   hadLocation: boolean;
   cookieNames: string[];
+  /** Диагностика: имена/хэши cookie, которые мы отправили и получили. */
+  sentCookies?: string[];
+  receivedCookies?: string[];
 }
 
 export interface OzonHttpResult {
@@ -90,6 +94,11 @@ function safeUrl(url: string): string {
   } catch {
     return url.split("?")[0];
   }
+}
+
+function cookieFingerprint(name: string, value: string): string {
+  const hash = crypto.createHash("sha256").update(value).digest("hex").slice(0, 10);
+  return `${name}:${hash}`;
 }
 
 function readSetCookies(headers: Headers): string[] {
@@ -348,6 +357,10 @@ export class OzonHttpClient {
         "User-Agent": DEFAULT_USER_AGENT,
         ...headers,
       };
+      const sentCookieRecords = this.matchingCookies(url);
+      const sentCookies = sentCookieRecords.map((cookie) =>
+        cookieFingerprint(cookie.name, cookie.value),
+      );
       const cookie = this.cookieHeader(url);
       if (cookie) requestHeaders.Cookie = cookie;
 
@@ -373,6 +386,10 @@ export class OzonHttpClient {
       }
 
       const cookieNames = this.storeCookies(url, response.headers);
+      const receivedCookies = readSetCookies(response.headers)
+        .map((raw) => parseSetCookie(raw, url, Date.now()))
+        .filter((cookie): cookie is StoredCookie => !!cookie)
+        .map((cookie) => cookieFingerprint(cookie.name, cookie.value));
       const location = response.headers.get("location");
       let nextUrl: string | null = null;
       if (location) {
@@ -390,6 +407,8 @@ export class OzonHttpClient {
           to: nextUrl ? safeUrl(nextUrl) : undefined,
           hadLocation: !!nextUrl,
           cookieNames,
+          sentCookies,
+          receivedCookies,
         });
       }
 
