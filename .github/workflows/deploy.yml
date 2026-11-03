@@ -72,6 +72,9 @@ jobs:
             OZON_CLIENT_ID=${{ secrets.OZON_CLIENT_ID }}
             OZON_CLIENT_SECRET=${{ secrets.OZON_CLIENT_SECRET }}
             OZON_SCOPES=${{ secrets.OZON_SCOPES }}
+            OZON_DELIVERY_API_CLIENT_ID=${{ secrets.OZON_DELIVERY_API_CLIENT_ID }}
+            OZON_DELIVERY_API_CLIENT_SECRET=${{ secrets.OZON_DELIVERY_API_CLIENT_SECRET }}
+            OZON_DELIVERY_API_SCOPES=${{ secrets.OZON_DELIVERY_API_SCOPES }}
             OZON_PAY_ACCESS_KEY=${{ secrets.OZON_PAY_ACCESS_KEY }}
             OZON_PAY_SECRET_KEY=${{ secrets.OZON_PAY_SECRET_KEY }}
             OZON_PAY_NOTIFICATION_SECRET=${{ secrets.OZON_PAY_NOTIFICATION_SECRET }}

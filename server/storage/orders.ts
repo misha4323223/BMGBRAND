@@ -49,7 +49,7 @@ declare module "./core" {
     deleteOrder(id: number): Promise<boolean>;
     getDraftOrders(): Promise<any[]>;
     deleteExpiredDraftOrders(maxAgeMinutes: number): Promise<number>;
-    createOrder(order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string }, ozonPvzId?: string, ozonPvzAddress?: string, paymentMethod?: string }): Promise<Order>;
+    createOrder(order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string }, ozonPvzId?: string, ozonPvzAddress?: string, ozonShipmentMethodId?: string, paymentMethod?: string }): Promise<Order>;
   }
 }
 
@@ -1514,7 +1514,7 @@ DatabaseStorage.prototype.deleteExpiredDraftOrders = async function (this: Datab
   }
 ;
 
-DatabaseStorage.prototype.createOrder = async function (this: DatabaseStorage, order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string }, ozonPvzId?: string, ozonPvzAddress?: string, paymentMethod?: string }): Promise<Order> {
+DatabaseStorage.prototype.createOrder = async function (this: DatabaseStorage, order: InsertOrder & { items: any[], total: number, promoCode?: string, isWholesale?: boolean, transportCompany?: string, userId?: number, partnerId?: number, cdekPointCode?: string, cdekCityCode?: number, cdekTariffCode?: number, cdekDeliveryType?: string, cdekDoorAddress?: { street: string; house: string; flat?: string; entrance?: string; floor?: string }, ozonPvzId?: string, ozonPvzAddress?: string, ozonShipmentMethodId?: string, paymentMethod?: string }): Promise<Order> {
     if (!driver) {
       logError('[Storage] YDB driver not initialized for createOrder');
       throw new Error('Database not available');
@@ -1563,6 +1563,7 @@ DatabaseStorage.prototype.createOrder = async function (this: DatabaseStorage, o
           orderUuid: null,
           ozonPvzId: order.ozonPvzId || null,
           ozonPvzAddress: order.ozonPvzAddress || null,
+          ozonShipmentMethodId: order.ozonShipmentMethodId || null,
         });
         
         const params: Record<string, any> = {

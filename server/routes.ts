@@ -70,6 +70,12 @@ import { authStorage } from "./auth-storage";
 import { paymentService } from "./payments";
 import { ozonDeliveryService, OZON_FIXED_DELIVERY_COST_KOPEKS } from "./ozon-delivery";
 import { ozonDeliveryOAuth, OZON_OAUTH_KEYS } from "./ozon-delivery-oauth";
+import { ozonDeliveryTokenService } from "./ozon-delivery-api/token";
+import { ozonDeliveryApi } from "./ozon-delivery-api";
+import { isOzonDeliveryApiPublicEnabled } from "./ozon-delivery-api/public";
+import { createOzonDeliveryForPaidOrder } from "./ozon-delivery-api/paid-order";
+import { OZON_ORDER_MAX_DECLARED_VALUE_KOPEKS } from "./ozon-delivery-api/order";
+import { OZON_QUOTE_MAX_ITEM_COUNT } from "./ozon-delivery-api/quote";
 import { cdekService, CDEK_SENDER_CITY_CODE, CDEK_SENDER_ADDRESS, CDEK_SENDER_PVZ_CODE, CDEK_DEFAULT_PACKAGE, CDEK_TARIFFS, isTariffToDoor, isTariffFromPvz } from "./cdek";
 
 import { sendInvoiceEmail, formatInvoiceNumber } from "./invoice";
@@ -108,6 +114,94 @@ let lastExportedOrderIds: number[] = [];
 
 function getAdminKey(): string | undefined {
   return process.env.ADMIN_API_KEY || process.env.SYNC_API_KEY;
+}
+
+function isNewOzonDeliveryOrder(order: any): boolean {
+  try {
+    const raw = order?.cdekData;
+    const data =
+      typeof raw === "string" ? JSON.parse(raw || "{}") : raw || {};
+    return (
+      data?.ozonDeliveryProvider === "delivery-api" ||
+      !!data?.ozonShipmentMethodId
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function handleNewOzonDeliveryForPaidOrder(
+  order: any,
+  source: string,
+): Promise<void> {
+  if (!order || order.deliveryService !== "ozon") return;
+
+  let existing: any = {};
+  try {
+    existing =
+      typeof order.addonData === "string"
+        ? JSON.parse(order.addonData || "{}")
+        : order.addonData || {};
+  } catch {
+    existing = {};
+  }
+  if (existing.ozonOrderId) return;
+
+  const result = await createOzonDeliveryForPaidOrder(order);
+  if (result.skipped) return;
+
+  if (result.success) {
+    await storage
+      .updateOrderAddonData(
+        Number(order.id),
+        JSON.stringify({
+          ...existing,
+          ozonOrderId: result.orderNumber,
+          ozonPostingNumber: result.postingNumber,
+          ozonIdempotencyKey: result.idempotencyKey,
+          ozonDeliveryProvider: "delivery-api",
+          ozonCreateFailed: false,
+          ozonCreateUnknown: false,
+          ozonCreatedAt: new Date().toISOString(),
+        }),
+      )
+      .catch((e) =>
+        logError(
+          `[${source}] Failed to save ozonOrderId for order ${order.id}:`,
+          e?.message,
+        ),
+      );
+    return;
+  }
+
+  await storage
+    .updateOrderAddonData(
+      Number(order.id),
+      JSON.stringify({
+        ...existing,
+        ozonCreateFailed: true,
+        ozonCreateUnknown: result.mayHaveBeenCreated === true,
+        ozonCreateError: result.error || "unknown",
+        ozonCreateFailedAt: new Date().toISOString(),
+        ozonIdempotencyKey: result.idempotencyKey,
+        ozonDeliveryProvider: "delivery-api",
+      }),
+    )
+    .catch((e) =>
+      logError(
+        `[${source}] Failed to save failed Ozon delivery for order ${order.id}:`,
+        e?.message,
+      ),
+    );
+  notifyError(
+    "Ozon Доставка",
+    `Заказ #${order.id} — не удалось создать доставку Ozon`,
+    `${result.error || ""}${
+      result.mayHaveBeenCreated
+        ? " (результат неизвестен, проверьте кабинет Ozon)"
+        : ""
+    }`,
+  );
 }
 
 // Подставляет реальный product.color вместо пустого/"Default" в items заказа,
@@ -1285,6 +1379,10 @@ export async function registerRoutes(
   } else {
     logInfo("[OzonDelivery] OZON_CLIENT_ID или OZON_CLIENT_SECRET не заданы — доставка недоступна");
   }
+
+  // Новый Delivery API: подхватываем сохранённый client_credentials-токен.
+  // Ошибка YDB не блокирует старт — токен будет получен при первой проверке.
+  await ozonDeliveryTokenService.restoreFromStorage();
 
   // ==================== Legacy URL Redirects (booomerangs.ru compatibility) ====================
   // Legacy slugs (hoodies, sweatshirts, shorts, etc.) are now handled by SlugResolver on the frontend.
@@ -4348,8 +4446,24 @@ ${faqSection}
                   logError(`[YooKassa Webhook] CDEK waybill error for order ${numericId}:`, err.message)
                 );
 
-                // Если доставка Ozon — создаём заказ в Ozon Logistics (fire-and-forget)
-                if (order.deliveryService === "ozon" && ozonDeliveryService.isEnabled()) {
+                // Если доставка Ozon — создаём заказ в Ozon Delivery API.
+                // Новый контур имеет приоритет; старый Seller-контур остаётся
+                // fallback-ом только когда новый публичный флаг выключен.
+                if (
+                  order.deliveryService === "ozon" &&
+                  (isNewOzonDeliveryOrder(order) ||
+                    (await isOzonDeliveryApiPublicEnabled()))
+                ) {
+                  handleNewOzonDeliveryForPaidOrder(
+                    order,
+                    "YooKassa Webhook",
+                  ).catch((err) =>
+                    logError(
+                      `[YooKassa Webhook] Ozon Delivery API error for order ${numericId}:`,
+                      err?.message,
+                    ),
+                  );
+                } else if (order.deliveryService === "ozon" && ozonDeliveryService.isEnabled()) {
                   const _ozDeliveryItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
                   let _ozPvzId: string | undefined;
                   try { _ozPvzId = order.cdekData ? JSON.parse(order.cdekData as string)?.ozonPvzId || undefined : undefined; } catch {}
@@ -4927,8 +5041,25 @@ ${faqSection}
                   logError(`[T-Bank Webhook] CDEK waybill error for order ${numericId}:`, err.message)
                 );
 
-                // Если доставка Ozon — создаём заказ в Ozon Logistics (fire-and-forget)
-                if (order && order.deliveryService === "ozon" && ozonDeliveryService.isEnabled()) {
+                // Если доставка Ozon — создаём заказ в Ozon Delivery API.
+                // Новый контур имеет приоритет; старый Seller-контур остаётся
+                // fallback-ом только когда новый публичный флаг выключен.
+                if (
+                  order &&
+                  order.deliveryService === "ozon" &&
+                  (isNewOzonDeliveryOrder(order) ||
+                    (await isOzonDeliveryApiPublicEnabled()))
+                ) {
+                  handleNewOzonDeliveryForPaidOrder(
+                    order,
+                    "T-Bank Webhook",
+                  ).catch((err) =>
+                    logError(
+                      `[T-Bank Webhook] Ozon Delivery API error for order ${numericId}:`,
+                      err?.message,
+                    ),
+                  );
+                } else if (order && order.deliveryService === "ozon" && ozonDeliveryService.isEnabled()) {
                   const _tbOzItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
                   let _tbOzPvzId: string | undefined;
                   try { _tbOzPvzId = order.cdekData ? JSON.parse(order.cdekData as string)?.ozonPvzId || undefined : undefined; } catch {}
@@ -5054,8 +5185,9 @@ ${faqSection}
   });
 
   // Get available payment methods
-  app.get("/api/payment-methods", (_req, res) => {
+  app.get("/api/payment-methods", async (_req, res) => {
     const methods = [];
+    const newOzonDeliveryEnabled = await isOzonDeliveryApiPublicEnabled();
     if (paymentService.isYooKassaEnabled()) {
       methods.push({ id: "yookassa", name: "ЮKassa", description: "Банковские карты, СБП" });
     }
@@ -5071,7 +5203,8 @@ ${faqSection}
       methods,
       enabled: methods.length > 0,
       tbankTerminalKey: process.env.TBANK_TERMINAL_KEY || null,
-      ozonDeliveryEnabled: ozonDeliveryService.isEnabled(),
+      ozonDeliveryEnabled:
+        ozonDeliveryService.isEnabled() || newOzonDeliveryEnabled,
     });
   });
 
@@ -10184,6 +10317,7 @@ ${faqSection}
       const cdekDoorAddress = req.body.cdekDoorAddress || undefined;
       const ozonPvzId = req.body.ozonPvzId || undefined;
       const ozonPvzAddress = req.body.ozonPvzAddress || undefined;
+      const requestedOzonShipmentMethodId = req.body.ozonShipmentMethodId || undefined;
       
       const deliveryService: "cdek" | "ozon" | "pickup" = req.body.deliveryService === "ozon" ? "ozon" : req.body.deliveryService === "pickup" ? "pickup" : "cdek";
 
@@ -10283,6 +10417,20 @@ ${faqSection}
       const orderSubtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
       const isCourierDelivery = deliveryService === "cdek" && cdekDeliveryType === "door";
+      const useNewOzonDelivery =
+        deliveryService === "ozon" &&
+        (await isOzonDeliveryApiPublicEnabled());
+      if (
+        deliveryService === "ozon" &&
+        !useNewOzonDelivery &&
+        !ozonDeliveryService.isEnabled()
+      ) {
+        return res.status(400).json({
+          message: "Ozon доставка недоступна. Выберите другой способ доставки.",
+          code: "OZON_DELIVERY_UNAVAILABLE",
+        });
+      }
+      let confirmedOzonShipmentMethodId: string | undefined;
 
       // ── Скидки на товары (считаются ДО решения о доставке) ──────────────────
       // Порог бесплатной доставки считается по сумме ПОСЛЕ скидок: промокод или
@@ -10475,15 +10623,70 @@ ${faqSection}
           verifiedDeliveryCost = clientDeliveryCost;
           logInfo(`[Order] CDEK calculation failed, using client delivery cost: ${clientDeliveryCost/100} RUB. Error: ${cdekErr.message}`);
         }
+      } else if (!isWholesale && deliveryService === "ozon" && useNewOzonDelivery) {
+        // Новый Ozon Delivery API: стоимость считает Ozon, а не клиент и не
+        // фиксированный тариф старого Seller-контура.
+        const pointId = String(ozonPvzId || "").trim();
+        const totalItemCount = orderItems.reduce(
+          (sum, item) => sum + Math.max(1, Number(item.quantity) || 1),
+          0,
+        );
+        if (!pointId) {
+          return res.status(400).json({
+            message: "Выберите ПВЗ Ozon",
+            code: "OZON_DELIVERY_UNAVAILABLE",
+          });
+        }
+        if (totalItemCount > OZON_QUOTE_MAX_ITEM_COUNT) {
+          return res.status(400).json({
+            message: `Ozon Delivery принимает не больше ${OZON_QUOTE_MAX_ITEM_COUNT} товаров в одном заказе`,
+            code: "OZON_DELIVERY_UNAVAILABLE",
+          });
+        }
+        if (orderSubtotal > OZON_ORDER_MAX_DECLARED_VALUE_KOPEKS) {
+          return res.status(400).json({
+            message: "Ozon Delivery принимает объявленную стоимость не больше 500 000 ₽",
+            code: "OZON_DELIVERY_UNAVAILABLE",
+          });
+        }
+
+        try {
+          const quoteResult = await ozonDeliveryApi.calculateQuote({
+            deliveryPointId: pointId,
+            phoneNumber: input.customerPhone,
+            declaredValueKopeks: orderSubtotal,
+            itemCount: totalItemCount,
+            shipmentMethodId: requestedOzonShipmentMethodId,
+          });
+          if (!quoteResult.success || !quoteResult.quote) {
+            logWarn(
+              `[Order] Ozon Delivery quote rejected: ${quoteResult.error || "unknown"}`,
+            );
+            return res.status(400).json({
+              message: `Не удалось рассчитать доставку Ozon: ${quoteResult.error || "попробуйте позже"}`,
+              code: "OZON_DELIVERY_UNAVAILABLE",
+            });
+          }
+          confirmedOzonShipmentMethodId = quoteResult.quote.shipmentMethodId;
+          verifiedDeliveryCost = quoteResult.quote.costKopeks;
+          logInfo(
+            `[Order] Ozon Delivery quote: delivery=${quoteResult.quote.deliveryCostKopeks/100}, insurance=${quoteResult.quote.insuranceCostKopeks/100}, used=${verifiedDeliveryCost/100} RUB`,
+          );
+        } catch (err: any) {
+          logError(`[Order] Ozon Delivery quote failed: ${err?.message}`);
+          return res.status(400).json({
+            message: "Сервис доставки Ozon временно недоступен. Попробуйте позже или выберите другой способ доставки.",
+            code: "OZON_DELIVERY_UNAVAILABLE",
+          });
+        }
       } else if (!isWholesale && deliveryService === "ozon" && (clientDeliveryCost > 0 || needsOzonServerCost)) {
-        // Тариф Ozon фиксированный (Ozon не отдаёт расчёт): клиентский 0 при платной
-        // доставке заменяем серверной ценой, чтобы скидка не оставляла доставку бесплатной.
+        // Старый Seller-контур: тариф фиксированный (Ozon не отдаёт расчёт).
         verifiedDeliveryCost = clientDeliveryCost > 0 ? clientDeliveryCost : OZON_FIXED_DELIVERY_COST_KOPEKS;
         logInfo(`[Order] Non-CDEK delivery (${deliveryService}), used delivery cost: ${verifiedDeliveryCost/100} RUB`);
       }
 
       // Pre-payment Ozon availability check: verify items are deliverable before charging the customer
-      if (deliveryService === "ozon" && ozonDeliveryService.isConfigured() && ozonDeliveryService.isEnabled()) {
+      if (deliveryService === "ozon" && !useNewOzonDelivery && ozonDeliveryService.isConfigured() && ozonDeliveryService.isEnabled()) {
         try {
           const ozonCheckItems = orderItems.map((item, idx) => {
             const product = cartItems[idx]?.product as any;
@@ -10639,6 +10842,10 @@ ${faqSection}
         deliveryService: deliveryService,
         ozonPvzId: deliveryService === "ozon" ? ozonPvzId : undefined,
         ozonPvzAddress: deliveryService === "ozon" ? ozonPvzAddress : undefined,
+        ozonShipmentMethodId:
+          deliveryService === "ozon"
+            ? confirmedOzonShipmentMethodId || requestedOzonShipmentMethodId
+            : undefined,
       });
 
       // Create pending commission for partner-attributed orders.

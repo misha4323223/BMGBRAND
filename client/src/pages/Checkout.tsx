@@ -215,9 +215,11 @@ export default function Checkout() {
   const [ozonPvzList, setOzonPvzList] = useState<any[]>([]);
   const [ozonPvzLoading, setOzonPvzLoading] = useState(false);
   const [ozonPvzError, setOzonPvzError] = useState<string | null>(null);
-  // Ozon delivery cost (from /v1/delivery/check by phone)
+  // Ozon delivery cost from the Delivery API quote
   const [ozonDeliveryCost, setOzonDeliveryCost] = useState<number | null>(null);
   const [ozonDeliveryChecking, setOzonDeliveryChecking] = useState(false);
+  const [ozonDeliveryError, setOzonDeliveryError] = useState<string | null>(null);
+  const [ozonShipmentMethodId, setOzonShipmentMethodId] = useState<string | undefined>();
   // Ozon PVZ map
   const ozonMapRef = useRef<HTMLDivElement | null>(null);
   const ozonMapInstance = useRef<any>(null);
@@ -390,6 +392,9 @@ export default function Checkout() {
       setOzonPvzList([]);
       setOzonCitySuggestions([]);
       setOzonCityConfirmed(false);
+      setOzonDeliveryCost(null);
+      setOzonDeliveryError(null);
+      setOzonShipmentMethodId(undefined);
     }
   }, [deliveryService]);
 
@@ -569,44 +574,6 @@ export default function Checkout() {
     }
   }, [deliveryService, ozonPvz, setValue]);
 
-  // Стоимость доставки Ozon — запрашиваем по номеру телефона после выбора ПВЗ
-  const customerPhone = watch("customerPhone");
-  useEffect(() => {
-    if (deliveryService !== "ozon" || !ozonPvz) {
-      setOzonDeliveryCost(null);
-      return;
-    }
-    // Ozon принимает только цифры (^\d{10,15}$)
-    const digits = (customerPhone || "").replace(/\D/g, "");
-    if (digits.length < 10) {
-      setOzonDeliveryCost(null);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setOzonDeliveryChecking(true);
-      try {
-        const res = await fetch("/api/ozon-delivery/check", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          // Передаём только цифры — Ozon требует ^\d{10,15}$
-          body: JSON.stringify({ phone: digits }),
-        });
-        const data = await res.json();
-        // Показываем стоимость только если доставка доступна; при ошибке — null
-        if (data.available && typeof data.cost === "number") {
-          setOzonDeliveryCost(data.cost);
-        } else {
-          setOzonDeliveryCost(null);
-        }
-      } catch {
-        setOzonDeliveryCost(null);
-      } finally {
-        setOzonDeliveryChecking(false);
-      }
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [deliveryService, ozonPvz, customerPhone]);
-
   const { data: savedShippingData } = useQuery<{ shippingData: { customerName?: string; customerEmail?: string; customerPhone?: string; address?: string; transportCompany?: string } | null }>({
     queryKey: ["/api/auth/shipping-data"],
     enabled: !!isWholesale,
@@ -689,6 +656,71 @@ export default function Checkout() {
   };
 
   const subtotal = cartItems?.reduce((acc, item) => acc + (getItemPrice(item.product, item.size) * item.quantity), 0) || 0;
+  const cartItemCount = cartItems?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+
+  // Стоимость доставки Ozon — запрашиваем после выбора ПВЗ, телефона и
+  // пересчёта корзины. Новый Delivery API считает по ПВЗ и объявленной
+  // стоимости, а не только по телефону.
+  const customerPhone = watch("customerPhone");
+  useEffect(() => {
+    if (deliveryService !== "ozon" || !ozonPvz || subtotal <= 0) {
+      setOzonDeliveryCost(null);
+      setOzonShipmentMethodId(undefined);
+      setOzonDeliveryError(null);
+      return;
+    }
+    const digits = (customerPhone || "").replace(/\D/g, "");
+    if (digits.length < 10) {
+      setOzonDeliveryCost(null);
+      setOzonShipmentMethodId(undefined);
+      setOzonDeliveryError(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setOzonDeliveryChecking(true);
+      setOzonDeliveryError(null);
+      try {
+        const res = await fetch("/api/ozon-delivery/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: digits,
+            pvzId: ozonPvz.id,
+            declaredValueKopeks: subtotal,
+            itemCount: cartItemCount,
+          }),
+        });
+        const data = await res.json();
+        if (data.available && typeof data.cost === "number") {
+          setOzonDeliveryCost(data.cost);
+          setOzonShipmentMethodId(
+            typeof data.shipmentMethodId === "string"
+              ? data.shipmentMethodId
+              : undefined,
+          );
+        } else {
+          setOzonDeliveryCost(null);
+          setOzonShipmentMethodId(undefined);
+          setOzonDeliveryError(
+            typeof data.error === "string" ? data.error : null,
+          );
+        }
+      } catch {
+        setOzonDeliveryCost(null);
+        setOzonShipmentMethodId(undefined);
+        setOzonDeliveryError("Не удалось получить расчёт Ozon");
+      } finally {
+        setOzonDeliveryChecking(false);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [
+    deliveryService,
+    ozonPvz,
+    customerPhone,
+    subtotal,
+    cartItemCount,
+  ]);
 
   const validatePromo = useMutation({
     mutationFn: async (code: string) => {
@@ -927,11 +959,21 @@ export default function Checkout() {
       } : undefined,
       ozonPvzId: deliveryService === "ozon" ? (ozonPvz?.id || undefined) : undefined,
       ozonPvzAddress: deliveryService === "ozon" ? (ozonPvz?.address || undefined) : undefined,
+      ozonShipmentMethodId:
+        deliveryService === "ozon" ? ozonShipmentMethodId : undefined,
     };
 
     // Валидация: ПВЗ Ozon обязателен
     if (deliveryService === "ozon" && !ozonPvz) {
       toast({ variant: "destructive", title: "Выберите ПВЗ Ozon", description: "Введите город и выберите удобный пункт выдачи из списка" });
+      return;
+    }
+    if (deliveryService === "ozon" && (ozonDeliveryChecking || ozonDeliveryCost === null)) {
+      toast({
+        variant: "destructive",
+        title: "Дождитесь расчёта Ozon",
+        description: ozonDeliveryError || "Укажите телефон и выберите ПВЗ, чтобы рассчитать доставку",
+      });
       return;
     }
 
@@ -1358,6 +1400,8 @@ export default function Checkout() {
                           setOzonCitySearch("");
                           setOzonPvzList([]);
                           setOzonDeliveryCost(null);
+                          setOzonDeliveryError(null);
+                          setOzonShipmentMethodId(undefined);
                           setValue("address", "");
                         }}
                         className="text-xs text-muted-foreground hover:text-foreground underline shrink-0 mt-1"
@@ -1395,6 +1439,11 @@ export default function Checkout() {
                             <p className="text-lg font-semibold text-foreground">{formatPrice(ozonDeliveryCost)}</p>
                           )}
                         </div>
+                        {ozonDeliveryError && !ozonDeliveryChecking && (
+                          <p className="text-xs text-destructive mt-2">
+                            {ozonDeliveryError}
+                          </p>
+                        )}
                       </div>
                     );
                   })()}
@@ -1904,7 +1953,7 @@ export default function Checkout() {
                   size="lg"
                   className="w-full"
                   data-testid="button-submit-order"
-                  disabled={createOrder.isPending || !agreeOffer || !agreePolicy || (!isWholesale && deliveryService === "cdek" && deliveryType === "pickup" && !selectedPoint) || (!isWholesale && deliveryService === "cdek" && deliveryType === "door" && (!cdekDoorStreet || !cdekDoorHouse || !cheapestDoorTariff)) || (!isWholesale && deliveryService === "cdek" && !selectedCity) || isWholesaleBelowMin}
+                  disabled={createOrder.isPending || !agreeOffer || !agreePolicy || (!isWholesale && deliveryService === "cdek" && deliveryType === "pickup" && !selectedPoint) || (!isWholesale && deliveryService === "cdek" && deliveryType === "door" && (!cdekDoorStreet || !cdekDoorHouse || !cheapestDoorTariff)) || (!isWholesale && deliveryService === "cdek" && !selectedCity) || (!isWholesale && deliveryService === "ozon" && (!ozonPvz || ozonDeliveryChecking || ozonDeliveryCost === null)) || isWholesaleBelowMin}
                 >
                   {createOrder.isPending ? <Loader2 className="animate-spin mr-2" /> : null}
                   {cs.submitButtonText} · {formatPrice(total)}

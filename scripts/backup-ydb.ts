@@ -59,6 +59,7 @@ export const DEFAULT_TABLES = [
   "loyalty_tiers",
   "newsletter_subscriptions",
   "order_counters",
+  "ozon_delivery_points",
   "orders",
   "page_settings",
   "partner_commissions",

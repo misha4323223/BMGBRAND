@@ -27,7 +27,12 @@ export async function adminFetch(url: string, apiKey: string, options: RequestIn
   
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Request failed" }));
-    throw new Error(error.message || `HTTP ${response.status}`);
+    // Сохраняем тело и статус: админским формам нужны коды вроде
+    // mayHaveBeenCreated, а не только текст ошибки.
+    const requestError: any = new Error(error.message || `HTTP ${response.status}`);
+    requestError.status = response.status;
+    requestError.data = error;
+    throw requestError;
   }
   
   const text = await response.text();
