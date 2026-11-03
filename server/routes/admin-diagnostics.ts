@@ -58,4 +58,23 @@ export function registerAdminDiagnosticsRoutes(
       });
     }
   });
+
+  // Ограниченная пачка синхронизации ПВЗ для проверки list/info/YDB.
+  app.post("/api/admin/diagnostics/ozon-delivery/points-sync", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    const maxPages = Math.min(5, Math.max(1, Number(req.body?.maxPages) || 1));
+    try {
+      const result = await ozonDeliveryApi.syncPoints({
+        maxPages,
+        restart: req.body?.restart === true,
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({
+        success: false,
+        error: err?.message || "Ozon Delivery API points sync failed",
+      });
+    }
+  });
 }
