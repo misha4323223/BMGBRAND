@@ -12,6 +12,7 @@
  */
 
 import crypto from "crypto";
+import { Agent } from "undici";
 import { logWarn } from "../logger";
 import { parseOzonJson } from "./json";
 
@@ -226,6 +227,7 @@ export class OzonHttpClient {
   private readonly baseDelayMs: number;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly maxRedirects: number;
+  private readonly dispatcher: Agent | null;
   private readonly cookies = new Map<string, StoredCookie>();
 
   constructor(options: OzonHttpClientOptions = {}) {
@@ -237,6 +239,17 @@ export class OzonHttpClient {
     this.baseDelayMs = options.baseDelayMs ?? DEFAULT_BASE_DELAY_MS;
     this.sleep = options.sleep ?? defaultSleep;
     this.maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
+    // Один keep-alive-коннект на origin: Ozon testcookie выдаёт cookie,
+    // привязанную к backend-инстансу, а новый коннект может попасть в другой.
+    this.dispatcher = options.fetchImpl
+      ? null
+      : new Agent({
+          connections: 1,
+          pipelining: 0,
+          keepAliveTimeout: 30_000,
+          keepAliveMaxTimeout: 30_000,
+          allowH2: true,
+        });
   }
 
   clearCookies(): void {
@@ -374,7 +387,8 @@ export class OzonHttpClient {
           body: payload,
           redirect: "manual",
           signal: controller.signal,
-        });
+          ...(this.dispatcher ? { dispatcher: this.dispatcher } : {}),
+        } as RequestInit);
       } catch (err: any) {
         const message =
           err?.name === "AbortError"
