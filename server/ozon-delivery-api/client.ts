@@ -8,6 +8,7 @@
 import { logWarn } from "../logger";
 import {
   OzonHttpClient,
+  ozonDeliveryHttpClient,
   type OzonHttpClientOptions,
 } from "./http";
 import {
@@ -39,6 +40,7 @@ export interface OzonDeliveryApiResult<T = any> {
 export interface OzonDeliveryApiClientOptions extends OzonHttpClientOptions {
   tokenService?: OzonTokenProvider;
   baseUrl?: string;
+  httpClient?: OzonHttpClient;
 }
 
 function extractApiError(data: any, status: number): OzonDeliveryApiError {
@@ -65,7 +67,9 @@ export class OzonDeliveryApiClient {
   private readonly baseUrl: string;
 
   constructor(options: OzonDeliveryApiClientOptions = {}) {
-    this.http = new OzonHttpClient(options);
+    this.http =
+      options.httpClient ??
+      (options.fetchImpl ? new OzonHttpClient(options) : ozonDeliveryHttpClient);
     this.token = options.tokenService ?? ozonDeliveryTokenService;
     this.baseUrl = (options.baseUrl ?? OZON_DELIVERY_BASE_URL).replace(/\/+$/, "");
   }
@@ -127,10 +131,15 @@ export class OzonDeliveryApiClient {
     }
 
     if (!response.ok) {
+      const error = extractApiError(response.data, response.status);
+      if (response.redirectError) {
+        error.code = "redirect_error";
+        error.message = response.redirectError.slice(0, 300);
+      }
       return {
         ok: false,
         status: response.status,
-        error: extractApiError(response.data, response.status),
+        error,
         traceId: response.traceId,
       };
     }

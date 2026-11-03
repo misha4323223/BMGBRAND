@@ -17,6 +17,7 @@
 import { logInfo, logWarn } from "../logger";
 import {
   OzonHttpClient,
+  ozonDeliveryHttpClient,
   type OzonHttpClientOptions,
 } from "./http";
 import {
@@ -196,7 +197,9 @@ export class OzonDeliveryTokenService {
   private hydrating: Promise<void> | null = null;
 
   constructor(options: OzonTokenServiceOptions = {}) {
-    this.http = options.httpClient ?? new OzonHttpClient(options);
+    this.http =
+      options.httpClient ??
+      (options.fetchImpl ? new OzonHttpClient(options) : ozonDeliveryHttpClient);
     this.tokenUrl = options.tokenUrl ?? OZON_DELIVERY_TOKEN_URL;
     this.now = options.now ?? Date.now;
     this.clientIdOverride = options.clientId ?? null;
@@ -414,7 +417,12 @@ export class OzonDeliveryTokenService {
     }
 
     if (!response.ok) {
-      return { ok: false, error: extractTokenError(response.data, response.status) };
+      const error = extractTokenError(response.data, response.status);
+      if (response.redirectError) {
+        error.code = "redirect_error";
+        error.message = response.redirectError.slice(0, 300);
+      }
+      return { ok: false, error };
     }
 
     const accessToken =

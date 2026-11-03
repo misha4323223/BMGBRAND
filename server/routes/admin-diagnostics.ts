@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { getRecentErrors, getRequestStats } from "../log-buffer";
 import { getCoPurchaseIndexSize } from "../recommendations";
 import { storage } from "../storage";
+import { ozonDeliveryApi } from "../ozon-delivery-api";
 
 /**
  * Диагностика сервера (ТЗ №5): журнал ошибок, статистика запросов, состояние кэшей.
@@ -41,5 +42,20 @@ export function registerAdminDiagnosticsRoutes(
       coPurchase: { size: getCoPurchaseIndexSize() },
     };
     res.json({ ok: true, cache });
+  });
+
+  // Живая проверка Ozon Delivery API без админской сессии. Нужна для
+  // диагностики testcookie/307 и не отдаёт секреты или access_token.
+  app.post("/api/admin/diagnostics/ozon-delivery/check", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey !== getAdminKey()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const result = await ozonDeliveryApi.checkConnection();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({
+        error: err?.message || "Ozon Delivery API check failed",
+      });
+    }
   });
 }

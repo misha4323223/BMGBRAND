@@ -10,6 +10,7 @@ import {
   type OzonTokenServiceOptions,
 } from "../ozon-delivery-api/token";
 import { OzonDeliveryApiClient } from "../ozon-delivery-api/client";
+import { OzonHttpClient } from "../ozon-delivery-api/http";
 import { OzonDeliveryApiService } from "../ozon-delivery-api/index";
 import {
   OZON_DELIVERY_TOKEN_SETTING_KEY,
@@ -615,5 +616,85 @@ describe("OzonDeliveryApiService.checkConnection", () => {
     expect(check.token.error?.code).toBe("not_configured");
     expect(check.api).toBeNull();
     expect(fake.calls).toHaveLength(0);
+  });
+});
+
+describe("OzonHttpClient testcookie", () => {
+  it("переносит Domain-cookie между поддоменами Ozon", async () => {
+    const fake = makeFetch((url, init) => {
+      if (url === "https://xapi.ozon.ru/oauth/token") {
+        return new Response("", {
+          status: 307,
+          headers: {
+            location: "https://api-delivery.ozon.ru/v1/delivery-point/list",
+            "set-cookie":
+              "__Secure-ETC=abc; Domain=.ozon.ru; Path=/; Secure; HttpOnly",
+          },
+        });
+      }
+      if (url === "https://api-delivery.ozon.ru/v1/delivery-point/list") {
+        expect(
+          (init.headers as Record<string, string>).Cookie,
+        ).toContain("__Secure-ETC=abc");
+        return json({ items: [] });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+    const client = new OzonHttpClient({
+      fetchImpl: fake.fetchImpl,
+      attempts: 1,
+      sleep: async () => {},
+    });
+
+    const result = await client.post("https://xapi.ozon.ru/oauth/token", {});
+
+    expect(result.status).toBe(200);
+    expect(result.redirectCount).toBe(1);
+    expect(fake.calls).toHaveLength(2);
+  });
+
+  it("повторяет 307 без Location, а не отдаёт его наружу", async () => {
+    let calls = 0;
+    const fake = makeFetch(() => {
+      calls++;
+      return calls === 1
+        ? new Response("", { status: 307 })
+        : json({ ok: true });
+    });
+    const client = new OzonHttpClient({
+      fetchImpl: fake.fetchImpl,
+      attempts: 2,
+      sleep: async () => {},
+    });
+
+    const result = await client.post(
+      "https://api-delivery.ozon.ru/v1/delivery-point/list",
+      {},
+    );
+
+    expect(result.status).toBe(200);
+    expect(fake.calls).toHaveLength(2);
+  });
+
+  it("не отправляет тело с секретом на не-Ozon редирект", async () => {
+    const fake = makeFetch(() =>
+      new Response("", {
+        status: 307,
+        headers: { location: "https://evil.example/collect" },
+      }),
+    );
+    const client = new OzonHttpClient({
+      fetchImpl: fake.fetchImpl,
+      attempts: 2,
+      sleep: async () => {},
+    });
+
+    const result = await client.post("https://xapi.ozon.ru/oauth/token", {
+      client_secret: "secret-value",
+    });
+
+    expect(result.redirectError).toContain("не-Ozon");
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0].url).toBe("https://xapi.ozon.ru/oauth/token");
   });
 });
