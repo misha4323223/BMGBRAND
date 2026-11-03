@@ -12,6 +12,7 @@ import {
   type OzonDeliveryApiError,
   type OzonTokenProvider,
 } from "./client";
+import type { OzonHttpRedirect } from "./http";
 import {
   ozonDeliveryTokenService,
   type OzonTokenStatus,
@@ -56,6 +57,8 @@ export interface OzonDeliveryConnectionCheck {
     status: number;
     itemsCount: number | null;
     traceId?: string;
+    finalUrl?: string;
+    redirects?: OzonHttpRedirect[];
     error?: OzonDeliveryApiError;
   };
 }
@@ -182,6 +185,8 @@ export class OzonDeliveryApiService {
         status: api.status,
         itemsCount: api.ok ? countListItems(api.data) : null,
         traceId: api.traceId,
+        finalUrl: api.finalUrl,
+        redirects: api.redirects,
         error: api.error,
       },
     };

@@ -10,6 +10,7 @@ import {
   OzonHttpClient,
   ozonDeliveryHttpClient,
   type OzonHttpClientOptions,
+  type OzonHttpRedirect,
 } from "./http";
 import {
   OZON_DELIVERY_BASE_URL,
@@ -35,6 +36,8 @@ export interface OzonDeliveryApiResult<T = any> {
   data?: T;
   error?: OzonDeliveryApiError;
   traceId?: string;
+  finalUrl?: string;
+  redirects?: OzonHttpRedirect[];
 }
 
 export interface OzonDeliveryApiClientOptions extends OzonHttpClientOptions {
@@ -127,6 +130,8 @@ export class OzonDeliveryApiClient {
         ok: false,
         status: 0,
         error: { code: "network_error", message: response.networkError },
+        finalUrl: response.finalUrl,
+        redirects: response.redirects,
       };
     }
 
@@ -141,6 +146,8 @@ export class OzonDeliveryApiClient {
         status: response.status,
         error,
         traceId: response.traceId,
+        finalUrl: response.finalUrl,
+        redirects: response.redirects,
       };
     }
 
@@ -149,6 +156,8 @@ export class OzonDeliveryApiClient {
       status: response.status,
       data: response.data as T,
       traceId: response.traceId,
+      finalUrl: response.finalUrl,
+      redirects: response.redirects,
     };
   }
 }
