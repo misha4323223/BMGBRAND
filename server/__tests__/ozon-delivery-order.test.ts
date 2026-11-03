@@ -211,9 +211,9 @@ describe("OzonDeliveryOrderService", () => {
       declaredValueKopeks: 350000,
       itemCount: 3,
       dimensions: {
-        weightGrams: 900,
-        lengthMm: 290,
-        widthMm: 200,
+        weightGrams: 1500,
+        lengthMm: 300,
+        widthMm: 250,
         heightMm: 50,
       },
     });
@@ -238,9 +238,9 @@ describe("OzonDeliveryOrderService", () => {
           description: "Смартфон и чехол",
           declared_value: { amount: "3500.00", currency_code: "RUB" },
           dimensions: {
-            weight_g: 900,
-            length_mm: 290,
-            width_mm: 200,
+            weight_g: 1500,
+            length_mm: 300,
+            width_mm: 250,
             height_mm: 50,
           },
         },

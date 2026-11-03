@@ -11,7 +11,10 @@ import {
 } from "../ozon-delivery-api/token";
 import { OzonDeliveryApiClient } from "../ozon-delivery-api/client";
 import { OzonHttpClient } from "../ozon-delivery-api/http";
-import { OzonDeliveryApiService } from "../ozon-delivery-api/index";
+import {
+  OzonDeliveryApiService,
+  OZON_DELIVERY_CHECK_CLIENT_PATH,
+} from "../ozon-delivery-api/index";
 import {
   OZON_DELIVERY_TOKEN_SETTING_KEY,
   YdbOzonTokenStore,
@@ -696,5 +699,91 @@ describe("OzonHttpClient testcookie", () => {
     expect(result.redirectError).toContain("не-Ozon");
     expect(fake.calls).toHaveLength(1);
     expect(fake.calls[0].url).toBe("https://xapi.ozon.ru/oauth/token");
+  });
+});
+
+describe("OzonDeliveryApiService.checkClient", () => {
+  function makeServiceForCheck(
+    onCheck: (call: FetchCall) => Response | Promise<Response>,
+  ) {
+    const fake = makeFetch((url, init) => {
+      if (url === OZON_DELIVERY_TOKEN_URL) {
+        return json({ access_token: "tok-secret", expires_in: 3600 });
+      }
+      if (
+        url ===
+        `https://api-delivery.ozon.ru${OZON_DELIVERY_CHECK_CLIENT_PATH}`
+      ) {
+        return onCheck({ url, init });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+    const token = makeTokenService(fake.fetchImpl);
+    const client = makeClient(fake.fetchImpl, token);
+    return {
+      service: new OzonDeliveryApiService({ token, client }),
+      fake,
+    };
+  }
+
+  it("нормализует телефон и подтверждает аккаунт Ozon", async () => {
+    const { service, fake } = makeServiceForCheck((call) => {
+      expect(JSON.parse(String(call.init.body))).toEqual({
+        phone_number: "+79001234567",
+      });
+      return json({ can_be_delivered: true });
+    });
+
+    const result = await service.checkClient("8 (900) 123-45-67");
+
+    expect(result).toMatchObject({
+      success: true,
+      canBeDelivered: true,
+      phoneNumber: "+79001234567",
+      status: 200,
+    });
+    expect(fake.calls.map((call) => call.url)).toContain(
+      `https://api-delivery.ozon.ru${OZON_DELIVERY_CHECK_CLIENT_PATH}`,
+    );
+  });
+
+  it("возвращает понятную ошибку для номера без аккаунта Ozon", async () => {
+    const { service } = makeServiceForCheck(() =>
+      json({ can_be_delivered: false }),
+    );
+
+    const result = await service.checkClient("+7 900 123-45-67");
+
+    expect(result.success).toBe(true);
+    expect(result.canBeDelivered).toBe(false);
+    expect(result.code).toBe("not_registered");
+    expect(result.error).toContain("не зарегистрирован в Ozon");
+  });
+
+  it("не пропускает ошибку API как подтверждённый аккаунт", async () => {
+    const { service } = makeServiceForCheck(() =>
+      json({ error: { message: "Access denied" } }, 403),
+    );
+
+    const result = await service.checkClient("+79001234567");
+
+    expect(result.success).toBe(false);
+    expect(result.canBeDelivered).toBe(false);
+    expect(result.code).toBe("api_error");
+    expect(result.status).toBe(403);
+    expect(result.error).toBe("Access denied");
+  });
+
+  it("не делает сетевой запрос для заведомо неверного телефона", async () => {
+    const fake = makeFetch(() => json({ can_be_delivered: true }));
+    const token = makeTokenService(fake.fetchImpl);
+    const client = makeClient(fake.fetchImpl, token);
+    const service = new OzonDeliveryApiService({ token, client });
+
+    const result = await service.checkClient("123");
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe("invalid_phone");
+    expect(fake.calls).toHaveLength(0);
   });
 });

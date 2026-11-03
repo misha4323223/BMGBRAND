@@ -24,6 +24,7 @@ import {
 } from "./points";
 import {
   OzonDeliveryQuoteService,
+  normalizeOzonPhone,
   type OzonQuoteRequest,
   type OzonQuoteResult,
 } from "./quote";
@@ -34,11 +35,25 @@ import {
 } from "./order";
 
 export { OZON_DELIVERY_POINT_LIST_PATH } from "./points";
+export const OZON_DELIVERY_CHECK_CLIENT_PATH = "/v1/delivery/check-client";
 export type { OzonQuoteRequest, OzonQuoteResult } from "./quote";
 export type {
   OzonOrderCreateRequest,
   OzonOrderCreateResult,
 } from "./order";
+
+export interface OzonDeliveryClientCheckResult {
+  success: boolean;
+  canBeDelivered: boolean;
+  phoneNumber?: string;
+  code?:
+    | "invalid_phone"
+    | "api_error"
+    | "not_registered";
+  error?: string;
+  status?: number;
+  traceId?: string;
+}
 
 export interface OzonDeliveryConnectionCheck {
   success: boolean;
@@ -131,6 +146,62 @@ export class OzonDeliveryApiService {
 
   calculateQuote(request: OzonQuoteRequest): Promise<OzonQuoteResult> {
     return this.quote.calculate(request);
+  }
+
+  /**
+   * Проверяет, есть ли у номера аккаунт Ozon. Ozon Delivery не принимает
+   * получателя без аккаунта, поэтому это нужно делать до оплаты заказа.
+   */
+  async checkClient(phone: string): Promise<OzonDeliveryClientCheckResult> {
+    const phoneNumber = normalizeOzonPhone(String(phone ?? ""));
+    if (!phoneNumber) {
+      return {
+        success: false,
+        canBeDelivered: false,
+        code: "invalid_phone",
+        error: "Укажите корректный номер телефона",
+      };
+    }
+
+    const response = await this.client.request(
+      OZON_DELIVERY_CHECK_CLIENT_PATH,
+      { phone_number: phoneNumber },
+    );
+
+    if (!response.ok) {
+      return {
+        success: false,
+        canBeDelivered: false,
+        phoneNumber,
+        code: "api_error",
+        error:
+          response.error?.message ||
+          "Ozon не подтвердил номер телефона",
+        status: response.status,
+        traceId: response.traceId,
+      };
+    }
+
+    if (response.data?.can_be_delivered !== true) {
+      return {
+        success: true,
+        canBeDelivered: false,
+        phoneNumber,
+        code: "not_registered",
+        error:
+          "Этот номер не зарегистрирован в Ozon. Для доставки Ozon нужен аккаунт Ozon — зарегистрируйтесь на ozon.ru или укажите телефон, привязанный к аккаунту.",
+        status: response.status,
+        traceId: response.traceId,
+      };
+    }
+
+    return {
+      success: true,
+      canBeDelivered: true,
+      phoneNumber,
+      status: response.status,
+      traceId: response.traceId,
+    };
   }
 
   createOrder(request: OzonOrderCreateRequest): Promise<OzonOrderCreateResult> {

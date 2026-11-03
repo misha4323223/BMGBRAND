@@ -94,7 +94,7 @@ describe("normalizeOzonPhone", () => {
 describe("buildOzonQuoteDimensions", () => {
   it("считает вес по количеству товаров и не уходит ниже 500 г", () => {
     expect(buildOzonQuoteDimensions(1).weightGrams).toBe(500);
-    expect(buildOzonQuoteDimensions(3).weightGrams).toBe(900);
+    expect(buildOzonQuoteDimensions(3).weightGrams).toBe(1500);
   });
 
   it("позволяет переопределить габариты", () => {
@@ -197,9 +197,9 @@ describe("OzonDeliveryQuoteService", () => {
           shipment_method_id: 9000000000000002,
           declared_value: { amount: "3500.00", currency_code: "RUB" },
           dimensions: {
-            weight_g: 900,
-            length_mm: 290,
-            width_mm: 200,
+            weight_g: 1500,
+            length_mm: 300,
+            width_mm: 250,
             height_mm: 50,
           },
         },

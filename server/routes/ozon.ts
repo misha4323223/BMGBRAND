@@ -678,6 +678,33 @@ export function registerOzonRoutes(
           });
         }
 
+        // Ozon Доставка принимает только получателей с аккаунтом Ozon.
+        // Проверяем номер до расчёта и до создания заказа, чтобы не брать
+        // оплату с покупателя, которому Ozon не сможет доставить.
+        const clientCheck = await ozonDeliveryApi.checkClient(phone);
+        if (!clientCheck.success) {
+          return res.json({
+            available: false,
+            cost: 0,
+            error:
+              clientCheck.error ||
+              "Не удалось проверить номер в Ozon. Попробуйте позже.",
+            code: "ozon_phone_check_failed",
+            traceId: clientCheck.traceId,
+          });
+        }
+        if (!clientCheck.canBeDelivered) {
+          return res.json({
+            available: false,
+            cost: 0,
+            error:
+              clientCheck.error ||
+              "Этот номер не зарегистрирован в Ozon. Для доставки Ozon нужен аккаунт Ozon.",
+            code: "ozon_account_required",
+            traceId: clientCheck.traceId,
+          });
+        }
+
         const result = await ozonDeliveryApi.calculateQuote({
           deliveryPointId: pointId,
           phoneNumber: phone,

@@ -10651,6 +10651,35 @@ ${faqSection}
         }
 
         try {
+          // Повторная проверка перед созданием платежа: клиентская проверка
+          // могла быть пропущена или устареть, а Ozon принимает только
+          // получателей с аккаунтом Ozon.
+          const clientCheck = await ozonDeliveryApi.checkClient(
+            input.customerPhone,
+          );
+          if (!clientCheck.success) {
+            logWarn(
+              `[Order] Ozon client check failed: ${clientCheck.error || "unknown"}`,
+            );
+            return res.status(400).json({
+              message:
+                clientCheck.error ||
+                "Не удалось проверить номер в Ozon. Попробуйте позже или выберите другой способ доставки.",
+              code: "OZON_PHONE_CHECK_FAILED",
+            });
+          }
+          if (!clientCheck.canBeDelivered) {
+            logWarn(
+              `[Order] Ozon recipient is not registered: ${clientCheck.phoneNumber || "phone"}`,
+            );
+            return res.status(400).json({
+              message:
+                clientCheck.error ||
+                "Этот номер не зарегистрирован в Ozon. Для доставки Ozon нужен аккаунт Ozon.",
+              code: "OZON_ACCOUNT_REQUIRED",
+            });
+          }
+
           const quoteResult = await ozonDeliveryApi.calculateQuote({
             deliveryPointId: pointId,
             phoneNumber: input.customerPhone,

@@ -23,12 +23,12 @@ import {
 
 export const OZON_DELIVERY_ORDER_CHECKOUT_PATH = "/v1/order/checkout";
 
-/** Как в СДЭК-расчёте: 300 г на товар, но не меньше 500 г на посылку. */
-export const OZON_QUOTE_ITEM_WEIGHT_G = 300;
+/** Средняя посылка: 500 г на товар, но не меньше 500 г на посылку. */
+export const OZON_QUOTE_ITEM_WEIGHT_G = 500;
 export const OZON_QUOTE_MIN_WEIGHT_G = 500;
 export const OZON_QUOTE_DEFAULT_BOX = {
-  lengthMm: 290,
-  widthMm: 200,
+  lengthMm: 300,
+  widthMm: 250,
   heightMm: 50,
 };
 
