@@ -17,6 +17,7 @@
 import { Request, Response, NextFunction } from "express";
 import { logError } from "./logger";
 import crypto from "node:crypto";
+import { groupFaqItems, normalizeFaqItems, type FaqItem } from "@shared/faq";
 import {
   getCachedProductMetaBySlug,
   getCachedDeletedSlugs,
@@ -262,14 +263,10 @@ const DEFAULT_FAQ_ITEMS: Array<{ question: string; answer: string }> = [
 
 // Реальный контент FAQ, отредактированный в админке (static_pages.faq_data), с фолбэком —
 // та же логика парсинга, что в client/src/pages/FAQ.tsx и server/static.ts.
-function getFaqItems(): Array<{ question: string; answer: string }> {
+function getFaqItems(): FaqItem[] {
   try {
-    const staticPages = getCachedRawPageSettings("static_pages");
-    const raw = staticPages?.faq_data;
-    const parsed = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : null;
-    if (parsed?.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
-      return parsed.items;
-    }
+    const items = normalizeFaqItems(getCachedRawPageSettings("static_pages")?.faq_data);
+    if (items.length > 0) return items;
   } catch { /* keep defaults */ }
   return DEFAULT_FAQ_ITEMS;
 }
@@ -1759,7 +1756,12 @@ function renderFaq(): string {
 <div class="breadcrumb"><a href="/">Главная</a> / Вопросы и ответы</div>
 <h1>Часто задаваемые вопросы</h1>
 <p class="desc">${esc(description)}</p>
-${faqItems.map(item => `<h2>${esc(item.question)}</h2><p>${esc(item.answer)}</p>`).join("\n")}
+${groupFaqItems(faqItems).map(group => {
+    const questionTag = group.title ? "h3" : "h2";
+    const heading = group.title ? `<h2>${esc(group.title)}</h2>\n` : "";
+    const questions = group.items.map(item => `<${questionTag}>${esc(item.question)}</${questionTag}><p>${esc(item.answer)}</p>`).join("\n");
+    return heading + questions;
+  }).join("\n")}
 `;
 
   return wrapPage(head, body);

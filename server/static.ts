@@ -3,6 +3,7 @@ import { logError, logWarn } from "./logger";
 import fs from "fs";
 import path from "path";
 import { getCachedLcpImageUrls, getCachedProductImageBySlug, getCachedProductMetaBySlug, getCachedRatingByProductId, getCachedProductsByCategory, getCachedAllVisibleProducts, getCachedProductsForRecommendations, getCachedHeroData, getCachedArtistHeroImage, getCachedRawPageSettings, ensurePageSettingsCached } from "./storage";
+import { groupFaqItems, normalizeFaqItems, type FaqItem } from "@shared/faq";
 
 // Admin-editable SEO overrides (page_settings, pageName="seo").
 // Ключи: "home", "category:<slug>". Читаем только из тёплого кэша.
@@ -359,14 +360,10 @@ const DEFAULT_BLOG_POSTS: Array<{ title: string; date: string; category: string;
 // Читает реальный контент FAQ, отредактированный в админке (static_pages.faq_data),
 // с фолбэком на DEFAULT_FAQ_ITEMS — та же логика парсинга, что в client/src/pages/FAQ.tsx,
 // чтобы structured data и noscript-разметка всегда совпадали с тем, что видит пользователь.
-function getFaqItems(): Array<{ question: string; answer: string }> {
+function getFaqItems(): FaqItem[] {
   try {
-    const staticPages = getCachedRawPageSettings("static_pages");
-    const raw = staticPages?.faq_data;
-    const parsed = raw ? (typeof raw === "string" ? JSON.parse(raw) : raw) : null;
-    if (parsed?.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
-      return parsed.items;
-    }
+    const items = normalizeFaqItems(getCachedRawPageSettings("static_pages")?.faq_data);
+    if (items.length > 0) return items;
   } catch (e) {
     logError("[Static] FAQ items parse error:", e);
   }
@@ -374,9 +371,14 @@ function getFaqItems(): Array<{ question: string; answer: string }> {
 }
 
 function buildFaqNoscript(): string {
-  const items = getFaqItems().map(item =>
-    `<h2>${escHtml(item.question)}</h2><p>${escHtml(item.answer)}</p>`
-  ).join("\n");
+  const items = groupFaqItems(getFaqItems()).map(group => {
+    const questionTag = group.title ? "h3" : "h2";
+    const heading = group.title ? `<h2>${escHtml(group.title)}</h2>` : "";
+    const questions = group.items.map(item =>
+      `<${questionTag}>${escHtml(item.question)}</${questionTag}><p>${escHtml(item.answer)}</p>`
+    ).join("\n");
+    return heading + questions;
+  }).join("\n");
   return `<noscript><div>` +
     `<h1>Часто задаваемые вопросы</h1>` +
     `<p>Ответы на популярные вопросы о заказах, доставке и возврате BOOOMERANGS.</p>` +

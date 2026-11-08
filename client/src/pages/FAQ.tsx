@@ -8,8 +8,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { groupFaqItems, normalizeFaqItems, type FaqItem } from "@shared/faq";
 
-const DEFAULT_FAQ_ITEMS = [
+const DEFAULT_FAQ_ITEMS: FaqItem[] = [
   {
     question: "Как оформить заказ?",
     answer: "Выберите понравившиеся товары, добавьте их в корзину, перейдите к оформлению и заполните данные для доставки. После оформления заказа вам придёт уведомление на электронную почту. Отследить статус заказа и местонахождение посылки можно в личном кабинете.",
@@ -40,7 +42,7 @@ const DEFAULT_FAQ_ITEMS = [
   },
   {
     question: "Как связаться с поддержкой?",
-    answer: "Напишите нам на info@booomerangs.ru, в Telegram @bmg_booomerangs или в группу ВКонтакте vk.com/bmgbrand. Мы отвечаем в течение 24 часов.",
+    answer: "Напишите нам на info@booomerangs.ru, в Telegram @bmg_boomerangs или в группу ВКонтакте vk.com/bmgbrand. Мы отвечаем в течение 24 часов.",
   },
   {
     question: "Что такое BOOOM AI?",
@@ -62,9 +64,12 @@ export default function FAQ() {
     },
   });
 
-  const rawData = pageSettings?.faq_data;
-  const parsed = rawData ? (typeof rawData === "string" ? JSON.parse(rawData) : rawData) : null;
-  const faqItems = parsed?.items && parsed.items.length > 0 ? parsed.items : DEFAULT_FAQ_ITEMS;
+  const faqItems = useMemo<FaqItem[]>(() => {
+    const fromDb = normalizeFaqItems(pageSettings?.faq_data);
+    return fromDb.length > 0 ? fromDb : DEFAULT_FAQ_ITEMS;
+  }, [pageSettings?.faq_data]);
+
+  const faqGroups = useMemo(() => groupFaqItems(faqItems), [faqItems]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -75,7 +80,7 @@ export default function FAQ() {
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "FAQPage",
-          "mainEntity": faqItems.map((item: { question: string; answer: string }) => ({
+          "mainEntity": faqItems.map((item: FaqItem) => ({
             "@type": "Question",
             "name": item.question,
             "acceptedAnswer": {
@@ -96,23 +101,52 @@ export default function FAQ() {
             </p>
           </div>
 
-          <Accordion type="single" collapsible className="space-y-2">
-            {faqItems.map((item: { question: string; answer: string }, index: number) => (
-              <AccordionItem 
-                key={index} 
-                value={`item-${index}`}
-                className="border border-border rounded-lg px-4 data-[state=open]:bg-muted/30"
-                data-testid={`accordion-faq-${index}`}
-              >
-                <AccordionTrigger className="text-left hover:no-underline py-4">
-                  <span className="text-foreground font-medium">{item.question}</span>
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4">
-                  {item.answer}
-                </AccordionContent>
-              </AccordionItem>
+          {faqGroups.length > 1 && (
+            <nav aria-label="Разделы вопросов" className="flex flex-wrap justify-center gap-2 mb-8">
+              {faqGroups.map((group) => (
+                <a
+                  key={group.anchor}
+                  href={`#${group.anchor}`}
+                  className="px-3 py-1.5 text-sm rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+                >
+                  {group.title}
+                </a>
+              ))}
+            </nav>
+          )}
+
+          <div className="space-y-8">
+            {faqGroups.map((group) => (
+              <section key={group.anchor} id={group.anchor} className="scroll-mt-28">
+                {group.title && (
+                  <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <span className="w-1.5 h-5 rounded-full bg-primary" aria-hidden="true" />
+                    {group.title}
+                  </h2>
+                )}
+                <Accordion type="single" collapsible className="space-y-2">
+                  {group.items.map((item, index) => {
+                    const value = `${group.anchor}-${index}`;
+                    return (
+                      <AccordionItem
+                        key={value}
+                        value={value}
+                        className="border border-border rounded-lg px-4 data-[state=open]:bg-muted/30"
+                        data-testid={`accordion-faq-${group.anchor}-${index}`}
+                      >
+                        <AccordionTrigger className="text-left hover:no-underline py-4">
+                          <span className="text-foreground font-medium">{item.question}</span>
+                        </AccordionTrigger>
+                        <AccordionContent className="text-muted-foreground pb-4">
+                          {item.answer}
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
+              </section>
             ))}
-          </Accordion>
+          </div>
 
           <div className="mt-12 text-center p-6 bg-muted/30 rounded-lg">
             <p className="text-foreground mb-2">Не нашли ответ на свой вопрос?</p>
@@ -122,7 +156,7 @@ export default function FAQ() {
                 info@booomerangs.ru
               </a>
               {", в "}
-              <a href="https://t.me/bmg_booomerangs" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              <a href="https://t.me/bmg_boomerangs" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 Telegram
               </a>
               {" или "}

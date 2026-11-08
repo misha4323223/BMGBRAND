@@ -40,6 +40,7 @@ import { AiQuestionsTab } from "@/pages/admin/AiQuestionsTab";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES, normalizeCategories, type Product, type CategorySlug } from "@shared/schema";
+import { collectFaqCategories } from "@shared/faq";
 import { transportCompanyName, TRANSPORT_COMPANY_COLORS } from "@shared/transport-companies";
 import SEO from "@/components/SEO";
 import { NavbarEditor } from "@/components/NavbarEditor";
@@ -186,7 +187,16 @@ export default function Admin() {
   // Static pages editor state
   const [staticPageTab, setStaticPageTab] = useState<string>("privacy");
   const [staticPageContent, setStaticPageContent] = useState<string>("");
-  const [faqItems, setFaqItems] = useState<Array<{question: string; answer: string}>>([]);
+  const [faqItems, setFaqItems] = useState<Array<{question: string; answer: string; category?: string}>>([]);
+  const [faqCategoryFilter, setFaqCategoryFilter] = useState<string>("__all__");
+  const faqFilteredItems = faqItems
+    .map((item, idx) => ({ item, idx }))
+    .filter(({ item }) => {
+      const category = String(item.category ?? "").trim();
+      if (faqCategoryFilter === "__all__") return true;
+      if (faqCategoryFilter === "__none__") return !category;
+      return category === faqCategoryFilter;
+    });
   const [aboutFields, setAboutFields] = useState<{
     title: string; titleAccent: string; description: string;
     image1: string; image1Alt: string; image2: string; image2Alt: string; quote: string;
@@ -1294,7 +1304,8 @@ export default function Admin() {
     } catch { parsed = null; }
 
     if (staticPageTab === "faq") {
-      setFaqItems(parsed?.items && parsed.items.length > 0 ? parsed.items : DEFAULT_FAQ_ITEMS);
+      const faqSource = parsed?.items && parsed.items.length > 0 ? parsed.items : DEFAULT_FAQ_ITEMS;
+      setFaqItems(faqSource.map((item: any) => ({ ...item, category: String(item?.category ?? "") })));
     } else if (staticPageTab === "about") {
       setAboutFields({ ...DEFAULT_ABOUT_FIELDS, ...(parsed || {}) });
     } else if (staticPageTab === "privacy") {
@@ -9704,19 +9715,61 @@ export default function Admin() {
                 ) : staticPageTab === "faq" ? (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <h3 className="font-medium text-foreground">Вопросы и ответы ({faqItems.length})</h3>
+                      <div>
+                        <h3 className="font-medium text-foreground">Вопросы и ответы ({faqItems.length})</h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Категория — заголовок раздела на странице /faq. Пустое поле = «Общие вопросы».
+                        </p>
+                      </div>
+                      <datalist id="faq-category-options">
+                        {collectFaqCategories(faqItems).map((category) => (
+                          <option key={category} value={category} />
+                        ))}
+                      </datalist>
                       <div className="flex gap-2">
+                        <Select value={faqCategoryFilter} onValueChange={setFaqCategoryFilter}>
+                          <SelectTrigger className="w-[200px] h-9" data-testid="select-faq-category-filter">
+                            <SelectValue placeholder="Все категории" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__all__">Все категории ({faqItems.length})</SelectItem>
+                            {collectFaqCategories(faqItems).map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category} ({faqItems.filter((item) => String(item.category ?? "").trim() === category).length})
+                              </SelectItem>
+                            ))}
+                            {faqItems.some((item) => !String(item.category ?? "").trim()) && (
+                              <SelectItem value="__none__">
+                                Без категории ({faqItems.filter((item) => !String(item.category ?? "").trim()).length})
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setFaqItems([...faqItems, { question: "", answer: "" }])}
+                          onClick={() => setFaqItems([...faqItems, {
+                            question: "",
+                            answer: "",
+                            category: faqCategoryFilter === "__all__" || faqCategoryFilter === "__none__" ? "" : faqCategoryFilter,
+                          }])}
                           data-testid="button-add-faq"
                         >
                           <Plus className="w-4 h-4 mr-1" /> Добавить вопрос
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => saveStaticPageMutation.mutate({ pageKey: "faq", settings: { items: faqItems } })}
+                          onClick={() => saveStaticPageMutation.mutate({
+                            pageKey: "faq",
+                            settings: {
+                              items: faqItems.map(({ question, answer, category }) => {
+                                const trimmedCategory = String(category ?? "").trim();
+                                return trimmedCategory
+                                  ? { question, answer, category: trimmedCategory }
+                                  : { question, answer };
+                              }),
+                            },
+                          })}
                           disabled={saveStaticPageMutation.isPending}
                           data-testid="button-save-faq"
                         >
@@ -9727,13 +9780,29 @@ export default function Admin() {
                     </div>
                     {faqItems.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-8">Нет вопросов. Нажмите "Добавить вопрос" для начала.</p>
+                    ) : faqFilteredItems.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">В этой категории пока нет вопросов.</p>
                     ) : (
                       <div className="space-y-3">
-                        {faqItems.map((item, idx) => (
+                        {faqFilteredItems.map(({ item, idx }) => (
                           <Card key={idx}>
                             <CardContent className="p-4 space-y-3">
                               <div className="flex items-start gap-2">
                                 <div className="flex-1 space-y-3">
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground mb-1 block">Категория</Label>
+                                    <Input
+                                      value={item.category || ""}
+                                      onChange={e => {
+                                        const updated = [...faqItems];
+                                        updated[idx] = { ...updated[idx], category: e.target.value };
+                                        setFaqItems(updated);
+                                      }}
+                                      placeholder="Например: Доставка"
+                                      list="faq-category-options"
+                                      data-testid={`input-faq-category-${idx}`}
+                                    />
+                                  </div>
                                   <div>
                                     <Label className="text-xs text-muted-foreground mb-1 block">Вопрос</Label>
                                     <Input
@@ -9763,7 +9832,7 @@ export default function Admin() {
                                   </div>
                                 </div>
                                 <div className="flex flex-col gap-1 pt-5">
-                                  {idx > 0 && (
+                                  {faqCategoryFilter === "__all__" && idx > 0 && (
                                     <Button size="icon" variant="ghost" onClick={() => {
                                       const updated = [...faqItems];
                                       [updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]];
@@ -9772,7 +9841,7 @@ export default function Admin() {
                                       <ArrowUp className="w-4 h-4" />
                                     </Button>
                                   )}
-                                  {idx < faqItems.length - 1 && (
+                                  {faqCategoryFilter === "__all__" && idx < faqItems.length - 1 && (
                                     <Button size="icon" variant="ghost" onClick={() => {
                                       const updated = [...faqItems];
                                       [updated[idx], updated[idx + 1]] = [updated[idx + 1], updated[idx]];

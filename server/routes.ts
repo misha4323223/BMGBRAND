@@ -58,6 +58,7 @@ import { mapProductCategory, isOnSale, extractColorFromName, extractSizesFromNam
 import { CATEGORIES, normalizeCategories, buildCategoryIndex, resolveProductCategoryPaths, transliterateToSlug, insertPromoCodeSchema, insertLoyaltyTierSchema, insertNewsletterSubscriptionSchema, PARTNER_COOKIE_NAME, PARTNER_DEFAULT_COMMISSION_PERCENT, getProgressiveCommissionRate } from "@shared/schema";
 import type { SubcategoryConfig, SubSubcategoryConfig, CategoryConfig } from "@shared/schema";
 import { resolveBlogPostForSsr } from "@shared/blog-post";
+import { groupFaqItems, normalizeFaqItems } from "@shared/faq";
 import type { BlogPostForSsr } from "@shared/blog-post";
 import { buildBlogRssFeed, BLOG_RSS_PATH, BLOG_RSS_ALIAS_PATH } from "@shared/blog-rss";
 import authRoutes, { authMiddleware, requireAdminRole, type AuthRequest } from "./auth-routes";
@@ -2005,10 +2006,16 @@ ${productLines || "- (список формируется)"}
         if (parsed?.items && Array.isArray(parsed.items) && parsed.items.length > 0) faqItems = parsed.items;
       } catch { /* keep fallback */ }
 
-      const faqSection = faqItems
-        .map((it: any) => {
-          const answer = String(it.answer || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-          return `### ${String(it.question || "").trim()}\n${answer}`;
+      const faqSection = groupFaqItems(normalizeFaqItems({ items: faqItems }))
+        .map((group) => {
+          const heading = group.title ? `## ${group.title}\n\n` : "";
+          const questions = group.items
+            .map((it) => {
+              const answer = String(it.answer || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+              return `### ${String(it.question || "").trim()}\n${answer}`;
+            })
+            .join("\n\n");
+          return heading + questions;
         })
         .join("\n\n");
 
