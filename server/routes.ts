@@ -1719,6 +1719,13 @@ Disallow: /*?
 # into the canonical (param-free) URL instead of leaving indexed copies.
 Clean-param: ref /
 Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term /
+# Clean-param is cross-section: Yandex honours it wherever it sits, so it needs
+# no own "User-agent: Yandex" block — such a block would make Yandex ignore
+# every Disallow above. Google ignores Clean-param entirely.
+Clean-param: utm_id&utm_source_platform /
+Clean-param: yclid&yclid2&ysclid&yrclid /
+Clean-param: gclid&gbraid&wbraid /
+Clean-param: fbclid&vkclid /
 Clean-param: category&subcategory&subSubcategory&sale&search /
 
 Sitemap: ${siteUrl}/sitemap.xml
