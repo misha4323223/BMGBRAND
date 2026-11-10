@@ -696,6 +696,68 @@
   `listeners:4`, повтор того же id не удваивает, мусорные id отбиваются, через 65 с окно пустеет → 0.
 - Эквалайзер: `.radio-eq-bar` + `@keyframes radio-eq` в `client/src/index.css` (уважает `prefers-reduced-motion`).
 
+## Ozon Доставка — новый контур (2026-11-03, РАБОТАЕТ В ПРОДЕ)
+- Контуров ДВА. Рабочий — `server/ozon-delivery-api/*` (`api-delivery.ozon.ru`, `client_credentials`), флаг
+  `bonus_settings/ozon_delivery_api_enabled`. Старый Seller (`server/ozon-delivery.ts`, `ozon-delivery-oauth.ts`,
+  флаг `ozon_delivery_enabled`) выключен — НЕ трогать без отдельной команды. Все ручки и грабли — в
+  `.agents/memory/ozon-delivery-integration.md`, журнал этапов — `docs/OZON-DELIVERY-API-STAGES.md`.
+- Env: `OZON_DELIVERY_API_CLIENT_ID` / `_SECRET` / `_SCOPES` (передаются в `.github/workflows/deploy.yml`).
+  Старые `OZON_CLIENT_ID` / `OZON_CLIENT_SECRET` к новому контуру отношения не имеют.
+- Публичный чекаут показывается только если ОДНОВРЕМЕННО: заданы ключи, флаг = `"true"` и синхронизация ПВЗ
+  завершена (`completedAt` && `hasMore === false`) — `isOzonDeliveryApiPublicEnabled()` в
+  `server/ozon-delivery-api/public.ts`; любая ошибка чтения = `false`. `GET /api/payment-methods` отдаёт
+  `ozonDeliveryEnabled` для `Checkout.tsx`.
+- **Проверка получателя обязательна**: Ozon доставляет только номерам с аккаунтом Ozon. `checkClient()`
+  (`POST /v1/delivery/check-client`) вызывается в `POST /api/ozon-delivery/check` до расчёта
+  (`ozon_phone_check_failed` / `ozon_account_required`) и в `POST /api/orders` перед платежом
+  (400 `OZON_PHONE_CHECK_FAILED` / `OZON_ACCOUNT_REQUIRED`). Кэша нет — вызов идёт на каждый пересчёт.
+- Габариты quote: 500 г на товар, минимум 500 г, коробка 300×250×50 мм (`OZON_QUOTE_*` в `quote.ts`).
+  Лимиты: ≤ 100 позиций, объявленная стоимость ≤ 500 000 ₽, cutoff 2 ч, деньги в копейках.
+- Токен: `bonus_settings/ozon_delivery_api_token`, AES-256-GCM от `JWT_SECRET`, восстанавливается на старте,
+  чужой Client ID и истёкший токен стираются; 401 → refresh + один повтор.
+- ПВЗ: таблица `ozon_delivery_points` (создаётся через SDK), состояние синка —
+  `bonus_settings/ozon_delivery_points_sync`, `shipment_method_id` приходит из `delivery-point/list`
+  (без него quote → `no_shipment_method`).
+- Заказ: quote-first + `Idempotency-Key`. Для заказа магазина ключ детерминирован от id
+  (`buildOzonOrderIdempotencyKey`, sha256 → UUID), поэтому повтор вебхука/ретрай не создаёт второе
+  отправление. Неоднозначный ответ = `mayHaveBeenCreated`: повторять ТОЛЬКО с тем же ключом.
+- HTTP-клиент: общий домен-aware cookie-jar + проход по редиректам (Ozon отдаёт 307 с `testcookie`), таймаут
+  10 с, до 5 редиректов; `Authorization` и `Idempotency-Key` никогда не уходят на не-Ozon хост.
+- Админка: `GET/POST /api/admin/ozon-delivery-api/settings|check|points/sync|quote|order/create`
+  (`authMiddleware` + `requireAdminRole`), UI — `client/src/components/admin/OzonDeliveryIntegration.tsx`,
+  диагностика — `/api/admin/diagnostics/ozon-delivery/{check,points-sync}`.
+- Живой статус (10.11.2026): контур работает, реальные заказы оформлялись. Не зафиксированы отдельным
+  прогоном: повтор с тем же `Idempotency-Key`, поведение при недоступном Ozon после оплаты, чистка неактивных ПВЗ.
+
+## FAQ с категориями (2026-11-08)
+- Единый формат и группировка — `shared/faq.ts`: `FaqItem { question, answer, category? }`,
+  `normalizeFaqItems`, `collectFaqCategories`, `groupFaqItems`. Правишь группировку — правь ТОЛЬКО здесь.
+- Данные: `page_settings` → `static_pages` → `faq_data = { items: [...] }`. Категория необязательна: если её нет
+  ни у одного вопроса — прежний одиночный список; если есть — разделы в порядке первого появления,
+  безкатегорийные последними («Общие вопросы»).
+- Поверхности (все обязаны совпадать): `client/src/pages/FAQ.tsx` (h2 на раздел + h3 на вопрос, чипсы-якоря
+  `faq-N`), `server/bot-ssr.ts`, `server/static.ts` (noscript) и `llms-full` в `server/routes.ts`.
+- Админка (вкладка FAQ в `Admin.tsx`): поле «Категория» с подсказками из уже введённых значений + фильтр
+  «Все / категория / Без категории». При включённом фильтре кнопки ↑↓ скрыты — перестановка только в «Все».
+- Тесты: `shared/__tests__/faq.test.ts` (12).
+
+## Оптовая страница редактируется из админки (2026-10-29)
+- Контент `/wholesale` живёт в `page_settings` (pageName `wholesale`, section `content`), а не в коде.
+  Дефолты 1:1 с прежней вёрсткой — `client/src/lib/wholesale-content.ts` (`DEFAULT_WHOLESALE_CONTENT`,
+  `mergeWholesaleContent`). Пока никто не сохранил настройки, страница выглядит как раньше.
+- Редактор — `client/src/pages/admin/WholesaleEditor.tsx`: hero, статистика, условия, преимущества, шаги,
+  контакты, FAQ; иконки ограничены `WHOLESALE_ICON_KEYS`.
+- Правка копирайта/телефона на этой странице — через админку, деплой не нужен.
+
+## Бренд в title и технические дубли (2026-10-18)
+- В `<title>` бренд называется ОДИН раз («Носки — купить в BOOOMERANGS», без «| BOOOMERANGS» вторым разом);
+  клиентские страницы, ещё подписанные BMGBRAND, приведены к общему имени. `SEO.tsx` умеет `brandSuffix`
+  (блог ставит `false`). Подпись футера «© BMGBRAND (Booomerangs)» — общая, менять только по команде владельца.
+- 301 на trailing-slash дубли, 301 с artist-клонов, 404 на неизвестные `/products/<slug>` (раньше отдавали
+  200 с title главной), ручные SEO-ключи подкатегорий через `resolveSubcategorySeoKey` (раньше `static.ts`
+  искал несуществующее поле `subcategories`). Списки SPA-роутов синхронизированы с `static.ts`, регрессия
+  закрыта тестами `server/__tests__/static-routes.test.ts` и `artist-redirects.test.ts`.
+
 ## Verification
 - ОБЯЗАТЕЛЬНО тестируй вживую на preview после правок — typecheck НЕ заменяет живой тест. Не пропускай этот этап.
 - Если песочница не отвечает (`running:false`, 502, «Is the Sandbox started?», `freebuff-preview: not found`) —

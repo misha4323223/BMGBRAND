@@ -26,6 +26,7 @@ import { resolveBlogPostForSsr, parseBlogIndex, blogPageTitle, blogDescriptionFo
 import { sanitizeHtmlBlock } from "./lib/product-utils";
 import { artistRedirectTarget } from "./lib/artist-redirects";
 import { knownCategorySlugs, legacyCategoryParamRedirect } from "./lib/catalog-paths";
+import { isHiddenArtistSlug, resolveLegacyUrl } from "./lib/legacy-urls";
 
 /**
  * SPA-роуты и префиксы, которые бот/человек должен получить как страницу, а не 404.
@@ -871,6 +872,24 @@ export function serveStatic(app: Express) {
     const cleanUrl = url.split('?')[0].split('#')[0];
     const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
 
+    // Легаси-адреса старого сайта и технические варианты slug'ов: один 301
+    // на живую страницу либо 410. Тот же резолвер, что в bot-ssr.
+    const legacyDecision = resolveLegacyUrl(cleanUrl, (slug) => !!getCachedProductMetaBySlug(slug));
+    if (legacyDecision) {
+      if (legacyDecision.status === 301) {
+        return res.redirect(301, legacyDecision.target);
+      }
+      res.status(410);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.type('text/html').send(
+        '<!doctype html><html lang="ru"><head><meta charset="UTF-8">' +
+          '<meta name="robots" content="noindex"><title>410 — Страница удалена | BOOOMERANGS</title></head>' +
+          '<body><h1>410 — Страница удалена</h1>' +
+          '<p>Этой страницы больше нет. Возможно, товар снят с продажи или ссылка устарела.</p>' +
+          '<p><a href="/">На главную</a> · <a href="/products">Каталог</a></p></body></html>',
+      );
+    }
+
     // Легаси `/products?category=<slug>` → канонический `/products/<slug>` (301).
     // Только когда `category` — единственный параметр: фильтры не трогаем (ТЗ п.2).
     const legacyCatRedirect = legacyCategoryParamRedirect(url);
@@ -1098,6 +1117,9 @@ export function serveStatic(app: Express) {
       const artistMatch = cleanUrl.match(/^\/@([a-z0-9][a-z0-9-]*)$/);
       if (artistMatch) {
         const artistSlug = artistMatch[1];
+        // Технические/пустые страницы артистов (artist-N, vashana) не индексируем —
+        // тот же список, что в bot-ssr (server/lib/legacy-urls.ts).
+        const artistHidden = isHiddenArtistSlug(artistSlug);
         // Тот же 301, что в bot-ssr: служебные слаг-клоны не должны отдавать 200.
         const redirectTarget = artistRedirectTarget(artistSlug);
         if (redirectTarget) {
@@ -1124,7 +1146,7 @@ export function serveStatic(app: Express) {
           ? `Официальный мерч ${artistName} — купить одежду и аксессуары с символикой артиста. Доставка по всей России.`
           : null);
 
-        if (artistName && artistDesc) {
+        if (!artistHidden && artistName && artistDesc) {
           const title = artistSeoTitle || `Мерч ${artistName} — купить официальный мерч | ${SITE_NAME}`;
           // Hero-изображение гораздо лучше для соцсетей, чем favicon
           const artistOgImage = artistHero.img || artistHero.imgMobile || `${siteUrl}/og-image.png`;
@@ -1145,6 +1167,15 @@ export function serveStatic(app: Express) {
             canonical: `${siteUrl}/@${artistSlug}`,
             jsonLd,
           });
+        }
+
+        if (artistHidden) {
+          // Заменяем SPA-шный тег, а не добавляем второй: два conflicting robots
+          // meta в одном <head> — плохой сигнал для поисковика.
+          html = html.replace(
+            /<meta name="robots" content="[^"]*"[^>]*\/?>/,
+            '<meta name="robots" content="noindex,nofollow">',
+          );
         }
 
         // Inject hero data for immediate client-side use (avoids waiting for 2 API calls — already fetched above)

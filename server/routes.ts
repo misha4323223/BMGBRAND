@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { logError, logInfo, logWarn } from "./logger";
 import { config } from "./config";
 import type { Server } from "http";
-import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsByCategory, isProductsCacheWarm, isLoyaltyCountedStatus } from "./storage";
+import { storage, warmRatingsCache, getCachedRawPageSettings, getCachedProductsByCategory, getCachedProductMetaBySlug, isProductsCacheWarm, isLoyaltyCountedStatus } from "./storage";
 import { api } from "@shared/routes";
 import { escapeXml, formatFeedPriceRub, vkFeedDescription } from "@shared/feed-utils";
 import { qualifiesForFreeShipping, getFreeShippingThreshold, resolveFreeShippingThresholds } from "@shared/free-shipping";
@@ -23,6 +23,7 @@ import { computePromoEligibleSubtotal, computePromoDiscount } from "./lib/checko
 import { SIZE_ORDER, STANDARD_CLOTHING_SIZES, sanitizeHtmlBlock, sanitizeJsonLd, sortSizes, normalizeSizeKey, canonicalizeSizeKey, resolveSizeStock, resolveSizeCharacteristicId, isOneCCharacteristicGuid, sanitizeSizes, sanitizeSizeStock } from "./lib/product-utils";
 import { isStockSyncDisabled } from "./lib/manual-stock";
 import { artistRedirectTarget } from "./lib/artist-redirects";
+import { LEGACY_FLAT_REDIRECTS, isHiddenArtistSlug, resolveLegacyUrl } from "./lib/legacy-urls";
 import { registerDadataRoutes } from "./routes/dadata";
 import { registerReviewsRoutes } from "./routes/reviews";
 import { registerPushRoutes } from "./routes/push";
@@ -1458,13 +1459,28 @@ export async function registerRoutes(
     return next();
   });
 
-  // /product/:slug → 301 redirect to /:slug (old URL format)
-  app.get('/product/:slug', async (req, res) => {
-    return res.redirect(301, `/${req.params.slug}`);
-  });
-  app.get('/product/:slug/', async (req, res) => {
-    return res.redirect(301, `/${req.params.slug}`);
-  });
+  // /product/:slug → 301 на живой товар, иначе в раздел каталога или 410.
+  // Легаси-адреса WooCommerce: один переход вместо «301 → 404».
+  function legacyProductDecision(rawSlug: string): { status: 301; target: string } | { status: 410 } {
+    const decision = resolveLegacyUrl(`/product/${rawSlug}`, (slug) => !!getCachedProductMetaBySlug(slug));
+    if (!decision) return { status: 301, target: `/${rawSlug}` };
+    return decision.status === 301 ? decision : { status: 410 };
+  }
+  const legacyProductHandler = ((req: any, res: any) => {
+    const decision = legacyProductDecision(String(req.params?.slug || ""));
+    if (decision.status === 410) {
+      res.status(410).type("text/html").send(
+        '<!doctype html><html lang="ru"><head><meta charset="UTF-8"><meta name="robots" content="noindex">' +
+          '<title>410 — Страница удалена | BOOOMERANGS</title></head><body><h1>410 — Страница удалена</h1>' +
+          '<p>Этого товара больше нет. Возможно, ссылка устарела.</p>' +
+          '<p><a href="/">На главную</a> · <a href="/products">Каталог</a></p></body></html>',
+      );
+      return;
+    }
+    return res.redirect(301, decision.target);
+  }) as import("express").RequestHandler;
+  app.get('/product/:slug', legacyProductHandler);
+  app.get('/product/:slug/', legacyProductHandler);
 
   // /products/:id → resolve product and redirect to /:slug (legacy ID-based URL)
   app.get('/products/:id', async (req, res, next) => {
@@ -1773,7 +1789,7 @@ Sitemap: ${siteUrl}/sitemap.xml
         const artistPages = await storage.getPageSettings("artist_pages") as Record<string, any> | null;
         if (artistPages) {
           const names = Object.entries(artistPages)
-            .filter(([slug]) => !artistRedirectTarget(slug))
+            .filter(([slug]) => !artistRedirectTarget(slug) && !isHiddenArtistSlug(slug))
             .filter(([, v]: [string, any]) => v && v.name)
             .map(([slug, v]: [string, any]) => `- [${v.name}](${llmsBaseUrl}/@${slug})`);
           if (names.length > 0) artistLinks = names.join("\n");
@@ -1984,7 +2000,7 @@ ${productLines || "- (список формируется)"}
         const artistPages = await storage.getPageSettings("artist_pages") as Record<string, any> | null;
         if (artistPages) {
           const names = Object.entries(artistPages)
-            .filter(([slug]) => !artistRedirectTarget(slug))
+            .filter(([slug]) => !artistRedirectTarget(slug) && !isHiddenArtistSlug(slug))
             .filter(([, v]: [string, any]) => v && v.name)
             .map(([slug, v]: [string, any]) => `- [${v.name}](${llmsBaseUrl}/@${slug})`);
           if (names.length > 0) artistLinks = names.join("\n");
@@ -2278,7 +2294,10 @@ ${faqSection}
           if (!subSlug || typeof subSlug !== 'string' || !URL_SAFE_SLUG.test(subSlug)) continue;
           // Подкатегория попадает в sitemap только если в ней есть видимые товары
           if (!productSubPaths.has(`${catCanonicalSlug}/${subSlug}`)) continue;
-          const subUrl = `${baseUrl}/${CYRILLIC_TO_CANONICAL[subSlug] || subSlug}`;
+          const subCanonical = CYRILLIC_TO_CANONICAL[subSlug] || subSlug;
+          // Легаси-дубль подкатегории (например /t-shirt) отдаёт 301 — в sitemap нельзя.
+          if (LEGACY_FLAT_REDIRECTS[subCanonical]) continue;
+          const subUrl = `${baseUrl}/${subCanonical}`;
           if (!seenSubUrls.has(subUrl)) {
             seenSubUrls.add(subUrl);
             xml += `  <url>\n`;
@@ -2308,6 +2327,9 @@ ${faqSection}
       for (const artistSlug of Object.keys(artistPages)) {
         // Служебные дубли (artist-<timestamp>) отдают 301 — в sitemap им нельзя.
         if (artistRedirectTarget(artistSlug)) continue;
+        // Технические/пустые страницы (artist-N, vashana) бот отдаёт как 410 —
+        // в sitemap их быть не должно.
+        if (isHiddenArtistSlug(artistSlug)) continue;
         // Включаем только реальных артистов с заполненным именем — тестовые страницы пропускаем
         const artistData = artistPages[artistSlug];
         const hasRealName = artistData?.name && typeof artistData.name === "string" && artistData.name.trim().length > 0;

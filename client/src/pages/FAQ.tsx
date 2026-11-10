@@ -8,7 +8,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { groupFaqItems, normalizeFaqItems, type FaqItem } from "@shared/faq";
 
 const DEFAULT_FAQ_ITEMS: FaqItem[] = [
@@ -71,6 +71,52 @@ export default function FAQ() {
 
   const faqGroups = useMemo(() => groupFaqItems(faqItems), [faqItems]);
 
+  const chipsRef = useRef<HTMLElement | null>(null);
+
+  // Ряд категорий — обычный контент в потоке. При прокрутке он уходил под
+  // фиксированную полупрозрачную шапку и просвечивал сквозь неё, смешиваясь
+  // с меню навигации. Гасим ряд ДО того, как он дойдёт до шапки: полностью
+  // виден, пока между ним и низом шапки есть его собственная высота, и
+  // растворяется на подходе. Прозрачность выставляется напрямую в стиль,
+  // без state, чтобы прокрутка не перерисовывала компонент на каждом кадре.
+  useEffect(() => {
+    if (faqGroups.length <= 1) return;
+
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const el = chipsRef.current;
+      if (!el) return;
+
+      const header = document.querySelector<HTMLElement>("nav.navbar-glass-dark");
+      // На мобилке шапка уезжает вверх при прокрутке вниз — её низ становится
+      // отрицательным, поэтому прижимаем к нулю и гасим ряд у кромки экрана.
+      const headerBottom = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+      const top = el.getBoundingClientRect().top;
+      const distance = Math.max(1, el.offsetHeight);
+      const opacity = Math.min(1, Math.max(0, (top - headerBottom) / distance));
+
+      el.style.opacity = String(opacity);
+      // Пока ряд погашен, он не должен ловить клики и попадать в tab-порядок:
+      // визуально он уже за шапкой, хотя формально ещё в потоке.
+      const hidden = opacity < 0.05;
+      el.style.visibility = hidden ? "hidden" : "";
+      el.style.pointerEvents = hidden ? "none" : "";
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [faqGroups.length]);
+
   return (
     <div className="min-h-screen bg-background">
       <SEO 
@@ -102,7 +148,11 @@ export default function FAQ() {
           </div>
 
           {faqGroups.length > 1 && (
-            <nav aria-label="Разделы вопросов" className="flex flex-wrap justify-center gap-2 mb-8">
+            <nav
+              ref={chipsRef}
+              aria-label="Разделы вопросов"
+              className="flex flex-wrap justify-center gap-2 mb-8"
+            >
               {faqGroups.map((group) => (
                 <a
                   key={group.anchor}

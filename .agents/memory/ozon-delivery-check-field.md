@@ -3,6 +3,8 @@ name: Ozon delivery protobuf field mapping
 description: Ozon API uses protobuf — decode error CamelCase to find JSON snake_case key; buyer object required for order creation
 ---
 
+> ⚠️ Заметка относится к СТАРОМУ Seller-контуру (`server/ozon-delivery.ts`), не к новому `api-delivery.ozon.ru`.
+
 ## Rule
 Ozon Seller API uses protobuf under the hood. Validation errors like `invalid SomeRequest.FieldName` map to `field_name` in JSON (CamelCase → snake_case).
 

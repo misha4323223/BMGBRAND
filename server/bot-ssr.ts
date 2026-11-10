@@ -41,6 +41,7 @@ import { resolveBlogPostForSsr, parseBlogIndex, blogPageTitle, blogDescriptionFo
 import { sanitizeHtmlBlock } from "./lib/product-utils";
 import { artistRedirectTarget } from "./lib/artist-redirects";
 import { knownCategorySlugs, legacyCategoryParamRedirect } from "./lib/catalog-paths";
+import { isHiddenArtistSlug, resolveLegacyUrl } from "./lib/legacy-urls";
 
 // ─── Bot User-Agent detection ─────────────────────────────────────────────────
 // Only include server-side crawlers and link-preview fetchers.
@@ -2733,6 +2734,23 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
     return next();
   }
 
+  // Легаси-адреса старого сайта (WooCommerce/Tilda, плоские разделы) и
+  // технические варианты slug'ов товаров: один 301 на живую страницу либо 410.
+  // Резолвер общий со static.ts — server/lib/legacy-urls.ts.
+  const legacyDecision = resolveLegacyUrl(reqPath, (slug) => !!getCachedProductMetaBySlug(slug));
+  if (legacyDecision) {
+    if (legacyDecision.status === 301) {
+      res.redirect(301, legacyDecision.target);
+      return;
+    }
+    res.setHeader("X-Bot-SSR", "legacy-gone");
+    res.setHeader("Cache-Control", "no-store");
+    res.status(410).type("text/html").send(
+      renderNotFoundPage("Этой страницы больше нет. Возможно, товар снят с продажи или ссылка устарела.")
+    );
+    return;
+  }
+
   // Легаси `/products?category=<slug>` → канонический `/products/<slug>` (301).
   // Только когда `category` — единственный параметр: фильтры не трогаем (ТЗ п.2).
   const legacyCatRedirect = legacyCategoryParamRedirect(req.originalUrl);
@@ -2844,6 +2862,16 @@ export async function botSsrMiddleware(req: Request, res: Response, next: NextFu
         // Служебный/дублирующий слаг (artist-<timestamp>) → 301 на публичную
         // страницу артиста или подкатегорию. Без этого адрес отдавал 200 и
         // совпадал по title с канонической страницей.
+        // Технические/пустые страницы артистов (artist-N, vashana) не индексируем:
+        // 410 убирает адрес из выдачи быстрее, чем noindex на 200-странице.
+        if (isHiddenArtistSlug(artistSlug)) {
+          res.setHeader("X-Bot-SSR", "hidden-artist");
+          res.setHeader("Cache-Control", "no-store");
+          res.status(410).type("text/html").send(
+            renderNotFoundPage("Страницы артиста по этому адресу нет.")
+          );
+          return;
+        }
         const redirectTarget = artistRedirectTarget(artistSlug);
         if (redirectTarget) {
           res.redirect(301, redirectTarget);

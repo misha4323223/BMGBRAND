@@ -20,7 +20,7 @@
 - [safeQuery silent write failures](safequery-silent-write-failures.md) — page-settings write endpoints can return {success:true} even when the YDB write itself silently timed out
 - [seoBody product field](seo-body-field.md) — per-product SEO HTML block; server strips <title>/downgrades <h1>→<h2>; renders on product page as visible accordion
 - [Yandex Delivery removed](yandex-delivery-removed.md) — ЯД полностью удалена; 9 файлов; секреты YANDEX_DELIVERY_TOKEN/PLATFORM_STATION_ID можно удалить
-- [Ozon Delivery integration](ozon-delivery-integration.md) — Ozon Pay удалён, Ozon Delivery через Seller API OAuth; флаг ozon_delivery_enabled в bonus_settings; Admin UI таб "Интеграции"
+- [Ozon Delivery integration](ozon-delivery-integration.md) — ДВА контура: рабочий api-delivery.ozon.ru (client_credentials, флаг ozon_delivery_api_enabled, check-client перед оплатой, идемпотентность от id заказа) и выключенный старый Seller; ручки, ключи YDB, грабли с testcookie/307
 - [Ozon delivery check field name](ozon-delivery-check-field.md) — /v1/delivery/check uses `client_phone` not `customer_phone`; protobuf error message reveals camelCase field name
 - [Ручные остатки товара](manual-stock-flag.md) — флаг stockSyncDisabled (+ предзаказ) отключает перезапись stock/sizeStock/sizes из 1С и автоскрытие; колонка создаётся на старте
 - [ydb-sdk INT64 не принимает BigInt](ydb-int64-bigint.md) — bigint в INT64-параметре кодируется как 0; createProduct терял stock/wholesalePrice (починено 2026-10-07)

@@ -268,7 +268,7 @@ export function CollabReviewsVault({ artists, artistsLinkUrl, reels, reelsTitle,
 
   return (
     <section
-      className="w-full border-t-2 border-primary"
+      className="w-full overflow-hidden border-t-2 border-primary"
       style={{ background: "radial-gradient(ellipse 100% 60% at 50% 0%, #1c1c1c 0%, #0a0a0a 65%)" }}
       data-testid="section-vault"
     >
@@ -504,8 +504,13 @@ export function CollabReviewsVault({ artists, artistsLinkUrl, reels, reelsTitle,
           прозрачным слоем поверх содержимого и перехватывал бы все тапы/клики.
           В открытом состоянии выключаем ему pointer-events.
         */}
+        {/* overflow-hidden обязателен: при открытии створки уезжают за границы секции
+            (translateX ±101%), а transform расширяет область прокрутки документа —
+            на мобилке из-за этого появлялся горизонтальный скролл и правая створка
+            («Обзоры») торчала справа от страницы. Состояние люка запоминается в
+            localStorage, поэтому у вернувшихся створки разъехались уже при загрузке. */}
         <div
-          className={`absolute inset-0 z-10 flex ${bladesAway ? "vault-blades-away pointer-events-none" : ""}`}
+          className={`absolute inset-0 z-10 flex overflow-hidden ${bladesAway ? "vault-blades-away pointer-events-none" : ""}`}
           aria-hidden="true"
         >
           {/* Левая створка */}
