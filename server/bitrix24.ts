@@ -28,6 +28,8 @@ interface DiscountDetails {
   promoCode?: string | null;
   promoDiscountPercent?: number | null;
   promoDiscountAmount: number;
+  /** Позиции, на которые применён промокод (без товаров со своей скидкой). */
+  promoEligibleItems?: Array<{ productName?: string; size?: string | null; color?: string | null; quantity?: number; price?: number }>;
   loyaltyPercent?: number;
   loyaltyDiscountAmount: number;
   giftCardCode?: string | null;

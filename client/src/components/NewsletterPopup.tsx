@@ -13,7 +13,7 @@ export function NewsletterPopup() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
-  const [promoCode, setPromoCode] = useState("WELCOME10");
+  const [promoCode, setPromoCode] = useState("");
   const [consent, setConsent] = useState(false);
   const [pushStatus, setPushStatus] = useState<PushStatus>("idle");
 
@@ -112,7 +112,7 @@ export function NewsletterPopup() {
 
   return (
     <AnimatePresence>
-      {isVisible && (
+      {isVisible && popupPromo?.code && (
         <>
           <motion.div
             initial={{ opacity: 0 }}
@@ -155,7 +155,7 @@ export function NewsletterPopup() {
                 <div className="px-7 pt-7 pb-6 space-y-5">
                   <div className="text-center">
                     <div className="text-6xl sm:text-7xl font-black text-primary leading-none mb-3 select-none">
-                      -{popupPromo?.discountPercent || 10}%
+                      -{popupPromo?.discountPercent ?? 0}%
                     </div>
                     <h3 className="text-xs font-bold text-white/90 uppercase tracking-[0.2em] mb-2">
                       {popupPromo?.settings?.title || "Эксклюзивное предложение"}
@@ -251,7 +251,7 @@ export function NewsletterPopup() {
                       </h3>
                       <p className="text-white/40 text-sm">
                         {popupPromo?.settings?.successText || "Ваш промокод на скидку"}{" "}
-                        {popupPromo?.discountPercent || 10}%
+                        {popupPromo?.discountPercent ?? 0}%
                       </p>
                     </div>
 

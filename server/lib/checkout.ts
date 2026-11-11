@@ -24,6 +24,11 @@ export function isItemDiscounted(item: PromoItem): boolean {
   );
 }
 
+/** Позиции заказа, к которым применится промокод (товары со своей скидкой — нет). */
+export function selectPromoEligibleItems<T extends PromoItem>(items: T[]): T[] {
+  return items.filter((it) => !isItemDiscounted(it));
+}
+
 /** Сумма позиций, к которым промокод может примениться (без товаров со своей скидкой). */
 export function computePromoEligibleSubtotal(items: PromoItem[]): number {
   return items.reduce((sum, it) => {

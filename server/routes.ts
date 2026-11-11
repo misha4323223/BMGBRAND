@@ -19,7 +19,8 @@ import { queuePreorderStatusEmail } from "./lib/preorder-email-buffer";
 import { resolveItemPrice } from "./lib/pricing";
 import { buildVkFeedPictureUrls, filterExistingVkImages, getOrCreateVkJpeg, vkPictureUrl } from "./lib/vk-image";
 import { publishVkFeedToStorage } from "./vk-feed-mirror";
-import { computePromoEligibleSubtotal, computePromoDiscount } from "./lib/checkout";
+import { computePromoEligibleSubtotal, computePromoDiscount, isItemDiscounted, selectPromoEligibleItems } from "./lib/checkout";
+import { resolveSubscriptionPromo } from "./lib/subscription-promos";
 import { SIZE_ORDER, STANDARD_CLOTHING_SIZES, sanitizeHtmlBlock, sanitizeJsonLd, sortSizes, normalizeSizeKey, canonicalizeSizeKey, resolveSizeStock, resolveSizeCharacteristicId, isOneCCharacteristicGuid, sanitizeSizes, sanitizeSizeStock } from "./lib/product-utils";
 import { isStockSyncDisabled } from "./lib/manual-stock";
 import { artistRedirectTarget } from "./lib/artist-redirects";
@@ -3385,8 +3386,11 @@ ${faqSection}
     }
   });
 
-  // Initialize default promo codes (WELCOME10 for popup, WELCOME7 for homepage)
-  // Store promo IDs in bonus_settings for stable identification
+  // Привязка промокодов попапа и главной к bonus_settings.
+  // ВАЖНО: здесь НИЧЕГО не создаётся. Раньше инициализатор при пустом или
+  // сбойном ответе YDB создавал новый WELCOME10 со скидкой 10 % — после каждого
+  // деплоя попап «возвращался» к 10 %, а в promo_codes копились дубли кода.
+  // Теперь только ищем существующий код (по ID, затем по коду) и чиним привязку.
   (async () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 5000));
@@ -3395,44 +3399,28 @@ ${faqSection}
       const homepagePromoId = await storage.getBonusSetting("homepage_promo_id");
       await new Promise(resolve => setTimeout(resolve, 500));
       const allPromos = await storage.getPromoCodes();
-      
-      // Find or create popup promo
-      let popupPromo = popupPromoId ? allPromos.find((p: any) => String(p.id) === popupPromoId) : null;
-      if (!popupPromo) {
-        popupPromo = allPromos.find((p: any) => p.code === "WELCOME10");
+
+      const popupPromo = resolveSubscriptionPromo(allPromos, popupPromoId, "WELCOME10");
+      if (popupPromo) {
+        if (String(popupPromo.id) !== String(popupPromoId || "")) {
+          await storage.setBonusSetting("popup_promo_id", String(popupPromo.id));
+        }
+        logInfo(`[Init] Popup promo: ${popupPromo.code} (${popupPromo.discountPercent}%), ID ${popupPromo.id}`);
+      } else {
+        logWarn("[Init] Popup promo not found (WELCOME10) — попап скрыт, пока код не создан в админке");
       }
-      if (!popupPromo) {
-        const newPromo = await storage.createPromoCode({
-          code: "WELCOME10",
-          discountPercent: 10,
-          isActive: true,
-        });
-        await storage.setBonusSetting("popup_promo_id", String(newPromo.id));
-        logInfo("[Init] Created WELCOME10 promo code, ID:", newPromo.id);
-      } else if (!popupPromoId) {
-        await storage.setBonusSetting("popup_promo_id", String(popupPromo.id));
-        logInfo("[Init] Stored popup promo ID:", popupPromo.id);
-      }
-      
-      // Find or create homepage promo
-      let homepagePromo = homepagePromoId ? allPromos.find((p: any) => String(p.id) === homepagePromoId) : null;
-      if (!homepagePromo) {
-        homepagePromo = allPromos.find((p: any) => p.code === "WELCOME7");
-      }
-      if (!homepagePromo) {
-        const newPromo = await storage.createPromoCode({
-          code: "WELCOME7",
-          discountPercent: 7,
-          isActive: true,
-        });
-        await storage.setBonusSetting("homepage_promo_id", String(newPromo.id));
-        logInfo("[Init] Created WELCOME7 promo code, ID:", newPromo.id);
-      } else if (!homepagePromoId) {
-        await storage.setBonusSetting("homepage_promo_id", String(homepagePromo.id));
-        logInfo("[Init] Stored homepage promo ID:", homepagePromo.id);
+
+      const homepagePromo = resolveSubscriptionPromo(allPromos, homepagePromoId, "WELCOME7");
+      if (homepagePromo) {
+        if (String(homepagePromo.id) !== String(homepagePromoId || "")) {
+          await storage.setBonusSetting("homepage_promo_id", String(homepagePromo.id));
+        }
+        logInfo(`[Init] Homepage promo: ${homepagePromo.code} (${homepagePromo.discountPercent}%), ID ${homepagePromo.id}`);
+      } else {
+        logWarn("[Init] Homepage promo not found (WELCOME7) — баннер скрыт, пока код не создан в админке");
       }
     } catch (err) {
-      logError("[Init] Failed to create default promo codes:", err);
+      logError("[Init] Failed to bind subscription promo codes:", err);
     }
   })();
 
@@ -10476,6 +10464,9 @@ ${faqSection}
       let promoDiscount = 0;
       const promoCode = req.body.promoCode;
       let appliedPromo: any = null;
+      // Позиции, на которые реально ложится промокод: уведомление в ВК показывает
+      // их отдельным списком, чтобы сумма скидки не выглядела ошибкой.
+      const promoEligibleItems: Array<{ productName: string; size?: string | null; color?: string | null; quantity: number; price: number }> = [];
       if (promoCode) {
         appliedPromo = await storage.getPromoCodeByCode(promoCode);
         if (appliedPromo && appliedPromo.isActive) {
@@ -10520,18 +10511,24 @@ ${faqSection}
                 ((product as any)?.discountPercent > 0) ||
                 (item.size != null && (product as any)?.sizeDiscounts?.[item.size] > 0);
               if (hasProductDiscount) return sum;
+              promoEligibleItems.push({
+                productName: item.productName,
+                size: item.size ?? null,
+                color: item.color ?? null,
+                quantity: item.quantity,
+                price: item.price,
+              });
               return sum + (item.price * item.quantity);
             }, 0);
             if (promoApplicableCategories && promoApplicableCategories.length > 0) {
               logInfo(`[Order] Promo ${promoCode} restricted to categories [${promoApplicableCategories.join(', ')}]: eligibleSubtotal=${eligibleSubtotal/100} RUB`);
             }
             logInfo(`[Order] Promo ${promoCode}: eligibleSubtotal after excluding sale items=${eligibleSubtotal/100} RUB`);
-            if (appliedPromo.discountPercent) {
-              promoDiscount = Math.round(eligibleSubtotal * (appliedPromo.discountPercent / 100));
-            } else if (appliedPromo.discountAmount) {
-              promoDiscount = appliedPromo.discountAmount;
-            }
-            promoDiscount = Math.min(promoDiscount, orderSubtotal);
+            // Процент и фиксированная сумма считаются только от суммы товаров
+            // БЕЗ своей скидки: фикс-сумма не может выйти за её пределы (иначе
+            // она «съедала» бы деньги за товары со скидкой). Хелпер общий с
+            // предзаказами — server/lib/checkout.ts.
+            promoDiscount = computePromoDiscount(appliedPromo, eligibleSubtotal);
             logInfo(`[Order] Applied promo ${promoCode}: -${promoDiscount / 100} RUB`);
           }
         }
@@ -10816,9 +10813,10 @@ ${faqSection}
       const discountDetails = {
         subtotal: orderSubtotal,
         deliveryCost: verifiedDeliveryCost,
-        promoCode: promoCode || null,
-        promoDiscountPercent: appliedPromo?.discountPercent || null,
+        promoCode: promoDiscount > 0 ? (promoCode || null) : null,
+        promoDiscountPercent: promoDiscount > 0 ? (appliedPromo?.discountPercent || null) : null,
         promoDiscountAmount: promoDiscount,
+        promoEligibleItems: promoDiscount > 0 ? promoEligibleItems : [],
         loyaltyPercent: loyaltyPercentApplied,
         loyaltyDiscountAmount: loyaltyDiscountApplied,
         giftCardCode: (giftCardApplied > 0 && giftCardCode) ? giftCardCode : null,
@@ -10891,7 +10889,9 @@ ${faqSection}
 
       const order = await storage.createOrder({
         ...input,
-        promoCode: input.promoCode ?? undefined,
+        // Только если код реально дал скидку: иначе createOrder увеличит
+        // used_count и промокод «сгорит» без выгоды для покупателя.
+        promoCode: promoDiscount > 0 ? (input.promoCode ?? undefined) : undefined,
         total: finalOrderTotal,
         isWholesale: isWholesale || false,
         paymentMethod: paymentMethod,
@@ -12129,11 +12129,17 @@ ${faqSection}
         return res.json({ valid: false, message: `Минимальная сумма заказа: ${minRub} ₽` });
       }
       
+      // Фиксированная сумма не больше суммы товаров БЕЗ своей скидки: отдаём уже
+      // применённую величину, чтобы чекаут не показывал больше, чем спишется.
+      const effectiveDiscountAmount = promo.discountAmount && eligibleAmount != null
+        ? Math.min(promo.discountAmount, eligibleAmount)
+        : promo.discountAmount;
+
       res.json({
         valid: true,
         code: promo.code,
         discountPercent: promo.discountPercent,
-        discountAmount: promo.discountAmount,
+        discountAmount: effectiveDiscountAmount,
         canCombineWithLoyalty: promo.canCombineWithLoyalty,
         applicableCategories,
         eligibleAmount,
@@ -12490,12 +12496,8 @@ ${faqSection}
       
       const allPromos = await storage.getPromoCodes();
       
-      const popupPromo = popupPromoId 
-        ? allPromos.find((p: any) => String(p.id) === popupPromoId)
-        : allPromos.find((p: any) => p.code === "WELCOME10");
-      const homepagePromo = homepagePromoId 
-        ? allPromos.find((p: any) => String(p.id) === homepagePromoId)
-        : allPromos.find((p: any) => p.code === "WELCOME7");
+      const popupPromo = resolveSubscriptionPromo(allPromos, popupPromoId, "WELCOME10");
+      const homepagePromo = resolveSubscriptionPromo(allPromos, homepagePromoId, "WELCOME7");
       
       // New customization fields
       const popupTitle = (await storage.getBonusSetting("popup_title")) || "ЭКСКЛЮЗИВНОЕ ПРЕДЛОЖЕНИЕ";
@@ -12898,6 +12900,12 @@ ${faqSection}
         items: orderItems.map(it => ({ price: it.price, quantity: it.quantity, size: it.size, product })),
       });
       const promoDiscount = promoResult.promoDiscount;
+      // Позиции, на которые лёг промокод (товары со своей скидкой не в счёт):
+      // их перечисляет уведомление в ВК.
+      const promoEligibleItems = promoDiscount > 0
+        ? selectPromoEligibleItems(orderItems.map((it: any) => ({ ...it, product })))
+            .map((it: any) => ({ productName: it.productName, size: it.size ?? null, color: it.color ?? null, quantity: it.quantity, price: it.price }))
+        : [];
       const totalPrice = orderItemsSubtotal + deliveryCost - promoDiscount;
 
       const order = await storage.createOrder({
@@ -12908,10 +12916,10 @@ ${faqSection}
         customerPhone: finalPhone,
         address: address || '',
         items: promoDiscount > 0
-          ? [...orderItems, { _discountDetails: { subtotal: orderItemsSubtotal, deliveryCost, promoCode: promoCode || null, promoDiscountPercent: promoResult.appliedPromo?.discountPercent || null, promoDiscountAmount: promoDiscount, loyaltyPercent: 0, loyaltyDiscountAmount: 0, isWholesale: isWholesaleUser } }]
+          ? [...orderItems, { _discountDetails: { subtotal: orderItemsSubtotal, deliveryCost, promoCode: promoCode || null, promoDiscountPercent: promoResult.appliedPromo?.discountPercent || null, promoDiscountAmount: promoDiscount, promoEligibleItems, loyaltyPercent: 0, loyaltyDiscountAmount: 0, isWholesale: isWholesaleUser } }]
           : orderItems,
         total: totalPrice,
-        promoCode: promoCode || undefined,
+        promoCode: promoDiscount > 0 ? promoCode : undefined,
         userId: user?.id,
       });
 
@@ -13369,6 +13377,12 @@ ${faqSection}
         items: orderItems.map(it => ({ price: it.price, quantity: it.quantity, size: it.size, product: promoProducts[it.productId] })),
       });
       const promoDiscount = promoResult.promoDiscount;
+      // Позиции, на которые лёг промокод (товары со своей скидкой не в счёт):
+      // их перечисляет уведомление в ВК.
+      const promoEligibleItems = promoDiscount > 0
+        ? selectPromoEligibleItems(orderItems.map((it: any) => ({ ...it, product: promoProducts[it.productId] })))
+            .map((it: any) => ({ productName: it.productName, size: it.size ?? null, color: it.color ?? null, quantity: it.quantity, price: it.price }))
+        : [];
       const totalPrice = orderItemsSubtotal + deliveryCost - promoDiscount;
 
       const order = await storage.createOrder({
@@ -13379,10 +13393,10 @@ ${faqSection}
         customerPhone: customerPhone || "",
         address: address || "",
         items: promoDiscount > 0
-          ? [...orderItems, { _discountDetails: { subtotal: orderItemsSubtotal, deliveryCost, promoCode: promoCode || null, promoDiscountPercent: promoResult.appliedPromo?.discountPercent || null, promoDiscountAmount: promoDiscount, loyaltyPercent: 0, loyaltyDiscountAmount: 0, isWholesale: isWholesaleUser } }]
+          ? [...orderItems, { _discountDetails: { subtotal: orderItemsSubtotal, deliveryCost, promoCode: promoCode || null, promoDiscountPercent: promoResult.appliedPromo?.discountPercent || null, promoDiscountAmount: promoDiscount, promoEligibleItems, loyaltyPercent: 0, loyaltyDiscountAmount: 0, isWholesale: isWholesaleUser } }]
           : orderItems,
         total: totalPrice,
-        promoCode: promoCode || undefined,
+        promoCode: promoDiscount > 0 ? promoCode : undefined,
         userId: req.user?.id,
       });
 

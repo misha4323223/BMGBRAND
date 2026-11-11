@@ -226,20 +226,18 @@ export function RadioProvider({ children }: { children: ReactNode }) {
     if (siteIsPlaying && isPlaying) pause();
   }, [siteIsPlaying, isPlaying, pause]);
 
-  // «Сейчас играет» — только пока эфир играет, раз в 25 секунд.
+  // «Сейчас играет» опрашиваем всегда, раз в 25 секунд: название трека должно
+  // быть видно в полоске и до нажатия Play. Сигнал «я слушаю» отправляем только
+  // во время эфира — иначе счётчик считал бы всех, кто просто открыл сайт.
   useEffect(() => {
-    if (!isPlaying) {
-      setNowPlaying(null);
-      setListeners(null);
-      return;
-    }
     let cancelled = false;
     const controller = new AbortController();
     // Тот же анонимный id, что и у корзины: один человек = один слушатель.
     const guestId = getGuestSessionId();
-    const url = guestId
+    const url = isPlaying && guestId
       ? `${RADIO_STATION.nowPlayingUrl}?listener=${encodeURIComponent(guestId)}`
       : RADIO_STATION.nowPlayingUrl;
+    if (!isPlaying) setListeners(null);
 
     const load = async () => {
       try {

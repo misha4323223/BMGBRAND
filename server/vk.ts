@@ -227,13 +227,21 @@ export async function vkNotifyNewOrder(order: OrderNotification): Promise<boolea
     if (wItemDiscount > 0) {
       discParts.push(`🏷 Скидка опт (-${price(wItemDiscount)})`);
     }
-    if (Number.isFinite(discountDetails.promoDiscountAmount) && discountDetails.promoDiscountAmount > 0) {
-      let part = `🏷 ${discountDetails.promoCode || order.promoCode || ""}`;
+    // Промокод: когда известны позиции, на которые он лёг, показываем их
+    // отдельным блоком ниже. Иначе строка «-10% (-169 ₽)» при чеке 2 704 ₽
+    // выглядит ошибкой — скидка считается только от товаров без своей скидки.
+    const promoAmount = Number(discountDetails.promoDiscountAmount) || 0;
+    const promoItems: any[] = Array.isArray(discountDetails.promoEligibleItems)
+      ? discountDetails.promoEligibleItems
+      : [];
+    let promoPart = "";
+    if (promoAmount > 0) {
+      promoPart = `🏷 ${discountDetails.promoCode || order.promoCode || ""}`;
       if (Number.isFinite(discountDetails.promoDiscountPercent) && discountDetails.promoDiscountPercent > 0) {
-        part += ` -${discountDetails.promoDiscountPercent}%`;
+        promoPart += ` -${discountDetails.promoDiscountPercent}%`;
       }
-      part += ` (-${price(discountDetails.promoDiscountAmount)})`;
-      discParts.push(part);
+      promoPart += ` (-${price(promoAmount)})`;
+      if (promoItems.length === 0) discParts.push(promoPart);
     }
     if (Number.isFinite(discountDetails.loyaltyDiscountAmount) && discountDetails.loyaltyDiscountAmount > 0) {
       const pct = Number.isFinite(discountDetails.loyaltyPercent) ? `-${discountDetails.loyaltyPercent}% ` : "";
@@ -244,6 +252,16 @@ export async function vkNotifyNewOrder(order: OrderNotification): Promise<boolea
     }
     if (discParts.length > 0) {
       footer += `💸 Скидка: ${discParts.join("  •  ")}\n`;
+    }
+
+    if (promoPart && promoItems.length > 0) {
+      const promoLines = promoItems.slice(0, 5).map((it: any) => {
+        const meta = [cleanMeta(it.size), cleanMeta(it.color)].filter(Boolean).join("/");
+        const name = shortName(it.productName || "Товар");
+        return `   • ${name}${meta ? ` (${meta})` : ""} ×${it.quantity || 1} — ${price((it.price || 0) * (it.quantity || 1))}`;
+      });
+      if (promoItems.length > 5) promoLines.push(`   • и ещё ${promoItems.length - 5} поз.`);
+      footer += `${promoPart} — только на товары без скидки:\n${promoLines.join("\n")}\n`;
     }
 
     if (!isWh) {
